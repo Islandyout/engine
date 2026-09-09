@@ -98,4 +98,40 @@ Not yet implemented:
 - mouse capture/relative-mode policy, cursor ownership, or haptics;
 - Vulkan instance/surface or rendering.
 
-F4 should build an engine action/binding layer over these device primitives, including contexts, chords, dead-zone/response processing, serialization, and deterministic injection/replay hooks. It should not expose SDL types above the platform backend.
+F3 established the device-level state used by the F4 action and binding layer without exposing SDL types above the platform backend.
+
+## Milestone F4 — Actions, bindings, and deterministic replay
+
+Implemented:
+
+- strong, engine-owned action and input-context identifiers with scalar action values;
+- active binding contexts ordered deterministically by descending priority and identifier, with higher-priority definitions masking lower-priority bindings per action;
+- physical keyboard, mouse buttons and motion/wheel axes, gamepad buttons, and gamepad axes as binding sources;
+- optional gamepad-device selection plus deterministic lowest-device tie breaking for equal-magnitude any-device axes;
+- digital chords/modifiers across keyboard, mouse buttons, and gamepad buttons;
+- configurable dead zones, saturation, linear/squared/cubic response curves, inversion, and scaling;
+- deterministic action held/pressed/released transitions, including same-frame press-and-release taps and context activation changes;
+- gamepad button edges added to the F3 frame state so action transitions are consistent across device classes;
+- versioned input-map serialization with canonical ordering, round-trip stability, and structural/semantic validation;
+- ordered frame-based input replay and injection that resets cleanly and preserves held state across empty frames;
+- dependency-free action/binding/replay tests and continued SDL dummy-driver boundary coverage;
+- Linux Clang presets for both SDL-enabled and SDL-disabled builds;
+- engine version advanced to 0.4.0.
+
+Not yet implemented:
+
+- runtime rebinding capture UI or platform-specific key-name presentation;
+- IME pre-edit/composition UI, virtual keyboard control, mouse capture/relative mode, cursor ownership, or haptics;
+- network input prediction/rollback or replay-file persistence;
+- ECS/world ownership, rendering, physics, assets, or gameplay features.
+
+Recommended F5: establish a narrow ECS/world foundation. Pin and isolate the ECS dependency, define world/entity ownership and component registration, run deterministic fixed-step systems in explicit phases, and cover lifecycle/order behavior in headless tests. Keep rendering, physics, asset cooking, scene authoring, and gameplay outside that milestone.
+
+## F4 verification
+
+- Linux Clang 18.1.3 SDL-enabled configure and strict-warning build completed successfully.
+- All five SDL-enabled tests passed, including the SDL dummy-video platform test and the SDL-to-action boundary assertion.
+- Linux Clang 18.1.3 SDL-disabled configure and strict-warning build completed successfully without fetching or linking SDL.
+- All four dependency-free headless tests passed.
+- The action/binding/replay suite passed deterministic context, chord, device selection, response processing, transition, validation, canonical round-trip, and repeated replay cases.
+- Repository formatting and whitespace/error diff checks passed.
