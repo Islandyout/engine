@@ -10,10 +10,17 @@ enum class PlatformEventType : u8 {
     quit_requested,
     suspended,
     resumed,
+    window_resized,
+    window_pixel_size_changed,
+    window_focus_gained,
+    window_focus_lost,
 };
 
 struct PlatformEvent final {
     PlatformEventType type{PlatformEventType::quit_requested};
+    u32 source_id{};
+    i32 value1{};
+    i32 value2{};
 };
 
 class Platform {
@@ -32,4 +39,3 @@ public:
 };
 
 } // namespace engine
-

@@ -17,7 +17,23 @@
         "CMAKE_CXX_STANDARD": "20",
         "CMAKE_CXX_STANDARD_REQUIRED": "ON",
         "CMAKE_CXX_EXTENSIONS": "OFF",
-        "ENGINE_BUILD_TESTS": "ON"
+        "ENGINE_BUILD_TESTS": "ON",
+        "ENGINE_ENABLE_SDL3": "ON"
+      }
+    },
+    {
+      "name": "windows-mingw-headless",
+      "displayName": "Windows MinGW Headless (Debug)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/windows-mingw-headless",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_CXX_STANDARD": "20",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "ENGINE_BUILD_TESTS": "ON",
+        "ENGINE_ENABLE_SDL3": "OFF"
       }
     },
     {
@@ -30,7 +46,8 @@
         "CMAKE_CXX_STANDARD": "20",
         "CMAKE_CXX_STANDARD_REQUIRED": "ON",
         "CMAKE_CXX_EXTENSIONS": "OFF",
-        "ENGINE_BUILD_TESTS": "ON"
+        "ENGINE_BUILD_TESTS": "ON",
+        "ENGINE_ENABLE_SDL3": "ON"
       }
     },
     {
@@ -44,7 +61,8 @@
         "CMAKE_CXX_STANDARD": "20",
         "CMAKE_CXX_STANDARD_REQUIRED": "ON",
         "CMAKE_CXX_EXTENSIONS": "OFF",
-        "ENGINE_BUILD_TESTS": "ON"
+        "ENGINE_BUILD_TESTS": "ON",
+        "ENGINE_ENABLE_SDL3": "ON"
       }
     }
   ],
@@ -52,6 +70,10 @@
     {
       "name": "windows-mingw",
       "configurePreset": "windows-mingw"
+    },
+    {
+      "name": "windows-mingw-headless",
+      "configurePreset": "windows-mingw-headless"
     },
     {
       "name": "windows-msvc",
@@ -67,6 +89,11 @@
     {
       "name": "windows-mingw",
       "configurePreset": "windows-mingw",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "windows-mingw-headless",
+      "configurePreset": "windows-mingw-headless",
       "output": { "outputOnFailure": true }
     },
     {
