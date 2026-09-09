@@ -25,11 +25,13 @@ enum class ExitReason : u8 {
 struct FixedUpdateContext final {
     u64 tick{};
     FixedStepClock::Duration delta_time{};
+    const InputState& input;
 };
 
 struct RenderContext final {
     u64 frame{};
     f64 interpolation_alpha{};
+    const InputState& input;
 };
 
 class ApplicationCallbacks {
@@ -78,4 +80,3 @@ private:
 [[nodiscard]] std::string_view to_string(ExitReason reason) noexcept;
 
 } // namespace engine
-

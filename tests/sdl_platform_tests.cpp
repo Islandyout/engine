@@ -52,6 +52,23 @@ void hidden_window_lifecycle_and_events() {
     auto* window = static_cast<SDL_Window*>(platform.native_window_handle());
     const SDL_WindowID window_id = SDL_GetWindowID(window);
 
+    SDL_Event key_event{};
+    key_event.type = SDL_EVENT_KEY_DOWN;
+    key_event.key.windowID = window_id;
+    key_event.key.which = 7;
+    key_event.key.scancode = SDL_SCANCODE_A;
+    key_event.key.down = true;
+    require(SDL_PushEvent(&key_event), "test must enqueue a key event");
+    engine::PlatformEvent translated{};
+    require(poll_until_type(platform, engine::PlatformEventType::input, translated),
+            "SDL key event must be translated");
+    require(translated.input.has_value(), "translated input event must carry a payload");
+    const auto* key = std::get_if<engine::KeyEvent>(&*translated.input);
+    require(key && key->key == engine::Key::a && key->device == 7 &&
+                key->action == engine::ButtonAction::pressed,
+            "key translation must use engine-owned physical keys and device IDs");
+    drain_events(platform);
+
     SDL_Event resize_event{};
     resize_event.type = SDL_EVENT_WINDOW_RESIZED;
     resize_event.window.windowID = window_id;
@@ -59,7 +76,6 @@ void hidden_window_lifecycle_and_events() {
     resize_event.window.data2 = 450;
     require(SDL_PushEvent(&resize_event), "test must enqueue a resize event");
 
-    engine::PlatformEvent translated{};
     require(poll_until_type(platform, engine::PlatformEventType::window_resized, translated),
             "SDL resize event must be translated");
     require(translated.type == engine::PlatformEventType::window_resized,

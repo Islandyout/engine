@@ -2,7 +2,7 @@
 
 This repository is the implementation companion to `GAME_ENGINE_BIBLE_v0.6_RESEARCH.md`.
 
-The current milestone is deliberately small: a clean, dependency-free C++20 foundation that can compile and test before renderer, ECS, physics, platform, or game code is introduced.
+The current milestone provides a portable C++20 runtime and an engine-owned input boundary while keeping headless builds independent of SDL.
 
 ## Current foundation
 
@@ -17,6 +17,7 @@ The current milestone is deliberately small: a clean, dependency-free C++20 foun
 - bounded fixed-update/render loop with frame pacing and controlled shutdown
 - SDL3 desktop backend with an owned resizable, high-pixel-density window
 - engine-owned translation for close, suspend/resume, resize, pixel-size, and focus events
+- engine-owned keyboard, text, mouse, touch, and gamepad events with per-frame input state
 - minimal host executable
 - automated core, runtime, and SDL backend tests
 
