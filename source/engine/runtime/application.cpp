@@ -63,14 +63,17 @@ RunResult Application::run() {
         };
 
         auto previous_time = platform_.now();
+        InputState input;
         bool running = true;
         while (running) {
+            input.begin_frame();
             const auto frame_start = platform_.now();
             const auto elapsed = frame_start - previous_time;
             previous_time = frame_start;
 
             PlatformEvent event{};
             while (platform_.poll_event(event)) {
+                if (event.input) input.apply(*event.input);
                 callbacks_.on_event(event);
                 if (event.type == PlatformEventType::quit_requested) {
                     result.reason = ExitReason::requested;
@@ -86,7 +89,7 @@ RunResult Application::run() {
             result.dropped_time += batch.dropped_time;
 
             for (u32 step = 0; step < batch.step_count; ++step) {
-                const FixedUpdateContext context{result.simulation_ticks, config_.fixed_step};
+                const FixedUpdateContext context{result.simulation_ticks, config_.fixed_step, input};
                 const auto control = callbacks_.on_fixed_update(context);
                 ++result.simulation_ticks;
                 if (control == LoopControl::exit) {
@@ -102,6 +105,7 @@ RunResult Application::run() {
             const RenderContext render_context{
                 result.rendered_frames,
                 batch.interpolation_alpha,
+                input,
             };
             if (callbacks_.on_render(render_context) == LoopControl::exit) {
                 result.reason = ExitReason::requested;

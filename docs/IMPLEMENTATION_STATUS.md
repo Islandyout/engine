@@ -79,3 +79,23 @@ Not yet implemented:
 - clipboard, dialogs, filesystem paths, or display enumeration.
 
 The next milestone should establish the input event/state model and SDL translation without leaking SDL keycodes or device handles into gameplay APIs.
+
+## Milestone F3 — Input events and frame state
+
+Implemented:
+
+- engine-owned, SDL-independent events for physical keyboard keys, UTF-8 text, mouse motion/buttons/wheel, touch contacts, and gamepad connection/buttons/axes;
+- deterministic `InputState` frame transitions with persistent held state and per-frame edges, deltas, wheel motion, text, touch activity, and gamepad state;
+- input snapshots supplied to fixed-update and render callbacks while raw events remain available through the platform callback;
+- SDL3 translation confined to the SDL platform library, with device identifiers, normalized gamepad axes, natural wheel direction, and gamepad lifetime management;
+- dependency-free input tests and dummy-video SDL translation coverage;
+- engine version advanced to 0.3.0.
+
+Not yet implemented:
+
+- configurable action mapping, rebinding, dead zones, or input persistence;
+- IME pre-edit/composition UI and virtual keyboard control;
+- mouse capture/relative-mode policy, cursor ownership, or haptics;
+- Vulkan instance/surface or rendering.
+
+F4 should build an engine action/binding layer over these device primitives, including contexts, chords, dead-zone/response processing, serialization, and deterministic injection/replay hooks. It should not expose SDL types above the platform backend.

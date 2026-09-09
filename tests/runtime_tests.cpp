@@ -142,7 +142,7 @@ void fixed_update_exit_counts_executed_tick() {
 
 void platform_event_requests_exit() {
     ManualPlatform platform;
-    platform.events.push_back({engine::PlatformEventType::quit_requested});
+    platform.events.push_back(engine::PlatformEvent{engine::PlatformEventType::quit_requested, 0, 0, 0, std::nullopt});
     RecordingCallbacks callbacks;
 
     const auto result = engine::Application{platform, callbacks, test_config()}.run();

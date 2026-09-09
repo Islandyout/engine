@@ -8,14 +8,59 @@
 #include <string>
 #include <thread>
 #include <utility>
+#include <vector>
 
 namespace engine {
+namespace {
+
+Key translate_key(const SDL_Scancode code) {
+    if (code >= SDL_SCANCODE_A && code <= SDL_SCANCODE_Z)
+        return static_cast<Key>(static_cast<int>(Key::a) + code - SDL_SCANCODE_A);
+    if (code >= SDL_SCANCODE_1 && code <= SDL_SCANCODE_9)
+        return static_cast<Key>(static_cast<int>(Key::digit1) + code - SDL_SCANCODE_1);
+    switch (code) {
+    case SDL_SCANCODE_0: return Key::digit0;
+    case SDL_SCANCODE_ESCAPE: return Key::escape;
+    case SDL_SCANCODE_RETURN: return Key::enter;
+    case SDL_SCANCODE_TAB: return Key::tab;
+    case SDL_SCANCODE_BACKSPACE: return Key::backspace;
+    case SDL_SCANCODE_SPACE: return Key::space;
+    case SDL_SCANCODE_LEFT: return Key::left;
+    case SDL_SCANCODE_RIGHT: return Key::right;
+    case SDL_SCANCODE_UP: return Key::up;
+    case SDL_SCANCODE_DOWN: return Key::down;
+    case SDL_SCANCODE_LSHIFT: return Key::left_shift;
+    case SDL_SCANCODE_RSHIFT: return Key::right_shift;
+    case SDL_SCANCODE_LCTRL: return Key::left_control;
+    case SDL_SCANCODE_RCTRL: return Key::right_control;
+    case SDL_SCANCODE_LALT: return Key::left_alt;
+    case SDL_SCANCODE_RALT: return Key::right_alt;
+    default:
+        if (code >= SDL_SCANCODE_F1 && code <= SDL_SCANCODE_F12)
+            return static_cast<Key>(static_cast<int>(Key::f1) + code - SDL_SCANCODE_F1);
+        return Key::unknown;
+    }
+}
+
+bool translate_mouse_button(Uint8 source, MouseButton& target) {
+    switch (source) {
+    case SDL_BUTTON_LEFT: target = MouseButton::left; return true;
+    case SDL_BUTTON_MIDDLE: target = MouseButton::middle; return true;
+    case SDL_BUTTON_RIGHT: target = MouseButton::right; return true;
+    case SDL_BUTTON_X1: target = MouseButton::extra1; return true;
+    case SDL_BUTTON_X2: target = MouseButton::extra2; return true;
+    default: return false;
+    }
+}
+
+} // namespace
 
 struct SdlPlatform::Impl final {
     explicit Impl(SdlPlatformConfig value) : config(std::move(value)) {}
 
     SdlPlatformConfig config;
     SDL_Window* window{};
+    std::vector<SDL_Gamepad*> gamepads;
     bool initialized{};
 };
 
@@ -38,7 +83,7 @@ bool SdlPlatform::initialize() {
         Logger::instance().log(LogLevel::warning, "platform.sdl", SDL_GetError());
     }
 
-    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_GAMEPAD)) {
         Logger::instance().log(LogLevel::error, "platform.sdl", SDL_GetError());
         return false;
     }
@@ -75,6 +120,8 @@ void SdlPlatform::shutdown() noexcept {
         return;
     }
 
+    for (auto* gamepad : impl_->gamepads) SDL_CloseGamepad(gamepad);
+    impl_->gamepads.clear();
     if (impl_->window != nullptr) {
         SDL_DestroyWindow(impl_->window);
         impl_->window = nullptr;
@@ -89,6 +136,7 @@ bool SdlPlatform::poll_event(PlatformEvent& event) {
         event.source_id = 0;
         event.value1 = 0;
         event.value2 = 0;
+        event.input.reset();
 
         switch (sdl_event.type) {
         case SDL_EVENT_QUIT:
@@ -126,6 +174,87 @@ bool SdlPlatform::poll_event(PlatformEvent& event) {
         case SDL_EVENT_WINDOW_FOCUS_LOST:
             event.type = PlatformEventType::window_focus_lost;
             event.source_id = sdl_event.window.windowID;
+            return true;
+        case SDL_EVENT_KEY_DOWN:
+        case SDL_EVENT_KEY_UP:
+            event.type = PlatformEventType::input;
+            event.source_id = sdl_event.key.windowID;
+            event.input = KeyEvent{sdl_event.key.which, translate_key(sdl_event.key.scancode),
+                                   sdl_event.key.down ? ButtonAction::pressed : ButtonAction::released,
+                                   sdl_event.key.repeat};
+            return true;
+        case SDL_EVENT_TEXT_INPUT:
+            event.type = PlatformEventType::input;
+            event.source_id = sdl_event.text.windowID;
+            event.input = TextInputEvent{0, sdl_event.text.text ? sdl_event.text.text : ""};
+            return true;
+        case SDL_EVENT_MOUSE_MOTION:
+            event.type = PlatformEventType::input; event.source_id = sdl_event.motion.windowID;
+            event.input = MouseMotionEvent{sdl_event.motion.which, sdl_event.motion.x, sdl_event.motion.y,
+                                           sdl_event.motion.xrel, sdl_event.motion.yrel};
+            return true;
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+        case SDL_EVENT_MOUSE_BUTTON_UP: {
+            MouseButton button{};
+            if (!translate_mouse_button(sdl_event.button.button, button)) break;
+            event.type = PlatformEventType::input; event.source_id = sdl_event.button.windowID;
+            event.input = MouseButtonEvent{sdl_event.button.which, button,
+                sdl_event.button.down ? ButtonAction::pressed : ButtonAction::released,
+                sdl_event.button.clicks, sdl_event.button.x, sdl_event.button.y};
+            return true;
+        }
+        case SDL_EVENT_MOUSE_WHEEL: {
+            const f32 direction = sdl_event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.0F : 1.0F;
+            event.type = PlatformEventType::input; event.source_id = sdl_event.wheel.windowID;
+            event.input = MouseWheelEvent{sdl_event.wheel.which, direction * sdl_event.wheel.x,
+                                          direction * sdl_event.wheel.y};
+            return true;
+        }
+        case SDL_EVENT_FINGER_DOWN:
+        case SDL_EVENT_FINGER_MOTION:
+        case SDL_EVENT_FINGER_UP:
+        case SDL_EVENT_FINGER_CANCELED: {
+            TouchPhase phase = TouchPhase::moved;
+            if (sdl_event.type == SDL_EVENT_FINGER_DOWN) phase = TouchPhase::began;
+            else if (sdl_event.type == SDL_EVENT_FINGER_UP) phase = TouchPhase::ended;
+            else if (sdl_event.type == SDL_EVENT_FINGER_CANCELED) phase = TouchPhase::cancelled;
+            event.type = PlatformEventType::input; event.source_id = sdl_event.tfinger.windowID;
+            event.input = TouchEvent{static_cast<u64>(sdl_event.tfinger.touchID),
+                static_cast<u64>(sdl_event.tfinger.fingerID), phase, sdl_event.tfinger.x,
+                sdl_event.tfinger.y, sdl_event.tfinger.dx, sdl_event.tfinger.dy, sdl_event.tfinger.pressure};
+            return true;
+        }
+        case SDL_EVENT_GAMEPAD_ADDED:
+            event.type = PlatformEventType::input;
+            if (auto* gamepad = SDL_OpenGamepad(sdl_event.gdevice.which)) impl_->gamepads.push_back(gamepad);
+            event.input = GamepadConnectionEvent{static_cast<u64>(sdl_event.gdevice.which),
+                GamepadConnection::connected};
+            return true;
+        case SDL_EVENT_GAMEPAD_REMOVED:
+            event.type = PlatformEventType::input;
+            for (auto iterator = impl_->gamepads.begin(); iterator != impl_->gamepads.end(); ++iterator) {
+                if (SDL_GetGamepadID(*iterator) == sdl_event.gdevice.which) {
+                    SDL_CloseGamepad(*iterator); impl_->gamepads.erase(iterator); break;
+                }
+            }
+            event.input = GamepadConnectionEvent{static_cast<u64>(sdl_event.gdevice.which),
+                GamepadConnection::disconnected};
+            return true;
+        case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+        case SDL_EVENT_GAMEPAD_BUTTON_UP:
+            if (sdl_event.gbutton.button >= SDL_GAMEPAD_BUTTON_DPAD_RIGHT + 1) break;
+            event.type = PlatformEventType::input;
+            event.input = GamepadButtonEvent{static_cast<u64>(sdl_event.gbutton.which),
+                static_cast<GamepadButton>(sdl_event.gbutton.button),
+                sdl_event.gbutton.down ? ButtonAction::pressed : ButtonAction::released};
+            return true;
+        case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+            if (sdl_event.gaxis.axis >= SDL_GAMEPAD_AXIS_COUNT) break;
+            event.type = PlatformEventType::input;
+            event.input = GamepadAxisEvent{static_cast<u64>(sdl_event.gaxis.which),
+                static_cast<GamepadAxis>(sdl_event.gaxis.axis),
+                sdl_event.gaxis.value < 0 ? static_cast<f32>(sdl_event.gaxis.value) / 32768.0F
+                                          : static_cast<f32>(sdl_event.gaxis.value) / 32767.0F};
             return true;
         default:
             break;
