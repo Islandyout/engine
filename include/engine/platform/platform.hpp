@@ -1,8 +1,10 @@
 #pragma once
 
 #include "engine/core/types.hpp"
+#include "engine/input/input.hpp"
 
 #include <chrono>
+#include <optional>
 
 namespace engine {
 
@@ -14,6 +16,7 @@ enum class PlatformEventType : u8 {
     window_pixel_size_changed,
     window_focus_gained,
     window_focus_lost,
+    input,
 };
 
 struct PlatformEvent final {
@@ -21,6 +24,7 @@ struct PlatformEvent final {
     u32 source_id{};
     i32 value1{};
     i32 value2{};
+    std::optional<InputEvent> input;
 };
 
 class Platform {
