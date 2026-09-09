@@ -15,8 +15,10 @@ The current milestone is deliberately small: a clean, dependency-free C++20 foun
 - platform-independent application lifecycle and event contract
 - deterministic headless platform for tests and dedicated-server foundations
 - bounded fixed-update/render loop with frame pacing and controlled shutdown
+- SDL3 desktop backend with an owned resizable, high-pixel-density window
+- engine-owned translation for close, suspend/resume, resize, pixel-size, and focus events
 - minimal host executable
-- dependency-free automated core and runtime tests
+- automated core, runtime, and SDL backend tests
 
 ## Build on this PC
 
@@ -30,4 +32,32 @@ ctest --preset windows-mingw
 
 The `windows-msvc` preset is retained for machines with a complete Visual Studio C++ workload and Windows SDK. `tools\build_msvc.cmd` is a diagnostic fallback for that toolchain.
 
+The no-SDL configuration verifies that dedicated-server and automation builds remain independent of desktop libraries:
+
+```bat
+cmake --preset windows-mingw-headless
+cmake --build --preset windows-mingw-headless
+ctest --preset windows-mingw-headless
+```
+
 Generated output belongs under `build/` or `out/` and is excluded from source control.
+
+## Run
+
+Open the desktop engine host and close it with the normal window close button:
+
+```bat
+build\windows-mingw\engine_host.exe
+```
+
+Run without a window for dedicated-server or automation work:
+
+```bat
+build\windows-mingw\engine_host.exe --headless
+```
+
+Run a hidden four-tick SDL startup/shutdown check:
+
+```bat
+build\windows-mingw\engine_host.exe --smoke
+```

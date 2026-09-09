@@ -57,3 +57,25 @@ Implemented:
 - deterministic manual-platform lifecycle tests covering frame limits, requested exit, platform quit, startup failure, and exceptions.
 
 The next platform milestone is an SDL3-backed desktop implementation with a real window and input/event translation. It remains behind the same platform interface so tests and dedicated servers do not require SDL.
+
+## Milestone F2 — SDL3 desktop platform
+
+Implemented:
+
+- SDL 3.4.14 pinned through CMake FetchContent;
+- static, reduced-subsystem SDL build for the current window/event requirement;
+- owned 1280×720 resizable, high-pixel-density desktop window;
+- engine event translation for application quit, window close, suspend/resume, logical resize, pixel resize, and focus changes;
+- opaque window handle for the future Vulkan surface integration boundary;
+- windowed, headless, and hidden smoke-test host modes;
+- dummy-video SDL tests that create and destroy a window and validate resize/close translation;
+- engine version advanced to 0.2.0.
+
+Not yet implemented:
+
+- keyboard, mouse, text, touch, or gamepad input state;
+- Vulkan instance/surface or rendering;
+- multi-window ownership;
+- clipboard, dialogs, filesystem paths, or display enumeration.
+
+The next milestone should establish the input event/state model and SDL translation without leaking SDL keycodes or device handles into gameplay APIs.
