@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(GameEngine
-    VERSION 0.4.0
+    VERSION 0.5.0
     DESCRIPTION "AI-operable high-performance game engine"
     LANGUAGES CXX
 )
@@ -83,6 +83,15 @@ target_compile_features(engine_runtime PUBLIC cxx_std_20)
 target_link_libraries(engine_runtime PUBLIC GameEngine::Core GameEngine::Platform)
 engine_set_project_warnings(engine_runtime)
 
+add_library(engine_world STATIC
+    source/engine/world/world.cpp
+    source/engine/world/fixed_systems.cpp
+)
+add_library(GameEngine::World ALIAS engine_world)
+target_link_libraries(engine_world PUBLIC GameEngine::Runtime)
+target_compile_features(engine_world PUBLIC cxx_std_20)
+engine_set_project_warnings(engine_world)
+
 add_executable(engine_host
     apps/engine_host/main.cpp
 )
@@ -96,6 +105,11 @@ engine_set_project_warnings(engine_host)
 
 if(ENGINE_BUILD_TESTS)
     enable_testing()
+
+    add_executable(engine_world_tests tests/world_tests.cpp)
+    target_link_libraries(engine_world_tests PRIVATE GameEngine::World)
+    engine_set_project_warnings(engine_world_tests)
+    add_test(NAME engine_world_tests COMMAND engine_world_tests)
 
     add_executable(engine_core_tests
         tests/core_tests.cpp
