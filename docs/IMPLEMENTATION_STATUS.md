@@ -161,7 +161,7 @@ See [WORLD_FOUNDATION.md](WORLD_FOUNDATION.md) for the complete contract and lim
 Rendering, physics, planets, scene authoring, hierarchy, assets, jobs, and gameplay remain outside
 F5. No uploaded Aether implementation was imported.
 
-### F5 verification and remaining gate
+### F5 verification
 
 - GCC 13.3.0 / CMake 4.4.3 / Ninja 1.13.2: strict-warning SDL-disabled build passed; all 5 CTest tests passed.
 - GCC 13.3.0: SDL-enabled build passed with SDL 3.4.14's dummy/offscreen backends; all 6 CTest tests passed,
@@ -173,12 +173,13 @@ F5. No uploaded Aether implementation was imported.
 - SDL dummy-driver host smoke passed: version 0.5.0, 4 ticks, 4 frames, clean shutdown.
 - Clang-format 18.1.8 checks passed on all new C++ files using the explicit style recorded in
   `F5_PULL_REQUEST.md`; Git whitespace/error diff checks passed.
-- Linux Clang verification remains blocked: the previous session's Clang installation is absent,
-  and system package installation encountered a permission restriction. No permission bypass was attempted.
-- F5 is published as a review branch stacked on F4. Hosted Clang SDL-enabled and SDL-disabled
-  checks are pending; neither milestone is merged.
+- Hosted Ubuntu 24.04 Clang 18.1.3 verification passed on published commit `0b38327`:
+  SDL-disabled 5/5 tests, SDL-enabled 6/6 tests, dummy-driver smoke (4 ticks/4 frames), and diff checks.
+  This closes the earlier local Clang/toolchain blocker.
+- Verification run: https://github.com/Islandyout/engine/actions/runs/34502950596
+- F5 is published as PR #7 stacked on F4 PR #6. Neither milestone is merged.
 
-Recommended F6, after closing F5's verification gate: a focused ECS backend evaluation and
+Recommended F6, after F5 review: a focused ECS backend evaluation and
 integration milestone. Measure representative component/query workloads, decide whether to
 adopt the planned Flecs backend, and preserve the F5 ownership and deterministic-order tests.
 Do not bundle rendering, physics, planets, or scene authoring into that backend decision.

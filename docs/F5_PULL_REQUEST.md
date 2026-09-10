@@ -18,7 +18,7 @@ as part of this change. Rebase onto the approved F4 mainline before a main-targe
 ## Scope exclusions
 
 No rendering, physics, planets, scene authoring, hierarchy, jobs, asset pipeline, or gameplay.
-No Aether source import or F4 merge. F5 is published as a stacked pull request; hosted checks are pending.
+No Aether source import or F4 merge. F5 is published as a stacked pull request; hosted Clang checks passed.
 
 ## Verification
 
@@ -28,10 +28,10 @@ No Aether source import or F4 merge. F5 is published as a stacked pull request; 
 - World suite: 100 consecutive repetitions passed.
 - SDL dummy-driver smoke: 4 ticks, 4 frames, clean shutdown, version 0.5.0.
 - New C++ files pass clang-format 18.1.8; Git diff whitespace/error checks pass.
-- Linux Clang SDL-enabled/headless presets: **hosted verification pending**. Toolchain and desktop
-  development packages need a provisioned environment; system package operations were permission-blocked.
+- Hosted Ubuntu 24.04 Clang 18.1.3: headless 5/5 and SDL-enabled 6/6 tests passed on `0b38327`,
+  including dummy-driver smoke and diff checks. Run: https://github.com/Islandyout/engine/actions/runs/34502950596
 
-Do not approve as fully verified until both Clang preset gates pass. See
+Both hosted Clang gates now pass; the earlier local toolchain blocker is closed. See
 `IMPLEMENTATION_STATUS.md` for verification details and `WORLD_FOUNDATION.md` for API semantics.
 
 ## Reproduction commands
