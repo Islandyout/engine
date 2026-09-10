@@ -2,7 +2,7 @@
 
 This repository is the implementation companion to `GAME_ENGINE_BIBLE_v0.6_RESEARCH.md`.
 
-Version 0.4.0 provides a portable C++20 runtime and an engine-owned action and input-binding layer while keeping headless builds independent of SDL.
+Version 0.5.0 adds world-owned entities, typed components, and deterministic fixed-step system phases to the portable C++20 runtime. Headless builds remain independent of SDL and external ECS libraries.
 
 ## Current foundation
 
@@ -22,8 +22,11 @@ Version 0.4.0 provides a portable C++20 runtime and an engine-owned action and i
 - keyboard, mouse, and gamepad bindings with digital chords and optional device selection
 - configurable dead zones, saturation, linear/squared/cubic response, inversion, and scaling
 - deterministic action press/release transitions, canonical validated persistence, and frame replay injection
+- isolated world ownership, non-reused entity handles, and explicit typed component registration
+- creation-ordered query snapshots and FIFO deferred structural changes
+- fixed systems ordered by phase, numeric order, and stable name
 - minimal host executable
-- automated core, input/action, runtime, and SDL backend tests
+- automated core, input/action, world, runtime, and SDL backend tests
 
 ## Build on this PC
 
@@ -54,6 +57,34 @@ Equivalent Linux Clang presets are `linux-clang` and `linux-clang-headless`.
 `serialize_input_map` writes the versioned, canonical `game_engine_input_map 1` format. `deserialize_input_map` rejects malformed records, duplicate or invalid identifiers, undeclared references, invalid device controls, duplicate chord members, non-finite processor values, and invalid dead-zone/saturation ranges. `InputReplay` injects ordered event frames into a resettable `InputState` for deterministic headless tests.
 
 Generated output belongs under `build/` or `out/` and is excluded from source control.
+
+## Worlds and fixed systems
+
+Link `GameEngine::World` and include `engine/world/fixed_systems.hpp`. Own a `World` and
+`FixedSystems` in your application callbacks; register components and systems before running,
+then call `systems.run(world, context)` exactly once from `on_fixed_update`. Do not call it
+from `on_render`. The existing application loop remains the only time accumulator.
+
+```cpp
+struct Counter { int ticks{}; };
+world.register_component<Counter>("counter");
+const auto entity = world.create();
+world.set(entity, Counter{});
+systems.add("counter.advance", engine::FixedPhase::update, 0,
+    [](engine::World& current, const engine::FixedUpdateContext&) {
+        for (const auto item : current.query<Counter>()) {
+            ++current.get<Counter>(item)->ticks;
+        }
+    });
+```
+
+Systems execute in `begin`, `update`, then `end` phases. Within each phase, ascending
+numeric order and lexical system name determine execution, independently of registration
+order. Direct component-value edits are visible immediately; entity creation/destruction
+and component insertion/removal must use `defer_create`, `defer_destroy`, `defer_set`, and
+`defer_remove` during execution. Queued changes commit before the first phase and after
+each phase. See [the F5 contract](docs/WORLD_FOUNDATION.md) for ownership, reset, pointer
+lifetime, errors, determinism limits, and backend decisions.
 
 ## Run
 

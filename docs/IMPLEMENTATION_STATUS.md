@@ -135,3 +135,50 @@ Recommended F5: establish a narrow ECS/world foundation. Pin and isolate the ECS
 - All four dependency-free headless tests passed.
 - The action/binding/replay suite passed deterministic context, chord, device selection, response processing, transition, validation, canonical round-trip, and repeated replay cases.
 - Repository formatting and whitespace/error diff checks passed.
+
+## Milestone F5 — World ownership and fixed systems
+
+Implemented in version 0.5.0:
+
+- a separate `GameEngine::World` module, with no SDL or external ECS dependency;
+- noncopyable/nonmovable worlds and opaque transient entity handles with unique world ownership;
+- monotonically allocated, never-reused entity serials, including across reset, with exhaustion checks;
+- explicit typed component registration, validated unique names, and stable registration metadata;
+- const/mutable component access and creation-ordered, caller-owned query snapshots;
+- FIFO deferred entity creation/destruction and component insertion/replacement/removal;
+- reset that clears entities, values, and pending commands while preserving component registration;
+- sequential `begin`, `update`, and `end` fixed phases with ascending order/name tie-breaking;
+- explicit between-tick system activation and rejection of structural mutation or recursive execution during callbacks;
+- integration through the existing application's fixed-update context, without a second time accumulator;
+- explicit exception behavior: discard uncommitted work, release guards, propagate the error, and retain completed work;
+- deterministic tests for stale/null/foreign handles, reset, deferred ordering, resource ownership,
+  phase visibility, registration-order independence, exceptions, and multiple render cadences.
+
+Backend decision: the earlier Flecs introduction is deferred. Ordered standard-library storage
+establishes a dependency-free correctness baseline, not a production-performance archetype ECS.
+See [WORLD_FOUNDATION.md](WORLD_FOUNDATION.md) for the complete contract and limitations.
+
+Rendering, physics, planets, scene authoring, hierarchy, assets, jobs, and gameplay remain outside
+F5. No uploaded Aether implementation was imported.
+
+### F5 verification and remaining gate
+
+- GCC 13.3.0 / CMake 4.4.3 / Ninja 1.13.2: strict-warning SDL-disabled build passed; all 5 CTest tests passed.
+- GCC 13.3.0: SDL-enabled build passed with SDL 3.4.14's dummy/offscreen backends; all 6 CTest tests passed,
+  including the existing SDL dummy-driver input/action boundary coverage.
+- SDL configuration used the existing pinned source checkout and `SDL_UNIX_CONSOLE_BUILD=ON` because
+  this session lacks X11/Wayland development packages. This is not desktop-window verification.
+- The world suite passed 100 consecutive repetitions. The GCC undefined-behavior-sanitized
+  headless build passed all 5 tests with `-fsanitize=undefined -fno-sanitize-recover=all`.
+- SDL dummy-driver host smoke passed: version 0.5.0, 4 ticks, 4 frames, clean shutdown.
+- Clang-format 18.1.8 checks passed on all new C++ files using the explicit style recorded in
+  `F5_PULL_REQUEST.md`; Git whitespace/error diff checks passed.
+- Linux Clang verification remains blocked: the previous session's Clang installation is absent,
+  and system package installation encountered a permission restriction. No permission bypass was attempted.
+- F5 is published as a review branch stacked on F4. Hosted Clang SDL-enabled and SDL-disabled
+  checks are pending; neither milestone is merged.
+
+Recommended F6, after closing F5's verification gate: a focused ECS backend evaluation and
+integration milestone. Measure representative component/query workloads, decide whether to
+adopt the planned Flecs backend, and preserve the F5 ownership and deterministic-order tests.
+Do not bundle rendering, physics, planets, or scene authoring into that backend decision.
