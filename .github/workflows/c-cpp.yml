@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, codex/f4-action-input-bindings]
   workflow_dispatch:
 
 permissions:
