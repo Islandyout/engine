@@ -1,23 +1,61 @@
-name: C/C++ CI
+name: Game Engine CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
+    name: Linux Clang (SDL ${{ matrix.sdl }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        sdl: ['ON', 'OFF']
+    env:
+      CC: clang
+      CXX: clang++
 
     steps:
-    - uses: actions/checkout@v4
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y clang cmake ninja-build pkg-config
+      - name: Install SDL desktop development dependencies
+        if: matrix.sdl == 'ON'
+        run: |
+          sudo apt-get install --no-install-recommends -y \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev \
+            libxi-dev libxss-dev libxtst-dev libxkbcommon-dev libxkbcommon-x11-dev \
+            libwayland-dev libudev-dev libgl1-mesa-dev libegl1-mesa-dev \
+            libdrm-dev libgbm-dev
+      - name: Configure
+        run: >-
+          cmake --preset linux-clang -B build/ci-${{ matrix.sdl }}
+          -DENGINE_ENABLE_SDL3=${{ matrix.sdl }}
+          -DENGINE_BUILD_TESTS=ON -DENGINE_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build/ci-${{ matrix.sdl }} --parallel 2
+      - name: Test
+        run: ctest --test-dir build/ci-${{ matrix.sdl }} --output-on-failure --no-tests=error
+      - name: SDL dummy-driver smoke
+        if: matrix.sdl == 'ON'
+        env:
+          SDL_VIDEODRIVER: dummy
+        run: ./build/ci-ON/engine_host --smoke
+      - name: Check patch whitespace
+        run: git diff --check HEAD^ HEAD
