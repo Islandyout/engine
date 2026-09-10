@@ -29,6 +29,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - name: Install build tools
         run: |
           sudo apt-get update
@@ -56,4 +58,4 @@ jobs:
           SDL_VIDEODRIVER: dummy
         run: ./build/ci-ON/engine_host --smoke
       - name: Check patch whitespace
-        run: git show --format= --check HEAD
+        run: git diff --check HEAD^ HEAD
