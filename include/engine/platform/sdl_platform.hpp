@@ -1,5 +1,6 @@
 #pragma once
 
+#include "engine/core/version.hpp"
 #include "engine/platform/platform.hpp"
 
 #include <memory>
@@ -9,7 +10,7 @@ namespace engine {
 
 struct SdlPlatformConfig final {
     std::string application_name{"Game Engine"};
-    std::string application_version{"0.3.0"};
+    std::string application_version{ENGINE_VERSION_STRING};
     std::string application_identifier{"com.islandyout.gameengine"};
     i32 window_width{1280};
     i32 window_height{720};

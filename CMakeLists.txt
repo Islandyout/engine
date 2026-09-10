@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(GameEngine
-    VERSION 0.3.0
+    VERSION 0.4.0
     DESCRIPTION "AI-operable high-performance game engine"
     LANGUAGES CXX
 )
@@ -19,6 +19,7 @@ if(ENGINE_ENABLE_SDL3)
 endif()
 
 add_library(engine_core STATIC
+    source/engine/input/actions.cpp
     source/engine/input/input.cpp
     source/engine/core/fixed_step_clock.cpp
     source/engine/core/log.cpp
@@ -109,6 +110,11 @@ if(ENGINE_BUILD_TESTS)
     target_link_libraries(engine_input_tests PRIVATE GameEngine::Core)
     engine_set_project_warnings(engine_input_tests)
     add_test(NAME engine_input_tests COMMAND engine_input_tests)
+
+    add_executable(engine_action_tests tests/action_tests.cpp)
+    target_link_libraries(engine_action_tests PRIVATE GameEngine::Core)
+    engine_set_project_warnings(engine_action_tests)
+    add_test(NAME engine_action_tests COMMAND engine_action_tests)
 
     add_executable(engine_runtime_tests
         tests/runtime_tests.cpp

@@ -1,3 +1,4 @@
+#include "engine/input/actions.hpp"
 #include "engine/platform/sdl_platform.hpp"
 
 #include <SDL3/SDL.h>
@@ -20,10 +21,8 @@ void drain_events(engine::SdlPlatform& platform) {
     }
 }
 
-bool poll_until_type(
-    engine::SdlPlatform& platform,
-    const engine::PlatformEventType expected,
-    engine::PlatformEvent& event) {
+bool poll_until_type(engine::SdlPlatform& platform, const engine::PlatformEventType expected,
+                     engine::PlatformEvent& event) {
     constexpr int maximum_events = 32;
     for (int index = 0; index < maximum_events; ++index) {
         if (!platform.poll_event(event)) {
@@ -64,9 +63,22 @@ void hidden_window_lifecycle_and_events() {
             "SDL key event must be translated");
     require(translated.input.has_value(), "translated input event must carry a payload");
     const auto* key = std::get_if<engine::KeyEvent>(&*translated.input);
-    require(key && key->key == engine::Key::a && key->device == 7 &&
-                key->action == engine::ButtonAction::pressed,
+    require(key && key->key == engine::Key::a && key->device == 7 && key->action == engine::ButtonAction::pressed,
             "key translation must use engine-owned physical keys and device IDs");
+
+    engine::InputState input;
+    input.begin_frame();
+    input.apply(*translated.input);
+    engine::ActionSystem actions{
+        engine::InputMap{{engine::ActionId{"accept"}},
+                         {{engine::InputContextId{"test"},
+                           0,
+                           true,
+                           {{engine::ActionId{"accept"}, engine::KeyBinding{engine::Key::a}, {}, {}}}}}}};
+    actions.update(input);
+    require(actions.state(engine::ActionId{"accept"}).pressed,
+            "translated SDL input must drive an engine-owned action without SDL "
+            "types");
     drain_events(platform);
 
     SDL_Event resize_event{};
@@ -81,8 +93,7 @@ void hidden_window_lifecycle_and_events() {
     require(translated.type == engine::PlatformEventType::window_resized,
             "resize event must retain its engine event type");
     require(translated.source_id == window_id, "resize event must retain its window ID");
-    require(translated.value1 == 800 && translated.value2 == 450,
-            "resize event must retain its dimensions");
+    require(translated.value1 == 800 && translated.value2 == 450, "resize event must retain its dimensions");
     drain_events(platform);
 
     SDL_Event quit_event{};
@@ -91,8 +102,7 @@ void hidden_window_lifecycle_and_events() {
     require(SDL_PushEvent(&quit_event), "test must enqueue a window-close event");
     require(poll_until_type(platform, engine::PlatformEventType::quit_requested, translated),
             "SDL window-close event must map to the engine quit request");
-    require(translated.source_id == window_id,
-            "window-close event must retain its source window ID");
+    require(translated.source_id == window_id, "window-close event must retain its source window ID");
 
     platform.shutdown();
     require(!platform.is_initialized(), "shutdown must clear initialized state");
