@@ -179,10 +179,7 @@ F5. No uploaded Aether implementation was imported.
 - Verification run: https://github.com/Islandyout/engine/actions/runs/34502950596
 - F4 and F5 are merged into main; F5 integration completed through PR #8.
 
-Recommended F6, after F5 review: a focused ECS backend evaluation and
-integration milestone. Measure representative component/query workloads, decide whether to
-adopt the planned Flecs backend, and preserve the F5 ownership and deterministic-order tests.
-Do not bundle rendering, physics, planets, or scene authoring into that backend decision.
+Next work follows the visible delivery sequence in [AETHER_REVIEW.md](AETHER_REVIEW.md).
 
 ## Field Lab — Browser demonstration
 
@@ -198,3 +195,10 @@ Verified before the deployment follow-up: hosted WebAssembly build and determini
 simulation tests passed in run 34549055600; native SDL/headless CI passed in run
 34549055579. Follow-up browser and deployment results are recorded in its pull request.
 Native rendering, production physics, planets, and scene authoring remain unimplemented.
+
+## Aether evaluation and seeded fields
+
+The supplied archive has been evaluated selectively; see [AETHER_REVIEW.md](AETHER_REVIEW.md)
+for exact provenance, reproduced defects, verification limits, and adoption decisions.
+Only seeded random generation is adapted into C++ in this slice. Field Lab demonstrates
+seeded placement, reset, and replay. Native rendering and physics are still future work.

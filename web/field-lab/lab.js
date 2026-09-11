@@ -13,7 +13,7 @@
   }
   $('loading').hidden=true; $('loading').style.display='none';
   $('status').textContent='C++ engine connected · running locally';
-  for(const id of ['demo','spawn','reset','record','lock']) $(id).disabled=false;
+  for(const id of ['demo','spawn','reset','record','lock','new-field']) $(id).disabled=false;
   const canvas=$('scene'), ctx=canvas.getContext('2d');
   if(!ctx){ $('status').textContent='This browser cannot draw the field.'; return; }
   const keyMap={KeyW:0,ArrowUp:0,KeyA:1,ArrowLeft:1,KeyS:2,ArrowDown:2,KeyD:3,ArrowRight:3,Space:4,KeyP:5};
@@ -32,7 +32,7 @@
     button.addEventListener('click',e=>{if(e.detail===0){key(id,true);setTimeout(()=>key(id,false),120);}});
   }
   function command(n){release();engine._lab_control(n);last=performance.now();canvas.focus({preventScroll:true});}
-  $('demo').onclick=()=>command(4);$('reset').onclick=()=>command(0);
+  $('new-field').onclick=()=>command(5);$('demo').onclick=()=>command(4);$('reset').onclick=()=>command(0);
   $('record').onclick=()=>command(engine._lab_value(3)===1?2:1);
   $('replay').onclick=()=>command(3);$('spawn').onclick=()=>{pulse(4);canvas.focus({preventScroll:true});};
   $('lock').onclick=()=>{pulse(5);canvas.focus({preventScroll:true});};
@@ -90,7 +90,7 @@
   }
   function updateUI(){
     const mode=engine._lab_value(3),count=engine._lab_value(2),hash=engine._lab_value(6),expected=engine._lab_value(7),duration=engine._lab_value(5);
-    $('ticks').textContent=engine._lab_value(0).toLocaleString();$('entities').textContent=engine._lab_value(1);$('score').textContent=count;$('progress').style.width=`${count*20}%`;
+    $('seed').textContent=engine._lab_value(10);$('ticks').textContent=engine._lab_value(0).toLocaleString();$('entities').textContent=engine._lab_value(1);$('score').textContent=count;$('progress').style.width=`${count*20}%`;
     $('hash').textContent=hash.toString(16).toUpperCase().padStart(8,'0');
     $('position').textContent=`${engine._lab_entity(0,0).toFixed(2)} / ${engine._lab_entity(0,1).toFixed(2)}`;
     $('mode-label').textContent=['LIVE FIELD','RECORDING','REPLAYING','REPLAY COMPLETE'][mode];

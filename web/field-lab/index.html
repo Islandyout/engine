@@ -15,7 +15,7 @@
 <div class="score"><span>SIGNALS FOUND</span><strong><span id="score">0</span><small> / 5</small></strong><div class="progress"><span id="progress"></span></div></div>
 <button id="demo" class="primary" disabled>Watch a guided run <span>↗</span></button>
 <div class="button-grid"><button id="spawn" disabled>＋ Place crate</button><button id="reset" disabled>↺ Reset field</button></div>
-<div class="divider"></div><p class="eyebrow">MAKE IT REPEATABLE</p><p class="muted small">Record starts a fresh field. Move and place crates, then replay the exact input sequence.</p>
+<button id="new-field" class="wide" disabled>New seeded field <span id="seed">1</span></button><p class="muted small">Same seed, same signals. Reset keeps this field; a new field clears the recording.</p><div class="divider"></div><p class="eyebrow">MAKE IT REPEATABLE</p><p class="muted small">Record starts a fresh field. Move and place crates, then replay the exact input sequence.</p>
 <div class="button-grid"><button id="record" disabled>● Record path</button><button id="replay" disabled>↻ Replay</button></div>
 <p id="replay-status" class="replay-note" aria-live="polite">Up to 30 seconds. Stored only in this tab.</p>
 <button id="lock" class="wide" disabled>Block movement <span id="lock-value">OFF</span></button>
@@ -23,5 +23,5 @@
 </aside></section>
 <section class="telemetry" aria-label="Live engine statistics"><div><span>SIMULATION</span><strong>60 <small>Hz fixed</small></strong></div><div><span>ENGINE TICKS</span><strong id="ticks">0</strong></div><div><span>LIVING ENTITIES</span><strong id="entities">6</strong></div><div><span>STATE FINGERPRINT</span><strong id="hash">—</strong></div></section>
 <section class="under"><div><p class="eyebrow">THIS IS YOUR ENGINE RUNNING</p><h2>Real systems.<br>Visible consequences.</h2></div><div class="proof"><article><span>01</span><h3>Input → action</h3><p>Your controls pass through the C++ binding layer. Blocking movement demonstrates context priority.</p></article><article><span>02</span><h3>Action → world</h3><p>The fixed-step systems move the scout and commit entity creation and removal at phase boundaries.</p></article><article><span>03</span><h3>Record → replay</h3><p>Replay uses the engine’s input injector. A matching fingerprint verifies the recorded end state.</p></article></div></section>
-<footer><p>Game Engine 0.5.0 · C++ / WebAssembly</p><p>Browser-drawn demonstration. Native rendering and production physics are still ahead.</p><a href="https://github.com/Islandyout/engine/pulls">Development &amp; reviews ↗</a></footer>
+<footer><p>Game Engine 0.5.0 · C++ / WebAssembly</p><p>Browser-drawn demonstration. Native rendering and production physics are still ahead.</p><a href="https://github.com/Islandyout/engine/pulls">Development &amp; reviews ↗</a><a href="AETHER-LICENSE.txt">Aether attribution</a></footer>
 </main><script src="engine.js"></script><script src="lab.js"></script></body></html>

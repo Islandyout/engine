@@ -31,6 +31,8 @@ const { chromium } = require('playwright');
       page.on('pageerror', error => errors.push(error.message));
       await page.goto('http://127.0.0.1:' + server.address().port);
       await page.waitForFunction(() => document.querySelector('#status').textContent.includes('connected'));
+      await page.locator('#new-field').click();
+      await page.waitForFunction(() => document.querySelector('#seed').textContent === '2');
       await page.locator('#record').click();
       const start = await page.locator('#position').textContent();
       await page.getByRole('button', {name: 'Move right', exact: true}).click();
