@@ -60,7 +60,7 @@ public:
         }
         systems_.run(world, context);
     }
-    [[nodiscard]] std::vector<Box> boxes() const {
+    [[nodiscard]] std::vector<Box> boxes(bool show_player = true) const {
         std::vector<Box> result;
         for (int x = -8; x < 8; ++x)
             for (int z = -8; z < 8; ++z)
@@ -70,7 +70,8 @@ public:
                      ((x + z) % 2) ? std::array<u8, 3>{63, 88, 88}
                                    : std::array<u8, 3>{69, 97, 96}});
         for (auto entity : world.query<Box>())
-            result.push_back(*world.get<Box>(entity));
+            if (show_player || entity != player)
+                result.push_back(*world.get<Box>(entity));
         return result;
     }
 

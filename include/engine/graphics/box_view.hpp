@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/core/types.hpp"
+#include "engine/graphics/mesh_asset.hpp"
 #include <array>
 #include <span>
 #include <vector>
@@ -27,10 +28,14 @@ public:
     static constexpr int height = 500;
     BoxView();
     void draw(std::span<const Box> boxes, OrbitView camera = {});
+    // Draw over the current frame using its camera/depth buffer. Positive uniform scale only.
+    void draw_mesh(const MeshAsset &mesh, Vec3 position, float scale = 1);
     [[nodiscard]] std::span<const u8> pixels() const noexcept { return pixels_; }
 
 private:
     std::vector<u8> pixels_;
     std::vector<float> depths_;
+    OrbitView camera_;
+    bool frame_ready_{};
 };
 } // namespace engine

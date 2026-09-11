@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, codex/f4-action-input-bindings]
+    branches: [main, codex/f4-action-input-bindings, codex/native-playground]
   workflow_dispatch:
 
 permissions:
@@ -57,6 +57,8 @@ jobs:
         env:
           SDL_VIDEODRIVER: dummy
         run: ./build/ci-ON/engine_host --smoke
+      - name: Verify asset cooker
+        run: python3 tests/cooker_tests.py
       - name: Check patch whitespace
         run: git diff --check HEAD^ HEAD
       - name: Capture native frame
@@ -66,8 +68,12 @@ jobs:
           name: native-playground-linux-sdl-${{ matrix.sdl }}
           path: |
             build/ci-${{ matrix.sdl }}/engine_playground
+            build/ci-${{ matrix.sdl }}/assets/bench.gea
+            assets/CREDITS.md
             build/native-frame.ppm
             docs/NATIVE_PLAYGROUND.md
+            docs/ASSET_PIPELINE.md
+            docs/images/native-bench.png
             third_party/aether/LICENSE
 
   windows:
@@ -89,6 +95,10 @@ jobs:
           name: native-playground-windows
           path: |
             build/native/Release/engine_playground.exe
+            build/native/Release/assets/bench.gea
+            assets/CREDITS.md
             build/native-frame.ppm
             docs/NATIVE_PLAYGROUND.md
+            docs/ASSET_PIPELINE.md
+            docs/images/native-bench.png
             third_party/aether/LICENSE

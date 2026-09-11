@@ -7,3 +7,7 @@
 *.VC.db
 *.VC.opendb
 
+
+# Python asset tools
+__pycache__/
+*.pyc

@@ -1,7 +1,7 @@
 name: Field Lab browser build
 on:
   pull_request:
-    branches: [main]
+    branches: [main, codex/native-playground]
   push:
     branches: [main]
   workflow_dispatch:
