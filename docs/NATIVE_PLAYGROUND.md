@@ -1,14 +1,15 @@
-# Native visual playground (0.6.0)
+# Native visual playground (0.7.0)
 
-![Native CPU-rendered frame](images/native-playground.png)
+![Native CPU-rendered frame](images/native-bench.png)
 
 Build the normal SDL-enabled preset, then run `engine_playground` (Windows:
 `build\windows-mingw\engine_playground.exe`). The separate foundation host remains available.
-The native window shows an orthographic 3D field with solid, depth-tested boxes.
+The native window shows an orthographic 3D field with boxes and a movable textured Aether bench.
+[Asset pipeline and provenance](ASSET_PIPELINE.md).
 
 | Control | Result |
 | --- | --- |
-| W/A/S/D | Move the bright box in world X/Z |
+| W/A/S/D | Move the bench model in world X/Z |
 | Q/E | Orbit the camera |
 | Z/X | Zoom out/in |
 | Space | Create a crate next to the player (64 entity cap) |

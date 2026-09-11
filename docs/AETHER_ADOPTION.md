@@ -40,11 +40,11 @@ GLBs and their credits/manifest; geometry, materials, skins and clips need nativ
 | `gpu/device.js` | Pending implementation and verification | Implement native GPU resource lifecycle and validation |
 | `gpu/util.js` | Pending implementation and verification | Implement native GPU resource lifecycle and validation |
 | `loaders/assets.js` | Pending implementation and verification | Adapt format semantics; fixture tests and credited assets |
-| `loaders/gltf.js` | Pending implementation and verification | Adapt format semantics; fixture tests and credited assets |
+| `loaders/gltf.js` | Native static GLB cooker/reader path tested on bench; broader loader features pending | Adapt format semantics; fixture tests and credited assets |
 | `physics/constraints.js` | Pending implementation and verification | Run solver/controller probes; native integration and regression scenes |
 | `physics/ragdoll.js` | Pending implementation and verification | Run solver/controller probes; native integration and regression scenes |
 | `physics/world.js` | Pending implementation and verification | Run solver/controller probes; native integration and regression scenes |
-| `procgen/textures.js` | Pending implementation and verification | Port deterministic texture generation with reference outputs |
+| `procgen/textures.js` | Planks albedo generated and displayed natively; other patterns/maps pending | Port deterministic texture generation with reference outputs |
 | `render/clustered.js` | Pending implementation and verification | Port mesh/material/shader stages with reference-image checks |
 | `render/frame.js` | Pending implementation and verification | Port mesh/material/shader stages with reference-image checks |
 | `render/geometry.js` | Pending implementation and verification | Port mesh/material/shader stages with reference-image checks |
