@@ -202,3 +202,17 @@ The supplied archive has been evaluated selectively; see [AETHER_REVIEW.md](AETH
 for exact provenance, reproduced defects, verification limits, and adoption decisions.
 Only seeded random generation is adapted into C++ in this slice. Field Lab demonstrates
 seeded placement, reset, and replay. Native rendering and physics are still future work.
+
+## F6 — Native visual playground (0.6.0)
+
+Implemented: SDL-free CPU box renderer with depth buffering, a native desktop playground,
+action-driven movement/orbit/zoom, deferred creation/removal, world reset, and headless
+snapshot export. SDL window-surface presentation stays within the platform implementation.
+
+The Aether seeded generator drives initial box heights. Camera and geometry references
+inform the visual path; the CPU renderer is not a WebGPU/Vulkan port. See
+[NATIVE_PLAYGROUND.md](NATIVE_PLAYGROUND.md) for scope, tests and controls.
+
+Native GPU rendering, general mesh/texture loading, physics and editor integration remain
+open. All Aether subsystems are tracked for further adoption; no broad feature-completion
+claim is made by this milestone. Verification results are recorded in the F6 pull request.

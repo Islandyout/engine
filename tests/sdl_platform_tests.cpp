@@ -6,23 +6,24 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace {
 
-void require(const bool condition, const std::string& message) {
+void require(const bool condition, const std::string &message) {
     if (!condition) {
         throw std::runtime_error{message};
     }
 }
 
-void drain_events(engine::SdlPlatform& platform) {
+void drain_events(engine::SdlPlatform &platform) {
     engine::PlatformEvent event{};
     while (platform.poll_event(event)) {
     }
 }
 
-bool poll_until_type(engine::SdlPlatform& platform, const engine::PlatformEventType expected,
-                     engine::PlatformEvent& event) {
+bool poll_until_type(engine::SdlPlatform &platform, const engine::PlatformEventType expected,
+                     engine::PlatformEvent &event) {
     constexpr int maximum_events = 32;
     for (int index = 0; index < maximum_events; ++index) {
         if (!platform.poll_event(event)) {
@@ -46,9 +47,16 @@ void hidden_window_lifecycle_and_events() {
     require(platform.initialize(), "SDL platform must initialize with the dummy video driver");
     require(platform.is_initialized(), "SDL platform must report initialized state");
     require(platform.native_window_handle() != nullptr, "SDL platform must create a window");
+    const std::vector<engine::u8> pixels(16 * 16 * 4, 255);
+    require(platform.present_rgba(pixels, 16, 16), "present RGBA surface");
+    require(!platform.present_rgba(pixels, 0, 16), "reject empty presentation");
+    require(!platform.present_rgba(pixels, 17, 16), "reject wrong pixel count");
     drain_events(platform);
 
-    auto* window = static_cast<SDL_Window*>(platform.native_window_handle());
+    auto *window = static_cast<SDL_Window *>(platform.native_window_handle());
+    require(SDL_SetWindowSize(window, 720, 400), "resize actual surface");
+    require(platform.present_rgba(pixels, 16, 16), "present after actual resize");
+    drain_events(platform);
     const SDL_WindowID window_id = SDL_GetWindowID(window);
 
     SDL_Event key_event{};
@@ -62,19 +70,20 @@ void hidden_window_lifecycle_and_events() {
     require(poll_until_type(platform, engine::PlatformEventType::input, translated),
             "SDL key event must be translated");
     require(translated.input.has_value(), "translated input event must carry a payload");
-    const auto* key = std::get_if<engine::KeyEvent>(&*translated.input);
-    require(key && key->key == engine::Key::a && key->device == 7 && key->action == engine::ButtonAction::pressed,
+    const auto *key = std::get_if<engine::KeyEvent>(&*translated.input);
+    require(key && key->key == engine::Key::a && key->device == 7 &&
+                key->action == engine::ButtonAction::pressed,
             "key translation must use engine-owned physical keys and device IDs");
 
     engine::InputState input;
     input.begin_frame();
     input.apply(*translated.input);
-    engine::ActionSystem actions{
-        engine::InputMap{{engine::ActionId{"accept"}},
-                         {{engine::InputContextId{"test"},
-                           0,
-                           true,
-                           {{engine::ActionId{"accept"}, engine::KeyBinding{engine::Key::a}, {}, {}}}}}}};
+    engine::ActionSystem actions{engine::InputMap{
+        {engine::ActionId{"accept"}},
+        {{engine::InputContextId{"test"},
+          0,
+          true,
+          {{engine::ActionId{"accept"}, engine::KeyBinding{engine::Key::a}, {}, {}}}}}}};
     actions.update(input);
     require(actions.state(engine::ActionId{"accept"}).pressed,
             "translated SDL input must drive an engine-owned action without SDL "
@@ -93,7 +102,8 @@ void hidden_window_lifecycle_and_events() {
     require(translated.type == engine::PlatformEventType::window_resized,
             "resize event must retain its engine event type");
     require(translated.source_id == window_id, "resize event must retain its window ID");
-    require(translated.value1 == 800 && translated.value2 == 450, "resize event must retain its dimensions");
+    require(translated.value1 == 800 && translated.value2 == 450,
+            "resize event must retain its dimensions");
     drain_events(platform);
 
     SDL_Event quit_event{};
@@ -102,9 +112,11 @@ void hidden_window_lifecycle_and_events() {
     require(SDL_PushEvent(&quit_event), "test must enqueue a window-close event");
     require(poll_until_type(platform, engine::PlatformEventType::quit_requested, translated),
             "SDL window-close event must map to the engine quit request");
-    require(translated.source_id == window_id, "window-close event must retain its source window ID");
+    require(translated.source_id == window_id,
+            "window-close event must retain its source window ID");
 
     platform.shutdown();
+    require(!platform.present_rgba(pixels, 16, 16), "reject presentation after shutdown");
     require(!platform.is_initialized(), "shutdown must clear initialized state");
     require(platform.native_window_handle() == nullptr, "shutdown must destroy the window");
     platform.shutdown();
@@ -115,7 +127,7 @@ void hidden_window_lifecycle_and_events() {
 int main() {
     try {
         hidden_window_lifecycle_and_events();
-    } catch (const std::exception& error) {
+    } catch (const std::exception &error) {
         std::cerr << "FAILED: " << error.what() << '\n';
         return 1;
     }
