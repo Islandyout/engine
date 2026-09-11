@@ -1,6 +1,7 @@
 #include "engine/core/fixed_step_clock.hpp"
 #include "engine/core/log.hpp"
 #include "engine/core/uuid.hpp"
+#include "engine/core/seeded_random.hpp"
 
 #include <chrono>
 #include <iostream>
@@ -34,6 +35,27 @@ void uuid_round_trip() {
     require(parsed.has_value(), "serialized UUID must parse");
     require(*parsed == generated, "UUID must survive a text round trip");
     require(!engine::Uuid::parse("not-a-uuid").has_value(), "invalid UUID must fail");
+}
+
+void seeded_random_matches_aether() {
+    engine::SeededRandom random{42};
+    for (const engine::u32 expected : {2581720956U, 1925393290U, 3661312704U,
+                                       2876485805U, 750819978U, 2261697747U}) {
+        require(random.next_u32() == expected, "RNG must match Aether's reference sequence");
+    }
+    engine::SeededRandom zero{0};
+    require(zero.next_u32() == 1144304738U, "zero seed is supported");
+    engine::SeededRandom maximum{0xffffffffU};
+    require(maximum.next_u32() == 3850105811U, "unsigned overflow matches JS reference");
+    engine::SeededRandom first{1}, second{1}, unit{1};
+    for (int i = 0; i < 10000; ++i) {
+        const auto bits = first.next_u32();
+        require(bits == second.next_u32(), "equal seeds produce equal streams");
+        const double value = unit.next_unit();
+        require(value >= 0.0 && value < 1.0, "unit random value lies in [0,1)");
+        require(value == static_cast<double>(bits) / 4294967296.0,
+                "unit samples preserve the exact 32-bit fraction");
+    }
 }
 
 void fixed_step_accumulates_time() {
@@ -80,6 +102,7 @@ void logger_filters_and_routes() {
 int main() {
     try {
         uuid_round_trip();
+        seeded_random_matches_aether();
         fixed_step_accumulates_time();
         fixed_step_bounds_catch_up();
         logger_filters_and_routes();
@@ -91,4 +114,3 @@ int main() {
     std::cout << "All engine core tests passed.\n";
     return 0;
 }
-

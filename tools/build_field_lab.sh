@@ -9,3 +9,4 @@ em++ -std=c++20 -O2 -fexceptions -Wall -Wextra -Werror -Iinclude \
   -sENVIRONMENT=web,node -sALLOW_MEMORY_GROWTH=1 -sDISABLE_EXCEPTION_CATCHING=0 \
   -sWASM_ASYNC_COMPILATION=0 -o build/field-lab/engine.js
 cp web/field-lab/* build/field-lab/
+cp third_party/aether/LICENSE build/field-lab/AETHER-LICENSE.txt

@@ -1,4 +1,5 @@
 #include "engine/input/actions.hpp"
+#include "engine/core/seeded_random.hpp"
 #include "engine/world/fixed_systems.hpp"
 
 #include <algorithm>
@@ -27,6 +28,7 @@ std::vector<Entity> visible;
 Entity player;
 u64 ticks{}, duration{};
 u32 expected{};
+u32 field_seed{1};
 int mode{}, collected{};
 bool locked{}, initialized{};
 constexpr auto step = std::chrono::nanoseconds{16'666'667};
@@ -51,7 +53,7 @@ Key key_for(int key) {
 }
 InputEvent event(Key key, bool down) { return KeyEvent{1, key, down ? ButtonAction::pressed : ButtonAction::released, false}; }
 u32 checksum() {
-    u32 hash = 2166136261U;
+    u32 hash = (2166136261U ^ field_seed) * 16777619U;
     for (auto entity : world.query<Transform>()) {
         const auto& t = *world.get<Transform>(entity);
         for (int value : {t.x, t.z, t.kind}) { hash = (hash ^ static_cast<u32>(value)) * 16777619U; }
@@ -62,7 +64,13 @@ void reset_world() {
     world.reset(); input = {}; pending.clear(); simulation_clock.reset(); ticks = 0; collected = 0; locked = false;
     actions = std::make_unique<ActionSystem>(bindings());
     player = world.create(); world.set(player, Transform{-540, 360, 1});
+    SeededRandom random{field_seed};
     for (auto t : {Transform{-540,-180,2}, Transform{0,-180,2}, Transform{0,360,2}, Transform{540,360,2}, Transform{540,-540,2}}) {
+        // Keep the five separate grid cells; jitter never makes signals overlap.
+        if (field_seed != 1) {
+            t.x += static_cast<int>(random.next_u32() % 241U) - 120;
+            t.z += static_cast<int>(random.next_u32() % 241U) - 120;
+        }
         world.set(world.create(), t);
     }
     visible = world.query<Transform>();
@@ -135,10 +143,17 @@ LAB_EXPORT void lab_control(int command) {
     if (command == 2 && mode == 1) { duration = ticks; expected = checksum(); mode = 0; }
     if (command == 3) start_replay();
     if (command == 4) {
+        field_seed = 1;
         recording = {{0,{event(Key::w,true)}}, {90,{event(Key::w,false), event(Key::d,true),event(Key::space,true)}},
           {91,{event(Key::space,false)}}, {180,{event(Key::d,false),event(Key::s,true)}},
           {270,{event(Key::s,false),event(Key::d,true)}}, {360,{event(Key::d,false)}}};
         duration = 361; expected = 0; start_replay();
+    }
+    if (command == 5) {
+        ++field_seed;
+        if (field_seed == 0) field_seed = 1;
+        recording.clear(); duration = 0; expected = 0;
+        reset_world(); mode = 0;
     }
 }
 LAB_EXPORT double lab_value(int field) {
@@ -148,6 +163,7 @@ LAB_EXPORT double lab_value(int field) {
     case 5: return duration; case 6: return checksum(); case 7: return expected;
     case 8: return actions->state(ActionId{"x"}).value;
     case 9: return actions->state(ActionId{"z"}).value;
+    case 10: return field_seed;
     default: return 0;
     }
 }

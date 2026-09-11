@@ -8,6 +8,8 @@ Version 0.5.0 adds world-owned entities, typed components, and deterministic fix
 
 `apps/field_lab` compiles the actual C++ input, action, world, and fixed-system code to
 WebAssembly. `web/field-lab` draws an interactive isometric field around that simulation.
+Use **New seeded field** for repeatable signal layouts from the adapted Aether generator.
+[Archive evaluation and roadmap](docs/AETHER_REVIEW.md).
 Move with WASD/arrows or the touch pad, collect signals, place crates, block movement
 with a higher-priority context, and record/replay up to 30 seconds of input.
 
