@@ -2,7 +2,10 @@
 
 This repository is the implementation companion to `GAME_ENGINE_BIBLE_v0.6_RESEARCH.md`.
 
-Version 0.5.0 adds world-owned entities, typed components, and deterministic fixed-step system phases to the portable C++20 runtime. Headless builds remain independent of SDL and external ECS libraries.
+Version 0.6.0 adds a native visual playground with an orbit camera, depth-tested boxes, and action-driven world editing. Headless builds remain independent of SDL and external ECS libraries.
+
+Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
+[Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 
 ## Field Lab browser demonstration
 
