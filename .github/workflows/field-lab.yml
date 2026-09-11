@@ -24,9 +24,50 @@ jobs:
           bash tools/build_field_lab.sh
       - name: Test compiled simulation
         run: node tests/field_lab.cjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test tools
+        run: |
+          npm install --prefix tests/browser --no-package-lock --ignore-scripts
+          tests/browser/node_modules/.bin/playwright install --with-deps chromium
+      - name: Test desktop and mobile browser controls
+        run: node tests/browser/field_lab.cjs
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: field-lab-browser-evidence
+          path: build/browser-evidence/
+          if-no-files-found: warn
       - name: Upload playable demo
         uses: actions/upload-artifact@v4
         with:
           name: field-lab
           path: build/field-lab/
           if-no-files-found: error
+      - name: Package verified site for Pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/field-lab/
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: field-lab-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Deploy verified Field Lab
+        id: deployment
+        uses: actions/deploy-pages@v4

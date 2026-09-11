@@ -177,9 +177,24 @@ F5. No uploaded Aether implementation was imported.
   SDL-disabled 5/5 tests, SDL-enabled 6/6 tests, dummy-driver smoke (4 ticks/4 frames), and diff checks.
   This closes the earlier local Clang/toolchain blocker.
 - Verification run: https://github.com/Islandyout/engine/actions/runs/34502950596
-- F5 is published as PR #7 stacked on F4 PR #6. Neither milestone is merged.
+- F4 and F5 are merged into main; F5 integration completed through PR #8.
 
 Recommended F6, after F5 review: a focused ECS backend evaluation and
 integration milestone. Measure representative component/query workloads, decide whether to
 adopt the planned Flecs backend, and preserve the F5 ownership and deterministic-order tests.
 Do not bundle rendering, physics, planets, or scene authoring into that backend decision.
+
+## Field Lab — Browser demonstration
+
+PR #9 merged the C++ WebAssembly demonstration into main. Movement, action-context
+masking, deferred entity changes, and deterministic input replay use the existing engine
+modules; Canvas provides the browser presentation. Engine version remains 0.5.0.
+
+The deployment follow-up adds desktop/mobile browser interaction tests, screenshot
+artifacts, and GitHub Pages deployment of the tested build on main. PR builds never deploy.
+Select GitHub Actions as the Pages publishing source; see FIELD_LAB.md.
+
+Verified before the deployment follow-up: hosted WebAssembly build and deterministic
+simulation tests passed in run 34549055600; native SDL/headless CI passed in run
+34549055579. Follow-up browser and deployment results are recorded in its pull request.
+Native rendering, production physics, planets, and scene authoring remain unimplemented.
