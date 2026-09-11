@@ -15,10 +15,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install WebAssembly compiler
         run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y emscripten
+          git clone --depth 1 --branch 3.1.64 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 3.1.64
+          "$RUNNER_TEMP/emsdk/emsdk" activate 3.1.64
       - name: Compile actual engine and browser demo
-        run: bash tools/build_field_lab.sh
+        run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          bash tools/build_field_lab.sh
       - name: Test compiled simulation
         run: node tests/field_lab.cjs
       - name: Upload playable demo
