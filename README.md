@@ -4,6 +4,18 @@ This repository is the implementation companion to `GAME_ENGINE_BIBLE_v0.6_RESEA
 
 Version 0.5.0 adds world-owned entities, typed components, and deterministic fixed-step system phases to the portable C++20 runtime. Headless builds remain independent of SDL and external ECS libraries.
 
+## Field Lab browser demonstration
+
+`apps/field_lab` compiles the actual C++ input, action, world, and fixed-system code to
+WebAssembly. `web/field-lab` draws an interactive isometric field around that simulation.
+Move with WASD/arrows or the touch pad, collect signals, place crates, block movement
+with a higher-priority context, and record/replay up to 30 seconds of input.
+
+With Emscripten installed, run `bash tools/build_field_lab.sh`, then
+`node tests/field_lab.cjs`. Serve `build/field-lab` with a static HTTP server.
+The Field Lab workflow compiles and tests the browser artifact on every PR to main.
+This is a visualization of the foundation, not the native renderer or production physics.
+
 ## Current foundation
 
 - CMake project and Windows/Linux presets

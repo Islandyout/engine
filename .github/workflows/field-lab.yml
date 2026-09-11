@@ -1,0 +1,32 @@
+name: Field Lab browser build
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install WebAssembly compiler
+        run: |
+          git clone --depth 1 --branch 3.1.64 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 3.1.64
+          "$RUNNER_TEMP/emsdk/emsdk" activate 3.1.64
+      - name: Compile actual engine and browser demo
+        run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          bash tools/build_field_lab.sh
+      - name: Test compiled simulation
+        run: node tests/field_lab.cjs
+      - name: Upload playable demo
+        uses: actions/upload-artifact@v4
+        with:
+          name: field-lab
+          path: build/field-lab/
+          if-no-files-found: error
