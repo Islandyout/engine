@@ -34,7 +34,7 @@ asset assignment come from the document. Pause retains runtime state; Stop retur
 to the unchanged authoring document. Editing is disabled during playback.
 Coordinates and velocity transmitted to C++ are bounded to ±1,000,000.
 
-The browser viewport is Three.js, not the native renderer. The native SDL playground
+The browser viewport uses Three.js with WebGL, or CPU canvas projection of the same scene graph when WebGL is unavailable. The canvas path renders geometry/material colors without texture sampling. Both paths run the same authoring and C++ runtime workflow in CI. The browser viewport is not the native renderer. The native SDL playground
 and its textured asset path are also included in this release. Other BTAI component
 families (physics, AI, animation, vehicles, health) remain editable/persisted data;
 their runtime behaviors are not implemented by this bridge. BTAI's physics module
