@@ -90,3 +90,13 @@ test("duplicate carries component data and play prevents edits", () => {
   d.undo();
   assert.deepEqual(serializeScene(d.scene), before);
 });
+
+test("console save/load commands preserve scene data", () => {
+  const d = new EditorDocument();
+  const entity = d.execute({ command: "spawn_entity", name: "Saved" }).entity!;
+  assert.equal(d.execute({ command: "save_scene", path: "test" }).ok, true);
+  d.execute({ command: "destroy_entity", entity });
+  assert.equal(d.execute({ command: "load_scene", path: "test" }).ok, true);
+  assert.equal(d.scene.entityCount, 1);
+  assert.equal(d.scene.alive(entity), false);
+});

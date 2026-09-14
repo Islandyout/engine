@@ -69,7 +69,9 @@ const { chromium } = require("playwright");
       ),
     );
     await page.locator("#pause").click();
-    assert.match(await page.locator("#status").textContent(), /PAUSE/);
+    await page.waitForFunction(() =>
+      document.querySelector("#status").textContent.startsWith("PAUSE"),
+    );
     await page.locator("#stop").click();
     await page
       .locator(".entity")
@@ -90,23 +92,19 @@ const { chromium } = require("playwright");
     const saved = await fs.readFile(await download.path());
     const document = JSON.parse(saved);
     assert.equal(document.entities.length, 4);
-    await page
-      .locator("#open")
-      .setInputFiles({
-        name: "scene.json",
-        mimeType: "application/json",
-        buffer: saved,
-      });
+    await page.locator("#open").setInputFiles({
+      name: "scene.json",
+      mimeType: "application/json",
+      buffer: saved,
+    });
     assert.equal(await page.locator(".entity").count(), 4);
-    await page
-      .locator("#open")
-      .setInputFiles({
-        name: "invalid.json",
-        mimeType: "application/json",
-        buffer: Buffer.from(
-          '{"format":1,"entities":[{"components":{"Bad":{}}}]}',
-        ),
-      });
+    await page.locator("#open").setInputFiles({
+      name: "invalid.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(
+        '{"format":1,"entities":[{"components":{"Bad":{}}}]}',
+      ),
+    });
     await page.waitForFunction(() =>
       document
         .querySelector("#log")

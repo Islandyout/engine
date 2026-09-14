@@ -2,6 +2,7 @@ import { Scene } from "../scene/Scene";
 import {
   CommandInterpreter,
   type CommandResult,
+  type AuthoringStorage,
 } from "../authoring/CommandInterpreter";
 import {
   deserializeScene,
@@ -13,7 +14,19 @@ import type { EntityRef } from "../scene/Components";
 
 export class EditorDocument {
   readonly scene = new Scene();
-  readonly commands = new CommandInterpreter(this.scene);
+  readonly commands: CommandInterpreter;
+  constructor(storage?: AuthoringStorage) {
+    const files = new Map<string, string>();
+    this.commands = new CommandInterpreter(
+      this.scene,
+      storage ?? {
+        read: (path) => files.get(path) ?? null,
+        write: (path, text) => {
+          files.set(path, text);
+        },
+      },
+    );
+  }
   project = "Untitled project";
   name = "Untitled scene";
   selection: EntityRef | undefined;
