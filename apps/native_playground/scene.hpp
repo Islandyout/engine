@@ -2,9 +2,11 @@
 #include "engine/core/seeded_random.hpp"
 #include "engine/graphics/box_view.hpp"
 #include "engine/input/actions.hpp"
+#include "engine/physics/physics.hpp"
 #include "engine/scene/scene_document.hpp"
 #include "engine/world/fixed_systems.hpp"
 #include <algorithm>
+#include <chrono>
 #include <optional>
 
 namespace playground {
@@ -32,16 +34,18 @@ public:
         actions_ = ActionSystem{map()};
         player = world.create();
         world.set(player, Box{{-3, 0.6F, 3}, {0.8F, 1.2F, 0.8F}, {218, 239, 132}});
+        world.set(player, physics::RigidBody{});
         if (loaded_.has_value()) {
             populate_from_document(*loaded_);
         } else {
             SeededRandom rng{42};
             for (int i = 0; i < 7; ++i) {
                 const float height = 0.8F + static_cast<float>(rng.next_unit()) * 2.2F;
-                world.set(world.create(),
-                          Box{{static_cast<float>(i) * 1.8F - 5.4F, height / 2, -3},
-                              {1, height, 1},
-                              {104, 160, 159}});
+                const auto obstacle = world.create();
+                world.set(obstacle, Box{{static_cast<float>(i) * 1.8F - 5.4F, height / 2, -3},
+                                         {1, height, 1},
+                                         {104, 160, 159}});
+                world.set(obstacle, physics::Collider{});
             }
         }
     }
@@ -69,16 +73,22 @@ public:
     }
 
 private:
+    static constexpr float jump_speed = 7.0F;
     FixedSystems systems_;
     ActionSystem actions_;
     std::optional<SceneDocument> loaded_;
     void register_and_bind() {
         world.register_component<Box>("playground.box");
+        world.register_component<physics::RigidBody>("playground.rigidbody");
+        world.register_component<physics::Collider>("playground.collider");
         systems_.add(
             "playground.move", FixedPhase::update, 0, [&](World &w, const FixedUpdateContext &) {
                 auto &box = *w.get<Box>(player);
+                auto &body = *w.get<physics::RigidBody>(player);
                 box.center.x = std::clamp(box.center.x + value("x") * 0.08F, -7.0F, 7.0F);
                 box.center.z = std::clamp(box.center.z + value("z") * 0.08F, -7.0F, 7.0F);
+                if (pressed("jump") && body.grounded)
+                    body.velocity.y = jump_speed;
                 camera.yaw += value("orbit") * 0.025F;
                 camera.scale = std::clamp(camera.scale + value("zoom") * 0.4F, 12.0F, 40.0F);
                 if (pressed("spawn") && w.size() < 64) {
@@ -86,6 +96,7 @@ private:
                     w.defer_set(
                         created,
                         Box{{box.center.x + 1.2F, 0.5F, box.center.z}, {1, 1, 1}, {218, 166, 96}});
+                    w.defer_set(created, physics::Collider{});
                 }
                 if (pressed("remove")) {
                     auto all = w.query<Box>();
@@ -96,6 +107,11 @@ private:
                         }
                 }
             });
+        systems_.add("playground.physics", FixedPhase::update, 10,
+                      [](World &w, const FixedUpdateContext &context) {
+                          physics::step(
+                              w, std::chrono::duration<float>(context.delta_time).count());
+                      });
     }
     // Places one box per document entity that has a Transform and is not
     // explicitly marked non-visible. The box color is a deterministic
@@ -118,8 +134,10 @@ private:
             const auto &position = entity.transform->position;
             const auto material = entity.renderable ? entity.renderable->material : 0U;
             const auto color = palette[(material + placed) % palette.size()];
-            world.set(world.create(),
+            const auto document_entity = world.create();
+            world.set(document_entity,
                       Box{{position.x, position.y, position.z}, {0.8F, 0.8F, 0.8F}, color});
+            world.set(document_entity, physics::Collider{});
             ++placed;
         }
     }
@@ -134,7 +152,7 @@ private:
                                         {},
                                         AxisProcessor{0, 1, ResponseCurve::linear, false, scale}});
         };
-        for (auto name : {"x", "z", "orbit", "zoom", "spawn", "remove", "reset"})
+        for (auto name : {"x", "z", "orbit", "zoom", "spawn", "remove", "reset", "jump"})
             result.actions.emplace_back(name);
         bind("x", Key::a, -1);
         bind("x", Key::d, 1);
@@ -147,6 +165,7 @@ private:
         bind("spawn", Key::space, 1);
         bind("remove", Key::backspace, 1);
         bind("reset", Key::r, 1);
+        bind("jump", Key::left_shift, 1);
         result.contexts.push_back(context);
         return result;
     }

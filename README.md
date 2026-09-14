@@ -8,6 +8,8 @@ This repository is the implementation companion to `GAME_ENGINE_BIBLE_v0.6_RESEA
 
 Version 0.9.0 adds move/rotate/scale editor gizmos, snapping, component dropdowns and reset controls. Edits pass through the authoring API and undo/redo. Headless C++ builds remain independent of browser and desktop libraries.
 
+Engine version 0.10.0 adds native physics: gravity, an implicit ground plane, and axis-aligned collision (`engine::physics`), wired into the native playground as a Shift-to-jump controllable character that collides with the field boxes and spawned crates. See [Physics](docs/NATIVE_PLAYGROUND.md#physics).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

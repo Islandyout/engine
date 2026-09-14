@@ -292,3 +292,51 @@ the full compatibility notes.
   new hand-written JSON parser and loader triggered no undefined behavior on
   the accept or reject paths exercised by the tests above.
 - `git diff --check` reported no whitespace issues on the changed files.
+
+## F10 — Physics: gravity, collision and a controllable character (0.10.0)
+
+Added `engine::physics` (`include/engine/physics/physics.hpp`,
+`source/engine/physics/physics.cpp`): a `RigidBody` (velocity + grounded flag)
+integrates gravity and moves any entity that also has a `Box`; a `Collider`
+marks another `Box` entity as a static AABB obstacle. `physics::step` runs
+each fixed tick, resolving every rigid body out of the ground plane (`y = 0`)
+and out of overlapping colliders along the axis of least penetration, zeroing
+the resolved velocity component and setting `grounded` only when the
+resolution was upward. This is the "Physics: collision, gravity and a
+controllable character" item in [AETHER_REVIEW.md](AETHER_REVIEW.md)'s agreed
+delivery sequence — no Aether physics code is used; the implementation is
+native and independently written, informed only by the sequence's own scope
+(box collision, gravity, a controllable character — no rotation, no
+continuous/tunneling-safe sweep).
+
+Wired into the native playground: the player now has a `RigidBody` and a new
+Shift-to-jump control that only triggers while grounded; the seven field
+boxes, any crate spawned with Space, and boxes placed from a loaded editor
+scene all carry a static `Collider`, so the player physically stops at them
+instead of passing through. The rendered bench mesh now tracks the player's
+actual vertical position (it previously always drew at `y = 0`), so jumping
+and landing are visible. Engine version advanced to 0.10.0. See
+[NATIVE_PLAYGROUND.md](NATIVE_PLAYGROUND.md#physics) for full scope and
+limitations.
+
+### F10 verification
+
+- `engine_physics_tests` (new) covers: gravity accelerating an airborne body
+  downward; a falling body settling to rest exactly on the ground plane with
+  zeroed vertical velocity; an already-grounded body not sinking on the next
+  step; a moving body resolved and stopped out of a side collision; a falling
+  body landing and resting flush on top of a static platform (marked
+  grounded); a non-static collider never pushing a body; and a non-positive
+  `dt` being a no-op.
+- `engine_playground_tests` and `engine_scene_tests` pass unchanged: the
+  existing action-movement assertions only check the player's X position,
+  which physics does not touch, and entity-count assertions are unaffected by
+  adding components to existing entities.
+- Linux Clang 18.1.3 strict-warning headless build passed with zero warnings;
+  all 12 CTest cases (up from 11) passed. A separate GCC 13.3.0 build with
+  `-fsanitize=undefined -fno-sanitize-recover=all` also passed all 12.
+- The SDL-enabled desktop preset could not be configured in this sandbox
+  (missing X11/Xcursor development packages, a pre-existing environment
+  limitation unrelated to this change); the new code does not touch any
+  SDL-guarded path, and the same logic is exercised by the headless build
+  above. Worth a real SDL/desktop CI run before merging.

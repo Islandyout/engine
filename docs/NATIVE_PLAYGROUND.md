@@ -10,6 +10,7 @@ The native window shows an orthographic 3D field with boxes and a movable textur
 | Control | Result |
 | --- | --- |
 | W/A/S/D | Move the bench model in world X/Z |
+| Shift | Jump (only while grounded) |
 | Q/E | Orbit the camera |
 | Z/X | Zoom out/in |
 | Space | Create a crate next to the player (64 entity cap) |
@@ -17,7 +18,10 @@ The native window shows an orthographic 3D field with boxes and a movable textur
 | R | Reset the world and camera |
 | Window close | Clean shutdown |
 
-The window title includes the controls. Placement is visual; boxes have no collision.
+The window title includes the controls. The player falls under gravity and collides with
+the seven field boxes and any spawned crates; see [Physics](#physics) below. Floor tiles
+are still presentation geometry only — the ground plane itself is an implicit physics
+constant (`y = 0`), not an entity.
 Floor tiles are presentation geometry, while the player and editable boxes are owned
 by F5 World. FixedSystems commits structural changes; F4 ActionSystem maps controls.
 Raw F3 input events are consumed once per fixed tick, preserving events over zero-tick
@@ -87,3 +91,26 @@ or apply hierarchy; those remain future work, same as the rest of this document'
 
 Next: bring Aether primitive meshes and a credited model/material into the native visual
 path, with a loader fixture and visible result. Physics and scene authoring follow that path.
+
+## Physics
+
+`engine::physics` (`include/engine/physics/physics.hpp`, `source/engine/physics/physics.cpp`)
+adds gravity, an implicit ground plane, and axis-aligned collision to any entity carrying
+both a `Box` and a `physics::RigidBody`. A `physics::Collider` marks another `Box` entity
+as a solid, static obstacle. `physics::step(world, dt)` runs each fixed tick, after the
+existing movement system: it integrates gravity into velocity, moves the box by velocity,
+resolves the body out of the ground plane (`y = 0`) and out of any overlapping static
+collider along the axis of least penetration, and zeroes the resolved velocity component.
+A body is marked `grounded` only when the resolution was upward (resting on the ground or
+on top of a collider) — that flag gates the jump control.
+
+In the playground: the player has a `RigidBody` and jumps (Shift) only while grounded; the
+seven field boxes and any crate spawned with Space carry a static `Collider`, so the player
+now physically stops at them instead of passing through. Boxes loaded from an
+[editor-exported scene](#opening-an-editor-exported-scene) are static colliders too. This is
+axis-aligned box vs. box collision only — no rotation, no continuous (tunneling-safe) sweep,
+and only one obstacle is resolved against per overlap per entity per tick, so simultaneous
+overlaps with more than one obstacle in the same tick are not fully separated. `engine_physics_tests`
+covers gravity integration, settling on the ground plane, an already-grounded body not
+sinking, side and top collider resolution, non-static colliders being ignored, and a
+non-positive `dt` no-op.

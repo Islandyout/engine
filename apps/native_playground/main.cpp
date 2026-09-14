@@ -40,8 +40,10 @@ public:
     engine::LoopControl on_render(const engine::RenderContext &) override {
         const auto boxes = scene->boxes(false);
         view.draw(boxes, scene->camera);
-        const auto p = scene->world.get<engine::Box>(scene->player)->center;
-        view.draw_mesh(model, {p.x, 0, p.z}, 2.0F);
+        const auto player = *scene->world.get<engine::Box>(scene->player);
+        view.draw_mesh(model, {player.center.x, player.center.y - player.size.y / 2,
+                               player.center.z},
+                       2.0F);
 #if ENGINE_HAS_SDL3
         if (desktop && !desktop->present_rgba(view.pixels(), view.width, view.height))
             throw std::runtime_error{"window presentation failed"};
@@ -105,8 +107,11 @@ int main(int argc, char **argv) {
         if (!snapshot.empty()) {
             const auto boxes = demo.scene->boxes(false);
             demo.view.draw(boxes, demo.scene->camera);
-            const auto p = demo.scene->world.get<engine::Box>(demo.scene->player)->center;
-            demo.view.draw_mesh(demo.model, {p.x, 0, p.z}, 2.0F);
+            const auto player = *demo.scene->world.get<engine::Box>(demo.scene->player);
+            demo.view.draw_mesh(demo.model,
+                                {player.center.x, player.center.y - player.size.y / 2,
+                                 player.center.z},
+                                2.0F);
             std::ofstream file{snapshot, std::ios::binary};
             file << "P6\n800 500\n255\n";
             const auto pixels = demo.view.pixels();
@@ -122,8 +127,8 @@ int main(int argc, char **argv) {
 #if ENGINE_HAS_SDL3
         if (!headless) {
             engine::SdlPlatformConfig config;
-            config.application_name = "Game Engine | WASD move | Q/E orbit | Z/X zoom | Space add "
-                                      "| Backspace remove | R reset";
+            config.application_name = "Game Engine | WASD move | Shift jump | Q/E orbit | Z/X zoom "
+                                      "| Space add | Backspace remove | R reset";
             config.hidden = demo.smoke;
             auto sdl = std::make_unique<engine::SdlPlatform>(config);
             demo.desktop = sdl.get();

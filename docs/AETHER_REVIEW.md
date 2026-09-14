@@ -65,11 +65,15 @@ reset. Desktop/mobile browser tests exercise a generated field before recording 
 
 ## Agreed delivery sequence
 
-1. This bounded Aether evaluation and seeded-generation integration.
+1. This bounded Aether evaluation and seeded-generation integration. Done.
 2. Native visual playground: desktop camera, simple objects, existing input/world
    control, entity creation/removal, screenshots and tests. No physics, planets or full editor.
-3. Assets: a real model and textures, including credits and loader validation.
-4. Physics: collision, gravity and a controllable character.
+   Done (F6).
+3. Assets: a real model and textures, including credits and loader validation. Done (F7).
+4. Physics: collision, gravity and a controllable character. Done (F10) — native AABB
+   collision, gravity and a Shift-to-jump controllable character in the native playground.
+   See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md#f10--physics-gravity-collision-and-a-controllable-character-0100)
+   and [NATIVE_PLAYGROUND.md](NATIVE_PLAYGROUND.md#physics).
 5. Scene workflow: save/load and basic property editing.
 6. Playable slice: one small environment demonstrating the intended game experience.
 
