@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(GameEngine
-    VERSION 0.5.0
+    VERSION 0.8.0
     DESCRIPTION "AI-operable high-performance game engine"
     LANGUAGES CXX
 )
@@ -152,4 +152,45 @@ if(ENGINE_BUILD_TESTS)
             ENVIRONMENT "SDL_VIDEODRIVER=dummy"
         )
     endif()
+endif()
+
+add_library(engine_graphics STATIC source/engine/graphics/box_view.cpp source/engine/graphics/mesh_asset.cpp)
+add_library(GameEngine::Graphics ALIAS engine_graphics)
+target_link_libraries(engine_graphics PUBLIC GameEngine::Core)
+engine_set_project_warnings(engine_graphics)
+
+add_executable(engine_playground apps/native_playground/main.cpp)
+target_link_libraries(engine_playground PRIVATE GameEngine::World GameEngine::Graphics)
+if(ENGINE_ENABLE_SDL3)
+    target_link_libraries(engine_playground PRIVATE GameEngine::SdlPlatform)
+    target_compile_definitions(engine_playground PRIVATE ENGINE_HAS_SDL3=1)
+endif()
+engine_set_project_warnings(engine_playground)
+add_custom_command(TARGET engine_playground POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:engine_playground>/assets"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/cooked/bench.gea"
+        "$<TARGET_FILE_DIR:engine_playground>/assets/bench.gea")
+
+if(ENGINE_BUILD_TESTS)
+    add_executable(engine_playground_tests tests/playground_tests.cpp)
+    target_link_libraries(engine_playground_tests PRIVATE GameEngine::World GameEngine::Graphics)
+    engine_set_project_warnings(engine_playground_tests)
+    add_test(NAME engine_playground_tests COMMAND engine_playground_tests)
+    add_executable(engine_asset_tests tests/asset_tests.cpp)
+    target_link_libraries(engine_asset_tests PRIVATE GameEngine::Graphics)
+    engine_set_project_warnings(engine_asset_tests)
+    add_test(NAME engine_asset_tests COMMAND engine_asset_tests "${CMAKE_CURRENT_SOURCE_DIR}/assets/cooked/bench.gea")
+    add_test(NAME engine_playground_headless COMMAND engine_playground --headless)
+    if(ENGINE_ENABLE_SDL3)
+        add_test(NAME engine_playground_sdl COMMAND engine_playground --smoke)
+        set_tests_properties(engine_playground_sdl PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=dummy")
+    endif()
+endif()
+
+if(ENGINE_BUILD_TESTS)
+    add_executable(engine_editor_bridge_tests tests/editor_bridge_tests.cpp apps/editor/runtime/bridge.cpp)
+    target_link_libraries(engine_editor_bridge_tests PRIVATE GameEngine::World)
+    engine_set_project_warnings(engine_editor_bridge_tests)
+    add_test(NAME engine_editor_bridge_tests COMMAND engine_editor_bridge_tests)
 endif()

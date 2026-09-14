@@ -240,6 +240,7 @@ BindingSample sample_source(const BindingSource& binding, const InputState& inpu
                 case MouseAxis::wheel_y:
                     return {input.wheel_y(), false, false};
                 case MouseAxis::count:
+                default:
                     return {};
                 }
             } else if constexpr (std::is_same_v<T, GamepadButtonBinding>) {
@@ -249,7 +250,6 @@ BindingSample sample_source(const BindingSource& binding, const InputState& inpu
             } else {
                 return {input.gamepad_axis(source.axis, source.device), false, false};
             }
-            return {};
         },
         binding);
 }

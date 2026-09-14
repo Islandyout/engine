@@ -1,8 +1,15 @@
 # Game Engine
 
+[Open the BTAI editor](https://islandyout.github.io/engine/editor/) · [Play Field Lab](https://islandyout.github.io/engine/)
+
+The integrated editor provides scene authoring, component inspection, undo/redo, JSON save/load and a Three.js viewport connected to the C++ fixed-step world through WebAssembly. See [the editor contract](docs/BTAI_EDITOR.md) for build instructions and supported behaviors.
+
 This repository is the implementation companion to `GAME_ENGINE_BIBLE_v0.6_RESEARCH.md`.
 
-Version 0.5.0 adds world-owned entities, typed components, and deterministic fixed-step system phases to the portable C++20 runtime. Headless builds remain independent of SDL and external ECS libraries.
+Version 0.8.0 adds an imported Aether bench and procedural albedo to the native visual playground, with a validated offline cooker and dependency-free native asset reader. Headless builds remain independent of SDL and external ECS libraries.
+
+Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
+[Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 
 ## Field Lab browser demonstration
 

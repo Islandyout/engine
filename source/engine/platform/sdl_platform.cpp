@@ -115,6 +115,23 @@ bool SdlPlatform::initialize() {
     return true;
 }
 
+bool SdlPlatform::present_rgba(std::span<const u8> pixels, i32 width, i32 height) {
+    if (!impl_->window || width <= 0 || height <= 0 || width > 4096 || height > 4096 ||
+        pixels.size() != static_cast<usize>(width) * static_cast<usize>(height) * 4)
+        return false;
+    auto *destination = SDL_GetWindowSurface(impl_->window);
+    if (!destination)
+        return false;
+    auto *source = SDL_CreateSurfaceFrom(width, height, SDL_PIXELFORMAT_RGBA32,
+                                         const_cast<u8 *>(pixels.data()), width * 4);
+    if (!source)
+        return false;
+    const bool copied =
+        SDL_BlitSurfaceScaled(source, nullptr, destination, nullptr, SDL_SCALEMODE_NEAREST);
+    SDL_DestroySurface(source);
+    return copied && SDL_UpdateWindowSurface(impl_->window);
+}
+
 void SdlPlatform::shutdown() noexcept {
     if (!impl_ || !impl_->initialized) {
         return;
