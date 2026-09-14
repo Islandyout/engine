@@ -224,3 +224,17 @@ The native player entity displays that mesh through the depth-tested raster path
 Added a bounded offline GLB cooker, versioned native asset reader, UV sampling, asset
 packaging, provenance hashes, and malformed-input/render tests.
 See [ASSET_PIPELINE.md](ASSET_PIPELINE.md) for supported formats and remaining adoption work.
+
+## F8 — BTAI editor integration (0.8.0)
+
+Integrated BTAI's TypeScript authoring/module/scene foundation into `apps/editor`.
+The browser workspace now creates/selects/renames/duplicates/deletes/reparents real
+scene entities, edits component data, exports/imports scenes, and supports undo/redo.
+A Three.js viewport displays document entities and the bundled Aether GLB. Play
+uses the existing C++ World and FixedSystems compiled to WebAssembly through an
+atomic, bounded position/velocity bridge. Pause/Stop preserve authoring data.
+
+Added authoring regression tests, native bridge tests and browser workflow coverage.
+Fixed the inherited Windows asset-test byte-fill conversion warning. This combined
+release includes F6/F7's native playground and asset work. See BTAI_EDITOR.md for
+provenance, exact supported behaviors and remaining editor/runtime integration.

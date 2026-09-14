@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
         check(std::equal(textured.begin(), textured.end(), view.pixels().begin()),
               "repeatable textured frame");
         auto plain = mesh;
-        std::fill(plain.texture.begin(), plain.texture.end(), 255);
+        std::fill(plain.texture.begin(), plain.texture.end(), engine::u8{255});
         view.draw(empty);
         view.draw_mesh(plain, {0, 0, 0}, 4);
         check(!std::equal(textured.begin(), textured.end(), view.pixels().begin()),
