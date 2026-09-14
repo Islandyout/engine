@@ -73,3 +73,22 @@ Project/content currently means a project label, scene files and a bundled model
 catalog, not a filesystem project manager. Next work should extend this same
 contract with stable asset IDs, component metadata/defaults, transform gizmos and
 native scene consumption. Preserve this functioning workflow while expanding it.
+
+## Transform tools (0.9.0)
+
+Select an entity, then choose Move, Rotate or Scale. Drag the colored viewport
+handles. World/Local selects the transform frame (scale follows local axes).
+Snap uses the selected move distance, 15-degree rotation increments and 0.1 scale
+increments. Escape cancels the active gesture. One completed drag is one undoable
+`set_component` authoring command; the document is unchanged during the preview.
+Stop playback before editing. The same tools work with WebGL and canvas rendering.
+
+The inspector provides validated dropdowns for AI states, collider types and the
+bundled model catalog. Derived inverse mass and model-owned materials are read-only.
+Reset restores a component through the same defaults used by attach-component.
+Rotation numeric fields are explicitly labeled in radians. Property metadata is
+kept in the editor layer; component validation remains in the authoring boundary.
+
+Verification adds deterministic gesture/undo tests and actual pointer-drag,
+snapping, Escape cancellation, mode/space, enum, reset and read-only browser checks
+on both rendering backends. Native simulation and asset coverage remain enabled.

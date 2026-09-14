@@ -1,4 +1,12 @@
 import * as THREE from "three";
+import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
+import {
+  transformCommand,
+  type TransformMode,
+  type TransformSnapshot,
+} from "./TransformEdit";
+import { propertyMetadata } from "./PropertyMetadata";
+import { defaultComponent } from "../authoring/CommandInterpreter";
 import { CanvasRenderer } from "./CanvasRenderer";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -21,10 +29,10 @@ async function startEditor() {
     new LocalStorageSceneStore("game-engine-editor:command-scene:"),
   );
   const app = document.querySelector<HTMLDivElement>("#app")!;
-  app.innerHTML = `<header><b>GAME ENGINE</b><span>BTAI Editor · 0.8.0</span><a href="../">Field Lab ↗</a></header>
+  app.innerHTML = `<header><b>GAME ENGINE</b><span>BTAI Editor · 0.9.0</span><a href="../">Field Lab ↗</a></header>
 <nav><button id="new">New scene</button><button id="save">Save JSON</button><label class="button">Open JSON<input id="open" type="file" accept=".json" hidden></label><button id="undo">Undo</button><button id="redo">Redo</button><button id="play">▶ Play</button><button id="pause">Pause</button><button id="stop">Stop</button><span id="document"></span></nav>
 <main><aside><h2>Scene hierarchy</h2><input id="search" placeholder="Search entities"><div class="tools"><button id="add">+ Entity</button><button id="duplicate">Duplicate</button><button id="delete">Delete</button></div><div id="tree"></div><h2>Runtime</h2><p id="runtime">Loading C++ WebAssembly…</p><p>Editor: BTAI authoring<br>Preview: Three.js<br>Simulation: C++ World / FixedSystems</p></aside>
-<section class="center"><div class="tools"><button id="frame">Frame selected</button><button id="grid">Grid</button><span>Drag to orbit · right-drag to pan · scroll to zoom</span></div><div id="viewport"></div></section>
+<section class="center"><div class="tools"><button id="translate" aria-pressed="true">Move</button><button id="rotate" aria-pressed="false">Rotate</button><button id="scale" aria-pressed="false">Scale</button><select id="space" aria-label="Transform space"><option value="world">World</option><option value="local">Local</option></select><label><input type="checkbox" id="snap"> Snap</label><select id="snap-size" aria-label="Move snap distance"><option value="0.25">0.25 m</option><option value="0.5">0.5 m</option><option value="1" selected>1 m</option></select><button id="frame">Frame selected</button><button id="grid">Grid</button><span>Drag to orbit · right-drag to pan · scroll to zoom</span></div><div id="viewport"></div></section>
 <aside><h2>Inspector</h2><div id="inspector">Select an entity.</div></aside></main>
 <section class="bottom"><div><h2>Project / Content</h2><input id="project" value="Untitled project" aria-label="Project name"><button id="bench">Add Aether bench</button><p>bench.glb · bundled CC0 model</p><a href="./ASSET-CREDITS.txt">Asset credits</a></div><div><h2>Authoring console</h2><form id="command"><input id="json" aria-label="JSON command" placeholder='{"command":"list_entities"}'><button>Execute</button></form><pre id="log" role="log"></pre></div></section><footer id="status">Starting editor…</footer>`;
   function el<T extends HTMLElement = HTMLElement>(id: string) {
@@ -63,6 +71,85 @@ async function startEditor() {
   const selection = new THREE.BoxHelper(new THREE.Object3D(), 0xffce70);
   selection.visible = false;
   scene.add(selection);
+  const gizmo = new TransformControls(camera, renderer.domElement);
+  scene.add(gizmo.getHelper());
+  const snapshot = (object: THREE.Object3D): TransformSnapshot => ({
+    position: {
+      x: object.position.x,
+      y: object.position.y,
+      z: object.position.z,
+    },
+    rotation: {
+      x: object.rotation.x,
+      y: object.rotation.y,
+      z: object.rotation.z,
+    },
+    scale: { x: object.scale.x, y: object.scale.y, z: object.scale.z },
+  });
+  let gesture:
+    | {
+        entity: NonNullable<typeof doc.selection>;
+        mode: TransformMode;
+        before: TransformSnapshot;
+      }
+    | undefined;
+  gizmo.addEventListener("dragging-changed", (event) => {
+    controls.enabled = !event.value;
+  });
+  gizmo.addEventListener("mouseDown", () => {
+    if (doc.mode === "edit" && doc.selection && gizmo.object)
+      gesture = {
+        entity: doc.selection,
+        mode: gizmo.mode,
+        before: snapshot(gizmo.object),
+      };
+  });
+  gizmo.addEventListener("mouseUp", () => {
+    const current = gesture;
+    gesture = undefined;
+    if (!current || !gizmo.object) return;
+    const command = transformCommand(
+      current.entity,
+      current.mode,
+      current.before,
+      snapshot(gizmo.object),
+    );
+    queueMicrotask(() => {
+      if (command) execute(command);
+      rebuild();
+    });
+  });
+  for (const mode of ["translate", "rotate", "scale"] as const)
+    el(mode).onclick = () => {
+      if (doc.mode !== "edit" || gizmo.dragging) return;
+      gizmo.setMode(mode);
+      for (const id of ["translate", "rotate", "scale"])
+        el(id).setAttribute("aria-pressed", String(mode === id));
+    };
+  el<HTMLSelectElement>("space").onchange = () =>
+    gizmo.setSpace(el<HTMLSelectElement>("space").value as "world" | "local");
+  function configureSnap() {
+    const enabled = el<HTMLInputElement>("snap").checked;
+    gizmo.setTranslationSnap(
+      enabled ? Number(el<HTMLSelectElement>("snap-size").value) : null,
+    );
+    gizmo.setRotationSnap(enabled ? Math.PI / 12 : null);
+    gizmo.setScaleSnap(enabled ? 0.1 : null);
+  }
+  el("snap").onchange = configureSnap;
+  el("snap-size").onchange = configureSnap;
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && gesture && gizmo.object) {
+      const b = gesture.before;
+      gizmo.object.position.set(b.position.x, b.position.y, b.position.z);
+      gizmo.object.rotation.set(b.rotation.x, b.rotation.y, b.rotation.z);
+      gizmo.object.scale.set(b.scale.x, b.scale.y, b.scale.z);
+      gesture = undefined;
+      gizmo.dragging = false;
+      gizmo.axis = null;
+      queueMicrotask(rebuild);
+    }
+  });
   let bench: THREE.Group | undefined;
   let runtime: Runtime;
   try {
@@ -107,6 +194,7 @@ async function startEditor() {
     accumulator = 0;
   }
   function rebuild() {
+    gizmo.detach();
     for (const object of objects) object.removeFromParent();
     objects.length = 0;
     const refs = doc.scene.eachAlive();
@@ -136,6 +224,16 @@ async function startEditor() {
     updatePanels();
   }
   function updatePanels() {
+    gizmo.detach();
+    for (const id of [
+      "translate",
+      "rotate",
+      "scale",
+      "space",
+      "snap",
+      "snap-size",
+    ])
+      (el(id) as HTMLButtonElement).disabled = doc.mode !== "edit";
     el("document").textContent =
       `${doc.project} / ${doc.name}${doc.dirty ? " • unsaved" : ""}`;
     el<HTMLButtonElement>("undo").disabled =
@@ -176,6 +274,7 @@ async function startEditor() {
     const object =
       objects[doc.scene.eachAlive().findIndex((e) => e.index === entity.index)];
     if (object) {
+      if (doc.mode === "edit") gizmo.attach(object);
       selection.setFromObject(object);
       selection.visible = true;
     }
@@ -230,7 +329,23 @@ async function startEditor() {
             continue;
           }
           const label = document.createElement("label");
-          label.textContent = prefix + key;
+          const meta = propertyMetadata(type, prefix + key);
+          label.textContent = meta.label ?? prefix + key;
+          if (meta.options) {
+            const choice = document.createElement("select");
+            choice.setAttribute("aria-label", `${type}.${prefix}${key}`);
+            for (const option of meta.options)
+              choice.add(new Option(option.label, String(option.value)));
+            choice.value = String(v);
+            choice.onchange = () => {
+              record[key] =
+                typeof v === "number" ? Number(choice.value) : choice.value;
+              execute({ command: "set_component", entity, type, value });
+            };
+            label.append(choice);
+            host.append(label);
+            continue;
+          }
           const input = document.createElement("input");
           input.setAttribute("aria-label", `${type}.${prefix}${key}`);
           input.type =
@@ -239,7 +354,8 @@ async function startEditor() {
               : typeof v === "boolean"
                 ? "checkbox"
                 : "text";
-          input.step = "any";
+          input.step = meta.step ?? "any";
+          input.readOnly = meta.readOnly ?? false;
           input.value = String(v);
           input.checked = v === true;
           input.onchange = () => {
@@ -256,6 +372,16 @@ async function startEditor() {
         }
       }
       fields(value, section);
+      const reset = document.createElement("button");
+      reset.textContent = "Reset " + type;
+      reset.onclick = () =>
+        execute({
+          command: "set_component",
+          entity,
+          type,
+          value: defaultComponent(type),
+        });
+      section.append(reset);
       const remove = document.createElement("button");
       remove.textContent = "Remove " + type;
       remove.onclick = () =>
@@ -408,7 +534,7 @@ async function startEditor() {
       });
   };
   renderer.domElement.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || gizmo.dragging || gizmo.axis !== null) return;
     const rect = renderer.domElement.getBoundingClientRect();
     const pointer = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -435,7 +561,7 @@ async function startEditor() {
     "./bench.glb",
     (gltf) => {
       bench = gltf.scene;
-      if (doc.mode === "edit") rebuild();
+      if (doc.mode === "edit" && !gizmo.dragging) rebuild();
     },
     undefined,
     (error) => log("Bench asset failed: " + String(error)),

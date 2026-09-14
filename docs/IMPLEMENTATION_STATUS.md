@@ -238,3 +238,13 @@ Added authoring regression tests, native bridge tests and browser workflow cover
 Fixed the inherited Windows asset-test byte-fill conversion warning. This combined
 release includes F6/F7's native playground and asset work. See BTAI_EDITOR.md for
 provenance, exact supported behaviors and remaining editor/runtime integration.
+
+## F9 — Editor transform tools (0.9.0)
+
+Added move/rotate/scale viewport gizmos, local/world space and configurable movement
+snapping (plus rotation/scale increments). A drag previews on the presentation
+object and commits one validated authoring edit on release; Escape restores the
+original transform. Playback disables editing. Added component dropdown metadata,
+derived read-only fields and reset-to-default controls. Extended canvas fallback
+to display gizmo overlays. Eight editor domain tests and both renderer browser
+workflows cover the new behavior alongside existing scene/persistence operations.

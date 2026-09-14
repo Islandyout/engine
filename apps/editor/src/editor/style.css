@@ -184,3 +184,16 @@ p {
     grid-template-rows: 42px 75px minmax(300px, 1fr) 175px 40px;
   }
 }
+
+button[aria-pressed="true"] {
+  background: #37658b;
+  border-color: #7cacd2;
+}
+.tools label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+input[readonly] {
+  opacity: 0.65;
+}
