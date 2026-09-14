@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { CanvasRenderer } from "./CanvasRenderer";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { LocalStorageSceneStore } from "../authoring/CommandInterpreter";
@@ -33,7 +34,14 @@ async function startEditor() {
     el("log").textContent = JSON.stringify(value, null, 2);
   }
   const viewport = el("viewport");
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  let renderer: THREE.WebGLRenderer | CanvasRenderer;
+  let backend = "WebGL";
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+  } catch {
+    renderer = new CanvasRenderer();
+    backend = "Canvas compatibility";
+  }
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   viewport.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
@@ -470,7 +478,7 @@ async function startEditor() {
     controls.update();
     renderer.render(scene, camera);
     el("status").textContent =
-      `${doc.mode.toUpperCase()} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks · ${doc.dirty ? "Unsaved changes" : "Saved"} · Physics components are data; collision simulation is not enabled`;
+      `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks · ${doc.dirty ? "Unsaved changes" : "Saved"} · Physics components are data; collision simulation is not enabled`;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

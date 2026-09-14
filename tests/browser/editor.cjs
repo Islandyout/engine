@@ -116,7 +116,9 @@ const { chromium } = require("playwright");
     assert.match(await page.locator("#log").textContent(), /Aether bench/);
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
-      path: "build/browser-evidence/btai-editor.png",
+      path: process.env.EDITOR_NO_WEBGL
+        ? "build/browser-evidence/btai-editor-canvas.png"
+        : "build/browser-evidence/btai-editor.png",
       fullPage: true,
     });
     assert.deepEqual(errors, []);
