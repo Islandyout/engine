@@ -28,6 +28,7 @@ export class CanvasRenderer {
       color: string;
       depth: number;
       line: boolean;
+      overlay: boolean;
     };
     const shapes: Shape[] = [];
     const project = (v: THREE.Vector3) => v.project(camera);
@@ -51,7 +52,7 @@ export class CanvasRenderer {
           (g) => i >= g.start && i < g.start + g.count,
         );
         const material = materials[group?.materialIndex ?? 0];
-        if (!material?.visible) continue;
+        if (!material?.visible || material.opacity === 0) continue;
         const color =
           "color" in material && material.color instanceof THREE.Color
             ? material.color.clone()
@@ -94,10 +95,13 @@ export class CanvasRenderer {
           color: "#" + color.getHexString(),
           depth: projected.reduce((sum, p) => sum + p.z, 0) / stride,
           line: isLine,
+          overlay: material.depthTest === false,
         });
       }
     });
-    shapes.sort((a, b) => b.depth - a.depth);
+    shapes.sort(
+      (a, b) => Number(a.overlay) - Number(b.overlay) || b.depth - a.depth,
+    );
     for (const shape of shapes) {
       ctx.beginPath();
       shape.points.forEach((p, i) => {

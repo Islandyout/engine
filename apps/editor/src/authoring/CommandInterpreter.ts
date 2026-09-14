@@ -420,7 +420,7 @@ function readComponentName(value: unknown): ComponentName {
 function defaultCollider(): ColliderComponent {
   return { type: "AABB", halfExtents: { x: 0.5, y: 0.5, z: 0.5 }, radius: 0.5 };
 }
-function defaultComponent(
+export function defaultComponent(
   type: Exclude<ComponentName, "Parent">,
 ): SceneComponents[typeof type] {
   switch (type) {

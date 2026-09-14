@@ -6,7 +6,7 @@ The integrated editor provides scene authoring, component inspection, undo/redo,
 
 This repository is the implementation companion to `GAME_ENGINE_BIBLE_v0.6_RESEARCH.md`.
 
-Version 0.8.0 adds an imported Aether bench and procedural albedo to the native visual playground, with a validated offline cooker and dependency-free native asset reader. Headless builds remain independent of SDL and external ECS libraries.
+Version 0.9.0 adds move/rotate/scale editor gizmos, snapping, component dropdowns and reset controls. Edits pass through the authoring API and undo/redo. Headless C++ builds remain independent of browser and desktop libraries.
 
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).

@@ -47,6 +47,87 @@ const { chromium } = require("playwright");
       () =>
         document.querySelector("#runtime")?.textContent === "C++ runtime ready",
     );
+    // Drag the visible X handle in the known startup camera, through real pointer events.
+    const THREE = require("../../apps/editor/node_modules/three/build/three.cjs");
+    const bounds = await page.locator("#viewport").boundingBox();
+    const testCamera = new THREE.PerspectiveCamera(
+      50,
+      bounds.width / bounds.height,
+      0.1,
+      2000,
+    );
+    testCamera.position.set(8, 7, 10);
+    testCamera.lookAt(0, 1, 0);
+    testCamera.updateMatrixWorld();
+    const screen = (x, y, z) => {
+      const p = new THREE.Vector3(x, y, z).project(testCamera);
+      return {
+        x: bounds.x + ((p.x + 1) * bounds.width) / 2,
+        y: bounds.y + ((1 - p.y) * bounds.height) / 2,
+      };
+    };
+    await page.locator("#snap").check();
+    const from = screen(1.5, 0.5, 0),
+      to = screen(3.5, 0.5, 0);
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 12 });
+    await page.mouse.up();
+    const moved = Number(
+      await page
+        .getByLabel("Transform.position.x", { exact: true })
+        .inputValue(),
+    );
+    assert.ok(
+      moved > 0 && Number.isInteger(moved),
+      "gizmo commits snapped X movement",
+    );
+    await page.locator("#undo").click();
+    await page
+      .getByRole("button", { name: "□ First entity", exact: true })
+      .click();
+    assert.equal(
+      await page
+        .getByLabel("Transform.position.x", { exact: true })
+        .inputValue(),
+      "0",
+    );
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 8 });
+    await page.keyboard.press("Escape");
+    await page.mouse.up();
+    assert.equal(
+      await page
+        .getByLabel("Transform.position.x", { exact: true })
+        .inputValue(),
+      "0",
+      "Escape cancels gesture",
+    );
+    await page.locator("#rotate").click();
+    assert.equal(
+      await page.locator("#rotate").getAttribute("aria-pressed"),
+      "true",
+    );
+    await page.getByLabel("Transform space").selectOption("local");
+    await page.locator("#scale").click();
+    assert.equal(
+      await page.locator("#scale").getAttribute("aria-pressed"),
+      "true",
+    );
+    await page.locator("#translate").click();
+    await page.getByLabel("Transform space").selectOption("world");
+    await page.getByLabel("Add component").selectOption("RigidBody");
+    assert.equal(
+      await page.getByLabel("RigidBody.inverseMass").getAttribute("readonly"),
+      "",
+    );
+    await page.getByLabel("Add component").selectOption("AIState");
+    await page.getByLabel("AIState.state").selectOption("Walking");
+    await page
+      .getByRole("button", { name: "Reset AIState", exact: true })
+      .click();
+    assert.equal(await page.getByLabel("AIState.state").inputValue(), "Idle");
     await page.locator("#add").click();
     assert.equal(await page.locator(".entity").count(), 2);
     await page.getByLabel("Entity name", { exact: true }).fill("Test cube");
