@@ -260,8 +260,12 @@ private:
             ++pos_;
         if (eof() || !is_digit(peek()))
             fail("invalid number");
-        while (!eof() && is_digit(peek()))
+        if (peek() == '0') {
             ++pos_;
+        } else {
+            while (!eof() && is_digit(peek()))
+                ++pos_;
+        }
         if (!eof() && peek() == '.') {
             ++pos_;
             if (eof() || !is_digit(peek()))

@@ -91,6 +91,7 @@ int main() {
               "rejects an out-of-range parent index");
         check(rejects(R"({"format": 1, "entities": {}})"), "rejects a non-array entities field");
         check(rejects(R"([1, 2, 3])"), "rejects a non-object document");
+        check(rejects(R"({"format": 01, "entities": []})"), "rejects a leading-zero number");
 
         // A "Parent" component embedded inside `components` is tolerated
         // (the editor itself skips it there; hierarchy travels through the
