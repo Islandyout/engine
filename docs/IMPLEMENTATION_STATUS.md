@@ -248,3 +248,47 @@ original transform. Playback disables editing. Added component dropdown metadata
 derived read-only fields and reset-to-default controls. Extended canvas fallback
 to display gizmo overlays. Eight editor domain tests and both renderer browser
 workflows cover the new behavior alongside existing scene/persistence operations.
+
+## Native scene consumption
+
+Added `engine::parse_scene_document` (`include/engine/scene/scene_document.hpp`,
+`source/engine/scene/scene_document.cpp`), a bounded native reader for the BTAI
+editor's "format 1" scene JSON, and wired it into the native playground as
+`engine_playground --scene scene.json`. This closes the "native scene consumption"
+gap named in BTAI_EDITOR.md's next-work list: an editor-exported scene layout can
+now be opened by the native renderer.
+
+Only `Transform`, `Renderable`, and `Name` are shape-validated and interpreted;
+the editor's other ten component types (Rotation, Scale, Velocity, Acceleration,
+RigidBody, Collider, Health, AIState, Pedestrian, Vehicle, AnimationState) are
+accepted as opaque JSON objects, not validated field-by-field or given native
+runtime behavior. Parent/child references are validated (bounds, generation, no
+cycles) but hierarchy is not applied to placement. See
+[NATIVE_PLAYGROUND.md](NATIVE_PLAYGROUND.md#opening-an-editor-exported-scene) for
+the full compatibility notes.
+
+### Verification
+
+- `engine_scene_tests` covers the parser's accept and reject cases directly:
+  valid documents with Transform/Renderable/Name and an opaque component, wrong
+  `format`, malformed JSON, an unknown component name, a Transform missing its
+  position, a non-numeric position field, a cyclic parent reference, an
+  out-of-range parent index, a non-array `entities` field, and a non-object
+  document.
+- `engine_playground_scene_headless` runs the playground headless against
+  `tests/fixtures/editor_scene.json` (two visible entities, one hidden, one with
+  no Transform) as a CTest case.
+- `engine_playground_tests` exercises the loader through `playground::Scene`
+  directly: a document entity is placed at its Transform position, an invisible
+  entity and a Transform-less entity are both skipped, and pressing reset
+  reloads the same document rather than the built-in scene.
+- Manually confirmed the fixture actually changes the rendered frame: a
+  `--snapshot` of the fixture differs byte-for-byte from the default scene's
+  snapshot, and visually shows two boxes at the fixture's authored positions
+  next to the existing bench/player.
+- Linux Clang 18.1.3 strict-warning headless build passed with zero warnings;
+  all 11 CTest cases (up from 9) passed. A separate GCC 13.3.0 build with
+  `-fsanitize=undefined -fno-sanitize-recover=all` also passed all 11, so the
+  new hand-written JSON parser and loader triggered no undefined behavior on
+  the accept or reject paths exercised by the tests above.
+- `git diff --check` reported no whitespace issues on the changed files.

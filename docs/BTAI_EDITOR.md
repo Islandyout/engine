@@ -71,8 +71,8 @@ and disabled. `npm test --prefix apps/editor` runs document/authoring regression
 
 Project/content currently means a project label, scene files and a bundled model
 catalog, not a filesystem project manager. Next work should extend this same
-contract with stable asset IDs, component metadata/defaults, transform gizmos and
-native scene consumption. Preserve this functioning workflow while expanding it.
+contract with stable asset IDs and component metadata/defaults. Preserve this
+functioning workflow while expanding it.
 
 ## Transform tools (0.9.0)
 
@@ -92,3 +92,13 @@ kept in the editor layer; component validation remains in the authoring boundary
 Verification adds deterministic gesture/undo tests and actual pointer-drag,
 snapping, Escape cancellation, mode/space, enum, reset and read-only browser checks
 on both rendering backends. Native simulation and asset coverage remain enabled.
+
+## Native scene consumption
+
+`engine_playground --scene scene.json` (see
+[NATIVE_PLAYGROUND.md](NATIVE_PLAYGROUND.md#opening-an-editor-exported-scene))
+opens the same "format 1" document this editor exports, via a bounded native reader
+(`engine::parse_scene_document`) that rejects what the editor's own validator would
+reject. It only interprets `Transform`, `Renderable`, and `Name`; the other component
+families listed above (physics, AI, animation, vehicles, health) still have no native
+runtime behavior and are carried as opaque data, as stated elsewhere in this document.
