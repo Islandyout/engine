@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "name": "native-playground-smoke",
+  "entities": [
+    {
+      "name": "Marker A",
+      "components": {
+        "Transform": { "position": { "x": -2, "y": 0.4, "z": 1 } },
+        "Renderable": { "mesh": 0, "material": 1, "visible": true }
+      }
+    },
+    {
+      "name": "Marker B",
+      "components": {
+        "Transform": { "position": { "x": 2, "y": 0.4, "z": -1 } },
+        "Renderable": { "mesh": 0, "material": 3, "visible": true }
+      }
+    },
+    {
+      "name": "Hidden Marker",
+      "components": {
+        "Transform": { "position": { "x": 0, "y": 0, "z": 0 } },
+        "Renderable": { "mesh": 0, "material": 0, "visible": false }
+      }
+    },
+    {
+      "name": "Design Note",
+      "components": {
+        "Health": { "current": 100, "maximum": 100 }
+      }
+    }
+  ]
+}

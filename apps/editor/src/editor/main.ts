@@ -15,6 +15,84 @@ import { EditorDocument } from "./Document";
 import type { SceneComponents } from "../scene/Scene";
 import "./style.css";
 
+// Small, hand-drawn, dependency-free icon set (no external icon font/CDN,
+// consistent with this project's zero-external-asset constraints for the
+// editor chrome). Each entry is the inner markup of a 0 0 16 16 viewBox svg.
+const ICONS = {
+  play: '<path d="M4 3l9 5-9 5V3z"/>',
+  pause: '<rect x="4" y="3" width="3" height="10"/><rect x="9" y="3" width="3" height="10"/>',
+  stop: '<rect x="4" y="4" width="8" height="8"/>',
+  plus: '<path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  copy: '<rect x="3" y="6" width="7" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M6 6V4.5A1.5 1.5 0 0 1 7.5 3H12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-1.5" fill="none" stroke="currentColor" stroke-width="1.2"/>',
+  trash: '<path d="M3 4h10M6.3 4V2.6h3.4V4M4.6 4l.6 9a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9l.6-9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  undo: '<path d="M5 4L2 7l3 3M2 7h7a4 4 0 1 1 0 8h-1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>',
+  redo: '<path d="M11 4l3 3-3 3M14 7H7a4 4 0 1 0 0 8h1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>',
+  save: '<path d="M3 3h7.4L13 5.6V13H3V3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M5 3v3.6h4.4V3M5 10h6" fill="none" stroke="currentColor" stroke-width="1.1"/>',
+  open: '<path d="M2 5.4A1.4 1.4 0 0 1 3.4 4h2.3l1 1.3h5.9A1.4 1.4 0 0 1 14 6.7v4.9A1.4 1.4 0 0 1 12.6 13H3.4A1.4 1.4 0 0 1 2 11.6V5.4z" fill="none" stroke="currentColor" stroke-width="1.15"/>',
+  search: '<circle cx="6.6" cy="6.6" r="3.8" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M9.6 9.6L13.5 13.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>',
+  grid: '<path d="M2 2h12v12H2z M2 6.4h12M2 10.6h12M6.4 2v12M10.6 2v12" fill="none" stroke="currentColor" stroke-width="1"/>',
+  target: '<circle cx="8" cy="8" r="4.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 1.2v2.4M8 12.4v2.4M1.2 8h2.4M12.4 8h2.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+  cube: '<path d="M8 1.6l5.6 3v6.8L8 14.4l-5.6-3V4.6L8 1.6z" fill="none" stroke="currentColor" stroke-width="1.05"/><path d="M2.4 4.6L8 7.6l5.6-3M8 7.6v6.8" fill="none" stroke="currentColor" stroke-width="1.05"/>',
+  child: '<path d="M4.2 2v5.4a2 2 0 0 0 2 2h5.4M9 7l2.6 2.4L9 11.8" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>',
+  external: '<path d="M4.6 11.4L11.4 4.6M6.6 4.6h4.8v4.8" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>',
+} as const;
+type IconName = keyof typeof ICONS;
+// For static template strings (trusted, hardcoded content only).
+function iconHtml(name: IconName, extraClass = ""): string {
+  return `<svg class="icon ${extraClass}" viewBox="0 0 16 16" aria-hidden="true" focusable="false">${ICONS[name]}</svg>`;
+}
+// For DOM built at runtime, so user-provided text never flows through innerHTML.
+function iconEl(name: IconName, extraClass = ""): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("class", `icon ${extraClass}`.trim());
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  svg.innerHTML = ICONS[name];
+  return svg;
+}
+function textSpan(text: string, className = ""): HTMLSpanElement {
+  const span = document.createElement("span");
+  if (className) span.className = className;
+  span.textContent = text;
+  return span;
+}
+// Drag-to-resize a docked panel, matching mainstream engine editors. Reads
+// and writes a CSS custom property on the document root; the stylesheet
+// consumes that property in the relevant grid-template-columns/rows track.
+function wireResizer(
+  handle: HTMLElement,
+  axis: "x" | "y",
+  cssVar: string,
+  min: number,
+  max: number,
+  invert = false,
+) {
+  const root = document.documentElement;
+  handle.addEventListener("pointerdown", (down) => {
+    down.preventDefault();
+    const startPos = axis === "x" ? down.clientX : down.clientY;
+    const startValue =
+      parseFloat(getComputedStyle(root).getPropertyValue(cssVar)) || min;
+    handle.setPointerCapture(down.pointerId);
+    handle.classList.add("dragging");
+    const move = (moveEvent: PointerEvent) => {
+      const pos = axis === "x" ? moveEvent.clientX : moveEvent.clientY;
+      const delta = (pos - startPos) * (invert ? -1 : 1);
+      const value = Math.min(max, Math.max(min, startValue + delta));
+      root.style.setProperty(cssVar, `${value}px`);
+    };
+    const up = () => {
+      handle.releasePointerCapture(down.pointerId);
+      handle.classList.remove("dragging");
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", up);
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up);
+  });
+}
+
 type Runtime = {
   _editor_begin(): void;
   _editor_add(...values: number[]): number;
@@ -29,12 +107,90 @@ async function startEditor() {
     new LocalStorageSceneStore("game-engine-editor:command-scene:"),
   );
   const app = document.querySelector<HTMLDivElement>("#app")!;
-  app.innerHTML = `<header><b>GAME ENGINE</b><span>BTAI Editor · 0.9.0</span><a href="../">Field Lab ↗</a></header>
-<nav><button id="new">New scene</button><button id="save">Save JSON</button><label class="button">Open JSON<input id="open" type="file" accept=".json" hidden></label><button id="undo">Undo</button><button id="redo">Redo</button><button id="play">▶ Play</button><button id="pause">Pause</button><button id="stop">Stop</button><span id="document"></span></nav>
-<main><aside><h2>Scene hierarchy</h2><input id="search" placeholder="Search entities"><div class="tools"><button id="add">+ Entity</button><button id="duplicate">Duplicate</button><button id="delete">Delete</button></div><div id="tree"></div><h2>Runtime</h2><p id="runtime">Loading C++ WebAssembly…</p><p>Editor: BTAI authoring<br>Preview: Three.js<br>Simulation: C++ World / FixedSystems</p></aside>
-<section class="center"><div class="tools"><button id="translate" aria-pressed="true">Move</button><button id="rotate" aria-pressed="false">Rotate</button><button id="scale" aria-pressed="false">Scale</button><select id="space" aria-label="Transform space"><option value="world">World</option><option value="local">Local</option></select><label><input type="checkbox" id="snap"> Snap</label><select id="snap-size" aria-label="Move snap distance"><option value="0.25">0.25 m</option><option value="0.5">0.5 m</option><option value="1" selected>1 m</option></select><button id="frame">Frame selected</button><button id="grid">Grid</button><span>Drag to orbit · right-drag to pan · scroll to zoom</span></div><div id="viewport"></div></section>
-<aside><h2>Inspector</h2><div id="inspector">Select an entity.</div></aside></main>
-<section class="bottom"><div><h2>Project / Content</h2><input id="project" value="Untitled project" aria-label="Project name"><button id="bench">Add Aether bench</button><p>bench.glb · bundled CC0 model</p><a href="./ASSET-CREDITS.txt">Asset credits</a></div><div><h2>Authoring console</h2><form id="command"><input id="json" aria-label="JSON command" placeholder='{"command":"list_entities"}'><button>Execute</button></form><pre id="log" role="log"></pre></div></section><footer id="status">Starting editor…</footer>`;
+  app.innerHTML = `<header>
+  <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
+  <span class="brand-sub">BTAI Editor <span class="version">0.9.0</span></span>
+  <a class="link-external" href="../">Field Lab${iconHtml("external")}</a>
+</header>
+<nav>
+  <div class="btn-group">
+    <button id="new" class="btn" title="New scene">${iconHtml("plus")}<span>New</span></button>
+    <button id="save" class="btn" title="Save JSON">${iconHtml("save")}<span>Save</span></button>
+    <label class="btn" title="Open JSON">${iconHtml("open")}<span>Open</span><input id="open" type="file" accept=".json" hidden></label>
+  </div>
+  <div class="btn-group">
+    <button id="undo" class="btn btn-icon" title="Undo" aria-label="Undo">${iconHtml("undo")}</button>
+    <button id="redo" class="btn btn-icon" title="Redo" aria-label="Redo">${iconHtml("redo")}</button>
+  </div>
+  <div class="btn-group btn-group-transport">
+    <button id="play" class="btn btn-icon btn-play" title="Play" aria-label="Play">${iconHtml("play")}</button>
+    <button id="pause" class="btn btn-icon btn-pause" title="Pause" aria-label="Pause">${iconHtml("pause")}</button>
+    <button id="stop" class="btn btn-icon btn-stop" title="Stop" aria-label="Stop">${iconHtml("stop")}</button>
+  </div>
+  <span id="document" class="doc-badge"></span>
+</nav>
+<main id="workspace">
+  <aside id="panel-hierarchy" class="panel">
+    <div class="panel-header">${iconHtml("cube")}<h2>Scene Hierarchy</h2></div>
+    <div class="panel-body">
+      <div class="search-box">${iconHtml("search")}<input id="search" placeholder="Search entities"></div>
+      <div class="tools">
+        <button id="add" class="btn btn-sm">${iconHtml("plus")}<span>Entity</span></button>
+        <button id="duplicate" class="btn btn-sm">${iconHtml("copy")}<span>Duplicate</span></button>
+        <button id="delete" class="btn btn-sm btn-danger-hover">${iconHtml("trash")}<span>Delete</span></button>
+      </div>
+      <div id="tree" class="tree" role="tree"></div>
+    </div>
+    <div class="panel-header panel-header-secondary"><h2>Runtime</h2></div>
+    <div class="panel-body panel-body-secondary">
+      <p id="runtime" class="status-line">Loading C++ WebAssembly…</p>
+      <p class="hint">Editor: BTAI authoring<br>Preview: Three.js<br>Simulation: C++ World / FixedSystems</p>
+    </div>
+  </aside>
+  <div class="resizer resizer-v" id="resize-left" role="separator" aria-orientation="vertical" aria-label="Resize hierarchy panel"></div>
+  <section class="panel panel-viewport" id="panel-viewport">
+    <div class="viewport-toolbar">
+      <div class="btn-group" role="group" aria-label="Transform tool">
+        <button id="translate" class="btn btn-sm" aria-pressed="true">${iconHtml("target")}<span>Move</span></button>
+        <button id="rotate" class="btn btn-sm" aria-pressed="false"><span>Rotate</span></button>
+        <button id="scale" class="btn btn-sm" aria-pressed="false"><span>Scale</span></button>
+      </div>
+      <select id="space" class="select-sm" aria-label="Transform space"><option value="world">World</option><option value="local">Local</option></select>
+      <label class="snap-toggle"><input type="checkbox" id="snap"> Snap</label>
+      <select id="snap-size" class="select-sm" aria-label="Move snap distance"><option value="0.25">0.25 m</option><option value="0.5">0.5 m</option><option value="1" selected>1 m</option></select>
+      <button id="frame" class="btn btn-sm btn-ghost">${iconHtml("target")}<span>Frame selected</span></button>
+      <button id="grid" class="btn btn-sm btn-ghost">${iconHtml("grid")}<span>Grid</span></button>
+      <span class="viewport-hint">Drag to orbit · right-drag to pan · scroll to zoom</span>
+    </div>
+    <div id="viewport"></div>
+  </section>
+  <div class="resizer resizer-v" id="resize-right" role="separator" aria-orientation="vertical" aria-label="Resize inspector panel"></div>
+  <aside id="panel-inspector" class="panel">
+    <div class="panel-header">${iconHtml("target")}<h2>Inspector</h2></div>
+    <div id="inspector" class="panel-body">Select an entity.</div>
+  </aside>
+</main>
+<div class="resizer resizer-h" id="resize-bottom" role="separator" aria-orientation="horizontal" aria-label="Resize bottom panel"></div>
+<section class="dock" id="dock">
+  <div class="dock-panel" id="dock-project">
+    <div class="panel-header"><h2>Project / Content</h2></div>
+    <div class="panel-body">
+      <label class="field-row"><span>Project</span><input id="project" value="Untitled project" aria-label="Project name"></label>
+      <button id="bench" class="btn btn-sm">${iconHtml("cube")}<span>Add Aether bench</span></button>
+      <p class="hint">bench.glb · bundled CC0 model</p>
+      <a class="link-external" href="./ASSET-CREDITS.txt">Asset credits</a>
+    </div>
+  </div>
+  <div class="resizer resizer-v" id="resize-dock" role="separator" aria-orientation="vertical" aria-label="Resize console panel"></div>
+  <div class="dock-panel" id="dock-console">
+    <div class="panel-header"><h2>Authoring Console</h2></div>
+    <div class="panel-body">
+      <form id="command" class="command-row"><input id="json" aria-label="JSON command" placeholder='{"command":"list_entities"}'><button class="btn btn-sm">Execute</button></form>
+      <pre id="log" role="log"></pre>
+    </div>
+  </div>
+</section>
+<footer id="status" data-mode="edit">Starting editor…</footer>`;
   function el<T extends HTMLElement = HTMLElement>(id: string) {
     return document.getElementById(id) as T;
   }
@@ -253,8 +409,14 @@ async function startEditor() {
         continue;
       const button = document.createElement("button");
       button.className = "entity";
-      button.textContent =
-        (doc.scene.has(entity, "Parent") ? "↳ " : "□ ") + name;
+      // Keep the exact "↳ "/"□ " text prefix (not just a decorative icon):
+      // it is part of this button's accessible name, matched verbatim by
+      // the browser test suite (getByRole("button", { name: "□ ..." })).
+      const hasParent = doc.scene.has(entity, "Parent");
+      button.append(
+        iconEl(hasParent ? "child" : "cube", "icon-tree"),
+        textSpan((hasParent ? "↳ " : "□ ") + name, "entity-name"),
+      );
       if (doc.selection?.index === entity.index)
         button.classList.add("selected");
       button.onclick = () => {
@@ -278,12 +440,17 @@ async function startEditor() {
       selection.setFromObject(object);
       selection.visible = true;
     }
+    const header = document.createElement("div");
+    header.className = "inspector-header";
     const name = document.createElement("input");
     name.value = doc.scene.get(entity, "Name")?.value ?? "Entity";
     name.setAttribute("aria-label", "Entity name");
     name.onchange = () =>
       execute({ command: "rename_entity", entity, name: name.value });
-    inspector.append(name);
+    const nameRow = document.createElement("label");
+    nameRow.className = "field-row";
+    nameRow.append(textSpan("Name"), name);
+    header.append(nameRow);
     const parent = document.createElement("select");
     parent.setAttribute("aria-label", "Parent");
     parent.add(new Option("No parent", ""));
@@ -307,12 +474,18 @@ async function startEditor() {
                 .eachAlive()
                 .find((e) => e.index === Number(parent.value)),
       });
-    inspector.append(parent);
+    const parentRow = document.createElement("label");
+    parentRow.className = "field-row";
+    parentRow.append(textSpan("Parent"), parent);
+    header.append(parentRow);
+    inspector.append(header);
     for (const type of doc.scene.getComponentNames(entity)) {
       if (type === "Parent" || type === "Name") continue;
-      const section = document.createElement("fieldset");
-      const legend = document.createElement("legend");
-      legend.textContent = type;
+      const section = document.createElement("details");
+      section.className = "component-card";
+      section.open = true;
+      const legend = document.createElement("summary");
+      legend.append(iconEl("cube", "icon-component"), textSpan(type, "component-title"));
       section.append(legend);
       // Generate fields from the component's serializable property shape; validation stays in authoring.
       const value = structuredClone(
@@ -383,7 +556,8 @@ async function startEditor() {
         });
       section.append(reset);
       const remove = document.createElement("button");
-      remove.textContent = "Remove " + type;
+      remove.className = "btn btn-sm btn-ghost btn-danger-hover";
+      remove.append(iconEl("trash"), textSpan("Remove " + type));
       remove.onclick = () =>
         execute({ command: "remove_component", entity, type });
       section.append(remove);
@@ -557,6 +731,10 @@ async function startEditor() {
     camera.aspect = w / Math.max(h, 1);
     camera.updateProjectionMatrix();
   }).observe(viewport);
+  wireResizer(el("resize-left"), "x", "--panel-left", 180, 480);
+  wireResizer(el("resize-right"), "x", "--panel-right", 220, 480, true);
+  wireResizer(el("resize-bottom"), "y", "--dock-height", 120, 480, true);
+  wireResizer(el("resize-dock"), "x", "--dock-left-width", 220, 640);
   new GLTFLoader().load(
     "./bench.glb",
     (gltf) => {
@@ -603,8 +781,9 @@ async function startEditor() {
     if (selection.visible) selection.update();
     controls.update();
     renderer.render(scene, camera);
-    el("status").textContent =
-      `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks · ${doc.dirty ? "Unsaved changes" : "Saved"} · Physics components are data; collision simulation is not enabled`;
+    const status = el("status");
+    status.dataset.mode = doc.mode;
+    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks · ${doc.dirty ? "Unsaved changes" : "Saved"} · Physics components are data; collision simulation is not enabled`;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

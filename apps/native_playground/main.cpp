@@ -7,12 +7,15 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 namespace {
 class Demo final : public engine::ApplicationCallbacks {
 public:
-    playground::Scene scene;
+    // Deferred: constructed once command-line arguments (including an
+    // optional --scene document) are known, before the run loop starts.
+    std::optional<playground::Scene> scene;
     engine::BoxView view;
     engine::MeshAsset model;
     std::vector<engine::InputEvent> pending;
@@ -30,14 +33,14 @@ public:
         for (const auto &event : pending)
             input.apply(event);
         pending.clear();
-        scene.step({context.tick, context.delta_time, input});
+        scene->step({context.tick, context.delta_time, input});
         return smoke && context.tick >= 3 ? engine::LoopControl::exit
                                           : engine::LoopControl::continue_running;
     }
     engine::LoopControl on_render(const engine::RenderContext &) override {
-        const auto boxes = scene.boxes(false);
-        view.draw(boxes, scene.camera);
-        const auto p = scene.world.get<engine::Box>(scene.player)->center;
+        const auto boxes = scene->boxes(false);
+        view.draw(boxes, scene->camera);
+        const auto p = scene->world.get<engine::Box>(scene->player)->center;
         view.draw_mesh(model, {p.x, 0, p.z}, 2.0F);
 #if ENGINE_HAS_SDL3
         if (desktop && !desktop->present_rgba(view.pixels(), view.width, view.height))
@@ -52,6 +55,7 @@ int main(int argc, char **argv) {
         Demo demo;
         bool headless = false;
         std::string snapshot;
+        std::filesystem::path scene_path;
         std::filesystem::path asset_path =
             std::filesystem::absolute(argv[0]).parent_path() / "assets/bench.gea";
         for (int i = 1; i < argc; ++i) {
@@ -62,12 +66,30 @@ int main(int argc, char **argv) {
                 headless = true;
             else if (arg == "--asset" && i + 1 < argc)
                 asset_path = argv[++i];
+            else if (arg == "--scene" && i + 1 < argc)
+                scene_path = argv[++i];
             else if (arg == "--snapshot" && i + 1 < argc) {
                 snapshot = argv[++i];
                 headless = true;
             } else
                 throw std::invalid_argument{
-                    "Usage: engine_playground [--smoke] [--headless] [--snapshot file.ppm] [--asset file.gea]"};
+                    "Usage: engine_playground [--smoke] [--headless] [--snapshot file.ppm] "
+                    "[--asset file.gea] [--scene file.json]"};
+        }
+        if (scene_path.empty()) {
+            demo.scene.emplace();
+        } else {
+            std::ifstream scene_file{scene_path, std::ios::binary | std::ios::ate};
+            const auto scene_length = scene_file.tellg();
+            if (!scene_file || scene_length < 0 || scene_length > 2000000)
+                throw std::runtime_error{"Cannot read bounded scene document: " +
+                                          scene_path.string()};
+            std::string text(static_cast<engine::usize>(scene_length), '\0');
+            scene_file.seekg(0);
+            scene_file.read(text.data(), static_cast<std::streamsize>(text.size()));
+            if (!scene_file)
+                throw std::runtime_error{"scene document read failed"};
+            demo.scene.emplace(engine::parse_scene_document(text));
         }
         std::ifstream asset_file{asset_path, std::ios::binary | std::ios::ate};
         const auto length = asset_file.tellg();
@@ -81,9 +103,9 @@ int main(int argc, char **argv) {
             throw std::runtime_error{"asset read failed"};
         demo.model = engine::decode_mesh_asset(bytes);
         if (!snapshot.empty()) {
-            const auto boxes = demo.scene.boxes(false);
-            demo.view.draw(boxes, demo.scene.camera);
-            const auto p = demo.scene.world.get<engine::Box>(demo.scene.player)->center;
+            const auto boxes = demo.scene->boxes(false);
+            demo.view.draw(boxes, demo.scene->camera);
+            const auto p = demo.scene->world.get<engine::Box>(demo.scene->player)->center;
             demo.view.draw_mesh(demo.model, {p.x, 0, p.z}, 2.0F);
             std::ofstream file{snapshot, std::ios::binary};
             file << "P6\n800 500\n255\n";

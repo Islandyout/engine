@@ -2,8 +2,10 @@
 #include "engine/core/seeded_random.hpp"
 #include "engine/graphics/box_view.hpp"
 #include "engine/input/actions.hpp"
+#include "engine/scene/scene_document.hpp"
 #include "engine/world/fixed_systems.hpp"
 #include <algorithm>
+#include <optional>
 
 namespace playground {
 using namespace engine;
@@ -13,29 +15,15 @@ public:
     Entity player;
     OrbitView camera;
     Scene() : actions_(map()) {
-        world.register_component<Box>("playground.box");
-        systems_.add(
-            "playground.move", FixedPhase::update, 0, [&](World &w, const FixedUpdateContext &) {
-                auto &box = *w.get<Box>(player);
-                box.center.x = std::clamp(box.center.x + value("x") * 0.08F, -7.0F, 7.0F);
-                box.center.z = std::clamp(box.center.z + value("z") * 0.08F, -7.0F, 7.0F);
-                camera.yaw += value("orbit") * 0.025F;
-                camera.scale = std::clamp(camera.scale + value("zoom") * 0.4F, 12.0F, 40.0F);
-                if (pressed("spawn") && w.size() < 64) {
-                    auto created = w.defer_create();
-                    w.defer_set(
-                        created,
-                        Box{{box.center.x + 1.2F, 0.5F, box.center.z}, {1, 1, 1}, {218, 166, 96}});
-                }
-                if (pressed("remove")) {
-                    auto all = w.query<Box>();
-                    for (auto i = all.rbegin(); i != all.rend(); ++i)
-                        if (*i != player) {
-                            w.defer_destroy(*i);
-                            break;
-                        }
-                }
-            });
+        register_and_bind();
+        reset();
+    }
+    // Loads an editor-exported "format 1" scene document (see
+    // engine::parse_scene_document) instead of the built-in random boxes.
+    // Pressing the "reset" action reloads this same document, matching the
+    // default constructor's behavior of restoring its own starting scene.
+    explicit Scene(SceneDocument document) : actions_(map()), loaded_(std::move(document)) {
+        register_and_bind();
         reset();
     }
     void reset() {
@@ -44,12 +32,17 @@ public:
         actions_ = ActionSystem{map()};
         player = world.create();
         world.set(player, Box{{-3, 0.6F, 3}, {0.8F, 1.2F, 0.8F}, {218, 239, 132}});
-        SeededRandom rng{42};
-        for (int i = 0; i < 7; ++i) {
-            const float height = 0.8F + static_cast<float>(rng.next_unit()) * 2.2F;
-            world.set(world.create(), Box{{static_cast<float>(i) * 1.8F - 5.4F, height / 2, -3},
-                                          {1, height, 1},
-                                          {104, 160, 159}});
+        if (loaded_.has_value()) {
+            populate_from_document(*loaded_);
+        } else {
+            SeededRandom rng{42};
+            for (int i = 0; i < 7; ++i) {
+                const float height = 0.8F + static_cast<float>(rng.next_unit()) * 2.2F;
+                world.set(world.create(),
+                          Box{{static_cast<float>(i) * 1.8F - 5.4F, height / 2, -3},
+                              {1, height, 1},
+                              {104, 160, 159}});
+            }
         }
     }
     void step(const FixedUpdateContext &context) {
@@ -78,6 +71,58 @@ public:
 private:
     FixedSystems systems_;
     ActionSystem actions_;
+    std::optional<SceneDocument> loaded_;
+    void register_and_bind() {
+        world.register_component<Box>("playground.box");
+        systems_.add(
+            "playground.move", FixedPhase::update, 0, [&](World &w, const FixedUpdateContext &) {
+                auto &box = *w.get<Box>(player);
+                box.center.x = std::clamp(box.center.x + value("x") * 0.08F, -7.0F, 7.0F);
+                box.center.z = std::clamp(box.center.z + value("z") * 0.08F, -7.0F, 7.0F);
+                camera.yaw += value("orbit") * 0.025F;
+                camera.scale = std::clamp(camera.scale + value("zoom") * 0.4F, 12.0F, 40.0F);
+                if (pressed("spawn") && w.size() < 64) {
+                    auto created = w.defer_create();
+                    w.defer_set(
+                        created,
+                        Box{{box.center.x + 1.2F, 0.5F, box.center.z}, {1, 1, 1}, {218, 166, 96}});
+                }
+                if (pressed("remove")) {
+                    auto all = w.query<Box>();
+                    for (auto i = all.rbegin(); i != all.rend(); ++i)
+                        if (*i != player) {
+                            w.defer_destroy(*i);
+                            break;
+                        }
+                }
+            });
+    }
+    // Places one box per document entity that has a Transform and is not
+    // explicitly marked non-visible. The box color is a deterministic
+    // placeholder keyed by the entity's Renderable.material index (and its
+    // position among placed entities, so materials 0 stay visually
+    // distinguishable) since the CPU box view has no textured-material path;
+    // this is not the editor's actual material rendering.
+    void populate_from_document(const SceneDocument &document) {
+        static constexpr std::array<std::array<u8, 3>, 6> palette = {
+            {{218, 166, 96}, {104, 160, 159}, {166, 138, 218}, {218, 108, 108}, {108, 178, 218},
+             {178, 218, 108}}};
+        usize placed = 0;
+        for (const auto &entity : document.entities) {
+            if (world.size() >= 64)
+                break; // keep parity with the playground's existing entity cap
+            if (!entity.transform.has_value())
+                continue;
+            if (entity.renderable.has_value() && !entity.renderable->visible)
+                continue;
+            const auto &position = entity.transform->position;
+            const auto material = entity.renderable ? entity.renderable->material : 0U;
+            const auto color = palette[(material + placed) % palette.size()];
+            world.set(world.create(),
+                      Box{{position.x, position.y, position.z}, {0.8F, 0.8F, 0.8F}, color});
+            ++placed;
+        }
+    }
     float value(const char *name) const { return actions_.state(ActionId{name}).value; }
     bool pressed(const char *name) const { return actions_.state(ActionId{name}).pressed; }
     static InputMap map() {
