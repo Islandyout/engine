@@ -45,6 +45,38 @@ int main() {
         check(!scene.world.alive(stale), "reset invalidates handles");
         check(scene.world.size() == 8, "reset restores seed scene");
 
+        {
+            // A scene loaded from an editor-exported document (see
+            // engine::parse_scene_document) replaces the built-in random
+            // boxes, and pressing reset reloads that same document rather
+            // than falling back to it.
+            SceneDocument document;
+            document.entities.push_back(
+                {std::nullopt, std::nullopt, TransformComponent{{1, 2, 3}}, std::nullopt});
+            document.entities.push_back({std::nullopt, std::nullopt, TransformComponent{{4, 5, 6}},
+                                          RenderableComponent{0, 0, false}});
+            document.entities.push_back({std::nullopt, std::nullopt, std::nullopt,
+                                          RenderableComponent{0, 0, true}});
+            playground::Scene loaded{document};
+            check(loaded.world.size() == 2, "player plus one visible transform entity");
+            const auto placed = loaded.world.query<Box>();
+            bool found = false;
+            for (auto entity : placed)
+                if (entity != loaded.player) {
+                    const auto center = loaded.world.get<Box>(entity)->center;
+                    found = found || (std::abs(center.x - 1.0F) < 0.0001F &&
+                                      std::abs(center.y - 2.0F) < 0.0001F &&
+                                      std::abs(center.z - 3.0F) < 0.0001F);
+                }
+            check(found, "document entity placed at its Transform position");
+            // A dedicated InputState avoids any held-key state carried over
+            // from the shared `input` object used above.
+            InputState reset_input;
+            key(reset_input, Key::r, true);
+            loaded.step({0, std::chrono::nanoseconds{16666667}, reset_input});
+            check(loaded.world.size() == 2, "reset reloads the same document, not the defaults");
+        }
+
         BoxView view;
         auto boxes = scene.boxes();
         view.draw(boxes);
