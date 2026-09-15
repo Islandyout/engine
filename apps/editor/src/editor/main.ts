@@ -119,7 +119,7 @@ async function startEditor() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `<header>
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
-  <span class="brand-sub">BTAI Editor <span class="version">0.25.0</span></span>
+  <span class="brand-sub">BTAI Editor <span class="version">0.26.0</span></span>
   <a class="link-external" href="https://github.com/Islandyout/engine">View source${iconHtml("external")}</a>
 </header>
 <nav>
@@ -357,6 +357,16 @@ async function startEditor() {
   interface CachedModel {
     scene: THREE.Group;
     clips: THREE.AnimationClip[];
+    // The model's own rest-pose bounding-box size in its source units — a
+    // catalog GLB carries real-world dimensions baked into its meshes (a
+    // sedan is ~4.7m long before any scale is applied), unlike the
+    // BoxGeometry primitive below, which is a unit cube. An authored Scale
+    // is documented (BTAI_EDITOR.md) as literal world-space size — the same
+    // dimensions the physics Box uses — so a catalog model's visual scale is
+    // normalized by this native size rather than applied directly, or a
+    // Scale matching the physics box would blow the mesh up by its own
+    // native size on top (see rebuild()).
+    nativeSize: THREE.Vector3;
   }
   const catalogCache = new Map<number, CachedModel>();
   const catalogPromises = new Map<number, Promise<CachedModel>>();
@@ -375,7 +385,8 @@ async function startEditor() {
     let promise = catalogPromises.get(meshId);
     if (!promise) {
       promise = gltfLoader.loadAsync(entry.path).then((gltf) => {
-        const cached = { scene: gltf.scene, clips: gltf.animations };
+        const nativeSize = new THREE.Box3().setFromObject(gltf.scene).getSize(new THREE.Vector3());
+        const cached = { scene: gltf.scene, clips: gltf.animations, nativeSize };
         catalogCache.set(meshId, cached);
         return cached;
       });
@@ -578,7 +589,17 @@ async function startEditor() {
       const r = doc.scene.get(entity, "Rotation")?.euler;
       if (r) object.rotation.set(r.x, r.y, r.z);
       const s = doc.scene.get(entity, "Scale")?.value;
-      if (s) object.scale.set(s.x, s.y, s.z);
+      if (s && cached) {
+        // Normalize by the model's own native size so an authored Scale is
+        // the mesh's literal world-space size, matching the physics Box's
+        // dimensions (same s.x/y/z) instead of stacking on top of it.
+        const n = cached.nativeSize;
+        object.scale.set(
+          n.x > 1e-6 ? s.x / n.x : s.x,
+          n.y > 1e-6 ? s.y / n.y : s.y,
+          n.z > 1e-6 ? s.z / n.z : s.z,
+        );
+      } else if (s) object.scale.set(s.x, s.y, s.z);
       scene.add(object);
       objects.push(object);
       animStates.push(animState);
