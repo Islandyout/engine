@@ -362,13 +362,15 @@ const { chromium } = require("playwright");
         .textContent.includes("Selected health: 100%"),
     );
     await page.keyboard.down("g");
+    // A real gap before releasing, same as every other key test above (F,
+    // WASD): gives the page's own rAF loop at least one chance to drain the
+    // keydown from keyQueue and apply it before the up event follows.
+    await page.waitForTimeout(100);
     await page.keyboard.up("g");
-    await page.waitForFunction(
-      () =>
-        document
-          .querySelector("#status")
-          .textContent.includes("Selected health: 85%"),
-      { timeout: 5000 },
+    await page.waitForFunction(() =>
+      document
+        .querySelector("#status")
+        .textContent.includes("Selected health: 85%"),
     );
     await page.locator("#stop").click();
     await fs.mkdir("build/browser-evidence", { recursive: true });
