@@ -103,9 +103,17 @@ EXPORT void editor_begin() {
 // transform straight back through editor_value unchanged instead of being simulated
 // against the world ground plane it doesn't actually sit on. is_player is nonzero for
 // the (at most, by authoring convention — not enforced here) one entity WASD/jump input
-// drives; meaningless without a RigidBody, so it's simply ignored for a child.
+// drives; meaningless without a RigidBody, so it's simply ignored for a child. is_collider is
+// nonzero when the entity carries an authored Collider component: it becomes a static
+// engine::physics::Collider obstacle (its Box, i.e. authored Scale, is the AABB other bodies
+// resolve out of) that a falling/moving RigidBody — including the player — is pushed out of.
+// Like is_player, meaningless for a child: a child's Box is parent-relative, not world-space,
+// so using it as a world obstacle would resolve other bodies against a box that isn't actually
+// where it renders; it's simply ignored for a child, same reasoning as excluding it from
+// RigidBody entirely.
 EXPORT int editor_add(double x, double y, double z, double vx, double vy, double vz, double sx,
-                       double sy, double sz, double is_child, double is_player) {
+                       double sy, double sz, double is_child, double is_player,
+                       double is_collider) {
     if (!staging || staging->entities.size() >= 1024) {
         failed = true;
         return 0;
@@ -129,6 +137,8 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
                                   static_cast<float>(vx), static_cast<float>(vy), static_cast<float>(vz)}});
         if (is_player != 0)
             staging->world.set(e, PlayerMarker{});
+        if (is_collider != 0)
+            staging->world.set(e, engine::physics::Collider{});
     }
     staging->entities.push_back(e);
     return 1;

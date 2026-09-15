@@ -1138,3 +1138,56 @@ directly assertable in a test, which is also a genuine, independently useful bit
   actual movement/jump/flight algorithm (identical C++ code path, not a reimplementation
   for testing) plus the browser test's real-keyboard integration check, not on having
   watched a character move on screen.
+
+## F23 — Collision: `Collider` obstacles block movement (0.23.0)
+
+Round 2 of the "finish all six" plan (see F22): the world you build in the editor now
+actually blocks the player, instead of every `RigidBody` — the player included — passing
+straight through anything else placed in the scene. `engine::physics::step` already
+implemented generic `Box+RigidBody` vs. `Box+Collider` resolution (used by the native
+playground, F10) and `bridge.cpp` already registered the `Collider` component; this
+round is entirely "consult data that was already being carried but ignored," not new
+physics.
+
+`editor_add`'s parameter list gains a 12th, `is_collider` — same incremental-extension
+pattern `is_player` (F22), `is_child`, and `sx/sy/sz` before it used — set from
+`doc.scene.has(entity, "Collider")` in `apps/editor/src/editor/main.ts`'s `syncRuntime()`.
+When nonzero and the entity isn't a child, the bridge sets `engine::physics::Collider{}`
+on it (defaulting `is_static = true`), the same generic obstacle type `physics::step`
+already resolves any `Box+RigidBody` entity out of along its axis of least penetration —
+so this is nothing player-specific; a plain `RigidBody` entity with authored `Velocity`
+is blocked identically, verified directly. Like `is_player`, `is_collider` is ignored for
+a child entity: its `Box` is parent-relative, not world-space, so treating it as a world
+obstacle would resolve other bodies against a box that isn't actually where it renders —
+the same reasoning F17/F22 already applied to excluding a child from physics/`Player`
+generally. `Collider`'s own `type`/`halfExtents`/`radius` fields remain unconsumed:
+`engine::physics` has no shape concept beyond a `Box`'s AABB anywhere in the engine, so
+an authored `Sphere` collider resolves as its bounding box's AABB, same as `AABB` — not
+a gap specific to this round.
+
+### F23 verification
+
+- Extended `tests/editor_bridge_tests.cpp` first, natively: a static `Collider` obstacle
+  stops a `Player` entity driven straight at it via held D — the player's x settles at
+  the obstacle's near face and stays there for far longer than an unblocked crossing
+  would take, never passing through; a plain `RigidBody` entity (no `Player` tag, just a
+  constant authored `Velocity`) is blocked the same way, proving the resolution is
+  generic physics, not something special-cased for the player; a `Collider` authored on
+  a hierarchy child is *not* turned into a world obstacle — an unrelated mover sails
+  straight past where it sits, confirming the same child-exclusion `Player`/`RigidBody`
+  already get. All three against the bridge's real exports.
+- `npm run typecheck`, `npm test` (25/25, unchanged — `Collider` itself isn't new
+  authoring surface, only newly consulted at runtime), `npm run build` in
+  `apps/editor`: all pass.
+- Extended `tests/browser/editor.cjs`: spawns an obstacle entity, adds `Collider` to it
+  via the Add-component dropdown, positions it in the path of the `Player`-tagged entity
+  the F22 test left parked at the origin, re-enters Play, holds `d` through Playwright's
+  real keyboard API, and confirms the status bar's live `Player (x, ...)` readout stalls
+  at the obstacle's near face rather than climbing past it.
+- Full native rebuild + `ctest`: all 13 cases pass. GCC 13.3.0 build of the bridge and
+  its test with `-fsanitize=undefined,address`: clean.
+- Not verified here: the actual Emscripten/Playwright run — this sandbox has no
+  Emscripten toolchain or WebGL, same limitation as F22. Correctness rests on the native
+  bridge test's exhaustive coverage of the actual `physics::step` resolution path
+  (identical C++ code, not a reimplementation) plus the browser test's real-keyboard
+  integration check.

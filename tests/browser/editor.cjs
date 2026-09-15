@@ -263,6 +263,49 @@ const { chromium } = require("playwright");
         .inputValue(),
       "0",
     );
+    // A Collider obstacle blocks a moving entity through the same real
+    // keyboard path, not just editor_key() calls (the native bridge test
+    // already covers the underlying physics::step algorithm directly).
+    // Spawn one at x=3 (default box size 1, so its near face sits at 2.5) in
+    // the path of "Entity 7", the player parked at the origin from the test
+    // above, then drive the player at it and confirm the live readout stalls
+    // short of the obstacle instead of sailing through.
+    await page.locator("#add").click();
+    assert.equal(await page.locator(".entity").count(), 8);
+    await page.getByLabel("Transform.position.x", { exact: true }).fill("3");
+    await page.getByLabel("Transform.position.x", { exact: true }).press("Tab");
+    await page.getByLabel("Add component").selectOption("Collider");
+    await page
+      .locator(".entity")
+      .filter({ hasText: "Entity 7" })
+      .first()
+      .click();
+    await page.locator("#play").click();
+    await page.waitForFunction(() =>
+      document.querySelector("#status").textContent.includes("Player ("),
+    );
+    await page.keyboard.down("d");
+    await page.waitForFunction(() => {
+      const match = document
+        .querySelector("#status")
+        .textContent.match(/Player \(([-\d.]+),/);
+      return match && Number(match[1]) > 1.5;
+    });
+    // Keep holding well past when an unblocked player would have crossed
+    // x=3, then confirm it never got past the obstacle's near face (2.5,
+    // minus the player's own half-width 0.5, so 2.0).
+    await page.waitForTimeout(500);
+    const blockedX = Number(
+      (await page.locator("#status").textContent()).match(
+        /Player \(([-\d.]+),/,
+      )[1],
+    );
+    assert.ok(
+      blockedX < 2.1,
+      `player should stop at the Collider obstacle, got x=${blockedX}`,
+    );
+    await page.keyboard.up("d");
+    await page.locator("#stop").click();
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -272,7 +315,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, save/load, invalid-load preservation, authoring console passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, save/load, invalid-load preservation, authoring console passed.",
     );
   } finally {
     if (browser) await browser.close();
