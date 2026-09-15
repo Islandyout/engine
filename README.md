@@ -28,6 +28,8 @@ Engine version 0.18.0 removes Field Lab, the standalone browser demo that used t
 
 Engine version 0.19.0 adds a 103-model catalog to the editor: buildings, furniture, nature, roads, signs and vehicles from the same CC0-licensed Aether kit the bundled bench came from, browsable by category and placeable from the Project/Content panel or the inspector's Model dropdown. See [F19](docs/IMPLEMENTATION_STATUS.md#f19--model-catalog-0190).
 
+Engine version 0.20.0 brings the remaining 27 rigged, animated models (animals and people) into the same catalog, each playing its own embedded idle/walk/run animation clips through Three.js's `AnimationMixer`, crossfading based on the entity's actual measured speed. See [F20](docs/IMPLEMENTATION_STATUS.md#f20--animated-models-in-the-editor-0200).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

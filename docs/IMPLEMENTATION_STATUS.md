@@ -847,3 +847,118 @@ line (`cp -r assets/source/kit build/site/kit`) alongside its existing bench cop
 - Not verified here: the actual Emscripten build and the extended Playwright browser test
   — this sandbox has no Emscripten toolchain, same as every prior editor-bridge change. CI's
   real build is the verification of record.
+
+## F20 — Animated models in the editor (0.20.0)
+
+The repository owner asked for the system needed to bring F19's 28 excluded
+rigged/animated assets (`animals/**`, `people/**`) into the editor too, and whether the
+source archive had any already-solved animation code worth reusing rather than building
+from scratch. It does: `src/anim/` is a ~2,600-line procedural locomotion system (a
+continuous idle→walk→run→sprint gait driven by actual velocity, with inertia, lean,
+banking and footstep events) — genuinely substantial prior work, but written against
+Aether's own `Skeleton`/`Pose` classes, not Three.js bones, so it is real adaptation
+work to reuse, not a copy-paste. That port is real, separate, larger follow-up work,
+not attempted here.
+
+What *is* immediately reusable, and what this does instead: every animals/people GLB
+already carries its own baked `AnimationClip`s (checked per-file, not assumed from one
+sample) — people have `idle, walk, run, sprint, talk, sit, wave`; quadrupeds have
+`walk, trot, run, idle, graze`; birds have `idle, peck, walk, fly` — on a consistent,
+near-standard humanoid bone naming (`hips, spine, chest, shoulder.L/R, upperArm.L/R, ...`).
+Three.js's own `AnimationMixer`/`AnimationClip`/`SkeletonUtils` already play exactly this
+kind of data; no custom playback engine was needed for a first pass.
+
+Imported all 27 individual character/animal files as `assets/source/kit/animals/**` and
+`assets/source/kit/people/**`, appended to `modelCatalog.ts` as ids 105–131 (the
+existing 2–104 kept their ids unchanged — regenerating the whole manifest alphabetically
+would have silently reordered `animals` before `buildings` and shifted every id from the
+already-merged F19 catalog). Excluded `people/_animation-library.glb`: confirmed by
+inspecting its own glTF JSON that every individual character file already carries its own
+copy of the clips it needs, so the shared library file is a generation-time source, not a
+placeable model.
+
+`SkeletonUtils.clone` replaces the plain `.clone(true)` F19 used for static props for any
+entry marked `animated: true` — a bare `THREE.Object3D.clone()` does not correctly
+duplicate a `SkinnedMesh`'s bone bindings, silently producing a mesh that renders in bind
+pose but never actually deforms. Each animated instance gets its own `AnimationMixer`
+bound to its own clip set (`apps/editor/src/editor/main.ts`'s `rebuild()`, in an
+`AnimState` kept parallel to the existing `objects` array, reset alongside it on every
+rebuild). `apps/editor/src/editor/animationClips.ts`'s `pickClipName(names, speed)` — a
+small, independently unit-tested pure function — selects a clip each frame from the
+entity's *measured* ground speed (the same position delta over time the render loop
+already needed), tiered idle/walk/trot-or-run/sprint and falling back down the tier, and
+finally to whatever the model actually has, since not every rig shares the same clip set.
+Mixers advance every rendered frame in both Edit and Play mode — a placed character never
+sits perfectly still, matching the source archive's own locomotion.js comment that
+"stillness reads as broken rig" — while ground speed, and so anything but "idle", stays
+at zero until Play mode actually moves the entity.
+
+Three real issues were caught by Codex's automated review on the PR and fixed before
+merge, not deferred:
+
+- **Vertical motion counted as ground speed.** The original speed measurement was full
+  3D `distanceTo`, so a falling body (gravity) or the physics ground correction snapping
+  it up could read as ground speed and wrongly trigger a walk/run clip with no horizontal
+  motion at all. Fixed by measuring X/Z displacement only, in a new pure, unit-tested
+  `groundSpeed()` (`apps/editor/src/editor/animationClips.ts`).
+- **Speed measured on render frames, not simulated ticks.** `object.position` only
+  changes on a frame where a fixed 60 Hz tick actually ran; on a display refreshing
+  faster than that, most frames would read zero displacement and the frame a tick did
+  run would read a full tick's displacement over a few milliseconds of real time —
+  flickering between clips whose every switch calls `reset()`, so the animation barely
+  progressed on a 120/144 Hz display. Fixed by moving clip selection out of the
+  per-render-frame block into one that only runs in Play mode when at least one tick
+  executed that frame, using `steps / 60` (the actual simulated time those ticks cover)
+  as `groundSpeed()`'s time delta instead of the render frame's wall-clock `dt`. The
+  mixer itself still advances every render frame regardless, for smooth playback
+  interpolation — only clip *selection* is tick-aligned.
+- **The canvas (no-WebGL) fallback rendered every animated model frozen in bind pose.**
+  `CanvasRenderer` projects each mesh's raw position attribute through
+  `object.matrixWorld`; it never applied a `SkinnedMesh`'s bone matrices, and never called
+  `skeleton.update()` (normally `WebGLRenderer`'s job) at all, so the mixer's own
+  output never reached this rasterizer's projection even the math had. This was latent
+  since F19 (no catalog entry was skinned before F20), but F20's own new browser-test
+  addition (adding an "animals" entry) would have exercised it on the CI matrix's
+  `EDITOR_NO_WEBGL=1` run. Fixed by implementing the standard GPU skinning formula
+  (bindMatrix → weighted bone matrices → bindMatrixInverse) on the CPU in
+  `CanvasRenderer.ts`, applied per vertex for a `SkinnedMesh` before the existing
+  `matrixWorld` transform, with `skeleton.update()` called once per such mesh per frame
+  first so `boneMatrices` actually reflects the mixer's current pose.
+
+### F20 verification
+
+- New `apps/editor/tests/animationClips.test.ts`: idle at near-zero speed; walk, then
+  trot/run, then sprint as speed rises; falls back correctly for a rig missing a tier
+  (a bird with no "trot"/"run"/"sprint" still lands on "walk", not undefined); falls back
+  to a model's first clip when none of the tiered names exist at all; returns `undefined`
+  for a clipless model rather than throwing.
+- `apps/editor/tests/modelCatalog.test.ts` needed no changes and still passed against all
+  131 entries (it iterates `modelCatalog` generically rather than asserting a hardcoded
+  count) — a real regression check that adding entries didn't silently break the earlier
+  invariants (unique ids, categories matching what's referenced, every path resolving to a
+  file on disk), not just "the test still runs."
+- Confirmed by inspecting glTF JSON directly (not assumed): bone names across sampled
+  people rigs and sampled quadruped/bird rigs, that every individual character file (not
+  just `_animation-library.glb`) carries its own embedded clips, and that
+  `kit/animals/fox.glb` (CC0, aether-assetgen) is a different file by hash from the
+  archive's top-level `assets/fox.glb` (the Khronos Sample Models Fox, CC BY 4.0) that
+  `docs/AETHER_REVIEW.md`'s original review explicitly kept out — confirming this import
+  didn't accidentally pull in the one asset that review deliberately excluded.
+- Extended `tests/browser/editor.cjs` with a second catalog add (the "animals" category,
+  "Cat") after the existing "signs" one, exercising the `SkeletonUtils.clone` +
+  `AnimationMixer` path specifically, not just the static-model path F19's test covered —
+  this same test now also exercises the canvas-fallback skinning fix, since the suite
+  already re-runs the whole file with `EDITOR_NO_WEBGL=1`.
+- New `apps/editor/tests/animationClips.test.ts` cases for `groundSpeed()`: zero for
+  purely vertical motion; correct magnitude for a known 3-4-5 X/Z displacement; identical
+  result for the same total displacement measured over 1 tick vs. 3 ticks (the
+  frame-rate-decoupling guarantee, checked directly rather than trusted by inspection);
+  zero for a non-positive time delta rather than `Infinity`/`NaN`.
+- `npm run typecheck`, `npm test` (19/19, up from 15 before these fixes), `npm run build`
+  in `apps/editor`: all pass.
+- Not verified here: the actual Emscripten build and Playwright run, and — more
+  significantly for this entry than most — what the animation actually looks like
+  rendered (this sandbox has no Emscripten toolchain and no way to view a WebGL canvas).
+  Correctness here rests on unit-testing the pure clip-selection logic and on Three.js's
+  own `AnimationMixer`/`SkeletonUtils` being mature, widely-used primitives, not on having
+  watched a character actually move.

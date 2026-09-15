@@ -1,5 +1,36 @@
 import * as THREE from "three";
 
+// Applies the same GPU skinning formula (bindMatrix -> weighted bone matrices ->
+// bindMatrixInverse) on the CPU, in place, so a SkinnedMesh's current pose (as
+// driven by an AnimationMixer) shows up in this rasterizer's projection instead
+// of the mesh's raw, undeformed bind-pose geometry. Scratch objects are reused
+// across calls; this runs once per vertex per frame.
+const _skinVertex = new THREE.Vector4();
+const _skinContribution = new THREE.Vector4();
+const _skinned = new THREE.Vector4();
+const _boneMatrix = new THREE.Matrix4();
+function applySkin(
+  mesh: THREE.SkinnedMesh,
+  skinIndex: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+  skinWeight: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+  vertexIndex: number,
+  out: THREE.Vector3,
+) {
+  const boneMatrices = mesh.skeleton.boneMatrices;
+  _skinVertex.set(out.x, out.y, out.z, 1).applyMatrix4(mesh.bindMatrix);
+  _skinned.set(0, 0, 0, 0);
+  for (let k = 0; k < 4; k++) {
+    const weight = skinWeight.getComponent(vertexIndex, k);
+    if (weight === 0) continue;
+    const boneIndex = skinIndex.getComponent(vertexIndex, k);
+    _boneMatrix.fromArray(boneMatrices, boneIndex * 16);
+    _skinContribution.copy(_skinVertex).applyMatrix4(_boneMatrix).multiplyScalar(weight);
+    _skinned.add(_skinContribution);
+  }
+  _skinned.applyMatrix4(mesh.bindMatrixInverse);
+  out.set(_skinned.x, _skinned.y, _skinned.z);
+}
+
 // Compatibility presentation of the same scene graph when WebGL is unavailable.
 // CPU projection keeps authoring and C++ simulation usable on restricted devices.
 export class CanvasRenderer {
@@ -43,6 +74,17 @@ export class CanvasRenderer {
       const index = geometry.index;
       const isLine = object instanceof THREE.LineSegments;
       const stride = isLine ? 2 : 3;
+      const skinIndex = geometry.getAttribute("skinIndex");
+      const skinWeight = geometry.getAttribute("skinWeight");
+      const skinned =
+        object instanceof THREE.SkinnedMesh && skinIndex && skinWeight
+          ? object
+          : undefined;
+      // WebGLRenderer normally calls this once per frame for a SkinnedMesh; this
+      // rasterizer bypasses it entirely, so boneMatrices would otherwise never
+      // reflect the mixer's current pose (scene.updateMatrixWorld(true) above
+      // already refreshed each bone's matrixWorld from the mixer's output).
+      if (skinned) skinned.skeleton.update();
       const count = index ? index.count : position.count;
       const materials = Array.isArray(object.material)
         ? object.material
@@ -60,11 +102,9 @@ export class CanvasRenderer {
         const points = [];
         for (let j = 0; j < stride; j++) {
           const vertex = index ? index.getX(i + j) : i + j;
-          points.push(
-            new THREE.Vector3()
-              .fromBufferAttribute(position, vertex)
-              .applyMatrix4(object.matrixWorld),
-          );
+          const v = new THREE.Vector3().fromBufferAttribute(position, vertex);
+          if (skinned) applySkin(skinned, skinIndex!, skinWeight!, vertex, v);
+          points.push(v.applyMatrix4(object.matrixWorld));
         }
         if (!isLine) {
           const normal = new THREE.Vector3()
