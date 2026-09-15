@@ -1191,3 +1191,82 @@ a gap specific to this round.
   bridge test's exhaustive coverage of the actual `physics::step` resolution path
   (identical C++ code, not a reimplementation) plus the browser test's real-keyboard
   integration check.
+
+## F24 — Combat: melee, ranged blast, and a Health HUD (0.24.0)
+
+Round 3 of 3 in the "finish all six" plan (see F22, F23) — the last gap with the native
+playground: the `Player` can now fight. `Health` (`current`/`maximum`) was already an
+authored component (unconsumed, like `Collider` was before F23); `bridge.cpp` gains its
+own local `Health`/`Projectile` structs (ported, not shared, from the native playground's
+own — neither is a general engine primitive there either) and two new fixed systems.
+
+**Melee** (`editor.combat`, order 20, matching the native playground's own combat system
+order): press F while the player's `Box` overlaps a `Health` entity's `Box` — the same
+overlap test `Collider` resolution (F23) and the native playground's own goal/combat
+checks use — and every entity it's touching takes `attack_damage` (20), the native
+playground's own constant, unchanged. **Ranged**: the blast-fire logic lives inside the
+existing `editor.move` system (order 0), matching where the native playground's own
+blast-spawn logic lives (its single "move" system handles movement, spawn, blast and
+remove together) rather than a separate system. Press G to fire a `Projectile` (velocity
++ 1.5s lifetime, no gravity, ported from the native playground unchanged) from the
+player's position toward
+whichever `Health` entity is currently *nearest* — the editor's own generalization of the
+native playground's single hardcoded `enemy` target, since nothing here is otherwise
+player- or enemy-specific. A new `editor.projectiles` system (order 15, between physics
+and combat, again matching the native playground's own ordering) moves each projectile
+and, on overlapping any `Health` entity, applies `blast_damage` (15) and destroys it;
+past its lifetime with no hit, it's destroyed unconsumed. A shared `damage()` helper
+applies the reduction and destroys the target at 0, for both attacks.
+
+`editor_add` gains a 13th/14th param pair, `hp_current`/`hp_max` — `hp_max <= 0` is the
+"no Health" sentinel (a real `Health` always has a positive max), following the same
+incremental-extension pattern every prior round used. Like `is_collider`, ignored for a
+child (a world-space overlap test can't work against a parent-relative box). Because
+combat can now destroy an authored entity mid-session — nothing else in this bridge ever
+did — `editor_value()` and a new `editor_alive()` export both guard against a dead
+`Entity` handle first (previously safe by omission, since nothing destroyed a synced
+entity before this round); JS uses `editor_alive()` to hide a defeated entity instead of
+snapping it to the origin. Projectiles have no authored entity of their own (spawned
+entirely at runtime), so they don't fit the existing `entities`-indexed `editor_value()`
+scheme at all; two more new exports, `editor_projectile_count()`/`editor_projectile_value()`,
+let JS enumerate and draw however many currently exist, re-queried fresh each call since
+JS only ever calls them back-to-back within one frame.
+
+On the editor side: a pooled set of small Three.js meshes (grown/shrunk to match
+`editor_projectile_count()` each Play-mode frame) renders projectiles, since they have no
+place in the existing `objects`/`rebuild()` array. A second canvas (`#hud`), layered over
+the renderer's own via DOM order and `pointer-events: none` so it never steals viewport
+interaction, draws a small screen-space bar above every alive `Health` entity each
+Play-mode frame — the editor's equivalent of the native playground's own
+`BoxView::draw_bar` (see [HUD](NATIVE_PLAYGROUND.md#hud)), reading a projected screen
+position from Three.js instead of a native renderer's own camera math. The status bar
+gains a text companion for whichever entity is currently selected, `Selected health: NN%`
+or `Selected: defeated` — genuinely useful (precise numeric value, screen-reader
+accessible) the same way F22's `Player (x, y, z)` readout was, not test-only scaffolding,
+though it is what makes combat's outcome assertable from a browser test at all, the same
+role that readout played for player movement.
+
+### F24 verification
+
+- Extended `tests/editor_bridge_tests.cpp` first, natively: melee damages every `Health`
+  entity the player overlaps and defeats (destroys) one at 0 health, never damages the
+  attacking player itself even when it also carries `Health` (self-overlap is trivially
+  true); a blast fired at a single target hits and damages it; blast targets the
+  *nearest* of several `Health` entities, not simply the first found; a blast with no
+  `Health` entity anywhere is a no-op (nothing spawned, mirroring the native playground's
+  own `enemy.has_value()` guard); a blast that never reaches a far-off target expires on
+  lifetime and deals no damage. All against the bridge's real exports, including the new
+  `editor_alive()`/`editor_projectile_count()`/`editor_projectile_value()`.
+- `npm run typecheck`, `npm test` (25/25, unchanged — `Health` itself isn't new authoring
+  surface, only newly consulted at runtime), `npm run build` in `apps/editor`: all pass.
+- Extended `tests/browser/editor.cjs`: two `Health`-tagged targets (one weak and
+  overlapping the player, one at range), F and G driven through Playwright's real keyboard
+  API, verified entirely through the new status-bar readout — a real end-to-end path, not
+  `editor_value()` called directly.
+- Full native rebuild + `ctest`: all 13 cases pass. GCC 13.3.0 build of the bridge and its
+  test with `-fsanitize=undefined,address`: clean.
+- Not verified here: the actual Emscripten/Playwright run, and what the HUD bars/blast
+  projectile actually look like rendered — this sandbox has no Emscripten toolchain or
+  WebGL, same limitation as F22/F23. Correctness rests on the native bridge test's
+  exhaustive coverage of the actual damage/targeting/lifetime algorithm (identical C++
+  code, not a reimplementation) plus the browser test's real-keyboard integration check.

@@ -104,8 +104,11 @@ type Runtime = {
   _editor_tick(): void;
   _editor_count(): number;
   _editor_value(index: number, field: number): number;
+  _editor_alive(index: number): number;
   _editor_input_begin_frame(): void;
   _editor_key(code: number, down: number): void;
+  _editor_projectile_count(): number;
+  _editor_projectile_value(index: number, field: number): number;
 };
 declare const createEditorRuntime: () => Runtime | Promise<Runtime>;
 async function startEditor() {
@@ -222,6 +225,18 @@ async function startEditor() {
   }
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   viewport.appendChild(renderer.domElement);
+  // Screen-space HUD (Health bars): a second canvas layered over the
+  // renderer's own via DOM order, sized to match it 1:1. Not part of the
+  // Three.js scene graph — bars are 2D rectangles drawn from each Health
+  // entity's projected screen position, the same approach the native
+  // playground's BoxView::draw_bar uses. pointer-events: none so it never
+  // steals the orbit/gizmo drag or click-to-select handling already wired
+  // to renderer.domElement underneath it.
+  const hud = document.createElement("canvas");
+  hud.id = "hud";
+  hud.style.pointerEvents = "none";
+  viewport.appendChild(hud);
+  const hudCtx = hud.getContext("2d")!;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#101a26");
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2000);
@@ -247,6 +262,14 @@ async function startEditor() {
   const animStates: (AnimState | undefined)[] = [];
   const geometry = new THREE.BoxGeometry();
   const material = new THREE.MeshStandardMaterial({ color: 0x61adba });
+  // Blast projectiles are spawned entirely at runtime in C++ (see
+  // editor_projectile_count/_value in bridge.cpp) and have no authored
+  // entity of their own, so they get their own small pool of meshes here
+  // instead of living in `objects`/`rebuild()`, grown/shrunk to match
+  // however many currently exist each Play-mode frame.
+  const projectileGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+  const projectileMaterial = new THREE.MeshStandardMaterial({ color: 0x78c8ff });
+  const projectileMeshes: THREE.Mesh[] = [];
   const selection = new THREE.BoxHelper(new THREE.Object3D(), 0xffce70);
   selection.visible = false;
   scene.add(selection);
@@ -387,25 +410,29 @@ async function startEditor() {
   // this the edit camera would stay aimed at wherever the player last was
   // instead of back at whatever the user had framed before pressing Play.
   let prePlayTarget: THREE.Vector3 | null = null;
-  // W/A/S/D/Shift key transitions since the last drained frame, queued here
-  // by the keydown/keyup listeners below and drained once per rendered frame
-  // in frame() — mirrors the native platform's own poll-events-once-per-frame
-  // loop (source/engine/runtime/application.cpp) rather than applying each
-  // event to the WASM runtime synchronously from the DOM handler, so
-  // editor_input_begin_frame()/editor_key() stay in the same relative order
-  // every native InputState consumer already assumes.
+  // W/A/S/D/Shift/F/G key transitions since the last drained frame, queued
+  // here by the keydown/keyup listeners below and drained once per rendered
+  // frame in frame() — mirrors the native platform's own poll-events-once-
+  // per-frame loop (source/engine/runtime/application.cpp) rather than
+  // applying each event to the WASM runtime synchronously from the DOM
+  // handler, so editor_input_begin_frame()/editor_key() stay in the same
+  // relative order every native InputState consumer already assumes.
   const keyQueue: Array<[code: number, down: number]> = [];
-  // Movement codes currently held down, so a Pause or a lost window focus
-  // can force them back up even when no matching keyup DOM event arrives
+  // Bound codes currently held down, so a Pause or a lost window focus can
+  // force them back up even when no matching keyup DOM event arrives
   // (alt-tab, a window manager shortcut eating the key, etc.).
   const heldKeys = new Set<number>();
-  const movementKeyCodes: Record<string, number> = {
+  // key_for()'s own contract (apps/editor/runtime/bridge.cpp): 0=W, 1=A,
+  // 2=S, 3=D, 4=Shift, 5=F (melee attack), 6=G (ranged blast).
+  const boundKeyCodes: Record<string, number> = {
     KeyW: 0,
     KeyA: 1,
     KeyS: 2,
     KeyD: 3,
     ShiftLeft: 4,
     ShiftRight: 4,
+    KeyF: 5,
+    KeyG: 6,
   };
   // Releases are accepted in both Play and Pause (only Edit is excluded) so
   // a key physically released while paused still clears its held state,
@@ -421,7 +448,7 @@ async function startEditor() {
   }
   window.addEventListener("keydown", (event) => {
     if (doc.mode !== "play" || event.repeat) return;
-    const code = movementKeyCodes[event.code];
+    const code = boundKeyCodes[event.code];
     if (code !== undefined) {
       keyQueue.push([code, 1]);
       heldKeys.add(code);
@@ -429,7 +456,7 @@ async function startEditor() {
   });
   window.addEventListener("keyup", (event) => {
     if (doc.mode === "edit") return;
-    const code = movementKeyCodes[event.code];
+    const code = boundKeyCodes[event.code];
     if (code !== undefined) {
       keyQueue.push([code, 0]);
       heldKeys.delete(code);
@@ -462,6 +489,11 @@ async function startEditor() {
       const isChild = doc.scene.has(entity, "Parent") ? 1 : 0;
       const isPlayer = doc.scene.has(entity, "Player") ? 1 : 0;
       const isCollider = doc.scene.has(entity, "Collider") ? 1 : 0;
+      const health = doc.scene.get(entity, "Health");
+      // hp_max <= 0 is the bridge's own "no Health" sentinel (see
+      // editor_add's doc comment) — a real Health always has a positive max.
+      const hpCurrent = health?.current ?? 0;
+      const hpMax = health?.maximum ?? 0;
       // First Player-tagged entity wins if more than one is authored — the
       // bridge itself would happily drive every one of them from the same
       // input, but only one can sensibly own the camera and status readout.
@@ -469,7 +501,7 @@ async function startEditor() {
       if (
         !runtime._editor_add(
           p.x, p.y, p.z, v.x, v.y, v.z, s.x, s.y, s.z, isChild, isPlayer,
-          isCollider,
+          isCollider, hpCurrent, hpMax,
         )
       ) {
         runtime._editor_commit();
@@ -853,6 +885,9 @@ async function startEditor() {
       controls.target.copy(prePlayTarget);
       prePlayTarget = null;
     }
+    // The runtime that owned them is discarded on Stop; drop the pool too,
+    // rather than leaving stale blast meshes on screen in Edit mode.
+    while (projectileMeshes.length) scene.remove(projectileMeshes.pop()!);
     rebuild();
   };
   el("grid").onclick = () => {
@@ -932,6 +967,8 @@ async function startEditor() {
     renderer.setSize(w, h);
     camera.aspect = w / Math.max(h, 1);
     camera.updateProjectionMatrix();
+    hud.width = w;
+    hud.height = h;
   }).observe(viewport);
   wireResizer(el("resize-left"), "x", "--panel-left", 180, 480);
   wireResizer(el("resize-right"), "x", "--panel-right", 220, 480, true);
@@ -971,11 +1008,37 @@ async function startEditor() {
         ticks++;
         accumulator -= 1 / 60;
       }
-      objects.forEach((object, i) =>
+      objects.forEach((object, i) => {
+        // Combat can destroy an authored entity (Health reaching 0) mid-session;
+        // its index stays in objects[] (entities can't be added/removed while
+        // playing), but editor_value() on a dead entity is meaningless, so hide
+        // it instead of snapping it to the origin.
+        if (!runtime._editor_alive(i)) {
+          object.visible = false;
+          return;
+        }
+        object.visible = true;
         object.position.set(
           runtime._editor_value(i, 0),
           runtime._editor_value(i, 1),
           runtime._editor_value(i, 2),
+        );
+      });
+      const projectileCount = runtime._editor_projectile_count();
+      while (projectileMeshes.length < projectileCount)
+        scene.add(
+          (projectileMeshes[projectileMeshes.length] = new THREE.Mesh(
+            projectileGeometry,
+            projectileMaterial,
+          )),
+        );
+      while (projectileMeshes.length > projectileCount)
+        scene.remove(projectileMeshes.pop()!);
+      projectileMeshes.forEach((mesh, i) =>
+        mesh.position.set(
+          runtime._editor_projectile_value(i, 0),
+          runtime._editor_projectile_value(i, 1),
+          runtime._editor_projectile_value(i, 2),
         ),
       );
       if (player) controls.target.copy(player.position);
@@ -1009,14 +1072,68 @@ async function startEditor() {
     if (selection.visible) selection.update();
     controls.update();
     renderer.render(scene, camera);
+    drawHud();
     const status = el("status");
     status.dataset.mode = doc.mode;
     const playerReadout =
       doc.mode === "play" && player
         ? ` · Player (${player.position.x.toFixed(1)}, ${player.position.y.toFixed(1)}, ${player.position.z.toFixed(1)})`
         : "";
-    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, and Collider obstacle collision are simulated; other physics/AI/vehicle/health component data is not`;
+    // Text companion to the HUD's own bar for whatever's selected — lets a
+    // precise numeric value (or the "defeated" transition) be read/watched
+    // without eyeballing bar width in the viewport.
+    const selectedIndex = doc.selection
+      ? doc.scene.eachAlive().findIndex((e) => e.index === doc.selection!.index)
+      : -1;
+    const selectedHealthReadout =
+      doc.mode === "play" &&
+      selectedIndex >= 0 &&
+      doc.scene.has(doc.selection!, "Health")
+        ? runtime._editor_alive(selectedIndex)
+          ? ` · Selected health: ${Math.round(runtime._editor_value(selectedIndex, 3) * 100)}%`
+          : " · Selected: defeated"
+        : "";
+    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout}${selectedHealthReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider collision and Health-based combat (F melee, G blast) are simulated; other physics/AI/vehicle component data is not`;
     requestAnimationFrame(frame);
+  }
+  const hudScratch = new THREE.Vector3();
+  // Screen-space Health bars, Play mode only (matches the player readout's
+  // own scoping) — one small rectangle per alive entity that carries an
+  // authored Health, positioned from its projected world position the same
+  // way the native playground's BoxView::draw_bar reads a screen-space
+  // position from a world one, redrawn from scratch every frame rather than
+  // tracked incrementally since entities can be defeated (and combat, unlike
+  // WASD, has no held/released state worth diffing against).
+  function drawHud() {
+    hudCtx.clearRect(0, 0, hud.width, hud.height);
+    if (doc.mode !== "play") return;
+    doc.scene.eachAlive().forEach((entity, index) => {
+      if (!doc.scene.has(entity, "Health")) return;
+      if (!runtime._editor_alive(index)) return;
+      const object = objects[index];
+      if (!object) return;
+      const ratio = runtime._editor_value(index, 3);
+      if (ratio < 0) return;
+      const scaleY = doc.scene.get(entity, "Scale")?.value.y ?? 1;
+      hudScratch.copy(object.position);
+      hudScratch.y += scaleY / 2 + 0.35;
+      hudScratch.project(camera);
+      if (hudScratch.z > 1) return; // behind the camera
+      const x = ((hudScratch.x + 1) / 2) * hud.width;
+      const y = ((1 - hudScratch.y) / 2) * hud.height;
+      const barWidth = 40,
+        barHeight = 5;
+      hudCtx.fillStyle = "rgba(10, 16, 24, 0.75)";
+      hudCtx.fillRect(x - barWidth / 2, y - barHeight / 2, barWidth, barHeight);
+      hudCtx.fillStyle =
+        ratio > 0.5 ? "#4caf50" : ratio > 0.25 ? "#ffb300" : "#e53935";
+      hudCtx.fillRect(
+        x - barWidth / 2,
+        y - barHeight / 2,
+        barWidth * Math.max(0, Math.min(1, ratio)),
+        barHeight,
+      );
+    });
   }
   requestAnimationFrame(frame);
 }

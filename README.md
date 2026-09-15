@@ -36,6 +36,8 @@ Engine version 0.22.0 adds player control to the editor: tag an entity `Player` 
 
 Engine version 0.23.0 makes `Collider` obstacles actually block movement in the editor — round 2 of that same plan: any entity authored with a `Collider`, the same component the editor already let you attach but never consulted, now stops the player (and any other moving entity) instead of letting it pass straight through. Combat, flight and HUD are next. See [F23](docs/IMPLEMENTATION_STATUS.md#f23--collision-collider-obstacles-block-movement-0230).
 
+Engine version 0.24.0 adds combat — round 3 of 3, closing the remaining gap with the native playground: F is melee, G fires a ranged blast at the nearest target, and any entity with a `Health` component can now be damaged and defeated by either. A screen-space health bar (plus a status-bar text readout) shows it happening. See [F24](docs/IMPLEMENTATION_STATUS.md#f24--combat-melee-ranged-blast-and-a-health-hud-0240).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 
