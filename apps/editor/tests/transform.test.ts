@@ -69,5 +69,12 @@ test("metadata constrains enums and marks derived properties", () => {
     ["AABB", "Sphere"],
   );
   assert.equal(propertyMetadata("RigidBody", "inverseMass").readOnly, true);
-  assert.equal(propertyMetadata("Renderable", "mesh").options?.[1]?.value, 1);
+  const meshOptions = propertyMetadata("Renderable", "mesh").options ?? [];
+  assert.equal(meshOptions[0]?.value, 0, "the default box is always first");
+  // The bench (id 1) lives in the catalog itself now, not a fixed position —
+  // find it by value rather than assuming an index.
+  assert.ok(
+    meshOptions.some((o) => o.value === 1 && /Bench/.test(o.label)),
+    "no Renderable.mesh option for the bench",
+  );
 });

@@ -15,6 +15,7 @@ import { LocalStorageSceneStore } from "../authoring/CommandInterpreter";
 import { EditorDocument } from "./Document";
 import { modelCatalog, catalogCategories } from "../scene/modelCatalog";
 import { pickClipName, groundSpeed } from "./animationClips";
+import { loadOnce } from "./loadOnce";
 import type { SceneComponents } from "../scene/Scene";
 import "./style.css";
 
@@ -179,8 +180,6 @@ async function startEditor() {
     <div class="panel-header"><h2>Project / Content</h2></div>
     <div class="panel-body">
       <label class="field-row"><span>Project</span><input id="project" value="Untitled project" aria-label="Project name"></label>
-      <button id="bench" class="btn btn-sm">${iconHtml("cube")}<span>Add Aether bench</span></button>
-      <p class="hint">bench.glb · bundled CC0 model</p>
       <div class="field-row">
         <select id="catalog-category" aria-label="Model category">
           ${catalogCategories
@@ -328,7 +327,6 @@ async function startEditor() {
       queueMicrotask(rebuild);
     }
   });
-  let bench: THREE.Group | undefined;
   const gltfLoader = new GLTFLoader();
   interface CachedModel {
     scene: THREE.Group;
@@ -336,6 +334,12 @@ async function startEditor() {
   }
   const catalogCache = new Map<number, CachedModel>();
   const catalogPromises = new Map<number, Promise<CachedModel>>();
+  // Ids with a rebuild()-on-load callback already attached (see the rebuild()
+  // fallback branch below). A scene with N entities sharing one uncached
+  // catalog id must trigger exactly one rebuild() when it resolves, not N —
+  // each rebuild() re-clones the whole scene, so N would be O(N) redundant
+  // full-scene rebuilds for what is, functionally, one load finishing.
+  const pendingCatalogRebuilds = new Set<number>();
   function catalogEntry(meshId: number) {
     return modelCatalog.find((m) => m.id === meshId);
   }
@@ -414,13 +418,11 @@ async function startEditor() {
     for (const entity of refs) {
       const renderable = doc.scene.get(entity, "Renderable");
       const meshId = renderable?.mesh ?? 0;
-      const catalog = meshId >= 2 ? catalogEntry(meshId) : undefined;
-      const cached = meshId >= 2 ? catalogCache.get(meshId) : undefined;
+      const catalog = meshId >= 1 ? catalogEntry(meshId) : undefined;
+      const cached = meshId >= 1 ? catalogCache.get(meshId) : undefined;
       let object: THREE.Object3D;
       let animState: AnimState | undefined;
-      if (meshId === 1 && bench) {
-        object = bench.clone(true);
-      } else if (cached) {
+      if (cached) {
         if (catalog?.animated) {
           object = SkeletonUtils.clone(cached.scene);
           const mixer = new THREE.AnimationMixer(object);
@@ -440,14 +442,16 @@ async function startEditor() {
           object = cached.scene.clone(true);
         }
       } else {
-        if (meshId >= 2)
-          loadCatalogModel(meshId)
-            ?.then(() => {
+        if (meshId >= 1)
+          loadOnce(
+            pendingCatalogRebuilds,
+            meshId,
+            () => loadCatalogModel(meshId),
+            () => {
               if (doc.mode === "edit" && !gizmo.dragging) rebuild();
-            })
-            .catch((error) =>
-              log(`Catalog model ${meshId} failed to load: ${String(error)}`),
-            );
+            },
+            (error) => log(`Catalog model ${meshId} failed to load: ${String(error)}`),
+          );
         object = new THREE.Mesh(geometry, material);
       }
       object.visible = renderable?.visible ?? true;
@@ -785,20 +789,6 @@ async function startEditor() {
     e.preventDefault();
     execute(el<HTMLInputElement>("json").value);
   };
-  el("bench").onclick = () => {
-    const result = execute({
-      command: "spawn_entity",
-      name: "Aether bench",
-      transform: [0, 0, 0],
-    });
-    if (result.ok)
-      execute({
-        command: "set_component",
-        entity: result.entity,
-        type: "Renderable",
-        value: { mesh: 1, material: 0, visible: true },
-      });
-  };
   function populateCatalogModels() {
     const category = el<HTMLSelectElement>("catalog-category").value;
     el<HTMLSelectElement>("catalog-model").innerHTML = modelCatalog
@@ -859,15 +849,6 @@ async function startEditor() {
   wireResizer(el("resize-right"), "x", "--panel-right", 220, 480, true);
   wireResizer(el("resize-bottom"), "y", "--dock-height", 120, 480, true);
   wireResizer(el("resize-dock"), "x", "--dock-left-width", 220, 640);
-  new GLTFLoader().load(
-    "./bench.glb",
-    (gltf) => {
-      bench = gltf.scene;
-      if (doc.mode === "edit" && !gizmo.dragging) rebuild();
-    },
-    undefined,
-    (error) => log("Bench asset failed: " + String(error)),
-  );
   try {
     const saved = localStorage.getItem("game-engine-editor:scene");
     if (saved) doc.load(JSON.parse(saved));

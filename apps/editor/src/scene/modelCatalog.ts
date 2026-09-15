@@ -34,6 +34,14 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 23, category: "buildings", name: "Warehouse 1", path: "./kit/buildings/warehouse-1.glb" },
   { id: 24, category: "buildings", name: "Warehouse 2", path: "./kit/buildings/warehouse-2.glb" },
   { id: 25, category: "buildings", name: "Warehouse 3", path: "./kit/buildings/warehouse-3.glb" },
+  // Id 1 predates the rest of the catalog (0.9.0's original "Add Aether bench"
+  // button) and stays reserved for it — every saved scene since then may
+  // reference Renderable.mesh: 1, and ./bench.glb (not ./kit/furniture/bench.glb,
+  // which was deduplicated away in 0.19.0 as the identical file) is still the
+  // path the editor has always fetched it from. Sorted here, not appended, so
+  // the Model picker's furniture list stays alphabetical like every other
+  // category's — "Aether Bench" comes before "Barrier".
+  { id: 1, category: "furniture", name: "Aether Bench", path: "./bench.glb" },
   { id: 26, category: "furniture", name: "Barrier", path: "./kit/furniture/barrier.glb" },
   { id: 27, category: "furniture", name: "Bin", path: "./kit/furniture/bin.glb" },
   { id: 28, category: "furniture", name: "Bollard", path: "./kit/furniture/bollard.glb" },

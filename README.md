@@ -30,6 +30,8 @@ Engine version 0.19.0 adds a 103-model catalog to the editor: buildings, furnitu
 
 Engine version 0.20.0 brings the remaining 27 rigged, animated models (animals and people) into the same catalog, each playing its own embedded idle/walk/run animation clips through Three.js's `AnimationMixer`, crossfading based on the entity's actual measured speed. See [F20](docs/IMPLEMENTATION_STATUS.md#f20--animated-models-in-the-editor-0200).
 
+Engine version 0.21.0 folds the original Aether bench into the model catalog as its own entry (id 1) instead of a separate standalone button, so there's one consistent way to browse and place every bundled model. See [F21](docs/IMPLEMENTATION_STATUS.md#f21--the-bench-joins-the-catalog-it-predates-0210).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 
