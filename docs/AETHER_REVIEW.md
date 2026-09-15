@@ -80,6 +80,10 @@ reset. Desktop/mobile browser tests exercise a generated field before recording 
    the editor's scene format in both directions.
    See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md#f11--native-scene-export-0110).
 6. Playable slice: one small environment demonstrating the intended game experience.
+   Done (F12) — a minimal 3D platformer: a short ascending platform path to a goal marker
+   in the native playground, using only what F6–F11 already built (movement, gravity,
+   jump, collision, a win condition).
+   See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md#f12--playable-slice-platform-path-and-goal-0120).
 
 Every milestone must have something visible or usable and automated verification.
 Keep any ECS performance evaluation bounded and measurement-driven; it must not

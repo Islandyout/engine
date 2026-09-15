@@ -25,6 +25,12 @@ struct Config final {
     float ground_y{0.0F};
 };
 
+// True if two boxes' axis-aligned bounds overlap on every axis. Exposed for
+// non-physical trigger checks (a goal volume, a pickup) that want the same
+// overlap test step() uses internally, without wanting a Collider's push-out
+// and velocity-zeroing side effects.
+[[nodiscard]] bool overlaps(const Box& a, const Box& b);
+
 // Integrates gravity and velocity for every (Box, RigidBody) entity, then
 // resolves each one out of the ground plane at ground_y and any overlapping
 // static (Box, Collider) entity along the axis of least penetration, zeroing

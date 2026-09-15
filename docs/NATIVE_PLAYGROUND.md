@@ -19,8 +19,9 @@ The native window shows an orthographic 3D field with boxes and a movable textur
 | Window close | Clean shutdown |
 
 The window title includes the controls. The player falls under gravity and collides with
-the seven field boxes and any spawned crates; see [Physics](#physics) below. Floor tiles
-are still presentation geometry only — the ground plane itself is an implicit physics
+the seven field boxes and any spawned crates; see [Physics](#physics) below. A three-step
+platform path leads to a gold goal marker — see [Playable slice](#playable-slice). Floor
+tiles are still presentation geometry only — the ground plane itself is an implicit physics
 constant (`y = 0`), not an entity.
 Floor tiles are presentation geometry, while the player and editable boxes are owned
 by F5 World. FixedSystems commits structural changes; F4 ActionSystem maps controls.
@@ -142,3 +143,33 @@ exactly, including a name needing JSON escaping and negative/fractional coordina
 entity with none of those fields serializes an explicit empty `components` object rather
 than omitting the entity's shape, and `engine_playground_save_scene_headless` is a CTest
 smoke case for the CLI flag itself.
+
+## Playable slice
+
+The default scene (not a loaded `--scene` document, which has no goal) adds a hand-authored
+`place_platform_path()`: three static `Collider` platforms at `z = 6` — clear of the
+player's `z = 3` spawn and the field boxes' `z = -3` row — 0.5 units taller than the last
+(tops at `y = 1.0, 1.5, 2.0`, each flush against the next), plus a gold goal marker resting
+on the final one. Touching the goal (an AABB overlap against the player's `Box`, checked
+each tick via `physics::overlaps` — the same test `physics::step` uses internally for
+collider resolution, but without pushing anything out) sets `Scene::won()`, which stays true
+until the next reset. The goal has no `Collider` (touching it, not standing on it, wins) and
+is exempt from the "remove" control (deleting the one entity that can ever end the level
+would be a dead end no reset fixes at the input level — though `reset()` does still recreate
+it from scratch).
+
+Reaching the platforms means jumping onto each one — walking into the side of a `Collider`
+box blocks movement exactly like the field boxes and crates do, so the path is not a flat
+run; the maximum jump apex (`jump_speed² / (2·-gravity) ≈ 1.36` units, from the constants in
+[Physics](#physics)) comfortably clears each 0.5-unit step. In the desktop build, reaching
+the goal prints a one-line console message (`You reached the goal! Press R to play again.`)
+the first tick `won()` becomes true, tracked separately from world state since `won()` itself
+resets to false on the next `R`.
+
+`engine_playground_tests` scripts a two-phase input sequence (approach along `z` only, clear
+of every platform's footprint, then traverse along `x` with periodic jump taps — jump is
+edge-triggered, so the key is toggled to get a fresh press each attempt) and asserts the goal
+is reached within a generous tick budget, and that the goal survives that input un-removed.
+A diagonal approach is deliberately not used or tested: it walks the player into a platform's
+`z`-face while still at ground level, which blocks it like any other wall — a real property
+of static box colliders illustrated here, not a shortcut this path supports.

@@ -17,7 +17,7 @@ Bounds bounds_of(const Box &box) {
               box.center.z + box.size.z / 2}};
 }
 
-bool overlaps(const Bounds &a, const Bounds &b) {
+bool bounds_overlap(const Bounds &a, const Bounds &b) {
     return a.min.x < b.max.x && a.max.x > b.min.x && a.min.y < b.max.y && a.max.y > b.min.y &&
            a.min.z < b.max.z && a.max.z > b.min.z;
 }
@@ -49,6 +49,8 @@ bool resolve_axis(Box &box, const Box &obstacle, Vec3 &velocity) {
 
 } // namespace
 
+bool overlaps(const Box &a, const Box &b) { return bounds_overlap(bounds_of(a), bounds_of(b)); }
+
 void step(World &world, float dt, const Config &config) {
     if (!(dt > 0))
         return;
@@ -76,7 +78,7 @@ void step(World &world, float dt, const Config &config) {
             if (!world.get<Collider>(other)->is_static)
                 continue;
             const auto &obstacle = *world.get<Box>(other);
-            if (!overlaps(bounds_of(box), bounds_of(obstacle)))
+            if (!bounds_overlap(bounds_of(box), bounds_of(obstacle)))
                 continue;
             if (resolve_axis(box, obstacle, body.velocity))
                 body.grounded = true;

@@ -139,6 +139,18 @@ int main() {
             check(std::abs(world.get<Box>(body)->center.x - 1.4F) < 0.0001F,
                   "a non-static collider does not push a body out");
         }
+        {
+            // physics::overlaps is the same box-vs-box test step() uses
+            // internally, exposed for non-physical trigger checks (a goal
+            // volume, a pickup) that want detection without a Collider's
+            // push-out and velocity-zeroing side effects.
+            check(physics::overlaps(Box{{0, 0, 0}, {1, 1, 1}}, Box{{0.5F, 0, 0}, {1, 1, 1}}),
+                  "overlapping boxes report an overlap");
+            check(!physics::overlaps(Box{{0, 0, 0}, {1, 1, 1}}, Box{{2, 0, 0}, {1, 1, 1}}),
+                  "separated boxes report no overlap");
+            check(!physics::overlaps(Box{{0, 0, 0}, {1, 1, 1}}, Box{{1, 0, 0}, {1, 1, 1}}),
+                  "exactly touching boxes (shared face, zero penetration) report no overlap");
+        }
 
         std::cout << "Physics gravity, ground rest, collider resolution and no-op dt passed.\n";
     } catch (const std::exception &e) {

@@ -15,6 +15,7 @@ class Scene final {
 public:
     World world;
     Entity player;
+    std::optional<Entity> goal; // unset for a loaded document; see reset()
     OrbitView camera;
     Scene() : actions_(map()) {
         register_and_bind();
@@ -32,6 +33,8 @@ public:
         world.reset();
         camera = {};
         actions_ = ActionSystem{map()};
+        won_ = false;
+        goal.reset();
         player = world.create();
         world.set(player, Box{{-3, 0.6F, 3}, {0.8F, 1.2F, 0.8F}, {218, 239, 132}});
         world.set(player, physics::RigidBody{});
@@ -47,6 +50,7 @@ public:
                                          {104, 160, 159}});
                 world.set(obstacle, physics::Collider{});
             }
+            place_platform_path();
         }
     }
     void step(const FixedUpdateContext &context) {
@@ -57,6 +61,10 @@ public:
         }
         systems_.run(world, context);
     }
+    // True once the player's Box has overlapped the goal's Box (see
+    // place_platform_path()); stays true until the next reset(). Always
+    // false for a loaded document, which has no goal.
+    [[nodiscard]] bool won() const { return won_; }
     // A "format 1" snapshot of every current Box entity's position, in
     // world.query's creation order (player included). Only what a Box
     // carries survives: a Transform at its center and a visible Renderable
@@ -94,6 +102,7 @@ private:
     FixedSystems systems_;
     ActionSystem actions_;
     std::optional<SceneDocument> loaded_;
+    bool won_{false};
     void register_and_bind() {
         world.register_component<Box>("playground.box");
         world.register_component<physics::RigidBody>("playground.rigidbody");
@@ -118,7 +127,7 @@ private:
                 if (pressed("remove")) {
                     auto all = w.query<Box>();
                     for (auto i = all.rbegin(); i != all.rend(); ++i)
-                        if (*i != player) {
+                        if (*i != player && (!goal.has_value() || *i != *goal)) {
                             w.defer_destroy(*i);
                             break;
                         }
@@ -129,6 +138,42 @@ private:
                           physics::step(
                               w, std::chrono::duration<float>(context.delta_time).count());
                       });
+        systems_.add("playground.goal", FixedPhase::update, 20,
+                      [&](World &w, const FixedUpdateContext &) {
+                          if (!won_ && goal.has_value())
+                              won_ = physics::overlaps(*w.get<Box>(player), *w.get<Box>(*goal));
+                      });
+    }
+    // A hand-authored, deliberately generous ascending staircase — three
+    // static platforms 0.5 units taller than the last, each flush against
+    // the next so there is always solid ground to stand on, plus a goal
+    // marker resting on the final platform. Max jump apex here is
+    // jump_speed^2 / (2 * -physics::Config{}.gravity) =~ 1.36 units, well
+    // above each 0.5-unit step. The goal is a Box (so the existing overlap
+    // check and renderer see it) but never gets a Collider: touching it,
+    // not standing on it, is what wins, so it must not block the player.
+    // Placed at z=6, clear of the player's z=3 spawn/default facing and the
+    // random field's z=-3 row, so approaching it is a deliberate move.
+    void place_platform_path() {
+        struct Platform final {
+            float x;
+            float top;
+        };
+        static constexpr float path_z = 6;
+        static constexpr Platform platforms[] = {{-1, 1.0F}, {1, 1.5F}, {3, 2.0F}};
+        Platform last = platforms[0];
+        for (const auto &platform : platforms) {
+            const auto entity = world.create();
+            world.set(entity, Box{{platform.x, platform.top / 2, path_z}, {2, platform.top, 2},
+                                   {166, 138, 218}});
+            world.set(entity, physics::Collider{});
+            last = platform;
+        }
+        const auto goal_entity = world.create();
+        world.set(goal_entity, Box{{last.x, last.top + 0.25F, path_z},
+                                    {0.6F, 0.5F, 0.6F},
+                                    {255, 215, 0}});
+        goal = goal_entity;
     }
     // Places one box per document entity that has a Transform and is not
     // explicitly marked non-visible. The box color is a deterministic

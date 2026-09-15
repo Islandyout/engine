@@ -21,6 +21,7 @@ public:
     std::vector<engine::InputEvent> pending;
     engine::InputState input;
     bool smoke{};
+    bool announced_win{};
 #if ENGINE_HAS_SDL3
     engine::SdlPlatform *desktop{};
 #endif
@@ -34,6 +35,12 @@ public:
             input.apply(event);
         pending.clear();
         scene->step({context.tick, context.delta_time, input});
+        if (scene->won() && !announced_win) {
+            announced_win = true;
+            std::cout << "You reached the goal! Press R to play again.\n";
+        } else if (!scene->won() && announced_win) {
+            announced_win = false; // R was pressed; reset() clears won()
+        }
         return smoke && context.tick >= 3 ? engine::LoopControl::exit
                                           : engine::LoopControl::continue_running;
     }
@@ -139,7 +146,8 @@ int main(int argc, char **argv) {
         if (!headless) {
             engine::SdlPlatformConfig config;
             config.application_name = "Game Engine | WASD move | Shift jump | Q/E orbit | Z/X zoom "
-                                      "| Space add | Backspace remove | R reset";
+                                      "| Space add | Backspace remove | R reset | reach the gold "
+                                      "goal at z=6 to win";
             config.hidden = demo.smoke;
             auto sdl = std::make_unique<engine::SdlPlatform>(config);
             demo.desktop = sdl.get();

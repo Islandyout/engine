@@ -382,3 +382,48 @@ shared scene format. Engine version advanced to 0.11.0. See
   `-fsanitize=undefined -fno-sanitize-recover=all` also passed all 13.
 - Same SDL/desktop CI gap as F10: not verified against the SDL-enabled preset in this
   sandbox; the new code has no SDL-guarded path.
+
+## F12 — Playable slice: platform path and goal (0.12.0)
+
+Adds `Scene::place_platform_path()` to the native playground's default scene: three static
+`Collider` platforms at `z = 6` (clear of the player's spawn and the field boxes), each
+0.5 units taller than the last, plus a gold, non-solid goal marker on the final one.
+`Scene::won()` becomes true and stays true once the player's `Box` overlaps the goal's
+`Box`, checked each tick by a new `playground.goal` system using a new public
+`physics::overlaps(Box, Box)` — the same overlap test `physics::step` already used
+internally, exposed for non-physical trigger checks that shouldn't also push anything out
+or zero velocity. This is the "Playable slice: one small environment demonstrating the
+intended game experience" item in [AETHER_REVIEW.md](AETHER_REVIEW.md)'s agreed delivery
+sequence, completing it — a minimal 3D platformer chosen as that experience: jump across a
+short ascending path to a goal. The goal is exempt from the "remove" control (the one entity
+that can end the level is not deletable by ordinary input) but not from `reset()`, which
+recreates it from scratch along with everything else. See
+[NATIVE_PLAYGROUND.md](NATIVE_PLAYGROUND.md#playable-slice) for full scope, including why a
+diagonal approach to the platforms is blocked by design rather than a bug.
+
+### F12 verification
+
+- `physics_tests.cpp` (extended) covers `physics::overlaps` directly: overlapping boxes,
+  separated boxes, and two boxes sharing an exact face (zero penetration) reporting no
+  overlap.
+- `engine_playground_tests` (extended) scripts a two-phase input sequence — pure `z`
+  approach clear of every platform's `x`-footprint, then pure `x` traversal with periodic
+  jump taps (jump is edge-triggered, so the key is toggled to get each fresh press) — and
+  asserts `Scene::won()` is false at the start, becomes true within a generous tick budget,
+  and that the goal entity is never destroyed by that input. This was arrived at
+  empirically: an initial diagonal-approach script got the player stuck against a
+  platform's `z`-face (documented above and in code) before ever reaching the goal, which is
+  correct collider behavior, not a test bug, and is why the shipped script and its comments
+  describe the two-phase order deliberately.
+- Also updated the pre-existing action/spawn/remove/reset entity-count assertions in
+  `engine_playground_tests` (8 → 12 baseline: player, 7 field boxes, 3 platforms, 1 goal),
+  which needed no other changes — the "action movement" test's original 10-tick,
+  x-only, z = 3 path stays clear of the platforms' new z = 6 row entirely.
+- Linux Clang 18.1.3 strict-warning headless build passed with zero warnings; all 13
+  CTest cases (same count as F11 — this milestone changed no test count, only test content
+  and one new physics_tests.cpp case) passed. A separate GCC 13.3.0 build with
+  `-fsanitize=undefined -fno-sanitize-recover=all` also passed.
+- Same SDL/desktop CI gap as F10/F11: not verified against the SDL-enabled preset in this
+  sandbox (missing X11/Xcursor packages); the new code has no SDL-guarded path beyond the
+  existing title-string update. Worth a real desktop run to confirm the platform path feels
+  right interactively, not just kinematically.
