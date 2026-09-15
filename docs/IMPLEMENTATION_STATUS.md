@@ -490,3 +490,52 @@ in this codebase's actual scenes.
   `-fsanitize=undefined -fno-sanitize-recover=all` also passed.
 - Same SDL/desktop CI gap as F10–F12: not verified against the SDL-enabled preset in this
   sandbox; the new code has no SDL-guarded path.
+
+## F14 — Camera follow and combat basics (0.14.0)
+
+Two independent changes, again picked because they touch different files and share no
+state: `OrbitView` gained a `target` (`include/engine/graphics/box_view.hpp`,
+`source/engine/graphics/box_view.cpp`), and the default scene gained a stationary,
+defeatable enemy (`apps/native_playground/scene.hpp`).
+
+**Camera follow**: `BoxView::draw()` and `draw_mesh()` previously projected world positions
+relative to the world origin only — the camera orbited and zoomed, but never actually
+tracked anything, so moving far enough would carry the player off screen. `target` (default
+`{0,0,0}`, so every existing caller renders identically to before) is now subtracted from
+world-space positions before projecting; the playground's move system sets
+`camera.target = box.center` every tick, so the player is always centered.
+
+**Combat basics**: `place_enemy()` adds one stationary target near spawn with a `Health`
+component (60 max) and deliberately no `Collider`. Pressing "attack" (F) while overlapping
+it — `physics::overlaps`, the same test the goal uses — deals `attack_damage` (20); three
+hits defeats it, latching `Scene::enemy_defeated()`. This is the first slice of the
+"combat/ability system" pillar: intentionally minimal (one static target, no retaliation,
+no cooldown beyond the natural edge-trigger), not a combat AI or ability system yet.
+
+A real bug surfaced and was fixed during this milestone, not shipped: the enemy was
+originally given a `Collider` like every other obstacle, on the reasoning that it should
+also block movement. Testing showed this made "attack" nearly unusable — physics resolves
+any solid overlap to exactly zero penetration each tick (pushes the body out until it just
+touches), and `physics::overlaps` is a strict inequality test that reports zero penetration
+as no overlap, so a solid enemy could essentially never register as "in range." Fixed by
+making the enemy non-solid, like the goal, which is also what makes overlap detection
+(rather than a proximity/reach radius) a coherent design for both.
+
+### F14 verification
+
+- New camera test: after 20 ticks of movement, `camera.target` exactly equals the player's
+  `Box.center` (a direct per-tick assignment, so exact equality is the correct check, not a
+  tolerance).
+- New combat test: walks the player onto the enemy, confirms the overlap, then lands three
+  scripted attacks (F is edge-triggered like jump, so the key is released and re-pressed
+  each time) — asserts `Health.current` after each hit (40, then 20), `enemy_defeated()`
+  staying false through two hits, the entity no longer alive and `enemy_defeated()` true
+  after the third, and a fourth attack afterward being a safe no-op (still defeated, no
+  crash).
+- Updated the pre-existing action/spawn/remove/reset entity-count assertions for the new
+  baseline (13, up from 12: player, 7 field boxes, 3 platforms, 1 goal, 1 enemy).
+- Linux Clang 18.1.3 strict-warning headless build passed with zero warnings; all 13 CTest
+  cases (same count — no new CTest targets) passed. A separate GCC 13.3.0 build with
+  `-fsanitize=undefined -fno-sanitize-recover=all` also passed.
+- Same SDL/desktop CI gap as F10–F13: not verified against the SDL-enabled preset in this
+  sandbox; the new code has no SDL-guarded path.

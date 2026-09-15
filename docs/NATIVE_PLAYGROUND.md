@@ -11,6 +11,7 @@ The native window shows an orthographic 3D field with boxes and a movable textur
 | --- | --- |
 | W/A/S/D | Move the bench model in world X/Z |
 | Shift | Jump while grounded; hold while airborne to fly |
+| F | Attack (must be overlapping a target) |
 | Q/E | Orbit the camera |
 | Z/X | Zoom out/in |
 | Space | Create a crate next to the player (64 entity cap) |
@@ -61,6 +62,17 @@ Windows builds also run tests. See the PR's Actions artifacts for downloadable p
 Tests cover action movement, single-edge spawn, removal, stale handles after reset, camera
 changes, repeatable frames, depth order, malformed renderer input, surface resize and shutdown.
 A dummy-driver test proves surface presentation but does not replace human desktop testing.
+
+## Camera
+
+`OrbitView` carries a `target` (default `{0,0,0}`, so every existing caller that never sets
+it renders exactly as before) that both `BoxView::draw()` and `draw_mesh()` subtract from
+world-space positions before projecting — the camera orbits and centers on `target` rather
+than the world origin. The playground's move system sets `camera.target = box.center` every
+tick, so the player is always centered on screen instead of scrolling off it while Q/E and
+Z/X still only change orbit angle and zoom. This is a straight 3-axis follow with no fixed
+height offset: flying up moves the whole world down to match, rather than the camera craning
+upward at a distance — a simple first pass, not a tuned third-person rig.
 
 ## Opening an editor-exported scene
 
@@ -199,3 +211,23 @@ a real player would use. A diagonal approach is deliberately not used or tested 
 walks the player into a platform's `z`-face while still at ground level, which blocks it
 like any other wall — a real property of static box colliders illustrated here, not a
 shortcut this path supports.
+
+### Combat
+
+`place_enemy()` adds one stationary target near spawn, at `(0, 0.5, 0)` — a Health
+(`current`/`max`, default 60) and a Box, but deliberately no `Collider`. Pressing "attack"
+(F) while the player's `Box` overlaps the enemy's — the same `physics::overlaps` test the
+goal uses — deals a flat `attack_damage` (20); three hits defeats it, destroying the entity
+and latching `Scene::enemy_defeated()` true, the same pattern `won()` uses for the goal. It
+does not fight back or block movement; this is scoped to "there is something to hit and it
+can be defeated," not a combat AI, and is a starting point for a real ability/power system.
+
+The enemy is deliberately not a `Collider`: physics resolves any solid overlap to exactly
+zero penetration each tick (push the overlapping body out until it just touches), and
+`physics::overlaps` is a strict inequality test that reports zero penetration as no overlap
+— so a solid enemy could never register as "in range" to attack. Non-solid, like the goal,
+is what lets the player actually stand on/inside it and have that register. `engine_playground_tests`
+walks the player onto the enemy, confirms the overlap, and lands three scripted attacks
+(F is edge-triggered like jump, so the key is released and re-pressed for each hit),
+checking `Health.current` after each hit and that a further attack past defeat is a safe
+no-op rather than a crash or an "undefeat".

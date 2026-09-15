@@ -11,11 +11,21 @@
 
 namespace playground {
 using namespace engine;
+
+// Playground-local gameplay data, not a general engine primitive — like Goal
+// (see place_platform_path()), this is scoped to what the default scene
+// needs, not a reusable engine::combat module.
+struct Health final {
+    float current{60.0F};
+    float max{60.0F};
+};
+
 class Scene final {
 public:
     World world;
     Entity player;
-    std::optional<Entity> goal; // unset for a loaded document; see reset()
+    std::optional<Entity> goal;  // unset for a loaded document; see reset()
+    std::optional<Entity> enemy; // unset for a loaded document; see reset()
     OrbitView camera;
     Scene() : actions_(map()) {
         register_and_bind();
@@ -34,7 +44,9 @@ public:
         camera = {};
         actions_ = ActionSystem{map()};
         won_ = false;
+        enemy_defeated_ = false;
         goal.reset();
+        enemy.reset();
         player = world.create();
         world.set(player, Box{{-3, 0.6F, 3}, {0.8F, 1.2F, 0.8F}, {218, 239, 132}});
         world.set(player, physics::RigidBody{});
@@ -51,6 +63,7 @@ public:
                 world.set(obstacle, physics::Collider{});
             }
             place_platform_path();
+            place_enemy();
         }
     }
     void step(const FixedUpdateContext &context) {
@@ -65,6 +78,11 @@ public:
     // place_platform_path()); stays true until the next reset(). Always
     // false for a loaded document, which has no goal.
     [[nodiscard]] bool won() const { return won_; }
+    // True once the enemy's Health has been reduced to 0 by "attack" (see
+    // place_enemy()); stays true until the next reset(). Always false for a
+    // loaded document, which has no enemy, or if the enemy was removed
+    // (Backspace) before ever being defeated.
+    [[nodiscard]] bool enemy_defeated() const { return enemy_defeated_; }
     // A "format 1" snapshot of every current Box entity's position, in
     // world.query's creation order (player included). Only what a Box
     // carries survives: a Transform at its center and a visible Renderable
@@ -108,10 +126,13 @@ private:
     ActionSystem actions_;
     std::optional<SceneDocument> loaded_;
     bool won_{false};
+    bool enemy_defeated_{false};
+    static constexpr float attack_damage = 20.0F;
     void register_and_bind() {
         world.register_component<Box>("playground.box");
         world.register_component<physics::RigidBody>("playground.rigidbody");
         world.register_component<physics::Collider>("playground.collider");
+        world.register_component<Health>("playground.health");
         systems_.add(
             "playground.move", FixedPhase::update, 0, [&](World &w, const FixedUpdateContext &) {
                 auto &box = *w.get<Box>(player);
@@ -128,6 +149,10 @@ private:
                     body.velocity.y = fly_speed;
                 camera.yaw += value("orbit") * 0.025F;
                 camera.scale = std::clamp(camera.scale + value("zoom") * 0.4F, 12.0F, 40.0F);
+                // The camera always centers on the player's current
+                // position, so it never lags a frame behind this tick's
+                // x/z movement above.
+                camera.target = box.center;
                 if (pressed("spawn") && w.size() < 64) {
                     auto created = w.defer_create();
                     w.defer_set(
@@ -154,6 +179,21 @@ private:
                           if (!won_ && goal.has_value())
                               won_ = physics::overlaps(*w.get<Box>(player), *w.get<Box>(*goal));
                       });
+        systems_.add(
+            "playground.combat", FixedPhase::update, 20, [&](World &w, const FixedUpdateContext &) {
+                if (!pressed("attack") || !enemy.has_value() || !w.alive(*enemy))
+                    return;
+                // Melee range: must actually be touching the enemy's Box,
+                // the same overlap test the goal uses to detect the player.
+                if (!physics::overlaps(*w.get<Box>(player), *w.get<Box>(*enemy)))
+                    return;
+                auto &health = *w.get<Health>(*enemy);
+                health.current = std::max(0.0F, health.current - attack_damage);
+                if (health.current <= 0) {
+                    w.defer_destroy(*enemy);
+                    enemy_defeated_ = true;
+                }
+            });
     }
     // A hand-authored, deliberately generous ascending staircase — three
     // static platforms 0.5 units taller than the last, each flush against
@@ -185,6 +225,22 @@ private:
                                     {0.6F, 0.5F, 0.6F},
                                     {255, 215, 0}});
         goal = goal_entity;
+    }
+    // One stationary target near spawn (an easy first fight, not a second
+    // climb) — press "attack" while overlapping it to deal attack_damage;
+    // three hits defeats it. Deliberately not a Collider: physics resolves
+    // any solid overlap away each tick (to exactly zero penetration, which
+    // physics::overlaps — a strict inequality test — then reports as no
+    // overlap), so a solid enemy could never actually register as "in
+    // range." Non-solid, like the goal, is what lets standing on/inside it
+    // register at all; it does not fight back or block movement, which is
+    // deliberately scoped to "there is something to hit and it can be
+    // defeated," not a full combat AI.
+    void place_enemy() {
+        const auto entity = world.create();
+        world.set(entity, Box{{0, 0.5F, 0}, {1, 1, 1}, {200, 70, 70}});
+        world.set(entity, Health{});
+        enemy = entity;
     }
     // Places one box per document entity that has a Transform and is not
     // explicitly marked non-visible. The box color is a deterministic
@@ -225,7 +281,7 @@ private:
                                         {},
                                         AxisProcessor{0, 1, ResponseCurve::linear, false, scale}});
         };
-        for (auto name : {"x", "z", "orbit", "zoom", "spawn", "remove", "reset", "jump"})
+        for (auto name : {"x", "z", "orbit", "zoom", "spawn", "remove", "reset", "jump", "attack"})
             result.actions.emplace_back(name);
         bind("x", Key::a, -1);
         bind("x", Key::d, 1);
@@ -239,6 +295,7 @@ private:
         bind("remove", Key::backspace, 1);
         bind("reset", Key::r, 1);
         bind("jump", Key::left_shift, 1);
+        bind("attack", Key::f, 1);
         result.contexts.push_back(context);
         return result;
     }
