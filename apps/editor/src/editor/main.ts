@@ -110,7 +110,7 @@ async function startEditor() {
   app.innerHTML = `<header>
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
   <span class="brand-sub">BTAI Editor <span class="version">0.9.0</span></span>
-  <a class="link-external" href="../">Field Lab${iconHtml("external")}</a>
+  <a class="link-external" href="https://github.com/Islandyout/engine">View source${iconHtml("external")}</a>
 </header>
 <nav>
   <div class="btn-group">

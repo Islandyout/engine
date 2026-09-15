@@ -4,7 +4,7 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const { chromium } = require("playwright");
 (async () => {
-  const root = path.resolve("build/field-lab");
+  const root = path.resolve("build/site");
   const server = http.createServer(async (req, res) => {
     const pathname = new URL(req.url, "http://localhost").pathname.replace(
       /^\/engine\//,
@@ -42,7 +42,7 @@ const { chromium } = require("playwright");
     });
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
-    await page.goto(`http://127.0.0.1:${server.address().port}/engine/editor/`);
+    await page.goto(`http://127.0.0.1:${server.address().port}/engine/`);
     await page.waitForFunction(
       () =>
         document.querySelector("#runtime")?.textContent === "C++ runtime ready",

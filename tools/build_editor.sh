@@ -9,6 +9,7 @@ em++ -std=c++20 -O2 -fexceptions -Wall -Wextra -Werror -Iinclude \
   source/engine/physics/physics.cpp \
   -sMODULARIZE=1 -sEXPORT_NAME=createEditorRuntime -sSINGLE_FILE=1 \
   -sENVIRONMENT=web,node -sALLOW_MEMORY_GROWTH=1 -sDISABLE_EXCEPTION_CATCHING=0 \
-  -sWASM_ASYNC_COMPILATION=0 -o build/field-lab/editor/runtime.js
-cp assets/source/bench.glb build/field-lab/editor/bench.glb
-cp assets/CREDITS.md build/field-lab/editor/ASSET-CREDITS.txt
+  -sWASM_ASYNC_COMPILATION=0 -o build/site/runtime.js
+cp assets/source/bench.glb build/site/bench.glb
+cp assets/CREDITS.md build/site/ASSET-CREDITS.txt
+cp third_party/aether/LICENSE build/site/AETHER-LICENSE.txt

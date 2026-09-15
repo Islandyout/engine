@@ -5,6 +5,15 @@ Source: user-provided `aether-complete.zip`, SHA-256
 Reviewed 2026-09-11. The archive has 298 entries, 51 JavaScript source modules,
 11 scene specifications, 11 browser probe suites, and 133 GLB assets.
 
+Historical record: Field Lab, the standalone browser demo referenced below, was
+removed in 0.18.0 once the editor itself (see [BTAI_EDITOR.md](BTAI_EDITOR.md))
+could demonstrate the same compiled-C++-in-the-browser claim, superseding it as
+the site's only entry point. `engine::SeededRandom` did not move with it — it is
+an engine-owned core type (`include/engine/core/seeded_random.hpp`), independently
+used by the native playground's platforming path (see
+[NATIVE_PLAYGROUND.md](NATIVE_PLAYGROUND.md#playable-slice)) — so nothing
+engine-level was lost. The decisions and provenance below are left as recorded.
+
 ## Integration decisions
 
 | Area | Decision | Reason / acceptance gate |

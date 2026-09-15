@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 export default defineConfig({
-  base: "/engine/editor/",
+  base: "/engine/",
   resolve: {
     alias: {
       "@core": new URL("./src/core", import.meta.url).pathname,
@@ -9,5 +9,5 @@ export default defineConfig({
       "@modules": new URL("./src/modules", import.meta.url).pathname,
     },
   },
-  build: { outDir: "../../build/field-lab/editor", emptyOutDir: true },
+  build: { outDir: "../../build/site", emptyOutDir: true },
 });
