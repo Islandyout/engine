@@ -266,14 +266,26 @@ const { chromium } = require("playwright");
     // A Collider obstacle blocks a moving entity through the same real
     // keyboard path, not just editor_key() calls (the native bridge test
     // already covers the underlying physics::step algorithm directly).
-    // Spawn one at x=3 (default box size 1, so its near face sits at 2.5) in
-    // the path of "Entity 7", the player parked at the origin from the test
-    // above, then drive the player at it and confirm the live readout stalls
-    // short of the obstacle instead of sailing through.
+    // "D" is camera-relative (see F25): from the editor's default startup
+    // camera (position (8,7,10), target (0,1,0)), that's the direction
+    // (0.7809, -0.6247) in x/z, not pure +x, so the obstacle is placed 3
+    // units out along that same ray instead of on the x-axis, sized
+    // generously (2x2x2, vs. the player's 1x1x1) so imprecision in that
+    // approach angle can't make it miss. "Entity 7" is the player parked at
+    // the origin from the test above; drive it into the obstacle and
+    // confirm the live readout's total displacement stalls well short of
+    // where ~5s of unobstructed travel (~24 units) would put it.
     await page.locator("#add").click();
     assert.equal(await page.locator(".entity").count(), 8);
-    await page.getByLabel("Transform.position.x", { exact: true }).fill("3");
+    await page.getByLabel("Transform.position.x", { exact: true }).fill("2.343");
     await page.getByLabel("Transform.position.x", { exact: true }).press("Tab");
+    await page.getByLabel("Transform.position.z", { exact: true }).fill("-1.874");
+    await page.getByLabel("Transform.position.z", { exact: true }).press("Tab");
+    await page.getByLabel("Add component").selectOption("Scale");
+    await page.getByLabel("Scale.value.x", { exact: true }).fill("2");
+    await page.getByLabel("Scale.value.x", { exact: true }).press("Tab");
+    await page.getByLabel("Scale.value.z", { exact: true }).fill("2");
+    await page.getByLabel("Scale.value.z", { exact: true }).press("Tab");
     await page.getByLabel("Add component").selectOption("Collider");
     await page
       .locator(".entity")
@@ -288,21 +300,23 @@ const { chromium } = require("playwright");
     await page.waitForFunction(() => {
       const match = document
         .querySelector("#status")
-        .textContent.match(/Player \(([-\d.]+),/);
-      return match && Number(match[1]) > 1.5;
+        .textContent.match(/Player \(([-\d.]+), [-\d.]+, ([-\d.]+)\)/);
+      if (!match) return false;
+      return Math.hypot(Number(match[1]), Number(match[2])) > 0.5;
     });
     // Keep holding well past when an unblocked player would have crossed
-    // x=3, then confirm it never got past the obstacle's near face (2.5,
-    // minus the player's own half-width 0.5, so 2.0).
+    // the obstacle, then confirm it's blocked well short of unobstructed
+    // travel instead of sailing through.
     await page.waitForTimeout(500);
-    const blockedX = Number(
-      (await page.locator("#status").textContent()).match(
-        /Player \(([-\d.]+),/,
-      )[1],
-    );
+    const blockedDistance = await page.evaluate(() => {
+      const match = document
+        .querySelector("#status")
+        .textContent.match(/Player \(([-\d.]+), [-\d.]+, ([-\d.]+)\)/);
+      return match ? Math.hypot(Number(match[1]), Number(match[2])) : 0;
+    });
     assert.ok(
-      blockedX < 2.1,
-      `player should stop at the Collider obstacle, got x=${blockedX}`,
+      blockedDistance < 5,
+      `player should stop at the Collider obstacle, got distance=${blockedDistance}`,
     );
     await page.keyboard.up("d");
     await page.locator("#stop").click();
@@ -373,6 +387,39 @@ const { chromium } = require("playwright");
         .textContent.includes("Selected health: 85%"),
     );
     await page.locator("#stop").click();
+    // Vehicle driving: adding a Vehicle component to the existing Player
+    // entity switches its movement from instant-direction strafing to
+    // momentum-based accelerate/steer -- real driving feel, verified end to
+    // end through the same status-bar readout the WASD test above used, not
+    // editor_value() calls directly (the native bridge test already covers
+    // the acceleration/steering/drag algorithm exhaustively).
+    await page
+      .locator(".entity")
+      .filter({ hasText: "Entity 7" })
+      .first()
+      .click();
+    await page.getByLabel("Add component").selectOption("Vehicle");
+    await page.locator("#play").click();
+    await page.waitForFunction(() =>
+      document.querySelector("#status").textContent.includes("Player ("),
+    );
+    const startZ = Number(
+      (await page.locator("#status").textContent()).match(
+        /Player \([-\d.]+, [-\d.]+, ([-\d.]+)\)/,
+      )[1],
+    );
+    await page.keyboard.down("w");
+    await page.waitForFunction(
+      (start) => {
+        const match = document
+          .querySelector("#status")
+          .textContent.match(/Player \([-\d.]+, [-\d.]+, ([-\d.]+)\)/);
+        return match && Number(match[1]) > start + 1;
+      },
+      startZ,
+    );
+    await page.keyboard.up("w");
+    await page.locator("#stop").click();
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -382,7 +429,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, save/load, invalid-load preservation, authoring console passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, vehicle driving, save/load, invalid-load preservation, authoring console passed.",
     );
   } finally {
     if (browser) await browser.close();

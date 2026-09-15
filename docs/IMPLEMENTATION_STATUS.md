@@ -1299,3 +1299,126 @@ role that readout played for player movement.
   WebGL, same limitation as F22/F23. Correctness rests on the native bridge test's
   exhaustive coverage of the actual damage/targeting/lifetime algorithm (identical C++
   code, not a reimplementation) plus the browser test's real-keyboard integration check.
+
+## F25 — Movement feel: camera-relative WASD, facing, jump weight, vehicle driving (0.25.0)
+
+Direct user feedback after F22–F24 shipped: WASD felt "flipped," the run animation looked
+unnatural, jump was stiff, and `Vehicle` did nothing when added. Root-caused each before
+fixing anything (see the F25 verification section for how), then built
+`examples/demo-game.json` to dogfood the fixes together, per the same feedback's own
+request.
+
+**"Flipped" WASD** was never a sign bug: movement was locked to fixed world axes (W was
+always world -z) while the viewport camera starts at a diagonal angle and can be freely
+orbited, so *any* camera angle other than dead-on -z made some keys feel wrong — a
+structural issue, not a typo. Fixed by making on-foot movement camera-relative: a new
+export, `editor_set_camera_forward(x, z)`, feeds the camera's live horizontal facing into
+`Runtime::camera_forward_x/z` once per rendered frame (`apps/editor/src/editor/main.ts`,
+via `camera.getWorldDirection()`), and `editor.move`'s on-foot branch now computes
+`right = cross(forward, up)` and resolves W/A/S/D against `forward`/`right` instead of raw
+world x/z. Backward-compatible by construction: `camera_forward_x/z` defaults to world
+`(0, -1)`, so a `Runtime` nothing ever calls the new export on — every native test written
+before this round, none of which call it — reproduces the exact old fixed-axis behavior
+bit-for-bit, which is what let all of them keep passing unmodified.
+
+**Unnatural running** turned out not to be primarily a mocap-quality problem: the bigger
+issue is that nothing ever rotated a moving entity's mesh to face its direction of travel,
+so a rigged character played a forward-run clip while sliding sideways or backwards
+relative to its own fixed orientation — the "moonwalking" look. Fixed entirely in
+`apps/editor/src/editor/main.ts`'s animation-clip-selection loop (no bridge change needed):
+each tick batch now also computes `atan2(dx, dz)` from the same position delta already used
+for `groundSpeed()`, and turn-rate-limited `object.rotation.y` toward it whenever speed is
+above the existing idle threshold. Skipped for a `Vehicle` entity, whose facing comes from
+its own exact steered heading instead (below) rather than a delta-inferred one that would
+lag and wobble mid-turn. Clip quality itself (the actual joint motion baked into each
+Aether-kit GLB) is not something this round changed or can fully judge without a browser to
+look at — this fix addresses the structural cause available evidence pointed to first.
+
+**Stiff jumping** — a pure vertical translation with nothing else reacting to it — gets a
+cheap squash-and-stretch: the player mesh stretches tall while rising, squashes while
+falling, and eases back to its authored scale once vertical speed settles near zero,
+scaled from the actual authored `Scale` captured when Play starts (`playerBaseScale` in
+`main.ts`) rather than a hardcoded 1. Player-only (the reported complaint), and explicitly
+skipped for a `Vehicle` entity — a car visibly deforming like a jumping character would
+read as a rendering bug, not a style choice.
+
+**`Vehicle` doing nothing** was confirmed exactly as suspected: `VehicleComponent` (just
+`{archetype: number}`) was authored data from the start, like `Collider` and `Health`
+before their own rounds, but nothing in the bridge ever consulted it — adding the
+component visibly changed nothing, which was itself the bug. Now, an entity with both
+`Player` and an authored `Vehicle` gets a new bridge-local `Heading{yaw, speed}` component
+(`editor_add`'s 15th param, `is_vehicle`) and a different movement model in `editor.move`:
+W/S accelerate/reverse (`vehicle_accel` = 6 units/s², clamped to
+`vehicle_max_forward`/`vehicle_max_reverse` = 9/4 units/s) along the vehicle's own heading
+with momentum and drag (coasts to a stop, doesn't halt dead on key-up), A/D steer that
+heading (`vehicle_turn_rate` = 2.2 rad/s) rather than strafing sideways. Self-relative by
+construction (W always means "accelerate forward," A/D always mean "turn"), so nothing
+about it depends on world-axis orientation the way the old on-foot model did — driving
+never had the "flipped" problem foot movement did, even before the camera-relative fix.
+Simplified arcade model, not real car physics: constant turn rate regardless of speed, no
+traction curve. A vehicle always starts facing world +z, since `editor_add` has no
+`Rotation` input to seed a better initial heading from — documented, not silently wrong.
+`editor_value`'s field 4 exposes `Heading.yaw`, which `main.ts` applies directly to
+`object.rotation.y` each Play-mode frame for a `Vehicle`+`Player` entity (verified
+algebraically consistent with glTF's own +Z-forward convention: a Y-axis rotation of `yaw`
+sends local +Z to world `(sin(yaw), cos(yaw))`, exactly the formula `editor.move` already
+uses for `velocity.x`/`velocity.z`).
+
+`examples/demo-game.json` (new) is a small hand-authored "format 1" scene — a drivable car
+(`Player`+`Vehicle`, mesh 98 "Sedan") inside a four-`Collider` walled arena with one
+obstacle crate, two `Health` targets, and two backdrop buildings — exercising every system
+from F22 through this round together, per the feedback that asked for exactly that. Loads
+only through the editor's own `Open` button: `Player`/`Vehicle` aren't in
+`engine::parse_scene_document`'s recognized-component list, so `engine_playground --scene`
+rejects it outright (confirmed by reading `source/engine/scene/scene_document.cpp`'s own
+`known_components` list, which the native playground uses to validate — not a new gap this
+round introduced). `apps/editor/tests/demoScene.test.ts` loads it through the editor's own
+`EditorDocument`/`validateSceneDocument` path (the same one `Open` uses) and asserts entity
+counts, the car's components, and that every referenced catalog mesh id still exists — a
+real regression guard against the schema and the example drifting apart, not a one-time
+eyeball check.
+
+### F25 verification
+
+- Extended `tests/editor_bridge_tests.cpp` first, natively: with the camera facing world
+  +x instead of the default, D (camera-relative "right") moves along +z and W moves along
+  +x — never world +x/-z — proving the mapping actually follows the camera, not just that a
+  constant got renamed; every pre-existing WASD/jump/collision/combat test kept passing
+  unmodified, proving the default-camera-forward path is bit-for-bit the old behavior.
+  Vehicle: steering alone (no throttle) turns `Heading.yaw` without moving the entity at
+  all (velocity is `speed * trig(yaw)`, and speed is still zero); held throttle's per-tick
+  position delta grows tick over tick (a >10x ratio between the 2nd and 30th tick's delta),
+  proving genuine acceleration rather than an instant constant velocity; releasing the
+  throttle keeps it moving for several more ticks (coasting) before settling to an exact,
+  stable stop (drag clamped at zero, not oscillating past it); sustained full throttle caps
+  its per-tick advance at exactly `vehicle_max_forward`/60 once the ramp finishes.
+- `npm run typecheck`, `npm test` (26/26, up from 25 — the new
+  `apps/editor/tests/demoScene.test.ts`), `npm run build` in `apps/editor`: all pass.
+- Extended `tests/browser/editor.cjs`: adds `Vehicle` to the existing WASD-tested player,
+  holds `w` through Playwright's real keyboard API, and confirms the status bar's own
+  `Player (x, y, z)` readout advances by more than one full unit — a real end-to-end path,
+  not `editor_value()` called directly.
+- Full native rebuild + `ctest`: all 13 cases pass, zero warnings. GCC 13.3.0 build of the
+  bridge and its test with `-fsanitize=undefined,address`: clean.
+- Not verified here: the actual Emscripten/Playwright run, or what any of this looks or
+  feels like rendered and driven by hand — this sandbox has no Emscripten toolchain, no
+  WebGL, and no way to play the game interactively, the same limitation as every prior
+  round. This round's fixes were root-caused from reading the actual movement/rendering
+  code (confirmed the camera starts at a diagonal angle; confirmed nothing ever set
+  rotation from movement direction; confirmed `Vehicle` was read nowhere in the bridge) and
+  the native/TypeScript tests verify the resulting algorithms precisely, but whether the
+  run cycle now genuinely looks natural, or the vehicle genuinely feels good to drive, is
+  something only playing it in a real browser can confirm.
+
+A review pass on this round's own PR caught three further issues, fixed in the same PR
+before merge: the squash-and-stretch recomputed (and could flicker) on a rendered frame
+that ran zero fixed ticks — now gated on `steps > 0`, the same guard the animation-clip
+selection already used; a non-square vehicle's `Box.size` stayed fixed to its authored
+world-axis dimensions while its rendered mesh turned to face its heading, so a 90-degree
+turn made the visible car far wider than what it actually collided with — `Heading` now
+also carries the footprint's half-extents, and `editor.move` recomputes `Box.size.x/z`
+every tick as that footprint's own rotated-rectangle axis-aligned bounding box at the
+current yaw, verified natively by placing a wall only a *turned* long vehicle's footprint
+can reach; and `examples/demo-game.json`'s north/south arena barriers only spanned the
+gap between the east/west walls, not past them, leaving roughly four-unit corner gaps
+the car could drive out through — widened to fully overlap the side walls.
