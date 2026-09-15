@@ -14,6 +14,8 @@ Engine version 0.11.0 adds `engine_playground --save-scene`, writing the live wo
 
 Engine version 0.12.0 adds a playable slice: a short jump-across-platforms path to a gold goal marker in the native playground, completing the Aether-review roadmap's delivery sequence. See [Playable slice](docs/NATIVE_PLAYGROUND.md#playable-slice).
 
+Engine version 0.13.0 unifies `Box` lighting with the mesh renderer's real directional light (no more canned per-face brightness table), and adds sustained flight: hold jump while airborne to climb instead of just arcing through one jump. See [Physics](docs/NATIVE_PLAYGROUND.md#physics).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

@@ -10,7 +10,7 @@ The native window shows an orthographic 3D field with boxes and a movable textur
 | Control | Result |
 | --- | --- |
 | W/A/S/D | Move the bench model in world X/Z |
-| Shift | Jump (only while grounded) |
+| Shift | Jump while grounded; hold while airborne to fly |
 | Q/E | Orbit the camera |
 | Z/X | Zoom out/in |
 | Space | Create a crate next to the player (64 entity cap) |
@@ -22,15 +22,18 @@ The window title includes the controls. The player falls under gravity and colli
 the seven field boxes and any spawned crates; see [Physics](#physics) below. A three-step
 platform path leads to a gold goal marker — see [Playable slice](#playable-slice). Floor
 tiles are still presentation geometry only — the ground plane itself is an implicit physics
-constant (`y = 0`), not an entity.
-Floor tiles are presentation geometry, while the player and editable boxes are owned
-by F5 World. FixedSystems commits structural changes; F4 ActionSystem maps controls.
+constant (`y = 0`), not an entity. The player and editable boxes are owned by F5 World.
+FixedSystems commits structural changes; F4 ActionSystem maps controls.
 Raw F3 input events are consumed once per fixed tick, preserving events over zero-tick
 frames and avoiding repeated press edges during catch-up.
 
 The SDL-free Graphics library is a deliberately small CPU raster baseline: 800x500 RGBA,
 orthographic orbit camera, flat per-face shading, per-pixel depth, opaque axis-aligned
-boxes. Coincident equal-depth surfaces retain the first submitted pixel. Input coordinates
+boxes. A `Box` face's brightness comes from the same fixed directional light `draw_mesh()`
+applies to a normal-carrying mesh vertex (`face_light()` in `box_view.cpp`), not a canned
+per-face table — a face angled away from the light gets only the flat ambient floor a
+backfacing mesh normal would get, instead of an arbitrary always-lit constant. Coincident
+equal-depth surfaces retain the first submitted pixel. Input coordinates
 are finite and bounded; malformed sizes/cameras are rejected before modifying the frame.
 The SDL backend scales that buffer into a freshly acquired window surface after resize.
 No SDL types appear in graphics or scene code. Presentation must run on the main thread.
@@ -109,13 +112,31 @@ on top of a collider) — that flag gates the jump control.
 In the playground: the player has a `RigidBody` and jumps (Shift) only while grounded; the
 seven field boxes and any crate spawned with Space carry a static `Collider`, so the player
 now physically stops at them instead of passing through. Boxes loaded from an
-[editor-exported scene](#opening-an-editor-exported-scene) are static colliders too. This is
-axis-aligned box vs. box collision only — no rotation, no continuous (tunneling-safe) sweep,
+[editor-exported scene](#opening-an-editor-exported-scene) are static colliders too.
+
+Holding Shift while airborne sustains a climb instead of just leaving the player to a single
+jump arc: each tick it is still held and `!grounded`, the move system sets `velocity.y` to a
+flat `fly_speed` (4.0, gentler than `jump_speed`'s 7.0 liftoff) — physics then applies that
+tick's gravity on top, netting `fly_speed - gravity·dt` per tick, so holding produces a
+steady climb rather than an ever-accelerating one. Releasing stops resetting `velocity.y`
+and gravity alone takes back over, so the player decelerates and falls exactly as after any
+jump. There is no controlled descent in this first pass — falling is the only way down while
+airborne — and because liftoff itself needs a fresh press-while-grounded edge, landing
+briefly while still holding Shift does not auto-relaunch; the control has to be released and
+pressed again once grounded (see the scripted platforming test below for exactly this
+gotcha).
+
+This is axis-aligned box vs. box collision only — no rotation, no continuous (tunneling-safe) sweep,
 and only one obstacle is resolved against per overlap per entity per tick, so simultaneous
 overlaps with more than one obstacle in the same tick are not fully separated. `engine_physics_tests`
 covers gravity integration, settling on the ground plane, an already-grounded body not
-sinking, side and top collider resolution, non-static colliders being ignored, and a
-non-positive `dt` no-op.
+sinking, side and top collider resolution, non-static colliders being ignored, a
+non-positive `dt` no-op, and `physics::overlaps` (the same box-vs-box test `step` uses
+internally, exposed for non-physical trigger checks like the goal below). Flight itself is
+playground/scene-level, not part of `engine::physics`, so it is covered by
+`engine_playground_tests` instead: holding jump sustains a climb well beyond one jump's
+height, velocity stays near `fly_speed` instead of decaying, and releasing lets gravity take
+back over.
 
 ## Saving a scene
 
@@ -167,9 +188,14 @@ the first tick `won()` becomes true, tracked separately from world state since `
 resets to false on the next `R`.
 
 `engine_playground_tests` scripts a two-phase input sequence (approach along `z` only, clear
-of every platform's footprint, then traverse along `x` with periodic jump taps — jump is
-edge-triggered, so the key is toggled to get a fresh press each attempt) and asserts the goal
-is reached within a generous tick budget, and that the goal survives that input un-removed.
-A diagonal approach is deliberately not used or tested: it walks the player into a platform's
-`z`-face while still at ground level, which blocks it like any other wall — a real property
-of static box colliders illustrated here, not a shortcut this path supports.
+of every platform's footprint, then traverse along `x`, re-pressing jump the instant the
+player is `grounded`) and asserts the goal is reached within a generous tick budget, and
+that the goal survives that input un-removed. Jump is tied to `grounded` rather than a fixed
+press/release timer deliberately: a timer can end up re-pressing before the player has
+landed from the previous hop, and since [flight](#physics) now means holding jump while
+airborne sustains a climb, that stray press engages flight instead of a fresh liftoff and
+sends the script well off the intended path — the same bunny-hop pattern (land, jump again)
+a real player would use. A diagonal approach is deliberately not used or tested either: it
+walks the player into a platform's `z`-face while still at ground level, which blocks it
+like any other wall — a real property of static box colliders illustrated here, not a
+shortcut this path supports.
