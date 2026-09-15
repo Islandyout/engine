@@ -182,8 +182,11 @@ void BoxView::draw_bar(int x, int y, int bar_width, int bar_height, float ratio,
                        std::array<u8, 3> color) {
     if (!frame_ready_)
         throw std::invalid_argument{"draw_bar needs a frame from draw() first"};
-    if (bar_width <= 0 || bar_height <= 0 || x < 0 || y < 0 || x + bar_width > width ||
-        y + bar_height > height)
+    if (bar_width <= 0 || bar_height <= 0)
+        throw std::invalid_argument{"invalid bar size"};
+    // width - bar_width (not x + bar_width > width) so a huge x (e.g. near
+    // INT_MAX) can't overflow the check into passing.
+    if (x < 0 || y < 0 || x > width - bar_width || y > height - bar_height)
         throw std::invalid_argument{"bar out of frame bounds"};
     if (!std::isfinite(ratio))
         throw std::invalid_argument{"invalid bar ratio"};

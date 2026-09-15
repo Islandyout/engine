@@ -344,6 +344,16 @@ int main() {
             check(rejected, "reject a bar that would draw outside the frame");
             rejected = false;
             try {
+                // x + bar_width must not be computed directly: it would
+                // overflow (signed UB) for x this large and could pass the
+                // bounds check instead of failing it.
+                view.draw_bar(std::numeric_limits<int>::max(), 20, 200, 16, 0.5F, fill);
+            } catch (const std::invalid_argument &) {
+                rejected = true;
+            }
+            check(rejected, "reject a huge x without overflowing the bounds check");
+            rejected = false;
+            try {
                 view.draw_bar(20, 20, 200, 16, std::numeric_limits<float>::quiet_NaN(), fill);
             } catch (const std::invalid_argument &) {
                 rejected = true;
