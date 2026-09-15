@@ -12,7 +12,9 @@ const { chromium } = require("playwright");
     );
     const file = path.resolve(
       root,
-      pathname.endsWith("/") ? pathname + "index.html" : pathname,
+      pathname === "" || pathname.endsWith("/")
+        ? pathname + "index.html"
+        : pathname,
     );
     if (!file.startsWith(root + path.sep)) {
       res.writeHead(404).end();
