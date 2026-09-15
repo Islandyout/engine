@@ -11,9 +11,23 @@ c70cac7397eed5ee9941d88bc1afa4740b68aecc26a61042fab5a71ac211dd72.
 - cooked/bench.gea: deterministic derivative of those two inputs, made by
   tools/cook_static_mesh.py. It retains the two base-color factors; the wood material
   additionally receives the generated albedo. No normal/ORM shader is claimed.
+- source/kit/\*\*: 103 further exact files from assets/kit/{buildings,furniture,
+  nature,roads,signs,vehicles} in the same supplied archive, unmodified — every static
+  (non-rigged, non-animated, single-node) prop in the kit except bench.glb, already
+  imported above. Same aether-assetgen source, same CC0 1.0 grant, same prefix row as
+  the exact bench file already covers, so the row is one prefix rather than one per file.
+  Consumed directly by the editor (`apps/editor/src/scene/modelCatalog.ts`) via Three.js's
+  own glTF loader — no cook_static_mesh.py step, since that cooker's narrower single-node
+  contract is for the native CPU renderer specifically, not the browser editor.
+  Excluded from this import: assets/kit/animals/\*\* and assets/kit/people/\*\* (28 files),
+  every one of them rigged and animated, and out of scope until the engine has an
+  animation system to actually drive them — see docs/AETHER_REVIEW.md.
 
 Hashes (SHA-256):
 
 - `assets/source/bench.glb`: `a3372e035cfb2c5e52bbdaaac6100984e957e040e7283af5709fd04030e3975c`
 - `assets/source/planks.rgba`: `a93a833839816f02a73739378325aa7163f421524846f98de1c3f2f92811c791`
 - `assets/cooked/bench.gea`: `54ea6a44bf53c1ebbf99c9a6a66d24d060a96c0b2b344adc958f7af9dcce8f1e`
+- `assets/source/kit/**`: unmodified copies of the supplied archive's files at the same
+  paths under `assets/kit/`; verify against the archive's own SHA-256 above rather than
+  per-file hashes here (103 files, one shared provenance and license).

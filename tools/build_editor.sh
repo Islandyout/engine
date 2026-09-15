@@ -11,5 +11,6 @@ em++ -std=c++20 -O2 -fexceptions -Wall -Wextra -Werror -Iinclude \
   -sENVIRONMENT=web,node -sALLOW_MEMORY_GROWTH=1 -sDISABLE_EXCEPTION_CATCHING=0 \
   -sWASM_ASYNC_COMPILATION=0 -o build/site/runtime.js
 cp assets/source/bench.glb build/site/bench.glb
+cp -r assets/source/kit build/site/kit
 cp assets/CREDITS.md build/site/ASSET-CREDITS.txt
 cp third_party/aether/LICENSE build/site/AETHER-LICENSE.txt

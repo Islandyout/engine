@@ -197,6 +197,14 @@ const { chromium } = require("playwright");
     await page.locator("#json").fill('{"command":"list_entities"}');
     await page.locator("#command button").click();
     assert.match(await page.locator("#log").textContent(), /Aether bench/);
+    await page.locator("#catalog-category").selectOption("signs");
+    await page.locator("#catalog-add").click();
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".entity")].some((e) =>
+        e.textContent.includes("Sign Crossing"),
+      ),
+    );
+    assert.equal(await page.locator(".entity").count(), 5);
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -206,7 +214,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, save/load, invalid-load preservation, authoring console passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, save/load, invalid-load preservation, authoring console passed.",
     );
   } finally {
     if (browser) await browser.close();

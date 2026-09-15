@@ -1,3 +1,5 @@
+import { modelCatalog } from "../scene/modelCatalog";
+
 export interface PropertyMetadata {
   label?: string;
   options?: readonly { label: string; value: string | number }[];
@@ -24,6 +26,10 @@ const metadata: Record<string, PropertyMetadata> = {
     options: [
       { label: "Box", value: 0 },
       { label: "Aether bench", value: 1 },
+      ...modelCatalog.map((m) => ({
+        label: `${m.category[0]!.toUpperCase()}${m.category.slice(1)}: ${m.name}`,
+        value: m.id,
+      })),
     ],
   },
   "Renderable.material": { label: "Material (from model)", readOnly: true },

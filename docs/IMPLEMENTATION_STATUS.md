@@ -764,3 +764,86 @@ Field Lab's own header had, rather than just deleting it.
   GitHub Actions) — same as every editor/browser change, CI is the verification of record,
   and this entry additionally can't be confirmed as *not* breaking a required-status-check
   rule from inside this sandbox; watched on the PR instead.
+
+## F19 — Model catalog (0.19.0)
+
+The repository owner supplied the original `aether-complete.zip` archive again and asked
+where its other 132 GLB assets had gone — `docs/AETHER_REVIEW.md` had only ever recorded
+importing the bench, leaving the rest cataloged but never pulled in. Verified the resupplied
+archive against the SHA-256 already recorded in `assets/CREDITS.md`
+(`c70cac7397eed5ee9941d88bc1afa4740b68aecc26a61042fab5a71ac211dd72`) before touching it —
+it matched exactly, so this is the same archive, not a different one under the same name.
+
+Surveyed every kit GLB's glTF JSON (node/mesh/skin/animation counts, not just header/JSON
+validity as the original F-review checked) to find out how much of the kit
+`tools/cook_static_mesh.py`'s narrow single-node/no-skin/no-texture contract already
+covers: 90 of 132 (buildings, furniture, nature, roads, signs) are exactly one node and one
+mesh with no skin, animation, or embedded texture — structurally identical to the bench
+that already works. 14 more (all of `vehicles/`) have multiple nodes (separate wheel
+meshes) and would need the cooker extended for hierarchy. The remaining 28 (all of
+`animals/` and `people/`) are rigged and animated — genuinely out of scope until the engine
+has an animation system, matching the original review's own call on this.
+
+Realized mid-survey that the cooker's contract is native-renderer-specific, not a bridge to
+cross for the editor at all: the browser editor already renders `.glb` files directly
+through Three.js's own `GLTFLoader` (that's how the bench works today), which handles
+multi-node hierarchy and (though unused here) skinning without any cooking step. So instead
+of extending the cooker, brought in the 103 non-rigged assets (90 single-node plus the 14
+multi-node vehicles — Three.js doesn't care about node count) as `assets/source/kit/**`,
+deduplicating the kit's own `furniture/bench.glb` against the already-imported
+`assets/source/bench.glb` (identical file, confirmed by hash) rather than storing it twice.
+
+`apps/editor/src/scene/modelCatalog.ts` is a generated manifest (103 entries: id, category,
+name, path) — ids 2–104, reserving 0 (default box) and 1 (bench) as already-public
+`Renderable.mesh` values. Two ways to use a catalog entry, both going through it:
+
+- The Project/Content panel's new category/model pickers and "Add from catalog" button
+  spawn an entity with that `Renderable.mesh` id, awaiting the model's `GLTFLoader.loadAsync`
+  (cached per id) before spawning so the very first render already shows the real model
+  instead of a placeholder box that then swaps.
+- The inspector's existing `Renderable.mesh` dropdown (`PropertyMetadata.ts`, previously a
+  2-option Box/Bench enum) now lists all 103 entries too, so an already-placed entity's model
+  can be changed the same way its other components already are — the catalog isn't
+  spawn-only.
+
+`rebuild()`'s mesh selection still handles bench (id 1) as a special case (unchanged, tests
+depend on it), then checks a `Map<number, THREE.Group>` cache for catalog ids; a cache miss
+kicks off (and dedupes, via a `Map<number, Promise>`) a background load and falls back to
+the default box until it resolves, then re-`rebuild()`s — the same pattern the bench already
+used, generalized to N ids instead of one. This makes loading a previously-saved scene that
+references a catalog id (not just the "Add" button's own already-awaited path) work
+correctly too.
+
+`assets/CREDITS.md` gets one prefix row (`source/kit/**`) covering all 103 files, not 103
+rows — same CC0 1.0 grant the bench's own row already cites, same source archive, matching
+the convention the *original* Aether kit's own CREDITS.md used for exactly this reason ("a
+generated kit needs one row rather than one per file"). `tools/build_editor.sh` gets one more
+line (`cp -r assets/source/kit build/site/kit`) alongside its existing bench copy.
+
+### F19 verification
+
+- New `apps/editor/tests/modelCatalog.test.ts`: catalog ids are unique and all ≥2 (never
+  collide with the reserved box/bench values), `catalogCategories` exactly matches the set of
+  categories actually referenced by entries (not a separately hand-maintained list that could
+  drift), and every entry's `path` resolves to a real file under `assets/source/kit` — this
+  last check is a real regression guard for the generated-manifest-vs-actual-files drift that
+  a hand-maintained list would risk silently.
+- `npm run typecheck`, `npm test` (11/11, up from 8), and `npm run build` in `apps/editor`
+  all pass; confirmed the built `assets/index-*.js` bundle actually changed size (the new
+  manifest module got included, not silently dropped).
+- Manually replicated `build_editor.sh`'s asset-copy steps (can't run the em++ half of that
+  script here) and served the real `build/site` output over HTTP with the exact fixed server
+  logic from `tests/browser/editor.cjs`: `/engine/`, `/engine/bench.glb`, and spot-checked
+  catalog paths from three different categories (`kit/buildings/apartment-1.glb`,
+  `kit/signs/sign-crossing.glb`) all return 200 — not just that the files exist on disk, but
+  that the exact paths the manifest and the server logic agree on actually line up end to end.
+- Extended `tests/browser/editor.cjs`: selects the "signs" category, clicks "Add from
+  catalog", and asserts both that "Sign Crossing" (the alphabetically-first signs entry, so
+  deterministic without touching the model dropdown) appears in the hierarchy and that the
+  entity count increments by exactly one.
+- Confirmed the archive's SHA-256 before extracting or trusting anything in it, since the
+  filename alone ("aether-complete1.zip") doesn't prove it's the same file the original
+  review evaluated.
+- Not verified here: the actual Emscripten build and the extended Playwright browser test
+  — this sandbox has no Emscripten toolchain, same as every prior editor-bridge change. CI's
+  real build is the verification of record.
