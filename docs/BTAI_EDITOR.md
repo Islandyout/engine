@@ -49,11 +49,12 @@ and scale transmitted to C++ are bounded to ±1,000,000; scale must be positive.
 The browser viewport uses Three.js with WebGL, or CPU canvas projection of the same scene graph when WebGL is unavailable. The canvas path renders geometry/material colors without texture sampling. Both paths run the same authoring and C++ runtime workflow in CI. The browser viewport is not the native renderer. The native SDL playground
 and its textured asset path are also included in this release. Gravity, ground
 collision, (see [Player control](#player-control)) WASD movement and jump/flight
-for the entity tagged `Player`, and (see [Collision](#collision)) `Collider`-driven
-obstacle blocking are what this bridge implements; the other BTAI component
-families (AI, animation, vehicles, health) remain editable/persisted data whose
-runtime behaviors are not implemented by this bridge. There is no GTA content
-hard-coded into this editor. A game is authored as scene/project data.
+for the entity tagged `Player`, (see [Collision](#collision)) `Collider`-driven
+obstacle blocking, and (see [Combat](#combat)) melee/ranged damage against
+`Health` entities are what this bridge implements; the other BTAI component
+families (AI, animation, vehicles) remain editable/persisted data whose runtime
+behaviors are not implemented by this bridge. There is no GTA content hard-coded
+into this editor. A game is authored as scene/project data.
 
 ## Player control
 
@@ -104,6 +105,46 @@ carries a `Collider`, the same reasoning as its exclusion from `RigidBody`
 generally: its authored position is parent-relative, not world-space, so
 resolving another body against it would be resolving against a box that
 isn't actually where it renders.
+
+## Combat
+
+Add the `Health` component to any non-child entity (Project/Content's
+Add-component list, or the JSON console; `current`/`maximum` are editable
+numbers, defaulting to 100/100) to make it a valid combat target. The
+`Player`-tagged entity gets two attacks, ported from the native playground's
+own tuned feel (see [Combat](NATIVE_PLAYGROUND.md#combat)): F is melee — while
+its box overlaps a `Health` entity's box (the same overlap test `Collider`
+resolution and the native playground's own goal/combat checks use), each
+press deals 20 damage to every `Health` entity it's touching. G is ranged —
+each press fires a small traveling projectile from the player's position
+toward whichever `Health` entity is currently nearest (the editor has no
+single hardcoded "enemy" the way the native playground does, so the target is
+picked fresh per press), dealing 15 damage on contact and disappearing; a
+projectile that hits nothing within 1.5 seconds also disappears, dealing no
+damage. Either attack destroys its target once `current` reaches 0. Like
+`Collider`, a `Health` on a child entity is not consulted: targeting relies on
+a world-space overlap test, which a parent-relative box can't correctly
+support. A blast never damages the entity that fired it, even though it
+spawns at that entity's own position and briefly still overlaps it — relevant
+if the `Player` itself also carries `Health`, since nothing else about
+targeting is player-specific.
+
+Each F/G press is delivered to exactly one fixed tick, however many (zero to
+five) run in the rendered frame the press was drained into — a discrete
+action, not something that can be dropped by unlucky frame timing or
+re-fired once per tick on a catch-up frame with several.
+
+Projectiles are spawned entirely at runtime — they have no authored entity of
+their own, so they're not part of the document and vanish on Stop along with
+the rest of runtime state. A destroyed `Health` entity's authored data is
+untouched (Stop still restores it, same as every other entity), but for the
+rest of that Play session it disappears from the viewport instead of reading
+a now-meaningless position. Each alive `Health` entity gets a small
+screen-space bar drawn above it in Play mode (green/amber/red by remaining
+fraction, the same idea as the native playground's own `BoxView::draw_bar`
+— see [HUD](NATIVE_PLAYGROUND.md#hud)); the status bar adds a text companion,
+`Selected health: NN%` (or `Selected: defeated`), for whichever entity is
+currently selected.
 
 ## Build and verification
 

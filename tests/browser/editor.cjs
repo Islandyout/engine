@@ -306,6 +306,73 @@ const { chromium } = require("playwright");
     );
     await page.keyboard.up("d");
     await page.locator("#stop").click();
+    // Combat: F (melee) and G (ranged blast) damage a Health-tagged entity
+    // through the same real-keyboard path used above, not editor_key() calls
+    // directly (the native bridge test already covers targeting/damage/
+    // defeat exhaustively). Two targets: a weak one overlapping the player,
+    // one-shot by melee so it stops competing for "nearest" once defeated,
+    // and a full-health one at range for blast to actually travel toward
+    // and hit. The status bar's "Selected health"/"Selected: defeated"
+    // readout (companion to the HUD's own screen-space bar) is what makes
+    // the outcome observable here.
+    await page.locator("#add").click();
+    assert.equal(await page.locator(".entity").count(), 9);
+    await page.getByLabel("Add component").selectOption("Health");
+    await page.getByLabel("Health.current", { exact: true }).fill("20");
+    await page.getByLabel("Health.current", { exact: true }).press("Tab");
+    await page.getByLabel("Health.maximum", { exact: true }).fill("20");
+    await page.getByLabel("Health.maximum", { exact: true }).press("Tab");
+    await page.locator("#add").click();
+    assert.equal(await page.locator(".entity").count(), 10);
+    await page.getByLabel("Transform.position.x", { exact: true }).fill("5");
+    await page.getByLabel("Transform.position.x", { exact: true }).press("Tab");
+    await page.getByLabel("Add component").selectOption("Health");
+    await page
+      .locator(".entity")
+      .filter({ hasText: "Entity 7" })
+      .first()
+      .click();
+    await page.locator("#play").click();
+    await page.waitForFunction(() =>
+      document.querySelector("#status").textContent.includes("Player ("),
+    );
+    await page
+      .locator(".entity")
+      .filter({ hasText: "Entity 9" })
+      .first()
+      .click();
+    await page.waitForFunction(() =>
+      document
+        .querySelector("#status")
+        .textContent.includes("Selected health: 100%"),
+    );
+    await page.keyboard.down("f");
+    await page.waitForFunction(() =>
+      document.querySelector("#status").textContent.includes("Selected: defeated"),
+    );
+    await page.keyboard.up("f");
+    await page
+      .locator(".entity")
+      .filter({ hasText: "Entity 10" })
+      .first()
+      .click();
+    await page.waitForFunction(() =>
+      document
+        .querySelector("#status")
+        .textContent.includes("Selected health: 100%"),
+    );
+    await page.keyboard.down("g");
+    // A real gap before releasing, same as every other key test above (F,
+    // WASD): gives the page's own rAF loop at least one chance to drain the
+    // keydown from keyQueue and apply it before the up event follows.
+    await page.waitForTimeout(100);
+    await page.keyboard.up("g");
+    await page.waitForFunction(() =>
+      document
+        .querySelector("#status")
+        .textContent.includes("Selected health: 85%"),
+    );
+    await page.locator("#stop").click();
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -315,7 +382,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, save/load, invalid-load preservation, authoring console passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, save/load, invalid-load preservation, authoring console passed.",
     );
   } finally {
     if (browser) await browser.close();
