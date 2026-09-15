@@ -893,6 +893,38 @@ sits perfectly still, matching the source archive's own locomotion.js comment th
 "stillness reads as broken rig" — while ground speed, and so anything but "idle", stays
 at zero until Play mode actually moves the entity.
 
+Three real issues were caught by Codex's automated review on the PR and fixed before
+merge, not deferred:
+
+- **Vertical motion counted as ground speed.** The original speed measurement was full
+  3D `distanceTo`, so a falling body (gravity) or the physics ground correction snapping
+  it up could read as ground speed and wrongly trigger a walk/run clip with no horizontal
+  motion at all. Fixed by measuring X/Z displacement only, in a new pure, unit-tested
+  `groundSpeed()` (`apps/editor/src/editor/animationClips.ts`).
+- **Speed measured on render frames, not simulated ticks.** `object.position` only
+  changes on a frame where a fixed 60 Hz tick actually ran; on a display refreshing
+  faster than that, most frames would read zero displacement and the frame a tick did
+  run would read a full tick's displacement over a few milliseconds of real time —
+  flickering between clips whose every switch calls `reset()`, so the animation barely
+  progressed on a 120/144 Hz display. Fixed by moving clip selection out of the
+  per-render-frame block into one that only runs in Play mode when at least one tick
+  executed that frame, using `steps / 60` (the actual simulated time those ticks cover)
+  as `groundSpeed()`'s time delta instead of the render frame's wall-clock `dt`. The
+  mixer itself still advances every render frame regardless, for smooth playback
+  interpolation — only clip *selection* is tick-aligned.
+- **The canvas (no-WebGL) fallback rendered every animated model frozen in bind pose.**
+  `CanvasRenderer` projects each mesh's raw position attribute through
+  `object.matrixWorld`; it never applied a `SkinnedMesh`'s bone matrices, and never called
+  `skeleton.update()` (normally `WebGLRenderer`'s job) at all, so the mixer's own
+  output never reached this rasterizer's projection even the math had. This was latent
+  since F19 (no catalog entry was skinned before F20), but F20's own new browser-test
+  addition (adding an "animals" entry) would have exercised it on the CI matrix's
+  `EDITOR_NO_WEBGL=1` run. Fixed by implementing the standard GPU skinning formula
+  (bindMatrix → weighted bone matrices → bindMatrixInverse) on the CPU in
+  `CanvasRenderer.ts`, applied per vertex for a `SkinnedMesh` before the existing
+  `matrixWorld` transform, with `skeleton.update()` called once per such mesh per frame
+  first so `boneMatrices` actually reflects the mixer's current pose.
+
 ### F20 verification
 
 - New `apps/editor/tests/animationClips.test.ts`: idle at near-zero speed; walk, then
@@ -912,11 +944,18 @@ at zero until Play mode actually moves the entity.
   archive's top-level `assets/fox.glb` (the Khronos Sample Models Fox, CC BY 4.0) that
   `docs/AETHER_REVIEW.md`'s original review explicitly kept out — confirming this import
   didn't accidentally pull in the one asset that review deliberately excluded.
-- `npm run typecheck`, `npm test` (15/15, up from 11), `npm run build` in `apps/editor`:
-  all pass.
 - Extended `tests/browser/editor.cjs` with a second catalog add (the "animals" category,
   "Cat") after the existing "signs" one, exercising the `SkeletonUtils.clone` +
-  `AnimationMixer` path specifically, not just the static-model path F19's test covered.
+  `AnimationMixer` path specifically, not just the static-model path F19's test covered —
+  this same test now also exercises the canvas-fallback skinning fix, since the suite
+  already re-runs the whole file with `EDITOR_NO_WEBGL=1`.
+- New `apps/editor/tests/animationClips.test.ts` cases for `groundSpeed()`: zero for
+  purely vertical motion; correct magnitude for a known 3-4-5 X/Z displacement; identical
+  result for the same total displacement measured over 1 tick vs. 3 ticks (the
+  frame-rate-decoupling guarantee, checked directly rather than trusted by inspection);
+  zero for a non-positive time delta rather than `Infinity`/`NaN`.
+- `npm run typecheck`, `npm test` (19/19, up from 15 before these fixes), `npm run build`
+  in `apps/editor`: all pass.
 - Not verified here: the actual Emscripten build and Playwright run, and — more
   significantly for this entry than most — what the animation actually looks like
   rendered (this sandbox has no Emscripten toolchain and no way to view a WebGL canvas).

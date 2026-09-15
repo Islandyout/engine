@@ -14,7 +14,7 @@ import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { LocalStorageSceneStore } from "../authoring/CommandInterpreter";
 import { EditorDocument } from "./Document";
 import { modelCatalog, catalogCategories } from "../scene/modelCatalog";
-import { pickClipName } from "./animationClips";
+import { pickClipName, groundSpeed } from "./animationClips";
 import type { SceneComponents } from "../scene/Scene";
 import "./style.css";
 
@@ -428,6 +428,14 @@ async function startEditor() {
             cached.clips.map((clip) => [clip.name, mixer.clipAction(clip)]),
           );
           animState = { mixer, actions, prevPosition: new THREE.Vector3() };
+          // Play the resting clip immediately: every frame's mixer.update() keeps
+          // it looping in both Edit and Play mode, so nothing here waits on the
+          // Play-mode-only, tick-aligned speed measurement below to pick a clip.
+          const resting = pickClipName([...actions.keys()], 0);
+          if (resting) {
+            actions.get(resting)?.play();
+            animState.current = resting;
+          }
         } else {
           object = cached.scene.clone(true);
         }
@@ -878,9 +886,9 @@ async function startEditor() {
   function frame(now: number) {
     const dt = Math.min((now - previous) / 1000, 5 / 60);
     previous = now;
+    let steps = 0;
     if (doc.mode === "play") {
       accumulator += dt;
-      let steps = 0;
       while (accumulator >= 1 / 60 && steps++ < 5) {
         runtime._editor_tick();
         ticks++;
@@ -896,26 +904,30 @@ async function startEditor() {
     }
     // Always advance mixers, even in edit mode: a rigged model sitting
     // perfectly still reads as a broken rig, and an idle clip is meant to loop.
-    // Ground speed for clip selection comes from the same measured position
-    // delta either way, so it naturally settles on "idle" in edit mode, where
-    // nothing moves object.position between frames.
-    animStates.forEach((state, i) => {
-      if (!state) return;
-      state.mixer.update(dt);
-      const object = objects[i]!;
-      const speed = dt > 0 ? object.position.distanceTo(state.prevPosition) / dt : 0;
-      state.prevPosition.copy(object.position);
-      const clipName = pickClipName([...state.actions.keys()], speed);
-      if (clipName && clipName !== state.current) {
-        const next = state.actions.get(clipName);
-        const previous = state.current ? state.actions.get(state.current) : undefined;
-        if (next) {
-          next.reset().fadeIn(0.2).play();
-          if (previous && previous !== next) previous.fadeOut(0.2);
-          state.current = clipName;
+    animStates.forEach((state) => state?.mixer.update(dt));
+    // Ground-speed clip selection runs on the fixed-step cadence (steps/60),
+    // not every render frame — see groundSpeed()'s own comment for why.
+    if (doc.mode === "play" && steps > 0) {
+      const tickDt = steps / 60;
+      animStates.forEach((state, i) => {
+        if (!state) return;
+        const object = objects[i]!;
+        const speed = groundSpeed(object.position, state.prevPosition, tickDt);
+        state.prevPosition.copy(object.position);
+        const clipName = pickClipName([...state.actions.keys()], speed);
+        if (clipName && clipName !== state.current) {
+          const next = state.actions.get(clipName);
+          const previous = state.current
+            ? state.actions.get(state.current)
+            : undefined;
+          if (next) {
+            next.reset().fadeIn(0.2).play();
+            if (previous && previous !== next) previous.fadeOut(0.2);
+            state.current = clipName;
+          }
         }
-      }
-    });
+      });
+    }
     if (selection.visible) selection.update();
     controls.update();
     renderer.render(scene, camera);
