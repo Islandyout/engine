@@ -5,6 +5,18 @@
 #include <stdexcept>
 
 namespace engine {
+namespace {
+// Same fixed light direction and Lambertian falloff draw_mesh() uses, so a
+// Box and a textured mesh sitting side by side are lit consistently. Not
+// normalized (matches draw_mesh()); an axis-aligned cube face's normal is one
+// of the six unit axes, so its brightness never changes and can be a
+// compile-time table instead of a per-pixel or per-box computation.
+constexpr float face_light(float nx, float ny, float nz) {
+    const float dot = nx * 0.3F + ny * 0.8F + nz * 0.5F;
+    return 0.45F + 0.55F * (dot > 0 ? dot : 0);
+}
+} // namespace
+
 BoxView::BoxView() : pixels_(width * height * 4), depths_(width * height) {}
 
 void BoxView::draw(std::span<const Box> boxes, OrbitView camera) {
@@ -52,7 +64,10 @@ void BoxView::draw(std::span<const Box> boxes, OrbitView camera) {
         }
         constexpr int faces[6][4] = {{0, 1, 3, 2}, {4, 6, 7, 5}, {0, 2, 6, 4},
                                      {1, 5, 7, 3}, {0, 4, 5, 1}, {2, 3, 7, 6}};
-        constexpr float light[6] = {0.65F, 0.75F, 0.62F, 0.8F, 0.45F, 1.0F};
+        // One entry per `faces` row, in the same order: -Z, +Z, -X, +X, -Y, +Y.
+        constexpr float light[6] = {face_light(0, 0, -1), face_light(0, 0, 1),
+                                    face_light(-1, 0, 0),  face_light(1, 0, 0),
+                                    face_light(0, -1, 0),  face_light(0, 1, 0)};
         for (usize f = 0; f < 6; ++f)
             for (int triangle = 0; triangle < 2; ++triangle) {
                 const auto a = v[static_cast<usize>(faces[f][0])];

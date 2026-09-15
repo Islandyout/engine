@@ -107,16 +107,25 @@ int main() {
             // The default scene's platform path (see place_platform_path())
             // is reachable by ordinary input: not won at start, and a
             // two-phase script (approach along z only, clear of every
-            // platform's x-range, then traverse along x with periodic jump
-            // taps — jump is edge-triggered, so the key is toggled to get a
-            // fresh press each time) reaches the goal within a generous
-            // tick budget. Diagonal movement is deliberately not used here:
-            // it walks the player into a platform's z-face before it is
-            // over the platform's footprint, which blocks it exactly like
-            // any other Collider wall — a real property of static box
-            // colliders, not a bug, but it means "straight there" is not
-            // this path's traversal order. The goal itself is exempt from
-            // "remove" and so is never deleted by this scripted input.
+            // platform's x-range, then traverse along x, re-pressing jump
+            // the instant the player is grounded) reaches the goal within a
+            // generous tick budget. The jump key is tied to `grounded`
+            // rather than a fixed cadence deliberately: since holding
+            // "jump" while airborne now sustains flight (see below), a
+            // fixed press/release timer can end up re-pressing before the
+            // player has landed from the previous hop, which engages
+            // flight instead of a fresh liftoff and sends it well off the
+            // intended path — tying the key to `grounded` is how a real
+            // player would use the control anyway (bunny-hop: land, jump
+            // again), and it is what the engine's own edge-detection
+            // expects a clean repeated jump to look like. Diagonal
+            // movement is deliberately not used for the approach: it walks
+            // the player into a platform's z-face before it is over the
+            // platform's footprint, which blocks it exactly like any other
+            // Collider wall — a real property of static box colliders, not
+            // a bug, but it means "straight there" is not this path's
+            // traversal order. The goal itself is exempt from "remove" and
+            // so is never deleted by this scripted input.
             playground::Scene run;
             check(!run.won(), "not won at the start");
             check(run.goal.has_value(), "the default scene has a goal");
@@ -128,19 +137,74 @@ int main() {
             }
             key(run_input, Key::s, false);
             key(run_input, Key::d, true);
-            bool jump_down = false;
             bool reached = false;
             for (int tick = 0; tick < 300 && !reached; ++tick) {
-                if (tick % 15 == 0) {
-                    jump_down = !jump_down;
-                    key(run_input, Key::left_shift, jump_down);
-                }
+                key(run_input, Key::left_shift,
+                    run.world.get<physics::RigidBody>(run.player)->grounded);
                 run.step({0, std::chrono::nanoseconds{16666667}, run_input});
                 run_input.begin_frame();
                 reached = run.won();
             }
             check(reached, "scripted platforming input reaches the goal within budget");
             check(run.world.alive(*run.goal), "the goal is never removed by scripted input");
+        }
+
+        {
+            // Holding "jump" while airborne sustains a climb (flight), not
+            // just a single decaying jump arc: velocity stays near
+            // fly_speed instead of decaying toward zero/negative under
+            // gravity, and releasing lets gravity take back over.
+            playground::Scene flight;
+            InputState flight_input;
+            key(flight_input, Key::left_shift, true);
+            float y_early = 0, y_late = 0;
+            for (int tick = 0; tick < 180; ++tick) {
+                flight.step({0, std::chrono::nanoseconds{16666667}, flight_input});
+                flight_input.begin_frame();
+                if (tick == 20)
+                    y_early = flight.world.get<Box>(flight.player)->center.y;
+                if (tick == 179)
+                    y_late = flight.world.get<Box>(flight.player)->center.y;
+            }
+            const auto &flying_body = *flight.world.get<physics::RigidBody>(flight.player);
+            check(!flying_body.grounded, "still airborne after 180 ticks of sustained flight");
+            check(flying_body.velocity.y > 2.0F,
+                  "flight holds a steady climb rate rather than decaying like a jump arc");
+            check(y_late - y_early > 5.0F,
+                  "sustained flight climbs well beyond a single jump's height");
+
+            key(flight_input, Key::left_shift, false);
+            for (int tick = 0; tick < 60; ++tick) {
+                flight.step({0, std::chrono::nanoseconds{16666667}, flight_input});
+                flight_input.begin_frame();
+            }
+            check(flight.world.get<physics::RigidBody>(flight.player)->velocity.y < 0,
+                  "releasing flight lets gravity take back over");
+        }
+
+        {
+            // A Box's per-face brightness now comes from the same
+            // directional light draw_mesh() applies to a normal-carrying
+            // mesh vertex (see face_light() in box_view.cpp), not a canned
+            // per-face table: different faces genuinely light differently
+            // depending on their angle to the light, instead of every face
+            // getting some fixed, physically arbitrary brightness.
+            BoxView probe;
+            std::array<Box, 1> single = {Box{{0, 0, 0}, {2, 2, 2}, {255, 255, 255}}};
+            probe.draw(single);
+            u8 brightest = 0, dimmest_lit = 255;
+            for (usize i = 0; i < probe.pixels().size(); i += 4) {
+                const u8 r = probe.pixels()[i];
+                if (r > 100) { // background is a dark gradient, r in [15, 26]
+                    brightest = std::max(brightest, r);
+                    dimmest_lit = std::min(dimmest_lit, r);
+                }
+            }
+            check(brightest > 200, "a face lit near head-on (the top, +Y) is bright");
+            check(dimmest_lit < 200 && dimmest_lit > 100,
+                  "a face at a shallower light angle is dimmer but still lit");
+            check(static_cast<int>(brightest) - static_cast<int>(dimmest_lit) > 30,
+                  "different faces are genuinely lit differently, not one flat shade");
         }
 
         BoxView view;

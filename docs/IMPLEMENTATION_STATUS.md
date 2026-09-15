@@ -427,3 +427,66 @@ diagonal approach to the platforms is blocked by design rather than a bug.
   sandbox (missing X11/Xcursor packages); the new code has no SDL-guarded path beyond the
   existing title-string update. Worth a real desktop run to confirm the platform path feels
   right interactively, not just kinematically.
+
+## F13 — Unified Box lighting and sustained flight (0.13.0)
+
+Two independent, non-overlapping changes shipped together: real directional lighting for
+the `Box` primitive, and a flight control. Deliberately picked as a pair because they touch
+different files and share no state (`box_view.cpp` vs. `scene.hpp`'s move system) — the two
+tracks a rendering-plus-physics/movement round can safely run without either blocking or
+interfering with the other, not because they're related in what they do.
+
+**Box lighting**: `box_view.cpp`'s `BoxView::draw()` (used for the player, platforms, field
+boxes, crates, goal, and floor — every visual element except the one bench mesh) previously
+shaded each cube face from a hardcoded, physically arbitrary six-entry brightness table.
+It now uses `face_light()`, the exact same fixed light direction and Lambertian falloff
+`draw_mesh()` already applied to a normal-carrying mesh vertex, computed at compile time
+per axis-aligned face normal (a cube face's normal is always one of the six unit axes, so
+this needs no per-pixel or per-box work). A face angled away from the light now gets only
+the flat ambient floor, matching what a backfacing mesh normal already got — real variation
+by angle instead of a canned per-face constant.
+
+**Flight**: holding "jump" (Shift) while airborne now sustains a climb instead of leaving
+the player to a single decaying jump arc. Each tick still held and not grounded, the move
+system resets `velocity.y` to a flat `fly_speed` (4.0); physics then applies that tick's
+gravity on top, netting a steady climb rather than an ever-accelerating one. Releasing stops
+the reset and gravity alone takes back over. This is deliberately the smaller, more directly
+useful piece of "general physics/character controller" capability for superhero-style
+traversal, chosen over a broader (and, on investigation, harder to justify — see below)
+multi-collider resolution change.
+
+A design note worth recording: the first candidate for this round's physics-track item was
+iterating collider resolution to convergence (a few passes per step instead of one), to
+harden the documented "only one obstacle resolved per overlap per tick" limitation. Built,
+then tested against a realistic corner case (a body overlapping a wall and a perpendicular
+platform simultaneously) — the existing single-pass code already resolved it correctly.
+Rather than keep searching for a contrived case to justify it, that change was set aside
+undone in favor of flight, which is both smaller and directly serves the stated goal
+(superhero-style traversal) rather than a robustness property with no demonstrated failure
+in this codebase's actual scenes.
+
+### F13 verification
+
+- `engine_playground_tests` (extended): a new Box-lighting case renders an isolated white
+  box under the default camera and asserts a genuinely bright face (>200), a genuinely
+  dimmer-but-still-lit face (100–200), and a real gap between them (>30) — proving per-face
+  variation exists, not one flat shade, without hardcoding the exact literal values (which
+  were separately confirmed empirically: the three visible faces render at ~156/184/226,
+  matching `face_light()`'s computed values for the +X/+Z/+Y axes exactly). A new flight
+  case holds jump for 180 ticks and asserts still-airborne, `velocity.y` staying above 2.0
+  (a steady climb, not decay), and climbing more than 5 units beyond an early sample —
+  then releases and asserts `velocity.y` goes negative (gravity resumes).
+- The pre-existing scripted-platforming test needed a real fix, not just updated numbers:
+  its old fixed-cadence press/release timer (toggle every 15 ticks) predates flight and,
+  once flight existed, would re-press before the player had landed from the previous hop,
+  engaging sustained flight instead of a fresh liftoff and sending the script off the
+  intended path. Fixed by tying the jump key to the player's live `grounded` state each
+  tick instead of a timer — press the instant it's grounded, release otherwise — which
+  both matches how a real player would bunny-hop this path and cannot accidentally engage
+  flight. See [Playable slice](NATIVE_PLAYGROUND.md#playable-slice) for the same story in
+  the user-facing docs.
+- Linux Clang 18.1.3 strict-warning headless build passed with zero warnings; all 13 CTest
+  cases (same count as F12 — no new CTest targets) passed. A separate GCC 13.3.0 build with
+  `-fsanitize=undefined -fno-sanitize-recover=all` also passed.
+- Same SDL/desktop CI gap as F10–F12: not verified against the SDL-enabled preset in this
+  sandbox; the new code has no SDL-guarded path.

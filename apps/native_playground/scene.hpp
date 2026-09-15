@@ -99,6 +99,11 @@ public:
 
 private:
     static constexpr float jump_speed = 7.0F;
+    // Held every tick while airborne and still holding "jump" (see below),
+    // so gravity's per-tick pull is overwritten back to a steady climb
+    // rather than accumulating: sustained flight, not an ever-accelerating
+    // launch. Deliberately gentler than jump_speed's initial liftoff.
+    static constexpr float fly_speed = 4.0F;
     FixedSystems systems_;
     ActionSystem actions_;
     std::optional<SceneDocument> loaded_;
@@ -113,8 +118,14 @@ private:
                 auto &body = *w.get<physics::RigidBody>(player);
                 box.center.x = std::clamp(box.center.x + value("x") * 0.08F, -7.0F, 7.0F);
                 box.center.z = std::clamp(box.center.z + value("z") * 0.08F, -7.0F, 7.0F);
+                // Press "jump" while grounded to launch; keep holding it
+                // while airborne to fly (a steady climb, not a single
+                // decaying arc). Let go to stop climbing and fall normally
+                // under gravity, same as after any jump.
                 if (pressed("jump") && body.grounded)
                     body.velocity.y = jump_speed;
+                else if (value("jump") > 0 && !body.grounded)
+                    body.velocity.y = fly_speed;
                 camera.yaw += value("orbit") * 0.025F;
                 camera.scale = std::clamp(camera.scale + value("zoom") * 0.4F, 12.0F, 40.0F);
                 if (pressed("spawn") && w.size() < 64) {
