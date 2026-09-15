@@ -28,18 +28,23 @@ complete extensible reflection registry or transform-gizmo implementation.
 
 Play stages the document's local position and velocity values into a C++ `World`
 compiled with Emscripten. A replacement is committed only after all bridge records
-pass validation. The actual `FixedSystems` scheduler advances velocity at 60 Hz.
-The preview reads positions from C++, while rotation, scale, hierarchy and visual
-asset assignment come from the document. Pause retains runtime state; Stop returns
-to the unchanged authoring document. Editing is disabled during playback.
-Coordinates and velocity transmitted to C++ are bounded to ±1,000,000.
+pass validation. The actual `FixedSystems` scheduler runs `engine::physics::step`
+at 60 Hz: every entity falls under real gravity and rests on an implicit ground
+plane at y=0, the same `engine::physics` module the native playground uses (see
+[Physics](NATIVE_PLAYGROUND.md#physics)). The preview reads positions from C++,
+while rotation, scale, hierarchy and visual asset assignment come from the
+document. Pause retains runtime state; Stop returns to the unchanged authoring
+document. Editing is disabled during playback. Coordinates and velocity
+transmitted to C++ are bounded to ±1,000,000.
 
 The browser viewport uses Three.js with WebGL, or CPU canvas projection of the same scene graph when WebGL is unavailable. The canvas path renders geometry/material colors without texture sampling. Both paths run the same authoring and C++ runtime workflow in CI. The browser viewport is not the native renderer. The native SDL playground
-and its textured asset path are also included in this release. Other BTAI component
-families (physics, AI, animation, vehicles, health) remain editable/persisted data;
-their runtime behaviors are not implemented by this bridge. BTAI's physics module
-was a stub in the source repository and remains one here. There is no GTA content
-hard-coded into this editor. A game is authored as scene/project data.
+and its textured asset path are also included in this release. Gravity and ground
+collision are the only physics behavior this bridge implements; a `Collider`
+component authored on an entity is not yet consulted (obstacles do not yet
+block a falling body), and the other BTAI component families (AI, animation,
+vehicles, health) remain editable/persisted data whose runtime behaviors are
+not implemented by this bridge. There is no GTA content hard-coded into this
+editor. A game is authored as scene/project data.
 
 ## Build and verification
 

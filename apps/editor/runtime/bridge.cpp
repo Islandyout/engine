@@ -1,3 +1,4 @@
+#include "engine/physics/physics.hpp"
 #include "engine/world/fixed_systems.hpp"
 #include <cmath>
 #include <memory>
@@ -9,9 +10,6 @@
 #define EXPORT
 #endif
 namespace {
-struct Body {
-    double x, y, z, vx, vy, vz;
-};
 struct Runtime {
     engine::World world;
     engine::FixedSystems systems;
@@ -19,15 +17,12 @@ struct Runtime {
     std::vector<engine::Entity> entities;
     engine::u64 ticks{};
     Runtime() {
-        world.register_component<Body>("editor.body");
-        systems.add("editor.velocity", engine::FixedPhase::update, 0,
+        world.register_component<engine::Box>("editor.box");
+        world.register_component<engine::physics::RigidBody>("editor.rigid_body");
+        world.register_component<engine::physics::Collider>("editor.collider");
+        systems.add("editor.physics", engine::FixedPhase::update, 10,
                     [](engine::World &w, const engine::FixedUpdateContext &) {
-                        for (auto e : w.query<Body>()) {
-                            auto &b = *w.get<Body>(e);
-                            b.x += b.vx / 60;
-                            b.y += b.vy / 60;
-                            b.z += b.vz / 60;
-                        }
+                        engine::physics::step(w, 1.0F / 60.0F);
                     });
     }
 };
@@ -51,7 +46,10 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
             return 0;
         }
     const auto e = staging->world.create();
-    staging->world.set(e, Body{x, y, z, vx, vy, vz});
+    staging->world.set(e, engine::Box{engine::Vec3{static_cast<float>(x), static_cast<float>(y),
+                                                    static_cast<float>(z)}});
+    staging->world.set(e, engine::physics::RigidBody{engine::Vec3{
+                              static_cast<float>(vx), static_cast<float>(vy), static_cast<float>(vz)}});
     staging->entities.push_back(e);
     return 1;
 }
@@ -71,8 +69,8 @@ EXPORT void editor_tick() {
 EXPORT double editor_value(int index, int field) {
     if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
         return 0;
-    const auto &b = *active->world.get<Body>(active->entities[static_cast<std::size_t>(index)]);
-    return field == 0 ? b.x : field == 1 ? b.y : b.z;
+    const auto &b = *active->world.get<engine::Box>(active->entities[static_cast<std::size_t>(index)]);
+    return field == 0 ? b.center.x : field == 1 ? b.center.y : b.center.z;
 }
 EXPORT int editor_count() { return static_cast<int>(active->world.size()); }
 }

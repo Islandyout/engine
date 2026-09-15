@@ -20,12 +20,12 @@ int main() {
     check(editor_commit() == 1);
     for (int i = 0; i < 60; ++i)
         editor_tick();
-    check(std::abs(editor_value(0, 0) - 6) < 1e-10);
+    check(std::abs(editor_value(0, 0) - 6) < 1e-4);
     check(editor_count() == 1);
     editor_begin();
     check(editor_add(std::numeric_limits<double>::infinity(), 0, 0, 0, 0, 0) == 0);
     check(editor_commit() == 0);
-    check(std::abs(editor_value(0, 0) - 6) < 1e-10);
+    check(std::abs(editor_value(0, 0) - 6) < 1e-4);
     editor_begin();
     check(editor_commit() == 1);
     check(editor_count() == 0);
@@ -35,6 +35,12 @@ int main() {
     check(editor_add(0, 0, 0, 0, 0, 0) == 0);
     check(editor_commit() == 0);
     check(editor_count() == 0);
+    editor_begin();
+    check(editor_add(0, 5, 0, 0, 0, 0) == 1);
+    check(editor_commit() == 1);
+    for (int i = 0; i < 120; ++i)
+        editor_tick();
+    check(std::abs(editor_value(0, 1) - 0.5) < 1e-6);
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
-                 "reset and limits passed.\n";
+                 "reset, limits, and real gravity/ground resolution passed.\n";
 }

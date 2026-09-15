@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(GameEngine
-    VERSION 0.16.0
+    VERSION 0.17.0
     DESCRIPTION "AI-operable high-performance game engine"
     LANGUAGES CXX
 )
@@ -212,7 +212,7 @@ endif()
 
 if(ENGINE_BUILD_TESTS)
     add_executable(engine_editor_bridge_tests tests/editor_bridge_tests.cpp apps/editor/runtime/bridge.cpp)
-    target_link_libraries(engine_editor_bridge_tests PRIVATE GameEngine::World)
+    target_link_libraries(engine_editor_bridge_tests PRIVATE GameEngine::World GameEngine::Physics)
     engine_set_project_warnings(engine_editor_bridge_tests)
     add_test(NAME engine_editor_bridge_tests COMMAND engine_editor_bridge_tests)
 endif()

@@ -611,3 +611,61 @@ projectile system.
   `-fsanitize=undefined -fno-sanitize-recover=all` also passed.
 - Same SDL/desktop CI gap as F10–F15: not verified against the SDL-enabled preset in this
   sandbox; the new code has no SDL-guarded path.
+
+## F17 — Real physics in the browser editor (0.17.0)
+
+Everything F10–F16 built (physics, combat, flight, camera, HUD) landed exclusively in
+`apps/native_playground`, never in `apps/editor` — the only place the repository owner
+actually opens the built engine. The editor's WASM bridge (`apps/editor/runtime/bridge.cpp`)
+never called `engine::physics::step`; `editor_tick()` just added `velocity/60` to position
+every tick, so Play mode could not fall, land, or collide, no matter what the document
+authored. This closes that gap for gravity and ground collision, the physics foundation
+everything else in F10–F16 was built on, using the *same* `engine::physics` module the
+native playground uses — not a reimplementation.
+
+`Runtime` now registers `engine::Box` and `engine::physics::RigidBody` (replacing the old
+ad hoc `Body{x,y,z,vx,vy,vz}` struct) plus `engine::physics::Collider` — registered so
+`physics::step`'s `query<Box, Collider>` does not throw on an unregistered type, even
+though no entity is given a `Collider` yet. `editor_add` now writes a `Box{center}` and a
+`RigidBody{velocity}` per entity instead of the old struct; `editor_value` reads
+`Box.center` instead of the old fields. The one new fixed system, `editor.physics`
+(`FixedPhase::update`, order 10, matching the native playground's own
+`playground.physics` system order), calls `engine::physics::step(world, 1.0F/60.0F)` —
+real gravity (-18 units/s²) and ground-plane resolution at y=0 — every tick. No exported
+function signature changed and no TypeScript changed: every entity the editor UI already
+lets you place and give a `Velocity` to now actually falls and lands when you press Play.
+
+Deliberately scoped to gravity + ground plane only, not `Collider`-driven obstacles,
+`Health`, or combat: those are real, separate follow-up work (see
+[BTAI_EDITOR.md](BTAI_EDITOR.md#real-c-runtime-connection)), and this is the smallest slice
+that proves Play mode runs genuine engine physics rather than a placeholder.
+
+### F17 verification
+
+- Extended `tests/editor_bridge_tests.cpp` (built and run natively, without Emscripten, by
+  linking `bridge.cpp` directly — same pattern as before): a new case drops an entity from
+  `y=5` and steps 120 ticks, asserting it comes to rest at `y=0.5` (a unit box's half-height,
+  resting on the ground plane) rather than free-falling forever or landing at `y=0`.
+- The existing "does velocity move a body over 60 ticks" case still passes with the same
+  entity now carrying `Box`/`RigidBody` instead of the old `Body` struct; its horizontal
+  (`x`) assertion is unaffected by gravity, which only acts on `y`. Its tolerance moved from
+  `1e-10` to `1e-4`: `Box`/`RigidBody` use `float`, not `double`, fields (matching every
+  other physics/graphics type in the engine), and 60 accumulated single-precision steps
+  measurably round differently than the old double-precision accumulation did — traced with
+  a standalone diagnostic before touching the test (the actual drift is ~3e-6) rather than
+  loosening the tolerance to make a failure disappear without understanding it.
+- Checked `tests/browser/editor.cjs`'s Play/Pause/Stop case by hand: it asserts
+  `Transform.position.x` after Stop, but Stop rebuilds the viewport from the untouched
+  authoring document (`main.ts`'s `stop` handler never writes runtime state back into
+  `doc`), so nothing this change does to `editor_tick()` can affect that assertion.
+- Confirmed `engine::physics::step` and its `Box`/`RigidBody`/`Collider` types add no link
+  dependency beyond `source/engine/physics/physics.cpp` itself (no `box_view.cpp` or other
+  graphics-library symbols) before adding that one file to `tools/build_editor.sh`'s `em++`
+  command line and to `engine_editor_bridge_tests`'s CMake link libraries.
+- Linux Clang 18.1.3 strict-warning headless build passed with zero warnings; all 13 CTest
+  cases (same count — no new CTest targets) passed. A separate GCC 13.3.0 build of the
+  bridge and its test with `-fsanitize=undefined,address` also passed.
+- Not verified: the actual Emscripten/WASM compile and the Playwright browser suite
+  (`tests/browser/editor.cjs`) — this sandbox has no Emscripten toolchain. CI's real emsdk
+  3.1.64 build and browser test run is the verification of record for the WASM/browser
+  side of this change, same as every editor-bridge change before it.
