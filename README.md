@@ -16,6 +16,8 @@ Engine version 0.12.0 adds a playable slice: a short jump-across-platforms path 
 
 Engine version 0.13.0 unifies `Box` lighting with the mesh renderer's real directional light (no more canned per-face brightness table), and adds sustained flight: hold jump while airborne to climb instead of just arcing through one jump. See [Physics](docs/NATIVE_PLAYGROUND.md#physics).
 
+Engine version 0.14.0 adds camera follow (the player stays centered on screen instead of walking off it — see [Camera](docs/NATIVE_PLAYGROUND.md#camera)) and the first slice of combat: a defeatable enemy near spawn, attacked with F. See [Combat](docs/NATIVE_PLAYGROUND.md#combat).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

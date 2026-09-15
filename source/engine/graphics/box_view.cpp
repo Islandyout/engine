@@ -47,10 +47,12 @@ void BoxView::draw(std::span<const Box> boxes, OrbitView camera) {
     std::fill(depths_.begin(), depths_.end(), -std::numeric_limits<float>::infinity());
     const float c = std::cos(camera.yaw), s = std::sin(camera.yaw);
     const auto project = [&](Vec3 p) {
-        const float depth = p.x * s + p.z * c;
-        return Vec3{width * 0.5F + (p.x * c - p.z * s) * camera.scale,
-                    height * 0.57F + (depth * 0.5F - p.y * 0.8660254F) * camera.scale,
-                    depth * 0.8660254F + p.y * 0.5F};
+        const float x = p.x - camera.target.x, y = p.y - camera.target.y,
+                    z = p.z - camera.target.z;
+        const float depth = x * s + z * c;
+        return Vec3{width * 0.5F + (x * c - z * s) * camera.scale,
+                    height * 0.57F + (depth * 0.5F - y * 0.8660254F) * camera.scale,
+                    depth * 0.8660254F + y * 0.5F};
     };
     const auto edge = [](Vec3 a, Vec3 b, float x, float y) {
         return (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
@@ -114,8 +116,9 @@ void BoxView::draw_mesh(const MeshAsset &mesh, Vec3 position, float scale) {
     const auto camera = camera_;
     const float c = std::cos(camera.yaw), s = std::sin(camera.yaw);
     const auto project = [&](const MeshVertex &v) {
-        const float x = v.position[0] * scale + position.x, y = v.position[1] * scale + position.y,
-                    z = v.position[2] * scale + position.z, depth = x * s + z * c;
+        const float x = v.position[0] * scale + position.x - camera.target.x,
+                    y = v.position[1] * scale + position.y - camera.target.y,
+                    z = v.position[2] * scale + position.z - camera.target.z, depth = x * s + z * c;
         return Vec3{width * 0.5F + (x * c - z * s) * camera.scale,
                     height * 0.57F + (depth * 0.5F - y * 0.8660254F) * camera.scale,
                     depth * 0.8660254F + y * 0.5F};

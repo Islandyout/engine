@@ -31,20 +31,20 @@ int main() {
               "action movement");
         key(input, Key::space, true);
         step();
-        check(scene.world.size() == 13, "deferred creation");
+        check(scene.world.size() == 14, "deferred creation");
         step();
-        check(scene.world.size() == 13, "held key does not repeat spawn");
+        check(scene.world.size() == 14, "held key does not repeat spawn");
         key(input, Key::backspace, true);
         step();
-        check(scene.world.size() == 12, "deferred removal");
+        check(scene.world.size() == 13, "deferred removal");
         key(input, Key::q, true);
         step();
         check(scene.camera.yaw < 0.65F, "camera action");
         key(input, Key::r, true);
         step();
         check(!scene.world.alive(stale), "reset invalidates handles");
-        check(scene.world.size() == 12,
-              "reset restores seed scene: player, 7 field boxes, 3 platforms, 1 goal");
+        check(scene.world.size() == 13,
+              "reset restores seed scene: player, 7 field boxes, 3 platforms, 1 goal, 1 enemy");
 
         {
             // A scene loaded from an editor-exported document (see
@@ -180,6 +180,74 @@ int main() {
             }
             check(flight.world.get<physics::RigidBody>(flight.player)->velocity.y < 0,
                   "releasing flight lets gravity take back over");
+        }
+
+        {
+            // The camera always centers on the player's own current
+            // position (see camera.target in the move system) - it never
+            // lags behind, since target is set from the same tick's
+            // already-updated box.center.
+            playground::Scene followed;
+            InputState follow_input;
+            key(follow_input, Key::d, true);
+            for (int tick = 0; tick < 20; ++tick) {
+                followed.step({0, std::chrono::nanoseconds{16666667}, follow_input});
+                follow_input.begin_frame();
+            }
+            const auto &followed_box = *followed.world.get<Box>(followed.player);
+            check(followed.camera.target.x == followed_box.center.x &&
+                      followed.camera.target.y == followed_box.center.y &&
+                      followed.camera.target.z == followed_box.center.z,
+                  "camera.target tracks the player's exact position every tick");
+        }
+
+        {
+            // The default scene's stationary enemy (see place_enemy()) is
+            // reachable and defeatable: walking onto it and pressing
+            // "attack" (edge-triggered, so the key is released and
+            // re-pressed for each hit, like jump) deals attack_damage per
+            // hit, and three hits (60 max health) defeats it - the entity
+            // is destroyed and enemy_defeated() latches true. A further
+            // attack after defeat is a safe no-op, not a crash or an
+            // "undefeat".
+            playground::Scene fight;
+            check(fight.enemy.has_value(), "the default scene has an enemy");
+            check(!fight.enemy_defeated(), "not defeated at the start");
+            InputState fight_input;
+            // Spawn (-3, 0.6, 3) to the enemy (0, 0.5, 0): +x, -z.
+            key(fight_input, Key::d, true);
+            key(fight_input, Key::w, true);
+            for (int tick = 0; tick < 38; ++tick) {
+                fight.step({0, std::chrono::nanoseconds{16666667}, fight_input});
+                fight_input.begin_frame();
+            }
+            key(fight_input, Key::d, false);
+            key(fight_input, Key::w, false);
+            check(physics::overlaps(*fight.world.get<Box>(fight.player),
+                                     *fight.world.get<Box>(*fight.enemy)),
+                  "walking onto the enemy overlaps it");
+            const auto attack = [&] {
+                key(fight_input, Key::f, true);
+                fight.step({0, std::chrono::nanoseconds{16666667}, fight_input});
+                fight_input.begin_frame();
+                key(fight_input, Key::f, false);
+                fight.step({0, std::chrono::nanoseconds{16666667}, fight_input});
+                fight_input.begin_frame();
+            };
+            attack();
+            check(fight.world.alive(*fight.enemy) &&
+                      fight.world.get<playground::Health>(*fight.enemy)->current == 40.0F,
+                  "one hit deals attack_damage");
+            attack();
+            check(fight.world.alive(*fight.enemy) &&
+                      fight.world.get<playground::Health>(*fight.enemy)->current == 20.0F,
+                  "a second hit deals attack_damage again");
+            check(!fight.enemy_defeated(), "not defeated after two hits");
+            attack();
+            check(!fight.world.alive(*fight.enemy), "a third hit destroys the enemy");
+            check(fight.enemy_defeated(), "enemy_defeated() latches true on the killing hit");
+            attack();
+            check(fight.enemy_defeated(), "a further attack after defeat is a safe no-op");
         }
 
         {

@@ -18,6 +18,10 @@ struct Box final {
 struct OrbitView final {
     float yaw{0.65F};
     float scale{28};
+    // World point the camera orbits around and centers on screen. Default
+    // {0,0,0} reproduces every prior camera's behavior exactly (nothing
+    // orbited a moving point before this existed).
+    Vec3 target{};
 };
 
 // Bounded orthographic CPU reference renderer. No SDL/GPU dependencies.
