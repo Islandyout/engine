@@ -1012,12 +1012,14 @@ async function startEditor() {
         // Combat can destroy an authored entity (Health reaching 0) mid-session;
         // its index stays in objects[] (entities can't be added/removed while
         // playing), but editor_value() on a dead entity is meaningless, so hide
-        // it instead of snapping it to the origin.
+        // it instead of snapping it to the origin. Only forces visible false,
+        // never true: rebuild() already set each object's visibility from its
+        // own authored Renderable.visible, and an entity that's still alive
+        // never needs that touched here.
         if (!runtime._editor_alive(i)) {
           object.visible = false;
           return;
         }
-        object.visible = true;
         object.position.set(
           runtime._editor_value(i, 0),
           runtime._editor_value(i, 1),

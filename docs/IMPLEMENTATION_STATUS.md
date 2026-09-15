@@ -1209,14 +1209,29 @@ existing `editor.move` system (order 0), matching where the native playground's 
 blast-spawn logic lives (its single "move" system handles movement, spawn, blast and
 remove together) rather than a separate system. Press G to fire a `Projectile` (velocity
 + 1.5s lifetime, no gravity, ported from the native playground unchanged) from the
-player's position toward
-whichever `Health` entity is currently *nearest* — the editor's own generalization of the
-native playground's single hardcoded `enemy` target, since nothing here is otherwise
-player- or enemy-specific. A new `editor.projectiles` system (order 15, between physics
-and combat, again matching the native playground's own ordering) moves each projectile
-and, on overlapping any `Health` entity, applies `blast_damage` (15) and destroys it;
-past its lifetime with no hit, it's destroyed unconsumed. A shared `damage()` helper
-applies the reduction and destroys the target at 0, for both attacks.
+player's position toward whichever `Health` entity is currently *nearest* — the editor's
+own generalization of the native playground's single hardcoded `enemy` target, since
+nothing here is otherwise player- or enemy-specific. A new `editor.projectiles` system
+(order 15, between physics and combat, again matching the native playground's own
+ordering) moves each projectile and, on overlapping any `Health` entity other than its
+own `owner` (a new `Projectile` field, set at creation — without it a blast could damage
+whoever fired it, since it spawns at the shooter's own position and briefly still
+overlaps it), applies `blast_damage` (15) and destroys it; past its lifetime with no hit,
+it's destroyed unconsumed. A shared `damage()` helper applies the reduction and destroys
+the target at 0, for both attacks.
+
+Neither attack reads `InputState::key_pressed()` directly. `editor_tick()`'s own doc
+comment already noted a rendered frame can cover zero to five fixed ticks sharing one
+`editor_input_begin_frame()` call; `key_pressed()` stays true for every tick in that
+batch, so a frame with zero ticks would silently drop a press before any tick ever
+observed it, and a five-tick catch-up frame would fire it once per tick instead of once
+per press (caught by review on this round's own PR, not by the native tests below, which
+always ticked immediately after setting input and so never exercised the zero-tick case).
+Two new `Runtime` fields, `pending_attack`/`pending_blast`, set by `editor_key()` on a
+genuine F/G keydown and consumed (cleared) by the first tick that acts on them, decouple
+"a press happened" from frame/tick timing entirely — the fixed systems above capture
+`this` instead of taking a stateless lambda, the only reason that's needed anywhere in
+this bridge so far.
 
 `editor_add` gains a 13th/14th param pair, `hp_current`/`hp_max` — `hp_max <= 0` is the
 "no Health" sentinel (a real `Health` always has a positive max), following the same
@@ -1234,7 +1249,13 @@ JS only ever calls them back-to-back within one frame.
 
 On the editor side: a pooled set of small Three.js meshes (grown/shrunk to match
 `editor_projectile_count()` each Play-mode frame) renders projectiles, since they have no
-place in the existing `objects`/`rebuild()` array. A second canvas (`#hud`), layered over
+place in the existing `objects`/`rebuild()` array. The per-frame position sync only ever
+forces an entity's mesh *invisible* on `editor_alive()` reporting it dead, never visible —
+`rebuild()` already set each mesh's starting visibility from its own authored
+`Renderable.visible`, and an entity that's still alive never needs that touched again
+(an earlier version of this forced every alive entity visible unconditionally, silently
+overriding an authored `visible: false`; caught by the same review pass as the pending-edge
+fix above). A second canvas (`#hud`), layered over
 the renderer's own via DOM order and `pointer-events: none` so it never steals viewport
 interaction, draws a small screen-space bar above every alive `Health` entity each
 Play-mode frame — the editor's equivalent of the native playground's own
@@ -1257,6 +1278,14 @@ role that readout played for player movement.
   own `enemy.has_value()` guard); a blast that never reaches a far-off target expires on
   lifetime and deals no damage. All against the bridge's real exports, including the new
   `editor_alive()`/`editor_projectile_count()`/`editor_projectile_value()`.
+- Two more cases added after review caught the pending-edge and owner-exclusion bugs
+  (both below): a press applied via `editor_key()` and then deliberately starved of any
+  tick in that same "frame" (simulated by calling `editor_input_begin_frame()` a second
+  time before any tick runs, exactly what a real zero-tick browser frame would do) still
+  lands once the next tick actually runs — proving `pending_attack`/`pending_blast`
+  survive the frame boundary that would have already cleared a bare `key_pressed()`; and
+  a blast fired by a `Player` that also carries `Health` never damages the shooter itself
+  despite spawning at its own position, while still going on to hit the real target.
 - `npm run typecheck`, `npm test` (25/25, unchanged — `Health` itself isn't new authoring
   surface, only newly consulted at runtime), `npm run build` in `apps/editor`: all pass.
 - Extended `tests/browser/editor.cjs`: two `Health`-tagged targets (one weak and

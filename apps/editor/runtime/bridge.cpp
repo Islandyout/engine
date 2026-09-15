@@ -32,6 +32,14 @@ struct Health final {
 // arcing under gravity like a thrown object.
 struct Projectile final {
     engine::Vec3 velocity{};
+    // The entity that fired it, excluded from its own hit detection — a
+    // projectile spawns at its owner's own Box (see the "blast" binding
+    // below), so without this it can, and did, immediately damage whoever
+    // fired it once it had moved fractionally off spawn (owner's Health is
+    // no more special than any other Health entity's to the overlap test
+    // otherwise). Omitted from aggregate init when lifetime should keep its
+    // default (must stay before `lifetime` for that to work).
+    engine::Entity owner{};
     float lifetime{1.5F}; // seconds remaining; destroyed at/below 0
 };
 
@@ -89,6 +97,17 @@ struct Runtime {
     engine::InputState input;
     std::vector<engine::Entity> entities;
     engine::u64 ticks{};
+    // Set by editor_key() on a genuine F/G keydown edge; consumed (and
+    // cleared) by the first fixed tick that actually acts on it, rather than
+    // read from InputState::key_pressed() directly. editor_tick's own doc
+    // comment notes a rendered frame can cover zero to five ticks sharing
+    // one editor_input_begin_frame() call: key_pressed() stays true for
+    // every tick in that batch, so a zero-tick frame would silently drop
+    // the edge before any tick ever saw it, and a five-tick catch-up frame
+    // would fire the action once per tick instead of once per press. These
+    // flags decouple "a press happened" from frame/tick timing entirely.
+    bool pending_attack{false};
+    bool pending_blast{false};
     Runtime() {
         world.register_component<engine::Box>("editor.box");
         world.register_component<engine::physics::RigidBody>("editor.rigid_body");
@@ -101,7 +120,7 @@ struct Runtime {
         // move-then-physics ordering.
         systems.add(
             "editor.move", engine::FixedPhase::update, 0,
-            [](engine::World &w, const engine::FixedUpdateContext &context) {
+            [this](engine::World &w, const engine::FixedUpdateContext &context) {
                 for (const auto entity : w.query<engine::physics::RigidBody, PlayerMarker>()) {
                     auto &body = *w.get<engine::physics::RigidBody>(entity);
                     float x = 0, z = 0;
@@ -127,7 +146,8 @@ struct Runtime {
                     // playground does, so the target is picked fresh each press).
                     // No-op with nothing to aim at, same as the native playground's
                     // own enemy.has_value() guard.
-                    if (context.input.key_pressed(engine::Key::g)) {
+                    if (pending_blast) {
+                        pending_blast = false; // consumed by this tick, not every tick this frame
                         const auto &box = *w.get<engine::Box>(entity);
                         std::optional<engine::Entity> nearest;
                         float nearest_distance_sq = 0;
@@ -161,7 +181,8 @@ struct Runtime {
                                 w.defer_set(projectile,
                                             Projectile{engine::Vec3{direction.x * blast_speed,
                                                                      direction.y * blast_speed,
-                                                                     direction.z * blast_speed}});
+                                                                     direction.z * blast_speed},
+                                                       entity});
                             }
                         }
                     }
@@ -187,6 +208,8 @@ struct Runtime {
                     projectile.lifetime -= dt;
                     bool hit = false;
                     for (const auto target : w.query<engine::Box, Health>()) {
+                        if (target == projectile.owner)
+                            continue;
                         if (engine::physics::overlaps(box, *w.get<engine::Box>(target))) {
                             damage(w, target, blast_damage);
                             hit = true;
@@ -203,9 +226,10 @@ struct Runtime {
         // combat system order.
         systems.add(
             "editor.combat", engine::FixedPhase::update, 20,
-            [](engine::World &w, const engine::FixedUpdateContext &context) {
-                if (!context.input.key_pressed(engine::Key::f))
+            [this](engine::World &w, const engine::FixedUpdateContext &) {
+                if (!pending_attack)
                     return;
+                pending_attack = false; // consumed by this tick, not every tick this frame
                 for (const auto entity : w.query<engine::Box, PlayerMarker>()) {
                     const auto &box = *w.get<engine::Box>(entity);
                     for (const auto target : w.query<engine::Box, Health>()) {
@@ -309,6 +333,17 @@ EXPORT void editor_input_begin_frame() { active->input.begin_frame(); }
 // Key::unknown and is silently inert. down is nonzero for a keydown, zero
 // for a keyup.
 EXPORT void editor_key(int code, int down) {
+    // F/G set their own pending_attack/pending_blast edge here, independent of
+    // InputState's own per-*frame* key_pressed() (see Runtime::pending_attack's
+    // doc comment for why) — a keydown always marks the edge, even if this
+    // exact key was somehow already down (defensive; the JS side's own
+    // event.repeat guard means that shouldn't happen in practice).
+    if (down) {
+        if (code == 5)
+            active->pending_attack = true;
+        else if (code == 6)
+            active->pending_blast = true;
+    }
     active->input.apply(engine::KeyEvent{
         1, key_for(code), down ? engine::ButtonAction::pressed : engine::ButtonAction::released, false});
 }

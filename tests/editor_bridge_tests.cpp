@@ -304,8 +304,42 @@ int main() {
     check(editor_projectile_count() == 0);           // expired, not consumed on a hit
     check(std::abs(editor_value(1, 3) - 1.0) < 1e-6); // never reached: full health remains
 
+    // A key edge that arrives in a "frame" with zero ticks is not lost: a real browser
+    // frame can cover zero to five ticks sharing one editor_input_begin_frame() call, and
+    // InputState's own key_pressed() would already be cleared by a second begin_frame()
+    // before any tick ever consumed it. pending_attack/pending_blast (bridge.cpp) survive
+    // that frame boundary instead, consumed only once a tick actually acts on them.
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0) == 1);   // player, index 0
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60) == 1); // target, index 1, overlapping
+    check(editor_commit() == 1);
+    editor_input_begin_frame(); // "frame" 1: the press arrives here...
+    editor_key(key_f, 1);
+    editor_input_begin_frame(); // ...but frame 1 runs zero ticks; frame 2 starts right away instead
+    editor_tick();               // the first tick to actually run still consumes the pending edge
+    check(std::abs(editor_value(1, 3) - 40.0 / 60.0) < 1e-3); // damage landed despite the frame gap
+    editor_key(key_f, 0);
+
+    // A blast never damages the entity that fired it, even though it spawns at that
+    // entity's own position and, for the first tick or two, hasn't yet moved clear of it.
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 60, 60) == 1); // player with its own Health, index 0
+    check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60) == 1); // target, index 1
+    check(editor_commit() == 1);
+    editor_input_begin_frame();
+    editor_key(key_g, 1);
+    editor_tick();
+    editor_key(key_g, 0);
+    check(std::abs(editor_value(0, 3) - 1.0) < 1e-6); // the shooter's own health is untouched
+    for (int i = 0; i < 120 && editor_projectile_count() > 0; ++i) {
+        editor_input_begin_frame();
+        editor_tick();
+    }
+    check(editor_projectile_count() == 0);
+    check(std::abs(editor_value(1, 3) - (60.0 - 15.0) / 60.0) < 1e-3); // it still hits the real target
+
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
-                 "movement, jump/sustained-flight, Collider obstacle blocking, melee, and ranged "
-                 "blast combat passed.\n";
+                 "movement, jump/sustained-flight, Collider obstacle blocking, melee, ranged blast "
+                 "combat, frame/tick-decoupled combat edges, and shooter self-immunity passed.\n";
 }

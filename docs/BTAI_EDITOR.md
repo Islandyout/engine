@@ -124,7 +124,15 @@ projectile that hits nothing within 1.5 seconds also disappears, dealing no
 damage. Either attack destroys its target once `current` reaches 0. Like
 `Collider`, a `Health` on a child entity is not consulted: targeting relies on
 a world-space overlap test, which a parent-relative box can't correctly
-support.
+support. A blast never damages the entity that fired it, even though it
+spawns at that entity's own position and briefly still overlaps it — relevant
+if the `Player` itself also carries `Health`, since nothing else about
+targeting is player-specific.
+
+Each F/G press is delivered to exactly one fixed tick, however many (zero to
+five) run in the rendered frame the press was drained into — a discrete
+action, not something that can be dropped by unlucky frame timing or
+re-fired once per tick on a catch-up frame with several.
 
 Projectiles are spawned entirely at runtime — they have no authored entity of
 their own, so they're not part of the document and vanish on Stop along with
