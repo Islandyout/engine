@@ -48,13 +48,12 @@ and scale transmitted to C++ are bounded to ±1,000,000; scale must be positive.
 
 The browser viewport uses Three.js with WebGL, or CPU canvas projection of the same scene graph when WebGL is unavailable. The canvas path renders geometry/material colors without texture sampling. Both paths run the same authoring and C++ runtime workflow in CI. The browser viewport is not the native renderer. The native SDL playground
 and its textured asset path are also included in this release. Gravity, ground
-collision, and (see [Player control](#player-control)) WASD movement and jump/flight
-for the entity tagged `Player` are what this bridge implements; a `Collider`
-component authored on an entity is not yet consulted (obstacles do not yet
-block a falling body), and the other BTAI component families (AI, animation,
-vehicles, health) remain editable/persisted data whose runtime behaviors are
-not implemented by this bridge. There is no GTA content hard-coded into this
-editor. A game is authored as scene/project data.
+collision, (see [Player control](#player-control)) WASD movement and jump/flight
+for the entity tagged `Player`, and (see [Collision](#collision)) `Collider`-driven
+obstacle blocking are what this bridge implements; the other BTAI component
+families (AI, animation, vehicles, health) remain editable/persisted data whose
+runtime behaviors are not implemented by this bridge. There is no GTA content
+hard-coded into this editor. A game is authored as scene/project data.
 
 ## Player control
 
@@ -74,10 +73,9 @@ Edit mode's camera is unaffected, and mouse orbit/pan/zoom still work exactly
 as before — following only re-centers the orbit target, it never takes
 control of the camera away from you. Movement is velocity-based (the same
 `RigidBody.velocity` gravity and jump already integrate through
-`engine::physics::step`), so it's naturally blocked by nothing yet:
-`Collider`-driven obstacle collision remains real, separate follow-up work
-(see the `Collider` note above), so a player currently walks straight through
-whatever else is in the scene.
+`engine::physics::step`), so it's blocked by whatever else in the scene
+carries a `Collider` (see [Collision](#collision)) the same way any other
+`RigidBody` entity is.
 
 Pausing or losing window focus (an alt-tab, for example) releases any
 movement key still held, so a key that never got a matching keyup — a
@@ -85,6 +83,27 @@ window manager shortcut eating it, focus leaving the browser entirely —
 can't leave the player stuck moving or flying forever; resuming Play needs
 a fresh press. Stop restores the pre-Play orbit target instead of leaving
 the edit camera aimed at wherever the player last was.
+
+## Collision
+
+An entity authored with a `Collider` component becomes a static
+`engine::physics::Collider` obstacle: any `RigidBody` entity — the player
+included, but nothing about this is player-specific, since it is the same
+generic `engine::physics::step` resolution the native playground uses (see
+[Physics](NATIVE_PLAYGROUND.md#physics)) — is pushed back out along the axis
+of least penetration and has that axis of its velocity zeroed the instant its
+box overlaps one, instead of passing through. An obstacle still falls under
+gravity and rests on the ground like any other entity, using its own
+authored `Scale` as the obstacle's box, so a wall placed above the ground
+drops and settles before it starts blocking anything. `Collider`'s own
+`type`/`halfExtents`/`radius` fields are not yet consulted — every collider,
+`AABB` or `Sphere`, resolves as its Box's axis-aligned bounds, the only shape
+`engine::physics` implements anywhere in the engine (native playground
+included). An entity with a `Parent` never becomes an obstacle even if it
+carries a `Collider`, the same reasoning as its exclusion from `RigidBody`
+generally: its authored position is parent-relative, not world-space, so
+resolving another body against it would be resolving against a box that
+isn't actually where it renders.
 
 ## Build and verification
 

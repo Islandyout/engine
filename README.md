@@ -34,6 +34,8 @@ Engine version 0.21.0 folds the original Aether bench into the model catalog as 
 
 Engine version 0.22.0 adds player control to the editor: tag an entity `Player` and drive it with WASD, jump with Shift (hold while airborne to fly, ported from the native playground's own tuned feel), and the camera follows. This is the first of three rounds closing the remaining gap with the native playground — collision with what you build, then combat/flight/HUD, are next. See [F22](docs/IMPLEMENTATION_STATUS.md#f22--player-control-wasd-jumpflight-camera-follow-0220).
 
+Engine version 0.23.0 makes `Collider` obstacles actually block movement in the editor — round 2 of that same plan: any entity authored with a `Collider`, the same component the editor already let you attach but never consulted, now stops the player (and any other moving entity) instead of letting it pass straight through. Combat, flight and HUD are next. See [F23](docs/IMPLEMENTATION_STATUS.md#f23--collision-collider-obstacles-block-movement-0230).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

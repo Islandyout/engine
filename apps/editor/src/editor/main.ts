@@ -461,6 +461,7 @@ async function startEditor() {
       const s = doc.scene.get(entity, "Scale")?.value ?? { x: 1, y: 1, z: 1 };
       const isChild = doc.scene.has(entity, "Parent") ? 1 : 0;
       const isPlayer = doc.scene.has(entity, "Player") ? 1 : 0;
+      const isCollider = doc.scene.has(entity, "Collider") ? 1 : 0;
       // First Player-tagged entity wins if more than one is authored — the
       // bridge itself would happily drive every one of them from the same
       // input, but only one can sensibly own the camera and status readout.
@@ -468,6 +469,7 @@ async function startEditor() {
       if (
         !runtime._editor_add(
           p.x, p.y, p.z, v.x, v.y, v.z, s.x, s.y, s.z, isChild, isPlayer,
+          isCollider,
         )
       ) {
         runtime._editor_commit();
@@ -1013,7 +1015,7 @@ async function startEditor() {
       doc.mode === "play" && player
         ? ` · Player (${player.position.x.toFixed(1)}, ${player.position.y.toFixed(1)}, ${player.position.z.toFixed(1)})`
         : "";
-    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Physics components are data; collision simulation is not enabled`;
+    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, and Collider obstacle collision are simulated; other physics/AI/vehicle/health component data is not`;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
