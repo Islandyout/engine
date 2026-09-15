@@ -132,7 +132,12 @@ model (constant turn rate regardless of speed, no traction curve), not
 real car physics. A placed-and-rotated vehicle always starts facing world
 +z the instant Play starts, since there's currently no path for an
 authored `Rotation` to seed its initial heading — a known simplification,
-not a silent one. Jump/flight (Shift) and combat (F/G) still work from
+not a silent one. A non-square vehicle's collision extents rotate along
+with its visible facing (recomputed from its authored footprint each tick
+as that footprint's own axis-aligned bounding box at the current heading),
+so turning a long car sideways actually widens what it collides with
+instead of leaving physics using whatever axis-aligned box it happened to
+be authored facing. Jump/flight (Shift) and combat (F/G) still work from
 inside a vehicle; the squash-and-stretch above deliberately does not,
 since a car visibly stretching like a jumping character would look like a
 bug, not a feature.

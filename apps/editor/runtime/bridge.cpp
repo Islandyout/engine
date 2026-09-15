@@ -28,6 +28,14 @@ struct PlayerMarker final {};
 struct Heading final {
     float yaw{};
     float speed{};
+    // Half the authored Box.size.x/z at creation — the vehicle's own local
+    // footprint, independent of its current heading. editor.move recomputes
+    // Box.size each tick as this footprint's axis-aligned bounding box at the
+    // current yaw (see the "editor.move" system), so a non-square vehicle's
+    // collision extents actually rotate with its rendered facing instead of
+    // staying fixed to the world axes it happened to be authored facing.
+    float half_x{};
+    float half_z{};
 };
 
 // Bridge-local combat data, ported (not shared) from the native playground's
@@ -179,6 +187,23 @@ struct Runtime {
                         heading->speed = std::clamp(heading->speed, -vehicle_max_reverse, vehicle_max_forward);
                         body.velocity.x = std::sin(heading->yaw) * heading->speed;
                         body.velocity.z = std::cos(heading->yaw) * heading->speed;
+                        // Rotate the collision footprint with the vehicle: its rendered
+                        // mesh already turns to face heading->yaw (main.ts, field 4), but
+                        // physics::step only ever resolves axis-aligned Box.size — left
+                        // fixed to the authored (world-axis) dimensions, a non-square
+                        // vehicle's true footprint at 90 degrees would visually be as wide
+                        // as it is long while still colliding as if it weren't turned at
+                        // all. Recomputed every tick as the local footprint's own
+                        // axis-aligned bounding box at the current yaw (the standard
+                        // rotated-rectangle-AABB formula), so it's narrowest facing its
+                        // own long axis and widest at 45/135 degrees, same as the visible
+                        // mesh actually sweeps.
+                        auto &box = *w.get<engine::Box>(entity);
+                        const float cos_yaw = std::cos(heading->yaw), sin_yaw = std::sin(heading->yaw);
+                        box.size.x =
+                            2.0F * (std::abs(heading->half_x * cos_yaw) + std::abs(heading->half_z * sin_yaw));
+                        box.size.z =
+                            2.0F * (std::abs(heading->half_x * sin_yaw) + std::abs(heading->half_z * cos_yaw));
                     } else {
                         // On-foot model: camera-relative strafing — W always moves toward
                         // wherever the camera is currently facing (see camera_forward_x/z's
@@ -368,7 +393,8 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
         if (is_player != 0) {
             staging->world.set(e, PlayerMarker{});
             if (is_vehicle != 0)
-                staging->world.set(e, Heading{});
+                staging->world.set(
+                    e, Heading{0.0F, 0.0F, static_cast<float>(sx) / 2.0F, static_cast<float>(sz) / 2.0F});
         }
         if (is_collider != 0)
             staging->world.set(e, engine::physics::Collider{});

@@ -1062,8 +1062,15 @@ async function startEditor() {
       // proportionally instead of snapping to an unrelated size. Not for a
       // Vehicle: a car visibly deforming like a jumping character would read
       // as a rendering bug, not a style choice.
+      // Only recomputed on a frame that actually ran a fixed tick: on a
+      // display faster than the 60 Hz simulation, most rendered frames run
+      // zero ticks, leaving position (and so playerPrevY) unchanged that
+      // frame — recomputing unconditionally would read that as "stopped"
+      // and snap back to the authored scale, then re-stretch on the next
+      // tick-frame, flickering every render frame at 120/144 Hz instead of
+      // reading as one continuous effect.
       const playerEntity = playerIndex >= 0 ? doc.scene.eachAlive()[playerIndex] : undefined;
-      if (player && playerBaseScale && playerEntity && !doc.scene.has(playerEntity, "Vehicle")) {
+      if (steps > 0 && player && playerBaseScale && playerEntity && !doc.scene.has(playerEntity, "Vehicle")) {
         const verticalDelta = player.position.y - playerPrevY;
         const stretch = Math.max(-0.18, Math.min(0.18, verticalDelta * 6));
         player.scale.set(
@@ -1072,7 +1079,7 @@ async function startEditor() {
           playerBaseScale.z * (1 - stretch * 0.5),
         );
       }
-      if (player) playerPrevY = player.position.y;
+      if (steps > 0 && player) playerPrevY = player.position.y;
       const projectileCount = runtime._editor_projectile_count();
       while (projectileMeshes.length < projectileCount)
         scene.add(

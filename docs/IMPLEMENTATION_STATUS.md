@@ -1409,3 +1409,16 @@ eyeball check.
   the native/TypeScript tests verify the resulting algorithms precisely, but whether the
   run cycle now genuinely looks natural, or the vehicle genuinely feels good to drive, is
   something only playing it in a real browser can confirm.
+
+A review pass on this round's own PR caught three further issues, fixed in the same PR
+before merge: the squash-and-stretch recomputed (and could flicker) on a rendered frame
+that ran zero fixed ticks — now gated on `steps > 0`, the same guard the animation-clip
+selection already used; a non-square vehicle's `Box.size` stayed fixed to its authored
+world-axis dimensions while its rendered mesh turned to face its heading, so a 90-degree
+turn made the visible car far wider than what it actually collided with — `Heading` now
+also carries the footprint's half-extents, and `editor.move` recomputes `Box.size.x/z`
+every tick as that footprint's own rotated-rectangle axis-aligned bounding box at the
+current yaw, verified natively by placing a wall only a *turned* long vehicle's footprint
+can reach; and `examples/demo-game.json`'s north/south arena barriers only spanned the
+gap between the east/west walls, not past them, leaving roughly four-unit corner gaps
+the car could drive out through — widened to fully overlap the side walls.

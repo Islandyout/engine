@@ -435,9 +435,32 @@ int main() {
     editor_tick();
     check(std::abs((editor_value(0, 2) - z_before) - 9.0 / 60.0) < 1e-3);
 
+    // The vehicle's collision footprint rotates with its heading, not just its rendered
+    // mesh: a long, narrow vehicle (half_x 0.5, half_z 1.5) placed with a gap only its
+    // *turned* footprint (half_x becomes 1.5 once it's rotated a quarter turn) can reach
+    // must sit untouched facing its long axis away from a nearby wall, then get pushed
+    // back the instant steering turns its wide axis toward it.
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 3, 0, 1, 0, 0, 0, 1) == 1);   // vehicle, index 0
+    check(editor_add(1.8, 0.5, 0, 0, 0, 0, 2, 1, 2, 0, 0, 1, 0, 0, 0) == 1); // wall, index 1
+    check(editor_commit() == 1);
+    for (int i = 0; i < 10; ++i)
+        editor_tick(); // settle; no throttle held, so it shouldn't move regardless
+    check(std::abs(editor_value(0, 0)) < 1e-6); // untouched: yaw-0 footprint doesn't reach the wall
+    editor_input_begin_frame();
+    editor_key(key_d, 1);
+    for (int i = 0; i < 43; ++i) // turn_rate (2.2 rad/s) * 43 ticks/60 ~= pi/2
+        editor_tick();
+    check(std::abs(editor_value(0, 4) - 3.14159265F / 2) < 0.05); // facing +x now
+    editor_key(key_d, 0);
+    for (int i = 0; i < 30; ++i)
+        editor_tick(); // let physics detect and resolve the now-overlapping footprint
+    check(editor_value(0, 0) < -0.1); // pushed back out, away from the wall it's now facing
+
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
                  "movement, jump/sustained-flight, Collider obstacle blocking, melee, ranged blast "
                  "combat, frame/tick-decoupled combat edges, shooter self-immunity, camera-relative "
-                 "movement, and vehicle accelerate/steer driving passed.\n";
+                 "movement, vehicle accelerate/steer driving, and vehicle footprint rotation "
+                 "passed.\n";
 }
