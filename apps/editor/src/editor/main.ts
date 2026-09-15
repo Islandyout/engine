@@ -382,6 +382,11 @@ async function startEditor() {
   // fixed for the rest of that session, matching the fact that entities
   // can't be added or removed while playing.
   let playerIndex = -1;
+  // Orbit target saved when Play starts, so Stop can restore it — Play mode
+  // overwrites controls.target every frame to follow the player, and without
+  // this the edit camera would stay aimed at wherever the player last was
+  // instead of back at whatever the user had framed before pressing Play.
+  let prePlayTarget: THREE.Vector3 | null = null;
   // W/A/S/D/Shift key transitions since the last drained frame, queued here
   // by the keydown/keyup listeners below and drained once per rendered frame
   // in frame() — mirrors the native platform's own poll-events-once-per-frame
@@ -390,6 +395,10 @@ async function startEditor() {
   // editor_input_begin_frame()/editor_key() stay in the same relative order
   // every native InputState consumer already assumes.
   const keyQueue: Array<[code: number, down: number]> = [];
+  // Movement codes currently held down, so a Pause or a lost window focus
+  // can force them back up even when no matching keyup DOM event arrives
+  // (alt-tab, a window manager shortcut eating the key, etc.).
+  const heldKeys = new Set<number>();
   const movementKeyCodes: Record<string, number> = {
     KeyW: 0,
     KeyA: 1,
@@ -398,20 +407,36 @@ async function startEditor() {
     ShiftLeft: 4,
     ShiftRight: 4,
   };
-  // Guarding both on doc.mode === "play" is safe even for a key released
-  // just after Stop: syncRuntime() clears keyQueue and hands the next Play
-  // session a brand new WASM Runtime (so a fresh, zeroed InputState) anyway,
-  // so nothing here needs to carry a "this key was still down" fact across
-  // sessions for that fresh state to be correct.
+  // Releases are accepted in both Play and Pause (only Edit is excluded) so
+  // a key physically released while paused still clears its held state,
+  // matching the native platform's own semantics. Guarding both on
+  // doc.mode === "play" is safe for keydown even for a key pressed just
+  // after Stop: syncRuntime() clears keyQueue/heldKeys and hands the next
+  // Play session a brand new WASM Runtime (so a fresh, zeroed InputState)
+  // anyway, so nothing here needs to carry a "this key was still down" fact
+  // across sessions for that fresh state to be correct.
+  function releaseHeldKeys() {
+    for (const code of heldKeys) keyQueue.push([code, 0]);
+    heldKeys.clear();
+  }
   window.addEventListener("keydown", (event) => {
     if (doc.mode !== "play" || event.repeat) return;
     const code = movementKeyCodes[event.code];
-    if (code !== undefined) keyQueue.push([code, 1]);
+    if (code !== undefined) {
+      keyQueue.push([code, 1]);
+      heldKeys.add(code);
+    }
   });
   window.addEventListener("keyup", (event) => {
-    if (doc.mode !== "play") return;
+    if (doc.mode === "edit") return;
     const code = movementKeyCodes[event.code];
-    if (code !== undefined) keyQueue.push([code, 0]);
+    if (code !== undefined) {
+      keyQueue.push([code, 0]);
+      heldKeys.delete(code);
+    }
+  });
+  window.addEventListener("blur", () => {
+    if (doc.mode !== "edit") releaseHeldKeys();
   });
   function execute(command: unknown) {
     const result = doc.execute(command);
@@ -456,6 +481,7 @@ async function startEditor() {
     ticks = 0;
     accumulator = 0;
     keyQueue.length = 0;
+    heldKeys.clear();
   }
   function rebuild() {
     gizmo.detach();
@@ -800,7 +826,10 @@ async function startEditor() {
   };
   el("play").onclick = () => {
     try {
-      if (doc.mode === "edit") syncRuntime();
+      if (doc.mode === "edit") {
+        prePlayTarget = controls.target.clone();
+        syncRuntime();
+      }
       doc.mode = "play";
       updatePanels();
     } catch (e) {
@@ -808,12 +837,20 @@ async function startEditor() {
     }
   };
   el("pause").onclick = () => {
-    if (doc.mode === "play") doc.mode = "pause";
+    if (doc.mode === "play") {
+      releaseHeldKeys();
+      doc.mode = "pause";
+    }
     updatePanels();
   };
   el("stop").onclick = () => {
     doc.mode = "edit";
     accumulator = 0;
+    releaseHeldKeys();
+    if (prePlayTarget) {
+      controls.target.copy(prePlayTarget);
+      prePlayTarget = null;
+    }
     rebuild();
   };
   el("grid").onclick = () => {

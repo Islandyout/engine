@@ -79,6 +79,13 @@ control of the camera away from you. Movement is velocity-based (the same
 (see the `Collider` note above), so a player currently walks straight through
 whatever else is in the scene.
 
+Pausing or losing window focus (an alt-tab, for example) releases any
+movement key still held, so a key that never got a matching keyup — a
+window manager shortcut eating it, focus leaving the browser entirely —
+can't leave the player stuck moving or flying forever; resuming Play needs
+a fresh press. Stop restores the pre-Play orbit target instead of leaving
+the edit camera aimed at wherever the player last was.
+
 ## Build and verification
 
 With Node and Emscripten installed:
