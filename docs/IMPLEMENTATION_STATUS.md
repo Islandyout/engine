@@ -1422,3 +1422,52 @@ current yaw, verified natively by placing a wall only a *turned* long vehicle's 
 can reach; and `examples/demo-game.json`'s north/south arena barriers only spanned the
 gap between the east/west walls, not past them, leaving roughly four-unit corner gaps
 the car could drive out through — widened to fully overlap the side walls.
+
+## F26 — Catalog-model `Scale` normalization (0.26.0)
+
+F25 shipped without ever running in a real browser (no Emscripten/Playwright in that
+sandbox). This round built the actual WASM runtime and played `examples/demo-game.json`
+by hand, per the same "make a real game and iterate" feedback F25 was already responding
+to — and found the scene nearly unplayable: the Player Car rendered nearly as long as the
+arena's own boundary walls, which also made its steering look wrong (it wasn't; it was
+just too oversized to read).
+
+Root cause: `BTAI_EDITOR.md` documents an authored `Scale` component as an entity's
+literal world-space size, the same dimensions `engine::physics::Box` uses — but
+`rebuild()` in `apps/editor/src/editor/main.ts` applied it directly
+(`object.scale.set(s.x, s.y, s.z)`) to catalog GLB meshes on top of their own baked-in
+real-world dimensions (the bundled sedan is ~4.7m long, ~2.2m wide before any scale),
+stacking scale on scale. `Player Car`'s authored `Scale{1.8, 1.3, 4.0}` — an
+ordinary car size — rendered at roughly `{3.9, 1.9, 18.8}`. Fixed by caching each
+catalog model's own rest-pose bounding-box size (`CachedModel.nativeSize`) when it
+loads, and normalizing an authored `Scale` by that native size before applying it to a
+catalog-backed object, so the rendered size matches the literal authored value (and the
+physics `Box`, which already read `Scale` directly and was never affected). The
+`BoxGeometry` placeholder used before a catalog model finishes loading keeps the old
+direct behavior, since it's already a unit cube. `examples/demo-game.json`'s two
+backdrop buildings had no authored `Scale` at all, so they rendered at native size too —
+one of them is a ~24×30×19m office-tower model, dwarfing the 8-unit-radius arena from
+only 11 units away; given real dimensions and moved farther out to read as a skyline
+backdrop instead of looming over the play area.
+
+A review pass on this round's own PR caught one further issue: the viewport's transform
+gizmo drags a catalog-backed object's own (now-normalized) three.js `scale`, but the
+gizmo's mouse-up handler persisted that normalized value directly as the new authored
+`Scale`, so dragging a model's scale handle would save the wrong (much smaller) number
+and the model would visibly shrink on the very next rebuild. Fixed by converting the
+gizmo's before/after scale back through the same `nativeSize` before building the
+`set_component` command, so a scale drag on a catalog model now saves literal
+dimensions like every other authoring path.
+
+### F26 verification
+
+- `npm run typecheck`, `npm test` (26/26), `npm run build` in `apps/editor`: all pass.
+- Built the real Emscripten/WASM editor runtime and ran `tests/browser/editor.cjs`
+  (genuine WebGL via Playwright, `--enable-unsafe-swiftshader`) end to end: all existing
+  coverage, including vehicle driving, still passes unmodified.
+- Played `examples/demo-game.json` by hand in that same real browser session — forward,
+  steering, reverse, melee, blast — and confirmed via screenshots that the car and
+  backdrop buildings now render at correct, readable proportions, and that the car's
+  turning reads correctly once it's no longer oversized (it always was correct; F25's
+  own algebraic proof of the yaw-to-rotation mapping held throughout — the earlier
+  in-sandbox uncertainty about it was this bug, not that proof).

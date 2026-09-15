@@ -5,6 +5,7 @@ import {
   type TransformMode,
   type TransformSnapshot,
 } from "./TransformEdit";
+import type { EntityRef, Vec3 } from "../scene/Components";
 import { propertyMetadata } from "./PropertyMetadata";
 import { defaultComponent } from "../authoring/CommandInterpreter";
 import { CanvasRenderer } from "./CanvasRenderer";
@@ -307,15 +308,37 @@ async function startEditor() {
         before: snapshot(gizmo.object),
       };
   });
+  // The gizmo drags a catalog-backed object's own three.js scale, which
+  // rebuild() normalizes by the model's native size (see CachedModel's own
+  // doc comment) — not the literal world-space units the authored Scale
+  // component stores. Undoing that normalization here, so the scale mode
+  // persists literal dimensions instead of quietly shrinking the model by
+  // its own native size on the very next rebuild().
+  function toLiteralScale(entity: EntityRef, scale: Vec3): Vec3 {
+    const meshId = doc.scene.get(entity, "Renderable")?.mesh ?? 0;
+    const cached = meshId >= 1 ? catalogCache.get(meshId) : undefined;
+    if (!cached) return scale;
+    const n = cached.nativeSize;
+    return {
+      x: scale.x * (n.x > 1e-6 ? n.x : 1),
+      y: scale.y * (n.y > 1e-6 ? n.y : 1),
+      z: scale.z * (n.z > 1e-6 ? n.z : 1),
+    };
+  }
   gizmo.addEventListener("mouseUp", () => {
     const current = gesture;
     gesture = undefined;
     if (!current || !gizmo.object) return;
+    const after = snapshot(gizmo.object);
+    if (current.mode === "scale") {
+      current.before.scale = toLiteralScale(current.entity, current.before.scale);
+      after.scale = toLiteralScale(current.entity, after.scale);
+    }
     const command = transformCommand(
       current.entity,
       current.mode,
       current.before,
-      snapshot(gizmo.object),
+      after,
     );
     queueMicrotask(() => {
       if (command) execute(command);
