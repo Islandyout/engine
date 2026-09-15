@@ -23,9 +23,12 @@ const metadata: Record<string, PropertyMetadata> = {
   "Collider.type": { options: choice(["AABB", "Sphere"]) },
   "Renderable.mesh": {
     label: "Model",
+    // Id 0 (the default box) isn't a modelCatalog entry — it's the fallback a
+    // mesh renders as before any catalog model has loaded, not a placeable
+    // choice of its own — so it's listed here and nowhere else. Every other
+    // id, bench (1) included, comes from modelCatalog itself.
     options: [
       { label: "Box", value: 0 },
-      { label: "Aether bench", value: 1 },
       ...modelCatalog.map((m) => ({
         label: `${m.category[0]!.toUpperCase()}${m.category.slice(1)}: ${m.name}`,
         value: m.id,

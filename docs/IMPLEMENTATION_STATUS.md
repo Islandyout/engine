@@ -962,3 +962,62 @@ merge, not deferred:
   Correctness here rests on unit-testing the pure clip-selection logic and on Three.js's
   own `AnimationMixer`/`SkeletonUtils` being mature, widely-used primitives, not on having
   watched a character actually move.
+
+## F21 — The bench joins the catalog it predates (0.21.0)
+
+The repository owner, looking at the live editor, asked for the bench to stop being "out
+on its own": a standalone "Add Aether bench" button existed alongside the F19/F20 model
+catalog's own category/model pickers and "Add from catalog" button — two different ways
+to place a model, one of them a special case for exactly one model. The bench predates
+the catalog (0.9.0), so this was accumulated history, not a deliberate design.
+
+Folded it in as the catalog's own id 1 (`{ category: "furniture", name: "Aether Bench",
+path: "./bench.glb" }`), keeping its existing path (the root-level `bench.glb`, not
+`kit/furniture/bench.glb`, deduplicated away in 0.19.0 as the identical file) and its
+existing id — `Renderable.mesh: 1` is a public contract every scene saved since 0.9.0 may
+already use, so it could not simply move to a fresh id at the end of the list. Removed:
+the standalone button and its click handler, the dedicated eager `GLTFLoader().load()`
+call at startup (the bench now loads lazily through the same `catalogCache`/
+`loadCatalogModel` path as every other entry, the first time anything actually
+references id 1 — a freshly loaded saved scene, or a new "Add from catalog" pick), the
+`let bench` variable, and `rebuild()`'s `meshId === 1 && bench` special case (its
+`meshId >= 2` guards on the generic catalog path became `>= 1`, and that's the entire
+diff needed to make id 1 behave like any other static, non-animated entry). Also removed
+`PropertyMetadata.ts`'s hardcoded `{ label: "Aether bench", value: 1 }` inspector-dropdown
+option, since `modelCatalog` supplies it now and the two would otherwise duplicate.
+
+Only id 0 (the default box a mesh renders as before any catalog entry has loaded) stays
+outside the catalog — it isn't a placeable model at all, just a fallback.
+
+### F21 verification
+
+- `apps/editor/tests/modelCatalog.test.ts`: the "no id collides with the reserved 0/1
+  range" invariant became "no id collides with 0" (1 is now legitimately in the catalog);
+  a new case asserts exactly one entry has id 1 and its name mentions "Bench"; the
+  path-resolution test now branches for id 1 (resolves against `assets/source/bench.glb`
+  directly) instead of assuming every path starts with `./kit/`.
+- `apps/editor/tests/transform.test.ts`'s existing `Renderable.mesh` metadata case
+  asserted the bench option sat at a fixed array index (1) — true only by accident of the
+  old hardcoded-then-spread array order, and false now that bench is sorted into the
+  catalog alongside the rest of `furniture`. Fixed to find the bench option by its value
+  (1) and label instead of trusting position, which is what the assertion actually meant
+  to check.
+- Extended `tests/browser/editor.cjs`: replaced `#bench` (now removed) with the same
+  "select furniture, select id 1, Add from catalog" flow every other model now uses,
+  selecting the model explicitly by id rather than relying on it sorting first (it does,
+  since "Aether Bench" precedes "Barrier" alphabetically — moved the catalog entry itself
+  ahead of "Barrier" to match, since it had been appended after it by mistake — but the
+  test shouldn't depend on catalog ordering to place the one entity it most needs to get
+  right, unlike the "signs" case further down, which deliberately does rely on
+  alphabetical-first for a narrower reason: determinism without touching the model
+  dropdown at all). Updated the entity-name assertions from "Aether bench" to
+  "Aether Bench" to match the catalog's Title Case naming convention (matching every
+  other entry, e.g. "Sign Crossing").
+- `npm run typecheck`, `npm test` (20/20), `npm run build` in `apps/editor`: all pass.
+  Full native rebuild + `ctest`: all 13 cases pass (no C++ changed this round).
+- Manually rebuilt `build/site` and confirmed `/engine/bench.glb` still resolves
+  (unchanged path, unchanged `build_editor.sh` copy step — this round only changed how
+  the *editor* references it, not where it's served from).
+- Not verified here: the actual Emscripten/Playwright run — this sandbox has no
+  Emscripten toolchain, same as every editor-bridge change. CI's real build is the
+  verification of record.

@@ -14,9 +14,9 @@ there is no separate landing page or demo in front of it. The workspace has a sc
 component inspector, project name, bundled Aether content, JSON console and a
 Three.js viewport. Create, rename, duplicate, delete, reparent and edit components
 through the authoring/document layer. Select objects in the hierarchy or viewport;
-orbit, pan, zoom, frame selection and toggle the grid. Load the bundled Aether bench,
-or browse the Project/Content panel's catalog of 130 further bundled CC0 props and
-characters by category and add one to the scene — see [Model catalog](#model-catalog).
+orbit, pan, zoom, frame selection and toggle the grid. Browse the Project/Content
+panel's catalog of 131 bundled CC0 models — the original Aether bench included — by
+category and add one to the scene; see [Model catalog](#model-catalog).
 Export a JSON scene, reopen it, or reload the locally saved scene.
 Undo/redo restores scene data, never DOM snapshots. Scene load validates all
 components and hierarchy before replacing the document. Stale handles remain
@@ -128,16 +128,20 @@ on both rendering backends. Native simulation and asset coverage remain enabled.
 ## Model catalog
 
 `apps/editor/src/scene/modelCatalog.ts` is a generated manifest (id, category, name,
-path, and an `animated` flag) covering 130 bundled CC0 models from the Aether kit —
+path, and an `animated` flag) covering 131 bundled CC0 models from the Aether kit —
 buildings, furniture, nature, roads, signs and vehicles (103 static props, 0.19.0),
-plus animals and people (27 rigged, animated characters, 0.20.0). Ids 2–131; 0 and 1
-stay reserved for the default box and the Aether bench. Browse and add one from the
-Project/Content panel's category/model pickers, or change an already-placed entity's
-model through the inspector's `Renderable.mesh` dropdown, which lists the same 130
-entries — the catalog isn't spawn-only.
+animals and people (27 rigged, animated characters, 0.20.0), and the original Aether
+bench itself (id 1, the one 0.9.0 shipped with — folded into the catalog in 0.21.0
+rather than kept as its own separate button, so there's one consistent way to browse
+and place every bundled model, the bench included). Only id 0, the default box a mesh
+renders as before any catalog entry has loaded, is outside the catalog. Browse and add
+one from the Project/Content panel's category/model pickers, or change an
+already-placed entity's model through the inspector's `Renderable.mesh` dropdown,
+which lists the same 131 entries — the catalog isn't spawn-only.
 
-A static entry (`animated: false`/unset) loads and clones like the bench always has.
-An animated entry loads through `SkeletonUtils.clone` (a plain Three.js `.clone()`
+A static entry (`animated: false`/unset), the bench included, loads through the same
+plain Three.js `.clone(true)`. An animated entry loads through `SkeletonUtils.clone` (a
+plain Three.js `.clone()`
 does not correctly duplicate a `SkinnedMesh`'s bone bindings) and gets its own
 `THREE.AnimationMixer` bound to its own embedded `AnimationClip`s — every character
 and animal file carries its own copy of the clips it needs, not a shared rig. Which

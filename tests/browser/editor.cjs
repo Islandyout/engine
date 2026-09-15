@@ -167,7 +167,17 @@ const { chromium } = require("playwright");
         .inputValue(),
       "3",
     );
-    await page.locator("#bench").click();
+    // The bench is id 1 in the model catalog now (0.21.0), not a standalone
+    // button — same "Add from catalog" flow as everything else. Selected
+    // explicitly by id rather than relying on it being first alphabetically.
+    await page.locator("#catalog-category").selectOption("furniture");
+    await page.locator("#catalog-model").selectOption("1");
+    await page.locator("#catalog-add").click();
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".entity")].some((e) =>
+        e.textContent.includes("Aether Bench"),
+      ),
+    );
     assert.equal(await page.locator(".entity").count(), 4);
     const downloadPromise = page.waitForEvent("download");
     await page.locator("#save").click();
@@ -196,7 +206,7 @@ const { chromium } = require("playwright");
     assert.equal(await page.locator(".entity").count(), 4);
     await page.locator("#json").fill('{"command":"list_entities"}');
     await page.locator("#command button").click();
-    assert.match(await page.locator("#log").textContent(), /Aether bench/);
+    assert.match(await page.locator("#log").textContent(), /Aether Bench/);
     await page.locator("#catalog-category").selectOption("signs");
     await page.locator("#catalog-add").click();
     await page.waitForFunction(() =>
