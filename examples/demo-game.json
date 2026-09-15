@@ -78,14 +78,16 @@
     {
       "name": "Watchtower",
       "components": {
-        "Transform": { "position": { "x": -11, "y": 0, "z": -11 } },
+        "Transform": { "position": { "x": -24, "y": 0, "z": -24 } },
+        "Scale": { "value": { "x": 7, "y": 9, "z": 6 } },
         "Renderable": { "mesh": 8, "material": 0, "visible": true }
       }
     },
     {
       "name": "Roadside House",
       "components": {
-        "Transform": { "position": { "x": 11, "y": 0, "z": 11 } },
+        "Transform": { "position": { "x": 20, "y": 0, "z": 20 } },
+        "Scale": { "value": { "x": 5, "y": 3, "z": 4.5 } },
         "Renderable": { "mesh": 5, "material": 0, "visible": true }
       }
     }
