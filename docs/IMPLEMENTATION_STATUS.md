@@ -539,3 +539,41 @@ making the enemy non-solid, like the goal, which is also what makes overlap dete
   `-fsanitize=undefined -fno-sanitize-recover=all` also passed.
 - Same SDL/desktop CI gap as F10–F13: not verified against the SDL-enabled preset in this
   sandbox; the new code has no SDL-guarded path.
+
+## F15 — HUD health bar (0.15.0)
+
+The combat basics F14 shipped had zero visual feedback: `Health` was an internal number with
+no way to see it change except a console line at defeat. Adds `BoxView::draw_bar(x, y,
+width, height, ratio, color)` (`include/engine/graphics/box_view.hpp`,
+`source/engine/graphics/box_view.cpp`): a 2D screen-space overlay drawn directly into the
+pixel buffer after whatever `draw()`/`draw_mesh()` already rendered — a fixed background
+fill, then a `color` fill over the ratio-scaled left portion — ignoring the depth buffer and
+camera entirely, so it always sits on top at a fixed screen position. `Scene::enemy_health_ratio()`
+(`apps/native_playground/scene.hpp`) exposes `Health.current / Health.max` as an
+`std::optional<float>`, `nullopt` once the enemy is gone rather than a stale ratio; the
+playground draws a red bar at `(20, 20)`, `200×16`, whenever that is not `nullopt` (both in
+the render loop and the `--snapshot` path).
+
+Deliberately scoped to bars only, not text: a real font/glyph renderer is a separate,
+larger piece of work (the engine has no text rendering anywhere yet), and a bar alone
+already answers "is combat visible" without it.
+
+### F15 verification
+
+- New `draw_bar` tests: a half-full bar samples the fill color on the left half and the
+  background color on the right; ratio 1.0 fills the entire width; ratio 0.0 is all
+  background; an out-of-range ratio (2.5) is clamped rather than rejected; a bar that would
+  draw outside the 800×500 frame is rejected; a non-finite ratio is rejected; calling before
+  any `draw()` has established a frame is rejected.
+- New `enemy_health_ratio()` test: 1.0 at full health, `40.0/60.0` after one scripted attack
+  (matching the F14 combat test's own hit math), `nullopt` once the enemy is defeated.
+- A real test bug was caught and fixed while writing these: the first draft reused the
+  `boxes` vector from an earlier test in the same file to establish a frame for `draw_bar`,
+  but that vector had already been mutated into a degenerate box (`size.x = 0`) by the
+  "reject degenerate box" case just above it — `draw()` correctly threw. Fixed by using a
+  fresh, valid box literal instead of the shared, already-mutated one.
+- Linux Clang 18.1.3 strict-warning headless build passed with zero warnings; all 13 CTest
+  cases (same count — no new CTest targets) passed. A separate GCC 13.3.0 build with
+  `-fsanitize=undefined -fno-sanitize-recover=all` also passed.
+- Same SDL/desktop CI gap as F10–F14: not verified against the SDL-enabled preset in this
+  sandbox; the new code has no SDL-guarded path.

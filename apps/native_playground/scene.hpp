@@ -83,6 +83,15 @@ public:
     // loaded document, which has no enemy, or if the enemy was removed
     // (Backspace) before ever being defeated.
     [[nodiscard]] bool enemy_defeated() const { return enemy_defeated_; }
+    // Health.current / Health.max for the enemy, or nullopt if there is no
+    // enemy (a loaded document) or it is no longer alive (defeated or
+    // removed) — the HUD's cue to stop drawing a health bar for it.
+    [[nodiscard]] std::optional<float> enemy_health_ratio() const {
+        if (!enemy.has_value() || !world.alive(*enemy))
+            return std::nullopt;
+        const auto &health = *world.get<Health>(*enemy);
+        return health.current / health.max;
+    }
     // A "format 1" snapshot of every current Box entity's position, in
     // world.query's creation order (player included). Only what a Box
     // carries survives: a Transform at its center and a visible Renderable

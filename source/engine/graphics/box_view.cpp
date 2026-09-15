@@ -178,4 +178,25 @@ void BoxView::draw_mesh(const MeshAsset &mesh, Vec3 position, float scale) {
             }
     }
 }
+void BoxView::draw_bar(int x, int y, int bar_width, int bar_height, float ratio,
+                       std::array<u8, 3> color) {
+    if (!frame_ready_)
+        throw std::invalid_argument{"draw_bar needs a frame from draw() first"};
+    if (bar_width <= 0 || bar_height <= 0 || x < 0 || y < 0 || x + bar_width > width ||
+        y + bar_height > height)
+        throw std::invalid_argument{"bar out of frame bounds"};
+    if (!std::isfinite(ratio))
+        throw std::invalid_argument{"invalid bar ratio"};
+    const float clamped = std::clamp(ratio, 0.0F, 1.0F);
+    const auto filled_width =
+        static_cast<int>(static_cast<float>(bar_width) * clamped);
+    constexpr std::array<u8, 3> background{40, 40, 44};
+    for (int row = 0; row < bar_height; ++row)
+        for (int col = 0; col < bar_width; ++col) {
+            const auto index = static_cast<usize>((y + row) * width + (x + col));
+            const auto &pixel_color = col < filled_width ? color : background;
+            for (usize channel = 0; channel < 3; ++channel)
+                pixels_[index * 4 + channel] = pixel_color[channel];
+        }
+}
 } // namespace engine

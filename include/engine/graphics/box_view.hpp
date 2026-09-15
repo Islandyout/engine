@@ -34,6 +34,13 @@ public:
     void draw(std::span<const Box> boxes, OrbitView camera = {});
     // Draw over the current frame using its camera/depth buffer. Positive uniform scale only.
     void draw_mesh(const MeshAsset &mesh, Vec3 position, float scale = 1);
+    // A 2D screen-space HUD bar: a fill-color background over the current
+    // frame, then a foreground rect of width*clamp(ratio,0,1) in the same
+    // spot — a health bar, not a 3D-projected object, so it ignores the
+    // depth buffer and camera (always drawn on top, at fixed screen
+    // coordinates). Must follow a draw() call (needs a frame to draw into).
+    void draw_bar(int x, int y, int bar_width, int bar_height, float ratio,
+                  std::array<u8, 3> color);
     [[nodiscard]] std::span<const u8> pixels() const noexcept { return pixels_; }
 
 private:

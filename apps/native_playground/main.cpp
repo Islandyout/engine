@@ -51,6 +51,8 @@ public:
         view.draw_mesh(model, {player.center.x, player.center.y - player.size.y / 2,
                                player.center.z},
                        2.0F);
+        if (const auto ratio = scene->enemy_health_ratio())
+            view.draw_bar(20, 20, 200, 16, *ratio, {200, 70, 70});
 #if ENGINE_HAS_SDL3
         if (desktop && !desktop->present_rgba(view.pixels(), view.width, view.height))
             throw std::runtime_error{"window presentation failed"};
@@ -130,6 +132,8 @@ int main(int argc, char **argv) {
                                 {player.center.x, player.center.y - player.size.y / 2,
                                  player.center.z},
                                 2.0F);
+            if (const auto ratio = demo.scene->enemy_health_ratio())
+                demo.view.draw_bar(20, 20, 200, 16, *ratio, {200, 70, 70});
             std::ofstream file{snapshot, std::ios::binary};
             file << "P6\n800 500\n255\n";
             const auto pixels = demo.view.pixels();
