@@ -373,6 +373,39 @@ const { chromium } = require("playwright");
         .textContent.includes("Selected health: 85%"),
     );
     await page.locator("#stop").click();
+    // Vehicle driving: adding a Vehicle component to the existing Player
+    // entity switches its movement from instant-direction strafing to
+    // momentum-based accelerate/steer -- real driving feel, verified end to
+    // end through the same status-bar readout the WASD test above used, not
+    // editor_value() calls directly (the native bridge test already covers
+    // the acceleration/steering/drag algorithm exhaustively).
+    await page
+      .locator(".entity")
+      .filter({ hasText: "Entity 7" })
+      .first()
+      .click();
+    await page.getByLabel("Add component").selectOption("Vehicle");
+    await page.locator("#play").click();
+    await page.waitForFunction(() =>
+      document.querySelector("#status").textContent.includes("Player ("),
+    );
+    const startZ = Number(
+      (await page.locator("#status").textContent()).match(
+        /Player \([-\d.]+, [-\d.]+, ([-\d.]+)\)/,
+      )[1],
+    );
+    await page.keyboard.down("w");
+    await page.waitForFunction(
+      (start) => {
+        const match = document
+          .querySelector("#status")
+          .textContent.match(/Player \([-\d.]+, [-\d.]+, ([-\d.]+)\)/);
+        return match && Number(match[1]) > start + 1;
+      },
+      startZ,
+    );
+    await page.keyboard.up("w");
+    await page.locator("#stop").click();
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -382,7 +415,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, save/load, invalid-load preservation, authoring console passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, vehicle driving, save/load, invalid-load preservation, authoring console passed.",
     );
   } finally {
     if (browser) await browser.close();

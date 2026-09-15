@@ -18,6 +18,18 @@ namespace {
 // answers "is this the player," not a general engine concept.
 struct PlayerMarker final {};
 
+// Present on a PlayerMarker entity that also carries an authored Vehicle
+// component: switches its horizontal movement from instant-direction,
+// camera-relative strafing to momentum-based accelerate/steer (see
+// vehicle_speed/vehicle_turn_rate below). yaw is radians; 0 faces +z (an
+// arbitrary but fixed convention — see editor_add's doc comment for why an
+// authored Rotation isn't consulted as a starting heading). speed is the
+// signed distance per second currently traveled along that heading.
+struct Heading final {
+    float yaw{};
+    float speed{};
+};
+
 // Bridge-local combat data, ported (not shared) from the native playground's
 // own Health/Projectile structs — like those, scoped to what this editor
 // needs, not general engine primitives, so each side keeps its own copy
@@ -46,6 +58,15 @@ struct Projectile final {
 constexpr float move_speed = 4.8F; // units/s; matches the native playground's tuned feel
 constexpr float jump_speed = 7.0F;
 constexpr float fly_speed = 4.0F;
+// Vehicle driving feel: a simplified arcade model, not real car physics —
+// constant turn rate regardless of speed (no traction/slip curve), no
+// distinction between engine power and braking. Reasonable-scope tuning, not
+// a claim of realism.
+constexpr float vehicle_accel = 6.0F;         // units/s^2
+constexpr float vehicle_drag = 3.0F;          // units/s^2, applied opposing motion with no accel input
+constexpr float vehicle_max_forward = 9.0F;   // units/s
+constexpr float vehicle_max_reverse = 4.0F;   // units/s
+constexpr float vehicle_turn_rate = 2.2F;     // rad/s at full steering lock
 constexpr float attack_damage = 20.0F;
 // Weaker than melee (a ranged option, not a strict upgrade) and fast enough
 // to cross a typical engagement distance well within its lifetime.
@@ -108,6 +129,14 @@ struct Runtime {
     // flags decouple "a press happened" from frame/tick timing entirely.
     bool pending_attack{false};
     bool pending_blast{false};
+    // Horizontal camera-forward direction, set by editor_set_camera_forward()
+    // once per rendered frame. Defaults to world -z so a Runtime nothing ever
+    // calls that on (every native test below included) behaves exactly like
+    // the fixed-world-axis movement this replaced — camera-relative movement
+    // degenerates to the old behavior when the camera happens to be looking
+    // down -z, which this default simply assumes until told otherwise.
+    float camera_forward_x{0.0F};
+    float camera_forward_z{-1.0F};
     Runtime() {
         world.register_component<engine::Box>("editor.box");
         world.register_component<engine::physics::RigidBody>("editor.rigid_body");
@@ -115,6 +144,7 @@ struct Runtime {
         world.register_component<PlayerMarker>("editor.player");
         world.register_component<Health>("editor.health");
         world.register_component<Projectile>("editor.projectile");
+        world.register_component<Heading>("editor.heading");
         // Order 0: apply this tick's input to the player's velocity before
         // order 10 integrates it — matches the native playground's own
         // move-then-physics ordering.
@@ -123,17 +153,51 @@ struct Runtime {
             [this](engine::World &w, const engine::FixedUpdateContext &context) {
                 for (const auto entity : w.query<engine::physics::RigidBody, PlayerMarker>()) {
                     auto &body = *w.get<engine::physics::RigidBody>(entity);
-                    float x = 0, z = 0;
-                    if (context.input.key_down(engine::Key::a))
-                        x -= 1;
-                    if (context.input.key_down(engine::Key::d))
-                        x += 1;
-                    if (context.input.key_down(engine::Key::w))
-                        z -= 1;
-                    if (context.input.key_down(engine::Key::s))
-                        z += 1;
-                    body.velocity.x = x * move_speed;
-                    body.velocity.z = z * move_speed;
+                    auto *heading = w.get<Heading>(entity);
+                    if (heading) {
+                        // Vehicle model: W/S accelerate/reverse along the vehicle's own
+                        // heading (momentum, not instant velocity), A/D steer that heading
+                        // — "driving," not strafing. Self-relative by construction, so
+                        // there's no camera-orientation ambiguity to get "flipped" here.
+                        float accel_input = 0, steer_input = 0;
+                        if (context.input.key_down(engine::Key::w))
+                            accel_input += 1;
+                        if (context.input.key_down(engine::Key::s))
+                            accel_input -= 1;
+                        if (context.input.key_down(engine::Key::d))
+                            steer_input += 1;
+                        if (context.input.key_down(engine::Key::a))
+                            steer_input -= 1;
+                        heading->yaw += steer_input * vehicle_turn_rate / 60.0F;
+                        heading->speed += accel_input * vehicle_accel / 60.0F;
+                        if (accel_input == 0) {
+                            if (heading->speed > 0)
+                                heading->speed = std::max(0.0F, heading->speed - vehicle_drag / 60.0F);
+                            else
+                                heading->speed = std::min(0.0F, heading->speed + vehicle_drag / 60.0F);
+                        }
+                        heading->speed = std::clamp(heading->speed, -vehicle_max_reverse, vehicle_max_forward);
+                        body.velocity.x = std::sin(heading->yaw) * heading->speed;
+                        body.velocity.z = std::cos(heading->yaw) * heading->speed;
+                    } else {
+                        // On-foot model: camera-relative strafing — W always moves toward
+                        // wherever the camera is currently facing (see camera_forward_x/z's
+                        // own doc comment), not a fixed world axis, so the felt direction of
+                        // every key stays correct regardless of how the camera's been orbited.
+                        float right = 0, forward = 0;
+                        if (context.input.key_down(engine::Key::a))
+                            right -= 1;
+                        if (context.input.key_down(engine::Key::d))
+                            right += 1;
+                        if (context.input.key_down(engine::Key::w))
+                            forward += 1;
+                        if (context.input.key_down(engine::Key::s))
+                            forward -= 1;
+                        const float fx = camera_forward_x, fz = camera_forward_z;
+                        const float right_x = -fz, right_z = fx; // cross(forward, up), up = +y
+                        body.velocity.x = (right_x * right + fx * forward) * move_speed;
+                        body.velocity.z = (right_z * right + fz * forward) * move_speed;
+                    }
                     // Press jump while grounded to launch; keep holding it
                     // while airborne to fly (a steady climb, not a single
                     // decaying arc) — same as the native playground.
@@ -271,9 +335,15 @@ EXPORT void editor_begin() {
 // hp_current clamped into [0, hp_max]); hp_max <= 0 is the "no Health" sentinel, since a real
 // Health always has a positive max. Like is_collider, ignored for a child — melee/blast target
 // it via a world-space overlap test, which a parent-relative Box can't correctly support.
+// is_vehicle is nonzero when the entity carries an authored Vehicle component; meaningless
+// without is_player (nothing else feeds it input), so it's simply ignored without that too.
+// When both apply, the entity gets a Heading{yaw: 0, speed: 0} instead of moving under the
+// default camera-relative strafe model, always starting out facing world +z, since editor_add
+// has no Rotation input to seed a better initial heading from — a placed-and-rotated vehicle
+// visually snaps to face +z the instant Play starts, a known, documented simplification.
 EXPORT int editor_add(double x, double y, double z, double vx, double vy, double vz, double sx,
                        double sy, double sz, double is_child, double is_player, double is_collider,
-                       double hp_current, double hp_max) {
+                       double hp_current, double hp_max, double is_vehicle) {
     if (!staging || staging->entities.size() >= 1024) {
         failed = true;
         return 0;
@@ -295,8 +365,11 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
     if (is_child == 0) {
         staging->world.set(e, engine::physics::RigidBody{engine::Vec3{
                                   static_cast<float>(vx), static_cast<float>(vy), static_cast<float>(vz)}});
-        if (is_player != 0)
+        if (is_player != 0) {
             staging->world.set(e, PlayerMarker{});
+            if (is_vehicle != 0)
+                staging->world.set(e, Heading{});
+        }
         if (is_collider != 0)
             staging->world.set(e, engine::physics::Collider{});
         if (hp_max > 0)
@@ -328,6 +401,20 @@ EXPORT void editor_tick() {
 // all of them share this same begin_frame() call, exactly like the native loop
 // sharing one InputState across a batch of fixed steps.
 EXPORT void editor_input_begin_frame() { active->input.begin_frame(); }
+// Sets the horizontal camera-forward direction on-foot movement is relative to (see
+// camera_forward_x/z's own doc comment on Runtime) — call once per rendered frame with the
+// live camera's current facing, before that frame's editor_tick() calls, so this frame's
+// movement already reflects wherever the camera is pointed right now. x/z need not be
+// pre-normalized (this normalizes them); a near-zero vector — camera looking straight down,
+// the one direction with no meaningful horizontal facing — is ignored, leaving the previous
+// direction in place rather than dividing by ~0.
+EXPORT void editor_set_camera_forward(double x, double z) {
+    const auto length = std::sqrt(x * x + z * z);
+    if (length > 0.0001) {
+        active->camera_forward_x = static_cast<float>(x / length);
+        active->camera_forward_z = static_cast<float>(z / length);
+    }
+}
 // code is one of the small set key_for() understands
 // (0=W,1=A,2=S,3=D,4=Shift,5=F/attack,6=G/blast); anything else maps to
 // Key::unknown and is silently inert. down is nonzero for a keydown, zero
@@ -348,9 +435,11 @@ EXPORT void editor_key(int code, int down) {
         1, key_for(code), down ? engine::ButtonAction::pressed : engine::ButtonAction::released, false});
 }
 // field 0/1/2 are Box.center.x/y/z; field 3 is Health.current/Health.max (a ratio in [0, 1]),
-// or -1 if the entity has no Health. Returns 0 (and, for field 3, -1) for an index outside
-// entities' bounds, or for an entity combat has since destroyed — check editor_alive() first
-// to tell "destroyed" apart from "never had one" at 0,0,0.
+// or -1 if the entity has no Health; field 4 is Heading.yaw (radians, 0 for an entity with no
+// Heading — indistinguishable from a real yaw of 0, but JS only ever reads this for an entity
+// it already knows authored both Player and Vehicle). Returns 0 (and, for field 3, -1) for an
+// index outside entities' bounds, or for an entity combat has since destroyed — check
+// editor_alive() first to tell "destroyed" apart from "never had one" at 0,0,0.
 EXPORT double editor_value(int index, int field) {
     if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
         return field == 3 ? -1 : 0;
@@ -360,6 +449,10 @@ EXPORT double editor_value(int index, int field) {
     if (field == 3) {
         const auto *health = active->world.get<Health>(entity);
         return health ? health->current / health->max : -1;
+    }
+    if (field == 4) {
+        const auto *heading = active->world.get<Heading>(entity);
+        return heading ? heading->yaw : 0;
     }
     const auto &b = *active->world.get<engine::Box>(entity);
     return field == 0 ? b.center.x : field == 1 ? b.center.y : b.center.z;

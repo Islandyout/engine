@@ -1,0 +1,93 @@
+{
+  "format": 1,
+  "name": "Test Drive",
+  "entities": [
+    {
+      "name": "Player Car",
+      "components": {
+        "Transform": { "position": { "x": 0, "y": 0.65, "z": 0 } },
+        "Scale": { "value": { "x": 1.8, "y": 1.3, "z": 4.0 } },
+        "Renderable": { "mesh": 98, "material": 0, "visible": true },
+        "Player": {},
+        "Vehicle": { "archetype": 0 }
+      }
+    },
+    {
+      "name": "Barrier North",
+      "components": {
+        "Transform": { "position": { "x": 0, "y": 1, "z": -8 } },
+        "Scale": { "value": { "x": 8, "y": 2, "z": 0.4 } },
+        "Renderable": { "mesh": 0, "material": 0, "visible": true },
+        "Collider": { "type": "AABB" }
+      }
+    },
+    {
+      "name": "Barrier South",
+      "components": {
+        "Transform": { "position": { "x": 0, "y": 1, "z": 8 } },
+        "Scale": { "value": { "x": 8, "y": 2, "z": 0.4 } },
+        "Renderable": { "mesh": 0, "material": 0, "visible": true },
+        "Collider": { "type": "AABB" }
+      }
+    },
+    {
+      "name": "Barrier East",
+      "components": {
+        "Transform": { "position": { "x": 8, "y": 1, "z": 0 } },
+        "Scale": { "value": { "x": 0.4, "y": 2, "z": 16 } },
+        "Renderable": { "mesh": 0, "material": 0, "visible": true },
+        "Collider": { "type": "AABB" }
+      }
+    },
+    {
+      "name": "Barrier West",
+      "components": {
+        "Transform": { "position": { "x": -8, "y": 1, "z": 0 } },
+        "Scale": { "value": { "x": 0.4, "y": 2, "z": 16 } },
+        "Renderable": { "mesh": 0, "material": 0, "visible": true },
+        "Collider": { "type": "AABB" }
+      }
+    },
+    {
+      "name": "Obstacle Crate",
+      "components": {
+        "Transform": { "position": { "x": 2, "y": 0.5, "z": 2 } },
+        "Scale": { "value": { "x": 1, "y": 1, "z": 1 } },
+        "Renderable": { "mesh": 0, "material": 0, "visible": true },
+        "Collider": { "type": "AABB" }
+      }
+    },
+    {
+      "name": "Target Drone A",
+      "components": {
+        "Transform": { "position": { "x": -3, "y": 0.5, "z": -3 } },
+        "Scale": { "value": { "x": 1, "y": 1, "z": 1 } },
+        "Renderable": { "mesh": 0, "material": 0, "visible": true },
+        "Health": { "current": 40, "maximum": 40 }
+      }
+    },
+    {
+      "name": "Target Drone B",
+      "components": {
+        "Transform": { "position": { "x": 3, "y": 0.5, "z": 3 } },
+        "Scale": { "value": { "x": 1, "y": 1, "z": 1 } },
+        "Renderable": { "mesh": 0, "material": 0, "visible": true },
+        "Health": { "current": 40, "maximum": 40 }
+      }
+    },
+    {
+      "name": "Watchtower",
+      "components": {
+        "Transform": { "position": { "x": -11, "y": 0, "z": -11 } },
+        "Renderable": { "mesh": 8, "material": 0, "visible": true }
+      }
+    },
+    {
+      "name": "Roadside House",
+      "components": {
+        "Transform": { "position": { "x": 11, "y": 0, "z": 11 } },
+        "Renderable": { "mesh": 5, "material": 0, "visible": true }
+      }
+    }
+  ]
+}

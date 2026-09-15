@@ -106,6 +106,7 @@ type Runtime = {
   _editor_value(index: number, field: number): number;
   _editor_alive(index: number): number;
   _editor_input_begin_frame(): void;
+  _editor_set_camera_forward(x: number, z: number): void;
   _editor_key(code: number, down: number): void;
   _editor_projectile_count(): number;
   _editor_projectile_value(index: number, field: number): number;
@@ -118,7 +119,7 @@ async function startEditor() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `<header>
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
-  <span class="brand-sub">BTAI Editor <span class="version">0.24.0</span></span>
+  <span class="brand-sub">BTAI Editor <span class="version">0.25.0</span></span>
   <a class="link-external" href="https://github.com/Islandyout/engine">View source${iconHtml("external")}</a>
 </header>
 <nav>
@@ -405,6 +406,13 @@ async function startEditor() {
   // fixed for the rest of that session, matching the fact that entities
   // can't be added or removed while playing.
   let playerIndex = -1;
+  // The player's authored scale at the moment Play started, and its y position
+  // the moment before this frame's ticks ran — the jump squash/stretch effect
+  // (see frame()) needs an un-squashed baseline to scale from each frame,
+  // since it mutates player.scale directly, and a per-frame vertical delta to
+  // react to. Both null/0 until Play actually starts (see the Play handler).
+  let playerBaseScale: THREE.Vector3 | null = null;
+  let playerPrevY = 0;
   // Orbit target saved when Play starts, so Stop can restore it — Play mode
   // overwrites controls.target every frame to follow the player, and without
   // this the edit camera would stay aimed at wherever the player last was
@@ -489,6 +497,7 @@ async function startEditor() {
       const isChild = doc.scene.has(entity, "Parent") ? 1 : 0;
       const isPlayer = doc.scene.has(entity, "Player") ? 1 : 0;
       const isCollider = doc.scene.has(entity, "Collider") ? 1 : 0;
+      const isVehicle = doc.scene.has(entity, "Vehicle") ? 1 : 0;
       const health = doc.scene.get(entity, "Health");
       // hp_max <= 0 is the bridge's own "no Health" sentinel (see
       // editor_add's doc comment) — a real Health always has a positive max.
@@ -501,7 +510,7 @@ async function startEditor() {
       if (
         !runtime._editor_add(
           p.x, p.y, p.z, v.x, v.y, v.z, s.x, s.y, s.z, isChild, isPlayer,
-          isCollider, hpCurrent, hpMax,
+          isCollider, hpCurrent, hpMax, isVehicle,
         )
       ) {
         runtime._editor_commit();
@@ -863,6 +872,9 @@ async function startEditor() {
       if (doc.mode === "edit") {
         prePlayTarget = controls.target.clone();
         syncRuntime();
+        const playerObject = playerIndex >= 0 ? objects[playerIndex] : undefined;
+        playerBaseScale = playerObject ? playerObject.scale.clone() : null;
+        playerPrevY = playerObject?.position.y ?? 0;
       }
       doc.mode = "play";
       updatePanels();
@@ -1000,6 +1012,11 @@ async function startEditor() {
       // loop, so key_pressed()/key_released() read as single-frame edges
       // shared by every tick this frame runs, not per-tick.
       runtime._editor_input_begin_frame();
+      // Once per rendered frame too, so this frame's on-foot movement (see
+      // Runtime::camera_forward_x/z's own doc comment in bridge.cpp) reflects
+      // wherever the camera is pointed right now, including mid-orbit.
+      camera.getWorldDirection(cameraForwardScratch);
+      runtime._editor_set_camera_forward(cameraForwardScratch.x, cameraForwardScratch.z);
       for (const [code, down] of keyQueue) runtime._editor_key(code, down);
       keyQueue.length = 0;
       accumulator += dt;
@@ -1026,6 +1043,36 @@ async function startEditor() {
           runtime._editor_value(i, 2),
         );
       });
+      // A Vehicle+Player entity's facing comes straight from its own steered
+      // heading (bridge.cpp field 4), not inferred from position deltas like
+      // the animated-entity facing below — that would lag and wobble
+      // mid-turn, where a real heading is exact every tick.
+      doc.scene.eachAlive().forEach((entity, i) => {
+        if (!doc.scene.has(entity, "Vehicle") || !doc.scene.has(entity, "Player")) return;
+        const object = objects[i];
+        if (object && runtime._editor_alive(i)) object.rotation.y = runtime._editor_value(i, 4);
+      });
+      // Jump/flight squash-and-stretch: a cheap "weight" cue so a jump doesn't
+      // read as a flat vertical translation — stretches tall while rising,
+      // squashes while falling, and eases back to the authored scale once
+      // grounded (vertical speed settles near zero). Player only, since that
+      // was the reported complaint, scaled from the authored size captured
+      // when Play started (see the Play button handler) rather than a
+      // hardcoded 1, so a player placed at a non-default Scale still squashes
+      // proportionally instead of snapping to an unrelated size. Not for a
+      // Vehicle: a car visibly deforming like a jumping character would read
+      // as a rendering bug, not a style choice.
+      const playerEntity = playerIndex >= 0 ? doc.scene.eachAlive()[playerIndex] : undefined;
+      if (player && playerBaseScale && playerEntity && !doc.scene.has(playerEntity, "Vehicle")) {
+        const verticalDelta = player.position.y - playerPrevY;
+        const stretch = Math.max(-0.18, Math.min(0.18, verticalDelta * 6));
+        player.scale.set(
+          playerBaseScale.x * (1 - stretch * 0.5),
+          playerBaseScale.y * (1 + stretch),
+          playerBaseScale.z * (1 - stretch * 0.5),
+        );
+      }
+      if (player) playerPrevY = player.position.y;
       const projectileCount = runtime._editor_projectile_count();
       while (projectileMeshes.length < projectileCount)
         scene.add(
@@ -1052,11 +1099,29 @@ async function startEditor() {
     // not every render frame — see groundSpeed()'s own comment for why.
     if (doc.mode === "play" && steps > 0) {
       const tickDt = steps / 60;
+      const entities = doc.scene.eachAlive();
       animStates.forEach((state, i) => {
         if (!state) return;
         const object = objects[i]!;
+        const dx = object.position.x - state.prevPosition.x;
+        const dz = object.position.z - state.prevPosition.z;
         const speed = groundSpeed(object.position, state.prevPosition, tickDt);
         state.prevPosition.copy(object.position);
+        // Face the direction actually traveled — not for a Vehicle, whose
+        // facing already comes from its own steered heading above, which is
+        // exact every tick where this would lag and wobble mid-turn.
+        // Without this, a walk/run clip plays while the mesh keeps whatever
+        // fixed orientation it was authored with, sliding sideways or
+        // backwards instead of visibly running toward where it's going.
+        if (speed > 0.15 && !doc.scene.has(entities[i]!, "Vehicle")) {
+          const targetYaw = Math.atan2(dx, dz);
+          const diff = Math.atan2(
+            Math.sin(targetYaw - object.rotation.y),
+            Math.cos(targetYaw - object.rotation.y),
+          );
+          const maxTurn = 10 * tickDt; // rad; generous enough not to lag a sharp turn
+          object.rotation.y += Math.max(-maxTurn, Math.min(maxTurn, diff));
+        }
         const clipName = pickClipName([...state.actions.keys()], speed);
         if (clipName && clipName !== state.current) {
           const next = state.actions.get(clipName);
@@ -1095,9 +1160,10 @@ async function startEditor() {
           ? ` · Selected health: ${Math.round(runtime._editor_value(selectedIndex, 3) * 100)}%`
           : " · Selected: defeated"
         : "";
-    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout}${selectedHealthReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider collision and Health-based combat (F melee, G blast) are simulated; other physics/AI/vehicle component data is not`;
+    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout}${selectedHealthReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider collision, Health-based combat (F melee, G blast) and Vehicle driving (W/S/A/D) are simulated; other physics/AI component data is not`;
     requestAnimationFrame(frame);
   }
+  const cameraForwardScratch = new THREE.Vector3();
   const hudScratch = new THREE.Vector3();
   // Screen-space Health bars, Play mode only (matches the player readout's
   // own scoping) — one small rectangle per alive entity that carries an

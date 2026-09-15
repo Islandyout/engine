@@ -48,13 +48,29 @@ and scale transmitted to C++ are bounded to ±1,000,000; scale must be positive.
 
 The browser viewport uses Three.js with WebGL, or CPU canvas projection of the same scene graph when WebGL is unavailable. The canvas path renders geometry/material colors without texture sampling. Both paths run the same authoring and C++ runtime workflow in CI. The browser viewport is not the native renderer. The native SDL playground
 and its textured asset path are also included in this release. Gravity, ground
-collision, (see [Player control](#player-control)) WASD movement and jump/flight
-for the entity tagged `Player`, (see [Collision](#collision)) `Collider`-driven
-obstacle blocking, and (see [Combat](#combat)) melee/ranged damage against
-`Health` entities are what this bridge implements; the other BTAI component
-families (AI, animation, vehicles) remain editable/persisted data whose runtime
-behaviors are not implemented by this bridge. There is no GTA content hard-coded
-into this editor. A game is authored as scene/project data.
+collision, (see [Player control](#player-control)) camera-relative WASD movement
+and jump/flight for the entity tagged `Player`, (see
+[Vehicle driving](#vehicle-driving)) accelerate/steer driving for an entity that
+also carries `Vehicle`, (see [Collision](#collision)) `Collider`-driven obstacle
+blocking, and (see [Combat](#combat)) melee/ranged damage against `Health`
+entities are what this bridge implements; the other BTAI component families (AI,
+animation) remain editable/persisted data whose runtime behaviors are not
+implemented by this bridge. There is no GTA content hard-coded into this editor.
+A game is authored as scene/project data — see [Example scene](#example-scene)
+for one built entirely that way.
+
+## Example scene
+
+`examples/demo-game.json` is a small hand-authored scene exercising every
+system above at once: a drivable car (`Player` + `Vehicle`) inside a walled
+arena (four `Collider` barriers plus one obstacle crate you can ram or drive
+around), two `Health` targets to melee or blast, and a couple of catalog
+buildings for backdrop. Open it from the editor's own `Open` button — it
+uses `Player`/`Vehicle`, which `engine_playground --scene` doesn't recognize
+(see [Native scene consumption](#native-scene-consumption)), so it's a
+browser-editor scene, not a native-playground one. `apps/editor/tests/demoScene.test.ts`
+loads and validates it the same way the editor's `Open` button would, so it
+can't silently drift out of sync with the authoring schema.
 
 ## Player control
 
@@ -67,6 +83,22 @@ native playground's own jump/flight (see
 only listens in Play mode; keys are ignored in Edit mode so they don't fight
 the authoring fields' own typing. `Player` carries no data of its own — its
 presence on an entity is what makes it move, not any value on it.
+
+Movement is camera-relative: W always moves toward wherever the viewport
+camera is currently facing, not a fixed world axis, so which way a key
+actually sends the player stays correct no matter how the camera's been
+orbited (a fixed-axis mapping felt "flipped" the moment the camera wasn't
+pointed straight down -Z, which for the editor's own default start angle
+was already true). A rigged/animated `Player` also turns to face the
+direction it's actually moving each tick — without this a walk/run clip
+plays while the mesh keeps whatever orientation it was authored with,
+sliding sideways or backwards instead of visibly running toward where it's
+going, which was the biggest single reason movement read as unnatural.
+Jump/flight also gets a small squash-and-stretch (stretching tall while
+rising, squashing while falling, easing back to the authored scale once
+grounded) so a jump has some visual weight instead of reading as a flat
+vertical translation — see [Vehicle driving](#vehicle-driving) for a case
+this deliberately does *not* apply to.
 
 The viewport camera follows the tagged entity's live position in Play mode
 (the status bar also shows it, `Player (x, y, z)`, rounded to one decimal);
@@ -84,6 +116,26 @@ window manager shortcut eating it, focus leaving the browser entirely —
 can't leave the player stuck moving or flying forever; resuming Play needs
 a fresh press. Stop restores the pre-Play orbit target instead of leaving
 the edit camera aimed at wherever the player last was.
+
+## Vehicle driving
+
+Add `Vehicle` alongside `Player` on the same entity (any catalog model —
+try one of the `vehicles` category's cars) to replace the on-foot movement
+above with driving: W/S accelerate and reverse along the vehicle's own
+heading with real momentum (it keeps coasting a moment after you let go,
+and takes a beat to reach full speed), A/D steer that heading rather than
+strafing sideways, and the model visually turns to match. This is what
+`Vehicle` alone used to do nothing without — the component was authored
+data from the start but nothing consumed it until now, so adding it
+visibly changed nothing, which was its own bug. It's a simplified arcade
+model (constant turn rate regardless of speed, no traction curve), not
+real car physics. A placed-and-rotated vehicle always starts facing world
++z the instant Play starts, since there's currently no path for an
+authored `Rotation` to seed its initial heading — a known simplification,
+not a silent one. Jump/flight (Shift) and combat (F/G) still work from
+inside a vehicle; the squash-and-stretch above deliberately does not,
+since a car visibly stretching like a jumping character would look like a
+bug, not a feature.
 
 ## Collision
 

@@ -38,6 +38,8 @@ Engine version 0.23.0 makes `Collider` obstacles actually block movement in the 
 
 Engine version 0.24.0 adds combat — round 3 of 3, closing the remaining gap with the native playground: F is melee, G fires a ranged blast at the nearest target, and any entity with a `Health` component can now be damaged and defeated by either. A screen-space health bar (plus a status-bar text readout) shows it happening. See [F24](docs/IMPLEMENTATION_STATUS.md#f24--combat-melee-ranged-blast-and-a-health-hud-0240).
 
+Engine version 0.25.0 fixes movement feel, based on direct feedback after 0.22–0.24 shipped: WASD is now camera-relative (fixing the "flipped" feel a fixed world axis had the moment the camera wasn't looking straight down -Z), a moving character turns to face where it's actually going instead of sliding through its run animation, jump gets a squash-and-stretch instead of a flat vertical translation, and `Vehicle` — previously inert data — now makes a `Player` entity accelerate and steer like a car instead of strafing. `examples/demo-game.json` is a small drivable-car-in-an-arena scene built to dogfood all of it together. See [F25](docs/IMPLEMENTATION_STATUS.md#f25--movement-feel-camera-relative-wasd-facing-jump-weight-vehicle-driving-0250).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 
