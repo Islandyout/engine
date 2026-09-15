@@ -292,3 +292,138 @@ the full compatibility notes.
   new hand-written JSON parser and loader triggered no undefined behavior on
   the accept or reject paths exercised by the tests above.
 - `git diff --check` reported no whitespace issues on the changed files.
+
+## F10 — Physics: gravity, collision and a controllable character (0.10.0)
+
+Added `engine::physics` (`include/engine/physics/physics.hpp`,
+`source/engine/physics/physics.cpp`): a `RigidBody` (velocity + grounded flag)
+integrates gravity and moves any entity that also has a `Box`; a `Collider`
+marks another `Box` entity as a static AABB obstacle. `physics::step` runs
+each fixed tick, resolving every rigid body out of the ground plane (`y = 0`)
+and out of overlapping colliders along the axis of least penetration, zeroing
+the resolved velocity component and setting `grounded` only when the
+resolution was upward. This is the "Physics: collision, gravity and a
+controllable character" item in [AETHER_REVIEW.md](AETHER_REVIEW.md)'s agreed
+delivery sequence — no Aether physics code is used; the implementation is
+native and independently written, informed only by the sequence's own scope
+(box collision, gravity, a controllable character — no rotation, no
+continuous/tunneling-safe sweep).
+
+Wired into the native playground: the player now has a `RigidBody` and a new
+Shift-to-jump control that only triggers while grounded; the seven field
+boxes, any crate spawned with Space, and boxes placed from a loaded editor
+scene all carry a static `Collider`, so the player physically stops at them
+instead of passing through. The rendered bench mesh now tracks the player's
+actual vertical position (it previously always drew at `y = 0`), so jumping
+and landing are visible. Engine version advanced to 0.10.0. See
+[NATIVE_PLAYGROUND.md](NATIVE_PLAYGROUND.md#physics) for full scope and
+limitations.
+
+### F10 verification
+
+- `engine_physics_tests` (new) covers: gravity accelerating an airborne body
+  downward; a falling body settling to rest exactly on the ground plane with
+  zeroed vertical velocity; an already-grounded body not sinking on the next
+  step; a moving body resolved and stopped out of a side collision; a falling
+  body landing and resting flush on top of a static platform (marked
+  grounded); a non-static collider never pushing a body; and a non-positive
+  `dt` being a no-op.
+- `engine_playground_tests` and `engine_scene_tests` pass unchanged: the
+  existing action-movement assertions only check the player's X position,
+  which physics does not touch, and entity-count assertions are unaffected by
+  adding components to existing entities.
+- Linux Clang 18.1.3 strict-warning headless build passed with zero warnings;
+  all 12 CTest cases (up from 11) passed. A separate GCC 13.3.0 build with
+  `-fsanitize=undefined -fno-sanitize-recover=all` also passed all 12.
+- The SDL-enabled desktop preset could not be configured in this sandbox
+  (missing X11/Xcursor development packages, a pre-existing environment
+  limitation unrelated to this change); the new code does not touch any
+  SDL-guarded path, and the same logic is exercised by the headless build
+  above. Worth a real SDL/desktop CI run before merging.
+
+## F11 — Native scene export (0.11.0)
+
+Added `engine::serialize_scene_document` (`include/engine/scene/scene_document.hpp`,
+`source/engine/scene/scene_document.cpp`): the exact inverse of `parse_scene_document`
+for the fields `SceneDocument` models (name, parent, `Transform`, `Renderable`),
+producing compact "format 1" JSON that both the native reader and the editor's own
+`parseSceneText`/`deserializeScene` (`apps/editor/src/scene/SceneSerializer.ts`) accept.
+Wired into the native playground as `Scene::export_document()` (snapshots every current
+`Box` entity, player included, as a `Transform` plus a visible default `Renderable`; no
+name/parent, and no size or color, since neither the format nor the playground's `World`
+carries them) and a new `engine_playground --save-scene scene.json` CLI flag that writes
+that snapshot and exits immediately. This is the "Scene workflow: save/load" item in
+[AETHER_REVIEW.md](AETHER_REVIEW.md)'s agreed delivery sequence, completing the native
+side (editor-side load, save and property editing already existed — see
+[BTAI_EDITOR.md](BTAI_EDITOR.md)); it does not add editor-equivalent property editing to
+the native playground itself, only the ability to persist and reopen a live layout as the
+shared scene format. Engine version advanced to 0.11.0. See
+[NATIVE_PLAYGROUND.md](NATIVE_PLAYGROUND.md#saving-a-scene) for full scope.
+
+### F11 verification
+
+- `scene_document_tests.cpp` (extended) covers `serialize_scene_document` in isolation: a
+  built document's name, parent, Transform position, and Renderable fields round-trip
+  exactly through serialize then parse, including a name needing JSON escaping
+  (quote/backslash/newline) and negative/fractional coordinates; an entity with none of
+  those fields round-trips to an equally empty entity; and an empty entity serializes an
+  explicit `"components":{}` rather than omitting the shape.
+- `engine_playground_tests` (extended) covers `Scene::export_document()` directly: it
+  captures every `Box` entity (count matches `world.query<Box>()`), and the exported
+  document round-trips through `serialize_scene_document`/`parse_scene_document` to
+  reproduce the player's exact position.
+- `engine_playground_save_scene_headless` (new CTest case) runs `engine_playground
+  --headless --save-scene` as an end-to-end smoke test of the CLI flag. Manually confirmed
+  the written file both parses back with `--scene` (loads without error, 4 ticks/3 frames)
+  and contains the expected 8 entities (player plus the seven default field boxes) with
+  well-formed `Transform`/`Renderable` JSON.
+- Linux Clang 18.1.3 strict-warning headless build passed with zero warnings; all 13
+  CTest cases (up from 12) passed. A separate GCC 13.3.0 build with
+  `-fsanitize=undefined -fno-sanitize-recover=all` also passed all 13.
+- Same SDL/desktop CI gap as F10: not verified against the SDL-enabled preset in this
+  sandbox; the new code has no SDL-guarded path.
+
+## F12 — Playable slice: platform path and goal (0.12.0)
+
+Adds `Scene::place_platform_path()` to the native playground's default scene: three static
+`Collider` platforms at `z = 6` (clear of the player's spawn and the field boxes), each
+0.5 units taller than the last, plus a gold, non-solid goal marker on the final one.
+`Scene::won()` becomes true and stays true once the player's `Box` overlaps the goal's
+`Box`, checked each tick by a new `playground.goal` system using a new public
+`physics::overlaps(Box, Box)` — the same overlap test `physics::step` already used
+internally, exposed for non-physical trigger checks that shouldn't also push anything out
+or zero velocity. This is the "Playable slice: one small environment demonstrating the
+intended game experience" item in [AETHER_REVIEW.md](AETHER_REVIEW.md)'s agreed delivery
+sequence, completing it — a minimal 3D platformer chosen as that experience: jump across a
+short ascending path to a goal. The goal is exempt from the "remove" control (the one entity
+that can end the level is not deletable by ordinary input) but not from `reset()`, which
+recreates it from scratch along with everything else. See
+[NATIVE_PLAYGROUND.md](NATIVE_PLAYGROUND.md#playable-slice) for full scope, including why a
+diagonal approach to the platforms is blocked by design rather than a bug.
+
+### F12 verification
+
+- `physics_tests.cpp` (extended) covers `physics::overlaps` directly: overlapping boxes,
+  separated boxes, and two boxes sharing an exact face (zero penetration) reporting no
+  overlap.
+- `engine_playground_tests` (extended) scripts a two-phase input sequence — pure `z`
+  approach clear of every platform's `x`-footprint, then pure `x` traversal with periodic
+  jump taps (jump is edge-triggered, so the key is toggled to get each fresh press) — and
+  asserts `Scene::won()` is false at the start, becomes true within a generous tick budget,
+  and that the goal entity is never destroyed by that input. This was arrived at
+  empirically: an initial diagonal-approach script got the player stuck against a
+  platform's `z`-face (documented above and in code) before ever reaching the goal, which is
+  correct collider behavior, not a test bug, and is why the shipped script and its comments
+  describe the two-phase order deliberately.
+- Also updated the pre-existing action/spawn/remove/reset entity-count assertions in
+  `engine_playground_tests` (8 → 12 baseline: player, 7 field boxes, 3 platforms, 1 goal),
+  which needed no other changes — the "action movement" test's original 10-tick,
+  x-only, z = 3 path stays clear of the platforms' new z = 6 row entirely.
+- Linux Clang 18.1.3 strict-warning headless build passed with zero warnings; all 13
+  CTest cases (same count as F11 — this milestone changed no test count, only test content
+  and one new physics_tests.cpp case) passed. A separate GCC 13.3.0 build with
+  `-fsanitize=undefined -fno-sanitize-recover=all` also passed.
+- Same SDL/desktop CI gap as F10/F11: not verified against the SDL-enabled preset in this
+  sandbox (missing X11/Xcursor packages); the new code has no SDL-guarded path beyond the
+  existing title-string update. Worth a real desktop run to confirm the platform path feels
+  right interactively, not just kinematically.

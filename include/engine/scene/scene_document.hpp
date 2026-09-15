@@ -63,4 +63,19 @@ struct SceneDocument {
 // out-of-range, wrong-generation, or cyclic parent reference.
 [[nodiscard]] SceneDocument parse_scene_document(std::string_view text);
 
+// Inverse of parse_scene_document for the fields SceneDocument models: writes
+// compact "format 1" JSON — {"format":1,"entities":[{"name"?,"parent"?,
+// "components":{"Transform"?,"Renderable"?}}]} — that parse_scene_document,
+// and the editor's own parseSceneText/deserializeScene
+// (apps/editor/src/scene/SceneSerializer.ts), can read back. A name is
+// written only as the entity-level "name" field, never duplicated into a
+// "Name" component; both readers accept that form. Because SceneDocument
+// does not retain the editor's other component types (Rotation, Scale,
+// Velocity, Acceleration, RigidBody, Collider, Health, AIState, Pedestrian,
+// Vehicle, AnimationState) or the "Name" component's own payload shape,
+// round-tripping an arbitrary editor export through parse then serialize
+// reproduces only name, parent, Transform and Renderable, not a
+// byte-for-byte copy.
+[[nodiscard]] std::string serialize_scene_document(const SceneDocument& document);
+
 } // namespace engine

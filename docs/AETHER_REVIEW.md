@@ -65,13 +65,25 @@ reset. Desktop/mobile browser tests exercise a generated field before recording 
 
 ## Agreed delivery sequence
 
-1. This bounded Aether evaluation and seeded-generation integration.
+1. This bounded Aether evaluation and seeded-generation integration. Done.
 2. Native visual playground: desktop camera, simple objects, existing input/world
    control, entity creation/removal, screenshots and tests. No physics, planets or full editor.
-3. Assets: a real model and textures, including credits and loader validation.
-4. Physics: collision, gravity and a controllable character.
-5. Scene workflow: save/load and basic property editing.
+   Done (F6).
+3. Assets: a real model and textures, including credits and loader validation. Done (F7).
+4. Physics: collision, gravity and a controllable character. Done (F10) — native AABB
+   collision, gravity and a Shift-to-jump controllable character in the native playground.
+   See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md#f10--physics-gravity-collision-and-a-controllable-character-0100)
+   and [NATIVE_PLAYGROUND.md](NATIVE_PLAYGROUND.md#physics).
+5. Scene workflow: save/load and basic property editing. Done — the editor already had
+   load, save, and property editing (gizmos, component inspector: F8/F9); F11 added the
+   missing native-side save/export, completing the loop between the native playground and
+   the editor's scene format in both directions.
+   See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md#f11--native-scene-export-0110).
 6. Playable slice: one small environment demonstrating the intended game experience.
+   Done (F12) — a minimal 3D platformer: a short ascending platform path to a goal marker
+   in the native playground, using only what F6–F11 already built (movement, gravity,
+   jump, collision, a win condition).
+   See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md#f12--playable-slice-platform-path-and-goal-0120).
 
 Every milestone must have something visible or usable and automated verification.
 Keep any ECS performance evaluation bounded and measurement-driven; it must not

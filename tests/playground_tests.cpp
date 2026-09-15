@@ -31,19 +31,20 @@ int main() {
               "action movement");
         key(input, Key::space, true);
         step();
-        check(scene.world.size() == 9, "deferred creation");
+        check(scene.world.size() == 13, "deferred creation");
         step();
-        check(scene.world.size() == 9, "held key does not repeat spawn");
+        check(scene.world.size() == 13, "held key does not repeat spawn");
         key(input, Key::backspace, true);
         step();
-        check(scene.world.size() == 8, "deferred removal");
+        check(scene.world.size() == 12, "deferred removal");
         key(input, Key::q, true);
         step();
         check(scene.camera.yaw < 0.65F, "camera action");
         key(input, Key::r, true);
         step();
         check(!scene.world.alive(stale), "reset invalidates handles");
-        check(scene.world.size() == 8, "reset restores seed scene");
+        check(scene.world.size() == 12,
+              "reset restores seed scene: player, 7 field boxes, 3 platforms, 1 goal");
 
         {
             // A scene loaded from an editor-exported document (see
@@ -75,6 +76,71 @@ int main() {
             key(reset_input, Key::r, true);
             loaded.step({0, std::chrono::nanoseconds{16666667}, reset_input});
             check(loaded.world.size() == 2, "reset reloads the same document, not the defaults");
+        }
+
+        {
+            // export_document() snapshots every current Box entity (player
+            // included) as a Transform+Renderable, and that snapshot
+            // round-trips through the same "format 1" JSON the editor and
+            // --scene both use.
+            const auto exported = scene.export_document();
+            check(exported.entities.size() == scene.world.query<Box>().size(),
+                  "export_document captures every Box entity");
+            const auto reloaded = parse_scene_document(serialize_scene_document(exported));
+            check(reloaded.entities.size() == exported.entities.size(),
+                  "exported document round-trips through serialize+parse");
+            const auto player_box = *scene.world.get<Box>(scene.player);
+            bool found_player = false;
+            for (const auto &entity : reloaded.entities)
+                found_player = found_player ||
+                               (entity.transform.has_value() &&
+                                std::abs(entity.transform->position.x - player_box.center.x) <
+                                    0.0001F &&
+                                std::abs(entity.transform->position.y - player_box.center.y) <
+                                    0.0001F &&
+                                std::abs(entity.transform->position.z - player_box.center.z) <
+                                    0.0001F);
+            check(found_player, "round-tripped document includes the player's exact position");
+        }
+
+        {
+            // The default scene's platform path (see place_platform_path())
+            // is reachable by ordinary input: not won at start, and a
+            // two-phase script (approach along z only, clear of every
+            // platform's x-range, then traverse along x with periodic jump
+            // taps — jump is edge-triggered, so the key is toggled to get a
+            // fresh press each time) reaches the goal within a generous
+            // tick budget. Diagonal movement is deliberately not used here:
+            // it walks the player into a platform's z-face before it is
+            // over the platform's footprint, which blocks it exactly like
+            // any other Collider wall — a real property of static box
+            // colliders, not a bug, but it means "straight there" is not
+            // this path's traversal order. The goal itself is exempt from
+            // "remove" and so is never deleted by this scripted input.
+            playground::Scene run;
+            check(!run.won(), "not won at the start");
+            check(run.goal.has_value(), "the default scene has a goal");
+            InputState run_input;
+            key(run_input, Key::s, true);
+            for (int tick = 0; tick < 45; ++tick) {
+                run.step({0, std::chrono::nanoseconds{16666667}, run_input});
+                run_input.begin_frame();
+            }
+            key(run_input, Key::s, false);
+            key(run_input, Key::d, true);
+            bool jump_down = false;
+            bool reached = false;
+            for (int tick = 0; tick < 300 && !reached; ++tick) {
+                if (tick % 15 == 0) {
+                    jump_down = !jump_down;
+                    key(run_input, Key::left_shift, jump_down);
+                }
+                run.step({0, std::chrono::nanoseconds{16666667}, run_input});
+                run_input.begin_frame();
+                reached = run.won();
+            }
+            check(reached, "scripted platforming input reaches the goal within budget");
+            check(run.world.alive(*run.goal), "the goal is never removed by scripted input");
         }
 
         BoxView view;

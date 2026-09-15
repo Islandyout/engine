@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(GameEngine
-    VERSION 0.9.0
+    VERSION 0.12.0
     DESCRIPTION "AI-operable high-performance game engine"
     LANGUAGES CXX
 )
@@ -164,8 +164,13 @@ add_library(GameEngine::Scene ALIAS engine_scene)
 target_link_libraries(engine_scene PUBLIC GameEngine::Core)
 engine_set_project_warnings(engine_scene)
 
+add_library(engine_physics STATIC source/engine/physics/physics.cpp)
+add_library(GameEngine::Physics ALIAS engine_physics)
+target_link_libraries(engine_physics PUBLIC GameEngine::World GameEngine::Graphics)
+engine_set_project_warnings(engine_physics)
+
 add_executable(engine_playground apps/native_playground/main.cpp)
-target_link_libraries(engine_playground PRIVATE GameEngine::World GameEngine::Graphics GameEngine::Scene)
+target_link_libraries(engine_playground PRIVATE GameEngine::World GameEngine::Graphics GameEngine::Scene GameEngine::Physics)
 if(ENGINE_ENABLE_SDL3)
     target_link_libraries(engine_playground PRIVATE GameEngine::SdlPlatform)
     target_compile_definitions(engine_playground PRIVATE ENGINE_HAS_SDL3=1)
@@ -179,9 +184,13 @@ add_custom_command(TARGET engine_playground POST_BUILD
 
 if(ENGINE_BUILD_TESTS)
     add_executable(engine_playground_tests tests/playground_tests.cpp)
-    target_link_libraries(engine_playground_tests PRIVATE GameEngine::World GameEngine::Graphics GameEngine::Scene)
+    target_link_libraries(engine_playground_tests PRIVATE GameEngine::World GameEngine::Graphics GameEngine::Scene GameEngine::Physics)
     engine_set_project_warnings(engine_playground_tests)
     add_test(NAME engine_playground_tests COMMAND engine_playground_tests)
+    add_executable(engine_physics_tests tests/physics_tests.cpp)
+    target_link_libraries(engine_physics_tests PRIVATE GameEngine::World GameEngine::Graphics GameEngine::Physics)
+    engine_set_project_warnings(engine_physics_tests)
+    add_test(NAME engine_physics_tests COMMAND engine_physics_tests)
     add_executable(engine_asset_tests tests/asset_tests.cpp)
     target_link_libraries(engine_asset_tests PRIVATE GameEngine::Graphics)
     engine_set_project_warnings(engine_asset_tests)
@@ -193,6 +202,8 @@ if(ENGINE_BUILD_TESTS)
     add_test(NAME engine_playground_headless COMMAND engine_playground --headless)
     add_test(NAME engine_playground_scene_headless
         COMMAND engine_playground --headless --scene "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/editor_scene.json")
+    add_test(NAME engine_playground_save_scene_headless
+        COMMAND engine_playground --headless --save-scene "${CMAKE_CURRENT_BINARY_DIR}/saved-scene.json")
     if(ENGINE_ENABLE_SDL3)
         add_test(NAME engine_playground_sdl COMMAND engine_playground --smoke)
         set_tests_properties(engine_playground_sdl PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=dummy")

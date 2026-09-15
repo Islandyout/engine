@@ -10,6 +10,7 @@ The native window shows an orthographic 3D field with boxes and a movable textur
 | Control | Result |
 | --- | --- |
 | W/A/S/D | Move the bench model in world X/Z |
+| Shift | Jump (only while grounded) |
 | Q/E | Orbit the camera |
 | Z/X | Zoom out/in |
 | Space | Create a crate next to the player (64 entity cap) |
@@ -17,7 +18,11 @@ The native window shows an orthographic 3D field with boxes and a movable textur
 | R | Reset the world and camera |
 | Window close | Clean shutdown |
 
-The window title includes the controls. Placement is visual; boxes have no collision.
+The window title includes the controls. The player falls under gravity and collides with
+the seven field boxes and any spawned crates; see [Physics](#physics) below. A three-step
+platform path leads to a gold goal marker — see [Playable slice](#playable-slice). Floor
+tiles are still presentation geometry only — the ground plane itself is an implicit physics
+constant (`y = 0`), not an entity.
 Floor tiles are presentation geometry, while the player and editable boxes are owned
 by F5 World. FixedSystems commits structural changes; F4 ActionSystem maps controls.
 Raw F3 input events are consumed once per fixed tick, preserving events over zero-tick
@@ -43,6 +48,7 @@ engine_playground --headless
 engine_playground --smoke
 engine_playground --snapshot frame.ppm
 engine_playground --scene scene.json
+engine_playground --save-scene scene.json
 ```
 
 Headless runs four fixed ticks. Smoke does the same in a hidden SDL window. Snapshot writes
@@ -87,3 +93,83 @@ or apply hierarchy; those remain future work, same as the rest of this document'
 
 Next: bring Aether primitive meshes and a credited model/material into the native visual
 path, with a loader fixture and visible result. Physics and scene authoring follow that path.
+
+## Physics
+
+`engine::physics` (`include/engine/physics/physics.hpp`, `source/engine/physics/physics.cpp`)
+adds gravity, an implicit ground plane, and axis-aligned collision to any entity carrying
+both a `Box` and a `physics::RigidBody`. A `physics::Collider` marks another `Box` entity
+as a solid, static obstacle. `physics::step(world, dt)` runs each fixed tick, after the
+existing movement system: it integrates gravity into velocity, moves the box by velocity,
+resolves the body out of the ground plane (`y = 0`) and out of any overlapping static
+collider along the axis of least penetration, and zeroes the resolved velocity component.
+A body is marked `grounded` only when the resolution was upward (resting on the ground or
+on top of a collider) — that flag gates the jump control.
+
+In the playground: the player has a `RigidBody` and jumps (Shift) only while grounded; the
+seven field boxes and any crate spawned with Space carry a static `Collider`, so the player
+now physically stops at them instead of passing through. Boxes loaded from an
+[editor-exported scene](#opening-an-editor-exported-scene) are static colliders too. This is
+axis-aligned box vs. box collision only — no rotation, no continuous (tunneling-safe) sweep,
+and only one obstacle is resolved against per overlap per entity per tick, so simultaneous
+overlaps with more than one obstacle in the same tick are not fully separated. `engine_physics_tests`
+covers gravity integration, settling on the ground plane, an already-grounded body not
+sinking, side and top collider resolution, non-static colliders being ignored, and a
+non-positive `dt` no-op.
+
+## Saving a scene
+
+`--save-scene scene.json` writes every current `Box` entity (the player included) to a
+"format 1" scene document via the new `engine::serialize_scene_document`
+(`include/engine/scene/scene_document.hpp`) — the exact inverse of `parse_scene_document`
+for the fields `SceneDocument` models — and exits immediately, without loading the asset or running any simulation ticks. It
+composes with `--scene` — load a document, then immediately re-save it, e.g. to round-trip
+or reformat an editor export through the native reader/writer — but a save takes priority
+over `--snapshot` if both are given, since it returns before that code runs. Each entity is
+written as a `Transform` at its current position
+plus a visible `Renderable{mesh: 0, material: 0}`; a `Box`'s size and actual color have no
+field in the format and are not written, and entities carry no name or parent since the
+playground's `World` never tracked those to begin with — this snapshots layout, not a
+faithful copy of whatever was originally loaded. The output is compact (no inserted
+whitespace) but otherwise the same JSON shape `JSON.parse` and the editor's own
+`parseSceneText`/`deserializeScene` (`apps/editor/src/scene/SceneSerializer.ts`) accept, so
+a saved file opens in either the native playground (`--scene`) or the browser editor.
+
+`engine_playground_tests` exercises `Scene::export_document()` directly: it captures every
+`Box` entity, and round-tripping it through `serialize_scene_document` then
+`parse_scene_document` reproduces the player's exact position. `scene_document_tests.cpp`
+covers `serialize_scene_document` in isolation: name/parent/Transform/Renderable round-trip
+exactly, including a name needing JSON escaping and negative/fractional coordinates, an
+entity with none of those fields serializes an explicit empty `components` object rather
+than omitting the entity's shape, and `engine_playground_save_scene_headless` is a CTest
+smoke case for the CLI flag itself.
+
+## Playable slice
+
+The default scene (not a loaded `--scene` document, which has no goal) adds a hand-authored
+`place_platform_path()`: three static `Collider` platforms at `z = 6` — clear of the
+player's `z = 3` spawn and the field boxes' `z = -3` row — 0.5 units taller than the last
+(tops at `y = 1.0, 1.5, 2.0`, each flush against the next), plus a gold goal marker resting
+on the final one. Touching the goal (an AABB overlap against the player's `Box`, checked
+each tick via `physics::overlaps` — the same test `physics::step` uses internally for
+collider resolution, but without pushing anything out) sets `Scene::won()`, which stays true
+until the next reset. The goal has no `Collider` (touching it, not standing on it, wins) and
+is exempt from the "remove" control (deleting the one entity that can ever end the level
+would be a dead end no reset fixes at the input level — though `reset()` does still recreate
+it from scratch).
+
+Reaching the platforms means jumping onto each one — walking into the side of a `Collider`
+box blocks movement exactly like the field boxes and crates do, so the path is not a flat
+run; the maximum jump apex (`jump_speed² / (2·-gravity) ≈ 1.36` units, from the constants in
+[Physics](#physics)) comfortably clears each 0.5-unit step. In the desktop build, reaching
+the goal prints a one-line console message (`You reached the goal! Press R to play again.`)
+the first tick `won()` becomes true, tracked separately from world state since `won()` itself
+resets to false on the next `R`.
+
+`engine_playground_tests` scripts a two-phase input sequence (approach along `z` only, clear
+of every platform's footprint, then traverse along `x` with periodic jump taps — jump is
+edge-triggered, so the key is toggled to get a fresh press each attempt) and asserts the goal
+is reached within a generous tick budget, and that the goal survives that input un-removed.
+A diagonal approach is deliberately not used or tested: it walks the player into a platform's
+`z`-face while still at ground level, which blocks it like any other wall — a real property
+of static box colliders illustrated here, not a shortcut this path supports.
