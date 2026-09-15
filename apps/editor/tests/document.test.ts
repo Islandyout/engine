@@ -100,3 +100,23 @@ test("console save/load commands preserve scene data", () => {
   assert.equal(d.scene.entityCount, 1);
   assert.equal(d.scene.alive(entity), false);
 });
+
+test("Player is a fieldless marker component that survives save/load", () => {
+  const d = new EditorDocument();
+  const entity = d.execute({ command: "spawn_entity", name: "Hero" }).entity!;
+  assert.equal(
+    d.execute({ command: "attach_component", entity, type: "Player" }).ok,
+    true,
+  );
+  assert.deepEqual(d.scene.get(entity, "Player"), {});
+  assert.equal(d.execute({ command: "save_scene", path: "player-test" }).ok, true);
+  d.execute({ command: "destroy_entity", entity });
+  assert.equal(d.execute({ command: "load_scene", path: "player-test" }).ok, true);
+  const [[reloaded]] = d.scene.query("Player");
+  assert.ok(reloaded, "Player component did not survive save/load");
+  assert.equal(
+    d.execute({ command: "remove_component", entity: reloaded, type: "Player" }).ok,
+    true,
+  );
+  assert.equal(d.scene.has(reloaded, "Player"), false);
+});

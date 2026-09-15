@@ -227,6 +227,42 @@ const { chromium } = require("playwright");
       ),
     );
     assert.equal(await page.locator(".entity").count(), 6);
+    // A Player-tagged entity moves under real keyboard input in Play mode:
+    // spawn a fresh entity (resting at its default y=0.5, no authored
+    // velocity to confuse the picture), tag it, and hold D to drive it in
+    // +x through the actual DOM keydown path — not editor_key() called
+    // directly, which the native C++ test already covers exhaustively.
+    await page.locator("#add").click();
+    assert.equal(await page.locator(".entity").count(), 7);
+    await page.getByLabel("Add component").selectOption("Player");
+    await page.locator("#play").click();
+    await page.waitForFunction(() =>
+      document.querySelector("#status").textContent.includes("Player ("),
+    );
+    await page.keyboard.down("d");
+    await page.waitForFunction(() => {
+      const match = document
+        .querySelector("#status")
+        .textContent.match(/Player \(([-\d.]+),/);
+      return match && Number(match[1]) > 1;
+    });
+    await page.keyboard.up("d");
+    await page.locator("#stop").click();
+    // Stop reverts to the unchanged authoring document (same guarantee the
+    // play/pause/stop case above already exercises for "Test cube"): the
+    // fresh entity's authored position is still its spawn default, not
+    // wherever WASD carried it in Play mode.
+    await page
+      .locator(".entity")
+      .filter({ hasText: "Entity 7" })
+      .first()
+      .click();
+    assert.equal(
+      await page
+        .getByLabel("Transform.position.x", { exact: true })
+        .inputValue(),
+      "0",
+    );
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -236,7 +272,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, save/load, invalid-load preservation, authoring console passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, save/load, invalid-load preservation, authoring console passed.",
     );
   } finally {
     if (browser) await browser.close();

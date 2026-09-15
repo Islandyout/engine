@@ -8,6 +8,7 @@ import type {
   NameComponent,
   ParentComponent,
   PedestrianComponent,
+  PlayerComponent,
   RenderableComponent,
   RigidBodyComponent,
   RotationComponent,
@@ -31,6 +32,7 @@ export interface SceneComponents {
   Health: HealthComponent;
   AIState: AIStateComponent;
   Pedestrian: PedestrianComponent;
+  Player: PlayerComponent;
   Vehicle: VehicleComponent;
   AnimationState: AnimationStateComponent;
   Renderable: RenderableComponent;
@@ -63,6 +65,7 @@ export class Scene {
     Health: new Map(),
     AIState: new Map(),
     Pedestrian: new Map(),
+    Player: new Map(),
     Vehicle: new Map(),
     AnimationState: new Map(),
     Renderable: new Map(),
