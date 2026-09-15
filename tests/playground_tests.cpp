@@ -308,6 +308,102 @@ int main() {
             rejected = true;
         }
         check(rejected, "reject degenerate box");
+
+        {
+            // draw_bar is a 2D screen-space overlay: a background-color
+            // fill, then a foreground-color fill over the ratio-scaled
+            // left portion, ignoring depth and camera entirely. `boxes[0]`
+            // was made degenerate just above, so a fresh, valid box
+            // establishes the frame draw_bar needs instead of reusing it.
+            std::array<Box, 1> frame_source{Box{{0, 0, 0}, {1, 1, 1}, {255, 255, 255}}};
+            view.draw(frame_source);
+            const auto sample = [&](int px, int py) {
+                const auto index = static_cast<usize>((py * BoxView::width + px) * 4);
+                return std::array<u8, 3>{view.pixels()[index], view.pixels()[index + 1],
+                                          view.pixels()[index + 2]};
+            };
+            const std::array<u8, 3> fill{200, 70, 70};
+            const std::array<u8, 3> background{40, 40, 44};
+            view.draw_bar(20, 20, 200, 16, 0.5F, fill);
+            check(sample(20, 25) == fill, "a half-full bar's left half is the fill color");
+            check(sample(219, 25) == background,
+                  "a half-full bar's right half is the background color");
+            view.draw_bar(20, 20, 200, 16, 1.0F, fill);
+            check(sample(219, 25) == fill, "a full bar (ratio 1.0) fills the entire width");
+            view.draw_bar(20, 20, 200, 16, 0.0F, fill);
+            check(sample(20, 25) == background, "an empty bar (ratio 0.0) is all background");
+            view.draw_bar(20, 20, 200, 16, 2.5F, fill);
+            check(sample(219, 25) == fill, "an out-of-range ratio is clamped, not rejected");
+
+            rejected = false;
+            try {
+                view.draw_bar(700, 20, 200, 16, 0.5F, fill); // 700+200 > width (800)
+            } catch (const std::invalid_argument &) {
+                rejected = true;
+            }
+            check(rejected, "reject a bar that would draw outside the frame");
+            rejected = false;
+            try {
+                // x + bar_width must not be computed directly: it would
+                // overflow (signed UB) for x this large and could pass the
+                // bounds check instead of failing it.
+                view.draw_bar(std::numeric_limits<int>::max(), 20, 200, 16, 0.5F, fill);
+            } catch (const std::invalid_argument &) {
+                rejected = true;
+            }
+            check(rejected, "reject a huge x without overflowing the bounds check");
+            rejected = false;
+            try {
+                view.draw_bar(20, 20, 200, 16, std::numeric_limits<float>::quiet_NaN(), fill);
+            } catch (const std::invalid_argument &) {
+                rejected = true;
+            }
+            check(rejected, "reject a non-finite ratio");
+            rejected = false;
+            try {
+                BoxView fresh;
+                fresh.draw_bar(0, 0, 10, 10, 0.5F, fill);
+            } catch (const std::invalid_argument &) {
+                rejected = true;
+            }
+            check(rejected, "reject drawing a bar before any frame exists");
+        }
+
+        {
+            // Scene::enemy_health_ratio() mirrors the combat test's own
+            // attack_damage math (20 per hit out of 60 max), and returns
+            // nullopt once the enemy is gone rather than a stale ratio.
+            playground::Scene hud;
+            InputState hud_input;
+            key(hud_input, Key::d, true);
+            key(hud_input, Key::w, true);
+            for (int tick = 0; tick < 38; ++tick) {
+                hud.step({0, std::chrono::nanoseconds{16666667}, hud_input});
+                hud_input.begin_frame();
+            }
+            key(hud_input, Key::d, false);
+            key(hud_input, Key::w, false);
+            check(hud.enemy_health_ratio().has_value() &&
+                      std::abs(*hud.enemy_health_ratio() - 1.0F) < 0.0001F,
+                  "full health reports a ratio of 1.0");
+            const auto hud_attack = [&] {
+                key(hud_input, Key::f, true);
+                hud.step({0, std::chrono::nanoseconds{16666667}, hud_input});
+                hud_input.begin_frame();
+                key(hud_input, Key::f, false);
+                hud.step({0, std::chrono::nanoseconds{16666667}, hud_input});
+                hud_input.begin_frame();
+            };
+            hud_attack();
+            check(hud.enemy_health_ratio().has_value() &&
+                      std::abs(*hud.enemy_health_ratio() - 40.0F / 60.0F) < 0.0001F,
+                  "one hit's ratio matches Health.current / Health.max");
+            hud_attack();
+            hud_attack();
+            check(!hud.enemy_health_ratio().has_value(),
+                  "a defeated enemy reports no ratio, not a stale one");
+        }
+
         std::cout << "Playground actions, lifecycle, camera, raster repeatability, depth and "
                      "validation passed.\n";
     } catch (const std::exception &e) {

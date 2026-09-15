@@ -231,3 +231,25 @@ walks the player onto the enemy, confirms the overlap, and lands three scripted 
 (F is edge-triggered like jump, so the key is released and re-pressed for each hit),
 checking `Health.current` after each hit and that a further attack past defeat is a safe
 no-op rather than a crash or an "undefeat".
+
+### HUD
+
+`BoxView::draw_bar(x, y, width, height, ratio, color)` is a 2D screen-space overlay, not a
+3D-projected object: a fixed background fill (`{40,40,44}`), then a `color` fill over the
+`clamp(ratio, 0, 1) * width` left portion, written directly into the pixel buffer after
+whatever `draw()`/`draw_mesh()` already put there — it ignores the depth buffer and camera
+entirely, so it always draws on top at the same screen position regardless of what the 3D
+scene is doing. `Scene::enemy_health_ratio()` returns `Health.current / Health.max` for the
+enemy, or `std::nullopt` once it is gone (defeated or removed) rather than a stale number;
+the playground draws a red bar at the top-left (`(20, 20)`, `200×16`) whenever that is not
+`nullopt`. This is the first and only HUD element — there is still no text/font rendering
+anywhere in the engine, so labels, numbers, and menus remain future work; a bar is the
+smallest thing that can show a changing value without one.
+
+`engine_playground_tests` covers `draw_bar` directly: a half-full bar samples the fill color
+on the left and the background color on the right, a full bar (ratio 1.0) fills the whole
+width, an empty bar (ratio 0.0) is all background, an out-of-range ratio (2.5) is clamped
+rather than rejected, and it rejects a bar that would draw outside the 800×500 frame, a
+non-finite ratio, and being called before any `draw()` has established a frame. A separate
+case exercises `enemy_health_ratio()` through actual combat: 1.0 at full health, matching
+the combat test's own hit math after one attack (40/60), and `nullopt` once defeated.
