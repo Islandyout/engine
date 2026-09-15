@@ -22,6 +22,8 @@ Engine version 0.15.0 adds the engine's first HUD element: a screen-space health
 
 Engine version 0.16.0 adds a second, ranged combat option: press G to fire a traveling "blast" projectile at the enemy instead of needing to be right next to it. See [Combat](docs/NATIVE_PLAYGROUND.md#combat).
 
+Engine version 0.17.0 connects the browser editor's Play mode to real engine physics: every entity now falls under gravity and rests on the ground plane using the same `engine::physics` module the native playground uses, instead of the old naive constant-velocity placeholder. This is the first step in wiring all engine capability into the editor itself, so games can be built through the editor rather than only in the native playground. See [the editor contract](docs/BTAI_EDITOR.md#real-c-runtime-connection).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 
