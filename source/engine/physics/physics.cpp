@@ -54,6 +54,11 @@ bool overlaps(const Box &a, const Box &b) { return bounds_overlap(bounds_of(a), 
 void step(World &world, float dt, const Config &config) {
     if (!(dt > 0))
         return;
+    // Queried once per step, not once per body: World::query() scans every entity, so
+    // calling it inside the body loop makes step() quadratic in entity count even when
+    // no Collider exists at all (as in the editor bridge, which registers Collider but
+    // never assigns one yet).
+    const auto colliders = world.query<Box, Collider>();
     for (const auto entity : world.query<Box, RigidBody>()) {
         auto &box = *world.get<Box>(entity);
         auto &body = *world.get<RigidBody>(entity);
@@ -72,7 +77,7 @@ void step(World &world, float dt, const Config &config) {
             body.grounded = true;
         }
 
-        for (const auto other : world.query<Box, Collider>()) {
+        for (const auto other : colliders) {
             if (other == entity)
                 continue;
             if (!world.get<Collider>(other)->is_static)

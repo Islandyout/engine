@@ -26,16 +26,22 @@ complete extensible reflection registry or transform-gizmo implementation.
 
 ## Real C++ runtime connection
 
-Play stages the document's local position and velocity values into a C++ `World`
-compiled with Emscripten. A replacement is committed only after all bridge records
-pass validation. The actual `FixedSystems` scheduler runs `engine::physics::step`
-at 60 Hz: every entity falls under real gravity and rests on an implicit ground
-plane at y=0, the same `engine::physics` module the native playground uses (see
-[Physics](NATIVE_PLAYGROUND.md#physics)). The preview reads positions from C++,
-while rotation, scale, hierarchy and visual asset assignment come from the
-document. Pause retains runtime state; Stop returns to the unchanged authoring
-document. Editing is disabled during playback. Coordinates and velocity
-transmitted to C++ are bounded to ±1,000,000.
+Play stages the document's local position, velocity and scale values into a C++
+`World` compiled with Emscripten. A replacement is committed only after all bridge
+records pass validation. The actual `FixedSystems` scheduler runs
+`engine::physics::step` at 60 Hz: every entity falls under real gravity and rests
+on an implicit ground plane at y=0 using its own authored `Scale` as the physics
+box's dimensions (a box scaled to height 4 rests with its bottom, not a unit box's
+center, on the ground) — the same `engine::physics` module the native playground
+uses (see [Physics](NATIVE_PLAYGROUND.md#physics)). An entity with a `Parent` is
+excluded from physics entirely: its authored position is parent-relative, not
+world-space, and the bridge has no notion of hierarchy, so simulating it against
+the world ground plane would be simulating it against a plane it isn't actually
+at; its local transform passes through Play unchanged instead. The preview reads
+positions from C++, while rotation, hierarchy and visual asset assignment come
+from the document. Pause retains runtime state; Stop returns to the unchanged
+authoring document. Editing is disabled during playback. Coordinates, velocity
+and scale transmitted to C++ are bounded to ±1,000,000; scale must be positive.
 
 The browser viewport uses Three.js with WebGL, or CPU canvas projection of the same scene graph when WebGL is unavailable. The canvas path renders geometry/material colors without texture sampling. Both paths run the same authoring and C++ runtime workflow in CI. The browser viewport is not the native renderer. The native SDL playground
 and its textured asset path are also included in this release. Gravity and ground

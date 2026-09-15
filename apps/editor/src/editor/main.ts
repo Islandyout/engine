@@ -337,7 +337,11 @@ async function startEditor() {
         y: 0,
         z: 0,
       };
-      if (!runtime._editor_add(p.x, p.y, p.z, v.x, v.y, v.z)) {
+      const s = doc.scene.get(entity, "Scale")?.value ?? { x: 1, y: 1, z: 1 };
+      const isChild = doc.scene.has(entity, "Parent") ? 1 : 0;
+      if (
+        !runtime._editor_add(p.x, p.y, p.z, v.x, v.y, v.z, s.x, s.y, s.z, isChild)
+      ) {
         runtime._editor_commit();
         throw new Error(
           "Runtime rejects coordinates/velocity outside ±1,000,000",
