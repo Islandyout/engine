@@ -47,13 +47,44 @@ authoring document. Editing is disabled during playback. Coordinates, velocity
 and scale transmitted to C++ are bounded to ±1,000,000; scale must be positive.
 
 The browser viewport uses Three.js with WebGL, or CPU canvas projection of the same scene graph when WebGL is unavailable. The canvas path renders geometry/material colors without texture sampling. Both paths run the same authoring and C++ runtime workflow in CI. The browser viewport is not the native renderer. The native SDL playground
-and its textured asset path are also included in this release. Gravity and ground
-collision are the only physics behavior this bridge implements; a `Collider`
+and its textured asset path are also included in this release. Gravity, ground
+collision, and (see [Player control](#player-control)) WASD movement and jump/flight
+for the entity tagged `Player` are what this bridge implements; a `Collider`
 component authored on an entity is not yet consulted (obstacles do not yet
 block a falling body), and the other BTAI component families (AI, animation,
 vehicles, health) remain editable/persisted data whose runtime behaviors are
 not implemented by this bridge. There is no GTA content hard-coded into this
 editor. A game is authored as scene/project data.
+
+## Player control
+
+Add the `Player` component (Project/Content's Add-component list, or the JSON
+console) to at most one entity to make it move: WASD drives it in the ground
+plane, and Shift jumps while grounded or, held while airborne, sustains a
+climb instead of letting the jump decay into an arc — the same feel as the
+native playground's own jump/flight (see
+[Physics](NATIVE_PLAYGROUND.md#physics)), tuned with the same constants. Input
+only listens in Play mode; keys are ignored in Edit mode so they don't fight
+the authoring fields' own typing. `Player` carries no data of its own — its
+presence on an entity is what makes it move, not any value on it.
+
+The viewport camera follows the tagged entity's live position in Play mode
+(the status bar also shows it, `Player (x, y, z)`, rounded to one decimal);
+Edit mode's camera is unaffected, and mouse orbit/pan/zoom still work exactly
+as before — following only re-centers the orbit target, it never takes
+control of the camera away from you. Movement is velocity-based (the same
+`RigidBody.velocity` gravity and jump already integrate through
+`engine::physics::step`), so it's naturally blocked by nothing yet:
+`Collider`-driven obstacle collision remains real, separate follow-up work
+(see the `Collider` note above), so a player currently walks straight through
+whatever else is in the scene.
+
+Pausing or losing window focus (an alt-tab, for example) releases any
+movement key still held, so a key that never got a matching keyup — a
+window manager shortcut eating it, focus leaving the browser entirely —
+can't leave the player stuck moving or flying forever; resuming Play needs
+a fresh press. Stop restores the pre-Play orbit target instead of leaving
+the edit camera aimed at wherever the player last was.
 
 ## Build and verification
 

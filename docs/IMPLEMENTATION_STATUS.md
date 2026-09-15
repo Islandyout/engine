@@ -1042,3 +1042,99 @@ other frequently-duplicated catalog model, not just the bench.
 - Not verified here: the actual Emscripten/Playwright run — this sandbox has no
   Emscripten toolchain, same as every editor-bridge change. CI's real build is the
   verification of record.
+
+## F22 — Player control: WASD, jump/flight, camera follow (0.22.0)
+
+The repository owner asked for everything the native playground (F10–F16) can do that
+the editor still can't, in priority order, starting with the actual blocker: nothing in
+the editor could be *controlled*. Play mode only ever simulated whatever velocity an
+entity was authored with; there was no way to move anything with a keyboard, and no
+camera that followed a moving entity, so nothing else on the list (collision, combat,
+flight, HUD) could really be felt even once built. This closes that gap: a new `Player`
+marker component, WASD ground movement, Shift jump/sustained-flight (ported from the
+native playground's own tuned feel, not reinvented), and a camera that follows.
+
+`Player` (`apps/editor/src/scene/{Components,Scene,SceneSerializer}.ts`,
+`apps/editor/src/authoring/CommandInterpreter.ts`) is a genuinely empty marker
+component — its presence on an entity, not any field on it, is what the bridge treats
+as "drive this with input." Threaded through the same four files every prior component
+addition touched (Components' interface, Scene's component map, SceneSerializer's
+name list + `normalizeComponent` case, CommandInterpreter's own name list +
+`defaultComponent` case), plus the Project/Content "Add component" dropdown.
+
+`apps/editor/runtime/bridge.cpp` gets: a `PlayerMarker` tag component; `editor_add`'s
+existing parameter list gains `is_player` (its 11th, following the same
+incremental-extension pattern `is_child` and, before it, `sx/sy/sz` used) — ignored for
+a child, same as velocity, since a parent-relative entity has no `RigidBody` to drive;
+two new exports, `editor_input_begin_frame()` and `editor_key(code, down)`, feeding the
+`Runtime`'s existing (previously never-fed) `InputState`; and a new `editor.move` fixed
+system at phase order 0 (before `editor.physics`'s order 10, so this tick's input lands
+before physics integrates it) that, for every `Box+RigidBody+PlayerMarker` entity, sets
+`RigidBody.velocity.x/z` directly from held WASD (not the native playground's own
+direct-`box.center` mutation — physics::step integrates x/z the same way it already
+integrates y, so this is more consistent with the bridge's existing design, not a
+divergence from it) and applies the native playground's exact jump/fly logic
+(`pressed(jump) && grounded` → liftoff at `jump_speed`; `key_down(jump) && !grounded` →
+sustained climb at `fly_speed`, the same two tuned constants) unchanged.
+
+`editor_key`'s `code` is a small, explicit bridge-owned contract (0=W, 1=A, 2=S, 3=D,
+4=Shift) via `key_for()`, not `engine::Key`'s own enum ordinals — those are free to
+change independently of this bridge's exported ABI, and binding to them directly would
+make an unrelated engine header edit a silent, unversioned break in the JS↔WASM
+contract. `editor_input_begin_frame()` must be called once per rendered JS frame,
+before draining that frame's queued key events, mirroring the native platform's own
+`begin_frame()`-then-apply-events loop (`source/engine/runtime/application.cpp`) — get
+this backwards (or skip it) and `key_pressed()`/`key_released()` stop reading as
+single-frame edges, which is exactly the class of bug that turned a discrete jump tap
+into runaway sustained flight earlier in this project's own native playground work
+(see F13's changelog entry) — so the editor's own frame loop drains `keyQueue` via
+this call at the very start of its Play-mode branch, before ticking, not synchronously
+from the DOM `keydown`/`keyup` handlers themselves, which only ever push into the queue.
+
+Camera follow needed no bridge change at all: the editor already reads every entity's
+position from C++ every frame to update its Three.js object; the frame loop just also
+copies the tagged entity's position into `OrbitControls.target` before its own
+`controls.update()` call, so mouse orbit/pan/zoom around that recentered target keep
+working exactly as they did before — following only moves *what's orbited*, not who's
+driving the camera. The status bar's new `Player (x, y, z)` (one decimal, Play mode
+only) reuses that same lookup and made an otherwise hard-to-verify browser behavior
+directly assertable in a test, which is also a genuine, independently useful bit of UX
+(seeing where you actually are), not test-only scaffolding.
+
+### F22 verification
+
+- Extended `tests/editor_bridge_tests.cpp` first, natively, before touching a line of
+  JS or bridge glue beyond the minimum to compile: a non-player entity holding D for 30
+  ticks doesn't move at all (the `PlayerMarker` query actually gates behavior, not just
+  "any `RigidBody` responds"); a player entity moves under held D/A/W/S independently
+  (each of the four keys individually verified, not just one and assumed), stops
+  immediately (no coasting) the tick after release; a single jump tap arcs up under
+  gravity and lands back at rest once released; holding jump while airborne climbs
+  monotonically (checked every tick, not just start/end) well past a single jump's
+  reach, and still falls and lands normally once released. All of this against the
+  bridge's real `editor_add`/`editor_tick`/`editor_key`/`editor_input_begin_frame`
+  exports — not a reimplementation of the same logic for testing purposes.
+- New `apps/editor/tests/document.test.ts` case: attaching `Player` via
+  `attach_component` yields exactly `{}`; it survives a save/load JSON round-trip
+  (proving `SceneSerializer`'s new case actually reaches disk-format, not just
+  in-memory state); `remove_component` cleanly removes it.
+- `npm run typecheck`, `npm test` (25/25, up from 24), `npm run build` in
+  `apps/editor`: all pass.
+- Extended `tests/browser/editor.cjs`: spawns a fresh entity (resting at its default
+  y=0.5, no authored velocity to muddy the picture), tags it `Player`, enters Play,
+  and holds `d` through Playwright's real keyboard API (a genuine DOM `keydown`, not
+  `editor_key()` called directly — that path is what the native test above already
+  covers exhaustively) until the status bar's own `Player (x, ...)` readout reports
+  `x > 1`; confirms Stop still reverts to the unchanged authoring document (position
+  still exactly its spawn default) the same way the existing play/pause/stop case
+  already does for a different entity.
+- Full native rebuild + `ctest`: all 13 cases pass. GCC 13.3.0 build of the bridge and
+  its test with `-fsanitize=undefined,address` (now also linking
+  `source/engine/input/input.cpp`, needed for the first time by this round —
+  `InputState`'s methods were declared but never actually called before): clean.
+- Not verified here: the actual Emscripten/Playwright run, and what the movement and
+  camera follow actually look like rendered — this sandbox has no Emscripten toolchain
+  or WebGL. Correctness rests on the native bridge test's exhaustive coverage of the
+  actual movement/jump/flight algorithm (identical C++ code path, not a reimplementation
+  for testing) plus the browser test's real-keyboard integration check, not on having
+  watched a character move on screen.

@@ -57,6 +57,7 @@ const componentNames = [
   "Health",
   "AIState",
   "Pedestrian",
+  "Player",
   "Vehicle",
   "AnimationState",
   "Renderable",
@@ -444,6 +445,8 @@ export function defaultComponent(
       return { state: "Idle" };
     case "Pedestrian":
       return { archetype: 0 };
+    case "Player":
+      return {};
     case "Vehicle":
       return { archetype: 0 };
     case "AnimationState":

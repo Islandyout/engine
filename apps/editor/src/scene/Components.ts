@@ -68,6 +68,10 @@ export interface NameComponent {
 export interface ParentComponent {
   entity: EntityRef;
 }
+// A marker, not a data component: its presence, not any field on it, is what
+// WASD/jump input in Play mode drives. Authoring is responsible for keeping
+// this to at most one entity — nothing here enforces that.
+export type PlayerComponent = Record<string, never>;
 
 export interface EntityRef {
   index: number;

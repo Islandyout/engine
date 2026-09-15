@@ -132,6 +132,7 @@ const componentNames = [
   "Health",
   "AIState",
   "Pedestrian",
+  "Player",
   "Vehicle",
   "AnimationState",
   "Renderable",
@@ -220,6 +221,8 @@ export function normalizeComponent(
       return {
         archetype: unsigned(value.archetype, "Pedestrian.archetype", 0),
       };
+    case "Player":
+      return {};
     case "Vehicle":
       return { archetype: unsigned(value.archetype, "Vehicle.archetype", 0) };
     case "AnimationState":

@@ -104,6 +104,8 @@ type Runtime = {
   _editor_tick(): void;
   _editor_count(): number;
   _editor_value(index: number, field: number): number;
+  _editor_input_begin_frame(): void;
+  _editor_key(code: number, down: number): void;
 };
 declare const createEditorRuntime: () => Runtime | Promise<Runtime>;
 async function startEditor() {
@@ -374,6 +376,68 @@ async function startEditor() {
   let accumulator = 0,
     previous = performance.now(),
     ticks = 0;
+  // Index into objects[]/the runtime's own entity list of the first
+  // Player-tagged entity synced this Play session, or -1 if there is none.
+  // Recomputed by syncRuntime() (Play, and Stop-then-Play again); stays
+  // fixed for the rest of that session, matching the fact that entities
+  // can't be added or removed while playing.
+  let playerIndex = -1;
+  // Orbit target saved when Play starts, so Stop can restore it — Play mode
+  // overwrites controls.target every frame to follow the player, and without
+  // this the edit camera would stay aimed at wherever the player last was
+  // instead of back at whatever the user had framed before pressing Play.
+  let prePlayTarget: THREE.Vector3 | null = null;
+  // W/A/S/D/Shift key transitions since the last drained frame, queued here
+  // by the keydown/keyup listeners below and drained once per rendered frame
+  // in frame() — mirrors the native platform's own poll-events-once-per-frame
+  // loop (source/engine/runtime/application.cpp) rather than applying each
+  // event to the WASM runtime synchronously from the DOM handler, so
+  // editor_input_begin_frame()/editor_key() stay in the same relative order
+  // every native InputState consumer already assumes.
+  const keyQueue: Array<[code: number, down: number]> = [];
+  // Movement codes currently held down, so a Pause or a lost window focus
+  // can force them back up even when no matching keyup DOM event arrives
+  // (alt-tab, a window manager shortcut eating the key, etc.).
+  const heldKeys = new Set<number>();
+  const movementKeyCodes: Record<string, number> = {
+    KeyW: 0,
+    KeyA: 1,
+    KeyS: 2,
+    KeyD: 3,
+    ShiftLeft: 4,
+    ShiftRight: 4,
+  };
+  // Releases are accepted in both Play and Pause (only Edit is excluded) so
+  // a key physically released while paused still clears its held state,
+  // matching the native platform's own semantics. Guarding both on
+  // doc.mode === "play" is safe for keydown even for a key pressed just
+  // after Stop: syncRuntime() clears keyQueue/heldKeys and hands the next
+  // Play session a brand new WASM Runtime (so a fresh, zeroed InputState)
+  // anyway, so nothing here needs to carry a "this key was still down" fact
+  // across sessions for that fresh state to be correct.
+  function releaseHeldKeys() {
+    for (const code of heldKeys) keyQueue.push([code, 0]);
+    heldKeys.clear();
+  }
+  window.addEventListener("keydown", (event) => {
+    if (doc.mode !== "play" || event.repeat) return;
+    const code = movementKeyCodes[event.code];
+    if (code !== undefined) {
+      keyQueue.push([code, 1]);
+      heldKeys.add(code);
+    }
+  });
+  window.addEventListener("keyup", (event) => {
+    if (doc.mode === "edit") return;
+    const code = movementKeyCodes[event.code];
+    if (code !== undefined) {
+      keyQueue.push([code, 0]);
+      heldKeys.delete(code);
+    }
+  });
+  window.addEventListener("blur", () => {
+    if (doc.mode !== "edit") releaseHeldKeys();
+  });
   function execute(command: unknown) {
     const result = doc.execute(command);
     log(result);
@@ -382,7 +446,8 @@ async function startEditor() {
   }
   function syncRuntime() {
     runtime._editor_begin();
-    for (const entity of doc.scene.eachAlive()) {
+    playerIndex = -1;
+    doc.scene.eachAlive().forEach((entity, index) => {
       const p = doc.scene.get(entity, "Transform")?.position ?? {
         x: 0,
         y: 0,
@@ -395,19 +460,28 @@ async function startEditor() {
       };
       const s = doc.scene.get(entity, "Scale")?.value ?? { x: 1, y: 1, z: 1 };
       const isChild = doc.scene.has(entity, "Parent") ? 1 : 0;
+      const isPlayer = doc.scene.has(entity, "Player") ? 1 : 0;
+      // First Player-tagged entity wins if more than one is authored — the
+      // bridge itself would happily drive every one of them from the same
+      // input, but only one can sensibly own the camera and status readout.
+      if (isPlayer && playerIndex < 0) playerIndex = index;
       if (
-        !runtime._editor_add(p.x, p.y, p.z, v.x, v.y, v.z, s.x, s.y, s.z, isChild)
+        !runtime._editor_add(
+          p.x, p.y, p.z, v.x, v.y, v.z, s.x, s.y, s.z, isChild, isPlayer,
+        )
       ) {
         runtime._editor_commit();
         throw new Error(
           "Runtime rejects coordinates/velocity outside ±1,000,000",
         );
       }
-    }
+    });
     if (!runtime._editor_commit())
       throw new Error("Runtime scene commit failed");
     ticks = 0;
     accumulator = 0;
+    keyQueue.length = 0;
+    heldKeys.clear();
   }
   function rebuild() {
     gizmo.detach();
@@ -673,6 +747,7 @@ async function startEditor() {
       "Health",
       "AIState",
       "Pedestrian",
+      "Player",
       "Vehicle",
       "AnimationState",
       "Renderable",
@@ -751,7 +826,10 @@ async function startEditor() {
   };
   el("play").onclick = () => {
     try {
-      if (doc.mode === "edit") syncRuntime();
+      if (doc.mode === "edit") {
+        prePlayTarget = controls.target.clone();
+        syncRuntime();
+      }
       doc.mode = "play";
       updatePanels();
     } catch (e) {
@@ -759,12 +837,20 @@ async function startEditor() {
     }
   };
   el("pause").onclick = () => {
-    if (doc.mode === "play") doc.mode = "pause";
+    if (doc.mode === "play") {
+      releaseHeldKeys();
+      doc.mode = "pause";
+    }
     updatePanels();
   };
   el("stop").onclick = () => {
     doc.mode = "edit";
     accumulator = 0;
+    releaseHeldKeys();
+    if (prePlayTarget) {
+      controls.target.copy(prePlayTarget);
+      prePlayTarget = null;
+    }
     rebuild();
   };
   el("grid").onclick = () => {
@@ -868,7 +954,15 @@ async function startEditor() {
     const dt = Math.min((now - previous) / 1000, 5 / 60);
     previous = now;
     let steps = 0;
+    const player = playerIndex >= 0 ? objects[playerIndex] : undefined;
     if (doc.mode === "play") {
+      // Once per rendered frame, before any of this frame's ticks — mirrors
+      // the native platform's own begin_frame()-then-apply-events-then-step
+      // loop, so key_pressed()/key_released() read as single-frame edges
+      // shared by every tick this frame runs, not per-tick.
+      runtime._editor_input_begin_frame();
+      for (const [code, down] of keyQueue) runtime._editor_key(code, down);
+      keyQueue.length = 0;
       accumulator += dt;
       while (accumulator >= 1 / 60 && steps++ < 5) {
         runtime._editor_tick();
@@ -882,6 +976,7 @@ async function startEditor() {
           runtime._editor_value(i, 2),
         ),
       );
+      if (player) controls.target.copy(player.position);
     }
     // Always advance mixers, even in edit mode: a rigged model sitting
     // perfectly still reads as a broken rig, and an idle clip is meant to loop.
@@ -914,7 +1009,11 @@ async function startEditor() {
     renderer.render(scene, camera);
     const status = el("status");
     status.dataset.mode = doc.mode;
-    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks · ${doc.dirty ? "Unsaved changes" : "Saved"} · Physics components are data; collision simulation is not enabled`;
+    const playerReadout =
+      doc.mode === "play" && player
+        ? ` · Player (${player.position.x.toFixed(1)}, ${player.position.y.toFixed(1)}, ${player.position.z.toFixed(1)})`
+        : "";
+    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Physics components are data; collision simulation is not enabled`;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
