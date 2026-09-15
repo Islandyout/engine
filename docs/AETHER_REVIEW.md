@@ -14,6 +14,18 @@ used by the native playground's platforming path (see
 [NATIVE_PLAYGROUND.md](NATIVE_PLAYGROUND.md#playable-slice)) — so nothing
 engine-level was lost. The decisions and provenance below are left as recorded.
 
+0.19.0/0.20.0 follow-up: the "Generated GLB kit" and "Fox model" rows below only ever
+covered the kit's 103 static props; 0.19.0 imported those, and 0.20.0 (see
+[F20](IMPLEMENTATION_STATUS.md#f20)) imported the remaining 27 rigged/animated
+`animals/**` and `people/**` models too, each playing its own embedded animation
+clips through Three.js's `AnimationMixer` — the "animation" row below is now partially
+addressed in the editor (not the native renderer, and not the archive's own custom
+`src/anim/` locomotion system, which the editor doesn't use). The Khronos Fox model
+that row refers to (`assets/fox.glb` in the supplied archive, CC BY 4.0) is still not
+imported anywhere in this repo — it is a different file from the CC0
+`kit/animals/fox.glb` aether-assetgen now provides, confirmed by hash in
+`assets/CREDITS.md`.
+
 ## Integration decisions
 
 | Area | Decision | Reason / acceptance gate |

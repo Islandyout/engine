@@ -205,6 +205,18 @@ const { chromium } = require("playwright");
       ),
     );
     assert.equal(await page.locator(".entity").count(), 5);
+    // Animated catalog entries (animals/people) use SkeletonUtils.clone and an
+    // AnimationMixer instead of the plain clone path the static kit uses;
+    // exercise that path too, and let a few real animation frames elapse
+    // (rebuild() etc. keep running below) before checking for page errors.
+    await page.locator("#catalog-category").selectOption("animals");
+    await page.locator("#catalog-add").click();
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".entity")].some((e) =>
+        e.textContent.includes("Cat"),
+      ),
+    );
+    assert.equal(await page.locator(".entity").count(), 6);
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -214,7 +226,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, save/load, invalid-load preservation, authoring console passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, save/load, invalid-load preservation, authoring console passed.",
     );
   } finally {
     if (browser) await browser.close();

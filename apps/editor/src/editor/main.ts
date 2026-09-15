@@ -10,9 +10,11 @@ import { defaultComponent } from "../authoring/CommandInterpreter";
 import { CanvasRenderer } from "./CanvasRenderer";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { LocalStorageSceneStore } from "../authoring/CommandInterpreter";
 import { EditorDocument } from "./Document";
 import { modelCatalog, catalogCategories } from "../scene/modelCatalog";
+import { pickClipName } from "./animationClips";
 import type { SceneComponents } from "../scene/Scene";
 import "./style.css";
 
@@ -233,6 +235,15 @@ async function startEditor() {
   const grid = new THREE.GridHelper(40, 40, 0x658ca8, 0x2b3c4c);
   scene.add(grid);
   const objects: THREE.Object3D[] = [];
+  interface AnimState {
+    mixer: THREE.AnimationMixer;
+    actions: Map<string, THREE.AnimationAction>;
+    current?: string;
+    prevPosition: THREE.Vector3;
+  }
+  // Parallel to `objects`; index i holds the animation state for objects[i], or
+  // undefined for a non-animated (static) entity. Reset alongside objects on every rebuild().
+  const animStates: (AnimState | undefined)[] = [];
   const geometry = new THREE.BoxGeometry();
   const material = new THREE.MeshStandardMaterial({ color: 0x61adba });
   const selection = new THREE.BoxHelper(new THREE.Object3D(), 0xffce70);
@@ -319,19 +330,24 @@ async function startEditor() {
   });
   let bench: THREE.Group | undefined;
   const gltfLoader = new GLTFLoader();
-  const catalogCache = new Map<number, THREE.Group>();
-  const catalogPromises = new Map<number, Promise<THREE.Group>>();
+  interface CachedModel {
+    scene: THREE.Group;
+    clips: THREE.AnimationClip[];
+  }
+  const catalogCache = new Map<number, CachedModel>();
+  const catalogPromises = new Map<number, Promise<CachedModel>>();
   function catalogEntry(meshId: number) {
     return modelCatalog.find((m) => m.id === meshId);
   }
-  function loadCatalogModel(meshId: number): Promise<THREE.Group> | undefined {
+  function loadCatalogModel(meshId: number): Promise<CachedModel> | undefined {
     const entry = catalogEntry(meshId);
     if (!entry) return undefined;
     let promise = catalogPromises.get(meshId);
     if (!promise) {
       promise = gltfLoader.loadAsync(entry.path).then((gltf) => {
-        catalogCache.set(meshId, gltf.scene);
-        return gltf.scene;
+        const cached = { scene: gltf.scene, clips: gltf.animations };
+        catalogCache.set(meshId, cached);
+        return cached;
       });
       catalogPromises.set(meshId, promise);
     }
@@ -387,15 +403,28 @@ async function startEditor() {
     gizmo.detach();
     for (const object of objects) object.removeFromParent();
     objects.length = 0;
+    animStates.length = 0;
     const refs = doc.scene.eachAlive();
     for (const entity of refs) {
       const renderable = doc.scene.get(entity, "Renderable");
       const meshId = renderable?.mesh ?? 0;
+      const catalog = meshId >= 2 ? catalogEntry(meshId) : undefined;
+      const cached = meshId >= 2 ? catalogCache.get(meshId) : undefined;
       let object: THREE.Object3D;
+      let animState: AnimState | undefined;
       if (meshId === 1 && bench) {
         object = bench.clone(true);
-      } else if (meshId >= 2 && catalogCache.has(meshId)) {
-        object = catalogCache.get(meshId)!.clone(true);
+      } else if (cached) {
+        if (catalog?.animated) {
+          object = SkeletonUtils.clone(cached.scene);
+          const mixer = new THREE.AnimationMixer(object);
+          const actions = new Map(
+            cached.clips.map((clip) => [clip.name, mixer.clipAction(clip)]),
+          );
+          animState = { mixer, actions, prevPosition: new THREE.Vector3() };
+        } else {
+          object = cached.scene.clone(true);
+        }
       } else {
         if (meshId >= 2)
           loadCatalogModel(meshId)?.then(() => {
@@ -406,12 +435,14 @@ async function startEditor() {
       object.visible = renderable?.visible ?? true;
       const p = doc.scene.get(entity, "Transform")?.position;
       if (p) object.position.set(p.x, p.y, p.z);
+      if (animState) animState.prevPosition.copy(object.position);
       const r = doc.scene.get(entity, "Rotation")?.euler;
       if (r) object.rotation.set(r.x, r.y, r.z);
       const s = doc.scene.get(entity, "Scale")?.value;
       if (s) object.scale.set(s.x, s.y, s.z);
       scene.add(object);
       objects.push(object);
+      animStates.push(animState);
     }
     refs.forEach((entity, i) => {
       const parent = doc.scene.get(entity, "Parent")?.entity;
@@ -853,6 +884,28 @@ async function startEditor() {
         ),
       );
     }
+    // Always advance mixers, even in edit mode: a rigged model sitting
+    // perfectly still reads as a broken rig, and an idle clip is meant to loop.
+    // Ground speed for clip selection comes from the same measured position
+    // delta either way, so it naturally settles on "idle" in edit mode, where
+    // nothing moves object.position between frames.
+    animStates.forEach((state, i) => {
+      if (!state) return;
+      state.mixer.update(dt);
+      const object = objects[i]!;
+      const speed = dt > 0 ? object.position.distanceTo(state.prevPosition) / dt : 0;
+      state.prevPosition.copy(object.position);
+      const clipName = pickClipName([...state.actions.keys()], speed);
+      if (clipName && clipName !== state.current) {
+        const next = state.actions.get(clipName);
+        const previous = state.current ? state.actions.get(state.current) : undefined;
+        if (next) {
+          next.reset().fadeIn(0.2).play();
+          if (previous && previous !== next) previous.fadeOut(0.2);
+          state.current = clipName;
+        }
+      }
+    });
     if (selection.visible) selection.update();
     controls.update();
     renderer.render(scene, camera);

@@ -5,6 +5,8 @@ export interface CatalogEntry {
   category: string;
   name: string;
   path: string;
+  // True for a rigged, animated model (SkeletonUtils.clone required; has AnimationClips).
+  animated?: boolean;
 }
 
 export const modelCatalog: CatalogEntry[] = [
@@ -111,6 +113,33 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 102, category: "vehicles", name: "Suv", path: "./kit/vehicles/suv.glb" },
   { id: 103, category: "vehicles", name: "Taxi", path: "./kit/vehicles/taxi.glb" },
   { id: 104, category: "vehicles", name: "Van", path: "./kit/vehicles/van.glb" },
+  { id: 105, category: "animals", name: "Cat", path: "./kit/animals/cat.glb", animated: true },
+  { id: 106, category: "animals", name: "Chicken", path: "./kit/animals/chicken.glb", animated: true },
+  { id: 107, category: "animals", name: "Cow", path: "./kit/animals/cow.glb", animated: true },
+  { id: 108, category: "animals", name: "Crow", path: "./kit/animals/crow.glb", animated: true },
+  { id: 109, category: "animals", name: "Deer", path: "./kit/animals/deer.glb", animated: true },
+  { id: 110, category: "animals", name: "Dog", path: "./kit/animals/dog.glb", animated: true },
+  { id: 111, category: "animals", name: "Donkey", path: "./kit/animals/donkey.glb", animated: true },
+  { id: 112, category: "animals", name: "Fox", path: "./kit/animals/fox.glb", animated: true },
+  { id: 113, category: "animals", name: "Goat", path: "./kit/animals/goat.glb", animated: true },
+  { id: 114, category: "animals", name: "Gull", path: "./kit/animals/gull.glb", animated: true },
+  { id: 115, category: "animals", name: "Horse", path: "./kit/animals/horse.glb", animated: true },
+  { id: 116, category: "animals", name: "Pig", path: "./kit/animals/pig.glb", animated: true },
+  { id: 117, category: "animals", name: "Pigeon", path: "./kit/animals/pigeon.glb", animated: true },
+  { id: 118, category: "animals", name: "Sheep", path: "./kit/animals/sheep.glb", animated: true },
+  { id: 119, category: "people", name: "Hero", path: "./kit/people/hero.glb", animated: true },
+  { id: 120, category: "people", name: "Npc Casual 1", path: "./kit/people/npc-casual-1.glb", animated: true },
+  { id: 121, category: "people", name: "Npc Casual 2", path: "./kit/people/npc-casual-2.glb", animated: true },
+  { id: 122, category: "people", name: "Npc Dress", path: "./kit/people/npc-dress.glb", animated: true },
+  { id: 123, category: "people", name: "Npc Elder", path: "./kit/people/npc-elder.glb", animated: true },
+  { id: 124, category: "people", name: "Npc Hoodie", path: "./kit/people/npc-hoodie.glb", animated: true },
+  { id: 125, category: "people", name: "Npc Office F", path: "./kit/people/npc-office-f.glb", animated: true },
+  { id: 126, category: "people", name: "Npc Office M", path: "./kit/people/npc-office-m.glb", animated: true },
+  { id: 127, category: "people", name: "Npc Sport", path: "./kit/people/npc-sport.glb", animated: true },
+  { id: 128, category: "people", name: "Npc Teen", path: "./kit/people/npc-teen.glb", animated: true },
+  { id: 129, category: "people", name: "Npc Uniform", path: "./kit/people/npc-uniform.glb", animated: true },
+  { id: 130, category: "people", name: "Npc Vendor", path: "./kit/people/npc-vendor.glb", animated: true },
+  { id: 131, category: "people", name: "Npc Worker", path: "./kit/people/npc-worker.glb", animated: true },
 ];
 
 export const catalogCategories = Array.from(

@@ -15,9 +15,8 @@ component inspector, project name, bundled Aether content, JSON console and a
 Three.js viewport. Create, rename, duplicate, delete, reparent and edit components
 through the authoring/document layer. Select objects in the hierarchy or viewport;
 orbit, pan, zoom, frame selection and toggle the grid. Load the bundled Aether bench,
-or browse the Project/Content panel's catalog of 103 further bundled CC0 props
-(buildings, furniture, nature, roads, signs, vehicles — see
-[Model catalog](#model-catalog-0180)) by category and add one to the scene.
+or browse the Project/Content panel's catalog of 130 further bundled CC0 props and
+characters by category and add one to the scene — see [Model catalog](#model-catalog).
 Export a JSON scene, reopen it, or reload the locally saved scene.
 Undo/redo restores scene data, never DOM snapshots. Scene load validates all
 components and hierarchy before replacing the document. Stale handles remain
@@ -125,6 +124,37 @@ kept in the editor layer; component validation remains in the authoring boundary
 Verification adds deterministic gesture/undo tests and actual pointer-drag,
 snapping, Escape cancellation, mode/space, enum, reset and read-only browser checks
 on both rendering backends. Native simulation and asset coverage remain enabled.
+
+## Model catalog
+
+`apps/editor/src/scene/modelCatalog.ts` is a generated manifest (id, category, name,
+path, and an `animated` flag) covering 130 bundled CC0 models from the Aether kit —
+buildings, furniture, nature, roads, signs and vehicles (103 static props, 0.19.0),
+plus animals and people (27 rigged, animated characters, 0.20.0). Ids 2–131; 0 and 1
+stay reserved for the default box and the Aether bench. Browse and add one from the
+Project/Content panel's category/model pickers, or change an already-placed entity's
+model through the inspector's `Renderable.mesh` dropdown, which lists the same 130
+entries — the catalog isn't spawn-only.
+
+A static entry (`animated: false`/unset) loads and clones like the bench always has.
+An animated entry loads through `SkeletonUtils.clone` (a plain Three.js `.clone()`
+does not correctly duplicate a `SkinnedMesh`'s bone bindings) and gets its own
+`THREE.AnimationMixer` bound to its own embedded `AnimationClip`s — every character
+and animal file carries its own copy of the clips it needs, not a shared rig. Which
+clip plays is picked each frame from the entity's measured ground speed (the same
+position-delta-over-time the render loop already computes), tiered roughly as
+idle/walk/trot-or-run/sprint and falling back down the tier — and finally to
+whatever clip the model actually has — since not every rig shares the same set (a
+quadruped has "trot"; a bird has "peck" and "fly" instead of "run"). Mixers advance
+every rendered frame, in both Edit and Play mode, so a placed character never sits
+frozen; only Play mode actually moves an entity's position, so ground speed — and
+therefore anything but "idle" — is naturally zero until then.
+
+This is baked-clip playback, not the procedural, physically-reactive locomotion
+(continuous gait driven by real velocity, with lean/bank/momentum/footstep events)
+the source archive's own `src/anim/` implements — that system is written against
+Aether's own skeleton/pose classes, not Three.js bones, and porting it is real,
+separate follow-up work, not done here.
 
 ## Native scene consumption
 

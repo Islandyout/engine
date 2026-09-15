@@ -847,3 +847,79 @@ line (`cp -r assets/source/kit build/site/kit`) alongside its existing bench cop
 - Not verified here: the actual Emscripten build and the extended Playwright browser test
   — this sandbox has no Emscripten toolchain, same as every prior editor-bridge change. CI's
   real build is the verification of record.
+
+## F20 — Animated models in the editor (0.20.0)
+
+The repository owner asked for the system needed to bring F19's 28 excluded
+rigged/animated assets (`animals/**`, `people/**`) into the editor too, and whether the
+source archive had any already-solved animation code worth reusing rather than building
+from scratch. It does: `src/anim/` is a ~2,600-line procedural locomotion system (a
+continuous idle→walk→run→sprint gait driven by actual velocity, with inertia, lean,
+banking and footstep events) — genuinely substantial prior work, but written against
+Aether's own `Skeleton`/`Pose` classes, not Three.js bones, so it is real adaptation
+work to reuse, not a copy-paste. That port is real, separate, larger follow-up work,
+not attempted here.
+
+What *is* immediately reusable, and what this does instead: every animals/people GLB
+already carries its own baked `AnimationClip`s (checked per-file, not assumed from one
+sample) — people have `idle, walk, run, sprint, talk, sit, wave`; quadrupeds have
+`walk, trot, run, idle, graze`; birds have `idle, peck, walk, fly` — on a consistent,
+near-standard humanoid bone naming (`hips, spine, chest, shoulder.L/R, upperArm.L/R, ...`).
+Three.js's own `AnimationMixer`/`AnimationClip`/`SkeletonUtils` already play exactly this
+kind of data; no custom playback engine was needed for a first pass.
+
+Imported all 27 individual character/animal files as `assets/source/kit/animals/**` and
+`assets/source/kit/people/**`, appended to `modelCatalog.ts` as ids 105–131 (the
+existing 2–104 kept their ids unchanged — regenerating the whole manifest alphabetically
+would have silently reordered `animals` before `buildings` and shifted every id from the
+already-merged F19 catalog). Excluded `people/_animation-library.glb`: confirmed by
+inspecting its own glTF JSON that every individual character file already carries its own
+copy of the clips it needs, so the shared library file is a generation-time source, not a
+placeable model.
+
+`SkeletonUtils.clone` replaces the plain `.clone(true)` F19 used for static props for any
+entry marked `animated: true` — a bare `THREE.Object3D.clone()` does not correctly
+duplicate a `SkinnedMesh`'s bone bindings, silently producing a mesh that renders in bind
+pose but never actually deforms. Each animated instance gets its own `AnimationMixer`
+bound to its own clip set (`apps/editor/src/editor/main.ts`'s `rebuild()`, in an
+`AnimState` kept parallel to the existing `objects` array, reset alongside it on every
+rebuild). `apps/editor/src/editor/animationClips.ts`'s `pickClipName(names, speed)` — a
+small, independently unit-tested pure function — selects a clip each frame from the
+entity's *measured* ground speed (the same position delta over time the render loop
+already needed), tiered idle/walk/trot-or-run/sprint and falling back down the tier, and
+finally to whatever the model actually has, since not every rig shares the same clip set.
+Mixers advance every rendered frame in both Edit and Play mode — a placed character never
+sits perfectly still, matching the source archive's own locomotion.js comment that
+"stillness reads as broken rig" — while ground speed, and so anything but "idle", stays
+at zero until Play mode actually moves the entity.
+
+### F20 verification
+
+- New `apps/editor/tests/animationClips.test.ts`: idle at near-zero speed; walk, then
+  trot/run, then sprint as speed rises; falls back correctly for a rig missing a tier
+  (a bird with no "trot"/"run"/"sprint" still lands on "walk", not undefined); falls back
+  to a model's first clip when none of the tiered names exist at all; returns `undefined`
+  for a clipless model rather than throwing.
+- `apps/editor/tests/modelCatalog.test.ts` needed no changes and still passed against all
+  131 entries (it iterates `modelCatalog` generically rather than asserting a hardcoded
+  count) — a real regression check that adding entries didn't silently break the earlier
+  invariants (unique ids, categories matching what's referenced, every path resolving to a
+  file on disk), not just "the test still runs."
+- Confirmed by inspecting glTF JSON directly (not assumed): bone names across sampled
+  people rigs and sampled quadruped/bird rigs, that every individual character file (not
+  just `_animation-library.glb`) carries its own embedded clips, and that
+  `kit/animals/fox.glb` (CC0, aether-assetgen) is a different file by hash from the
+  archive's top-level `assets/fox.glb` (the Khronos Sample Models Fox, CC BY 4.0) that
+  `docs/AETHER_REVIEW.md`'s original review explicitly kept out — confirming this import
+  didn't accidentally pull in the one asset that review deliberately excluded.
+- `npm run typecheck`, `npm test` (15/15, up from 11), `npm run build` in `apps/editor`:
+  all pass.
+- Extended `tests/browser/editor.cjs` with a second catalog add (the "animals" category,
+  "Cat") after the existing "signs" one, exercising the `SkeletonUtils.clone` +
+  `AnimationMixer` path specifically, not just the static-model path F19's test covered.
+- Not verified here: the actual Emscripten build and Playwright run, and — more
+  significantly for this entry than most — what the animation actually looks like
+  rendered (this sandbox has no Emscripten toolchain and no way to view a WebGL canvas).
+  Correctness here rests on unit-testing the pure clip-selection logic and on Three.js's
+  own `AnimationMixer`/`SkeletonUtils` being mature, widely-used primitives, not on having
+  watched a character actually move.
