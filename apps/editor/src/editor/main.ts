@@ -1015,7 +1015,7 @@ async function startEditor() {
       doc.mode === "play" && player
         ? ` · Player (${player.position.x.toFixed(1)}, ${player.position.y.toFixed(1)}, ${player.position.z.toFixed(1)})`
         : "";
-    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Physics components are data; collision simulation is not enabled`;
+    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, and Collider obstacle collision are simulated; other physics/AI/vehicle/health component data is not`;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
