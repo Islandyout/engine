@@ -712,3 +712,55 @@ not deferred:
   (`tests/browser/editor.cjs`) — this sandbox has no Emscripten toolchain. CI's real emsdk
   3.1.64 build and browser test run is the verification of record for the WASM/browser
   side of this change, same as every editor-bridge change before it.
+
+## F18 — Field Lab removed; the editor is the site (0.18.0)
+
+The repository owner pointed out that the published site's root (`https://islandyout.github.io/engine/`)
+was Field Lab (F-entry above), a standalone isometric "collect the signals" browser demo
+with its own separate WASM build, unrelated to the editor at `/engine/editor/` one click
+away — a second, non-editor way to interact with compiled engine content, directly against
+the standing directive that the editor is the only way to build and play games. It also
+duplicated what F17 just proved the editor itself can now demonstrate (real, compiled C++
+running live in the browser), so it no longer served a purpose distinct from confusion.
+
+Removed outright: `apps/field_lab/main.cpp`, `web/field-lab/`, `tools/build_field_lab.sh`,
+`tests/field_lab.cjs`, `tests/browser/field_lab.cjs`, `docs/FIELD_LAB.md`. Nothing
+engine-level was lost in the deletion: Field Lab was built entirely on already-shared core
+types (`engine::SeededRandom`, `engine::InputReplay`, priority input contexts) that live in
+`include/engine/core` and `include/engine/input` and are independently used and tested by
+the native playground and `core_tests`/`action_tests` — Field Lab consumed them, it never
+owned them. `docs/AETHER_REVIEW.md` gets a note pointing this out rather than being rewritten,
+since it is a dated provenance record, not living documentation.
+
+The editor becomes the deployed site's root instead of living one path segment under a demo:
+`apps/editor/vite.config.ts`'s `base` moves from `/engine/editor/` to `/engine/`, its `outDir`
+from `build/field-lab/editor` to the flat `build/site`; `tools/build_editor.sh` follows the
+same rename and now also copies `third_party/aether/LICENSE` (previously only Field Lab's
+build script did — the bench asset's attribution needs to survive at the new root without
+depending on the app that's gone). `.github/workflows/field-lab.yml` is replaced by
+`editor.yml`: the Field Lab compile/test steps are gone, the Pages deploy path points at
+`build/site`, and the workflow's own `name:` changes to "Editor browser build" — the `build`
+and `deploy` job ids are kept unchanged from before, since those (not the workflow's display
+name or file name) are what a branch protection rule's required-check list actually matches
+against. The editor's own header swaps its "Field Lab" link (now pointing at nothing) for a
+"View source" link to the GitHub repo — draining the one genuinely reusable affordance
+Field Lab's own header had, rather than just deleting it.
+
+### F18 verification
+
+- `tests/browser/editor.cjs`: `root` moved to `build/site`, and the Play-mode navigation URL
+  from `/engine/editor/` to `/engine/` (the new root) — checked for any assertion on the old
+  "Field Lab" header link text first; there was none, so nothing else needed to change.
+- Confirmed nothing else in the repository still referenced `field-lab`/`field_lab`/`Field Lab`
+  in a way that assumed the app or its build output still existed, by grepping the whole tree
+  after the edits (not just guessing the file list was complete): `README.md`,
+  `docs/BTAI_EDITOR.md`, and the two docs above were the only living documentation that named
+  it; `docs/IMPLEMENTATION_STATUS.md`'s own earlier F-entry is left as the historical record it
+  is, per this file's append-only convention.
+- Confirmed `third_party/aether/LICENSE` is still bundled independently into every native
+  download by `.github/workflows/c-cpp.yml` (unrelated to this change) before concluding the
+  editor's own copy of it was additive, not a fix for something already broken.
+- Not verified here: the actual `editor.yml` Pages workflow run (this sandbox cannot run
+  GitHub Actions) — same as every editor/browser change, CI is the verification of record,
+  and this entry additionally can't be confirmed as *not* breaking a required-status-check
+  rule from inside this sandbox; watched on the PR instead.

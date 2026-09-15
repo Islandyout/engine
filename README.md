@@ -1,6 +1,6 @@
 # Game Engine
 
-[Open the BTAI editor](https://islandyout.github.io/engine/editor/) · [Play Field Lab](https://islandyout.github.io/engine/)
+[Open the editor](https://islandyout.github.io/engine/) — build and play games entirely through it; this is the only supported way to play what you build.
 
 The integrated editor provides scene authoring, component inspection, undo/redo, JSON save/load and a Three.js viewport connected to the C++ fixed-step world through WebAssembly. See [the editor contract](docs/BTAI_EDITOR.md) for build instructions and supported behaviors.
 
@@ -24,22 +24,10 @@ Engine version 0.16.0 adds a second, ranged combat option: press G to fire a tra
 
 Engine version 0.17.0 connects the browser editor's Play mode to real engine physics: every entity now falls under gravity and rests on the ground plane using the same `engine::physics` module the native playground uses, instead of the old naive constant-velocity placeholder. This is the first step in wiring all engine capability into the editor itself, so games can be built through the editor rather than only in the native playground. See [the editor contract](docs/BTAI_EDITOR.md#real-c-runtime-connection).
 
+Engine version 0.18.0 removes Field Lab, the standalone browser demo that used to sit at the published site's root, and makes the editor the site itself. Field Lab was a second, non-editor way to interact with compiled engine content that no longer served a purpose distinct from the editor after 0.17.0 — nothing engine-level was lost, since it was built entirely on already-shared engine types the native playground and its tests also use. See [F18](docs/IMPLEMENTATION_STATUS.md#f18--field-lab-removed-the-editor-is-the-site-0180).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
-
-## Field Lab browser demonstration
-
-`apps/field_lab` compiles the actual C++ input, action, world, and fixed-system code to
-WebAssembly. `web/field-lab` draws an interactive isometric field around that simulation.
-Use **New seeded field** for repeatable signal layouts from the adapted Aether generator.
-[Archive evaluation and roadmap](docs/AETHER_REVIEW.md).
-Move with WASD/arrows or the touch pad, collect signals, place crates, block movement
-with a higher-priority context, and record/replay up to 30 seconds of input.
-
-With Emscripten installed, run `bash tools/build_field_lab.sh`, then
-`node tests/field_lab.cjs`. Serve `build/field-lab` with a static HTTP server.
-The Field Lab workflow compiles and tests the browser artifact on every PR to main.
-This is a visualization of the foundation, not the native renderer or production physics.
 
 ## Current foundation
 

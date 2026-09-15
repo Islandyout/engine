@@ -9,7 +9,8 @@ or repository checkout is required to build it.
 
 ## Working surface
 
-Open `/engine/editor/` on the published site. The workspace has a scene hierarchy,
+Open `https://islandyout.github.io/engine/` — the editor is the published site's root;
+there is no separate landing page or demo in front of it. The workspace has a scene hierarchy,
 component inspector, project name, bundled Aether content, JSON console and a
 Three.js viewport. Create, rename, duplicate, delete, reparent and edit components
 through the authoring/document layer. Select objects in the hierarchy or viewport;
@@ -57,17 +58,35 @@ editor. A game is authored as scene/project data.
 With Node and Emscripten installed:
 
 ```sh
-bash tools/build_field_lab.sh
 bash tools/build_editor.sh
 node tests/browser/editor.cjs
 ```
 
 The last command needs `npm install --prefix tests/browser` and Playwright Chromium.
-Serve the resulting `build/field-lab` directory under `/engine/`, then open
-`/engine/editor/`. Pages CI builds both applications, runs editor domain tests,
-compiled Field Lab tests and browser interaction tests, and deploys only passing
-main builds. CTest also tests the exact editor C++ bridge natively with SDL enabled
-and disabled. `npm test --prefix apps/editor` runs document/authoring regressions.
+Serve the resulting `build/site` directory under `/engine/`, then open `/engine/`.
+The "Editor browser build" Pages workflow builds the editor's WASM runtime, runs
+editor domain tests and browser interaction tests, and deploys only passing main
+builds. CTest also tests the exact editor C++ bridge natively with SDL enabled and
+disabled. `npm test --prefix apps/editor` runs document/authoring regressions.
+
+## Deployment
+
+The workflow (`.github/workflows/editor.yml`) compiles the actual engine to
+WebAssembly, runs the C++ bridge tests and the browser control tests at desktop and
+mobile viewport sizes, and uploads screenshots as the `editor-browser-evidence`
+artifact. Pull requests only build and test; only pushes to `main` package and
+deploy. To publish at `https://islandyout.github.io/engine/`:
+
+1. In repository Settings > Pages > Build and deployment, select **GitHub Actions**.
+2. Merge the reviewed deployment PR into `main`.
+3. Open Actions > Editor browser build and verify the `build` and `deploy` jobs pass.
+   If the workflow already ran before the settings change, use Run workflow on main.
+
+The deploy job uses the `github-pages` environment with `pages:write` and
+`id-token:write`; repository contents remain read-only. Only `main` can publish.
+Failed tests prevent deployment. The deployed root (`build/site`) contains the
+editor's `index.html`, its bundled `runtime.js` (the single-file WASM module),
+`bench.glb`, and the asset/license credit files copied by `tools/build_editor.sh`.
 
 ## Benefits retained and next work
 

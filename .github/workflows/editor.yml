@@ -1,4 +1,4 @@
-name: Field Lab browser build
+name: Editor browser build
 on:
   pull_request:
     branches: [main, codex/native-playground]
@@ -18,16 +18,10 @@ jobs:
           git clone --depth 1 --branch 3.1.64 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
           "$RUNNER_TEMP/emsdk/emsdk" install 3.1.64
           "$RUNNER_TEMP/emsdk/emsdk" activate 3.1.64
-      - name: Compile actual engine and browser demo
-        run: |
-          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
-          bash tools/build_field_lab.sh
       - name: Build and test BTAI editor with C++ runtime
         run: |
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
           bash tools/build_editor.sh
-      - name: Test compiled simulation
-        run: node tests/field_lab.cjs
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -37,27 +31,26 @@ jobs:
           tests/browser/node_modules/.bin/playwright install --with-deps chromium
       - name: Test desktop and mobile browser controls
         run: |
-          node tests/browser/field_lab.cjs
           node tests/browser/editor.cjs
           EDITOR_NO_WEBGL=1 node tests/browser/editor.cjs
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: field-lab-browser-evidence
+          name: editor-browser-evidence
           path: build/browser-evidence/
           if-no-files-found: warn
-      - name: Upload playable demo
+      - name: Upload built site
         uses: actions/upload-artifact@v4
         with:
-          name: field-lab
-          path: build/field-lab/
+          name: editor-site
+          path: build/site/
           if-no-files-found: error
       - name: Package verified site for Pages
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: build/field-lab/
+          path: build/site/
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: build
@@ -67,7 +60,7 @@ jobs:
       pages: write
       id-token: write
     concurrency:
-      group: field-lab-pages
+      group: editor-pages
       cancel-in-progress: false
     environment:
       name: github-pages
@@ -75,6 +68,6 @@ jobs:
     steps:
       - name: Configure Pages
         uses: actions/configure-pages@v5
-      - name: Deploy verified Field Lab
+      - name: Deploy editor site
         id: deployment
         uses: actions/deploy-pages@v4
