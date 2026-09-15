@@ -349,6 +349,12 @@ async function startEditor() {
         catalogCache.set(meshId, cached);
         return cached;
       });
+      // Evict a failed load so the next attempt (a rebuild() encountering the
+      // same id again, or a retried "Add") gets a fresh promise instead of
+      // reusing a permanently rejected one. A separate .catch() here just
+      // observes the rejection for this bookkeeping; it doesn't swallow it —
+      // every other holder of `promise` still sees the original rejection.
+      promise.catch(() => catalogPromises.delete(meshId));
       catalogPromises.set(meshId, promise);
     }
     return promise;
@@ -427,9 +433,13 @@ async function startEditor() {
         }
       } else {
         if (meshId >= 2)
-          loadCatalogModel(meshId)?.then(() => {
-            if (doc.mode === "edit" && !gizmo.dragging) rebuild();
-          });
+          loadCatalogModel(meshId)
+            ?.then(() => {
+              if (doc.mode === "edit" && !gizmo.dragging) rebuild();
+            })
+            .catch((error) =>
+              log(`Catalog model ${meshId} failed to load: ${String(error)}`),
+            );
         object = new THREE.Mesh(geometry, material);
       }
       object.visible = renderable?.visible ?? true;
