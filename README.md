@@ -20,6 +20,8 @@ Engine version 0.14.0 adds camera follow (the player stays centered on screen in
 
 Engine version 0.15.0 adds the engine's first HUD element: a screen-space health bar for the enemy from 0.14.0's combat, via a new `BoxView::draw_bar`. See [HUD](docs/NATIVE_PLAYGROUND.md#hud).
 
+Engine version 0.16.0 adds a second, ranged combat option: press G to fire a traveling "blast" projectile at the enemy instead of needing to be right next to it. See [Combat](docs/NATIVE_PLAYGROUND.md#combat).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

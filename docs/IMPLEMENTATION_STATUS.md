@@ -577,3 +577,37 @@ already answers "is combat visible" without it.
   `-fsanitize=undefined -fno-sanitize-recover=all` also passed.
 - Same SDL/desktop CI gap as F10–F14: not verified against the SDL-enabled preset in this
   sandbox; the new code has no SDL-guarded path.
+
+## F16 — Ranged "blast" ability (0.16.0)
+
+The second combat option, and the first traveling projectile: pressing "blast" (G) spawns a
+`Projectile` (`apps/native_playground/scene.hpp`) — a `Box` plus a `velocity`/`lifetime`,
+deliberately not a `physics::RigidBody` so it flies straight instead of arcing under
+gravity — aimed at wherever the enemy's `Box` was at press time. A new
+`playground.projectiles` system moves it every tick, destroying it on overlap with the enemy
+(dealing `blast_damage`, 15 — weaker than melee's `attack_damage`, 20, since ranged is an
+option, not a strict upgrade) or once its 1.5s lifetime runs out unused. `blast_speed`
+(8 units/s) is fast enough to close a typical engagement distance well inside that lifetime.
+
+Melee and ranged combat now share one defeat path: `Scene::damage_enemy(World&, float)`
+factors out "apply damage, and on defeat destroy the entity and latch `enemy_defeated_`",
+previously duplicated only inside the melee system, now called from both it and the new
+projectile system.
+
+### F16 verification
+
+- New test: stops the scripted approach short of actually overlapping the enemy (proving
+  this exercises genuine ranged combat, not melee with extra steps), confirms pressing
+  blast spawns exactly one entity, then steps until the world shrinks back down (the
+  projectile self-destroying) and asserts `Health.current` dropped by exactly
+  `blast_damage` — distinct from `attack_damage`, proving the two abilities are actually
+  different, not the same number under two names.
+- Verified empirically before writing that test (a standalone trace, not guesswork): a
+  single blast at a realistic engagement distance (~2 units) reaches the enemy in ~9 ticks,
+  well inside the 90-tick (1.5s) lifetime budget, and the world's entity count round-trips
+  (13 → 14 on spawn → 13 again on impact) exactly as expected.
+- Linux Clang 18.1.3 strict-warning headless build passed with zero warnings; all 13 CTest
+  cases (same count — no new CTest targets) passed. A separate GCC 13.3.0 build with
+  `-fsanitize=undefined -fno-sanitize-recover=all` also passed.
+- Same SDL/desktop CI gap as F10–F15: not verified against the SDL-enabled preset in this
+  sandbox; the new code has no SDL-guarded path.

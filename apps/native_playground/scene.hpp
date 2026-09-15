@@ -7,6 +7,7 @@
 #include "engine/world/fixed_systems.hpp"
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <optional>
 
 namespace playground {
@@ -18,6 +19,16 @@ using namespace engine;
 struct Health final {
     float current{60.0F};
     float max{60.0F};
+};
+
+// A short-lived, gravity-free traveling attack (see the "blast" binding):
+// moves in a fixed direction at a fixed speed until it either overlaps the
+// enemy or its lifetime runs out. Deliberately not a physics::RigidBody —
+// an energy blast should fly straight, not arc under gravity like a thrown
+// object.
+struct Projectile final {
+    Vec3 velocity{};
+    float lifetime{1.5F}; // seconds remaining; destroyed at/below 0
 };
 
 class Scene final {
@@ -137,11 +148,16 @@ private:
     bool won_{false};
     bool enemy_defeated_{false};
     static constexpr float attack_damage = 20.0F;
+    // Weaker than melee (a ranged option, not a strict upgrade) and fast
+    // enough to cross a typical engagement distance well within lifetime.
+    static constexpr float blast_damage = 15.0F;
+    static constexpr float blast_speed = 8.0F;
     void register_and_bind() {
         world.register_component<Box>("playground.box");
         world.register_component<physics::RigidBody>("playground.rigidbody");
         world.register_component<physics::Collider>("playground.collider");
         world.register_component<Health>("playground.health");
+        world.register_component<Projectile>("playground.projectile");
         systems_.add(
             "playground.move", FixedPhase::update, 0, [&](World &w, const FixedUpdateContext &) {
                 auto &box = *w.get<Box>(player);
@@ -168,6 +184,24 @@ private:
                         created,
                         Box{{box.center.x + 1.2F, 0.5F, box.center.z}, {1, 1, 1}, {218, 166, 96}});
                     w.defer_set(created, physics::Collider{});
+                }
+                if (pressed("blast") && enemy.has_value() && w.alive(*enemy) && w.size() < 64) {
+                    const auto &target = *w.get<Box>(*enemy);
+                    Vec3 direction{target.center.x - box.center.x, target.center.y - box.center.y,
+                                   target.center.z - box.center.z};
+                    const float length = std::sqrt(direction.x * direction.x +
+                                                    direction.y * direction.y +
+                                                    direction.z * direction.z);
+                    if (length > 0.001F) { // already overlapping: nothing to aim at
+                        direction = {direction.x / length, direction.y / length,
+                                     direction.z / length};
+                        auto created = w.defer_create();
+                        w.defer_set(created,
+                                    Box{box.center, {0.3F, 0.3F, 0.3F}, {120, 200, 255}});
+                        w.defer_set(created, Projectile{{direction.x * blast_speed,
+                                                          direction.y * blast_speed,
+                                                          direction.z * blast_speed}});
+                    }
                 }
                 if (pressed("remove")) {
                     auto all = w.query<Box>();
@@ -196,13 +230,39 @@ private:
                 // the same overlap test the goal uses to detect the player.
                 if (!physics::overlaps(*w.get<Box>(player), *w.get<Box>(*enemy)))
                     return;
-                auto &health = *w.get<Health>(*enemy);
-                health.current = std::max(0.0F, health.current - attack_damage);
-                if (health.current <= 0) {
-                    w.defer_destroy(*enemy);
-                    enemy_defeated_ = true;
+                damage_enemy(w, attack_damage);
+            });
+        systems_.add(
+            "playground.projectiles", FixedPhase::update, 15,
+            [&](World &w, const FixedUpdateContext &context) {
+                const float dt = std::chrono::duration<float>(context.delta_time).count();
+                for (const auto entity : w.query<Box, Projectile>()) {
+                    auto &box = *w.get<Box>(entity);
+                    auto &projectile = *w.get<Projectile>(entity);
+                    box.center.x += projectile.velocity.x * dt;
+                    box.center.y += projectile.velocity.y * dt;
+                    box.center.z += projectile.velocity.z * dt;
+                    projectile.lifetime -= dt;
+                    if (enemy.has_value() && w.alive(*enemy) &&
+                        physics::overlaps(box, *w.get<Box>(*enemy))) {
+                        damage_enemy(w, blast_damage);
+                        w.defer_destroy(entity);
+                    } else if (projectile.lifetime <= 0) {
+                        w.defer_destroy(entity);
+                    }
                 }
             });
+    }
+    // Shared by melee ("attack") and blast hits: applies damage, and on
+    // defeat destroys the enemy and latches enemy_defeated_. Assumes the
+    // caller has already confirmed the enemy is alive.
+    void damage_enemy(World &w, float amount) {
+        auto &health = *w.get<Health>(*enemy);
+        health.current = std::max(0.0F, health.current - amount);
+        if (health.current <= 0) {
+            w.defer_destroy(*enemy);
+            enemy_defeated_ = true;
+        }
     }
     // A hand-authored, deliberately generous ascending staircase — three
     // static platforms 0.5 units taller than the last, each flush against
@@ -290,7 +350,8 @@ private:
                                         {},
                                         AxisProcessor{0, 1, ResponseCurve::linear, false, scale}});
         };
-        for (auto name : {"x", "z", "orbit", "zoom", "spawn", "remove", "reset", "jump", "attack"})
+        for (auto name :
+             {"x", "z", "orbit", "zoom", "spawn", "remove", "reset", "jump", "attack", "blast"})
             result.actions.emplace_back(name);
         bind("x", Key::a, -1);
         bind("x", Key::d, 1);
@@ -305,6 +366,7 @@ private:
         bind("reset", Key::r, 1);
         bind("jump", Key::left_shift, 1);
         bind("attack", Key::f, 1);
+        bind("blast", Key::g, 1);
         result.contexts.push_back(context);
         return result;
     }
