@@ -12,6 +12,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { LocalStorageSceneStore } from "../authoring/CommandInterpreter";
 import { EditorDocument } from "./Document";
+import { modelCatalog, catalogCategories } from "../scene/modelCatalog";
 import type { SceneComponents } from "../scene/Scene";
 import "./style.css";
 
@@ -178,6 +179,16 @@ async function startEditor() {
       <label class="field-row"><span>Project</span><input id="project" value="Untitled project" aria-label="Project name"></label>
       <button id="bench" class="btn btn-sm">${iconHtml("cube")}<span>Add Aether bench</span></button>
       <p class="hint">bench.glb · bundled CC0 model</p>
+      <div class="field-row">
+        <select id="catalog-category" aria-label="Model category">
+          ${catalogCategories
+            .map((c) => `<option value="${c}">${c.charAt(0).toUpperCase()}${c.slice(1)}</option>`)
+            .join("")}
+        </select>
+        <select id="catalog-model" aria-label="Model"></select>
+      </div>
+      <button id="catalog-add" class="btn btn-sm">${iconHtml("cube")}<span>Add from catalog</span></button>
+      <p class="hint">${modelCatalog.length} bundled CC0 models · Aether kit</p>
       <a class="link-external" href="./ASSET-CREDITS.txt">Asset credits</a>
     </div>
   </div>
@@ -307,6 +318,25 @@ async function startEditor() {
     }
   });
   let bench: THREE.Group | undefined;
+  const gltfLoader = new GLTFLoader();
+  const catalogCache = new Map<number, THREE.Group>();
+  const catalogPromises = new Map<number, Promise<THREE.Group>>();
+  function catalogEntry(meshId: number) {
+    return modelCatalog.find((m) => m.id === meshId);
+  }
+  function loadCatalogModel(meshId: number): Promise<THREE.Group> | undefined {
+    const entry = catalogEntry(meshId);
+    if (!entry) return undefined;
+    let promise = catalogPromises.get(meshId);
+    if (!promise) {
+      promise = gltfLoader.loadAsync(entry.path).then((gltf) => {
+        catalogCache.set(meshId, gltf.scene);
+        return gltf.scene;
+      });
+      catalogPromises.set(meshId, promise);
+    }
+    return promise;
+  }
   let runtime: Runtime;
   try {
     runtime = await createEditorRuntime();
@@ -360,10 +390,19 @@ async function startEditor() {
     const refs = doc.scene.eachAlive();
     for (const entity of refs) {
       const renderable = doc.scene.get(entity, "Renderable");
-      const object =
-        renderable?.mesh === 1 && bench
-          ? bench.clone(true)
-          : new THREE.Mesh(geometry, material);
+      const meshId = renderable?.mesh ?? 0;
+      let object: THREE.Object3D;
+      if (meshId === 1 && bench) {
+        object = bench.clone(true);
+      } else if (meshId >= 2 && catalogCache.has(meshId)) {
+        object = catalogCache.get(meshId)!.clone(true);
+      } else {
+        if (meshId >= 2)
+          loadCatalogModel(meshId)?.then(() => {
+            if (doc.mode === "edit" && !gizmo.dragging) rebuild();
+          });
+        object = new THREE.Mesh(geometry, material);
+      }
       object.visible = renderable?.visible ?? true;
       const p = doc.scene.get(entity, "Transform")?.position;
       if (p) object.position.set(p.x, p.y, p.z);
@@ -709,6 +748,38 @@ async function startEditor() {
         entity: result.entity,
         type: "Renderable",
         value: { mesh: 1, material: 0, visible: true },
+      });
+  };
+  function populateCatalogModels() {
+    const category = el<HTMLSelectElement>("catalog-category").value;
+    el<HTMLSelectElement>("catalog-model").innerHTML = modelCatalog
+      .filter((m) => m.category === category)
+      .map((m) => `<option value="${m.id}">${m.name}</option>`)
+      .join("");
+  }
+  el("catalog-category").onchange = populateCatalogModels;
+  populateCatalogModels();
+  el("catalog-add").onclick = async () => {
+    const meshId = Number(el<HTMLSelectElement>("catalog-model").value);
+    const entry = catalogEntry(meshId);
+    if (!entry) return;
+    try {
+      if (!catalogCache.has(meshId)) await loadCatalogModel(meshId);
+    } catch (error) {
+      log("Catalog model failed to load: " + String(error));
+      return;
+    }
+    const result = execute({
+      command: "spawn_entity",
+      name: entry.name,
+      transform: [0, 0, 0],
+    });
+    if (result.ok)
+      execute({
+        command: "set_component",
+        entity: result.entity,
+        type: "Renderable",
+        value: { mesh: entry.id, material: 0, visible: true },
       });
   };
   renderer.domElement.addEventListener("pointerdown", (e) => {

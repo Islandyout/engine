@@ -26,6 +26,8 @@ Engine version 0.17.0 connects the browser editor's Play mode to real engine phy
 
 Engine version 0.18.0 removes Field Lab, the standalone browser demo that used to sit at the published site's root, and makes the editor the site itself. Field Lab was a second, non-editor way to interact with compiled engine content that no longer served a purpose distinct from the editor after 0.17.0 — nothing engine-level was lost, since it was built entirely on already-shared engine types the native playground and its tests also use. See [F18](docs/IMPLEMENTATION_STATUS.md#f18--field-lab-removed-the-editor-is-the-site-0180).
 
+Engine version 0.19.0 adds a 103-model catalog to the editor: buildings, furniture, nature, roads, signs and vehicles from the same CC0-licensed Aether kit the bundled bench came from, browsable by category and placeable from the Project/Content panel or the inspector's Model dropdown. See [F19](docs/IMPLEMENTATION_STATUS.md#f19--model-catalog-0190).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

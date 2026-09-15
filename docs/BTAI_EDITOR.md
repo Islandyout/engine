@@ -14,8 +14,11 @@ there is no separate landing page or demo in front of it. The workspace has a sc
 component inspector, project name, bundled Aether content, JSON console and a
 Three.js viewport. Create, rename, duplicate, delete, reparent and edit components
 through the authoring/document layer. Select objects in the hierarchy or viewport;
-orbit, pan, zoom, frame selection and toggle the grid. Load the actual bundled
-Aether bench. Export a JSON scene, reopen it, or reload the locally saved scene.
+orbit, pan, zoom, frame selection and toggle the grid. Load the bundled Aether bench,
+or browse the Project/Content panel's catalog of 103 further bundled CC0 props
+(buildings, furniture, nature, roads, signs, vehicles — see
+[Model catalog](#model-catalog-0180)) by category and add one to the scene.
+Export a JSON scene, reopen it, or reload the locally saved scene.
 Undo/redo restores scene data, never DOM snapshots. Scene load validates all
 components and hierarchy before replacing the document. Stale handles remain
 invalid after replacement. Up to 1,024 entities and 100 undo entries are supported.
