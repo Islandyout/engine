@@ -150,8 +150,9 @@ int main(int argc, char **argv) {
         if (!headless) {
             engine::SdlPlatformConfig config;
             config.application_name = "Game Engine | WASD move | Shift jump, hold to fly | F "
-                                      "attack | Q/E orbit | Z/X zoom | Space add | Backspace "
-                                      "remove | R reset | reach the gold goal at z=6 to win";
+                                      "attack | G blast | Q/E orbit | Z/X zoom | Space add | "
+                                      "Backspace remove | R reset | reach the gold goal at z=6 "
+                                      "to win";
             config.hidden = demo.smoke;
             auto sdl = std::make_unique<engine::SdlPlatform>(config);
             demo.desktop = sdl.get();

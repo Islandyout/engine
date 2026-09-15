@@ -251,6 +251,44 @@ int main() {
         }
 
         {
+            // "blast" fires a Projectile toward the enemy's position at
+            // press time — a ranged option distinct from melee ("attack"),
+            // weaker per hit (blast_damage < attack_damage) but usable from
+            // a distance instead of requiring an overlap. It shares
+            // damage_enemy() with melee, so defeat behaves identically.
+            playground::Scene ranged;
+            InputState ranged_input;
+            key(ranged_input, Key::d, true);
+            key(ranged_input, Key::w, true);
+            for (int tick = 0; tick < 20; ++tick) {
+                ranged.step({0, std::chrono::nanoseconds{16666667}, ranged_input});
+                ranged_input.begin_frame();
+            }
+            key(ranged_input, Key::d, false);
+            key(ranged_input, Key::w, false);
+            check(!physics::overlaps(*ranged.world.get<Box>(ranged.player),
+                                      *ranged.world.get<Box>(*ranged.enemy)),
+                  "the approach stops short of overlapping the enemy (this is a ranged test)");
+            const auto size_before_blast = ranged.world.size();
+            key(ranged_input, Key::g, true);
+            ranged.step({0, std::chrono::nanoseconds{16666667}, ranged_input});
+            ranged_input.begin_frame();
+            key(ranged_input, Key::g, false);
+            check(ranged.world.size() == size_before_blast + 1,
+                  "pressing blast spawns exactly one projectile");
+            bool hit = false;
+            for (int tick = 0; tick < 90 && !hit; ++tick) {
+                ranged.step({0, std::chrono::nanoseconds{16666667}, ranged_input});
+                ranged_input.begin_frame();
+                hit = ranged.world.size() == size_before_blast;
+            }
+            check(hit, "the projectile reaches the enemy and is destroyed on impact");
+            check(std::abs(ranged.world.get<playground::Health>(*ranged.enemy)->current -
+                            (60.0F - 15.0F)) < 0.0001F,
+                  "a blast hit deals blast_damage, distinct from attack_damage");
+        }
+
+        {
             // A Box's per-face brightness now comes from the same
             // directional light draw_mesh() applies to a normal-carrying
             // mesh vertex (see face_light() in box_view.cpp), not a canned

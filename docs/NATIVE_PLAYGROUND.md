@@ -11,7 +11,8 @@ The native window shows an orthographic 3D field with boxes and a movable textur
 | --- | --- |
 | W/A/S/D | Move the bench model in world X/Z |
 | Shift | Jump while grounded; hold while airborne to fly |
-| F | Attack (must be overlapping a target) |
+| F | Attack (melee, must be overlapping a target) |
+| G | Blast (ranged, fires toward the enemy's position) |
 | Q/E | Orbit the camera |
 | Z/X | Zoom out/in |
 | Space | Create a crate next to the player (64 entity cap) |
@@ -231,6 +232,24 @@ walks the player onto the enemy, confirms the overlap, and lands three scripted 
 (F is edge-triggered like jump, so the key is released and re-pressed for each hit),
 checking `Health.current` after each hit and that a further attack past defeat is a safe
 no-op rather than a crash or an "undefeat".
+
+`Scene::damage_enemy(World&, float)` factors out "apply damage, and on defeat destroy the
+entity and latch `enemy_defeated_`" so melee and ranged combat share one defeat path instead
+of two copies of the same logic.
+
+Pressing "blast" (G) fires a `Projectile` — a Box plus a `velocity`/`lifetime`, deliberately
+not a `physics::RigidBody` so it flies straight instead of arcing under gravity — toward
+wherever the enemy's `Box` was at press time (no true aiming or homing exists yet, and since
+the enemy doesn't move, the distinction doesn't matter here). A `playground.projectiles`
+system moves it every tick and destroys it, via `damage_enemy`, the instant it overlaps the
+enemy, or after its 1.5s lifetime expires unused. `blast_damage` (15) is deliberately weaker
+than `attack_damage` (20) — ranged is an option, not a strict upgrade — but it works from a
+distance instead of requiring an overlap, and travels fast enough (`blast_speed` = 8 units/s)
+to close a typical engagement distance well inside its lifetime. `engine_playground_tests`
+stops the approach short of overlapping the enemy (proving this is genuinely ranged, not
+melee in disguise), confirms one press spawns exactly one projectile, and confirms it
+reaches the enemy and is destroyed on impact with `Health.current` down by exactly
+`blast_damage`.
 
 ### HUD
 
