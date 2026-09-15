@@ -10,6 +10,8 @@ Version 0.9.0 adds move/rotate/scale editor gizmos, snapping, component dropdown
 
 Engine version 0.10.0 adds native physics: gravity, an implicit ground plane, and axis-aligned collision (`engine::physics`), wired into the native playground as a Shift-to-jump controllable character that collides with the field boxes and spawned crates. See [Physics](docs/NATIVE_PLAYGROUND.md#physics).
 
+Engine version 0.11.0 adds `engine_playground --save-scene`, writing the live world as the same "format 1" JSON the editor loads and saves, completing native/editor scene round-trip. See [Saving a scene](docs/NATIVE_PLAYGROUND.md#saving-a-scene).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

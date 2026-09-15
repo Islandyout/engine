@@ -58,6 +58,7 @@ int main(int argc, char **argv) {
         bool headless = false;
         std::string snapshot;
         std::filesystem::path scene_path;
+        std::filesystem::path save_scene_path;
         std::filesystem::path asset_path =
             std::filesystem::absolute(argv[0]).parent_path() / "assets/bench.gea";
         for (int i = 1; i < argc; ++i) {
@@ -70,13 +71,15 @@ int main(int argc, char **argv) {
                 asset_path = argv[++i];
             else if (arg == "--scene" && i + 1 < argc)
                 scene_path = argv[++i];
+            else if (arg == "--save-scene" && i + 1 < argc)
+                save_scene_path = argv[++i];
             else if (arg == "--snapshot" && i + 1 < argc) {
                 snapshot = argv[++i];
                 headless = true;
             } else
                 throw std::invalid_argument{
                     "Usage: engine_playground [--smoke] [--headless] [--snapshot file.ppm] "
-                    "[--asset file.gea] [--scene file.json]"};
+                    "[--asset file.gea] [--scene file.json] [--save-scene file.json]"};
         }
         if (scene_path.empty()) {
             demo.scene.emplace();
@@ -92,6 +95,14 @@ int main(int argc, char **argv) {
             if (!scene_file)
                 throw std::runtime_error{"scene document read failed"};
             demo.scene.emplace(engine::parse_scene_document(text));
+        }
+        if (!save_scene_path.empty()) {
+            std::ofstream out{save_scene_path, std::ios::binary};
+            out << engine::serialize_scene_document(demo.scene->export_document());
+            if (!out)
+                throw std::runtime_error{"scene document write failed"};
+            std::cout << "Saved scene document: " << save_scene_path.string() << '\n';
+            return 0;
         }
         std::ifstream asset_file{asset_path, std::ios::binary | std::ios::ate};
         const auto length = asset_file.tellg();

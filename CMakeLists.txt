@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(GameEngine
-    VERSION 0.10.0
+    VERSION 0.11.0
     DESCRIPTION "AI-operable high-performance game engine"
     LANGUAGES CXX
 )
@@ -202,6 +202,8 @@ if(ENGINE_BUILD_TESTS)
     add_test(NAME engine_playground_headless COMMAND engine_playground --headless)
     add_test(NAME engine_playground_scene_headless
         COMMAND engine_playground --headless --scene "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/editor_scene.json")
+    add_test(NAME engine_playground_save_scene_headless
+        COMMAND engine_playground --headless --save-scene "${CMAKE_CURRENT_BINARY_DIR}/saved-scene.json")
     if(ENGINE_ENABLE_SDL3)
         add_test(NAME engine_playground_sdl COMMAND engine_playground --smoke)
         set_tests_properties(engine_playground_sdl PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=dummy")

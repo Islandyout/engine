@@ -77,6 +77,31 @@ int main() {
             check(loaded.world.size() == 2, "reset reloads the same document, not the defaults");
         }
 
+        {
+            // export_document() snapshots every current Box entity (player
+            // included) as a Transform+Renderable, and that snapshot
+            // round-trips through the same "format 1" JSON the editor and
+            // --scene both use.
+            const auto exported = scene.export_document();
+            check(exported.entities.size() == scene.world.query<Box>().size(),
+                  "export_document captures every Box entity");
+            const auto reloaded = parse_scene_document(serialize_scene_document(exported));
+            check(reloaded.entities.size() == exported.entities.size(),
+                  "exported document round-trips through serialize+parse");
+            const auto player_box = *scene.world.get<Box>(scene.player);
+            bool found_player = false;
+            for (const auto &entity : reloaded.entities)
+                found_player = found_player ||
+                               (entity.transform.has_value() &&
+                                std::abs(entity.transform->position.x - player_box.center.x) <
+                                    0.0001F &&
+                                std::abs(entity.transform->position.y - player_box.center.y) <
+                                    0.0001F &&
+                                std::abs(entity.transform->position.z - player_box.center.z) <
+                                    0.0001F);
+            check(found_player, "round-tripped document includes the player's exact position");
+        }
+
         BoxView view;
         auto boxes = scene.boxes();
         view.draw(boxes);

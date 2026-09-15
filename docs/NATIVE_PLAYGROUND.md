@@ -47,6 +47,7 @@ engine_playground --headless
 engine_playground --smoke
 engine_playground --snapshot frame.ppm
 engine_playground --scene scene.json
+engine_playground --save-scene scene.json
 ```
 
 Headless runs four fixed ticks. Smoke does the same in a hidden SDL window. Snapshot writes
@@ -114,3 +115,30 @@ overlaps with more than one obstacle in the same tick are not fully separated. `
 covers gravity integration, settling on the ground plane, an already-grounded body not
 sinking, side and top collider resolution, non-static colliders being ignored, and a
 non-positive `dt` no-op.
+
+## Saving a scene
+
+`--save-scene scene.json` writes every current `Box` entity (the player included) to a
+"format 1" scene document via the new `engine::serialize_scene_document`
+(`include/engine/scene/scene_document.hpp`) — the exact inverse of `parse_scene_document`
+for the fields `SceneDocument` models — and exits immediately, without loading the asset or running any simulation ticks. It
+composes with `--scene` — load a document, then immediately re-save it, e.g. to round-trip
+or reformat an editor export through the native reader/writer — but a save takes priority
+over `--snapshot` if both are given, since it returns before that code runs. Each entity is
+written as a `Transform` at its current position
+plus a visible `Renderable{mesh: 0, material: 0}`; a `Box`'s size and actual color have no
+field in the format and are not written, and entities carry no name or parent since the
+playground's `World` never tracked those to begin with — this snapshots layout, not a
+faithful copy of whatever was originally loaded. The output is compact (no inserted
+whitespace) but otherwise the same JSON shape `JSON.parse` and the editor's own
+`parseSceneText`/`deserializeScene` (`apps/editor/src/scene/SceneSerializer.ts`) accept, so
+a saved file opens in either the native playground (`--scene`) or the browser editor.
+
+`engine_playground_tests` exercises `Scene::export_document()` directly: it captures every
+`Box` entity, and round-tripping it through `serialize_scene_document` then
+`parse_scene_document` reproduces the player's exact position. `scene_document_tests.cpp`
+covers `serialize_scene_document` in isolation: name/parent/Transform/Renderable round-trip
+exactly, including a name needing JSON escaping and negative/fractional coordinates, an
+entity with none of those fields serializes an explicit empty `components` object rather
+than omitting the entity's shape, and `engine_playground_save_scene_headless` is a CTest
+smoke case for the CLI flag itself.

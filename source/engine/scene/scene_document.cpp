@@ -1,6 +1,7 @@
 #include "engine/scene/scene_document.hpp"
 
 #include <cmath>
+#include <cstdio>
 #include <utility>
 #include <variant>
 
@@ -432,6 +433,112 @@ SceneDocument parse_scene_document(std::string_view text) {
     }
 
     return document;
+}
+
+namespace {
+
+// Appends `s` as a quoted JSON string, escaping the characters the reader's
+// unescape() step above understands plus every control character.
+void write_json_string(std::string &out, std::string_view s) {
+    out.push_back('"');
+    for (const char raw : s) {
+        const auto c = static_cast<unsigned char>(raw);
+        switch (c) {
+        case '"':
+            out += "\\\"";
+            break;
+        case '\\':
+            out += "\\\\";
+            break;
+        case '\n':
+            out += "\\n";
+            break;
+        case '\r':
+            out += "\\r";
+            break;
+        case '\t':
+            out += "\\t";
+            break;
+        case '\b':
+            out += "\\b";
+            break;
+        case '\f':
+            out += "\\f";
+            break;
+        default:
+            if (c < 0x20) {
+                char buffer[8];
+                std::snprintf(buffer, sizeof buffer, "\\u%04x", c);
+                out += buffer;
+            } else {
+                out.push_back(static_cast<char>(c));
+            }
+        }
+    }
+    out.push_back('"');
+}
+
+// %.9g gives the shortest fixed/exponential form that still round-trips a
+// float's up-to-9 significant decimal digits, and is always valid JSON.
+void write_json_number(std::string &out, float value) {
+    char buffer[32];
+    std::snprintf(buffer, sizeof buffer, "%.9g", static_cast<double>(value));
+    out += buffer;
+}
+
+} // namespace
+
+std::string serialize_scene_document(const SceneDocument &document) {
+    std::string out = R"({"format":1,"entities":[)";
+    for (usize index = 0; index < document.entities.size(); ++index) {
+        if (index != 0)
+            out.push_back(',');
+        const auto &entity = document.entities[index];
+        out.push_back('{');
+        bool entity_first = true;
+        const auto entity_field = [&] {
+            if (!entity_first)
+                out.push_back(',');
+            entity_first = false;
+        };
+        if (entity.name.has_value()) {
+            entity_field();
+            out += "\"name\":";
+            write_json_string(out, *entity.name);
+        }
+        if (entity.parent.has_value()) {
+            entity_field();
+            out += "\"parent\":{\"index\":" + std::to_string(*entity.parent) +
+                   ",\"generation\":1}";
+        }
+        entity_field();
+        out += "\"components\":{";
+        bool component_first = true;
+        const auto component_field = [&] {
+            if (!component_first)
+                out.push_back(',');
+            component_first = false;
+        };
+        if (entity.transform.has_value()) {
+            component_field();
+            out += "\"Transform\":{\"position\":{\"x\":";
+            write_json_number(out, entity.transform->position.x);
+            out += ",\"y\":";
+            write_json_number(out, entity.transform->position.y);
+            out += ",\"z\":";
+            write_json_number(out, entity.transform->position.z);
+            out += "}}";
+        }
+        if (entity.renderable.has_value()) {
+            component_field();
+            out += "\"Renderable\":{\"mesh\":" + std::to_string(entity.renderable->mesh) +
+                   ",\"material\":" + std::to_string(entity.renderable->material) + ",\"visible\":" +
+                   (entity.renderable->visible ? "true" : "false") + "}";
+        }
+        out += "}}";
+    }
+    out += "]}";
+    return out;
 }
 
 } // namespace engine

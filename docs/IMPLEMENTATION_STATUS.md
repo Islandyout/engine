@@ -340,3 +340,45 @@ limitations.
   limitation unrelated to this change); the new code does not touch any
   SDL-guarded path, and the same logic is exercised by the headless build
   above. Worth a real SDL/desktop CI run before merging.
+
+## F11 — Native scene export (0.11.0)
+
+Added `engine::serialize_scene_document` (`include/engine/scene/scene_document.hpp`,
+`source/engine/scene/scene_document.cpp`): the exact inverse of `parse_scene_document`
+for the fields `SceneDocument` models (name, parent, `Transform`, `Renderable`),
+producing compact "format 1" JSON that both the native reader and the editor's own
+`parseSceneText`/`deserializeScene` (`apps/editor/src/scene/SceneSerializer.ts`) accept.
+Wired into the native playground as `Scene::export_document()` (snapshots every current
+`Box` entity, player included, as a `Transform` plus a visible default `Renderable`; no
+name/parent, and no size or color, since neither the format nor the playground's `World`
+carries them) and a new `engine_playground --save-scene scene.json` CLI flag that writes
+that snapshot and exits immediately. This is the "Scene workflow: save/load" item in
+[AETHER_REVIEW.md](AETHER_REVIEW.md)'s agreed delivery sequence, completing the native
+side (editor-side load, save and property editing already existed — see
+[BTAI_EDITOR.md](BTAI_EDITOR.md)); it does not add editor-equivalent property editing to
+the native playground itself, only the ability to persist and reopen a live layout as the
+shared scene format. Engine version advanced to 0.11.0. See
+[NATIVE_PLAYGROUND.md](NATIVE_PLAYGROUND.md#saving-a-scene) for full scope.
+
+### F11 verification
+
+- `scene_document_tests.cpp` (extended) covers `serialize_scene_document` in isolation: a
+  built document's name, parent, Transform position, and Renderable fields round-trip
+  exactly through serialize then parse, including a name needing JSON escaping
+  (quote/backslash/newline) and negative/fractional coordinates; an entity with none of
+  those fields round-trips to an equally empty entity; and an empty entity serializes an
+  explicit `"components":{}` rather than omitting the shape.
+- `engine_playground_tests` (extended) covers `Scene::export_document()` directly: it
+  captures every `Box` entity (count matches `world.query<Box>()`), and the exported
+  document round-trips through `serialize_scene_document`/`parse_scene_document` to
+  reproduce the player's exact position.
+- `engine_playground_save_scene_headless` (new CTest case) runs `engine_playground
+  --headless --save-scene` as an end-to-end smoke test of the CLI flag. Manually confirmed
+  the written file both parses back with `--scene` (loads without error, 4 ticks/3 frames)
+  and contains the expected 8 entities (player plus the seven default field boxes) with
+  well-formed `Transform`/`Renderable` JSON.
+- Linux Clang 18.1.3 strict-warning headless build passed with zero warnings; all 13
+  CTest cases (up from 12) passed. A separate GCC 13.3.0 build with
+  `-fsanitize=undefined -fno-sanitize-recover=all` also passed all 13.
+- Same SDL/desktop CI gap as F10: not verified against the SDL-enabled preset in this
+  sandbox; the new code has no SDL-guarded path.

@@ -99,6 +99,52 @@ int main() {
         static_cast<void>(parse_scene_document(
             R"({"format": 1, "entities": [{"components": {"Parent": "anything"}}]})"));
 
+        // serialize_scene_document round-trips every field SceneDocument
+        // models: name, parent, Transform and Renderable, including a name
+        // that needs JSON escaping and negative/fractional coordinates.
+        {
+            SceneDocument built;
+            SceneEntity first;
+            first.name = "Say \"hi\"\\bye\n";
+            first.transform = TransformComponent{{-4.25F, 0.0F, 8.5F}};
+            first.renderable = RenderableComponent{2, 5, false};
+            built.entities.push_back(first);
+            SceneEntity second;
+            second.parent = 0;
+            built.entities.push_back(second);
+            SceneEntity third; // no name, parent, transform, or renderable at all
+            built.entities.push_back(third);
+
+            const auto round_tripped = parse_scene_document(serialize_scene_document(built));
+            check(round_tripped.entities.size() == 3, "round-trip preserves entity count");
+            check(round_tripped.entities[0].name == first.name,
+                  "round-trip preserves an escaped name exactly");
+            check(round_tripped.entities[0].transform.has_value() &&
+                      round_tripped.entities[0].transform->position.x == -4.25F &&
+                      round_tripped.entities[0].transform->position.y == 0.0F &&
+                      round_tripped.entities[0].transform->position.z == 8.5F,
+                  "round-trip preserves Transform position exactly");
+            check(round_tripped.entities[0].renderable.has_value() &&
+                      round_tripped.entities[0].renderable->mesh == 2 &&
+                      round_tripped.entities[0].renderable->material == 5 &&
+                      !round_tripped.entities[0].renderable->visible,
+                  "round-trip preserves Renderable fields exactly");
+            check(round_tripped.entities[1].parent.has_value() &&
+                      *round_tripped.entities[1].parent == 0,
+                  "round-trip preserves a parent reference");
+            check(!round_tripped.entities[2].name.has_value() &&
+                      !round_tripped.entities[2].parent.has_value() &&
+                      !round_tripped.entities[2].transform.has_value() &&
+                      !round_tripped.entities[2].renderable.has_value(),
+                  "round-trip leaves an empty entity empty");
+
+            // An entity with no components still serializes to a valid,
+            // empty components object rather than an omitted key.
+            check(serialize_scene_document(built).find(R"("components":{}})") !=
+                      std::string::npos,
+                  "an empty entity serializes an explicit empty components object");
+        }
+
         std::cout << "Scene document parsing, validation and rejection cases passed.\n";
     } catch (const std::exception &e) {
         std::cerr << e.what() << '\n';

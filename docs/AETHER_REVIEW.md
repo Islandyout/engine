@@ -74,7 +74,11 @@ reset. Desktop/mobile browser tests exercise a generated field before recording 
    collision, gravity and a Shift-to-jump controllable character in the native playground.
    See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md#f10--physics-gravity-collision-and-a-controllable-character-0100)
    and [NATIVE_PLAYGROUND.md](NATIVE_PLAYGROUND.md#physics).
-5. Scene workflow: save/load and basic property editing.
+5. Scene workflow: save/load and basic property editing. Done — the editor already had
+   load, save, and property editing (gizmos, component inspector: F8/F9); F11 added the
+   missing native-side save/export, completing the loop between the native playground and
+   the editor's scene format in both directions.
+   See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md#f11--native-scene-export-0110).
 6. Playable slice: one small environment demonstrating the intended game experience.
 
 Every milestone must have something visible or usable and automated verification.

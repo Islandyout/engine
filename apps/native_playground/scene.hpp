@@ -57,6 +57,23 @@ public:
         }
         systems_.run(world, context);
     }
+    // A "format 1" snapshot of every current Box entity's position, in
+    // world.query's creation order (player included). Only what a Box
+    // carries survives: a Transform at its center and a visible Renderable
+    // with mesh/material 0 — no name, parent, or the box's actual color/size
+    // (the format has no field for them). Loadable by both
+    // engine_playground --scene and the browser editor.
+    [[nodiscard]] SceneDocument export_document() const {
+        SceneDocument document;
+        for (auto entity : world.query<Box>()) {
+            const auto &box = *world.get<Box>(entity);
+            SceneEntity out;
+            out.transform = TransformComponent{{box.center.x, box.center.y, box.center.z}};
+            out.renderable = RenderableComponent{0, 0, true};
+            document.entities.push_back(std::move(out));
+        }
+        return document;
+    }
     [[nodiscard]] std::vector<Box> boxes(bool show_player = true) const {
         std::vector<Box> result;
         for (int x = -8; x < 8; ++x)
