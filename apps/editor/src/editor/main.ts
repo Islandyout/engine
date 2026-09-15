@@ -15,6 +15,7 @@ import { LocalStorageSceneStore } from "../authoring/CommandInterpreter";
 import { EditorDocument } from "./Document";
 import { modelCatalog, catalogCategories } from "../scene/modelCatalog";
 import { pickClipName, groundSpeed } from "./animationClips";
+import { loadOnce } from "./loadOnce";
 import type { SceneComponents } from "../scene/Scene";
 import "./style.css";
 
@@ -333,6 +334,12 @@ async function startEditor() {
   }
   const catalogCache = new Map<number, CachedModel>();
   const catalogPromises = new Map<number, Promise<CachedModel>>();
+  // Ids with a rebuild()-on-load callback already attached (see the rebuild()
+  // fallback branch below). A scene with N entities sharing one uncached
+  // catalog id must trigger exactly one rebuild() when it resolves, not N —
+  // each rebuild() re-clones the whole scene, so N would be O(N) redundant
+  // full-scene rebuilds for what is, functionally, one load finishing.
+  const pendingCatalogRebuilds = new Set<number>();
   function catalogEntry(meshId: number) {
     return modelCatalog.find((m) => m.id === meshId);
   }
@@ -436,13 +443,15 @@ async function startEditor() {
         }
       } else {
         if (meshId >= 1)
-          loadCatalogModel(meshId)
-            ?.then(() => {
+          loadOnce(
+            pendingCatalogRebuilds,
+            meshId,
+            () => loadCatalogModel(meshId),
+            () => {
               if (doc.mode === "edit" && !gizmo.dragging) rebuild();
-            })
-            .catch((error) =>
-              log(`Catalog model ${meshId} failed to load: ${String(error)}`),
-            );
+            },
+            (error) => log(`Catalog model ${meshId} failed to load: ${String(error)}`),
+          );
         object = new THREE.Mesh(geometry, material);
       }
       object.visible = renderable?.visible ?? true;

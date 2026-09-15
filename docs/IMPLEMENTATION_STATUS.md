@@ -989,6 +989,19 @@ option, since `modelCatalog` supplies it now and the two would otherwise duplica
 Only id 0 (the default box a mesh renders as before any catalog entry has loaded) stays
 outside the catalog — it isn't a placeable model at all, just a fallback.
 
+Codex's review caught one real issue before merge: the fallback branch's lazy-load
+callback (`rebuild()`'s `loadCatalogModel(meshId)?.then(() => rebuild())`) attached a
+fresh completion handler per *entity*, not per *id*. A scene with N entities sharing one
+uncached catalog id — bench included, now that it's a normal, frequently-duplicated
+entry instead of a special case with its own single dedicated loader — triggered N
+independent `rebuild()` calls once the (correctly deduplicated, single) underlying load
+resolved, each re-cloning the entire scene: O(entities) redundant full-scene rebuilds for
+what is, functionally, one load finishing. Fixed by extracting the "attach at most one
+completion handler per key while a load for it is in flight" pattern into a small,
+independently unit-tested `loadOnce()` (`apps/editor/src/editor/loadOnce.ts`), rather than
+patching another ad hoc `Set` guard inline — the same coalescing bug could recur for any
+other frequently-duplicated catalog model, not just the bench.
+
 ### F21 verification
 
 - `apps/editor/tests/modelCatalog.test.ts`: the "no id collides with the reserved 0/1
@@ -1013,8 +1026,16 @@ outside the catalog — it isn't a placeable model at all, just a fallback.
   dropdown at all). Updated the entity-name assertions from "Aether bench" to
   "Aether Bench" to match the catalog's Title Case naming convention (matching every
   other entry, e.g. "Sign Crossing").
-- `npm run typecheck`, `npm test` (20/20), `npm run build` in `apps/editor`: all pass.
-  Full native rebuild + `ctest`: all 13 cases pass (no C++ changed this round).
+- New `apps/editor/tests/loadOnce.test.ts`, using controllable fake promises rather than
+  real network loads: five calls for the same key while a load is in flight start it
+  exactly once and resolve the completion callback exactly once (the exact N-entities
+  case Codex flagged, reproduced directly rather than trusted by inspection); a rejection
+  still clears the key and fires the reject callback once; a key can be retried with a
+  fresh load after its previous one has settled; `start()` returning `undefined` (no
+  catalog entry for that id) touches nothing.
+- `npm run typecheck`, `npm test` (24/24, up from 20 before this fix), `npm run build` in
+  `apps/editor`: all pass. Full native rebuild + `ctest`: all 13 cases pass (no C++
+  changed this round).
 - Manually rebuilt `build/site` and confirmed `/engine/bench.glb` still resolves
   (unchanged path, unchanged `build_editor.sh` copy step — this round only changed how
   the *editor* references it, not where it's served from).
