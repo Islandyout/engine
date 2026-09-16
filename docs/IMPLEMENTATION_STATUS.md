@@ -2093,3 +2093,94 @@ next render. Two UI surfaces, one underlying component, always in sync.
   its own `sit` clip, selects it, forces a fresh render by reselecting entities, and
   confirms both the inline picker *and* the now-auto-attached advanced card agree on
   `"sit"` — proving the auto-attach path, not just that the click landed.
+
+## F35 — Wiring up Vehicle.archetype and Pedestrian.archetype (0.35.0)
+
+User question right after F34 shipped: "how is archetype used for this" — followed by
+"wire it up to something real and coherent with its relevant counterpart" once the
+honest answer turned out to be "it isn't." Both `Vehicle.archetype` and
+`Pedestrian.archetype` have been authorable and saved (`SceneSerializer.ts`'s own
+`unsigned(...)` validation) since early on, but `bridge.cpp`'s native `Heading`/
+`Pedestrian` structs never carried the value at all — `struct Pedestrian final {};` was
+literally empty — so it round-tripped through save/load with zero effect on simulation.
+The exact "authored but inert" bug class `AIState`, `Vehicle` driving itself, and
+`Collider` shape each had before their own rounds.
+
+"Coherent with its relevant counterpart" is taken literally: `Vehicle.archetype`'s
+counterpart is how the vehicle actually *drives* (the arcade model `editor.move` already
+implements), so it now selects one of four real `VehicleTuning` rows —
+Car/Sports/Truck/Bus, in that order, Car reproducing the original single-profile
+`vehicle_accel`/`vehicle_drag`/`vehicle_max_forward`/`vehicle_max_reverse`/
+`vehicle_turn_rate` constants exactly (so archetype 0, the default, drives identically to
+before this round) and the other three deliberately distinct on every axis, not just
+uniformly scaled: Sports faster and grippier on every number, Truck and Bus both trading
+accel/top speed/turning for more drag (heavier vehicles, slower to get going and to
+stop), Bus more so. `Pedestrian.archetype`'s counterpart is `AIState`'s own wander
+behavior (the thing `Pedestrian` already modifies — see F27's own doc comment on what it
+changes), so it selects one of three `PedestrianTuning` rows — Casual/Brisk/Lingering —
+scaling wander phase duration and movement speed, Casual (index 0, the default)
+reproducing the original `ai_wander_min_phase`/`ai_wander_max_phase`/unscaled-speed
+wander feel every `AIAgent` (Pedestrian or not) already used. Only a Pedestrian's own
+wander is personalized this way — a hostile `AIAgent` with no `Pedestrian` at all always
+gets Casual's tuning regardless, since wander pace isn't a "personality" a non-civilian
+entity has. Fleeing stays at `ai_run_speed` unscaled by any archetype either way — a
+self-preservation reflex, not a pace choice.
+
+`Heading` and `Pedestrian` (bridge.cpp) each gain an `archetype` field (`VehicleArchetype`/
+`PedestrianArchetype`, defaulting to index 0 — Car/Casual — so an entity that never sets
+one behaves exactly as before this round). `editor_add` gains two trailing params,
+`vehicle_archetype`/`pedestrian_archetype`, validated strictly (a safe, in-range integer)
+whenever `is_vehicle`/`is_pedestrian` is set — these are real array indices once stored,
+so an out-of-range one would be a same-tick out-of-bounds read the first time
+`editor.move`/`editor.ai` ran, not a delayed or cosmetic failure, unlike a merely
+"discarded" field before this round. `main.ts`'s `syncRuntime()` now actually reads
+`Vehicle.archetype`/`Pedestrian.archetype` and passes them through instead of discarding
+them. `SceneSerializer.ts` gains `boundedIndex()` (like `unsigned()`, but rejects a value
+outside a fixed-size table's range at load time, with a clear error naming the field,
+rather than deferring to `editor_add`'s own runtime bounds check). Both fields are real
+`<select>` dropdowns in the inspector now (`PropertyMetadata.ts`'s new `indexedChoice()`
+helper, alongside the existing string-valued `choice()`) instead of a bare number input.
+
+### F35 verification
+
+- Extended `tests/editor_bridge_tests.cpp`: Sports covers meaningfully more ground than
+  Car under identical sustained throttle for the identical duration (more than the same
+  case's own 1.2x margin), Truck less than Car; an out-of-range `vehicle_archetype` (4,
+  one past Bus) is rejected outright. Casual/Brisk/Lingering pedestrians -- each the sole,
+  first entity in its own session, so all three share the exact same rng seed, isolating
+  the archetype as the only variable -- are compared by total path length (not net
+  displacement, which a wandering entity can return close to zero regardless of pace)
+  over an identical duration: Brisk covers more ground than Casual, Lingering less; an
+  out-of-range `pedestrian_archetype` (3, one past Lingering) is rejected outright. All
+  ~50 existing `editor_add` call sites updated to the new 21-parameter signature
+  (appending `0, 0` — Car, Casual, both always-valid defaults — preserves every existing
+  test's behavior unchanged, verified by the full existing suite still passing
+  unmodified).
+- Full native rebuild + `ctest` across both this project's CI configurations (GCC
+  `-fsanitize=undefined`, and Clang with `-DENGINE_WARNINGS_AS_ERRORS=ON` matching CI's
+  own `linux-clang` preset): all 14 cases pass clean on both, including the new
+  archetype-comparison cases run multiple times each to confirm they're genuinely
+  deterministic (same rng seed, same code, same result every run), not narrowly-passing
+  or flaky.
+- Added `document.test.ts`'s own case: a valid archetype round-trips through
+  `set_component` for both `Vehicle` and `Pedestrian`, an out-of-range one is rejected
+  (and, critically, does *not* partially apply -- the component's prior valid value is
+  still there after the rejected write). `npm run typecheck` and `npm test` (34/34) both
+  pass.
+- Built the real Emscripten/WASM editor runtime and extended `tests/browser/editor.cjs`:
+  reuses the same Player+Vehicle entity the existing Vehicle-driving case already
+  exercises, confirms the archetype dropdown offers exactly `Car`/`Sports`/`Truck`/`Bus`,
+  and drives it for an *exact tick-count* (not wall-clock -- a headless browser's frame
+  pacing isn't reliably 1:1 with real time, discovered the hard way during manual
+  verification: an earlier wall-clock-timed check of two separate vehicles showed almost
+  no difference between archetypes, until switching to exact simulated-tick parity via
+  the status bar's own tick counter revealed a second, compounding bug in that same
+  manual check -- two simultaneous Player+Vehicle entities both respond to the same held
+  key, and the status readout only ever tracks the first one it finds, so the second
+  vehicle's own archetype was never actually being observed at all) under both Car and
+  Sports, confirming Sports meaningfully outruns Car; resets the archetype back to Car
+  afterward, since the very next case (Sphere-collider blocking) depends on Car's own
+  specific physics constants for its calibrated stopping distance. Separately confirms
+  the Pedestrian.archetype dropdown offers exactly `Casual`/`Brisk`/`Lingering` and that a
+  choice survives a fresh inspector render (the wander-pace math itself is the native
+  test's job above, not re-verified pixel-by-pixel here).

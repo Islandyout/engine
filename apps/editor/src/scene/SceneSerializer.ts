@@ -272,7 +272,7 @@ export function normalizeComponent(
     }
     case "Pedestrian":
       return {
-        archetype: unsigned(value.archetype, "Pedestrian.archetype", 0),
+        archetype: boundedIndex(value.archetype, "Pedestrian.archetype", 0, 3),
       };
     case "Script":
       return { source: string(value.source, "Script.source") };
@@ -286,7 +286,7 @@ export function normalizeComponent(
     case "Player":
       return {};
     case "Vehicle":
-      return { archetype: unsigned(value.archetype, "Vehicle.archetype", 0) };
+      return { archetype: boundedIndex(value.archetype, "Vehicle.archetype", 0, 4) };
     case "AnimationState":
       return {
         clip: string(value.clip, "AnimationState.clip"),
@@ -344,6 +344,25 @@ function unitInterval(value: unknown, label: string, fallback: number): number {
 function string(value: unknown, label: string): string {
   if (typeof value !== "string") throw new Error(`${label} must be a string.`);
   return value;
+}
+// Like unsigned(), but for a value that isn't just non-negative -- it's a
+// real index into a fixed-size native table (Vehicle.archetype/
+// Pedestrian.archetype into bridge.cpp's own vehicle_tuning/
+// pedestrian_tuning, in VehicleArchetype/PedestrianArchetype's declared
+// order). Rejected here at load time, with a clear error naming the field,
+// rather than deferred to editor_add's own runtime bounds check, which would
+// otherwise surface as the same generic "Runtime rejects..." failure
+// syncRuntime() throws for an out-of-range coordinate.
+function boundedIndex(value: unknown, label: string, fallback: number, count: number): number {
+  const result = value === undefined ? fallback : value;
+  if (
+    typeof result !== "number" ||
+    !Number.isInteger(result) ||
+    result < 0 ||
+    result >= count
+  )
+    throw new Error(`${label} must be an integer from 0 to ${count - 1}.`);
+  return result;
 }
 
 // Validate the entire replacement before touching the active document.

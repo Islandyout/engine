@@ -262,6 +262,55 @@ test("prefabs: specialized commands (set_velocity/set_physics/set_ai_state/trigg
   assert.equal(d.scene.resolve(other, "AnimationState")?.clip, "wave");
 });
 
+test("Vehicle/Pedestrian.archetype: a valid index round-trips, an out-of-range one is rejected", () => {
+  const d = new EditorDocument();
+  const car = d.execute({ command: "spawn_entity", name: "Car" }).entity!;
+  d.execute({ command: "attach_component", entity: car, type: "Vehicle" });
+  assert.equal(d.scene.resolve(car, "Vehicle")?.archetype, 0, "defaultComponent: Car");
+  assert.equal(
+    d.execute({
+      command: "set_component",
+      entity: car,
+      type: "Vehicle",
+      value: { archetype: 1 }, // Sports
+    }).ok,
+    true,
+  );
+  assert.equal(d.scene.resolve(car, "Vehicle")?.archetype, 1);
+  // vehicle_tuning (bridge.cpp) has 4 rows (Car/Sports/Truck/Bus) -- index 4 doesn't exist.
+  const overVehicle = d.execute({
+    command: "set_component",
+    entity: car,
+    type: "Vehicle",
+    value: { archetype: 4 },
+  });
+  assert.equal(overVehicle.ok, false);
+  assert.equal(d.scene.resolve(car, "Vehicle")?.archetype, 1, "rejected write must not partially apply");
+
+  const walker = d.execute({ command: "spawn_entity", name: "Walker" }).entity!;
+  d.execute({ command: "attach_component", entity: walker, type: "Pedestrian" });
+  assert.equal(d.scene.resolve(walker, "Pedestrian")?.archetype, 0, "defaultComponent: Casual");
+  assert.equal(
+    d.execute({
+      command: "set_component",
+      entity: walker,
+      type: "Pedestrian",
+      value: { archetype: 2 }, // Lingering
+    }).ok,
+    true,
+  );
+  assert.equal(d.scene.resolve(walker, "Pedestrian")?.archetype, 2);
+  // pedestrian_tuning (bridge.cpp) has 3 rows (Casual/Brisk/Lingering) -- index 3 doesn't exist.
+  const overPedestrian = d.execute({
+    command: "set_component",
+    entity: walker,
+    type: "Pedestrian",
+    value: { archetype: 3 },
+  });
+  assert.equal(overPedestrian.ok, false);
+  assert.equal(d.scene.resolve(walker, "Pedestrian")?.archetype, 2);
+});
+
 test("prefabs: unlinking clones component data -- editing the unlinked entity never mutates the prefab or a sibling instance", () => {
   const d = new EditorDocument();
   const source = d.execute({ command: "spawn_entity", name: "Drone" }).entity!;
