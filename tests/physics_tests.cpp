@@ -151,8 +151,117 @@ int main() {
             check(!physics::overlaps(Box{{0, 0, 0}, {1, 1, 1}}, Box{{1, 0, 0}, {1, 1, 1}}),
                   "exactly touching boxes (shared face, zero penetration) report no overlap");
         }
+        {
+            // A falling body lands on top of a static sphere collider and
+            // rests flush on its apex, the same as it would a box platform --
+            // Collider.shape == Sphere is not just authored data, it changes
+            // what the body actually resolves against.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            const auto ball = world.create();
+            world.set(ball, Box{{0, 2, 0}, {1, 1, 1}}); // size is irrelevant for a Sphere shape
+            world.set(ball, Collider{true, physics::ColliderShape::Sphere, 1.0F});
+            const auto body = world.create();
+            world.set(body, Box{{0, 6, 0}, {1, 1, 1}});
+            world.set(body, RigidBody{});
+            for (int i = 0; i < 300; ++i)
+                physics::step(world, 1.0F / 60);
+            const auto &box = *world.get<Box>(body);
+            check(world.get<RigidBody>(body)->grounded, "body lands and rests on a sphere collider");
+            // Sphere top (center.y=2, radius=1) is y=3; box half-height 0.5 => rests at 3.5.
+            check(std::abs(box.center.y - 3.5F) < 0.001F, "body rests flush on top of the sphere");
+        }
+        {
+            // A moving body is pushed out and stopped when it overlaps a
+            // static sphere collider from the side.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            const auto ball = world.create();
+            world.set(ball, Box{{2, 0.5F, 0}, {1, 1, 1}});
+            world.set(ball, Collider{true, physics::ColliderShape::Sphere, 0.75F});
+            const auto body = world.create();
+            world.set(body, Box{{1.0F, 0.5F, 0}, {1, 1, 1}});
+            world.set(body, RigidBody{{5, 0, 0}});
+            physics::step(world, 1.0F / 60);
+            const auto &box = *world.get<Box>(body);
+            check(box.center.x < 1.4F, "body resolved out of the sphere's overlap");
+            check(world.get<RigidBody>(body)->velocity.x == 0, "horizontal velocity is zeroed");
+        }
+        {
+            // raycast() hits a box collider at the expected distance/point,
+            // ignores it past max_distance, and reports nothing when nothing
+            // is in range in a scene with no ground within range either.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<Collider>("collider");
+            const auto wall = world.create();
+            world.set(wall, Box{{5, 0, 0}, {1, 2, 2}});
+            world.set(wall, Collider{});
+            const Config config{.gravity = -18.0F, .ground_y = -1000.0F}; // keep the ground plane out of range
+            const auto hit = physics::raycast(world, {0, 0, 0}, {1, 0, 0}, 100.0F, config);
+            check(hit.has_value(), "ray hits the box collider ahead of it");
+            check(!hit->hit_ground, "the box hit is not the ground plane");
+            check(std::abs(hit->distance - 4.5F) < 0.001F, "hit distance is to the box's near face");
+            check(std::abs(hit->point.x - 4.5F) < 0.001F, "hit point sits on the box's near face");
+            check(!physics::raycast(world, {0, 0, 0}, {1, 0, 0}, 4.0F, config).has_value(),
+                  "a box past max_distance is not hit");
+            check(!physics::raycast(world, {0, 0, 0}, {-1, 0, 0}, 100.0F, config).has_value(),
+                  "a ray facing away from everything hits nothing");
+        }
+        {
+            // raycast() hits a sphere collider too, and picks the closer of
+            // two overlapping candidates rather than whichever was queried
+            // first.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<Collider>("collider");
+            const auto near_ball = world.create();
+            world.set(near_ball, Box{{3, 0, 0}, {1, 1, 1}});
+            world.set(near_ball, Collider{true, physics::ColliderShape::Sphere, 1.0F});
+            const auto far_wall = world.create();
+            world.set(far_wall, Box{{8, 0, 0}, {1, 2, 2}});
+            world.set(far_wall, Collider{});
+            const Config config{.gravity = -18.0F, .ground_y = -1000.0F};
+            const auto hit = physics::raycast(world, {0, 0, 0}, {1, 0, 0}, 100.0F, config);
+            check(hit.has_value() && hit->entity == near_ball,
+                  "raycast picks the closer of two candidates in range");
+            check(std::abs(hit->distance - 2.0F) < 0.001F, "hit distance is to the sphere's near surface");
+        }
+        {
+            // With nothing else in the way, a downward ray hits the ground
+            // plane itself.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<Collider>("collider");
+            const Config config{}; // default ground_y = 0
+            const auto hit = physics::raycast(world, {0, 5, 0}, {0, -1, 0}, 100.0F, config);
+            check(hit.has_value() && hit->hit_ground, "a downward ray with nothing else in the way hits the ground plane");
+            check(std::abs(hit->distance - 5.0F) < 0.001F, "ground hit distance matches the drop to ground_y");
+        }
+        {
+            // A non-normalized direction is normalized internally: distance
+            // and hit point are still in real world units, not scaled by the
+            // caller's vector length. A non-positive max_distance is a no-op.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<Collider>("collider");
+            const auto wall = world.create();
+            world.set(wall, Box{{5, 0, 0}, {1, 2, 2}});
+            world.set(wall, Collider{});
+            const Config config{.gravity = -18.0F, .ground_y = -1000.0F};
+            const auto hit = physics::raycast(world, {0, 0, 0}, {10, 0, 0}, 100.0F, config);
+            check(hit.has_value() && std::abs(hit->distance - 4.5F) < 0.001F,
+                  "a non-unit-length direction is normalized before use");
+            check(!physics::raycast(world, {0, 0, 0}, {1, 0, 0}, 0.0F, config).has_value(),
+                  "non-positive max_distance is a no-op");
+        }
 
-        std::cout << "Physics gravity, ground rest, collider resolution and no-op dt passed.\n";
+        std::cout << "Physics gravity, ground rest, box/sphere collider resolution, raycasting, "
+                     "and no-op dt passed.\n";
     } catch (const std::exception &e) {
         std::cerr << e.what() << '\n';
         return 1;

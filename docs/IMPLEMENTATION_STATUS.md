@@ -1829,3 +1829,66 @@ into a scene that's no longer playing.
   once restored; the second race is reproduced deterministically via a test-only
   `decodeAudioData` gate the harness can hold open and release on cue, not by
   hoping real network/decode timing happens to line up.
+
+## F31 — Real physics shapes: Collider spheres and raycasting (0.31.0)
+
+Opens Tier 2 ("a real small engine") with the roadmap's own first item, sequenced
+ahead of lighting/particles because raycasting is a dependency later gameplay
+(aiming, AI line-of-sight) needs. Closes a second "authored but inert" gap in the same
+class as `AIState`/`Vehicle` before their own rounds: the browser editor's inspector
+has offered `Collider.type` ("AABB"/"Sphere") and a `radius` field for a while
+(`PropertyMetadata.ts`), but `engine::physics::Collider` had no shape field at all —
+every collider, however authored, resolved as an AABB derived from `Box.size`, and
+`radius` was silently discarded before it ever left the browser.
+
+`physics.hpp`/`physics.cpp` gain `ColliderShape { Box, Sphere }` and a `radius` field
+on `Collider` (both default to the old behavior — `Collider{}` is unchanged, so every
+existing box-shaped scene resolves identically to before). A falling or moving body now
+resolves out of a sphere obstacle via closest-point-on-box-to-sphere-center, pushed
+along the separation vector and zeroed on whichever velocity axis that push was
+dominantly along — the same "zero one axis, report if pushed upward" contract the
+existing box resolver already used, so `grounded` (resting on top of a sphere) works
+the same way it does for a box platform. A new `raycast()` casts a ray against every
+static `(Box, Collider)` entity (slab method for Box, the standard quadratic for
+Sphere) plus the ground plane, returning the closest hit or `std::nullopt` — exposed
+as a C++ API for future gameplay to call, deliberately not wired to a script/bridge
+surface or to dynamic (`RigidBody`) movers this round; both are natural follow-ups,
+not this one's.
+
+`apps/editor/runtime/bridge.cpp`'s `editor_add` gains two trailing params,
+`collider_shape` and `collider_radius` (validated whenever `is_collider` is set,
+matching the existing box-size validation pattern), and actually constructs the
+`Collider` the browser authored instead of always defaulting to Box — the only bridge
+change this round needed, since the authoring surface already existed.
+`apps/editor/src/editor/main.ts`'s `syncRuntime()` reads the resolved `Collider`
+(through a prefab, like everything else it resolves) and passes its `type`/`radius`
+through instead of discarding them.
+
+### F31 verification
+
+- Extended `tests/physics_tests.cpp`: a falling body lands and rests flush on top of a
+  sphere collider (grounded, at the correct height); a moving body is pushed out and
+  stopped by a sphere collider from the side; `raycast()` hits a box collider at the
+  expected distance/point and ignores one past `max_distance`; hits a sphere collider
+  too, picking the closer of two candidates in range rather than whichever was queried
+  first; hits the ground plane when nothing else is in the way; normalizes a
+  non-unit-length direction internally (distance/point stay in real world units); is a
+  no-op for non-positive `max_distance`.
+- Extended `tests/editor_bridge_tests.cpp`: a large-radius (1.5) sphere collider stops
+  an approaching mover much farther from its own center than the existing unit-box
+  obstacle case does, proving the authored radius is what's actually resolved against,
+  not just accepted and ignored. All ~40 existing `editor_add` call sites updated to
+  the new 19-parameter signature (appending `0, 0.5` — Box shape, an always-valid
+  radius — preserves every existing test's behavior unchanged).
+- Full native rebuild + `ctest`: all 14 cases pass. GCC 13.3.0 build with
+  `-fsanitize=undefined`: clean, including the new closest-point/separation-vector and
+  ray/AABB slab and ray/sphere quadratic math.
+- `npm run typecheck` and `npm test` (33/33, unaffected — no TS component/serializer
+  changes needed since `Collider.type`/`radius` already existed) both pass.
+- Built the real Emscripten/WASM editor runtime and extended `tests/browser/
+  editor.cjs`: a Vehicle drove freely past a point in open ground, then a Sphere
+  collider (radius 1.5) placed 3 units ahead stopped the same vehicle at almost exactly
+  the analytically-predicted contact distance (`+1.0`, not the `+2.0` a same-radius box
+  obstacle — or the old, shape-ignorant behavior — would have produced instead),
+  confirmed through the existing `Player (x, y, z)` status-bar readout rather than
+  reaching into the page's internals.

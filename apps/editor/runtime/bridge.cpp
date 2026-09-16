@@ -580,11 +580,18 @@ EXPORT void editor_begin() {
 // Heading substitutes a different movement model for the Player's own. Ignored for a child, same
 // reasoning as is_player. is_pedestrian is nonzero when the entity also carries an authored
 // Pedestrian component; meaningless without is_ai (nothing else reads it), so it's simply
-// ignored without that too — see Pedestrian's own doc comment for what it changes.
+// ignored without that too — see Pedestrian's own doc comment for what it changes. collider_shape
+// (0 = Box, nonzero = Sphere) and collider_radius select the authored Collider.type/radius —
+// previously accepted by the editor's inspector but silently ignored here, so a "Sphere" collider
+// resolved (and rendered a selection box for) an AABB derived from Scale exactly like an "AABB"
+// one; meaningless without is_collider, so both are simply ignored without that too.
+// collider_radius is validated whenever is_collider is set regardless of shape, not just for
+// Sphere, since validating it unconditionally is simpler than threading the shape check through
+// the validation pass too and costs nothing when shape is Box (which never reads it).
 EXPORT int editor_add(double x, double y, double z, double vx, double vy, double vz, double sx,
                        double sy, double sz, double is_child, double is_player, double is_collider,
                        double hp_current, double hp_max, double is_vehicle, double is_ai,
-                       double is_pedestrian) {
+                       double is_pedestrian, double collider_shape, double collider_radius) {
     if (!staging || staging->entities.size() >= 1024) {
         failed = true;
         return 0;
@@ -599,6 +606,11 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
             failed = true;
             return 0;
         }
+    if (is_collider != 0 &&
+        (!std::isfinite(collider_radius) || collider_radius <= 0 || collider_radius > 1000000)) {
+        failed = true;
+        return 0;
+    }
     const auto e = staging->world.create();
     staging->world.set(
         e, engine::Box{engine::Vec3{static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)},
@@ -613,7 +625,12 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
                     e, Heading{0.0F, 0.0F, static_cast<float>(sx) / 2.0F, static_cast<float>(sz) / 2.0F});
         }
         if (is_collider != 0)
-            staging->world.set(e, engine::physics::Collider{});
+            staging->world.set(
+                e, engine::physics::Collider{
+                       true,
+                       collider_shape != 0 ? engine::physics::ColliderShape::Sphere
+                                           : engine::physics::ColliderShape::Box,
+                       static_cast<float>(collider_radius)});
         if (hp_max > 0)
             staging->world.set(
                 e, Health{std::clamp(static_cast<float>(hp_current), 0.0F, static_cast<float>(hp_max)),
