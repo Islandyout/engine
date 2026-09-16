@@ -467,6 +467,66 @@ const { chromium } = require("playwright");
     );
     await page.keyboard.up("w");
     await page.locator("#stop").click();
+    // Vehicle.archetype: previously accepted and saved but never actually
+    // read (the same "authored but inert" gap Collider shape/AIState/Vehicle
+    // driving itself each had before their own rounds) -- picking a
+    // different archetype from the inspector's own dropdown must actually
+    // change how the vehicle drives, not just round-trip through save/load.
+    // Reuses the same Entity 7 the drive above just used (still parked at
+    // its authored spawn -- Play never mutates authored data, proven
+    // above), driven for the exact same simulated duration (tick-count
+    // parity, not wall-clock, since a headless browser's frame pacing isn't
+    // 1:1 with real time) under both its default Car archetype and Sports:
+    // Sports' higher accel/top speed (bridge.cpp's own vehicle_tuning,
+    // exhaustively verified numerically by the native bridge test) must
+    // cover meaningfully more ground in that same span.
+    await page
+      .locator(".entity")
+      .filter({ hasText: "Entity 7" })
+      .first()
+      .click();
+    const archetypeSelect = page.locator('[aria-label="Vehicle.archetype"]');
+    const archetypeOptions = await archetypeSelect.locator("option").allTextContents();
+    assert.deepEqual(archetypeOptions, ["Car", "Sports", "Truck", "Bus"]);
+    const driveTicks = async (targetTicks) => {
+      await page.locator("#play").click();
+      await page.waitForFunction(() =>
+        document.querySelector("#status").textContent.includes("Player ("),
+      );
+      await page.keyboard.down("w");
+      await page.waitForFunction(
+        (n) => {
+          const m = document.querySelector("#status").textContent.match(/(\d+) C\+\+ fixed ticks/);
+          return m && Number(m[1]) >= n;
+        },
+        targetTicks,
+      );
+      const status = await page.locator("#status").textContent();
+      const z = Number(status.match(/Player \([-\d.]+, [-\d.]+, ([-\d.]+)\)/)[1]);
+      await page.keyboard.up("w");
+      await page.locator("#stop").click();
+      return z;
+    };
+    const carAdvance = await driveTicks(90);
+    await page
+      .locator(".entity")
+      .filter({ hasText: "Entity 7" })
+      .first()
+      .click();
+    await archetypeSelect.selectOption({ label: "Sports" });
+    const sportsAdvance = await driveTicks(90);
+    assert.ok(
+      sportsAdvance > carAdvance * 1.2,
+      `Sports (${sportsAdvance}) should meaningfully outrun Car (${carAdvance}) over the same duration`,
+    );
+    // Reset back to Car (its default/authored value) -- the Sphere-collider
+    // block distance calibrated just below assumes Car's own physics.
+    await page
+      .locator(".entity")
+      .filter({ hasText: "Entity 7" })
+      .first()
+      .click();
+    await archetypeSelect.selectOption({ label: "Car" });
     // Collider shapes: Collider.type/radius have been authorable in the
     // inspector for a while but were silently discarded by physics until
     // this round -- a real Sphere collider now actually resolves as a
@@ -554,6 +614,36 @@ const { chromium } = require("playwright");
       return match && Number(match[1]) < 2;
     });
     await page.locator("#stop").click();
+    // Pedestrian.archetype: same "authored but inert until read" gap as
+    // Vehicle.archetype above (native bridge test covers the actual wander-
+    // pace math -- Casual/Brisk/Lingering -- numerically and
+    // deterministically); here just confirms the inspector's own dropdown
+    // offers the right options with the right friendly labels and that a
+    // choice survives a fresh render, the same reselection-round-trip
+    // technique the AnimationState.clip case elsewhere in this suite uses.
+    await page.getByLabel("Add component").selectOption("Pedestrian");
+    const pedestrianArchetype = page.locator('[aria-label="Pedestrian.archetype"]');
+    assert.deepEqual(await pedestrianArchetype.locator("option").allTextContents(), [
+      "Casual",
+      "Brisk",
+      "Lingering",
+    ]);
+    await pedestrianArchetype.selectOption({ label: "Brisk" });
+    await page
+      .locator(".entity")
+      .filter({ hasText: "Entity 7" })
+      .first()
+      .click();
+    await page
+      .locator(".entity")
+      .filter({ hasText: aiEntityName })
+      .first()
+      .click();
+    assert.equal(
+      await page.locator('[aria-label="Pedestrian.archetype"]').inputValue(),
+      "1",
+      "archetype choice must survive a fresh inspector render, not just the DOM click",
+    );
     // Script: a Lua on_tick that writes self.vx/vz should move the entity
     // (native bridge tests already cover the motion math exhaustively), and
     // a script with a syntax error should surface through the status bar's
@@ -862,7 +952,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles passed.",
     );
   } finally {
     if (browser) await browser.close();

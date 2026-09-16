@@ -3,6 +3,7 @@
 #include "engine/world/fixed_systems.hpp"
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <optional>
@@ -21,13 +22,24 @@ namespace {
 // answers "is this the player," not a general engine concept.
 struct PlayerMarker final {};
 
+// Which row of vehicle_tuning (below) a Heading's accelerate/steer input is
+// resolved against. Car is index 0 and matches this project's original,
+// single-profile constants exactly, so an entity authored before archetypes
+// existed (or one that never sets Vehicle.archetype) drives identically to
+// before. Mirrors Vehicle.archetype's own declared meaning in
+// Components.ts — main.ts's syncRuntime() passes that value straight through
+// to editor_add's vehicle_archetype param, unlike is_vehicle's other data
+// (yaw, footprint), which the simulation itself owns from tick 0 (see this
+// struct's own doc comment above).
+enum class VehicleArchetype : int { Car, Sports, Truck, Bus };
+
 // Present on a PlayerMarker entity that also carries an authored Vehicle
 // component: switches its horizontal movement from instant-direction,
 // camera-relative strafing to momentum-based accelerate/steer (see
-// vehicle_speed/vehicle_turn_rate below). yaw is radians; 0 faces +z (an
-// arbitrary but fixed convention — see editor_add's doc comment for why an
-// authored Rotation isn't consulted as a starting heading). speed is the
-// signed distance per second currently traveled along that heading.
+// vehicle_tuning below). yaw is radians; 0 faces +z (an arbitrary but fixed
+// convention — see editor_add's doc comment for why an authored Rotation
+// isn't consulted as a starting heading). speed is the signed distance per
+// second currently traveled along that heading.
 struct Heading final {
     float yaw{};
     float speed{};
@@ -39,6 +51,7 @@ struct Heading final {
     // staying fixed to the world axes it happened to be authored facing.
     float half_x{};
     float half_z{};
+    VehicleArchetype archetype{VehicleArchetype::Car};
 };
 
 // Mirrors AIStateName's own order in apps/editor/src/scene/Components.ts —
@@ -63,12 +76,26 @@ struct AIAgent final {
     float dir_z{1.0F};
     std::uint32_t rng{1};
 };
+// Which row of pedestrian_tuning (below) shapes a Pedestrian's own wander
+// pace — how long it lingers between phases and how briskly it moves once
+// it does. Casual is index 0 and matches the wander constants every
+// AIAgent (Pedestrian or not) already used before archetypes existed, so an
+// entity authored before this existed, or one that never sets
+// Pedestrian.archetype, wanders exactly as before. Fleeing (a
+// self-preservation reflex, not a personality trait) stays at ai_run_speed
+// unscaled regardless of archetype — see the "editor.ai" system's own use of
+// this. Mirrors Pedestrian.archetype's own declared meaning in
+// Components.ts.
+enum class PedestrianArchetype : int { Casual, Brisk, Lingering };
+
 // Marker: an AIAgent that never enters AIState::Chasing regardless of how
 // close the Player gets — a harmless wanderer, not a hostile one. Still
 // flees on low health like any other AIAgent (fleeing isn't hostility, it's
 // self-preservation). Meaningless without AIAgent, same as Heading needing
 // PlayerMarker — simply ignored, not validated here.
-struct Pedestrian final {};
+struct Pedestrian final {
+    PedestrianArchetype archetype{PedestrianArchetype::Casual};
+};
 
 // A small, fast, deterministic PRNG (xorshift32) — not cryptographic, just
 // needs to be reproducible per entity across runs/platforms for wander
@@ -116,18 +143,59 @@ constexpr float fly_speed = 4.0F;
 // Vehicle driving feel: a simplified arcade model, not real car physics —
 // constant turn rate regardless of speed (no traction/slip curve), no
 // distinction between engine power and braking. Reasonable-scope tuning, not
-// a claim of realism.
-constexpr float vehicle_accel = 6.0F;         // units/s^2
-constexpr float vehicle_drag = 3.0F;          // units/s^2, applied opposing motion with no accel input
-constexpr float vehicle_max_forward = 9.0F;   // units/s
-constexpr float vehicle_max_reverse = 4.0F;   // units/s
-constexpr float vehicle_turn_rate = 2.2F;     // rad/s at full steering lock
+// a claim of realism. One row per VehicleArchetype, in that enum's declared
+// order; Car (index 0) is this project's original, single-profile constants,
+// unchanged, so archetype 0 (the default) drives identically to before this
+// existed. The others are deliberately distinct on every axis, not just
+// scaled uniformly, so each archetype has an actually different feel: Sports
+// is faster and grippier than Car on every number, including drag, so it
+// sheds speed releasing the throttle about as quickly as Car despite a much
+// higher top speed. Truck and Bus both trade accel/top speed/turning for
+// lower drag (less engine braking, more coast), Bus more so — heavier
+// vehicles that take longer to get going and longer to stop: drag directly
+// sets coast-down time (max_forward / drag seconds to stop from top speed
+// with no input), so a heavier vehicle needs a *smaller* drag, not a larger
+// one, to coast longer.
+struct VehicleTuning {
+    float accel;        // units/s^2
+    float drag;         // units/s^2, applied opposing motion with no accel input
+    float max_forward;  // units/s
+    float max_reverse;  // units/s
+    float turn_rate;    // rad/s at full steering lock
+};
+constexpr VehicleTuning vehicle_tuning[] = {
+    /* Car    */ {6.0F, 3.0F, 9.0F, 4.0F, 2.2F},
+    /* Sports */ {9.5F, 4.5F, 13.0F, 5.5F, 2.8F},
+    /* Truck  */ {4.5F, 2.0F, 7.0F, 3.0F, 1.6F},
+    /* Bus    */ {3.0F, 1.2F, 5.5F, 2.5F, 1.1F},
+};
+static_assert(std::size(vehicle_tuning) == 4, "one row per VehicleArchetype");
+
 constexpr float ai_walk_speed = 1.6F;         // units/s; wander pace
 constexpr float ai_run_speed = 4.0F;          // units/s; wander sprint, chase, and flee
 constexpr float ai_sense_radius = 6.0F;       // units; distance at which an AIAgent notices the Player
 constexpr float ai_flee_health_ratio = 0.3F;  // flee once current/max health drops to/below this
 constexpr float ai_wander_min_phase = 1.0F;   // seconds; shortest idle or walk/run phase
 constexpr float ai_wander_max_phase = 3.0F;   // seconds; longest idle or walk/run phase
+// One row per PedestrianArchetype, in that enum's declared order. Casual
+// (index 0) reproduces ai_wander_min_phase/ai_wander_max_phase and an
+// unscaled walk/run speed exactly — this project's original, single-profile
+// wander feel every AIAgent (Pedestrian or not) already used, so archetype 0
+// (the default, and every non-Pedestrian AIAgent regardless of archetype)
+// wanders identically to before this existed. Brisk lingers for shorter
+// phases and moves faster once it does (a commuter); Lingering does the
+// opposite (someone with nowhere to be).
+struct PedestrianTuning {
+    float min_phase;   // seconds; shortest idle or walk/run phase
+    float max_phase;   // seconds; longest idle or walk/run phase
+    float speed_mult;  // multiplies ai_walk_speed/ai_run_speed while wandering
+};
+constexpr PedestrianTuning pedestrian_tuning[] = {
+    /* Casual    */ {ai_wander_min_phase, ai_wander_max_phase, 1.0F},
+    /* Brisk     */ {0.5F, 1.5F, 1.3F},
+    /* Lingering */ {2.0F, 5.0F, 0.6F},
+};
+static_assert(std::size(pedestrian_tuning) == 3, "one row per PedestrianArchetype");
 constexpr float attack_damage = 20.0F;
 // Weaker than melee (a ranged option, not a strict upgrade) and fast enough
 // to cross a typical engagement distance well within its lifetime.
@@ -257,7 +325,8 @@ struct Runtime {
                     auto &body = *w.get<engine::physics::RigidBody>(entity);
                     const auto &box = *w.get<engine::Box>(entity);
                     const auto *health = w.get<Health>(entity);
-                    const bool is_pedestrian = w.get<Pedestrian>(entity) != nullptr;
+                    const auto *pedestrian = w.get<Pedestrian>(entity);
+                    const bool is_pedestrian = pedestrian != nullptr;
 
                     float dist_sq = -1.0F;
                     if (player_pos) {
@@ -305,6 +374,15 @@ struct Runtime {
                         // reporting the last reactive state — for up to the
                         // remainder of that frozen timer, then another full
                         // Idle phase on top, before it actually resumed wander.
+                        // Only a Pedestrian's own wander pace is personalized -- a
+                        // hostile AIAgent (no Pedestrian at all) always gets
+                        // pedestrian_tuning[0] (Casual), the same wander feel every
+                        // AIAgent used before archetypes existed, since its wander
+                        // phases aren't a "personality" a non-civilian entity has.
+                        const auto &wander =
+                            pedestrian_tuning[is_pedestrian
+                                                   ? static_cast<std::size_t>(pedestrian->archetype)
+                                                   : 0];
                         const bool was_reactive =
                             agent.state == AIState::Chasing || agent.state == AIState::Fleeing;
                         if (was_reactive)
@@ -329,8 +407,8 @@ struct Runtime {
                             } else {
                                 next_state = AIState::Idle;
                             }
-                            agent.timer = ai_wander_min_phase + (random_unit(agent.rng) + 1.0F) * 0.5F *
-                                                                     (ai_wander_max_phase - ai_wander_min_phase);
+                            agent.timer = wander.min_phase + (random_unit(agent.rng) + 1.0F) * 0.5F *
+                                                                  (wander.max_phase - wander.min_phase);
                         } else {
                             next_state = agent.state; // hold the current phase until the timer elapses
                         }
@@ -338,12 +416,23 @@ struct Runtime {
                             target_x = agent.dir_x;
                             target_z = agent.dir_z;
                         }
+                        const float speed = (next_state == AIState::Walking     ? ai_walk_speed
+                                              : next_state == AIState::Idle     ? 0.0F
+                                                                                 : ai_run_speed) *
+                                             wander.speed_mult;
+                        body.velocity.x = target_x * speed;
+                        body.velocity.z = target_z * speed;
+                        agent.state = next_state;
+                        continue;
                     }
-                    const float speed = next_state == AIState::Walking     ? ai_walk_speed
-                                         : next_state == AIState::Idle     ? 0.0F
-                                                                            : ai_run_speed;
-                    body.velocity.x = target_x * speed;
-                    body.velocity.z = target_z * speed;
+                    // Chasing or Fleeing (the only two states reachable here,
+                    // the wander branch above always continue's instead):
+                    // always full urgency, unscaled by any Pedestrian
+                    // archetype (see pedestrian_tuning's own doc comment on
+                    // Fleeing specifically; Chasing never applies to a
+                    // Pedestrian at all, see the branch above).
+                    body.velocity.x = target_x * ai_run_speed;
+                    body.velocity.z = target_z * ai_run_speed;
                     agent.state = next_state;
                 }
             });
@@ -384,15 +473,18 @@ struct Runtime {
                             steer_input += 1;
                         if (context.input.key_down(engine::Key::a))
                             steer_input -= 1;
-                        heading->yaw += steer_input * vehicle_turn_rate / 60.0F;
-                        heading->speed += accel_input * vehicle_accel / 60.0F;
+                        const auto &tuning =
+                            vehicle_tuning[static_cast<std::size_t>(heading->archetype)];
+                        heading->yaw += steer_input * tuning.turn_rate / 60.0F;
+                        heading->speed += accel_input * tuning.accel / 60.0F;
                         if (accel_input == 0) {
                             if (heading->speed > 0)
-                                heading->speed = std::max(0.0F, heading->speed - vehicle_drag / 60.0F);
+                                heading->speed = std::max(0.0F, heading->speed - tuning.drag / 60.0F);
                             else
-                                heading->speed = std::min(0.0F, heading->speed + vehicle_drag / 60.0F);
+                                heading->speed = std::min(0.0F, heading->speed + tuning.drag / 60.0F);
                         }
-                        heading->speed = std::clamp(heading->speed, -vehicle_max_reverse, vehicle_max_forward);
+                        heading->speed =
+                            std::clamp(heading->speed, -tuning.max_reverse, tuning.max_forward);
                         body.velocity.x = std::sin(heading->yaw) * heading->speed;
                         body.velocity.z = std::cos(heading->yaw) * heading->speed;
                         // Rotate the collision footprint with the vehicle: its rendered
@@ -588,10 +680,21 @@ EXPORT void editor_begin() {
 // collider_radius is validated whenever is_collider is set regardless of shape, not just for
 // Sphere, since validating it unconditionally is simpler than threading the shape check through
 // the validation pass too and costs nothing when shape is Box (which never reads it).
+// vehicle_archetype (an index into vehicle_tuning, VehicleArchetype's declared order) is
+// validated whenever is_vehicle is set, same conditional pattern as collider_radius/is_collider
+// -- meaningless, and left unvalidated, without it. pedestrian_archetype (an index into
+// pedestrian_tuning, PedestrianArchetype's declared order) is likewise validated only when
+// is_pedestrian is set. Both are real array indices once stored (see Heading::archetype/
+// Pedestrian::archetype and their own doc comments), not just an opaque number like
+// Vehicle.archetype/Pedestrian.archetype were before this — out-of-range here would be a
+// same-tick out-of-bounds read the first time editor.move or editor.ai runs, not a delayed or
+// cosmetic failure, so this validates strictly (a safe non-negative integer inside the table's
+// bounds) rather than clamping a bad value into range silently.
 EXPORT int editor_add(double x, double y, double z, double vx, double vy, double vz, double sx,
                        double sy, double sz, double is_child, double is_player, double is_collider,
                        double hp_current, double hp_max, double is_vehicle, double is_ai,
-                       double is_pedestrian, double collider_shape, double collider_radius) {
+                       double is_pedestrian, double collider_shape, double collider_radius,
+                       double vehicle_archetype, double pedestrian_archetype) {
     if (!staging || staging->entities.size() >= 1024) {
         failed = true;
         return 0;
@@ -611,6 +714,19 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
         failed = true;
         return 0;
     }
+    if (is_vehicle != 0 && !(vehicle_archetype >= 0 &&
+                              vehicle_archetype < static_cast<double>(std::size(vehicle_tuning)) &&
+                              vehicle_archetype == std::floor(vehicle_archetype))) {
+        failed = true;
+        return 0;
+    }
+    if (is_pedestrian != 0 &&
+        !(pedestrian_archetype >= 0 &&
+          pedestrian_archetype < static_cast<double>(std::size(pedestrian_tuning)) &&
+          pedestrian_archetype == std::floor(pedestrian_archetype))) {
+        failed = true;
+        return 0;
+    }
     const auto e = staging->world.create();
     staging->world.set(
         e, engine::Box{engine::Vec3{static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)},
@@ -622,7 +738,8 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
             staging->world.set(e, PlayerMarker{});
             if (is_vehicle != 0)
                 staging->world.set(
-                    e, Heading{0.0F, 0.0F, static_cast<float>(sx) / 2.0F, static_cast<float>(sz) / 2.0F});
+                    e, Heading{0.0F, 0.0F, static_cast<float>(sx) / 2.0F, static_cast<float>(sz) / 2.0F,
+                               static_cast<VehicleArchetype>(static_cast<int>(vehicle_archetype))});
         }
         if (is_collider != 0)
             staging->world.set(
@@ -645,7 +762,8 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
                 e, AIAgent{AIState::Idle, 0.0F, 0.0F, 1.0F,
                            static_cast<std::uint32_t>(staging->entities.size()) + 1});
             if (is_pedestrian != 0)
-                staging->world.set(e, Pedestrian{});
+                staging->world.set(
+                    e, Pedestrian{static_cast<PedestrianArchetype>(static_cast<int>(pedestrian_archetype))});
         }
     }
     staging->entities.push_back(e);

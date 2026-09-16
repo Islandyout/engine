@@ -138,7 +138,7 @@ async function startEditor() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `<header>
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
-  <span class="brand-sub">BTAI Editor <span class="version">0.34.0</span></span>
+  <span class="brand-sub">BTAI Editor <span class="version">0.35.0</span></span>
   <a class="link-external" href="https://github.com/Islandyout/engine">View source${iconHtml("external")}</a>
 </header>
 <nav>
@@ -676,6 +676,12 @@ async function startEditor() {
       const isVehicle = doc.scene.effectiveHas(entity, "Vehicle") ? 1 : 0;
       const isAi = doc.scene.effectiveHas(entity, "AIState") ? 1 : 0;
       const isPedestrian = doc.scene.effectiveHas(entity, "Pedestrian") ? 1 : 0;
+      // Vehicle.archetype/Pedestrian.archetype have been authorable for a
+      // while (their own PropertyMetadata dropdowns below) but previously
+      // discarded entirely -- editor_add now actually resolves the handling/
+      // wander profile it's told, not always the same one regardless.
+      const vehicleArchetype = doc.scene.resolve(entity, "Vehicle")?.archetype ?? 0;
+      const pedestrianArchetype = doc.scene.resolve(entity, "Pedestrian")?.archetype ?? 0;
       const health = doc.scene.resolve(entity, "Health");
       // hp_max <= 0 is the bridge's own "no Health" sentinel (see
       // editor_add's doc comment) — a real Health always has a positive max.
@@ -689,7 +695,7 @@ async function startEditor() {
         !runtime._editor_add(
           p.x, p.y, p.z, v.x, v.y, v.z, s.x, s.y, s.z, isChild, isPlayer,
           isCollider, hpCurrent, hpMax, isVehicle, isAi, isPedestrian,
-          colliderShape, colliderRadius,
+          colliderShape, colliderRadius, vehicleArchetype, pedestrianArchetype,
         )
       ) {
         runtime._editor_commit();

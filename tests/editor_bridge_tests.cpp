@@ -6,7 +6,8 @@
 extern "C" {
 void editor_begin();
 int editor_add(double, double, double, double, double, double, double, double, double, double,
-               double, double, double, double, double, double, double, double, double);
+               double, double, double, double, double, double, double, double, double, double,
+               double);
 void editor_set_script_source(int, const char *);
 int editor_commit();
 void editor_tick();
@@ -22,7 +23,7 @@ double editor_projectile_value(int, int);
 }
 namespace {
 int add_unit(double x, double y, double z, double vx, double vy, double vz) {
-    return editor_add(x, y, z, vx, vy, vz, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5);
+    return editor_add(x, y, z, vx, vy, vz, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0);
 }
 // key_for()'s own contract, mirrored here rather than re-derived from memory
 // each call site: 0=W, 1=A, 2=S, 3=D, 4=Shift, 5=F (attack), 6=G (blast).
@@ -62,24 +63,24 @@ int main() {
     // A taller box (size 1x4x1) rests with its bottom on the ground, not its unit-box
     // center: half-height 2, so y settles at 2, not 0.5.
     editor_begin();
-    check(editor_add(0, 5, 0, 0, 0, 0, 1, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1);
+    check(editor_add(0, 5, 0, 0, 0, 0, 1, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
     check(editor_commit() == 1);
     for (int i = 0; i < 120; ++i)
         editor_tick();
     check(std::abs(editor_value(0, 1) - 2) < 1e-6);
     // Non-finite or non-positive size is rejected, same as position/velocity.
     editor_begin();
-    check(editor_add(0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5) == 0);
+    check(editor_add(0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 0);
     check(editor_commit() == 0);
     editor_begin();
     check(editor_add(0, 0, 0, 0, 0, 0, std::numeric_limits<double>::infinity(), 1, 1, 0, 0, 0, 0, 0,
-                      0, 0, 0, 0, 0.5) == 0);
+                      0, 0, 0, 0, 0.5, 0, 0) == 0);
     check(editor_commit() == 0);
     // A hierarchy child (is_child nonzero) is not simulated: its local position, even one
     // that reads as "under the ground plane" in a bare world-space sense, passes straight
     // through untouched instead of being resolved against a ground it isn't actually at.
     editor_begin();
-    check(editor_add(1, -5, 2, 3, -9, 4, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1);
+    check(editor_add(1, -5, 2, 3, -9, 4, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
     check(editor_commit() == 1);
     for (int i = 0; i < 120; ++i)
         editor_tick();
@@ -101,7 +102,7 @@ int main() {
     // A player entity moves under held WASD (level-triggered: no per-tick
     // begin_frame() needed, since key_down persists until an explicit release).
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1);
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
     check(editor_commit() == 1);
     editor_input_begin_frame();
     editor_key(key_d, 1);
@@ -133,7 +134,7 @@ int main() {
 
     // A single jump tap arcs up, then falls back to rest under gravity alone once released.
     editor_begin();
-    check(editor_add(0, 5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1);
+    check(editor_add(0, 5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
     check(editor_commit() == 1);
     for (int i = 0; i < 120; ++i)
         editor_tick(); // fall and settle first, same as the plain-gravity case above
@@ -177,8 +178,8 @@ int main() {
     // Obstacle: unit box centered at x=3, so its near face sits at x=2.5. Player: unit box
     // starting at x=0, so it can approach to x=2 before the two boxes touch.
     editor_begin();
-    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5) == 1); // obstacle
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1); // player
+    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // obstacle
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // player
     check(editor_commit() == 1);
     editor_input_begin_frame();
     editor_key(key_d, 1);
@@ -191,7 +192,7 @@ int main() {
     // A plain moving entity (no Player tag, just RigidBody) is blocked the same way: Collider
     // resolution is generic physics, not something wired specially for the player.
     editor_begin();
-    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5) == 1); // obstacle
+    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // obstacle
     check(add_unit(0, 0.5, 0, 2, 0, 0) == 1); // plain mover, constant +x velocity
     check(editor_commit() == 1);
     for (int i = 0; i < 300; ++i)
@@ -206,7 +207,7 @@ int main() {
     // case above did (contact at 2.0), proving the authored radius is what's actually resolved
     // against, not just accepted and ignored.
     editor_begin();
-    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1.5) == 1); // sphere obstacle
+    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1.5, 0, 0) == 1); // sphere obstacle
     check(add_unit(0, 0.5, 0, 2, 0, 0) == 1); // plain mover, constant +x velocity
     check(editor_commit() == 1);
     for (int i = 0; i < 300; ++i)
@@ -217,7 +218,7 @@ int main() {
     // A hierarchy child authored with a Collider is not turned into a world obstacle: its
     // position is parent-relative, so an unrelated body must pass straight through unblocked.
     editor_begin();
-    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0.5) == 1); // child, ignored as obstacle
+    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // child, ignored as obstacle
     check(add_unit(0, 0.5, 0, 2, 0, 0) == 1); // plain mover, constant +x velocity
     check(editor_commit() == 1);
     for (int i = 0; i < 300; ++i)
@@ -228,8 +229,8 @@ int main() {
     // press; three hits defeats a fresh 60/60 target, which then reports dead instead of
     // stale position/health data.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1);       // player, index 0
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60, 0, 0, 0, 0, 0.5) == 1);     // target, index 1, overlapping
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);       // player, index 0
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60, 0, 0, 0, 0, 0.5, 0, 0) == 1);     // target, index 1, overlapping
     check(editor_commit() == 1);
     check(editor_alive(1) == 1);
     check(std::abs(editor_value(1, 3) - 1.0) < 1e-6);
@@ -251,7 +252,7 @@ int main() {
     // Attacking never damages the attacking player itself, even if it also carries Health
     // (self-overlap is trivially true).
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 60, 60, 0, 0, 0, 0, 0.5) == 1); // player with its own Health
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 60, 60, 0, 0, 0, 0, 0.5, 0, 0) == 1); // player with its own Health
     check(editor_commit() == 1);
     attack_once();
     check(std::abs(editor_value(0, 3) - 1.0) < 1e-6); // unchanged: F never hits the attacker
@@ -259,8 +260,8 @@ int main() {
     // Ranged blast: G fires a projectile at the nearest Health entity; on contact it damages
     // that entity by blast_damage (15) and disappears.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1);   // player, index 0
-    check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60, 0, 0, 0, 0, 0.5) == 1); // target, index 1
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);   // player, index 0
+    check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60, 0, 0, 0, 0, 0.5, 0, 0) == 1); // target, index 1
     check(editor_commit() == 1);
     check(editor_projectile_count() == 0);
     editor_input_begin_frame();
@@ -279,9 +280,9 @@ int main() {
 
     // Blast targets the *nearest* Health entity, not simply the first one found.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1);    // player, index 0
-    check(editor_add(10, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60, 0, 0, 0, 0, 0.5) == 1); // far target, index 1
-    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60, 0, 0, 0, 0, 0.5) == 1);  // near target, index 2
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);    // player, index 0
+    check(editor_add(10, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60, 0, 0, 0, 0, 0.5, 0, 0) == 1); // far target, index 1
+    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60, 0, 0, 0, 0, 0.5, 0, 0) == 1);  // near target, index 2
     check(editor_commit() == 1);
     editor_input_begin_frame();
     editor_key(key_g, 1);
@@ -297,7 +298,7 @@ int main() {
     // No Health entity anywhere to aim at: blast is simply a no-op, nothing spawned — same as
     // the native playground's own enemy.has_value() guard.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1); // player only
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // player only
     check(editor_commit() == 1);
     editor_input_begin_frame();
     editor_key(key_g, 1);
@@ -309,8 +310,8 @@ int main() {
     // lifetime runs out, dealing no damage — same outcome as the native playground's own
     // lifetime-exhausted branch.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1);    // player, index 0
-    check(editor_add(50, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60, 0, 0, 0, 0, 0.5) == 1); // far-off target, index 1
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);    // player, index 0
+    check(editor_add(50, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60, 0, 0, 0, 0, 0.5, 0, 0) == 1); // far-off target, index 1
     check(editor_commit() == 1);
     editor_input_begin_frame();
     editor_key(key_g, 1);
@@ -330,8 +331,8 @@ int main() {
     // before any tick ever consumed it. pending_attack/pending_blast (bridge.cpp) survive
     // that frame boundary instead, consumed only once a tick actually acts on them.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1);   // player, index 0
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60, 0, 0, 0, 0, 0.5) == 1); // target, index 1, overlapping
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);   // player, index 0
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60, 0, 0, 0, 0, 0.5, 0, 0) == 1); // target, index 1, overlapping
     check(editor_commit() == 1);
     editor_input_begin_frame(); // "frame" 1: the press arrives here...
     editor_key(key_f, 1);
@@ -343,8 +344,8 @@ int main() {
     // A blast never damages the entity that fired it, even though it spawns at that
     // entity's own position and, for the first tick or two, hasn't yet moved clear of it.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 60, 60, 0, 0, 0, 0, 0.5) == 1); // player with its own Health, index 0
-    check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60, 0, 0, 0, 0, 0.5) == 1); // target, index 1
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 60, 60, 0, 0, 0, 0, 0.5, 0, 0) == 1); // player with its own Health, index 0
+    check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60, 0, 0, 0, 0, 0.5, 0, 0) == 1); // target, index 1
     check(editor_commit() == 1);
     editor_input_begin_frame();
     editor_key(key_g, 1);
@@ -364,7 +365,7 @@ int main() {
     // right," not "world +x" — now moves along +z, while W now moves along +x: the felt
     // direction of a key follows the camera, not a fixed world axis.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1);
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
     check(editor_commit() == 1);
     editor_set_camera_forward(1, 0); // camera now faces world +x
     editor_input_begin_frame();
@@ -384,7 +385,7 @@ int main() {
     // steers and accelerates instead of strafing in an instant-direction. Starts facing
     // world +z (yaw 0, field 4) with zero speed.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0.5) == 1); // player + vehicle
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0) == 1); // player + vehicle
     check(editor_commit() == 1);
     check(std::abs(editor_value(0, 4)) < 1e-6);
     // Steering alone (no throttle) turns the heading without moving the vehicle at all —
@@ -400,7 +401,7 @@ int main() {
     // Holding the throttle builds speed gradually (momentum), not an instant velocity —
     // reset heading first so the rest of this case moves in a known, simple direction.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0.5) == 1);
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0) == 1);
     check(editor_commit() == 1);
     editor_input_begin_frame();
     editor_key(key_w, 1);
@@ -441,7 +442,7 @@ int main() {
     // Sustained full throttle caps at vehicle_max_forward (9 units/s): the per-tick advance
     // settles at 9/60, not an unbounded climb.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0.5) == 1);
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0) == 1);
     check(editor_commit() == 1);
     editor_input_begin_frame();
     editor_key(key_w, 1);
@@ -454,14 +455,78 @@ int main() {
     editor_tick();
     check(std::abs((editor_value(0, 2) - z_before) - 9.0 / 60.0) < 1e-3);
 
+    // Vehicle.archetype actually changes handling, not just accepted and ignored the way
+    // it was before this round: Sports (archetype 1) has higher accel/max_forward than Car
+    // (archetype 0, vehicle_tuning's own original single-profile baseline), so the same
+    // sustained throttle for the same duration must cover meaningfully more ground; Truck
+    // (archetype 2) the opposite, less than Car.
+    const auto vehicle_advance = [&](int archetype) {
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0.5, archetype, 0) == 1);
+        check(editor_commit() == 1);
+        editor_input_begin_frame();
+        editor_key(key_w, 1);
+        for (int i = 0; i < 150; ++i) {
+            editor_input_begin_frame();
+            editor_tick();
+        }
+        const double z = editor_value(0, 2);
+        editor_key(key_w, 0);
+        return z;
+    };
+    const double car_advance = vehicle_advance(0);
+    const double sports_advance = vehicle_advance(1);
+    const double truck_advance = vehicle_advance(2);
+    check(sports_advance > car_advance * 1.2); // meaningfully faster, not just noise
+    check(truck_advance < car_advance);
+
+    // Coast-down time (ticks from throttle release to a full stop) must grow with vehicle
+    // weight, not shrink: drag sets stop time (max_forward / drag), and a heavier vehicle
+    // (Truck, Bus) is tuned for lower drag -- more coast, not less -- than Car, so it takes
+    // longer, not less time, to coast to a stop after releasing the throttle. (An earlier
+    // build of this round had Truck/Bus drag *higher* than Car's, which flipped this exact
+    // relationship: it stopped them faster than Car, the opposite of the intended feel.)
+    const auto vehicle_coast_ticks = [&](int archetype) {
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0.5, archetype, 0) == 1);
+        check(editor_commit() == 1);
+        editor_input_begin_frame();
+        editor_key(key_w, 1);
+        for (int i = 0; i < 300; ++i) { // comfortably past every archetype's ramp to max_forward
+            editor_input_begin_frame();
+            editor_tick();
+        }
+        editor_key(key_w, 0);
+        int ticks = 0;
+        double coast_previous_z = editor_value(0, 2);
+        for (; ticks < 600; ++ticks) { // far more than enough to coast to a stop from any top speed
+            editor_input_begin_frame();
+            editor_tick();
+            const double z = editor_value(0, 2);
+            if (std::abs(z - coast_previous_z) < 1e-6)
+                break;
+            coast_previous_z = z;
+        }
+        return ticks;
+    };
+    check(vehicle_coast_ticks(2) > vehicle_coast_ticks(0)); // Truck coasts longer than Car
+    check(vehicle_coast_ticks(3) > vehicle_coast_ticks(0)); // Bus coasts longer than Car
+
+    // An out-of-range archetype is rejected outright, the same defensive posture as an
+    // out-of-range collider_shape/radius -- vehicle_tuning has 4 rows (Bus is the last), so
+    // index 4 is invalid.
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0.5, 4, 0) == 0);
+    check(editor_commit() == 0);
+
     // The vehicle's collision footprint rotates with its heading, not just its rendered
     // mesh: a long, narrow vehicle (half_x 0.5, half_z 1.5) placed with a gap only its
     // *turned* footprint (half_x becomes 1.5 once it's rotated a quarter turn) can reach
     // must sit untouched facing its long axis away from a nearby wall, then get pushed
     // back the instant steering turns its wide axis toward it.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 3, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0.5) == 1);   // vehicle, index 0
-    check(editor_add(1.8, 0.5, 0, 0, 0, 0, 2, 1, 2, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5) == 1); // wall, index 1
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 3, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0) == 1);   // vehicle, index 0
+    check(editor_add(1.8, 0.5, 0, 0, 0, 0, 2, 1, 2, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // wall, index 1
     check(editor_commit() == 1);
     for (int i = 0; i < 10; ++i)
         editor_tick(); // settle; no throttle held, so it shouldn't move regardless
@@ -482,7 +547,7 @@ int main() {
     // "expired" and rolls a fresh direction/state immediately, which is why state is
     // asserted moving (Walking=1 or Running=2), never Idle=0, right after that first tick.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.5) == 1); // AI, no player, no pedestrian
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.5, 0, 0) == 1); // AI, no player, no pedestrian
     check(editor_commit() == 1);
     editor_tick();
     const double wander_state_first_tick = editor_value(0, 5);
@@ -497,8 +562,8 @@ int main() {
     // unlike wander, chase/flee never consult agent.timer/rng, so this is deterministic
     // with no dependence on the seed.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.5) == 1); // AI, index 0
-    check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1); // Player, index 1
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.5, 0, 0) == 1); // AI, index 0
+    check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // Player, index 1
     check(editor_commit() == 1);
     editor_tick();
     check(editor_value(0, 5) == 5); // Chasing
@@ -511,8 +576,8 @@ int main() {
     // that it runs from the Player instead of toward it — self-preservation outranks pursuit
     // even for a non-Pedestrian entity that would otherwise chase.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 10, 100, 0, 1, 0, 0, 0.5) == 1); // AI at 10% health, index 0
-    check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1);    // Player, index 1
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 10, 100, 0, 1, 0, 0, 0.5, 0, 0) == 1); // AI at 10% health, index 0
+    check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);    // Player, index 1
     check(editor_commit() == 1);
     editor_tick();
     check(editor_value(0, 5) == 4); // Fleeing
@@ -525,21 +590,55 @@ int main() {
     // set — it never enters Chasing, falling back to wander instead, same as if the Player
     // weren't nearby at all. Not fleeing either: no Health means low_health is never true.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0.5) == 1); // pedestrian, index 0
-    check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1); // Player, index 1
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0.5, 0, 0) == 1); // pedestrian, index 0
+    check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // Player, index 1
     check(editor_commit() == 1);
     editor_tick();
     const double pedestrian_state = editor_value(0, 5);
     check(pedestrian_state == 1 || pedestrian_state == 2); // wandering, not 4 (Fleeing) or 5 (Chasing)
+
+    // Pedestrian.archetype actually personalizes wander pace, not just accepted and
+    // ignored the way it was before this round: Brisk (archetype 1) lingers less and
+    // moves faster than Casual (archetype 0, pedestrian_tuning's own original
+    // single-profile baseline, matching every AIAgent's wander feel before archetypes
+    // existed), so it must cover meaningfully more ground over the same duration;
+    // Lingering (archetype 2) the opposite, less than Casual. Each is the sole, first
+    // entity in its own session, so all three share the exact same rng seed -- any
+    // difference in total ground covered is down to the archetype alone, nothing else.
+    const auto wander_distance = [&](int archetype, int ticks) {
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0.5, 0, archetype) ==
+              1);
+        check(editor_commit() == 1);
+        double distance = 0.0, prev_x = editor_value(0, 0), prev_z = editor_value(0, 2);
+        for (int i = 0; i < ticks; ++i) {
+            editor_tick();
+            const double x = editor_value(0, 0), z = editor_value(0, 2);
+            distance += std::sqrt((x - prev_x) * (x - prev_x) + (z - prev_z) * (z - prev_z));
+            prev_x = x;
+            prev_z = z;
+        }
+        return distance;
+    };
+    const double casual_distance = wander_distance(0, 300);
+    const double brisk_distance = wander_distance(1, 300);
+    const double lingering_distance = wander_distance(2, 300);
+    check(brisk_distance > casual_distance);
+    check(lingering_distance < casual_distance);
+    // Out-of-range Pedestrian.archetype is rejected the same way -- pedestrian_tuning has
+    // 3 rows (Lingering is the last), so index 3 is invalid.
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0.5, 0, 3) == 0);
+    check(editor_commit() == 0);
 
     // A chasing AIAgent is still ordinary physics underneath — it stops at a Collider wall
     // like anything else with a RigidBody, rather than the AI system's velocity write
     // bypassing collision resolution. Same obstacle geometry as the Player-vs-Collider case
     // above: unit box centered at x=3, near face at x=2.5.
     editor_begin();
-    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5) == 1); // wall, index 0
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.5) == 1); // AI, index 1
-    check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1); // Player, index 2
+    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // wall, index 0
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.5, 0, 0) == 1); // AI, index 1
+    check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // Player, index 2
     check(editor_commit() == 1);
     for (int i = 0; i < 300; ++i)
         editor_tick(); // far more than enough time to cross the gap if the wall didn't stop it
@@ -559,8 +658,8 @@ int main() {
     // an unpredictable 2D direction — then flees at move_speed (4.8) once caught, just
     // outrunning the AI's own ai_run_speed cap (4.0) so the gap reliably opens up.
     editor_begin();
-    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.5) == 1); // AI, index 0
-    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5) == 1); // Player, index 1
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.5, 0, 0) == 1); // AI, index 0
+    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // Player, index 1
     check(editor_commit() == 1);
     for (int i = 0; i < 60; ++i)
         editor_tick(); // let it actually catch up and settle into chasing close by
@@ -626,6 +725,7 @@ int main() {
                  "melee, ranged blast combat, frame/tick-decoupled combat edges, shooter "
                  "self-immunity, camera-relative movement, vehicle accelerate/steer driving, "
                  "vehicle footprint rotation, AIAgent wander/chase/flee/pedestrian behavior, "
-                 "resuming wander cleanly after a chase/flee ends, and Script velocity control "
+                 "resuming wander cleanly after a chase/flee ends, Vehicle/Pedestrian archetype "
+                 "handling profiles (and their range validation), and Script velocity control "
                  "with compile-error reporting passed.\n";
 }

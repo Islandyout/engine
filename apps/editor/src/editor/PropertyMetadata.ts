@@ -13,6 +13,13 @@ export interface PropertyMetadata {
 }
 const choice = (values: readonly string[]) =>
   values.map((value) => ({ label: value, value }));
+// For a field whose stored value is its numeric position (Vehicle.archetype,
+// Pedestrian.archetype) rather than the label itself (AIState.state) --
+// order here must match the corresponding native enum's own declared order
+// (VehicleArchetype/PedestrianArchetype, bridge.cpp) exactly, since that
+// order is what main.ts's syncRuntime() actually sends to editor_add.
+const indexedChoice = (labels: readonly string[]) =>
+  labels.map((label, value) => ({ label, value }));
 const metadata: Record<string, PropertyMetadata> = {
   "AIState.state": {
     options: choice([
@@ -26,6 +33,14 @@ const metadata: Record<string, PropertyMetadata> = {
     ]),
   },
   "Collider.type": { options: choice(["AABB", "Sphere"]) },
+  "Pedestrian.archetype": {
+    label: "Archetype",
+    options: indexedChoice(["Casual", "Brisk", "Lingering"]),
+  },
+  "Vehicle.archetype": {
+    label: "Archetype",
+    options: indexedChoice(["Car", "Sports", "Truck", "Bus"]),
+  },
   "Renderable.mesh": {
     label: "Model",
     // Id 0 (the default box) isn't a modelCatalog entry — it's the fallback a
