@@ -796,6 +796,63 @@ const { chromium } = require("playwright");
       "",
       "(Automatic) must persist too, handing control back to ground-speed selection",
     );
+    // Inspector cleanup (0.34.0, right after F33 shipped): "Add component"
+    // was one flat list of 16 raw type names with related components
+    // (AIState/Pedestrian, Player/Vehicle, Renderable/AnimationState)
+    // scattered across it, and the new clip picker above was reachable only
+    // by knowing to add "AnimationState" first. Grouping must keep linked
+    // components in the same optgroup, and an animated Renderable must
+    // offer its own inline clip picker without that detour. Mannequin F
+    // (added earlier, nothing but Transform/Renderable attached) is the
+    // live entity for the "Add component" checks -- Wolf, still selected
+    // from the block just above, already has AnimationState attached and so
+    // no longer offers it in the list, which would be the wrong thing to
+    // assert against.
+    await page.locator(".entity").filter({ hasText: "Mannequin F" }).first().click();
+    const addComponent = page.getByLabel("Add component");
+    const groups = await addComponent.evaluate((sel) =>
+      [...sel.querySelectorAll("optgroup")].map((g) => ({
+        label: g.label,
+        options: [...g.children].map((o) => o.value),
+      })),
+    );
+    const gameplay = groups.find((g) => g.label === "Gameplay");
+    assert.ok(gameplay.options.includes("AIState") && gameplay.options.includes("Pedestrian"));
+    assert.ok(gameplay.options.includes("Player") && gameplay.options.includes("Vehicle"));
+    const movement = groups.find((g) => g.label === "Movement & Physics");
+    assert.ok(
+      ["Velocity", "Acceleration", "RigidBody", "Collider"].every((t) =>
+        movement.options.includes(t),
+      ),
+    );
+    // Friendlier labels than the raw type name, for the ones that need it --
+    // spot-checked by visible option text, not the (unchanged) value the
+    // rest of this suite's selectOption(...) calls still rely on.
+    const optionText = (value) =>
+      addComponent.locator(`option[value="${value}"]`).textContent();
+    assert.equal(await optionText("AIState"), "AI Behavior");
+    assert.equal(await optionText("RigidBody"), "Physics Body");
+    assert.equal(await optionText("AnimationState"), "Animation (advanced)");
+    // Mannequin F has no AnimationState attached yet: its Renderable card
+    // alone must offer a working clip picker, proving the feature doesn't
+    // require the "Add component" detour at all.
+    assert.equal(await page.locator('[aria-label="AnimationState.clip"]').count(), 0);
+    const inlineClip = page.locator('[aria-label="Renderable.animationClip"]');
+    const inlineOptions = await inlineClip.locator("option").allTextContents();
+    assert.ok(inlineOptions.includes("sit"), "Mannequin F's own clip set, offered inline");
+    await inlineClip.selectOption({ label: "sit" });
+    await page.locator(".entity").filter({ hasText: "Wolf" }).first().click();
+    await page.locator(".entity").filter({ hasText: "Mannequin F" }).first().click();
+    assert.equal(
+      await page.locator('[aria-label="Renderable.animationClip"]').inputValue(),
+      "sit",
+      "inline picker's choice persisted through a fresh render, same as the advanced card",
+    );
+    assert.equal(
+      await page.locator('[aria-label="AnimationState.clip"]').inputValue(),
+      "sit",
+      "picking from the inline picker attaches AnimationState -- the advanced card now agrees",
+    );
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -805,7 +862,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker passed.",
     );
   } finally {
     if (browser) await browser.close();

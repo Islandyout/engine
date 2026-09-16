@@ -6,7 +6,7 @@ import {
   type TransformSnapshot,
 } from "./TransformEdit";
 import type { AIStateName, EntityRef, Vec3 } from "../scene/Components";
-import { propertyMetadata } from "./PropertyMetadata";
+import { propertyMetadata, componentLabel, componentGroups } from "./PropertyMetadata";
 import { defaultComponent } from "../authoring/CommandInterpreter";
 import { CanvasRenderer } from "./CanvasRenderer";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -138,7 +138,7 @@ async function startEditor() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `<header>
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
-  <span class="brand-sub">BTAI Editor <span class="version">0.33.0</span></span>
+  <span class="brand-sub">BTAI Editor <span class="version">0.34.0</span></span>
   <a class="link-external" href="https://github.com/Islandyout/engine">View source${iconHtml("external")}</a>
 </header>
 <nav>
@@ -955,7 +955,7 @@ async function startEditor() {
       section.className = "component-card";
       section.open = true;
       const legend = document.createElement("summary");
-      legend.append(iconEl("cube", "icon-component"), textSpan(type, "component-title"));
+      legend.append(iconEl("cube", "icon-component"), textSpan(componentLabel(type), "component-title"));
       section.append(legend);
       // Generate fields from the component's serializable property shape; validation stays in authoring.
       const value = structuredClone(
@@ -1039,6 +1039,36 @@ async function startEditor() {
         }
       }
       fields(value, section);
+      // The common path for playing a clip: right in the Renderable card,
+      // next to the Model it belongs to, no separate "Add component ->
+      // Animation (advanced)" detour needed -- that card (AnimationState)
+      // still exists below when it's attached, for time/looping.
+      if (type === "Renderable" && catalogEntry((value as { mesh: number }).mesh)?.animated) {
+        const clipOptions = animationClipOptions(entity);
+        const clipLabel = document.createElement("label");
+        clipLabel.textContent = "Animation clip";
+        const clipSelect = document.createElement("select");
+        clipSelect.setAttribute("aria-label", "Renderable.animationClip");
+        for (const option of clipOptions)
+          clipSelect.add(new Option(option.label, String(option.value)));
+        clipSelect.disabled = clipOptions.length === 1;
+        clipSelect.value = doc.scene.resolve(entity, "AnimationState")?.clip ?? "";
+        clipSelect.onchange = () => {
+          const current = doc.scene.resolve(entity, "AnimationState") ?? {
+            clip: "",
+            time: 0,
+            looping: true,
+          };
+          execute({
+            command: "set_component",
+            entity,
+            type: "AnimationState",
+            value: { ...current, clip: clipSelect.value },
+          });
+        };
+        clipLabel.append(clipSelect);
+        section.append(clipLabel);
+      }
       const reset = document.createElement("button");
       reset.textContent = "Reset " + type;
       reset.onclick = () =>
@@ -1060,26 +1090,20 @@ async function startEditor() {
     const add = document.createElement("select");
     add.setAttribute("aria-label", "Add component");
     add.add(new Option("Add component…", ""));
-    for (const type of [
-      "Transform",
-      "Rotation",
-      "Scale",
-      "Velocity",
-      "Acceleration",
-      "RigidBody",
-      "Collider",
-      "Health",
-      "AIState",
-      "Pedestrian",
-      "Player",
-      "Vehicle",
-      "AnimationState",
-      "Renderable",
-      "Script",
-      "Sound",
-    ])
-      if (!doc.scene.effectiveHas(entity, type as keyof SceneComponents))
-        add.add(new Option(type, type));
+    // Grouped by componentGroups (PropertyMetadata.ts) so components that
+    // only make sense together (AIState/Pedestrian, Player/Vehicle,
+    // Renderable/AnimationState, the movement-and-collision chain) stay next
+    // to each other instead of one flat, alphabetical-ish list of 16.
+    for (const group of componentGroups) {
+      const available = group.types.filter(
+        (type) => !doc.scene.effectiveHas(entity, type as keyof SceneComponents),
+      );
+      if (available.length === 0) continue;
+      const optgroup = document.createElement("optgroup");
+      optgroup.label = group.label;
+      for (const type of available) optgroup.append(new Option(componentLabel(type), type));
+      add.add(optgroup);
+    }
     add.onchange = () => {
       if (add.value)
         execute({ command: "attach_component", entity, type: add.value });
