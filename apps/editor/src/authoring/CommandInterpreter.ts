@@ -235,9 +235,7 @@ export class CommandInterpreter {
   private setVelocity(command: Record<string, unknown>): CommandResult {
     const entity = requireEntity(this.scene, command.entity);
     const value = readVec3(command.velocity, "velocity");
-    const velocity = this.scene.get(entity, "Velocity");
-    if (velocity) velocity.value = value;
-    else this.scene.add(entity, "Velocity", { value });
+    this.writeComponent(entity, "Velocity", { value });
     return { ok: true, entity };
   }
 
@@ -246,30 +244,22 @@ export class CommandInterpreter {
     const dynamic = readBoolean(command.dynamic, "dynamic");
     const mass =
       command.mass === undefined
-        ? (this.scene.get(entity, "RigidBody")?.mass ?? 1)
+        ? (this.scene.resolve(entity, "RigidBody")?.mass ?? 1)
         : readPositive(command.mass, "mass");
-    const body = this.scene.get(entity, "RigidBody");
-    const next =
-      body ??
-      this.scene.add(entity, "RigidBody", {
-        mass,
-        inverseMass: dynamic ? 1 / mass : 0,
-        dynamic,
-      });
-    next.mass = mass;
-    next.dynamic = dynamic;
-    next.inverseMass = dynamic ? 1 / mass : 0;
-    if (!this.scene.has(entity, "Collider"))
-      this.scene.add(entity, "Collider", defaultCollider());
+    this.writeComponent(entity, "RigidBody", {
+      mass,
+      inverseMass: dynamic ? 1 / mass : 0,
+      dynamic,
+    });
+    if (!this.scene.effectiveHas(entity, "Collider"))
+      this.writeComponent(entity, "Collider", defaultCollider());
     return { ok: true, entity };
   }
 
   private setAiState(command: Record<string, unknown>): CommandResult {
     const entity = requireEntity(this.scene, command.entity);
     const state = readEnum(command.state, aiStates, "state");
-    const ai = this.scene.get(entity, "AIState");
-    if (ai) ai.state = state;
-    else this.scene.add(entity, "AIState", { state });
+    this.writeComponent(entity, "AIState", { state });
     return { ok: true, entity };
   }
 
@@ -280,13 +270,7 @@ export class CommandInterpreter {
       command.looping === undefined
         ? true
         : readBoolean(command.looping, "looping");
-    const animation = this.scene.get(entity, "AnimationState");
-    const next =
-      animation ??
-      this.scene.add(entity, "AnimationState", { clip, time: 0, looping });
-    next.clip = clip;
-    next.time = 0;
-    next.looping = looping;
+    this.writeComponent(entity, "AnimationState", { clip, time: 0, looping });
     return { ok: true, entity };
   }
 
@@ -381,15 +365,19 @@ export class CommandInterpreter {
     const name = readString(command.prefab, "prefab");
     if (!this.scene.hasPrefab(name)) throw new Error(`Unknown prefab: ${name}`);
     if (this.scene.entityCount >= 1024) throw new Error("Entity limit reached");
-    const entity = this.scene.createEntity();
+    // Parse every input before creating the entity -- a failed command never
+    // reaches Document's undo stack (see EditorDocument.execute), so an
+    // entity allocated before validation and then abandoned here would leak,
+    // unreachable and un-undoable.
     const position =
       command.transform === undefined
         ? { x: 0, y: 0, z: 0 }
         : readVec3(command.transform, "transform");
+    const instanceName = command.name === undefined ? undefined : readString(command.name, "name");
+    const entity = this.scene.createEntity();
     this.scene.add(entity, "Transform", { position });
     this.scene.add(entity, "PrefabInstance", { prefab: name });
-    if (command.name !== undefined)
-      this.scene.add(entity, "Name", { value: readString(command.name, "name") });
+    if (instanceName !== undefined) this.scene.add(entity, "Name", { value: instanceName });
     return { ok: true, entity };
   }
 
@@ -403,7 +391,11 @@ export class CommandInterpreter {
     const definition = this.scene.getPrefab(instance.prefab);
     if (definition)
       for (const [type, value] of Object.entries(definition.components))
-        this.scene.add(entity, type as PrefabableComponent, value as never);
+        // A clone, not the prefab's own object -- the prefab (and any still-
+        // linked instance) keeps that object; a later in-place edit on this
+        // now-standalone entity (set_physics et al. mutate their component
+        // in place) must not reach back into either.
+        this.scene.add(entity, type as PrefabableComponent, structuredClone(value) as never);
     this.scene.remove(entity, "PrefabInstance");
     return { ok: true, entity };
   }

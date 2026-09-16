@@ -233,3 +233,78 @@ test("prefabs: create, place, live-shared edits propagate, Transform stays per-i
     /unknown prefab/i,
   );
 });
+
+test("prefabs: specialized commands (set_velocity/set_physics/set_ai_state/trigger_animation) route through prefab storage too, not just set_component", () => {
+  const d = new EditorDocument();
+  const source = d.execute({ command: "spawn_entity", name: "Guard" }).entity!;
+  d.execute({ command: "attach_component", entity: source, type: "AIState" });
+  d.execute({ command: "create_prefab", entity: source, name: "Guard" });
+  const other = d.execute({ command: "place_instance", prefab: "Guard" }).entity!;
+
+  assert.equal(d.execute({ command: "set_ai_state", entity: source, state: "Chasing" }).ok, true);
+  assert.equal(
+    d.scene.resolve(other, "AIState")?.state,
+    "Chasing",
+    "set_ai_state on one instance must update the shared prefab, not create an entity-local override",
+  );
+
+  assert.equal(d.execute({ command: "set_velocity", entity: source, velocity: [1, 2, 3] }).ok, true);
+  assert.equal(d.scene.resolve(other, "Velocity")?.value.x, 1);
+
+  assert.equal(d.execute({ command: "set_physics", entity: source, dynamic: true, mass: 5 }).ok, true);
+  assert.equal(d.scene.resolve(other, "RigidBody")?.mass, 5);
+  assert.equal(d.scene.resolve(other, "Collider") !== undefined, true, "set_physics's default Collider is shared too");
+
+  assert.equal(
+    d.execute({ command: "trigger_animation", entity: source, clip: 3, looping: false }).ok,
+    true,
+  );
+  assert.equal(d.scene.resolve(other, "AnimationState")?.clip, 3);
+});
+
+test("prefabs: unlinking clones component data -- editing the unlinked entity never mutates the prefab or a sibling instance", () => {
+  const d = new EditorDocument();
+  const source = d.execute({ command: "spawn_entity", name: "Drone" }).entity!;
+  d.execute({ command: "attach_component", entity: source, type: "RigidBody" });
+  d.execute({ command: "create_prefab", entity: source, name: "Drone" });
+  const sibling = d.execute({ command: "place_instance", prefab: "Drone" }).entity!;
+  const unlinked = d.execute({ command: "place_instance", prefab: "Drone" }).entity!;
+
+  d.execute({ command: "unlink_instance", entity: unlinked });
+  d.execute({ command: "set_physics", entity: unlinked, dynamic: true, mass: 42 });
+  assert.equal(d.scene.get(unlinked, "RigidBody")?.mass, 42);
+  assert.equal(
+    d.scene.resolve(sibling, "RigidBody")?.mass,
+    1,
+    "editing the unlinked entity must not mutate the prefab's own RigidBody object",
+  );
+  assert.equal(d.scene.resolve(source, "RigidBody")?.mass, 1);
+});
+
+test("place_instance validates its inputs before creating an entity -- a failed call leaks nothing", () => {
+  const d = new EditorDocument();
+  const source = d.execute({ command: "spawn_entity", name: "Base" }).entity!;
+  d.execute({ command: "create_prefab", entity: source, name: "Base" });
+  const before = d.scene.entityCount;
+  assert.equal(
+    d.execute({ command: "place_instance", prefab: "Base", transform: "not-a-vec3" }).ok,
+    false,
+  );
+  assert.equal(d.scene.entityCount, before, "a failed place_instance must not leave a leaked entity behind");
+});
+
+test("a prefab literally named __proto__ round-trips through save/load", () => {
+  const d = new EditorDocument();
+  const source = d.execute({ command: "spawn_entity", name: "Odd" }).entity!;
+  d.execute({ command: "attach_component", entity: source, type: "Health" });
+  d.execute({ command: "create_prefab", entity: source, name: "__proto__" });
+  const saved = d.save();
+  assert.ok(
+    Object.prototype.hasOwnProperty.call(saved.prefabs ?? {}, "__proto__"),
+    "a prefab named __proto__ must serialize as a real own property, not silently vanish",
+  );
+  d.load(saved);
+  assert.equal(d.scene.hasPrefab("__proto__"), true);
+  const [[reloaded]] = d.scene.query("PrefabInstance");
+  assert.equal(d.scene.resolve(reloaded, "Health")?.maximum, 100);
+});

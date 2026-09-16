@@ -1724,3 +1724,25 @@ Parent/PrefabInstance touches).
   real inspector field and confirmed the other instance's own field read back the
   same new value live, then unlinked one instance and confirmed it kept its
   materialized value through a further shared edit that no longer reached it.
+- Post-review fixes (Codex, on PR #36): `set_velocity`/`set_physics`/`set_ai_state`/
+  `trigger_animation` read/wrote a linked instance's component directly instead of
+  through `writeComponent`, silently creating an entity-local override that stopped
+  following the shared prefab -- now routed the same way `set_component` already was.
+  `unlink_instance` handed the unlinked entity the prefab's own component objects by
+  reference rather than `structuredClone`d copies, so a later in-place edit (those
+  same four commands mutate their component in place) on the "unlinked" entity could
+  still corrupt the prefab and every instance still linked to it. `place_instance`
+  allocated its entity before validating `transform`/`name`, leaking an unreachable,
+  un-undoable entity on a validation failure -- inputs are parsed first now, matching
+  `spawn_entity`'s own convention. The prefab picker built its `<option>`s through
+  raw `innerHTML` string interpolation, which mis-parses a name containing `"`, `<`,
+  or `&` instead of just displaying it -- rebuilt with the `Option` constructor, the
+  same pattern already used elsewhere in this file. `serializeScene`'s prefab map was
+  built through incremental bracket assignment on a plain object literal, so a prefab
+  named `__proto__` would invoke that key's legacy setter instead of creating a real
+  own property and silently vanish from the saved file -- rebuilt through
+  `Object.fromEntries` instead, immune to the same footgun `JSON.parse` already is.
+  Four new cases added to `document.test.ts` covering all of the above; `npm run
+  typecheck` and `npm test` (32/32, up from 28) both pass; the real-browser suite
+  gained a check placing an instance of a prefab named `Boss "Red" & Co` through the
+  picker, re-verified clean end to end.

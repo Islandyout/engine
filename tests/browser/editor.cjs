@@ -540,6 +540,20 @@ const { chromium } = require("playwright");
       "55",
       "an unlinked instance keeps its materialized value, unaffected by further shared edits",
     );
+    // A prefab name containing markup-sensitive characters must still round-trip
+    // through the picker -- it's built via the Option constructor, not raw
+    // innerHTML string interpolation.
+    await page.locator("#add").click();
+    await page.locator(".entity").last().click();
+    page.once("dialog", (dialog) => dialog.accept('Boss "Red" & Co'));
+    await page.getByRole("button", { name: "Make prefab…" }).click();
+    await page.locator("#prefab-select").selectOption('Boss "Red" & Co');
+    const entitiesBeforeOddPlace = await page.locator(".entity").count();
+    await page.locator("#prefab-place").click();
+    await page.waitForFunction(
+      (before) => document.querySelectorAll(".entity").length === before + 1,
+      entitiesBeforeOddPlace,
+    );
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL

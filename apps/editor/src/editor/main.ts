@@ -687,7 +687,11 @@ async function startEditor() {
     const select = el<HTMLSelectElement>("prefab-select");
     const previous = select.value;
     const names = doc.scene.prefabNames();
-    select.innerHTML = names.map((name) => `<option value="${name}">${name}</option>`).join("");
+    // Options built with the Option constructor, not innerHTML string
+    // interpolation -- a prefab name is arbitrary user text (it can contain
+    // ", <, & ...) and innerHTML would mis-parse it instead of just
+    // rendering it literally.
+    select.replaceChildren(...names.map((name) => new Option(name, name)));
     if (names.includes(previous)) select.value = previous;
     const hasPrefabs = names.length > 0;
     select.hidden = !hasPrefabs;

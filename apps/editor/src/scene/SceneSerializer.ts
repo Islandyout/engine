@@ -33,11 +33,18 @@ export function serializeScene(scene: Scene, name?: string): SceneDocument {
   scene
     .eachAlive()
     .forEach((entity, index) => indexByEntity.set(entity.index, index));
-  const prefabs: Record<string, { components: Record<string, unknown> }> = {};
-  for (const [prefabName, definition] of scene.prefabEntries())
-    prefabs[prefabName] = {
-      components: jsonValue(definition.components) as Record<string, unknown>,
-    };
+  // Object.fromEntries, not incremental bracket assignment (prefabs[name] =
+  // ...) on a plain object literal -- a prefab literally named "__proto__"
+  // would invoke that key's legacy prototype setter instead of creating an
+  // enumerable own property, silently dropping it from Object.keys/entries
+  // later (on save here, and were it built this way, on load too).
+  const prefabs: Record<string, { components: Record<string, unknown> }> =
+    Object.fromEntries(
+      scene.prefabEntries().map(([prefabName, definition]) => [
+        prefabName,
+        { components: jsonValue(definition.components) as Record<string, unknown> },
+      ]),
+    );
   return {
     format: 1,
     ...(name ? { name } : {}),
