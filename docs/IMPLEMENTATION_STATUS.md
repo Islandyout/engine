@@ -1544,3 +1544,96 @@ right components).
   `Bystander` walked the full width of the arena, with correct walk-cycle animation and
   facing, entirely from F25's existing position-delta-driven systems and zero new
   rendering code.
+
+## F28 — Scripting hook: embedded Lua `Script` component (0.28.0)
+
+An engineering audit comparing this editor against Unity/Unreal/Godot/Bevy/PlayCanvas
+concluded the one gap that actually matters is that every piece of gameplay behavior —
+walk, drive, melee, blast, wander/chase/flee — is a hardcoded C++ system; there was no
+way to add new gameplay logic without editing and recompiling the engine itself. Every
+comparable real engine gives an author that from inside the editor. This round closes
+that gap with a `Script` component: attach it to any entity, write Lua in the inspector,
+and it runs.
+
+Lua 5.4.7 is vendored (`third_party/lua/`) rather than depending on an external package,
+so the same interpreter runs identically native and in the WASM browser build — chosen
+specifically for that native/browser parity. Only the `base`, `table`, `string`, `math`,
+`utf8`, and `coroutine` standard libraries are available to a script: `os`, `io`, and
+`package`/`require` aren't just left unopened at runtime, their source files
+(`loslib.c`, `liolib.c`, `loadlib.c`, `ldblib.c`) are excluded from the build entirely,
+so no script can touch the filesystem, spawn a process, or load another module, however
+it's written. `load`/`loadstring`/`dofile`/`loadfile` are nilled out after the base
+library opens, closing the one remaining way a script could generate and run new code at
+runtime. A `lua_sethook` instruction-count watchdog (2,000,000 instructions per tick)
+catches a runaway `while true do end` deterministically, independent of the host
+machine's speed. A script that fails to compile or errors at runtime is reported once
+through an error callback and then permanently skipped — never retried, never crashes
+the rest of the simulation — the same "never crash on bad input" posture as scene
+loading.
+
+`engine::script::Runtime` (`include/engine/script/script.hpp`,
+`source/engine/script/script.cpp`) owns one `lua_State` per scripted entity in a side
+table, not inside the ECS `Script` component itself — `Script` stays the trivially
+copyable `{source: std::string}` that `World::Store<T>`'s `std::map`-backed storage
+expects, while the VM's lifetime and any raw pointers live in `Runtime`, created lazily
+and torn down when the entity's `Script` is removed. Each fixed tick, `Runtime::step`
+builds a fresh `self` table (`x`/`y`/`z` mirroring the entity's `Box.center`, read-only;
+`vx`/`vy`/`vz` seeded from the entity's current `RigidBody.velocity`) and calls the
+script's `on_tick(dt)` if defined, then writes `self.vx`/`vy`/`vz` back to
+`RigidBody.velocity` — the same "script/AI writes velocity, physics integrates it"
+convention `Player`, `Vehicle`, and `AIAgent` already use, so a scripted entity collides,
+falls, and is blocked by `Collider`s exactly like everything else.
+
+`apps/editor/runtime/bridge.cpp` registers `engine::script::Script`, runs
+`editor.script` as a `FixedPhase::update` system, and adds two new numeric-ABI-breaking
+exports — `editor_set_script_source(int index, const char *source)` and
+`editor_script_error(int index)` — since the existing `editor_add`-style exports are all
+`double`s and can't carry a string. The WASM build already had no string marshaling
+wired up at all, so `tools/build_editor.sh` now also passes
+`-sEXPORTED_RUNTIME_METHODS=ccall`, and the TS side calls these two through
+`runtime.ccall(...)` instead of a direct `_functionName()` call.
+
+On the TS side, `Script` is a normal component: `Components.ts`/`Scene.ts` add the type,
+`CommandInterpreter.ts` gives it a starter `on_tick` template when added through the
+inspector's "Add component" dropdown, and `SceneSerializer.ts` validates `source` as a
+string on load. `PropertyMetadata.ts` gained a `multiline` flag so `Script.source`
+renders as a `<textarea>` in the inspector instead of a single-line `<input>` — the only
+field in the editor that needs more than one line. `main.ts`'s status bar gained a
+`selectedScriptErrorReadout` (`· Script error: <message>`) — a script's only feedback
+that something's wrong is otherwise a silently inert entity with no visible cause.
+
+Scripting is deliberately scoped to the browser editor this round: `engine::script` is
+ordinary shared engine-core code, reusable from `apps/native_playground` in principle,
+but wiring it into the native playground wasn't done here — the goal was making a game
+through the existing editor, not expanding the native playground's own surface.
+
+### F28 verification
+
+- `tests/script_tests.cpp` (new, native): a script that writes `self.vx`/`vy`/`vz` moves
+  the entity through real physics integration; `self.x`/`y`/`z` reflect `Box.center` but
+  writing to them has no effect; an entity with `Script` but no `on_tick` is a no-op, not
+  an error; a compile error and a runtime error are each reported to the error handler
+  exactly once and the entity is skipped on every later tick, never retried; `os`/`io`
+  are unavailable to a script (calling them errors, doesn't hang or crash); an infinite
+  loop is caught by the instruction watchdog instead of hanging the test; removing
+  `Script` from an entity tears down its VM; two scripted entities keep fully isolated
+  Lua state from each other.
+- Extended `tests/editor_bridge_tests.cpp`: `editor_set_script_source` drives real
+  movement with zero input; a compiling-but-broken script's error surfaces verbatim
+  through `editor_script_error`; an entity with no `Script` set reports no error.
+- Full native rebuild + `ctest`: all 14 cases (up from 13) pass. GCC 13.3.0 build with
+  `-fsanitize=undefined,address`: clean, including through the vendored Lua sources
+  linked in (compiled separately, outside this project's own `-Wall -Wextra -Wpedantic
+  -Wconversion -Wshadow -Werror` flag set, since they're third-party code).
+- `apps/editor/tests/document.test.ts`: `Script` attaches with the starter template,
+  edits round-trip through save/load, and a malformed (non-string) `source` is rejected
+  on load. `npm run typecheck` and `npm test` (27/27, up from 26) both pass.
+- Built the real Emscripten/WASM editor runtime (Lua compiled in via a new
+  `tools/build_editor.sh` step, `runtime.js` growing from ~131KB to ~451KB) and ran it
+  through genuine WebGL via Playwright: attached `Script` to a fresh entity through the
+  real inspector UI, gave it a sin/cos orbiting `on_tick`, hit Play, and confirmed via
+  before/after screenshots that the entity visibly moved under the script's own control
+  with no key ever pressed — then confirmed separately that a deliberately broken script
+  surfaces its exact Lua error (`')' expected near 'this'`) through the status bar
+  instead of failing silently. `tests/browser/editor.cjs` gained a permanent assertion
+  version of both checks.

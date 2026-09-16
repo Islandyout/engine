@@ -120,3 +120,37 @@ test("Player is a fieldless marker component that survives save/load", () => {
   );
   assert.equal(d.scene.has(reloaded, "Player"), false);
 });
+
+test("Script attaches with a starter template, edits round-trip through save/load, and a non-string source is rejected", () => {
+  const d = new EditorDocument();
+  const entity = d.execute({ command: "spawn_entity", name: "Scripted" }).entity!;
+  assert.equal(
+    d.execute({ command: "attach_component", entity, type: "Script" }).ok,
+    true,
+  );
+  assert.match(d.scene.get(entity, "Script")!.source, /on_tick/);
+  assert.equal(
+    d.execute({
+      command: "set_component",
+      entity,
+      type: "Script",
+      value: { source: "function on_tick(dt) self.vx = 2 end" },
+    }).ok,
+    true,
+  );
+  assert.equal(d.execute({ command: "save_scene", path: "script-test" }).ok, true);
+  d.execute({ command: "destroy_entity", entity });
+  assert.equal(d.execute({ command: "load_scene", path: "script-test" }).ok, true);
+  const [[reloaded]] = d.scene.query("Script");
+  assert.ok(reloaded, "Script component did not survive save/load");
+  assert.equal(
+    d.scene.get(reloaded, "Script")!.source,
+    "function on_tick(dt) self.vx = 2 end",
+  );
+  assert.throws(() =>
+    d.load({
+      format: 1,
+      entities: [{ name: "Bad", components: { Script: { source: 42 } } }],
+    }),
+  );
+});

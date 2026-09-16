@@ -138,6 +138,7 @@ const componentNames = [
   "Renderable",
   "Name",
   "Parent",
+  "Script",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -221,6 +222,8 @@ export function normalizeComponent(
       return {
         archetype: unsigned(value.archetype, "Pedestrian.archetype", 0),
       };
+    case "Script":
+      return { source: string(value.source, "Script.source") };
     case "Player":
       return {};
     case "Vehicle":

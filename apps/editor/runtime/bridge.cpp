@@ -1,9 +1,12 @@
 #include "engine/physics/physics.hpp"
+#include "engine/script/script.hpp"
 #include "engine/world/fixed_systems.hpp"
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -195,6 +198,8 @@ struct Runtime {
     // down -z, which this default simply assumes until told otherwise.
     float camera_forward_x{0.0F};
     float camera_forward_z{-1.0F};
+    engine::script::Runtime script_runtime;
+    std::map<engine::Entity, std::string> script_errors;
     Runtime() {
         world.register_component<engine::Box>("editor.box");
         world.register_component<engine::physics::RigidBody>("editor.rigid_body");
@@ -205,6 +210,14 @@ struct Runtime {
         world.register_component<Heading>("editor.heading");
         world.register_component<AIAgent>("editor.ai_agent");
         world.register_component<Pedestrian>("editor.pedestrian");
+        world.register_component<engine::script::Script>("editor.script");
+        // Recorded once per entity, the first time its script fails to compile
+        // or errors at runtime (engine::script::Runtime's own "reported once,
+        // not retried every tick" contract) — editor_script_error() reads this
+        // back so the editor can show a script author what went wrong, instead
+        // of a silently-inert entity with no visible cause.
+        script_runtime.set_error_handler(
+            [this](engine::Entity entity, const std::string &message) { script_errors[entity] = message; });
         // Order 1: an AIAgent drives its own velocity the same way editor.move
         // drives the Player's, and must also land before physics (order 10)
         // integrates it. Ordered just after editor.move (0), not before it or
@@ -334,6 +347,20 @@ struct Runtime {
                     agent.state = next_state;
                 }
             });
+        // Order 2: a Script entity drives its own velocity the same way an
+        // AIAgent or the Player does, and likewise must land before physics
+        // (order 10) integrates it. Ordered after editor.ai (1), not before
+        // or at the same order, for the same reason editor.ai sits after
+        // editor.move (0): a fixed, unambiguous run order between systems
+        // that don't touch the same entity by authoring convention, not a
+        // real dependency. An entity authored with both AIState and Script
+        // gets both an AIAgent and a Script instance; whichever ran last (here,
+        // this one) simply overwrites the other's velocity write that tick —
+        // not a crash, just not a combination there's a reason to author.
+        systems.add("editor.script", engine::FixedPhase::update, 2,
+                    [this](engine::World &w, const engine::FixedUpdateContext &) {
+                        script_runtime.step(w, 1.0F / 60.0F);
+                    });
         // Order 0: apply this tick's input to the player's velocity before
         // order 10 integrates it — matches the native playground's own
         // move-then-physics ordering.
@@ -607,6 +634,23 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
     staging->entities.push_back(e);
     return 1;
 }
+// Sets (or replaces) an entity's Lua script source between editor_begin() and
+// editor_commit() — editor_add's own all-double signature has no way to carry
+// a string, so a scripted entity's source is set through this companion call
+// instead, keyed by the same index editor_add returns entities in (see its
+// own doc comment). index must refer to an entity already added this staging
+// session; out of range, or called outside editor_begin()/editor_commit(), is
+// a silent no-op, the same defensive posture as editor_value's own
+// out-of-range handling. Setting an entity's Script gives it a RigidBody
+// (added unconditionally for every non-child entity, see editor_add's is_child
+// handling) but nothing else — a scripted entity is otherwise ordinary
+// authored data, not implicitly a Player or an AIAgent.
+EXPORT void editor_set_script_source(int index, const char *source) {
+    if (!staging || index < 0 || static_cast<std::size_t>(index) >= staging->entities.size())
+        return;
+    staging->world.set(staging->entities[static_cast<std::size_t>(index)],
+                        engine::script::Script{source != nullptr ? source : ""});
+}
 EXPORT int editor_commit() {
     if (!staging || failed) {
         staging.reset();
@@ -701,6 +745,25 @@ EXPORT int editor_alive(int index) {
     return active->world.alive(active->entities[static_cast<std::size_t>(index)]) ? 1 : 0;
 }
 EXPORT int editor_count() { return static_cast<int>(active->world.size()); }
+// The most recent compile/runtime error recorded for the entity at this
+// index's script (Runtime::script_errors, populated once per entity by
+// engine::script::Runtime's own error handler — see the Runtime constructor),
+// or an empty string if it has none. Lets the editor show a script author
+// what went wrong instead of a silently inert entity with no visible cause.
+// Out of range or no error both return "".
+EXPORT const char *editor_script_error(int index) {
+    static std::string result; // must outlive the call for Emscripten's ccall(...,
+                                // 'string') to read it back; safe since JS only ever
+                                // calls this synchronously and never holds the
+                                // returned pointer past that call.
+    result.clear();
+    if (index >= 0 && static_cast<std::size_t>(index) < active->entities.size()) {
+        const auto found = active->script_errors.find(active->entities[static_cast<std::size_t>(index)]);
+        if (found != active->script_errors.end())
+            result = found->second;
+    }
+    return result.c_str();
+}
 // Projectiles are spawned entirely at runtime (a "blast" press), so unlike every other entity
 // here they have no place in the entities/editor_add-indexed list synced from the authoring
 // document — this pair lets JS enumerate and draw whichever ones currently exist instead.

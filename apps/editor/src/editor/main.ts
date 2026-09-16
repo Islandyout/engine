@@ -111,6 +111,23 @@ type Runtime = {
   _editor_key(code: number, down: number): void;
   _editor_projectile_count(): number;
   _editor_projectile_value(index: number, field: number): number;
+  // editor_set_script_source/editor_script_error's own doc comments (bridge.cpp)
+  // explain why these two go through ccall instead of a direct _editor_*
+  // binding like everything above: a Lua source string, and an error message
+  // string, can't travel through the all-double ABI the rest of this type
+  // uses. Exported via -sEXPORTED_RUNTIME_METHODS=ccall in tools/build_editor.sh.
+  ccall(
+    name: "editor_set_script_source",
+    returnType: null,
+    argTypes: ["number", "string"],
+    args: [number, string],
+  ): void;
+  ccall(
+    name: "editor_script_error",
+    returnType: "string",
+    argTypes: ["number"],
+    args: [number],
+  ): string;
 };
 declare const createEditorRuntime: () => Runtime | Promise<Runtime>;
 async function startEditor() {
@@ -120,7 +137,7 @@ async function startEditor() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `<header>
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
-  <span class="brand-sub">BTAI Editor <span class="version">0.27.0</span></span>
+  <span class="brand-sub">BTAI Editor <span class="version">0.28.0</span></span>
   <a class="link-external" href="https://github.com/Islandyout/engine">View source${iconHtml("external")}</a>
 </header>
 <nav>
@@ -565,6 +582,18 @@ async function startEditor() {
           "Runtime rejects coordinates/velocity outside ±1,000,000",
         );
       }
+      // editor_add's own all-double ABI has no way to carry a Lua source
+      // string, so a scripted entity's source is set through this companion
+      // call instead (see editor_set_script_source's own doc comment,
+      // bridge.cpp) — same index editor_add just placed this entity at.
+      const script = doc.scene.get(entity, "Script");
+      if (script)
+        runtime.ccall(
+          "editor_set_script_source",
+          null,
+          ["number", "string"],
+          [index, script.source],
+        );
     });
     if (!runtime._editor_commit())
       throw new Error("Runtime scene commit failed");
@@ -789,6 +818,21 @@ async function startEditor() {
             host.append(label);
             continue;
           }
+          if (meta.multiline) {
+            label.className = "field-row-multiline";
+            const textarea = document.createElement("textarea");
+            textarea.setAttribute("aria-label", `${type}.${prefix}${key}`);
+            textarea.className = "field-multiline";
+            textarea.readOnly = meta.readOnly ?? false;
+            textarea.value = String(v);
+            textarea.onchange = () => {
+              record[key] = textarea.value;
+              execute({ command: "set_component", entity, type, value });
+            };
+            label.append(textarea);
+            host.append(label);
+            continue;
+          }
           const input = document.createElement("input");
           input.setAttribute("aria-label", `${type}.${prefix}${key}`);
           input.type =
@@ -851,6 +895,7 @@ async function startEditor() {
       "Vehicle",
       "AnimationState",
       "Renderable",
+      "Script",
     ])
       if (!doc.scene.has(entity, type as keyof SceneComponents))
         add.add(new Option(type, type));
@@ -1235,7 +1280,18 @@ async function startEditor() {
       runtime._editor_alive(selectedIndex)
         ? ` · Selected AI: ${aiStateNames[runtime._editor_value(selectedIndex, 5)] ?? "Idle"} (${runtime._editor_value(selectedIndex, 0).toFixed(1)}, ${runtime._editor_value(selectedIndex, 2).toFixed(1)})`
         : "";
-    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout}${selectedHealthReadout}${selectedAiReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider collision, Health-based combat (F melee, G blast), Vehicle driving (W/S/A/D) and AIState/Pedestrian wander/chase/flee are simulated`;
+    // A script author's only feedback that something's wrong: a compile or
+    // runtime error is otherwise a silently inert entity with no visible
+    // cause (see editor_script_error's own doc comment, bridge.cpp, on why
+    // that's the one thing surfaced here rather than every field of `self`).
+    const selectedScriptErrorReadout =
+      doc.mode === "play" && selectedIndex >= 0 && doc.scene.has(doc.selection!, "Script")
+        ? (() => {
+            const error = runtime.ccall("editor_script_error", "string", ["number"], [selectedIndex]);
+            return error ? ` · Script error: ${error}` : "";
+          })()
+        : "";
+    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout}${selectedHealthReadout}${selectedAiReadout}${selectedScriptErrorReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider collision, Health-based combat (F melee, G blast), Vehicle driving (W/S/A/D), AIState/Pedestrian wander/chase/flee, and Script (Lua on_tick) are simulated`;
     requestAnimationFrame(frame);
   }
   const cameraForwardScratch = new THREE.Vector3();

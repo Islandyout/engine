@@ -2,10 +2,12 @@
 #include <iostream>
 #include <limits>
 #include <stdexcept>
+#include <string>
 extern "C" {
 void editor_begin();
 int editor_add(double, double, double, double, double, double, double, double, double, double,
                double, double, double, double, double, double, double);
+void editor_set_script_source(int, const char *);
 int editor_commit();
 void editor_tick();
 void editor_input_begin_frame();
@@ -14,6 +16,7 @@ void editor_key(int, int);
 double editor_value(int, int);
 int editor_alive(int);
 int editor_count();
+const char *editor_script_error(int);
 int editor_projectile_count();
 double editor_projectile_value(int, int);
 }
@@ -569,11 +572,44 @@ int main() {
     check(state_after_leaving == 1 || state_after_leaving == 2); // Walking/Running, not stuck Chasing
     editor_key(key_d, 0);
 
+    // Script: editor_set_script_source's own doc comment explains why a script's source can't
+    // travel through editor_add's all-double signature — a plain entity (no is_player/is_ai/etc,
+    // same as add_unit) gets a working script that sets self.vx, and moves entirely on its own
+    // with no key ever pressed and no AIState/Vehicle authored, proving the bridge wiring (not
+    // just engine::script::Runtime's own already-covered native tests) actually runs it.
+    editor_begin();
+    check(add_unit(0, 0.5, 0, 0, 0, 0) == 1);
+    editor_set_script_source(0, "function on_tick(dt) self.vx = 3 end");
+    check(editor_commit() == 1);
+    for (int i = 0; i < 30; ++i)
+        editor_tick();
+    check(editor_value(0, 0) > 0.4); // moved from spawn under its own script, no input at all
+    check(std::string(editor_script_error(0)).empty()); // a working script reports no error
+
+    // A script that fails to compile is surfaced through editor_script_error instead of being a
+    // silently inert entity with no visible cause — the whole point of exposing it at all.
+    editor_begin();
+    check(add_unit(0, 0.5, 0, 0, 0, 0) == 1);
+    editor_set_script_source(0, "function on_tick(dt this is not valid lua");
+    check(editor_commit() == 1);
+    editor_tick();
+    check(!std::string(editor_script_error(0)).empty());
+    check(std::abs(editor_value(0, 0)) < 1e-6); // broken from tick one, so it never actually moved
+
+    // An entity with no script source ever set (editor_set_script_source not called) carries no
+    // Script component at all and reports no error — a plain unscripted entity, not a broken one.
+    editor_begin();
+    check(add_unit(0, 0.5, 0, 0, 0, 0) == 1);
+    check(editor_commit() == 1);
+    editor_tick();
+    check(std::string(editor_script_error(0)).empty());
+
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
                  "movement, jump/sustained-flight, Collider obstacle blocking, melee, ranged blast "
                  "combat, frame/tick-decoupled combat edges, shooter self-immunity, camera-relative "
                  "movement, vehicle accelerate/steer driving, vehicle footprint rotation, AIAgent "
-                 "wander/chase/flee/pedestrian behavior, and resuming wander cleanly after a "
-                 "chase/flee ends passed.\n";
+                 "wander/chase/flee/pedestrian behavior, resuming wander cleanly after a "
+                 "chase/flee ends, and Script velocity control with compile-error reporting "
+                 "passed.\n";
 }
