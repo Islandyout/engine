@@ -1813,3 +1813,19 @@ into a scene that's no longer playing.
   produced a real `start` call; Pause produced `suspend`; Play again (resuming)
   produced `resume`; Stop produced `stop`. Added as a permanent assertion sequence to
   `tests/browser/editor.cjs`.
+- Post-review fixes (Codex, on PR #37), both real races in `startSounds()`: (1) an
+  already-cached clip's synchronous playback path checked `doc.mode` before the Play
+  handler had actually set it to `"play"`, so every already-decoded clip went silent
+  from the second Play onward — `doc.mode` is now set before `startSounds()` runs,
+  not after. (2) a clip still mid-decode when Stop, then Play again, happened before
+  it resolved attached both Play sessions' callbacks to the one shared decode
+  promise (`loadSoundBuffer`'s cache is keyed by clip id, not by session), so both
+  fired and the second `activeSounds.set()` left Stop unable to reach the first,
+  leaking a looping source until the page reloaded — a `playSession` counter, bumped
+  on every fresh Play and captured per callback, now rejects a stale session's
+  callback before it can start a source. Verified by temporarily reverting the fix
+  and confirming a new regression test in `tests/browser/editor.cjs` genuinely fails
+  against the old code (times out waiting for the second `start`), then passes clean
+  once restored; the second race is reproduced deterministically via a test-only
+  `decodeAudioData` gate the harness can hold open and release on cue, not by
+  hoping real network/decode timing happens to line up.

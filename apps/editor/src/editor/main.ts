@@ -486,15 +486,26 @@ async function startEditor() {
   // populated on Play start, torn down on Stop, so a sound never keeps
   // playing (or gets started twice) across a Stop/Play cycle.
   const activeSounds = new Map<number, AudioBufferSourceNode>();
+  // Bumped on every fresh Play (edit -> play). A clip load kicked off by one
+  // Play session can still be in flight (loadSoundBuffer's promise cache is
+  // keyed by clip id, not by session) when Stop, then Play again, happens
+  // before it resolves -- without this, both the stale and the fresh
+  // session's callback would fire off that one shared promise, starting two
+  // independent sources for the same entity; the second activeSounds.set()
+  // would then only ever let Stop reach one of them, leaking the other
+  // (audibly, forever, for a looping clip) until the page reloads.
+  let playSession = 0;
   function startSounds() {
+    const session = ++playSession;
     const context = getAudioContext();
     doc.scene.eachAlive().forEach((entity, index) => {
       const sound = doc.scene.resolve(entity, "Sound");
       if (!sound?.autoplay) return;
       const play = (buffer: AudioBuffer) => {
         // An async clip load can resolve after the session that requested
-        // it already ended (Stop, or a second Play/Stop cycle) -- never
-        // start a sound into a scene that's no longer playing.
+        // it already ended: doc.mode catches "stopped, never replayed";
+        // playSession catches "stopped, then replayed before this settled".
+        if (session !== playSession) return;
         if (doc.mode !== "play" && doc.mode !== "pause") return;
         const source = context.createBufferSource();
         source.buffer = buffer;
@@ -1100,11 +1111,17 @@ async function startEditor() {
         const playerObject = playerIndex >= 0 ? objects[playerIndex] : undefined;
         playerBaseScale = playerObject ? playerObject.scale.clone() : null;
         playerPrevY = playerObject?.position.y ?? 0;
+        // Set before startSounds(), not after: a clip already decoded from
+        // an earlier Play session starts synchronously inside that call, and
+        // its own "is this session still running" guard checks doc.mode --
+        // checking it while still "edit" would silence every already-cached
+        // clip on the second and later Plays.
+        doc.mode = "play";
         startSounds();
-      } else if (doc.mode === "pause" && audioContext) {
-        void audioContext.resume();
+      } else {
+        if (doc.mode === "pause" && audioContext) void audioContext.resume();
+        doc.mode = "play";
       }
-      doc.mode = "play";
       updatePanels();
     } catch (e) {
       log(String(e));

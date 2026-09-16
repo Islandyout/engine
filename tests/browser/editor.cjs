@@ -50,11 +50,22 @@ const { chromium } = require("playwright");
     // any test-only hooks to the shipped app.
     await page.addInitScript(() => {
       window.__audioEvents = [];
+      // When set to a pending Promise, decodeAudioData stalls behind it --
+      // lets a test deterministically hold a clip's load open across a
+      // Stop/Play cycle to reproduce the exact race two concurrent Play
+      // sessions loading the same not-yet-cached clip can hit, instead of
+      // relying on real network/decode timing (unset, decoding proceeds
+      // immediately and every other check in this suite is unaffected).
+      window.__decodeGate = null;
       const OrigAC = window.AudioContext;
       window.AudioContext = class extends OrigAC {
         constructor(...args) {
           super(...args);
           window.__audioEvents.push({ type: "context-created" });
+        }
+        async decodeAudioData(...a) {
+          if (window.__decodeGate) await window.__decodeGate;
+          return super.decodeAudioData(...a);
         }
         createBufferSource() {
           const source = super.createBufferSource();
@@ -595,6 +606,8 @@ const { chromium } = require("playwright");
     // audio clock instead of muting mid-buffer, resuming Play resumes it,
     // and Stop tears the source down -- the same lifecycle Script/AIAgent
     // already run under.
+    const audioEventCount = (type) =>
+      page.evaluate((t) => window.__audioEvents.filter((e) => e.type === t).length, type);
     await page.locator("#add").click();
     await page.getByLabel("Add component").selectOption("Sound");
     await page.locator('[aria-label="Sound.clip"]').selectOption("5"); // Explosion
@@ -614,6 +627,61 @@ const { chromium } = require("playwright");
     await page.locator("#stop").click();
     await page.waitForFunction(() =>
       window.__audioEvents.some((e) => e.type === "stop"),
+    );
+    // Regression: a clip already decoded from an earlier Play session must
+    // still start on the next Play -- the synchronous cached-buffer path
+    // used to check doc.mode before it was set to "play", silencing every
+    // already-cached clip from the second Play onward.
+    const startsBeforeReplay = await audioEventCount("start");
+    const stopsBeforeReplay = await audioEventCount("stop");
+    await page.locator("#play").click();
+    await page.waitForFunction(
+      (before) => window.__audioEvents.filter((e) => e.type === "start").length > before,
+      startsBeforeReplay,
+    );
+    await page.locator("#stop").click();
+    await page.waitForFunction(
+      (before) => window.__audioEvents.filter((e) => e.type === "stop").length > before,
+      stopsBeforeReplay,
+    );
+    // Regression: a clip still mid-decode when Stop, then Play again,
+    // happens before it resolves must start exactly one source for that
+    // second session, not one per session -- loadSoundBuffer's promise
+    // cache is keyed by clip id, not by Play session, so both sessions'
+    // callbacks used to fire off the one shared decode promise, and the
+    // second activeSounds.set() left Stop only able to reach one of the two
+    // sources, leaking the other (audibly, forever, for a looping clip)
+    // until the page reloaded.
+    await page.evaluate(() => {
+      window.__decodeGate = new Promise((resolve) => {
+        window.__releaseDecodeGate = resolve;
+      });
+    });
+    await page.locator('[aria-label="Sound.clip"]').selectOption("6"); // Glass Break, never loaded before
+    const startsBeforeRace = await audioEventCount("start");
+    await page.locator("#play").click(); // session A: kicks off the decode, stalls on the gate
+    await page.waitForTimeout(50); // let the fetch/decode actually begin before Stop
+    await page.locator("#stop").click(); // session A ends while its load is still in flight
+    await page.locator("#play").click(); // session B: same clip, same in-flight decode promise
+    await page.evaluate(() => window.__releaseDecodeGate());
+    await page.waitForFunction(
+      (before) => window.__audioEvents.filter((e) => e.type === "start").length > before,
+      startsBeforeRace,
+    );
+    await page.waitForTimeout(100); // give a stale session's callback, if the bug were present, a chance to also fire
+    assert.equal(
+      await audioEventCount("start"),
+      startsBeforeRace + 1,
+      "a clip resolving after Stop+replay must start exactly one source, not one per Play session",
+    );
+    await page.locator("#stop").click();
+    await page.evaluate(() => {
+      window.__decodeGate = null;
+    });
+    assert.equal(
+      await audioEventCount("start"),
+      await audioEventCount("stop"),
+      "every started source must have a matching stop -- nothing left playing across the whole Sound sequence",
     );
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
