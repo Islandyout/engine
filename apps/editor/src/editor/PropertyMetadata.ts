@@ -5,6 +5,10 @@ export interface PropertyMetadata {
   options?: readonly { label: string; value: string | number }[];
   readOnly?: boolean;
   step?: string;
+  // Renders a <textarea> instead of a single-line <input> — for a field
+  // whose value is expected to span multiple lines (currently just
+  // Script.source), not a general "long string" hint.
+  multiline?: boolean;
 }
 const choice = (values: readonly string[]) =>
   values.map((value) => ({ label: value, value }));
@@ -40,6 +44,7 @@ const metadata: Record<string, PropertyMetadata> = {
   "Rotation.euler.x": { label: "X (radians)", step: "0.1" },
   "Rotation.euler.y": { label: "Y (radians)", step: "0.1" },
   "Rotation.euler.z": { label: "Z (radians)", step: "0.1" },
+  "Script.source": { label: "Lua source", multiline: true },
 };
 export function propertyMetadata(
   component: string,

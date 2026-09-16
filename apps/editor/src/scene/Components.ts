@@ -49,6 +49,14 @@ export interface AIStateComponent {
 export interface PedestrianComponent {
   archetype: number;
 }
+// Lua source defining an on_tick(dt) function this entity runs every fixed
+// tick, driving its own velocity — see engine::script::Runtime's own doc
+// comment (include/engine/script/script.hpp) for exactly what a script can
+// and can't do (self.x/y/z read-only, self.vx/vy/vz read-write, a sandboxed
+// VM with no io/os/package/debug and an instruction-count watchdog).
+export interface ScriptComponent {
+  source: string;
+}
 export interface VehicleComponent {
   archetype: number;
 }

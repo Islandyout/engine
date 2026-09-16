@@ -13,6 +13,7 @@ import type {
   RigidBodyComponent,
   RotationComponent,
   ScaleComponent,
+  ScriptComponent,
   TransformComponent,
   Vec3,
   VehicleComponent,
@@ -38,6 +39,7 @@ export interface SceneComponents {
   Renderable: RenderableComponent;
   Name: NameComponent;
   Parent: ParentComponent;
+  Script: ScriptComponent;
 }
 
 interface Slot {
@@ -71,6 +73,7 @@ export class Scene {
     Renderable: new Map(),
     Name: new Map(),
     Parent: new Map(),
+    Script: new Map(),
   };
 
   createEntity(): EntityRef {

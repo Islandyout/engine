@@ -458,6 +458,45 @@ const { chromium } = require("playwright");
       return match && Number(match[1]) < 2;
     });
     await page.locator("#stop").click();
+    // Script: a Lua on_tick that writes self.vx/vz should move the entity
+    // (native bridge tests already cover the motion math exhaustively), and
+    // a script with a syntax error should surface through the status bar's
+    // own "Script error: <message>" readout rather than fail silently --
+    // the same black-box approach the AIState case above uses.
+    await page.locator("#add").click();
+    const scriptEntityName = await page.locator(".entity").last().textContent();
+    await page.getByLabel("Add component").selectOption("Script");
+    await page
+      .locator('[aria-label="Script.source"]')
+      .fill("function on_tick(dt this is not valid lua");
+    await page.locator("#play").click();
+    await page
+      .locator(".entity")
+      .filter({ hasText: scriptEntityName })
+      .first()
+      .click();
+    await page.waitForFunction(() =>
+      document.querySelector("#status").textContent.includes("Script error:"),
+    );
+    assert.match(
+      await page.locator("#status").textContent(),
+      /Script error: .*'\)' expected/,
+    );
+    await page.locator("#stop").click();
+    await page
+      .locator('[aria-label="Script.source"]')
+      .fill("function on_tick(dt)\n  self.vx = 2\nend");
+    await page.locator("#play").click();
+    await page
+      .locator(".entity")
+      .filter({ hasText: scriptEntityName })
+      .first()
+      .click();
+    await page.waitForFunction(() => {
+      const text = document.querySelector("#status").textContent;
+      return text.includes("entities") && !text.includes("Script error:");
+    });
+    await page.locator("#stop").click();
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -467,7 +506,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, vehicle driving, AIState/Pedestrian wander/chase, save/load, invalid-load preservation, authoring console passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, vehicle driving, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), save/load, invalid-load preservation, authoring console passed.",
     );
   } finally {
     if (browser) await browser.close();

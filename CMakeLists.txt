@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(GameEngine
-    VERSION 0.27.0
+    VERSION 0.28.0
     DESCRIPTION "AI-operable high-performance game engine"
-    LANGUAGES CXX
+    LANGUAGES CXX C
 )
 
 option(ENGINE_BUILD_TESTS "Build engine tests" ON)
@@ -169,6 +169,54 @@ add_library(GameEngine::Physics ALIAS engine_physics)
 target_link_libraries(engine_physics PUBLIC GameEngine::World GameEngine::Graphics)
 engine_set_project_warnings(engine_physics)
 
+# Vendored Lua 5.4.7 (third_party/lua/README.md) — deliberately not run through
+# engine_set_project_warnings: it's unmodified third-party C, not code this
+# project holds to its own -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+# -Werror bar, and forcing that bar on someone else's vendored source is far
+# more likely to break on the next Lua point release than to catch a real bug.
+# The debug (ldblib), io (liolib), package/require (loadlib), and os (loslib)
+# standard libraries are excluded from compilation entirely, not just left
+# unopened at runtime — engine::script::Runtime's own sandboxing (see its doc
+# comment) means a script never has a path to any of them, on purpose.
+add_library(lua_vendored STATIC
+    third_party/lua/lapi.c
+    third_party/lua/lauxlib.c
+    third_party/lua/lbaselib.c
+    third_party/lua/lcode.c
+    third_party/lua/lcorolib.c
+    third_party/lua/lctype.c
+    third_party/lua/ldebug.c
+    third_party/lua/ldo.c
+    third_party/lua/ldump.c
+    third_party/lua/lfunc.c
+    third_party/lua/lgc.c
+    third_party/lua/llex.c
+    third_party/lua/lmathlib.c
+    third_party/lua/lmem.c
+    third_party/lua/lobject.c
+    third_party/lua/lopcodes.c
+    third_party/lua/lparser.c
+    third_party/lua/lstate.c
+    third_party/lua/lstring.c
+    third_party/lua/lstrlib.c
+    third_party/lua/ltable.c
+    third_party/lua/ltablib.c
+    third_party/lua/ltm.c
+    third_party/lua/lundump.c
+    third_party/lua/lutf8lib.c
+    third_party/lua/lvm.c
+    third_party/lua/lzio.c
+)
+target_include_directories(lua_vendored PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/lua>")
+target_compile_features(lua_vendored PUBLIC c_std_99)
+set_target_properties(lua_vendored PROPERTIES C_EXTENSIONS OFF)
+
+add_library(engine_script STATIC source/engine/script/script.cpp)
+add_library(GameEngine::Script ALIAS engine_script)
+target_link_libraries(engine_script PUBLIC GameEngine::World PRIVATE lua_vendored)
+target_compile_features(engine_script PUBLIC cxx_std_20)
+engine_set_project_warnings(engine_script)
+
 add_executable(engine_playground apps/native_playground/main.cpp)
 target_link_libraries(engine_playground PRIVATE GameEngine::World GameEngine::Graphics GameEngine::Scene GameEngine::Physics)
 if(ENGINE_ENABLE_SDL3)
@@ -191,6 +239,10 @@ if(ENGINE_BUILD_TESTS)
     target_link_libraries(engine_physics_tests PRIVATE GameEngine::World GameEngine::Graphics GameEngine::Physics)
     engine_set_project_warnings(engine_physics_tests)
     add_test(NAME engine_physics_tests COMMAND engine_physics_tests)
+    add_executable(engine_script_tests tests/script_tests.cpp)
+    target_link_libraries(engine_script_tests PRIVATE GameEngine::World GameEngine::Graphics GameEngine::Physics GameEngine::Script)
+    engine_set_project_warnings(engine_script_tests)
+    add_test(NAME engine_script_tests COMMAND engine_script_tests)
     add_executable(engine_asset_tests tests/asset_tests.cpp)
     target_link_libraries(engine_asset_tests PRIVATE GameEngine::Graphics)
     engine_set_project_warnings(engine_asset_tests)
@@ -212,7 +264,7 @@ endif()
 
 if(ENGINE_BUILD_TESTS)
     add_executable(engine_editor_bridge_tests tests/editor_bridge_tests.cpp apps/editor/runtime/bridge.cpp)
-    target_link_libraries(engine_editor_bridge_tests PRIVATE GameEngine::World GameEngine::Physics)
+    target_link_libraries(engine_editor_bridge_tests PRIVATE GameEngine::World GameEngine::Physics GameEngine::Script)
     engine_set_project_warnings(engine_editor_bridge_tests)
     add_test(NAME engine_editor_bridge_tests COMMAND engine_editor_bridge_tests)
 endif()

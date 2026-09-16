@@ -63,6 +63,7 @@ const componentNames = [
   "Renderable",
   "Name",
   "Parent",
+  "Script",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -455,6 +456,8 @@ export function defaultComponent(
       return { mesh: 0, material: 0, visible: true };
     case "Name":
       return { value: "Entity" };
+    case "Script":
+      return { source: "function on_tick(dt)\n  -- self.x/y/z (read-only), self.vx/vy/vz (read-write)\nend" };
   }
 }
 
