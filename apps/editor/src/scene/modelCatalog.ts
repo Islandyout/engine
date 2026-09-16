@@ -135,22 +135,12 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 116, category: "animals", name: "Pig", path: "./kit/animals/pig.glb", animated: true },
   { id: 117, category: "animals", name: "Pigeon", path: "./kit/animals/pigeon.glb", animated: true },
   { id: 118, category: "animals", name: "Sheep", path: "./kit/animals/sheep.glb", animated: true },
-  { id: 119, category: "people", name: "Hero", path: "./kit/people/hero.glb", animated: true },
-  { id: 120, category: "people", name: "Npc Casual 1", path: "./kit/people/npc-casual-1.glb", animated: true },
-  { id: 121, category: "people", name: "Npc Casual 2", path: "./kit/people/npc-casual-2.glb", animated: true },
-  { id: 122, category: "people", name: "Npc Dress", path: "./kit/people/npc-dress.glb", animated: true },
-  { id: 123, category: "people", name: "Npc Elder", path: "./kit/people/npc-elder.glb", animated: true },
-  { id: 124, category: "people", name: "Npc Hoodie", path: "./kit/people/npc-hoodie.glb", animated: true },
-  { id: 125, category: "people", name: "Npc Office F", path: "./kit/people/npc-office-f.glb", animated: true },
-  { id: 126, category: "people", name: "Npc Office M", path: "./kit/people/npc-office-m.glb", animated: true },
-  { id: 127, category: "people", name: "Npc Sport", path: "./kit/people/npc-sport.glb", animated: true },
-  { id: 128, category: "people", name: "Npc Teen", path: "./kit/people/npc-teen.glb", animated: true },
-  { id: 129, category: "people", name: "Npc Uniform", path: "./kit/people/npc-uniform.glb", animated: true },
-  { id: 130, category: "people", name: "Npc Vendor", path: "./kit/people/npc-vendor.glb", animated: true },
-  { id: 131, category: "people", name: "Npc Worker", path: "./kit/people/npc-worker.glb", animated: true },
-  // Quaternius CC0 packs (0.32.0) -- see assets/CREDITS.md. Smoothly-skinned
-  // alternatives to the Aether kit's chunky ball-jointed rig above, added
-  // rather than replacing any existing entry.
+  // Ids 119-131 (Hero, procedurally-generated Aether kit Npc *) were removed in
+  // 0.37.0, making way for an imported, skeleton-rigged character pack -- see
+  // assets/CREDITS.md. Not reused: a future import gets its own fresh ids rather
+  // than resurrecting ones a saved scene might still (however unlikely) reference.
+  //
+  // Quaternius CC0 packs (0.32.0) -- see assets/CREDITS.md.
   { id: 132, category: "people", name: "Mannequin F", path: "./kit/people/mannequin_f.glb", animated: true },
   { id: 133, category: "animals", name: "Wolf", path: "./kit/animals/wolf.glb", animated: true },
   { id: 134, category: "animals", name: "Husky", path: "./kit/animals/husky.glb", animated: true },

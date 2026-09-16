@@ -82,7 +82,7 @@
       "components": {
         "Transform": { "position": { "x": -6, "y": 0.9, "z": 6 } },
         "Scale": { "value": { "x": 0.6, "y": 1.8, "z": 0.6 } },
-        "Renderable": { "mesh": 121, "material": 0, "visible": true },
+        "Renderable": { "mesh": 132, "material": 0, "visible": true },
         "AIState": { "state": "Idle" },
         "Pedestrian": { "archetype": 0 }
       }
