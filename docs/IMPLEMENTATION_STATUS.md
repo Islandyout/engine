@@ -2113,9 +2113,12 @@ Car/Sports/Truck/Bus, in that order, Car reproducing the original single-profile
 `vehicle_accel`/`vehicle_drag`/`vehicle_max_forward`/`vehicle_max_reverse`/
 `vehicle_turn_rate` constants exactly (so archetype 0, the default, drives identically to
 before this round) and the other three deliberately distinct on every axis, not just
-uniformly scaled: Sports faster and grippier on every number, Truck and Bus both trading
-accel/top speed/turning for more drag (heavier vehicles, slower to get going and to
-stop), Bus more so. `Pedestrian.archetype`'s counterpart is `AIState`'s own wander
+uniformly scaled: Sports faster and grippier on every number including drag, so it sheds
+speed on throttle release about as fast as Car despite a much higher top speed; Truck and
+Bus both trade accel/top speed/turning for *lower* drag (less engine braking, more coast)
+-- heavier vehicles, slower to get going and slower to stop, Bus more so, since drag sets
+coast-down time (`max_forward / drag` seconds to a stop from top speed) and a bigger
+number there means less time coasting, not more. `Pedestrian.archetype`'s counterpart is `AIState`'s own wander
 behavior (the thing `Pedestrian` already modifies — see F27's own doc comment on what it
 changes), so it selects one of three `PedestrianTuning` rows — Casual/Brisk/Lingering —
 scaling wander phase duration and movement speed, Casual (index 0, the default)
@@ -2184,3 +2187,14 @@ helper, alongside the existing string-valued `choice()`) instead of a bare numbe
   the Pedestrian.archetype dropdown offers exactly `Casual`/`Brisk`/`Lingering` and that a
   choice survives a fresh inspector render (the wander-pace math itself is the native
   test's job above, not re-verified pixel-by-pixel here).
+- Post-merge fix: a Codex review bot flagged that the PR's first-pushed `vehicle_tuning`
+  had Truck (drag 4.0) and Bus (drag 5.0) *higher* than Car's (3.0), the coast-down math
+  backwards from the documented intent -- in the subtractive coast model, higher drag
+  means a *faster* stop, so the original values made Truck and Bus stop faster than Car,
+  not slower. Verified independently (`max_forward / drag`: Car 3.0s, old Truck 1.75s, old
+  Bus 1.1s) before fixing: Sports drag 2.0 -> 4.5, Truck 4.0 -> 2.0, Bus 5.0 -> 1.2 (new
+  stop times Car 3.0s, Sports 2.89s, Truck 3.5s, Bus 4.58s -- correctly ordered). Added a
+  new `tests/editor_bridge_tests.cpp` case exercising the path the bug hid in --
+  coast-down after throttle release, not sustained-throttle acceleration, which the
+  existing archetype cases never touched -- asserting Truck's and Bus's tick-count to a
+  full stop each exceed Car's.

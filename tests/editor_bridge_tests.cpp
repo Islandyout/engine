@@ -479,6 +479,39 @@ int main() {
     const double truck_advance = vehicle_advance(2);
     check(sports_advance > car_advance * 1.2); // meaningfully faster, not just noise
     check(truck_advance < car_advance);
+
+    // Coast-down time (ticks from throttle release to a full stop) must grow with vehicle
+    // weight, not shrink: drag sets stop time (max_forward / drag), and a heavier vehicle
+    // (Truck, Bus) is tuned for lower drag -- more coast, not less -- than Car, so it takes
+    // longer, not less time, to coast to a stop after releasing the throttle. (An earlier
+    // build of this round had Truck/Bus drag *higher* than Car's, which flipped this exact
+    // relationship: it stopped them faster than Car, the opposite of the intended feel.)
+    const auto vehicle_coast_ticks = [&](int archetype) {
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0.5, archetype, 0) == 1);
+        check(editor_commit() == 1);
+        editor_input_begin_frame();
+        editor_key(key_w, 1);
+        for (int i = 0; i < 300; ++i) { // comfortably past every archetype's ramp to max_forward
+            editor_input_begin_frame();
+            editor_tick();
+        }
+        editor_key(key_w, 0);
+        int ticks = 0;
+        double coast_previous_z = editor_value(0, 2);
+        for (; ticks < 600; ++ticks) { // far more than enough to coast to a stop from any top speed
+            editor_input_begin_frame();
+            editor_tick();
+            const double z = editor_value(0, 2);
+            if (std::abs(z - coast_previous_z) < 1e-6)
+                break;
+            coast_previous_z = z;
+        }
+        return ticks;
+    };
+    check(vehicle_coast_ticks(2) > vehicle_coast_ticks(0)); // Truck coasts longer than Car
+    check(vehicle_coast_ticks(3) > vehicle_coast_ticks(0)); // Bus coasts longer than Car
+
     // An out-of-range archetype is rejected outright, the same defensive posture as an
     // out-of-range collider_shape/radius -- vehicle_tuning has 4 rows (Bus is the last), so
     // index 4 is invalid.

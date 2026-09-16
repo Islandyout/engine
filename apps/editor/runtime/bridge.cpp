@@ -148,9 +148,14 @@ constexpr float fly_speed = 4.0F;
 // unchanged, so archetype 0 (the default) drives identically to before this
 // existed. The others are deliberately distinct on every axis, not just
 // scaled uniformly, so each archetype has an actually different feel: Sports
-// is faster and grippier than Car on every number; Truck and Bus both trade
-// accel/top speed/turning for higher drag (more engine braking), Bus more so
-// — heavier vehicles that take longer to get going and longer to stop.
+// is faster and grippier than Car on every number, including drag, so it
+// sheds speed releasing the throttle about as quickly as Car despite a much
+// higher top speed. Truck and Bus both trade accel/top speed/turning for
+// lower drag (less engine braking, more coast), Bus more so — heavier
+// vehicles that take longer to get going and longer to stop: drag directly
+// sets coast-down time (max_forward / drag seconds to stop from top speed
+// with no input), so a heavier vehicle needs a *smaller* drag, not a larger
+// one, to coast longer.
 struct VehicleTuning {
     float accel;        // units/s^2
     float drag;         // units/s^2, applied opposing motion with no accel input
@@ -160,9 +165,9 @@ struct VehicleTuning {
 };
 constexpr VehicleTuning vehicle_tuning[] = {
     /* Car    */ {6.0F, 3.0F, 9.0F, 4.0F, 2.2F},
-    /* Sports */ {9.5F, 2.0F, 13.0F, 5.5F, 2.8F},
-    /* Truck  */ {4.5F, 4.0F, 7.0F, 3.0F, 1.6F},
-    /* Bus    */ {3.0F, 5.0F, 5.5F, 2.5F, 1.1F},
+    /* Sports */ {9.5F, 4.5F, 13.0F, 5.5F, 2.8F},
+    /* Truck  */ {4.5F, 2.0F, 7.0F, 3.0F, 1.6F},
+    /* Bus    */ {3.0F, 1.2F, 5.5F, 2.5F, 1.1F},
 };
 static_assert(std::size(vehicle_tuning) == 4, "one row per VehicleArchetype");
 
