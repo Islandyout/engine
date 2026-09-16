@@ -44,6 +44,53 @@ const { chromium } = require("playwright");
     });
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
+    // Monkey-patches AudioContext before any app code runs, recording
+    // start/stop/suspend/resume calls into a page-global array this test
+    // reads back later -- observes real Web Audio API usage without adding
+    // any test-only hooks to the shipped app.
+    await page.addInitScript(() => {
+      window.__audioEvents = [];
+      // When set to a pending Promise, decodeAudioData stalls behind it --
+      // lets a test deterministically hold a clip's load open across a
+      // Stop/Play cycle to reproduce the exact race two concurrent Play
+      // sessions loading the same not-yet-cached clip can hit, instead of
+      // relying on real network/decode timing (unset, decoding proceeds
+      // immediately and every other check in this suite is unaffected).
+      window.__decodeGate = null;
+      const OrigAC = window.AudioContext;
+      window.AudioContext = class extends OrigAC {
+        constructor(...args) {
+          super(...args);
+          window.__audioEvents.push({ type: "context-created" });
+        }
+        async decodeAudioData(...a) {
+          if (window.__decodeGate) await window.__decodeGate;
+          return super.decodeAudioData(...a);
+        }
+        createBufferSource() {
+          const source = super.createBufferSource();
+          const origStart = source.start.bind(source);
+          const origStop = source.stop.bind(source);
+          source.start = (...a) => {
+            window.__audioEvents.push({ type: "start", loop: source.loop });
+            return origStart(...a);
+          };
+          source.stop = (...a) => {
+            window.__audioEvents.push({ type: "stop" });
+            return origStop(...a);
+          };
+          return source;
+        }
+        suspend(...a) {
+          window.__audioEvents.push({ type: "suspend" });
+          return super.suspend(...a);
+        }
+        resume(...a) {
+          window.__audioEvents.push({ type: "resume" });
+          return super.resume(...a);
+        }
+      };
+    });
     await page.goto(`http://127.0.0.1:${server.address().port}/engine/`);
     await page.waitForFunction(
       () =>
@@ -554,6 +601,88 @@ const { chromium } = require("playwright");
       (before) => document.querySelectorAll(".entity").length === before + 1,
       entitiesBeforeOddPlace,
     );
+    // Sound: attaching a looping clip and hitting Play actually starts real
+    // Web Audio playback (not just authored data), Pause suspends the whole
+    // audio clock instead of muting mid-buffer, resuming Play resumes it,
+    // and Stop tears the source down -- the same lifecycle Script/AIAgent
+    // already run under.
+    const audioEventCount = (type) =>
+      page.evaluate((t) => window.__audioEvents.filter((e) => e.type === t).length, type);
+    await page.locator("#add").click();
+    await page.getByLabel("Add component").selectOption("Sound");
+    await page.locator('[aria-label="Sound.clip"]').selectOption("5"); // Explosion
+    await page.getByLabel("Sound.loop").check();
+    await page.locator("#play").click();
+    await page.waitForFunction(() =>
+      window.__audioEvents.some((e) => e.type === "start"),
+    );
+    await page.locator("#pause").click();
+    await page.waitForFunction(() =>
+      window.__audioEvents.some((e) => e.type === "suspend"),
+    );
+    await page.locator("#play").click();
+    await page.waitForFunction(() =>
+      window.__audioEvents.some((e) => e.type === "resume"),
+    );
+    await page.locator("#stop").click();
+    await page.waitForFunction(() =>
+      window.__audioEvents.some((e) => e.type === "stop"),
+    );
+    // Regression: a clip already decoded from an earlier Play session must
+    // still start on the next Play -- the synchronous cached-buffer path
+    // used to check doc.mode before it was set to "play", silencing every
+    // already-cached clip from the second Play onward.
+    const startsBeforeReplay = await audioEventCount("start");
+    const stopsBeforeReplay = await audioEventCount("stop");
+    await page.locator("#play").click();
+    await page.waitForFunction(
+      (before) => window.__audioEvents.filter((e) => e.type === "start").length > before,
+      startsBeforeReplay,
+    );
+    await page.locator("#stop").click();
+    await page.waitForFunction(
+      (before) => window.__audioEvents.filter((e) => e.type === "stop").length > before,
+      stopsBeforeReplay,
+    );
+    // Regression: a clip still mid-decode when Stop, then Play again,
+    // happens before it resolves must start exactly one source for that
+    // second session, not one per session -- loadSoundBuffer's promise
+    // cache is keyed by clip id, not by Play session, so both sessions'
+    // callbacks used to fire off the one shared decode promise, and the
+    // second activeSounds.set() left Stop only able to reach one of the two
+    // sources, leaking the other (audibly, forever, for a looping clip)
+    // until the page reloaded.
+    await page.evaluate(() => {
+      window.__decodeGate = new Promise((resolve) => {
+        window.__releaseDecodeGate = resolve;
+      });
+    });
+    await page.locator('[aria-label="Sound.clip"]').selectOption("6"); // Glass Break, never loaded before
+    const startsBeforeRace = await audioEventCount("start");
+    await page.locator("#play").click(); // session A: kicks off the decode, stalls on the gate
+    await page.waitForTimeout(50); // let the fetch/decode actually begin before Stop
+    await page.locator("#stop").click(); // session A ends while its load is still in flight
+    await page.locator("#play").click(); // session B: same clip, same in-flight decode promise
+    await page.evaluate(() => window.__releaseDecodeGate());
+    await page.waitForFunction(
+      (before) => window.__audioEvents.filter((e) => e.type === "start").length > before,
+      startsBeforeRace,
+    );
+    await page.waitForTimeout(100); // give a stale session's callback, if the bug were present, a chance to also fire
+    assert.equal(
+      await audioEventCount("start"),
+      startsBeforeRace + 1,
+      "a clip resolving after Stop+replay must start exactly one source, not one per Play session",
+    );
+    await page.locator("#stop").click();
+    await page.evaluate(() => {
+      window.__decodeGate = null;
+    });
+    assert.equal(
+      await audioEventCount("start"),
+      await audioEventCount("stop"),
+      "every started source must have a matching stop -- nothing left playing across the whole Sound sequence",
+    );
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -563,7 +692,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, vehicle driving, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), save/load, invalid-load preservation, authoring console passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, vehicle driving, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console passed.",
     );
   } finally {
     if (browser) await browser.close();

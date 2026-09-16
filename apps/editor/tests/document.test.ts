@@ -308,3 +308,57 @@ test("a prefab literally named __proto__ round-trips through save/load", () => {
   const [[reloaded]] = d.scene.query("PrefabInstance");
   assert.equal(d.scene.resolve(reloaded, "Health")?.maximum, 100);
 });
+
+test("Sound attaches with sensible defaults, edits round-trip through save/load, volume is validated to [0,1], and Sound is prefab-shared", () => {
+  const d = new EditorDocument();
+  const entity = d.execute({ command: "spawn_entity", name: "Siren" }).entity!;
+  assert.equal(d.execute({ command: "attach_component", entity, type: "Sound" }).ok, true);
+  const attached = d.scene.get(entity, "Sound");
+  assert.equal(attached?.clip, 1);
+  assert.equal(attached?.autoplay, true);
+
+  assert.equal(
+    d.execute({
+      command: "set_component",
+      entity,
+      type: "Sound",
+      value: { clip: 5, volume: 0.5, loop: true, autoplay: true },
+    }).ok,
+    true,
+  );
+  assert.equal(d.execute({ command: "save_scene", path: "sound-test" }).ok, true);
+  d.execute({ command: "destroy_entity", entity });
+  assert.equal(d.execute({ command: "load_scene", path: "sound-test" }).ok, true);
+  const [[reloaded]] = d.scene.query("Sound");
+  assert.equal(d.scene.get(reloaded, "Sound")?.clip, 5);
+  assert.equal(d.scene.get(reloaded, "Sound")?.volume, 0.5);
+  assert.equal(d.scene.get(reloaded, "Sound")?.loop, true);
+
+  assert.throws(
+    () =>
+      d.load({
+        format: 1,
+        entities: [
+          { components: { Sound: { clip: 1, volume: 1.5, loop: false, autoplay: true } } },
+        ],
+      }),
+    /between 0 and 1/i,
+  );
+
+  // Sound is a prefab-shared component like Renderable/Script -- editing one
+  // instance's clip updates every instance live.
+  const source = d.execute({ command: "spawn_entity", name: "Car" }).entity!;
+  d.execute({ command: "attach_component", entity: source, type: "Sound" });
+  d.execute({ command: "create_prefab", entity: source, name: "Car" });
+  const other = d.execute({ command: "place_instance", prefab: "Car" }).entity!;
+  assert.equal(
+    d.execute({
+      command: "set_component",
+      entity: source,
+      type: "Sound",
+      value: { clip: 2, volume: 1, loop: true, autoplay: true },
+    }).ok,
+    true,
+  );
+  assert.equal(d.scene.resolve(other, "Sound")?.clip, 2, "a shared Sound clip change reaches every instance live");
+});

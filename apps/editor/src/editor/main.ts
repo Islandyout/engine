@@ -15,6 +15,7 @@ import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { LocalStorageSceneStore } from "../authoring/CommandInterpreter";
 import { EditorDocument } from "./Document";
 import { modelCatalog, catalogCategories } from "../scene/modelCatalog";
+import { soundCatalog } from "../scene/soundCatalog";
 import { pickClipName, groundSpeed } from "./animationClips";
 import { loadOnce } from "./loadOnce";
 import type { SceneComponents } from "../scene/Scene";
@@ -137,7 +138,7 @@ async function startEditor() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `<header>
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
-  <span class="brand-sub">BTAI Editor <span class="version">0.29.0</span></span>
+  <span class="brand-sub">BTAI Editor <span class="version">0.30.0</span></span>
   <a class="link-external" href="https://github.com/Islandyout/engine">View source${iconHtml("external")}</a>
 </header>
 <nav>
@@ -444,6 +445,94 @@ async function startEditor() {
       catalogPromises.set(meshId, promise);
     }
     return promise;
+  }
+  // -- Audio ------------------------------------------------------------
+  // A Sound component's playback is scoped to a Play session the same way
+  // Script's on_tick and AIAgent already are: autoplay starts every marked
+  // entity's clip the moment Play begins, Pause suspends the whole
+  // AudioContext (pausing every currently-playing sound's output in place,
+  // not just muting it) and Stop tears them down. There is no per-event
+  // trigger (a melee hit landing, a footstep) -- that needs the bridge to
+  // expose which tick an event actually fired, which this round doesn't add.
+  let audioContext: AudioContext | undefined;
+  const soundBuffers = new Map<number, AudioBuffer>();
+  const soundBufferPromises = new Map<number, Promise<AudioBuffer>>();
+  function getAudioContext(): AudioContext {
+    audioContext ??= new AudioContext();
+    return audioContext;
+  }
+  function soundEntry(clipId: number) {
+    return soundCatalog.find((s) => s.id === clipId);
+  }
+  function loadSoundBuffer(clipId: number): Promise<AudioBuffer> | undefined {
+    const entry = soundEntry(clipId);
+    if (!entry) return undefined;
+    let promise = soundBufferPromises.get(clipId);
+    if (!promise) {
+      const context = getAudioContext();
+      promise = fetch(entry.path)
+        .then((response) => response.arrayBuffer())
+        .then((data) => context.decodeAudioData(data))
+        .then((buffer) => {
+          soundBuffers.set(clipId, buffer);
+          return buffer;
+        });
+      promise.catch(() => soundBufferPromises.delete(clipId));
+      soundBufferPromises.set(clipId, promise);
+    }
+    return promise;
+  }
+  // Keyed by entity index, the same indexing syncRuntime()/objects[] use --
+  // populated on Play start, torn down on Stop, so a sound never keeps
+  // playing (or gets started twice) across a Stop/Play cycle.
+  const activeSounds = new Map<number, AudioBufferSourceNode>();
+  // Bumped on every fresh Play (edit -> play). A clip load kicked off by one
+  // Play session can still be in flight (loadSoundBuffer's promise cache is
+  // keyed by clip id, not by session) when Stop, then Play again, happens
+  // before it resolves -- without this, both the stale and the fresh
+  // session's callback would fire off that one shared promise, starting two
+  // independent sources for the same entity; the second activeSounds.set()
+  // would then only ever let Stop reach one of them, leaking the other
+  // (audibly, forever, for a looping clip) until the page reloads.
+  let playSession = 0;
+  function startSounds() {
+    const session = ++playSession;
+    const context = getAudioContext();
+    doc.scene.eachAlive().forEach((entity, index) => {
+      const sound = doc.scene.resolve(entity, "Sound");
+      if (!sound?.autoplay) return;
+      const play = (buffer: AudioBuffer) => {
+        // An async clip load can resolve after the session that requested
+        // it already ended: doc.mode catches "stopped, never replayed";
+        // playSession catches "stopped, then replayed before this settled".
+        if (session !== playSession) return;
+        if (doc.mode !== "play" && doc.mode !== "pause") return;
+        const source = context.createBufferSource();
+        source.buffer = buffer;
+        source.loop = sound.loop;
+        const gain = context.createGain();
+        gain.gain.value = sound.volume;
+        source.connect(gain).connect(context.destination);
+        source.start();
+        activeSounds.set(index, source);
+      };
+      const cached = soundBuffers.get(sound.clip);
+      if (cached) play(cached);
+      else
+        loadSoundBuffer(sound.clip)?.then(play, (error) =>
+          log(`Sound clip ${sound.clip} failed to load: ${String(error)}`),
+        );
+    });
+  }
+  function stopSounds() {
+    for (const source of activeSounds.values()) {
+      try {
+        source.stop();
+      } catch {
+        // Already stopped (a non-looping clip that finished on its own).
+      }
+    }
+    activeSounds.clear();
   }
   let runtime: Runtime;
   try {
@@ -940,6 +1029,7 @@ async function startEditor() {
       "AnimationState",
       "Renderable",
       "Script",
+      "Sound",
     ])
       if (!doc.scene.effectiveHas(entity, type as keyof SceneComponents))
         add.add(new Option(type, type));
@@ -1021,8 +1111,17 @@ async function startEditor() {
         const playerObject = playerIndex >= 0 ? objects[playerIndex] : undefined;
         playerBaseScale = playerObject ? playerObject.scale.clone() : null;
         playerPrevY = playerObject?.position.y ?? 0;
+        // Set before startSounds(), not after: a clip already decoded from
+        // an earlier Play session starts synchronously inside that call, and
+        // its own "is this session still running" guard checks doc.mode --
+        // checking it while still "edit" would silence every already-cached
+        // clip on the second and later Plays.
+        doc.mode = "play";
+        startSounds();
+      } else {
+        if (doc.mode === "pause" && audioContext) void audioContext.resume();
+        doc.mode = "play";
       }
-      doc.mode = "play";
       updatePanels();
     } catch (e) {
       log(String(e));
@@ -1032,6 +1131,10 @@ async function startEditor() {
     if (doc.mode === "play") {
       releaseHeldKeys();
       doc.mode = "pause";
+      // Suspends the whole audio clock -- every currently-playing sound's
+      // output pauses in place, the same way ticks stop advancing, rather
+      // than muting while still running out its buffer underneath.
+      if (audioContext) void audioContext.suspend();
     }
     updatePanels();
   };
@@ -1039,6 +1142,8 @@ async function startEditor() {
     doc.mode = "edit";
     accumulator = 0;
     releaseHeldKeys();
+    stopSounds();
+    if (audioContext?.state === "suspended") void audioContext.resume();
     if (prePlayTarget) {
       controls.target.copy(prePlayTarget);
       prePlayTarget = null;
@@ -1339,7 +1444,7 @@ async function startEditor() {
             return error ? ` · Script error: ${error}` : "";
           })()
         : "";
-    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout}${selectedHealthReadout}${selectedAiReadout}${selectedScriptErrorReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider collision, Health-based combat (F melee, G blast), Vehicle driving (W/S/A/D), AIState/Pedestrian wander/chase/flee, and Script (Lua on_tick) are simulated`;
+    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout}${selectedHealthReadout}${selectedAiReadout}${selectedScriptErrorReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider collision, Health-based combat (F melee, G blast), Vehicle driving (W/S/A/D), AIState/Pedestrian wander/chase/flee, Script (Lua on_tick), and Sound (Web Audio autoplay) are simulated`;
     requestAnimationFrame(frame);
   }
   const cameraForwardScratch = new THREE.Vector3();

@@ -70,6 +70,20 @@ export interface RenderableComponent {
   material: number;
   visible: boolean;
 }
+// A clip from soundCatalog.ts, played through the Web Audio API starting when
+// Play mode begins (and stopped when it ends) if autoplay is set -- the same
+// Play-mode-scoped lifecycle Script's on_tick and AIAgent already run under.
+// Not an event-triggered one-shot system (no "play this when melee lands"):
+// that needs the bridge to expose which tick a combat/collision event
+// actually fired, which this round doesn't add. loop keeps it playing for
+// the whole Play session (an engine hum, a force-field drone); without loop
+// it plays once at Play start and then stops on its own.
+export interface SoundComponent {
+  clip: number;
+  volume: number;
+  loop: boolean;
+  autoplay: boolean;
+}
 export interface NameComponent {
   value: string;
 }

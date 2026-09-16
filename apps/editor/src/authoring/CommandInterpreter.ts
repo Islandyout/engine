@@ -69,6 +69,7 @@ const componentNames = [
   "Name",
   "Parent",
   "Script",
+  "Sound",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -568,6 +569,8 @@ export function defaultComponent(
       return { value: "Entity" };
     case "Script":
       return { source: "function on_tick(dt)\n  -- self.x/y/z (read-only), self.vx/vy/vz (read-write)\nend" };
+    case "Sound":
+      return { clip: 1, volume: 1, loop: false, autoplay: true };
   }
 }
 
