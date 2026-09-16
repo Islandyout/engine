@@ -40,6 +40,8 @@ Engine version 0.24.0 adds combat — round 3 of 3, closing the remaining gap wi
 
 Engine version 0.25.0 fixes movement feel, based on direct feedback after 0.22–0.24 shipped: WASD is now camera-relative (fixing the "flipped" feel a fixed world axis had the moment the camera wasn't looking straight down -Z), a moving character turns to face where it's actually going instead of sliding through its run animation, jump gets a squash-and-stretch instead of a flat vertical translation, and `Vehicle` — previously inert data — now makes a `Player` entity accelerate and steer like a car instead of strafing. `examples/demo-game.json` is a small drivable-car-in-an-arena scene built to dogfood all of it together. See [F25](docs/IMPLEMENTATION_STATUS.md#f25--movement-feel-camera-relative-wasd-facing-jump-weight-vehicle-driving-0250).
 
+Engine version 0.26.0 fixes an authored `Scale` component being applied to a catalog GLB model on top of that model's own real-world dimensions instead of as the literal size it's documented to be — found by actually building the browser editor and playing `examples/demo-game.json`, where it made the Player Car render nearly as long as the arena's own walls. The viewport's transform gizmo got the same fix, so dragging a catalog model's scale handle now saves literal dimensions instead of a value that would shrink it back down on the next rebuild. See [F26](docs/IMPLEMENTATION_STATUS.md#f26--catalog-model-scale-normalization-0260).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 
