@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(GameEngine
-    VERSION 0.26.0
+    VERSION 0.27.0
     DESCRIPTION "AI-operable high-performance game engine"
     LANGUAGES CXX
 )

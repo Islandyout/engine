@@ -63,7 +63,8 @@
         "Transform": { "position": { "x": -3, "y": 0.5, "z": -3 } },
         "Scale": { "value": { "x": 1, "y": 1, "z": 1 } },
         "Renderable": { "mesh": 0, "material": 0, "visible": true },
-        "Health": { "current": 40, "maximum": 40 }
+        "Health": { "current": 40, "maximum": 40 },
+        "AIState": { "state": "Idle" }
       }
     },
     {
@@ -72,7 +73,18 @@
         "Transform": { "position": { "x": 3, "y": 0.5, "z": 3 } },
         "Scale": { "value": { "x": 1, "y": 1, "z": 1 } },
         "Renderable": { "mesh": 0, "material": 0, "visible": true },
-        "Health": { "current": 40, "maximum": 40 }
+        "Health": { "current": 40, "maximum": 40 },
+        "AIState": { "state": "Idle" }
+      }
+    },
+    {
+      "name": "Bystander",
+      "components": {
+        "Transform": { "position": { "x": -6, "y": 0.9, "z": 6 } },
+        "Scale": { "value": { "x": 0.6, "y": 1.8, "z": 0.6 } },
+        "Renderable": { "mesh": 121, "material": 0, "visible": true },
+        "AIState": { "state": "Idle" },
+        "Pedestrian": { "archetype": 0 }
       }
     },
     {

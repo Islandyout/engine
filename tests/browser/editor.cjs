@@ -420,6 +420,44 @@ const { chromium } = require("playwright");
     );
     await page.keyboard.up("w");
     await page.locator("#stop").click();
+    // AIState/Pedestrian: a fresh entity within ai_sense_radius (6 units) of
+    // "Entity 7" (still parked at its authored origin — Play never mutates
+    // authored data, confirmed above) closes the distance on its own once
+    // Play starts, with no key ever pressed for it. Verified through the
+    // status bar's own "Selected AI: <state> (x, z)" readout, the same
+    // black-box approach the Vehicle case above uses, rather than reaching
+    // into the page's internals (the native bridge test already covers the
+    // wander/chase/flee algorithm itself exhaustively).
+    await page.locator("#add").click();
+    const aiEntityName = await page.locator(".entity").last().textContent();
+    await page.getByLabel("Transform.position.x", { exact: true }).fill("3");
+    await page.getByLabel("Transform.position.x", { exact: true }).press("Tab");
+    await page.getByLabel("Add component").selectOption("AIState");
+    await page.locator("#play").click();
+    // Re-select after Play, same as the melee/blast case above does for its
+    // own target: watch the entity explicitly through its own live readout
+    // rather than assume the pre-Play selection is what's still shown.
+    await page
+      .locator(".entity")
+      .filter({ hasText: aiEntityName })
+      .first()
+      .click();
+    await page.waitForFunction(() =>
+      document.querySelector("#status").textContent.includes("Selected AI:"),
+    );
+    await page.waitForFunction(() => {
+      const match = document
+        .querySelector("#status")
+        .textContent.match(/Selected AI: (\w+) \(/);
+      return match && match[1] === "Chasing";
+    });
+    await page.waitForFunction(() => {
+      const match = document
+        .querySelector("#status")
+        .textContent.match(/Selected AI: \w+ \(([-\d.]+), /);
+      return match && Number(match[1]) < 2;
+    });
+    await page.locator("#stop").click();
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -429,7 +467,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, vehicle driving, save/load, invalid-load preservation, authoring console passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, vehicle driving, AIState/Pedestrian wander/chase, save/load, invalid-load preservation, authoring console passed.",
     );
   } finally {
     if (browser) await browser.close();

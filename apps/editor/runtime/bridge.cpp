@@ -38,6 +38,50 @@ struct Heading final {
     float half_z{};
 };
 
+// Mirrors AIStateName's own order in apps/editor/src/scene/Components.ts —
+// editor_value's field 5 returns this as a plain int, and main.ts would need
+// updating in lockstep with any reordering here.
+enum class AIState : int { Idle, Walking, Running, Driving, Fleeing, Chasing, Dead };
+
+// Present on an entity that also carries an authored AIState component:
+// drives its own RigidBody velocity each tick instead of ever reading
+// InputState, the same way Heading drives a Vehicle. state/timer/dir_x/dir_z
+// are simulation-owned from the first tick on — like Heading's yaw always
+// starting at 0 regardless of an authored Rotation, the authored
+// AIState.state string is a hint only editor_add ignores, not a starting
+// value this reads back (see editor_add's own doc comment). rng is a
+// per-entity xorshift32 state (see next_random below), seeded at creation
+// from the entity's authoring order so wander behavior is deterministic and
+// reproducible in tests instead of depending on wall-clock or process state.
+struct AIAgent final {
+    AIState state{AIState::Idle};
+    float timer{0.0F};  // seconds remaining in the current wander phase
+    float dir_x{0.0F};  // current wander heading (unit vector), meaningless outside Walking/Running
+    float dir_z{1.0F};
+    std::uint32_t rng{1};
+};
+// Marker: an AIAgent that never enters AIState::Chasing regardless of how
+// close the Player gets — a harmless wanderer, not a hostile one. Still
+// flees on low health like any other AIAgent (fleeing isn't hostility, it's
+// self-preservation). Meaningless without AIAgent, same as Heading needing
+// PlayerMarker — simply ignored, not validated here.
+struct Pedestrian final {};
+
+// A small, fast, deterministic PRNG (xorshift32) — not cryptographic, just
+// needs to be reproducible per entity across runs/platforms for wander
+// behavior to be both natural-looking and testable. state must never be 0
+// (a fixed point of xorshift); callers seed it accordingly.
+std::uint32_t next_random(std::uint32_t &state) {
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return state;
+}
+// A pseudo-random float in [-1, 1].
+float random_unit(std::uint32_t &state) {
+    return static_cast<float>(next_random(state) % 2000) / 1000.0F - 1.0F;
+}
+
 // Bridge-local combat data, ported (not shared) from the native playground's
 // own Health/Projectile structs — like those, scoped to what this editor
 // needs, not general engine primitives, so each side keeps its own copy
@@ -75,6 +119,12 @@ constexpr float vehicle_drag = 3.0F;          // units/s^2, applied opposing mot
 constexpr float vehicle_max_forward = 9.0F;   // units/s
 constexpr float vehicle_max_reverse = 4.0F;   // units/s
 constexpr float vehicle_turn_rate = 2.2F;     // rad/s at full steering lock
+constexpr float ai_walk_speed = 1.6F;         // units/s; wander pace
+constexpr float ai_run_speed = 4.0F;          // units/s; wander sprint, chase, and flee
+constexpr float ai_sense_radius = 6.0F;       // units; distance at which an AIAgent notices the Player
+constexpr float ai_flee_health_ratio = 0.3F;  // flee once current/max health drops to/below this
+constexpr float ai_wander_min_phase = 1.0F;   // seconds; shortest idle or walk/run phase
+constexpr float ai_wander_max_phase = 3.0F;   // seconds; longest idle or walk/run phase
 constexpr float attack_damage = 20.0F;
 // Weaker than melee (a ranged option, not a strict upgrade) and fast enough
 // to cross a typical engagement distance well within its lifetime.
@@ -153,6 +203,122 @@ struct Runtime {
         world.register_component<Health>("editor.health");
         world.register_component<Projectile>("editor.projectile");
         world.register_component<Heading>("editor.heading");
+        world.register_component<AIAgent>("editor.ai_agent");
+        world.register_component<Pedestrian>("editor.pedestrian");
+        // Order 1: an AIAgent drives its own velocity the same way editor.move
+        // drives the Player's, and must also land before physics (order 10)
+        // integrates it. Ordered just after editor.move (0), not before it or
+        // at the same order, purely to keep a fixed, unambiguous run order
+        // between two systems that never actually touch the same entity (an
+        // AIAgent and a PlayerMarker are different entities by authoring
+        // convention) rather than because one depends on the other's output.
+        // Only five of AIStateName's seven values are ever actually produced
+        // here: Idle/Walking/Running (wander) and Fleeing/Chasing (reacting to
+        // the Player). Driving is reserved for a possible future AI-controlled
+        // Vehicle, which this round doesn't implement. editor_add doesn't stop
+        // an entity from authoring AIState alongside Player+Vehicle (nothing
+        // here validates authoring combinations, the same as everywhere else
+        // in this file) — that entity would get both a Heading and an
+        // AIAgent, and this system simply overwrites editor.move's velocity
+        // with its own every tick, since it runs at order 1 to editor.move's
+        // order 0. Not a crash, just not a useful combination to author. Dead
+        // is unreachable in practice: editor.combat already destroys a Health
+        // entity outright the tick it hits 0 (see damage()), so there's never
+        // a tick where an AIAgent survives with 0 health for this system to
+        // observe and label.
+        systems.add(
+            "editor.ai", engine::FixedPhase::update, 1,
+            [](engine::World &w, const engine::FixedUpdateContext &) {
+                constexpr float dt = 1.0F / 60.0F;
+                // Every AIAgent reacts to the same single point — the first
+                // Player found — matching the "one Player" authoring
+                // convention editor_add's own doc comment already assumes
+                // for is_player.
+                std::optional<engine::Vec3> player_pos;
+                for (const auto player : w.query<engine::Box, PlayerMarker>()) {
+                    player_pos = w.get<engine::Box>(player)->center;
+                    break;
+                }
+                for (const auto entity : w.query<engine::physics::RigidBody, AIAgent>()) {
+                    auto &agent = *w.get<AIAgent>(entity);
+                    auto &body = *w.get<engine::physics::RigidBody>(entity);
+                    const auto &box = *w.get<engine::Box>(entity);
+                    const auto *health = w.get<Health>(entity);
+                    const bool is_pedestrian = w.get<Pedestrian>(entity) != nullptr;
+
+                    float dist_sq = -1.0F;
+                    if (player_pos) {
+                        const float dx = player_pos->x - box.center.x;
+                        const float dz = player_pos->z - box.center.z;
+                        dist_sq = dx * dx + dz * dz;
+                    }
+                    const bool player_near = player_pos && dist_sq <= ai_sense_radius * ai_sense_radius;
+                    const bool low_health =
+                        health && health->max > 0 && health->current / health->max <= ai_flee_health_ratio;
+
+                    float target_x = 0.0F, target_z = 0.0F;
+                    AIState next_state = AIState::Idle;
+                    if (low_health && player_near) {
+                        // Flee even if Pedestrian — self-preservation isn't hostility.
+                        next_state = AIState::Fleeing;
+                        const float dx = box.center.x - player_pos->x;
+                        const float dz = box.center.z - player_pos->z;
+                        const float len = std::sqrt(dx * dx + dz * dz);
+                        if (len > 0.001F) {
+                            target_x = dx / len;
+                            target_z = dz / len;
+                        }
+                    } else if (!is_pedestrian && player_near) {
+                        next_state = AIState::Chasing;
+                        const float dx = player_pos->x - box.center.x;
+                        const float dz = player_pos->z - box.center.z;
+                        const float len = std::sqrt(dx * dx + dz * dz);
+                        if (len > 0.001F) {
+                            target_x = dx / len;
+                            target_z = dz / len;
+                        }
+                    } else {
+                        // Wander: alternate a resting (Idle) phase with a moving
+                        // (Walking or Running) phase in a freshly rolled random
+                        // direction, each phase lasting a random duration.
+                        agent.timer -= dt;
+                        if (agent.timer <= 0.0F) {
+                            const bool was_idle = agent.state == AIState::Idle;
+                            if (was_idle) {
+                                agent.dir_x = random_unit(agent.rng);
+                                agent.dir_z = random_unit(agent.rng);
+                                const float len =
+                                    std::sqrt(agent.dir_x * agent.dir_x + agent.dir_z * agent.dir_z);
+                                if (len > 0.001F) {
+                                    agent.dir_x /= len;
+                                    agent.dir_z /= len;
+                                } else {
+                                    agent.dir_x = 0.0F;
+                                    agent.dir_z = 1.0F;
+                                }
+                                next_state = next_random(agent.rng) % 3 == 0 ? AIState::Running
+                                                                              : AIState::Walking;
+                            } else {
+                                next_state = AIState::Idle;
+                            }
+                            agent.timer = ai_wander_min_phase + (random_unit(agent.rng) + 1.0F) * 0.5F *
+                                                                     (ai_wander_max_phase - ai_wander_min_phase);
+                        } else {
+                            next_state = agent.state; // hold the current phase until the timer elapses
+                        }
+                        if (next_state == AIState::Walking || next_state == AIState::Running) {
+                            target_x = agent.dir_x;
+                            target_z = agent.dir_z;
+                        }
+                    }
+                    const float speed = next_state == AIState::Walking     ? ai_walk_speed
+                                         : next_state == AIState::Idle     ? 0.0F
+                                                                            : ai_run_speed;
+                    body.velocity.x = target_x * speed;
+                    body.velocity.z = target_z * speed;
+                    agent.state = next_state;
+                }
+            });
         // Order 0: apply this tick's input to the player's velocity before
         // order 10 integrates it — matches the native playground's own
         // move-then-physics ordering.
@@ -366,9 +532,17 @@ EXPORT void editor_begin() {
 // default camera-relative strafe model, always starting out facing world +z, since editor_add
 // has no Rotation input to seed a better initial heading from — a placed-and-rotated vehicle
 // visually snaps to face +z the instant Play starts, a known, documented simplification.
+// is_ai is nonzero when the entity carries an authored AIState component: it gets an AIAgent
+// instead of ever reading InputState, wandering on its own, chasing the Player when one comes
+// within ai_sense_radius, or fleeing it below ai_flee_health_ratio — the same way is_vehicle's
+// Heading substitutes a different movement model for the Player's own. Ignored for a child, same
+// reasoning as is_player. is_pedestrian is nonzero when the entity also carries an authored
+// Pedestrian component; meaningless without is_ai (nothing else reads it), so it's simply
+// ignored without that too — see Pedestrian's own doc comment for what it changes.
 EXPORT int editor_add(double x, double y, double z, double vx, double vy, double vz, double sx,
                        double sy, double sz, double is_child, double is_player, double is_collider,
-                       double hp_current, double hp_max, double is_vehicle) {
+                       double hp_current, double hp_max, double is_vehicle, double is_ai,
+                       double is_pedestrian) {
     if (!staging || staging->entities.size() >= 1024) {
         failed = true;
         return 0;
@@ -402,6 +576,18 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
             staging->world.set(
                 e, Health{std::clamp(static_cast<float>(hp_current), 0.0F, static_cast<float>(hp_max)),
                           static_cast<float>(hp_max)});
+        if (is_ai != 0) {
+            // Seeded from this entity's authoring order (never 0, xorshift32's
+            // one fixed point) rather than wall-clock time, so two entities
+            // never share a seed and the whole wander pattern is exactly
+            // reproducible run to run — required for editor_bridge_tests.cpp
+            // to assert on it at all.
+            staging->world.set(
+                e, AIAgent{AIState::Idle, 0.0F, 0.0F, 1.0F,
+                           static_cast<std::uint32_t>(staging->entities.size()) + 1});
+            if (is_pedestrian != 0)
+                staging->world.set(e, Pedestrian{});
+        }
     }
     staging->entities.push_back(e);
     return 1;
@@ -463,15 +649,19 @@ EXPORT void editor_key(int code, int down) {
 // field 0/1/2 are Box.center.x/y/z; field 3 is Health.current/Health.max (a ratio in [0, 1]),
 // or -1 if the entity has no Health; field 4 is Heading.yaw (radians, 0 for an entity with no
 // Heading — indistinguishable from a real yaw of 0, but JS only ever reads this for an entity
-// it already knows authored both Player and Vehicle). Returns 0 (and, for field 3, -1) for an
-// index outside entities' bounds, or for an entity combat has since destroyed — check
-// editor_alive() first to tell "destroyed" apart from "never had one" at 0,0,0.
+// it already knows authored both Player and Vehicle); field 5 is an AIAgent's AIState as a plain
+// int matching AIStateName's own declared order in Components.ts (0=Idle, 1=Walking, 2=Running,
+// 3=Driving, 4=Fleeing, 5=Chasing, 6=Dead — Driving and Dead are declared but never actually
+// produced by editor.ai, see its own doc comment), or -1 for an entity with no AIAgent. Returns 0
+// (and, for fields 3/5, -1) for an index outside entities' bounds, or for an entity combat has
+// since destroyed — check editor_alive() first to tell "destroyed" apart from "never had one" at
+// 0,0,0.
 EXPORT double editor_value(int index, int field) {
     if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
-        return field == 3 ? -1 : 0;
+        return field == 3 || field == 5 ? -1 : 0;
     const auto entity = active->entities[static_cast<std::size_t>(index)];
     if (!active->world.alive(entity))
-        return field == 3 ? -1 : 0;
+        return field == 3 || field == 5 ? -1 : 0;
     if (field == 3) {
         const auto *health = active->world.get<Health>(entity);
         return health ? health->current / health->max : -1;
@@ -479,6 +669,10 @@ EXPORT double editor_value(int index, int field) {
     if (field == 4) {
         const auto *heading = active->world.get<Heading>(entity);
         return heading ? heading->yaw : 0;
+    }
+    if (field == 5) {
+        const auto *agent = active->world.get<AIAgent>(entity);
+        return agent ? static_cast<double>(static_cast<int>(agent->state)) : -1;
     }
     const auto &b = *active->world.get<engine::Box>(entity);
     return field == 0 ? b.center.x : field == 1 ? b.center.y : b.center.z;
