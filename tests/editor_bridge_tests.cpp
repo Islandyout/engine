@@ -527,10 +527,53 @@ int main() {
     check(editor_value(1, 0) < 2.0 + 1e-3); // stopped at the wall's face, not past it
     check(editor_value(1, 0) > 1.5);        // and did actually approach, not stall at the start
 
+    // Regression: an AIAgent returning to wander from Chasing/Fleeing must resume real
+    // movement the instant it leaves sense range, not sit reporting the stale reactive
+    // state at zero velocity. Neither reactive branch touches agent.timer, so without
+    // explicitly resetting it on the way back to wander, an old frozen timer (here 0 the
+    // whole time it's chasing, since chasing starts at spawn) reads as "not yet expired"
+    // the moment it ticks negative, and was_idle reads the stale agent.state == Chasing
+    // instead of Idle — sending it to a multi-second Idle phase instead of immediately
+    // picking a new wander direction. The Player starts within sense range (spawns the
+    // AI straight into Chasing, same as the dedicated Chasing case above) so the AI's own
+    // position stays fully deterministic throughout — it's chasing, not free-wandering in
+    // an unpredictable 2D direction — then flees at move_speed (4.8) once caught, just
+    // outrunning the AI's own ai_run_speed cap (4.0) so the gap reliably opens up.
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0) == 1); // AI, index 0
+    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0) == 1); // Player, index 1
+    check(editor_commit() == 1);
+    for (int i = 0; i < 60; ++i)
+        editor_tick(); // let it actually catch up and settle into chasing close by
+    check(editor_value(0, 5) == 5); // Chasing
+    editor_input_begin_frame();
+    editor_key(key_d, 1); // Player flees at 4.8 units/s, faster than the AI's 4.0 chase cap
+    bool crossed_out = false;
+    int ticks_since_out = -1;
+    // The AI chases in the same direction the Player flees, so the gap only opens at their
+    // 0.8 units/s speed difference — reaching 6 units takes >450 ticks, not a couple hundred.
+    for (int i = 0; i < 600; ++i) {
+        editor_tick();
+        const double dx = editor_value(1, 0) - editor_value(0, 0);
+        const double dz = editor_value(1, 2) - editor_value(0, 2);
+        const double distance = std::sqrt(dx * dx + dz * dz);
+        if (!crossed_out && distance > 6.0) {
+            crossed_out = true;
+            ticks_since_out = 0;
+        } else if (crossed_out && ++ticks_since_out >= 2) {
+            break; // two ticks' grace after crossing back out, then check
+        }
+    }
+    check(crossed_out);
+    const double state_after_leaving = editor_value(0, 5);
+    check(state_after_leaving == 1 || state_after_leaving == 2); // Walking/Running, not stuck Chasing
+    editor_key(key_d, 0);
+
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
                  "movement, jump/sustained-flight, Collider obstacle blocking, melee, ranged blast "
                  "combat, frame/tick-decoupled combat edges, shooter self-immunity, camera-relative "
-                 "movement, vehicle accelerate/steer driving, vehicle footprint rotation, and "
-                 "AIAgent wander/chase/flee/pedestrian behavior passed.\n";
+                 "movement, vehicle accelerate/steer driving, vehicle footprint rotation, AIAgent "
+                 "wander/chase/flee/pedestrian behavior, and resuming wander cleanly after a "
+                 "chase/flee ends passed.\n";
 }

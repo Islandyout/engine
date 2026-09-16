@@ -281,9 +281,24 @@ struct Runtime {
                         // Wander: alternate a resting (Idle) phase with a moving
                         // (Walking or Running) phase in a freshly rolled random
                         // direction, each phase lasting a random duration.
+                        // Returning here from Chasing/Fleeing (the Player left
+                        // range, or health recovered) always re-rolls
+                        // immediately instead of resuming whatever phase was
+                        // frozen mid-flight: neither reactive branch above ever
+                        // touches agent.timer, so without this an old countdown
+                        // would sit there stale, and target_x/target_z would
+                        // stay 0 below (Chasing/Fleeing isn't Walking/Running),
+                        // leaving the agent standing still while still
+                        // reporting the last reactive state — for up to the
+                        // remainder of that frozen timer, then another full
+                        // Idle phase on top, before it actually resumed wander.
+                        const bool was_reactive =
+                            agent.state == AIState::Chasing || agent.state == AIState::Fleeing;
+                        if (was_reactive)
+                            agent.timer = 0.0F;
                         agent.timer -= dt;
                         if (agent.timer <= 0.0F) {
-                            const bool was_idle = agent.state == AIState::Idle;
+                            const bool was_idle = was_reactive || agent.state == AIState::Idle;
                             if (was_idle) {
                                 agent.dir_x = random_unit(agent.rng);
                                 agent.dir_z = random_unit(agent.rng);
