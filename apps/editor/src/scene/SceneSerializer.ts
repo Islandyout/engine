@@ -289,7 +289,7 @@ export function normalizeComponent(
       return { archetype: unsigned(value.archetype, "Vehicle.archetype", 0) };
     case "AnimationState":
       return {
-        clip: unsigned(value.clip, "AnimationState.clip", 0),
+        clip: string(value.clip, "AnimationState.clip"),
         time: number(value.time, "AnimationState.time"),
         looping: boolean(value.looping, "AnimationState.looping"),
       };

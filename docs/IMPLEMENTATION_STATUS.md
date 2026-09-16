@@ -1965,3 +1965,73 @@ build step. See `assets/CREDITS.md` for pack hashes and the exact clip-rename ma
   before/after screenshots of the cow's tone-mapping fix; and idle/walk/run/sprint
   screenshots of both new "Mannequin F" and "Wolf" showing correctly connected, smoothly
   posed limbs throughout.
+
+## F33 — AnimationState made real: per-model clip selection/preview (0.33.0)
+
+User request, right after F32 shipped the new catalog entries: "id like to able to
+select the animation movement from a list and apply it to any human or animal." Turned
+out the data model for exactly this already existed — `AnimationStateComponent` (`clip`,
+`time`, `looping`) has been fully wired through `Components.ts`, `SceneSerializer.ts`
+(save/load validation), `Scene.ts` (component registry), `CommandInterpreter.ts` (a
+`trigger_animation` console command, generic add/remove/reset via the inspector's "Add
+component" dropdown), and covered by a `document.test.ts` unit test — since a much
+earlier round. But nothing in `main.ts`'s `rebuild()` or its Play-mode ground-speed clip
+switcher ever *read* it: the exact "authored but inert" bug class `AIState` (F27),
+`Vehicle` (before F25), and `Collider` shape (F31) each had before their own rounds.
+
+`clip` changes from `number` (an arbitrary, semantically-empty index — `document.test.ts`
+literally tested `clip: 3` with no meaning behind the 3) to `string`, and this is a
+genuine type change, not a compromise: unlike `Sound.clip`, which indexes one shared
+`soundCatalog.ts` list, every animated catalog model has its own, differently-named clip
+set (a Cow's `walk`/`trot`/`run`/`graze`, a Hero's `wave`/`sit`/`talk`), so a numeric
+index can't mean the same thing across models the way it already does for sound. `""`
+is the default and means "no authored override" — automatic ground-speed-based selection
+(`animationClips.ts`'s `pickClipName`) behaves exactly as before.
+
+The inspector can't express this with `PropertyMetadata.ts`'s existing static
+`options: [...]` lookup (used for `AIState.state`, `Collider.type`, `Renderable.mesh`,
+`Sound.clip`) — those are fixed at module load, but which clips exist depends on
+*this* entity's own `Renderable.mesh`. `main.ts` special-cases `AnimationState.clip`
+inline in its generic component-field renderer instead: a new `animationClipOptions(entity)`
+resolves the entity's `Renderable.mesh` to a catalog entry, reads that model's own cached
+`AnimationClip[]`, and returns `"(Automatic)"` plus each clip's own name — same
+`<select>` rendering path every other enum field already uses, just fed dynamic options
+instead of `PropertyMetadata`'s static ones. No animated model resolved yet (still
+loading, or not an animated catalog entry) disables the dropdown down to just
+`"(Automatic)"` rather than offering choices that can't apply.
+
+Consumption is two small additions, not a new animation system: `rebuild()` (where an
+animated entity's `AnimState` is built) checks for a resolved `AnimationState` whose
+`clip` names one of that model's own actions; if so, that clip is what plays (with
+`looping`/`time` applied via `setLoop`/`clampWhenFinished`/`action.time`) instead of the
+automatic "resting" pick — live in Edit mode, not gated on Play, since `mixer.update()`
+already runs every frame in both modes. Play mode's own per-tick ground-speed clip
+switcher gets the same check and skips picking a `clipName` at all when overridden,
+leaving `state.current` alone rather than fighting the authored choice every tick. Face
+turning (the same block) is untouched either way — independent visual behavior, not a
+clip decision.
+
+### F33 verification
+
+- No C++/bridge/native changes needed: the C++ side has always treated `AnimationState`
+  as an opaque JSON blob (`scene_document.cpp`), so the `clip` type change is invisible
+  to it — native `ctest` suite untouched, still 14/14.
+- Updated `document.test.ts`'s existing `trigger_animation` case from the old
+  meaningless `clip: 3` to `clip: "wave"`, asserting the resolved component's `clip`
+  round-trips as that string. `npm run typecheck` and `npm test` (33/33) both pass.
+- Built the real Emscripten/WASM editor runtime and extended `tests/browser/editor.cjs`:
+  attaches `AnimationState` to a live Wolf entity, asserts its clip dropdown is headed by
+  `"(Automatic)"` and offers Wolf's own `Eating` clip but not Hero's `wave` (proving the
+  options are genuinely per-model, not a fixed list), selects `Eating`, then — since
+  `set_component` alone only triggers `rebuild()` (the 3D scene) and not a fresh
+  inspector render — clicks away to a different entity and back to force `updatePanels()`
+  to rebuild the panel from the document itself before reading the dropdown's value back,
+  proving the string actually persisted rather than the click merely landing in the DOM;
+  repeats the same round-trip clearing back to `"(Automatic)"`.
+- Manually verified the live preview through the same Playwright/Chromium harness outside
+  the permanent suite: screenshots of a Hero entity with `AnimationState.clip` set to
+  `wave` and to `sit`, and a Wolf set to `Eating`, each showing the model actually posed
+  in that clip in Edit mode (arms raised, seated posture, head lowered feeding) — not
+  just idling regardless of selection — plus confirming each dropdown lists only that
+  specific model's own clip names (Hero: `idle/walk/run/sprint/talk/sit/wave`; Wolf:
+  `Attack/Death/Eating/run/Gallop_Jump/idle/Idle_2/.../walk`).

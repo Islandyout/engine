@@ -60,8 +60,13 @@ export interface ScriptComponent {
 export interface VehicleComponent {
   archetype: number;
 }
+// clip names a clip on the entity's own animated Renderable model (e.g.
+// "idle"/"walk"/"wave") -- "" means no authored override, so main.ts's
+// automatic ground-speed-based clip selection (animationClips.ts's
+// pickClipName) picks instead. Unlike Sound.clip, this can't be a catalog
+// index: every animated model has its own, differently-named clip set.
 export interface AnimationStateComponent {
-  clip: number;
+  clip: string;
   time: number;
   looping: boolean;
 }

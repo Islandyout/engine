@@ -256,10 +256,10 @@ test("prefabs: specialized commands (set_velocity/set_physics/set_ai_state/trigg
   assert.equal(d.scene.resolve(other, "Collider") !== undefined, true, "set_physics's default Collider is shared too");
 
   assert.equal(
-    d.execute({ command: "trigger_animation", entity: source, clip: 3, looping: false }).ok,
+    d.execute({ command: "trigger_animation", entity: source, clip: "wave", looping: false }).ok,
     true,
   );
-  assert.equal(d.scene.resolve(other, "AnimationState")?.clip, 3);
+  assert.equal(d.scene.resolve(other, "AnimationState")?.clip, "wave");
 });
 
 test("prefabs: unlinking clones component data -- editing the unlinked entity never mutates the prefab or a sibling instance", () => {

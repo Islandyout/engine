@@ -138,7 +138,7 @@ async function startEditor() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `<header>
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
-  <span class="brand-sub">BTAI Editor <span class="version">0.32.0</span></span>
+  <span class="brand-sub">BTAI Editor <span class="version">0.33.0</span></span>
   <a class="link-external" href="https://github.com/Islandyout/engine">View source${iconHtml("external")}</a>
 </header>
 <nav>
@@ -426,6 +426,18 @@ async function startEditor() {
   const pendingCatalogRebuilds = new Set<number>();
   function catalogEntry(meshId: number) {
     return modelCatalog.find((m) => m.id === meshId);
+  }
+  // Options for AnimationState.clip's inspector dropdown: this entity's own
+  // Renderable model's clip names, not a fixed list -- unlike Sound.clip
+  // (one catalog, PropertyMetadata.ts), every animated model has a different
+  // clip set, so this has to be computed per entity rather than statically.
+  function animationClipOptions(entity: EntityRef) {
+    const meshId = doc.scene.resolve(entity, "Renderable")?.mesh ?? 0;
+    const clips = catalogCache.get(meshId)?.clips ?? [];
+    return [
+      { label: "(Automatic)", value: "" },
+      ...clips.map((clip) => ({ label: clip.name, value: clip.name })),
+    ];
   }
   function loadCatalogModel(meshId: number): Promise<CachedModel> | undefined {
     const entry = catalogEntry(meshId);
@@ -726,12 +738,29 @@ async function startEditor() {
             cached.clips.map((clip) => [clip.name, mixer.clipAction(clip)]),
           );
           animState = { mixer, actions, prevPosition: new THREE.Vector3() };
+          // An authored AnimationState.clip picks and pins a specific clip --
+          // manually applied from the inspector's per-model dropdown, so it
+          // previews immediately in Edit mode too, not just Play -- instead
+          // of the automatic ground-speed-based pick below. "" (the default,
+          // and whatever pickClipName can't find on this model) falls
+          // through to that automatic behavior unchanged.
+          const override = doc.scene.resolve(entity, "AnimationState");
+          const overridden = override?.clip && actions.has(override.clip);
           // Play the resting clip immediately: every frame's mixer.update() keeps
           // it looping in both Edit and Play mode, so nothing here waits on the
           // Play-mode-only, tick-aligned speed measurement below to pick a clip.
-          const resting = pickClipName([...actions.keys()], 0);
+          const resting = overridden ? override!.clip : pickClipName([...actions.keys()], 0);
           if (resting) {
-            actions.get(resting)?.play();
+            const action = actions.get(resting)!;
+            if (overridden) {
+              action.setLoop(
+                override!.looping ? THREE.LoopRepeat : THREE.LoopOnce,
+                Infinity,
+              );
+              action.clampWhenFinished = !override!.looping;
+              if (Number.isFinite(override!.time)) action.time = override!.time;
+            }
+            action.play();
             animState.current = resting;
           }
         } else {
@@ -945,11 +974,20 @@ async function startEditor() {
           const label = document.createElement("label");
           const meta = propertyMetadata(type, prefix + key);
           label.textContent = meta.label ?? prefix + key;
-          if (meta.options) {
+          const dynamicOptions =
+            type === "AnimationState" && prefix === "" && key === "clip"
+              ? animationClipOptions(entity!)
+              : undefined;
+          const options = meta.options ?? dynamicOptions;
+          if (options) {
             const choice = document.createElement("select");
             choice.setAttribute("aria-label", `${type}.${prefix}${key}`);
-            for (const option of meta.options)
+            for (const option of options)
               choice.add(new Option(option.label, String(option.value)));
+            // A model with no clips loaded yet (still fetching, or not an
+            // animated catalog entry at all) offers only "(Automatic)" --
+            // disable rather than let a choice silently fail to apply.
+            choice.disabled = dynamicOptions !== undefined && dynamicOptions.length === 1;
             choice.value = String(v);
             choice.onchange = () => {
               record[key] =
@@ -1393,7 +1431,14 @@ async function startEditor() {
           const maxTurn = 10 * tickDt; // rad; generous enough not to lag a sharp turn
           object.rotation.y += Math.max(-maxTurn, Math.min(maxTurn, diff));
         }
-        const clipName = pickClipName([...state.actions.keys()], speed);
+        // An authored AnimationState.clip (see rebuild()) pins the clip
+        // rebuild() already applied -- Play mode's own ground-speed pick
+        // must not fight it every tick.
+        const override = doc.scene.resolve(entities[i]!, "AnimationState");
+        const overridden = override?.clip && state.actions.has(override.clip);
+        const clipName = overridden
+          ? undefined
+          : pickClipName([...state.actions.keys()], speed);
         if (clipName && clipName !== state.current) {
           const next = state.actions.get(clipName);
           const previous = state.current
