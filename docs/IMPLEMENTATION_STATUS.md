@@ -1892,3 +1892,76 @@ through instead of discarding them.
   obstacle — or the old, shape-ignorant behavior — would have produced instead),
   confirmed through the existing `Player (x, y, z)` status-bar readout rather than
   reaching into the page's internals.
+
+## F32 — Animation lighting fix, and Quaternius CC0 catalog additions (0.32.0)
+
+User report: the bundled Aether-kit `animals/**`/`people/**` animations "look weird,"
+unsure whether it's the joints or the animations themselves — alongside three
+user-supplied Quaternius CC0 1.0 animation packs to investigate wiring up.
+
+Diagnosis came first, deliberately, before touching any asset: a Playwright script
+placed a Hero under a real `Player` component and drove it forward in Play mode,
+dumping every bone's live `getWorldPosition()` mid-stride — every joint tracked its
+parent correctly, no drift, no detached limb. A second, fully isolated render (same
+`GLTFLoader` / `SkeletonUtils.clone` / `AnimationMixer` calls as `main.ts`, outside the
+editor entirely, both with and without cloning, both a single `walk` clip and a full
+idle→walk crossfade) reproduced nothing wrong either, across every clip on both a
+person and a quadruped. What actually was visibly off — a cow's near-black
+`belly_cow` material rendering as a blown-white/pure-black patchy mess — turned out to
+be a real, independent bug: `main.ts` constructed its `THREE.WebGLRenderer` with no
+`toneMapping`/`outputColorSpace` set at all, so the scene's `HemisphereLight(3)` +
+`DirectionalLight(3)` (already fairly hot for `NoToneMapping`) clipped bright faces to
+solid white and crushed dark ones to solid black on the kit's flat PBR materials —
+most visible on already-dark materials, worst on a low-poly mesh with abrupt per-face
+normals. Fixed by setting `renderer.toneMapping = THREE.ACESFilmicToneMapping` and
+`renderer.outputColorSpace = THREE.SRGBColorSpace` right after construction — a pure
+rendering fix, zero asset changes. The Aether kit's remaining look (chunky, ball-jointed
+low-poly limbs) is that kit's own style, not a bug: two early screenshots that seemed to
+show a "detached leg" or "giant balloon shoulder" turned out to be the same diagnostic
+mistake this round started by catching in the animal case — the default "First entity"
+box, or in the second case another catalog model, sharing the same `[0,0,0]` spawn
+origin `catalog-add` always uses, rendered on top of and mistaken for the character.
+
+Separately, the three supplied Quaternius packs (`animal_animations`, `Universal
+Animation Library[Standard]`, `Universal Animation Library 2[Standard]`) are wired in as
+*new* catalog entries, not a replacement for the Aether kit — nothing in it was actually
+broken, so there was nothing to swap out:
+
+- `assets/source/kit/people/mannequin_f.glb` (catalog id 132, "Mannequin F"): Quaternius's
+  "Female Mannequin" mesh/skin, which ships with no animations of its own, combined with
+  6 clips selected from `Universal Animation Library[Standard]`'s `UAL1_Standard.glb`
+  (same 67-bone skeleton, verified node-name/order match) via a new one-off script,
+  `tools/import_quaternius_mannequin.py`, renamed to this project's own convention:
+  `idle`/`walk`/`run`/`sprint`/`talk`/`sit`.
+- `assets/source/kit/animals/{wolf,husky,stag,alpaca}.glb` (catalog ids 133-136): four
+  self-contained species converted from the `animal_animations` pack's `.gltf` (embedded
+  base64 buffer, no external textures) to single-file `.glb` via another new one-off
+  script, `tools/import_quaternius_animals.py`, with `Idle`/`Walk`/`Gallop` renamed to
+  `idle`/`walk`/`run` (their other clips — `Attack`, `Death`, `Eating`, etc. — are kept
+  under their original names; `pickClipName` only looks for the renamed three, plus
+  `trot`/`sprint` which this pack doesn't have, and falls back gracefully when absent).
+
+Neither import script is wired into `tools/build_editor.sh` — both were run once against
+the user-supplied source archives, which (like the Aether/Kenney archives before them)
+aren't part of this repo, so they're kept for provenance/reproducibility rather than as a
+build step. See `assets/CREDITS.md` for pack hashes and the exact clip-rename mapping.
+
+### F32 verification
+
+- No C++/bridge changes this round (pure browser-editor rendering fix + new bundled
+  catalog assets); native `ctest` suite untouched, still 14/14.
+- `npm run typecheck` and `npm test` (33/33, including the existing `modelCatalog.test.ts`
+  checks that every catalog id is unique and every catalog path resolves to a real file
+  on disk — both pass against the 5 new entries with no changes needed) both pass.
+- Built the real Emscripten/WASM editor runtime and extended `tests/browser/editor.cjs`:
+  places "Mannequin F" (people) and "Wolf" (animals) by label from the catalog dropdown
+  and confirms both appear with no page error, alongside the whole existing suite (still
+  zero accumulated `pageerror`s across the full run).
+- Manually verified the diagnosis and the fix through the same real Playwright/Chromium
+  harness, outside the permanent suite: bone-world-position dump during live `Player`
+  movement (all joints correctly parented); isolated raw-`GLTFLoader` renders of `walk`/
+  `run`/`sprint` clips sampled across their full duration, with and without
+  `SkeletonUtils.clone`, with and without the idle→walk crossfade (no defects in any);
+  before/after screenshots of the cow's tone-mapping fix; and idle/walk/run/sprint
+  screenshots of both new "Mannequin F" and "Wolf" showing correctly connected, smoothly
+  posed limbs throughout.

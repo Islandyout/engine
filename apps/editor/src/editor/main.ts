@@ -138,7 +138,7 @@ async function startEditor() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `<header>
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
-  <span class="brand-sub">BTAI Editor <span class="version">0.31.0</span></span>
+  <span class="brand-sub">BTAI Editor <span class="version">0.32.0</span></span>
   <a class="link-external" href="https://github.com/Islandyout/engine">View source${iconHtml("external")}</a>
 </header>
 <nav>
@@ -214,7 +214,7 @@ async function startEditor() {
         <select id="catalog-model" aria-label="Model"></select>
       </div>
       <button id="catalog-add" class="btn btn-sm">${iconHtml("cube")}<span>Add from catalog</span></button>
-      <p class="hint">${modelCatalog.length} bundled CC0 models · Aether kit</p>
+      <p class="hint">${modelCatalog.length} bundled CC0 models · Aether kit + Quaternius</p>
       <a class="link-external" href="./ASSET-CREDITS.txt">Asset credits</a>
       <div class="field-row">
         <select id="prefab-select" aria-label="Prefab"></select>
@@ -244,6 +244,8 @@ async function startEditor() {
   let backend = "WebGL";
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
   } catch {
     renderer = new CanvasRenderer();
     backend = "Canvas compatibility";

@@ -148,6 +148,14 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 129, category: "people", name: "Npc Uniform", path: "./kit/people/npc-uniform.glb", animated: true },
   { id: 130, category: "people", name: "Npc Vendor", path: "./kit/people/npc-vendor.glb", animated: true },
   { id: 131, category: "people", name: "Npc Worker", path: "./kit/people/npc-worker.glb", animated: true },
+  // Quaternius CC0 packs (0.32.0) -- see assets/CREDITS.md. Smoothly-skinned
+  // alternatives to the Aether kit's chunky ball-jointed rig above, added
+  // rather than replacing any existing entry.
+  { id: 132, category: "people", name: "Mannequin F", path: "./kit/people/mannequin_f.glb", animated: true },
+  { id: 133, category: "animals", name: "Wolf", path: "./kit/animals/wolf.glb", animated: true },
+  { id: 134, category: "animals", name: "Husky", path: "./kit/animals/husky.glb", animated: true },
+  { id: 135, category: "animals", name: "Stag", path: "./kit/animals/stag.glb", animated: true },
+  { id: 136, category: "animals", name: "Alpaca", path: "./kit/animals/alpaca.glb", animated: true },
 ];
 
 export const catalogCategories = Array.from(

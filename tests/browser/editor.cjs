@@ -732,6 +732,31 @@ const { chromium } = require("playwright");
       await audioEventCount("stop"),
       "every started source must have a matching stop -- nothing left playing across the whole Sound sequence",
     );
+    // The Quaternius CC0 additions (0.32.0, see assets/CREDITS.md) go through
+    // the same animated-catalog path the Aether Cat entry above already
+    // exercises; just confirm both new entries are actually reachable by
+    // label from their respective categories and load without a page error.
+    const entitiesBeforeQuaternius = await page.locator(".entity").count();
+    await page.locator("#catalog-category").selectOption("people");
+    await page.locator("#catalog-model").selectOption({ label: "Mannequin F" });
+    await page.locator("#catalog-add").click();
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".entity")].some((e) =>
+        e.textContent.includes("Mannequin F"),
+      ),
+    );
+    await page.locator("#catalog-category").selectOption("animals");
+    await page.locator("#catalog-model").selectOption({ label: "Wolf" });
+    await page.locator("#catalog-add").click();
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".entity")].some((e) =>
+        e.textContent.includes("Wolf"),
+      ),
+    );
+    assert.equal(
+      await page.locator(".entity").count(),
+      entitiesBeforeQuaternius + 2,
+    );
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -741,7 +766,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf) passed.",
     );
   } finally {
     if (browser) await browser.close();
