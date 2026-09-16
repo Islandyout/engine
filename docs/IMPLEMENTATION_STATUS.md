@@ -2035,3 +2035,61 @@ clip decision.
   just idling regardless of selection — plus confirming each dropdown lists only that
   specific model's own clip names (Hero: `idle/walk/run/sprint/talk/sit/wave`; Wolf:
   `Attack/Death/Eating/run/Gallop_Jump/idle/Idle_2/.../walk`).
+
+## F34 — Inspector cleanup: grouped components, inline animation clip picker (0.34.0)
+
+Direct user feedback right after F33 shipped, looking at the "Add component" dropdown:
+"the component section has gotten confusing and a few are redundant for human use i
+think it can be simpler and human user friendly and some feature you say you connected
+are not readily apparent." Both complaints are accurate. The dropdown was one flat list
+of 16 raw type names (`RigidBody`, `AIState`, `AnimationState`) in roughly declaration
+order, with no relationship between adjacent entries — `Velocity`/`Acceleration` (a
+low-level physics primitive) sat at the same visual weight as `Player`/`Health` (a
+high-level gameplay tag), and components that only make sense *together* (`AIState` +
+`Pedestrian`, `Player` + `Vehicle`) were scattered rather than adjacent. And F33's own
+new clip picker was reachable only by already knowing "AnimationState" is the thing to
+add from that list — nothing hinted it existed.
+
+`PropertyMetadata.ts` gains two small, additive exports: `componentGroups` (an ordered
+list of `{label, types}`, now the single source of truth for which component types the
+inspector ever offers — `main.ts`'s own hardcoded 16-item array is gone, replaced by
+flattening this) and `componentLabel(type)` (a friendlier display name for the handful
+that need one — "AI Behavior", "Physics Body", "Animation (advanced)" — falling back to
+the type name itself for everything else). Groups, each keeping directly-linked
+components together: **Transform** (`Transform`/`Rotation`/`Scale`), **Movement &
+Physics** (`Velocity`/`Acceleration`/`RigidBody`/`Collider` — the movement-and-collision
+chain), **Gameplay** (`Health`/`AIState`/`Pedestrian`/`Player`/`Vehicle`), **Appearance &
+Animation** (`Renderable`/`AnimationState`), **Scripting & Audio** (`Script`/`Sound`).
+`main.ts` renders these as real `<optgroup>`s, and the same `componentLabel()` now also
+labels each attached component's own card header, so "ANIMATIONSTATE" reads "Animation
+(advanced)" there too — the underlying component/command/save-file type name is
+untouched everywhere, this is presentation only.
+
+For discoverability: the `Renderable` card itself now grows an "Animation clip" picker
+—the exact same per-model `animationClipOptions(entity)` F33 already built, just
+relocated — directly under "Model", visible for any animated catalog entry with no
+"Add component" detour needed. Picking a clip there reads the entity's current
+`AnimationState` if one exists (preserving any `time`/`looping` already set) and calls
+`set_component` with just `clip` changed; since `set_component` already upserts
+(`writeComponent`'s `scene.add` is add-or-overwrite), this auto-attaches `AnimationState`
+with no separate `attach_component` call needed, and the advanced "Animation (advanced)"
+card — for anyone who wants `time`/`looping` — appears and agrees automatically on the
+next render. Two UI surfaces, one underlying component, always in sync.
+
+### F34 verification
+
+- No C++/bridge/native changes; native `ctest` suite untouched, still 14/14.
+- `npm run typecheck` and `npm test` (33/33) both pass, including the existing
+  `transform.test.ts` `propertyMetadata()` checks (additive-only change, nothing existing
+  altered).
+- Built the real Emscripten/WASM editor runtime and extended `tests/browser/editor.cjs`:
+  dumps the "Add component" dropdown's `<optgroup>` structure and asserts `AIState`/
+  `Pedestrian` share a group, `Player`/`Vehicle` share a group, and the whole movement
+  chain (`Velocity`/`Acceleration`/`RigidBody`/`Collider`) shares a group; spot-checks the
+  friendlier option text for `AIState`/`RigidBody`/`AnimationState` while confirming the
+  option `value` each existing `selectOption(...)` call in this suite already relies on
+  is untouched; then, on "Mannequin F" (added earlier in this same test, with no
+  `AnimationState` attached), confirms its Renderable card's inline clip picker offers
+  its own `sit` clip, selects it, forces a fresh render by reselecting entities, and
+  confirms both the inline picker *and* the now-auto-attached advanced card agree on
+  `"sit"` — proving the auto-attach path, not just that the click landed.
