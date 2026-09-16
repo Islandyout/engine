@@ -15,6 +15,7 @@ import type {
   RotationComponent,
   ScaleComponent,
   ScriptComponent,
+  SoundComponent,
   TransformComponent,
   Vec3,
   VehicleComponent,
@@ -41,6 +42,7 @@ export interface SceneComponents {
   Name: NameComponent;
   Parent: ParentComponent;
   Script: ScriptComponent;
+  Sound: SoundComponent;
   PrefabInstance: PrefabInstanceComponent;
 }
 
@@ -63,6 +65,7 @@ export const prefabableComponentNames = [
   "AnimationState",
   "Renderable",
   "Script",
+  "Sound",
 ] as const satisfies readonly (keyof SceneComponents)[];
 export type PrefabableComponent = (typeof prefabableComponentNames)[number];
 const prefabableComponentSet: ReadonlySet<string> = new Set(
@@ -118,6 +121,7 @@ export class Scene {
     Name: new Map(),
     Parent: new Map(),
     Script: new Map(),
+    Sound: new Map(),
     PrefabInstance: new Map(),
   };
   private prefabDefs = new Map<string, PrefabDefinition>();

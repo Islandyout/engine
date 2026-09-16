@@ -1746,3 +1746,70 @@ Parent/PrefabInstance touches).
   typecheck` and `npm test` (32/32, up from 28) both pass; the real-browser suite
   gained a check placing an instance of a prefab named `Boss "Red" & Co` through the
   picker, re-verified clean end to end.
+
+## F30 — Audio: a Sound component and real Web Audio playback (0.30.0)
+
+Closes Tier 1's last item: "currently there is none at all." A `Sound` component
+picks a clip from a small bundled catalog and plays it through the real Web Audio
+API, starting when Play begins and stopping when it ends — the same Play-mode-scoped
+lifecycle `Script`'s `on_tick` and `AIAgent` already run under, not an
+event-triggered one-shot system (no "play this when melee lands"): that needs the
+bridge to expose which tick a combat/collision event actually fired, which this
+round deliberately doesn't add, the same "stay in the browser editor, don't chase a
+bigger system" scoping this session has held to since the scripting round.
+
+Sound needed real audio content, and this project had no audio asset pipeline (only
+the bundled 131-model kit, itself originally a user-supplied archive rather than
+something fetched live — outbound network to CC0 sources like kenney.nl is blocked
+by this sandbox's own egress policy). The user supplied four Kenney.nl CC0 1.0 sound
+packs (~350 files total); a curated 10-file subset — not an exhaustive import — went
+into `assets/source/audio/` under new catalog-friendly names, covering the existing
+demo scene's combat/world sounds: two loop-friendly ambiences (engine idle, force
+field hum) and eight one-shot stingers (melee/metal hit, explosion, glass break,
+bell, door open/close, coin pickup). Full provenance, pack hashes, and the
+original-filename mapping are in `assets/CREDITS.md`. `apps/editor/src/scene/
+soundCatalog.ts` mirrors `modelCatalog.ts`'s shape; `tools/build_editor.sh` copies
+`assets/source/audio/` into `build/site/audio/` alongside the existing model-kit copy
+step.
+
+`Sound { clip, volume, loop, autoplay }` is a normal component throughout: it's
+prefab-shared like `Renderable`/`Script` (`prefabableComponentNames` in `Scene.ts`),
+serializes/validates through `SceneSerializer.ts` (`volume` a new `unitInterval`
+helper clamps to `[0,1]`, rejecting out-of-range rather than silently clamping — same
+posture as `RigidBody.mass must be positive`), and gets a starter default and
+inspector dropdown (`PropertyMetadata.ts`'s `Sound.clip`, grouped by category) the
+same way every other component does.
+
+Playback itself lives entirely in `main.ts`, mirroring `loadCatalogModel`'s
+promise-cache pattern (`soundBufferPromises`/`soundBuffers`) for `fetch` +
+`AudioContext.decodeAudioData`, evicting a failed load the same way a failed model
+load already does. `startSounds()` runs once when Play begins (after
+`syncRuntime()`), starting a `AudioBufferSourceNode` per live `autoplay` Sound
+(resolved through the prefab, like everything else in `syncRuntime()`) into a
+per-clip `GainNode` for `volume`, tracked in `activeSounds` keyed by entity index.
+Pause suspends the whole `AudioContext` — every currently-playing sound's actual
+output pauses in place, not just muted while still running out its buffer
+underneath — and the Play button, when it doubles as Resume (`doc.mode ===
+"pause"`), resumes it; Stop tears every tracked source down. An async clip load that
+resolves after its Play session already ended (a second Stop/Play cycle, or Stop
+itself) checks `doc.mode` before ever calling `.start()`, so it can't leak a sound
+into a scene that's no longer playing.
+
+### F30 verification
+
+- Extended `apps/editor/tests/document.test.ts`: attaching `Sound` gets sensible
+  defaults; edits round-trip through save/load; `volume` outside `[0,1]` is rejected
+  on load; `Sound` is prefab-shared like every other prefabable component (editing
+  one instance's clip updates a sibling instance live). `npm run typecheck` and `npm
+  test` (33/33, up from 32) both pass.
+- Full native rebuild + `ctest`: unaffected, still 14/14 (this round, like prefabs,
+  touches no C++ — it's entirely the browser editor's TypeScript authoring/runtime
+  layer).
+- Built the real Emscripten/WASM editor runtime (with `build/site/audio/` now
+  present) and ran it through genuine WebGL via Playwright, with `AudioContext`
+  monkey-patched before any app code runs (`page.addInitScript`, no test-only hooks
+  added to the shipped app) to observe real `start`/`stop`/`suspend`/`resume` calls:
+  attaching a looping `Sound` through the real inspector dropdown and hitting Play
+  produced a real `start` call; Pause produced `suspend`; Play again (resuming)
+  produced `resume`; Stop produced `stop`. Added as a permanent assertion sequence to
+  `tests/browser/editor.cjs`.

@@ -30,5 +30,6 @@ em++ -std=c++20 -O2 -fexceptions -Wall -Wextra -Werror -Iinclude -Ithird_party/l
   -o build/site/runtime.js
 cp assets/source/bench.glb build/site/bench.glb
 cp -r assets/source/kit build/site/kit
+cp -r assets/source/audio build/site/audio
 cp assets/CREDITS.md build/site/ASSET-CREDITS.txt
 cp third_party/aether/LICENSE build/site/AETHER-LICENSE.txt

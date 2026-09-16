@@ -44,6 +44,42 @@ const { chromium } = require("playwright");
     });
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
+    // Monkey-patches AudioContext before any app code runs, recording
+    // start/stop/suspend/resume calls into a page-global array this test
+    // reads back later -- observes real Web Audio API usage without adding
+    // any test-only hooks to the shipped app.
+    await page.addInitScript(() => {
+      window.__audioEvents = [];
+      const OrigAC = window.AudioContext;
+      window.AudioContext = class extends OrigAC {
+        constructor(...args) {
+          super(...args);
+          window.__audioEvents.push({ type: "context-created" });
+        }
+        createBufferSource() {
+          const source = super.createBufferSource();
+          const origStart = source.start.bind(source);
+          const origStop = source.stop.bind(source);
+          source.start = (...a) => {
+            window.__audioEvents.push({ type: "start", loop: source.loop });
+            return origStart(...a);
+          };
+          source.stop = (...a) => {
+            window.__audioEvents.push({ type: "stop" });
+            return origStop(...a);
+          };
+          return source;
+        }
+        suspend(...a) {
+          window.__audioEvents.push({ type: "suspend" });
+          return super.suspend(...a);
+        }
+        resume(...a) {
+          window.__audioEvents.push({ type: "resume" });
+          return super.resume(...a);
+        }
+      };
+    });
     await page.goto(`http://127.0.0.1:${server.address().port}/engine/`);
     await page.waitForFunction(
       () =>
@@ -554,6 +590,31 @@ const { chromium } = require("playwright");
       (before) => document.querySelectorAll(".entity").length === before + 1,
       entitiesBeforeOddPlace,
     );
+    // Sound: attaching a looping clip and hitting Play actually starts real
+    // Web Audio playback (not just authored data), Pause suspends the whole
+    // audio clock instead of muting mid-buffer, resuming Play resumes it,
+    // and Stop tears the source down -- the same lifecycle Script/AIAgent
+    // already run under.
+    await page.locator("#add").click();
+    await page.getByLabel("Add component").selectOption("Sound");
+    await page.locator('[aria-label="Sound.clip"]').selectOption("5"); // Explosion
+    await page.getByLabel("Sound.loop").check();
+    await page.locator("#play").click();
+    await page.waitForFunction(() =>
+      window.__audioEvents.some((e) => e.type === "start"),
+    );
+    await page.locator("#pause").click();
+    await page.waitForFunction(() =>
+      window.__audioEvents.some((e) => e.type === "suspend"),
+    );
+    await page.locator("#play").click();
+    await page.waitForFunction(() =>
+      window.__audioEvents.some((e) => e.type === "resume"),
+    );
+    await page.locator("#stop").click();
+    await page.waitForFunction(() =>
+      window.__audioEvents.some((e) => e.type === "stop"),
+    );
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -563,7 +624,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, vehicle driving, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), save/load, invalid-load preservation, authoring console passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, vehicle driving, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console passed.",
     );
   } finally {
     if (browser) await browser.close();

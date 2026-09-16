@@ -189,6 +189,7 @@ const componentNames = [
   "Name",
   "Parent",
   "Script",
+  "Sound",
   "PrefabInstance",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
@@ -275,6 +276,13 @@ export function normalizeComponent(
       };
     case "Script":
       return { source: string(value.source, "Script.source") };
+    case "Sound":
+      return {
+        clip: unsigned(value.clip, "Sound.clip", 1),
+        volume: unitInterval(value.volume, "Sound.volume", 1),
+        loop: boolean(value.loop, "Sound.loop"),
+        autoplay: boolean(value.autoplay, "Sound.autoplay"),
+      };
     case "Player":
       return {};
     case "Vehicle":
@@ -326,6 +334,12 @@ function unsigned(value: unknown, label: string, fallback: number): number {
 function boolean(value: unknown, label: string): boolean {
   if (typeof value !== "boolean") throw new Error(`${label} must be boolean.`);
   return value;
+}
+function unitInterval(value: unknown, label: string, fallback: number): number {
+  const result = value === undefined ? fallback : value;
+  if (typeof result !== "number" || !Number.isFinite(result) || result < 0 || result > 1)
+    throw new Error(`${label} must be a number between 0 and 1.`);
+  return result;
 }
 function string(value: unknown, label: string): string {
   if (typeof value !== "string") throw new Error(`${label} must be a string.`);

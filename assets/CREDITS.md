@@ -37,3 +37,57 @@ Hashes (SHA-256):
 - `assets/source/kit/**`: unmodified copies of the supplied archive's files at the same
   paths under `assets/kit/`; verify against the archive's own SHA-256 above rather than
   per-file hashes here (130 files, one shared provenance and license).
+
+## Audio (0.30.0)
+
+Source archives: four user-provided Kenney.nl CC0 1.0 packs (each pack's own
+`License.txt`, included in the supplied zip, confirms the grant):
+
+- `kenney_sci-fi-sounds.zip`, SHA-256
+  `119340f351a5098ad814f78719438c0da355a9ce8a4c8a3af6a8d48aa3d49e04`
+- `kenney_interface-sounds.zip`, SHA-256
+  `f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232`
+- `kenney_impact-sounds.zip`, SHA-256
+  `029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8`
+- `kenney_rpg-audio.zip`, SHA-256
+  `6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b`
+
+A curated 10-file subset (not the full ~350 files across all four packs — see F30's
+own rationale in `docs/IMPLEMENTATION_STATUS.md` for why: a small, purposeful catalog
+matching the existing demo scene's combat/world sounds, not an exhaustive import) was
+copied unmodified into `assets/source/audio/` under new, catalog-friendly names.
+Consumed directly by the editor (`apps/editor/src/scene/soundCatalog.ts`) via the
+`AudioContext.decodeAudioData` Web Audio API — no cooking step, same reasoning as the
+model kit's `kit/**.glb` files above (this project's cooker targets the native CPU
+renderer, not the browser editor).
+
+| `assets/source/audio/` file | From pack | Original filename |
+| --- | --- | --- |
+| `melee-hit.ogg` | impact-sounds | `impactPunch_medium_000.ogg` |
+| `metal-hit.ogg` | impact-sounds | `impactMetal_heavy_000.ogg` |
+| `explosion.ogg` | sci-fi-sounds | `explosionCrunch_000.ogg` |
+| `glass-break.ogg` | impact-sounds | `impactGlass_heavy_000.ogg` |
+| `bell.ogg` | impact-sounds | `impactBell_heavy_000.ogg` |
+| `door-open.ogg` | rpg-audio | `doorOpen_1.ogg` |
+| `door-close.ogg` | rpg-audio | `doorClose_1.ogg` |
+| `coin-pickup.ogg` | rpg-audio | `handleCoins.ogg` |
+| `engine-idle.ogg` | sci-fi-sounds | `engineCircular_000.ogg` |
+| `force-field.ogg` | sci-fi-sounds | `forceField_000.ogg` |
+
+(`kenney_interface-sounds` was supplied but not used in this round — its click/
+confirm/error/back sounds are UI-interaction cues, not world/ambient sounds a
+`Sound` component's autoplay-at-Play-start model fits; kept available for a future
+UI-sound-events round rather than imported unused now.)
+
+Hashes (SHA-256):
+
+- `assets/source/audio/bell.ogg`: `94b8bb5f2d43ab65e4bcc32b28562416e9bc2c51d9fd4be1e333660ee52f977f`
+- `assets/source/audio/coin-pickup.ogg`: `8a91f969e932df709df80ee124d86a51389eed9b67f22e5e716bc2bbf60d8dab`
+- `assets/source/audio/door-close.ogg`: `834d29c60a8a8bfb50b158cdb6b7dfa8f02812a408a1ee9703d038dfab0b1aeb`
+- `assets/source/audio/door-open.ogg`: `4ab93bab96522d8eb109ff96dc57cb6765deb02448fe14c10472084be5bb2a0b`
+- `assets/source/audio/engine-idle.ogg`: `8ab85f9fa85e9e692287f98acb36b9ac3ba15313b007c039055e286b736f4e3a`
+- `assets/source/audio/explosion.ogg`: `4b597d658d0ae101f0a030fbeea5fc3a4292ab85f017470a8254a8e7959cbd69`
+- `assets/source/audio/force-field.ogg`: `c2916f2a062c8ddd1aca2826d134fe90847037db31342726ffb0f9097afe339c`
+- `assets/source/audio/glass-break.ogg`: `b44b39a940e8948e74b9bd3776bff980df43cf220abdaf0d467dc4c43c0244a5`
+- `assets/source/audio/melee-hit.ogg`: `486988aa2d6440ffc4c62a0e8ccf3c23673ba84424bd4723378d451b7255eb5c`
+- `assets/source/audio/metal-hit.ogg`: `e07045693e4a2b3d165c424e3dab4c781d9ff8880a386880ac89a51315d7f831`

@@ -1,4 +1,5 @@
 import { modelCatalog } from "../scene/modelCatalog";
+import { soundCatalog } from "../scene/soundCatalog";
 
 export interface PropertyMetadata {
   label?: string;
@@ -45,6 +46,14 @@ const metadata: Record<string, PropertyMetadata> = {
   "Rotation.euler.y": { label: "Y (radians)", step: "0.1" },
   "Rotation.euler.z": { label: "Z (radians)", step: "0.1" },
   "Script.source": { label: "Lua source", multiline: true },
+  "Sound.clip": {
+    label: "Clip",
+    options: soundCatalog.map((s) => ({
+      label: `${s.category[0]!.toUpperCase()}${s.category.slice(1)}: ${s.name}`,
+      value: s.id,
+    })),
+  },
+  "Sound.volume": { step: "0.05" },
 };
 export function propertyMetadata(
   component: string,
