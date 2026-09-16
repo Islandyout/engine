@@ -2280,3 +2280,18 @@ silently going stale.
   regeneration script's own `--only people` triangle-count log) and file sizes actually
   shrank slightly (vertices are shared instead of duplicated per quad), so a regression
   here would be surprising, but it wasn't separately profiled.
+- Post-push fix: a Codex review bot flagged that `cylSmooth()`'s side-wall triangle
+  winding disagreed with its own emitted normals. Verified independently two ways before
+  fixing: a direct cross-product-vs-stored-normal comparison against the generated
+  files' actual accessor data (a standalone script, not trusting the bot's claim on
+  its word), and a hand recomputation of the exact triangle the bot cited, both
+  confirming the winding really was backwards. Reversed it and regenerated. Then went
+  a step further than the finding asked: rendered the *pre-existing, unmodified*
+  `sphere()` primitive (every joint cap in this kit, shipped for many rounds) through
+  the same direct measurement, and found it has the identical winding-vs-normal
+  relationship -- yet a four-angle standalone Three.js render around a character (both
+  before and after the `cylSmooth()` fix) showed no visible culling or inside-out
+  lighting either way. So this specific mismatch doesn't appear to cause a real defect
+  in this renderer -- but the fix is free and brings the geometry in line with the
+  standard convention, so it was kept regardless of whether the visible symptom the
+  finding predicted actually manifests here.

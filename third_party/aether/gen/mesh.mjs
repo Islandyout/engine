@@ -276,7 +276,7 @@ export class Geo {
     }
     for (let i = 0; i < seg; i++) {
       const a = i * 2, b = a + 2, c = a + 1, d = a + 3;
-      idx.push(a, b, d, a, d, c);
+      idx.push(a, d, b, a, c, d);
     }
     this.raw(mat, pos, nrm, uv, idx);
     if (capTop && r1 > 1e-6) this.poly(mat, B);

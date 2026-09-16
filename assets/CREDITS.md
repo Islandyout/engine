@@ -184,18 +184,32 @@ move as smoothly as Mannequin F (0.32.0's Quaternius import, a sculpted/smooth-s
 mesh by construction) while keeping each one's own outfit identity, not replacing them
 with copies of Mannequin F.
 
+Post-push fix: a Codex review bot flagged that `cylSmooth()`'s side-wall triangle
+winding disagreed with its own emitted per-vertex normals (verified independently by
+direct cross-product-vs-normal comparison against the generated files, and by hand for
+the specific triangle the bot cited -- both confirmed the winding was backwards).
+Reversed it (`idx.push(a, b, d, a, d, c)` -> `idx.push(a, d, b, a, c, d)`, same
+triangles, opposite order) and regenerated. Separately confirmed, with a standalone
+Three.js render from four angles around a character, that this made no visible
+difference either way -- the pre-existing `sphere()` primitive (used for every joint
+cap, unmodified, shipped for many rounds without incident) has the *same*
+winding-vs-normal relationship by the same direct measurement, so this renderer
+evidently isn't culling or mis-lighting on it. Kept the reversal anyway since it's
+free, harmless, and brings the geometry in line with the standard convention rather
+than relying on that same tolerance.
+
 Hashes (SHA-256):
 
-- `assets/source/kit/people/hero.glb`: `e96d3213bf52ceabe8c823a4e1011105427b175669ce0d5befa30a87a119f6ed`
-- `assets/source/kit/people/npc-office-m.glb`: `951f3283cdb1f06870c5e5314d86c5187803cce3c26b2900c84d7a699eaf44b7`
-- `assets/source/kit/people/npc-office-f.glb`: `4cab0471634dfed841fd36514ef8cb54614259633ece634f076035da7bc0b9b6`
-- `assets/source/kit/people/npc-casual-1.glb`: `208078ad07a0f17fb301ef8c3cf84a0bbfadcc9a072044ef273859fb0c722ebd`
-- `assets/source/kit/people/npc-casual-2.glb`: `83883f9885d85cf9ecfa7eb35829c8d9baecf0972bcfece74f66ec6f4b0d0902`
-- `assets/source/kit/people/npc-hoodie.glb`: `782c41df989b3f27539f2f3921d9c66a8ad98f33c40d9f0b938965b6dba86cd5`
-- `assets/source/kit/people/npc-worker.glb`: `f4a1d4e17c41351450fe850a5890c087694d923fe65be64e4f803bd152ef79e6`
-- `assets/source/kit/people/npc-sport.glb`: `d7852453a09c49edb81699d095d66a7a9c3237f9033d2d986286ef19ff2de67a`
-- `assets/source/kit/people/npc-dress.glb`: `fffad65b164473ae0efa70bbbc23f02543c3a02b1de6f552da3837b5649a1490`
-- `assets/source/kit/people/npc-vendor.glb`: `e8b732133a7d6144b7f68f0f2531e44afe313cd68caf0cf58a355670e096c750`
-- `assets/source/kit/people/npc-uniform.glb`: `2d84a2fb958029a024bbb335d9683f2507294fc68acd85b171812de3baee1fcd`
-- `assets/source/kit/people/npc-elder.glb`: `d8bce4a0879ba22be7c18e4129358fc060bea8049bf1f9003f61b838aa27c3ad`
-- `assets/source/kit/people/npc-teen.glb`: `78595327ad7de03aa3f6af3c6df4d1ad1a2b5179fbaa9b028776bb5a426c7463`
+- `assets/source/kit/people/hero.glb`: `0deee30959ece60f97ae87847fa5269a8f26ab20b65f7fe340c3cabb2b202c57`
+- `assets/source/kit/people/npc-office-m.glb`: `6417a49f54e8f28c0a0803d3e3599d445bacf7302bcbfb4d2009c0f4f880f06e`
+- `assets/source/kit/people/npc-office-f.glb`: `43f31f1d41f65810ad98264f062b7f1a49ad590fa3c3d16ab27ff7e443f27558`
+- `assets/source/kit/people/npc-casual-1.glb`: `e36e13c35d8c95d6491afb70c426c3a298593d28aef27b22392400314afac10f`
+- `assets/source/kit/people/npc-casual-2.glb`: `2b5dbefe06c5bf74e4e73d3f27e3e863779043ba75884387165739ff75e1dff5`
+- `assets/source/kit/people/npc-hoodie.glb`: `dfc1108fee2017b7d5335831be056fb9a7d6ccb06a11b31cf20aa5eadaa79a54`
+- `assets/source/kit/people/npc-worker.glb`: `be5fc18148147ba1c8b9459e89326f505e74bf20c4b9b0ea322e3582980e3956`
+- `assets/source/kit/people/npc-sport.glb`: `ff004e77a6719e4e2889acaadbba66c303e73fccb77554495fa1ceb273e9aa7e`
+- `assets/source/kit/people/npc-dress.glb`: `cb126500732ce90f45318119d4efe2681927215ef2fa54e015d9bf90a9ca5040`
+- `assets/source/kit/people/npc-vendor.glb`: `5bb4913810bcf86933e97b43d0a8d23cf3c105a06b7d8d13f25334b8d3b51c0a`
+- `assets/source/kit/people/npc-uniform.glb`: `b4c2196eb2299b01651ceb26e3f557622f564b38eab6a65839d7888f8f96a20a`
+- `assets/source/kit/people/npc-elder.glb`: `ea3c328766a0ce329b383a0aa16539a0dd4b8d1e1b862575701ce0489423be91`
+- `assets/source/kit/people/npc-teen.glb`: `19d67695d09fbd4f694ddbcb8da4cd6a24b075940bee527fd1798ff42a957c45`
