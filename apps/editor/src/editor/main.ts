@@ -5,7 +5,7 @@ import {
   type TransformMode,
   type TransformSnapshot,
 } from "./TransformEdit";
-import type { EntityRef, Vec3 } from "../scene/Components";
+import type { AIStateName, EntityRef, Vec3 } from "../scene/Components";
 import { propertyMetadata } from "./PropertyMetadata";
 import { defaultComponent } from "../authoring/CommandInterpreter";
 import { CanvasRenderer } from "./CanvasRenderer";
@@ -120,7 +120,7 @@ async function startEditor() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `<header>
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
-  <span class="brand-sub">BTAI Editor <span class="version">0.26.0</span></span>
+  <span class="brand-sub">BTAI Editor <span class="version">0.27.0</span></span>
   <a class="link-external" href="https://github.com/Islandyout/engine">View source${iconHtml("external")}</a>
 </header>
 <nav>
@@ -459,6 +459,17 @@ async function startEditor() {
   // applying each event to the WASM runtime synchronously from the DOM
   // handler, so editor_input_begin_frame()/editor_key() stay in the same
   // relative order every native InputState consumer already assumes.
+  // editor_value's field 5 own contract (apps/editor/runtime/bridge.cpp): a plain int
+  // matching AIStateName's declared order in ../scene/Components.
+  const aiStateNames: readonly AIStateName[] = [
+    "Idle",
+    "Walking",
+    "Running",
+    "Driving",
+    "Fleeing",
+    "Chasing",
+    "Dead",
+  ];
   const keyQueue: Array<[code: number, down: number]> = [];
   // Bound codes currently held down, so a Pause or a lost window focus can
   // force them back up even when no matching keyup DOM event arrives
@@ -532,6 +543,8 @@ async function startEditor() {
       const isPlayer = doc.scene.has(entity, "Player") ? 1 : 0;
       const isCollider = doc.scene.has(entity, "Collider") ? 1 : 0;
       const isVehicle = doc.scene.has(entity, "Vehicle") ? 1 : 0;
+      const isAi = doc.scene.has(entity, "AIState") ? 1 : 0;
+      const isPedestrian = doc.scene.has(entity, "Pedestrian") ? 1 : 0;
       const health = doc.scene.get(entity, "Health");
       // hp_max <= 0 is the bridge's own "no Health" sentinel (see
       // editor_add's doc comment) — a real Health always has a positive max.
@@ -544,7 +557,7 @@ async function startEditor() {
       if (
         !runtime._editor_add(
           p.x, p.y, p.z, v.x, v.y, v.z, s.x, s.y, s.z, isChild, isPlayer,
-          isCollider, hpCurrent, hpMax, isVehicle,
+          isCollider, hpCurrent, hpMax, isVehicle, isAi, isPedestrian,
         )
       ) {
         runtime._editor_commit();
@@ -1211,7 +1224,18 @@ async function startEditor() {
           ? ` · Selected health: ${Math.round(runtime._editor_value(selectedIndex, 3) * 100)}%`
           : " · Selected: defeated"
         : "";
-    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout}${selectedHealthReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider collision, Health-based combat (F melee, G blast) and Vehicle driving (W/S/A/D) are simulated; other physics/AI component data is not`;
+    // A live companion to selectedHealthReadout for an AIState entity: field 5 is
+    // AIAgent.state as a plain int matching aiStateNames' own order (bridge.cpp's
+    // editor_value doc comment) — watch an NPC's wander/chase/flee decisions and
+    // position tick by tick without eyeballing the viewport.
+    const selectedAiReadout =
+      doc.mode === "play" &&
+      selectedIndex >= 0 &&
+      doc.scene.has(doc.selection!, "AIState") &&
+      runtime._editor_alive(selectedIndex)
+        ? ` · Selected AI: ${aiStateNames[runtime._editor_value(selectedIndex, 5)] ?? "Idle"} (${runtime._editor_value(selectedIndex, 0).toFixed(1)}, ${runtime._editor_value(selectedIndex, 2).toFixed(1)})`
+        : "";
+    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout}${selectedHealthReadout}${selectedAiReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider collision, Health-based combat (F melee, G blast), Vehicle driving (W/S/A/D) and AIState/Pedestrian wander/chase/flee are simulated`;
     requestAnimationFrame(frame);
   }
   const cameraForwardScratch = new THREE.Vector3();

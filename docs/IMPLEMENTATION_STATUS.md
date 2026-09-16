@@ -1471,3 +1471,76 @@ dimensions like every other authoring path.
   turning reads correctly once it's no longer oversized (it always was correct; F25's
   own algebraic proof of the yaw-to-rotation mapping held throughout — the earlier
   in-sandbox uncertainty about it was this bug, not that proof).
+
+## F27 — Wiring up `AIState` and `Pedestrian` (0.27.0)
+
+An engineering audit of the editor against Unity/Unreal/Godot/Bevy/PlayCanvas (prompted
+by direct feedback that the demo scene "looked like foolishness") found `AIState` and
+`Pedestrian` fully authorable in the editor — saved, reloaded, inspected — but never
+read by the simulation: an entity tagged `AIState` behaved identically to one without
+it. Same bug class as `Vehicle` before F25, just not yet caught. This round wires both
+up to real autonomous behavior instead of leaving them inert or removing them.
+
+`apps/editor/runtime/bridge.cpp` adds an `AIAgent` component (bridge-local, the same
+pattern as `Heading` for `Vehicle`) that drives its own `RigidBody` velocity each tick
+via a new `editor.ai` system, without ever reading `InputState`: it wanders on its own
+(alternating random-direction Walking/Running phases with Idle rests, each a randomized
+1–3s), chases the nearest `Player` once one comes within `ai_sense_radius` (6 units),
+and flees instead once its own `Health` ratio drops to or below `ai_flee_health_ratio`
+(30%) — fleeing outranks chasing, and applies even to a `Pedestrian`-tagged entity,
+since self-preservation isn't hostility. A `Pedestrian` marker (mirroring `Heading`
+needing `PlayerMarker`) makes an `AIAgent` never enter Chasing regardless of proximity —
+a harmless wanderer, not a hostile one. Wander direction and phase length come from a
+small per-entity xorshift32 PRNG seeded from the entity's authoring order, not wall-clock
+time, so the whole pattern is exactly reproducible run to run — required for
+`editor_bridge_tests.cpp` to assert on it at all. `editor_add` gained `is_ai`/
+`is_pedestrian` params (17 total now); `editor_value`'s field 5 exposes `AIAgent.state`
+as a plain int matching `AIStateName`'s declared order, `-1` for no `AIAgent`. Two of
+`AIStateName`'s seven values are never actually produced: `Driving` is reserved for a
+possible future AI-controlled `Vehicle`, which this round doesn't implement; `Dead` is
+unreachable in practice since `editor.combat` already destroys a `Health` entity outright
+the tick it hits 0, before this system could ever observe and label it.
+
+On the JS side, the only change needed was passing `isAi`/`isPedestrian` through to
+`editor_add` in `syncRuntime()` — F25's own facing-toward-movement and speed-based
+animation-clip selection already runs over every entity's measured position delta, not
+just the Player's, so an animated catalog model (a `Npc`/`Hero`) tagged `AIState` picks
+up correct walk-cycle animation and facing for free. `main.ts` also gained a
+`selectedAiReadout` in the status bar — `Selected AI: <state> (x, z)` for whichever
+entity is selected during Play, the same pattern `selectedHealthReadout` already used for
+`Health` — both to make an NPC's live decisions watchable without eyeballing the
+viewport, and because the black-box browser test below needs some UI-visible signal to
+assert against.
+
+`examples/demo-game.json`: both `Target Drone` targets gained `AIState` (no
+`Pedestrian`) — they now chase the player on approach and flee once hurt, instead of
+standing still to be shot at. A new `Bystander` entity (`AIState` + `Pedestrian`, an
+animated `Npc` model) wanders the arena harmlessly. `apps/editor/tests/demoScene.test.ts`
+updated to match (11 entities now, both targets and the bystander asserted to carry the
+right components).
+
+### F27 verification
+
+- Extended `tests/editor_bridge_tests.cpp` first, natively: an `AIAgent` with no
+  `Player` anywhere moves on its own from tick one (state Walking or Running, never
+  Idle, and measurably displaced from spawn after 1s — the shortest possible wander
+  phase); a non-`Pedestrian` `AIAgent` within sense radius reports Chasing from tick one
+  and closes the distance; the same setup with low `Health` reports Fleeing and widens
+  the distance instead; a `Pedestrian` in range never reports Chasing, falling back to
+  wander; and a chasing `AIAgent` stops at a `Collider` wall exactly like the existing
+  Player-vs-`Collider` case, proving the AI system's velocity write goes through the
+  same physics resolution as everything else rather than bypassing it.
+- `npm run typecheck`, `npm test` (26/26, `demoScene.test.ts` updated in place rather
+  than growing the count), `npm run build` in `apps/editor`: all pass.
+- Full native rebuild + `ctest`: all 13 cases pass. GCC 13.3.0 build of the bridge and
+  its test with `-fsanitize=undefined,address`: clean.
+- Built the real Emscripten/WASM editor runtime and extended `tests/browser/editor.cjs`
+  (genuine WebGL via Playwright): a fresh entity given `AIState` through the real
+  inspector UI, with Play started with no key ever pressed for it, reports Chasing and a
+  closing x-position through the new status-bar readout — a real end-to-end path, not
+  `editor_value()` called directly.
+- Played the updated `examples/demo-game.json` by hand in that same real browser
+  session: both `Target Drone`s and the `Bystander` visibly move on their own — the
+  `Bystander` walked the full width of the arena, with correct walk-cycle animation and
+  facing, entirely from F25's existing position-delta-driven systems and zero new
+  rendering code.

@@ -11,15 +11,16 @@ const demoScenePath = resolve(testDir, "../../../examples/demo-game.json");
 
 // examples/demo-game.json is the repo's shipped dogfooding scene (see
 // docs/BTAI_EDITOR.md) -- a drivable Vehicle+Player car inside a walled
-// arena with a Collider obstacle and two Health targets. This guards it
-// against silently drifting out of date with the authoring schema (a
-// renamed field, a removed component) the way any other checked-in fixture
-// would be guarded, not just eyeballed once at authoring time.
+// arena with a Collider obstacle, two AIState-driven Health targets, and a
+// wandering AIState+Pedestrian bystander. This guards it against silently
+// drifting out of date with the authoring schema (a renamed field, a
+// removed component) the way any other checked-in fixture would be
+// guarded, not just eyeballed once at authoring time.
 test("the shipped demo scene loads and matches its own description", () => {
   const document = JSON.parse(readFileSync(demoScenePath, "utf8"));
   const doc = new EditorDocument();
   doc.load(document); // throws on anything validateSceneDocument rejects
-  assert.equal(doc.scene.entityCount, 10);
+  assert.equal(doc.scene.entityCount, 11);
 
   const car = doc.scene
     .eachAlive()
@@ -40,7 +41,20 @@ test("the shipped demo scene loads and matches its own description", () => {
   for (const target of targets) {
     const health = doc.scene.get(target, "Health")!;
     assert.ok(health.current > 0 && health.current <= health.maximum);
+    // Both targets react to the player now instead of just sitting there
+    // to be shot at -- they chase when approached and flee once hurt.
+    assert.ok(doc.scene.has(target, "AIState"));
   }
+
+  const bystander = doc.scene
+    .eachAlive()
+    .find((e) => doc.scene.get(e, "Name")?.value === "Bystander");
+  assert.ok(bystander, "Bystander entity is present");
+  assert.ok(doc.scene.has(bystander!, "AIState"));
+  assert.ok(
+    doc.scene.has(bystander!, "Pedestrian"),
+    "Bystander should never chase, only wander/flee",
+  );
 
   // Every referenced catalog model (0 -- the default box, always valid --
   // aside) still exists, so a future catalog change can't silently turn one

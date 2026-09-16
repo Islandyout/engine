@@ -42,6 +42,8 @@ Engine version 0.25.0 fixes movement feel, based on direct feedback after 0.22�
 
 Engine version 0.26.0 fixes an authored `Scale` component being applied to a catalog GLB model on top of that model's own real-world dimensions instead of as the literal size it's documented to be — found by actually building the browser editor and playing `examples/demo-game.json`, where it made the Player Car render nearly as long as the arena's own walls. The viewport's transform gizmo got the same fix, so dragging a catalog model's scale handle now saves literal dimensions instead of a value that would shrink it back down on the next rebuild. See [F26](docs/IMPLEMENTATION_STATUS.md#f26--catalog-model-scale-normalization-0260).
 
+Engine version 0.27.0 wires up `AIState` and `Pedestrian`, found fully authorable in the editor but never actually simulated — an engineering audit against Unity/Unreal/Godot/Bevy/PlayCanvas flagged it as the exact same "authored but inert" bug `Vehicle` had before 0.25.0. An `AIState`-tagged entity now wanders on its own, chases the nearest `Player` within range, and flees instead once its own health runs low; a `Pedestrian` marker keeps it harmless, never chasing. `examples/demo-game.json`'s two combat targets react to the player now instead of just standing there, and a new wandering `Bystander` populates the arena. See [F27](docs/IMPLEMENTATION_STATUS.md#f27--wiring-up-aistate-and-pedestrian-0270).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 
