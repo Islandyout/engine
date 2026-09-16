@@ -11,17 +11,19 @@ c70cac7397eed5ee9941d88bc1afa4740b68aecc26a61042fab5a71ac211dd72.
 - cooked/bench.gea: deterministic derivative of those two inputs, made by
   tools/cook_static_mesh.py. It retains the two base-color factors; the wood material
   additionally receives the generated albedo. No normal/ORM shader is claimed.
-- source/kit/\*\*: 130 further exact files from assets/kit/{buildings,furniture,
+- source/kit/\*\*: 117 further exact files from assets/kit/{buildings,furniture,
   nature,roads,signs,vehicles,animals,people} in the same supplied archive, unmodified
-  — every file in the kit except bench.glb, already imported above, and
-  `people/_animation-library.glb`, a shared rig/clip source used at generation time, not
-  a placeable model itself (every individual character file already carries its own
-  copy of the clips it needs). Same aether-assetgen source, same CC0 1.0 grant, same
-  prefix row as the exact bench file already covers, so the row is one prefix rather
-  than one per file. This is a *different* file from the Khronos glTF-Sample-Models Fox
-  (assets/fox.glb in the supplied archive, CC BY 4.0, confirmed by hash — not imported
-  here or anywhere in this repo): `kit/animals/fox.glb` is aether-assetgen's own
-  procedurally generated fox, CC0 like the rest of the kit.
+  — every file in the kit except bench.glb, already imported above; `people/hero.glb`
+  and the 12 `people/npc-*.glb` files, regenerated in 0.36.0 (see that entry below,
+  which supersedes these 13 files' provenance); and `people/_animation-library.glb`, a
+  shared rig/clip source used at generation time, not a placeable model itself (every
+  individual character file already carries its own copy of the clips it needs). Same
+  aether-assetgen source, same CC0 1.0 grant, same prefix row as the exact bench file
+  already covers, so the row is one prefix rather than one per file. This is a
+  *different* file from the Khronos glTF-Sample-Models Fox (assets/fox.glb in the
+  supplied archive, CC BY 4.0, confirmed by hash — not imported here or anywhere in
+  this repo): `kit/animals/fox.glb` is aether-assetgen's own procedurally generated
+  fox, CC0 like the rest of the kit.
   Consumed directly by the editor (`apps/editor/src/scene/modelCatalog.ts`) via Three.js's
   own glTF loader (`GLTFLoader` for static props, `SkeletonUtils.clone` plus
   `AnimationMixer` for the 27 rigged/animated `animals/**` and `people/**` entries, which
@@ -36,7 +38,9 @@ Hashes (SHA-256):
 - `assets/cooked/bench.gea`: `54ea6a44bf53c1ebbf99c9a6a66d24d060a96c0b2b344adc958f7af9dcce8f1e`
 - `assets/source/kit/**`: unmodified copies of the supplied archive's files at the same
   paths under `assets/kit/`; verify against the archive's own SHA-256 above rather than
-  per-file hashes here (130 files, one shared provenance and license).
+  per-file hashes here (117 files, one shared provenance and license — excludes
+  `people/hero.glb` and the 12 `people/npc-*.glb` files, regenerated in 0.36.0; see that
+  entry's own hashes below).
 
 ## Audio (0.30.0)
 
@@ -149,3 +153,63 @@ Hashes (SHA-256):
 - `assets/source/kit/animals/husky.glb`: `a4d7aa457c2dfa643df8833bcfe913d3e63a283c34e68480f6bd3344a6fb25c4`
 - `assets/source/kit/animals/stag.glb`: `6d8f486cc46f4c93196e26a8cd5d645962b8d465d9929cf79f7d40859ee68adf`
 - `assets/source/kit/animals/alpaca.glb`: `662e6259dafd61d113159c45b1cf902f1cf7cd95d177d9c9bb89b73f335d0e35`
+
+## People kit regeneration (0.36.0)
+
+`people/hero.glb` and the 12 `people/npc-*.glb` files (above, imported unmodified in
+F19/F20) are regenerated from the *source code* of the same aether-assetgen generator
+that originally produced them, not the pre-baked files supplied in aether-complete.zip
+(SHA-256 above). That generator's own `tools/gen/**` -- confirmed, before any change,
+to reproduce every one of these 13 files byte-identical to the ones already committed
+here, using the exact character options (`seed`/`outfit`/`height`/`build`/`hairStyle`/
+...) `tools/build-assets.mjs`'s own `people` section already used -- is vendored (MIT,
+same grant as the rest of the Aether engine source; see `third_party/aether/LICENSE`)
+as the closure of 8 files `third_party/aether/gen/{glb,rng,materials,buildings,vehicles,
+assemble,mesh,humanoid}.mjs` needs to run `humanoid()`/`clips()`/`skinnedGLB()`, and
+regenerated via `tools/regenerate_npc_kit.mjs`.
+
+The one intentional change (see `third_party/aether/gen/mesh.mjs` and `humanoid.mjs`'s
+own header comments): `mesh.mjs`'s `Geo` gains a `cylSmooth()` method beside its
+original `cyl()` (kept, still used everywhere else -- buildings/vehicles/signs/nature/
+animals, and this file's own helmet-band/belt trim -- so their look is unchanged), and
+`humanoid.mjs`'s `limb()` calls it instead. `cyl()` gives every cylinder side face its
+own flat Newell normal (one normal per quad); `cylSmooth()` shares vertices around each
+ring and carries a per-vertex normal instead (radial, tilted by the taper slope for a
+cone), the same technique `sphere()` already used for the joint caps that were already
+smooth. Since every limb/torso/neck segment in `humanoid()` is built via `limb()`, this
+makes the whole body read as rounded rather than faceted, without changing the skeleton,
+outfits, proportions, or `clips()`'s animation curves at all -- same character, same
+clip set, smoother surface. Prompted by a request that the kit's `Npc *` characters
+move as smoothly as Mannequin F (0.32.0's Quaternius import, a sculpted/smooth-skinned
+mesh by construction) while keeping each one's own outfit identity, not replacing them
+with copies of Mannequin F.
+
+Post-push fix: a Codex review bot flagged that `cylSmooth()`'s side-wall triangle
+winding disagreed with its own emitted per-vertex normals (verified independently by
+direct cross-product-vs-normal comparison against the generated files, and by hand for
+the specific triangle the bot cited -- both confirmed the winding was backwards).
+Reversed it (`idx.push(a, b, d, a, d, c)` -> `idx.push(a, d, b, a, c, d)`, same
+triangles, opposite order) and regenerated. Separately confirmed, with a standalone
+Three.js render from four angles around a character, that this made no visible
+difference either way -- the pre-existing `sphere()` primitive (used for every joint
+cap, unmodified, shipped for many rounds without incident) has the *same*
+winding-vs-normal relationship by the same direct measurement, so this renderer
+evidently isn't culling or mis-lighting on it. Kept the reversal anyway since it's
+free, harmless, and brings the geometry in line with the standard convention rather
+than relying on that same tolerance.
+
+Hashes (SHA-256):
+
+- `assets/source/kit/people/hero.glb`: `0deee30959ece60f97ae87847fa5269a8f26ab20b65f7fe340c3cabb2b202c57`
+- `assets/source/kit/people/npc-office-m.glb`: `6417a49f54e8f28c0a0803d3e3599d445bacf7302bcbfb4d2009c0f4f880f06e`
+- `assets/source/kit/people/npc-office-f.glb`: `43f31f1d41f65810ad98264f062b7f1a49ad590fa3c3d16ab27ff7e443f27558`
+- `assets/source/kit/people/npc-casual-1.glb`: `e36e13c35d8c95d6491afb70c426c3a298593d28aef27b22392400314afac10f`
+- `assets/source/kit/people/npc-casual-2.glb`: `2b5dbefe06c5bf74e4e73d3f27e3e863779043ba75884387165739ff75e1dff5`
+- `assets/source/kit/people/npc-hoodie.glb`: `dfc1108fee2017b7d5335831be056fb9a7d6ccb06a11b31cf20aa5eadaa79a54`
+- `assets/source/kit/people/npc-worker.glb`: `be5fc18148147ba1c8b9459e89326f505e74bf20c4b9b0ea322e3582980e3956`
+- `assets/source/kit/people/npc-sport.glb`: `ff004e77a6719e4e2889acaadbba66c303e73fccb77554495fa1ceb273e9aa7e`
+- `assets/source/kit/people/npc-dress.glb`: `cb126500732ce90f45318119d4efe2681927215ef2fa54e015d9bf90a9ca5040`
+- `assets/source/kit/people/npc-vendor.glb`: `5bb4913810bcf86933e97b43d0a8d23cf3c105a06b7d8d13f25334b8d3b51c0a`
+- `assets/source/kit/people/npc-uniform.glb`: `b4c2196eb2299b01651ceb26e3f557622f564b38eab6a65839d7888f8f96a20a`
+- `assets/source/kit/people/npc-elder.glb`: `ea3c328766a0ce329b383a0aa16539a0dd4b8d1e1b862575701ce0489423be91`
+- `assets/source/kit/people/npc-teen.glb`: `19d67695d09fbd4f694ddbcb8da4cd6a24b075940bee527fd1798ff42a957c45`

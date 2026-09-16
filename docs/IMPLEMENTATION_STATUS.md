@@ -2198,3 +2198,100 @@ helper, alongside the existing string-valued `choice()`) instead of a bare numbe
   coast-down after throttle release, not sustained-throttle acceleration, which the
   existing archetype cases never touched -- asserting Truck's and Bus's tick-count to a
   full stop each exceed Car's.
+
+## F36 — Smooth-shaded people kit (0.36.0)
+
+Request after trying the editor with F35's archetypes and 0.32.0's Mannequin F import:
+make every `Npc *` catalog character (the Aether kit's own 12 outfit presets -- Casual
+1/2, Dress, Elder, Hoodie, Office F/M, Sport, Teen, Uniform, Vendor, Worker) move as
+smoothly as Mannequin F, keeping each one's own outfit identity rather than replacing
+them with copies of Mannequin F.
+
+Root-caused before changing anything: a Playwright bone-position dump (same technique
+0.32.0's own investigation used) confirmed the rig, skinning weights, and gait curves
+all track correctly, and the 24-30-sample-per-cycle procedural walk/run clips are dense
+enough that Three.js's own quaternion-slerp interpolation between keyframes already
+reads as smooth motion. The actual gap is geometry, not animation: the Aether kit's own
+generator (`tools/gen/humanoid.mjs` in the user-supplied `aether-complete.zip`, the same
+archive F19/F20 imported the pre-baked kit from) builds every limb, the torso, and the
+neck as a tapered cylinder (`Geo.cyl()` in `mesh.mjs`) whose side wall is one flat quad
+per segment with its own independent Newell normal -- a faceted pipe, not a rounded
+limb, at any reasonable segment count. Mannequin F, by contrast, is a Quaternius
+sculpted/smooth-skinned mesh by construction. Every major joint (shoulder, elbow, wrist,
+hip, knee, ankle, neck) already gets a smooth `sphere()` cap bridging the seam, so
+joint pinching was never the issue -- it's specifically the limb *surfaces* between
+those caps.
+
+Fix: `mesh.mjs`'s `Geo` gains `cylSmooth()` beside the original `cyl()` (kept --
+buildings/vehicles/signs/nature/animals, and even this same file's own helmet-band/belt
+trim, all keep calling `cyl()` unchanged, so their look is untouched). `cylSmooth()`
+shares vertices around each ring and gives each one a per-vertex normal -- radial,
+tilted by `(r0-r1)/h` so a tapering cone still shades correctly -- the same technique
+`sphere()` already used. `humanoid.mjs`'s `limb()` (every arm/leg/torso/neck segment
+routes through it) calls `cylSmooth()` instead of `cyl()`; nothing else changed --
+same skeleton, same outfits/proportions/hair, same `clips()` animation curves, same
+clip set (idle/walk/run). Verified visually before touching the repo: a standalone
+Three.js/`GLTFLoader`/`SkeletonUtils` harness (outside the editor, same libraries)
+rendered the old and new `npc-casual-1.glb` side by side mid-walk-stride -- the old
+render shows visibly faceted arms/legs/torso, the new one reads as smooth rounded
+limbs, both still clearly the same green-shirt/jeans "Casual 1" character.
+
+Provenance: confirmed the vendored generator reproduces every one of the 13
+`people/hero.glb`+`npc-*.glb` files byte-identical to what's already committed *before*
+making the `cylSmooth()` change, so this is a verified, isolated modification, not a
+drifted reimplementation. Vendored the minimal 8-file dependency closure
+`humanoid()`/`clips()`/`skinnedGLB()` actually needs (`third_party/aether/gen/{glb,rng,
+materials,buildings,vehicles,assemble,mesh,humanoid}.mjs`, MIT, same grant as the
+existing `third_party/aether/LICENSE`) rather than the ~600-file full archive, each file
+header-commented with exactly what it is and, for the two modified ones, exactly what
+changed. `tools/regenerate_npc_kit.mjs` is the one-shot driver (`node
+tools/regenerate_npc_kit.mjs`), using the identical character options
+`tools/build-assets.mjs`'s own `people` section already used, so a future generator
+change reproduces the same character options automatically instead of needing them
+re-copied by hand. `assets/CREDITS.md` gets a new dedicated section (hashes for all 13
+regenerated files) and the existing `source/kit/**` "unmodified" prefix row is narrowed
+from 130 to 117 files to exclude them, cross-referencing the new section rather than
+silently going stale.
+
+### F36 verification
+
+- Confirmed byte-identical regeneration against the already-committed files using the
+  vendored generator unmodified, before making the `cylSmooth()` change -- proves the
+  vendored slice and the exact character options are faithful to the original pipeline,
+  isolating the diff to the one intended change.
+- Standalone Three.js harness (real `GLTFLoader`/`SkeletonUtils.clone`/`AnimationMixer`,
+  the same libraries and calls the editor itself uses, outside the editor) rendered old
+  vs. new `npc-casual-1.glb` and `npc-office-f.glb` mid-walk-stride side by side and
+  screenshotted the result: visibly smoother, rounded limbs on the new render, same
+  outfit/colours/proportions/joints as the old one -- not a different character.
+- `npm run typecheck` and `npm test` (34/34, unchanged -- this round touches no code
+  path the existing suite exercises, only the `.glb` bytes at already-tested paths/ids)
+  both pass.
+- Built the real Emscripten/WASM editor and ran the full existing
+  `tests/browser/editor.cjs` black-box suite unmodified end to end: passed, including
+  its existing "animated catalog models" and "per-model AnimationState clip
+  selection/preview" cases, which load and animate several of the regenerated `Npc *`
+  files -- confirms the regenerated `.glb`s parse, skin, and animate correctly in the
+  real browser runtime, not just in the standalone verification harness above.
+- Not verified here: a full crowd-scene frame-rate comparison (smooth shading is
+  effectively free on a GPU already rendering these low-poly meshes -- no additional
+  draw calls, textures, or triangles, just shared vertices and different normals) --
+  triangle count is unchanged (54,460 across all `people/**`, confirmed against the
+  regeneration script's own `--only people` triangle-count log) and file sizes actually
+  shrank slightly (vertices are shared instead of duplicated per quad), so a regression
+  here would be surprising, but it wasn't separately profiled.
+- Post-push fix: a Codex review bot flagged that `cylSmooth()`'s side-wall triangle
+  winding disagreed with its own emitted normals. Verified independently two ways before
+  fixing: a direct cross-product-vs-stored-normal comparison against the generated
+  files' actual accessor data (a standalone script, not trusting the bot's claim on
+  its word), and a hand recomputation of the exact triangle the bot cited, both
+  confirming the winding really was backwards. Reversed it and regenerated. Then went
+  a step further than the finding asked: rendered the *pre-existing, unmodified*
+  `sphere()` primitive (every joint cap in this kit, shipped for many rounds) through
+  the same direct measurement, and found it has the identical winding-vs-normal
+  relationship -- yet a four-angle standalone Three.js render around a character (both
+  before and after the `cylSmooth()` fix) showed no visible culling or inside-out
+  lighting either way. So this specific mismatch doesn't appear to cause a real defect
+  in this renderer -- but the fix is free and brings the geometry in line with the
+  standard convention, so it was kept regardless of whether the visible symptom the
+  finding predicted actually manifests here.
