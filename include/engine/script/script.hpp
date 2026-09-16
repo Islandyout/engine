@@ -57,10 +57,12 @@ public:
     // reported once through the error handler (see set_error_handler) and
     // then marked broken: skipped on every later tick rather than retried,
     // so one bad script can't spend every subsequent frame re-failing the
-    // same way. An entity with no on_tick function defined is a silent
-    // no-op tick, not an error — a script that only wants to run once at
-    // load time (global statements outside any function) is a legitimate
-    // use, not a mistake.
+    // same way — unless its Script.source itself changes, which recompiles
+    // from scratch (broken or not), so fixing a typo in the editor is enough
+    // to bring a script back to life without recreating the entity. An
+    // entity with no on_tick function defined is a silent no-op tick, not an
+    // error — a script that only wants to run once at load time (global
+    // statements outside any function) is a legitimate use, not a mistake.
     void step(World &world, float dt);
 
     // Called at most once per entity, the first time its script fails to

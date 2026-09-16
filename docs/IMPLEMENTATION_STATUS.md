@@ -1637,3 +1637,15 @@ through the existing editor, not expanding the native playground's own surface.
   surfaces its exact Lua error (`')' expected near 'this'`) through the status bar
   instead of failing silently. `tests/browser/editor.cjs` gained a permanent assertion
   version of both checks.
+- Post-review fixes (Codex): `error()` with a non-string argument (a table, `nil`, a
+  number — all valid Lua) no longer hands `lua_tostring`'s null straight to
+  `std::string`'s constructor; `error_text()` now goes through `luaL_tolstring`, which
+  always produces real text. Editing an entity's `Script.source` — including one that
+  was previously broken — now recompiles from scratch on the next `step()` instead of
+  either continuing to run the old VM's stale source or staying permanently skipped over
+  a source that no longer exists. `self.vx`/`vy`/`vz` values that aren't finite (`0/0`,
+  `math.huge`) are now rejected the same way a non-number already falls back to
+  "unchanged this tick", instead of propagating NaN/infinity into `RigidBody.velocity`
+  and from there into physics. Four new checks added to `tests/script_tests.cpp` covering
+  all three; full `ctest` (still 14/14 executables) and the real-browser suite re-verified
+  clean.

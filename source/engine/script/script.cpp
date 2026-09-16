@@ -1,5 +1,7 @@
 #include "engine/script/script.hpp"
 
+#include <cmath>
+
 extern "C" {
 #include "lauxlib.h"
 #include "lua.h"
@@ -53,7 +55,33 @@ void open_sandboxed_libs(lua_State *L) {
 // propagating into physics::step.
 float field_or(lua_State *L, int table_index, const char *field, float fallback) {
     lua_getfield(L, table_index, field);
-    const float result = lua_isnumber(L, -1) != 0 ? static_cast<float>(lua_tonumber(L, -1)) : fallback;
+    float result = fallback;
+    // NaN/infinity would otherwise sail through lua_isnumber (they are
+    // numbers) straight into RigidBody.velocity and from there into every
+    // downstream position and collision calculation, corrupting the whole
+    // simulation from one bad script -- reject them the same way a
+    // non-number field already falls back to "unchanged this tick".
+    if (lua_isnumber(L, -1) != 0) {
+        const double value = lua_tonumber(L, -1);
+        if (std::isfinite(value))
+            result = static_cast<float>(value);
+    }
+    lua_pop(L, 1);
+    return result;
+}
+
+// The value at the given stack index, as text, even when it isn't a string
+// itself: `error({})` or `error(nil)` are valid Lua and would otherwise hand
+// lua_tostring's null straight to std::string's constructor -- undefined
+// behavior that could crash the host despite step()'s "never escapes"
+// contract. luaL_tolstring always produces a real string (via __tostring
+// when present, a default `type: address` form otherwise) and always pushes
+// exactly one value, which this pops back off before returning.
+std::string error_text(lua_State *L, int index) {
+    index = lua_absindex(L, index);
+    size_t length = 0;
+    const char *text = luaL_tolstring(L, index, &length);
+    std::string result(text, length);
     lua_pop(L, 1);
     return result;
 }
@@ -62,6 +90,11 @@ float field_or(lua_State *L, int table_index, const char *field, float fallback)
 struct Runtime::Instance final {
     lua_State *L{};
     bool broken{false};
+    // Whether `compiled_source` reflects an actual compile attempt yet --
+    // distinct from compiled_source itself being empty, since "" is a
+    // legitimate (if useless) script source in its own right.
+    bool compiled{false};
+    std::string compiled_source;
     ~Instance() {
         if (L)
             lua_close(L);
@@ -90,21 +123,34 @@ void Runtime::step(World &world, float dt) {
         auto &instance = instances_[entity];
         if (!instance)
             instance = std::make_unique<Instance>();
-        if (instance->broken)
-            continue;
         const auto &source = world.get<Script>(entity)->source;
-        if (!instance->L) {
+        // Recompile from scratch whenever the authored source has actually
+        // changed since the VM currently held was built -- including a
+        // broken instance, so correcting a typo in the editor lets a script
+        // run instead of staying permanently skipped over a source that no
+        // longer exists. An unchanged source never re-enters here, so a
+        // script that's broken (or simply already compiled) stays that way
+        // without repeating its compile attempt every tick.
+        if (!instance->compiled || instance->compiled_source != source) {
+            if (instance->L) {
+                lua_close(instance->L);
+                instance->L = nullptr;
+            }
+            instance->compiled = true;
+            instance->compiled_source = source;
+            instance->broken = false;
             instance->L = luaL_newstate();
             open_sandboxed_libs(instance->L);
             if (luaL_dostring(instance->L, source.c_str()) != LUA_OK) {
                 if (on_error_)
-                    on_error_(entity, lua_tostring(instance->L, -1));
+                    on_error_(entity, error_text(instance->L, -1));
                 lua_close(instance->L);
                 instance->L = nullptr;
                 instance->broken = true;
-                continue;
             }
         }
+        if (instance->broken)
+            continue;
         auto &box = *world.get<Box>(entity);
         auto &body = *world.get<physics::RigidBody>(entity);
         lua_State *const L = instance->L;
@@ -128,7 +174,7 @@ void Runtime::step(World &world, float dt) {
             lua_pushnumber(L, dt);
             if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
                 if (on_error_)
-                    on_error_(entity, lua_tostring(L, -1));
+                    on_error_(entity, error_text(L, -1));
                 lua_pop(L, 1);
                 instance->broken = true;
                 continue;
