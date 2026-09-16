@@ -11,17 +11,19 @@ c70cac7397eed5ee9941d88bc1afa4740b68aecc26a61042fab5a71ac211dd72.
 - cooked/bench.gea: deterministic derivative of those two inputs, made by
   tools/cook_static_mesh.py. It retains the two base-color factors; the wood material
   additionally receives the generated albedo. No normal/ORM shader is claimed.
-- source/kit/\*\*: 130 further exact files from assets/kit/{buildings,furniture,
+- source/kit/\*\*: 117 further exact files from assets/kit/{buildings,furniture,
   nature,roads,signs,vehicles,animals,people} in the same supplied archive, unmodified
-  — every file in the kit except bench.glb, already imported above, and
-  `people/_animation-library.glb`, a shared rig/clip source used at generation time, not
-  a placeable model itself (every individual character file already carries its own
-  copy of the clips it needs). Same aether-assetgen source, same CC0 1.0 grant, same
-  prefix row as the exact bench file already covers, so the row is one prefix rather
-  than one per file. This is a *different* file from the Khronos glTF-Sample-Models Fox
-  (assets/fox.glb in the supplied archive, CC BY 4.0, confirmed by hash — not imported
-  here or anywhere in this repo): `kit/animals/fox.glb` is aether-assetgen's own
-  procedurally generated fox, CC0 like the rest of the kit.
+  — every file in the kit except bench.glb, already imported above; `people/hero.glb`
+  and the 12 `people/npc-*.glb` files, regenerated in 0.36.0 (see that entry below,
+  which supersedes these 13 files' provenance); and `people/_animation-library.glb`, a
+  shared rig/clip source used at generation time, not a placeable model itself (every
+  individual character file already carries its own copy of the clips it needs). Same
+  aether-assetgen source, same CC0 1.0 grant, same prefix row as the exact bench file
+  already covers, so the row is one prefix rather than one per file. This is a
+  *different* file from the Khronos glTF-Sample-Models Fox (assets/fox.glb in the
+  supplied archive, CC BY 4.0, confirmed by hash — not imported here or anywhere in
+  this repo): `kit/animals/fox.glb` is aether-assetgen's own procedurally generated
+  fox, CC0 like the rest of the kit.
   Consumed directly by the editor (`apps/editor/src/scene/modelCatalog.ts`) via Three.js's
   own glTF loader (`GLTFLoader` for static props, `SkeletonUtils.clone` plus
   `AnimationMixer` for the 27 rigged/animated `animals/**` and `people/**` entries, which
@@ -36,7 +38,9 @@ Hashes (SHA-256):
 - `assets/cooked/bench.gea`: `54ea6a44bf53c1ebbf99c9a6a66d24d060a96c0b2b344adc958f7af9dcce8f1e`
 - `assets/source/kit/**`: unmodified copies of the supplied archive's files at the same
   paths under `assets/kit/`; verify against the archive's own SHA-256 above rather than
-  per-file hashes here (130 files, one shared provenance and license).
+  per-file hashes here (117 files, one shared provenance and license — excludes
+  `people/hero.glb` and the 12 `people/npc-*.glb` files, regenerated in 0.36.0; see that
+  entry's own hashes below).
 
 ## Audio (0.30.0)
 
@@ -149,3 +153,49 @@ Hashes (SHA-256):
 - `assets/source/kit/animals/husky.glb`: `a4d7aa457c2dfa643df8833bcfe913d3e63a283c34e68480f6bd3344a6fb25c4`
 - `assets/source/kit/animals/stag.glb`: `6d8f486cc46f4c93196e26a8cd5d645962b8d465d9929cf79f7d40859ee68adf`
 - `assets/source/kit/animals/alpaca.glb`: `662e6259dafd61d113159c45b1cf902f1cf7cd95d177d9c9bb89b73f335d0e35`
+
+## People kit regeneration (0.36.0)
+
+`people/hero.glb` and the 12 `people/npc-*.glb` files (above, imported unmodified in
+F19/F20) are regenerated from the *source code* of the same aether-assetgen generator
+that originally produced them, not the pre-baked files supplied in aether-complete.zip
+(SHA-256 above). That generator's own `tools/gen/**` -- confirmed, before any change,
+to reproduce every one of these 13 files byte-identical to the ones already committed
+here, using the exact character options (`seed`/`outfit`/`height`/`build`/`hairStyle`/
+...) `tools/build-assets.mjs`'s own `people` section already used -- is vendored (MIT,
+same grant as the rest of the Aether engine source; see `third_party/aether/LICENSE`)
+as the closure of 8 files `third_party/aether/gen/{glb,rng,materials,buildings,vehicles,
+assemble,mesh,humanoid}.mjs` needs to run `humanoid()`/`clips()`/`skinnedGLB()`, and
+regenerated via `tools/regenerate_npc_kit.mjs`.
+
+The one intentional change (see `third_party/aether/gen/mesh.mjs` and `humanoid.mjs`'s
+own header comments): `mesh.mjs`'s `Geo` gains a `cylSmooth()` method beside its
+original `cyl()` (kept, still used everywhere else -- buildings/vehicles/signs/nature/
+animals, and this file's own helmet-band/belt trim -- so their look is unchanged), and
+`humanoid.mjs`'s `limb()` calls it instead. `cyl()` gives every cylinder side face its
+own flat Newell normal (one normal per quad); `cylSmooth()` shares vertices around each
+ring and carries a per-vertex normal instead (radial, tilted by the taper slope for a
+cone), the same technique `sphere()` already used for the joint caps that were already
+smooth. Since every limb/torso/neck segment in `humanoid()` is built via `limb()`, this
+makes the whole body read as rounded rather than faceted, without changing the skeleton,
+outfits, proportions, or `clips()`'s animation curves at all -- same character, same
+clip set, smoother surface. Prompted by a request that the kit's `Npc *` characters
+move as smoothly as Mannequin F (0.32.0's Quaternius import, a sculpted/smooth-skinned
+mesh by construction) while keeping each one's own outfit identity, not replacing them
+with copies of Mannequin F.
+
+Hashes (SHA-256):
+
+- `assets/source/kit/people/hero.glb`: `e96d3213bf52ceabe8c823a4e1011105427b175669ce0d5befa30a87a119f6ed`
+- `assets/source/kit/people/npc-office-m.glb`: `951f3283cdb1f06870c5e5314d86c5187803cce3c26b2900c84d7a699eaf44b7`
+- `assets/source/kit/people/npc-office-f.glb`: `4cab0471634dfed841fd36514ef8cb54614259633ece634f076035da7bc0b9b6`
+- `assets/source/kit/people/npc-casual-1.glb`: `208078ad07a0f17fb301ef8c3cf84a0bbfadcc9a072044ef273859fb0c722ebd`
+- `assets/source/kit/people/npc-casual-2.glb`: `83883f9885d85cf9ecfa7eb35829c8d9baecf0972bcfece74f66ec6f4b0d0902`
+- `assets/source/kit/people/npc-hoodie.glb`: `782c41df989b3f27539f2f3921d9c66a8ad98f33c40d9f0b938965b6dba86cd5`
+- `assets/source/kit/people/npc-worker.glb`: `f4a1d4e17c41351450fe850a5890c087694d923fe65be64e4f803bd152ef79e6`
+- `assets/source/kit/people/npc-sport.glb`: `d7852453a09c49edb81699d095d66a7a9c3237f9033d2d986286ef19ff2de67a`
+- `assets/source/kit/people/npc-dress.glb`: `fffad65b164473ae0efa70bbbc23f02543c3a02b1de6f552da3837b5649a1490`
+- `assets/source/kit/people/npc-vendor.glb`: `e8b732133a7d6144b7f68f0f2531e44afe313cd68caf0cf58a355670e096c750`
+- `assets/source/kit/people/npc-uniform.glb`: `2d84a2fb958029a024bbb335d9683f2507294fc68acd85b171812de3baee1fcd`
+- `assets/source/kit/people/npc-elder.glb`: `d8bce4a0879ba22be7c18e4129358fc060bea8049bf1f9003f61b838aa27c3ad`
+- `assets/source/kit/people/npc-teen.glb`: `78595327ad7de03aa3f6af3c6df4d1ad1a2b5179fbaa9b028776bb5a426c7463`
