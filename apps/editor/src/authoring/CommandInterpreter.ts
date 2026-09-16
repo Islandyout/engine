@@ -11,7 +11,12 @@ import type {
   EntityRef,
   Vec3,
 } from "@scene/Components";
-import { Scene, type SceneComponents } from "@scene/Scene";
+import {
+  isPrefabableComponent,
+  Scene,
+  type PrefabableComponent,
+  type SceneComponents,
+} from "@scene/Scene";
 
 export interface CommandResult {
   ok: boolean;
@@ -92,7 +97,13 @@ export class CommandInterpreter {
         case "set_component": {
           const entity = requireEntity(this.scene, command.entity);
           const type = readComponentName(command.type);
-          this.scene.add(entity, type, normalizeComponent(type, command.value));
+          // normalizeComponent's own declared return type spans
+          // SceneSerializer's ComponentName, which (unlike this file's own,
+          // narrower ComponentName) includes PrefabInstance -- readComponentName
+          // already guarantees `type` itself is never that, so this narrowing
+          // cast is just re-stating what's already true, not bypassing a check.
+          const value = normalizeComponent(type, command.value) as SceneComponents[typeof type];
+          this.writeComponent(entity, type, value);
           return { ok: true, entity };
         }
         case "rename_entity": {
@@ -138,6 +149,12 @@ export class CommandInterpreter {
           return this.attachComponent(command);
         case "remove_component":
           return this.removeComponent(command);
+        case "create_prefab":
+          return this.createPrefab(command);
+        case "place_instance":
+          return this.placeInstance(command);
+        case "unlink_instance":
+          return this.unlinkInstance(command);
         case "list_entities":
           return { ok: true, data: this.listEntities() };
         case "describe_entity":
@@ -218,9 +235,7 @@ export class CommandInterpreter {
   private setVelocity(command: Record<string, unknown>): CommandResult {
     const entity = requireEntity(this.scene, command.entity);
     const value = readVec3(command.velocity, "velocity");
-    const velocity = this.scene.get(entity, "Velocity");
-    if (velocity) velocity.value = value;
-    else this.scene.add(entity, "Velocity", { value });
+    this.writeComponent(entity, "Velocity", { value });
     return { ok: true, entity };
   }
 
@@ -229,30 +244,22 @@ export class CommandInterpreter {
     const dynamic = readBoolean(command.dynamic, "dynamic");
     const mass =
       command.mass === undefined
-        ? (this.scene.get(entity, "RigidBody")?.mass ?? 1)
+        ? (this.scene.resolve(entity, "RigidBody")?.mass ?? 1)
         : readPositive(command.mass, "mass");
-    const body = this.scene.get(entity, "RigidBody");
-    const next =
-      body ??
-      this.scene.add(entity, "RigidBody", {
-        mass,
-        inverseMass: dynamic ? 1 / mass : 0,
-        dynamic,
-      });
-    next.mass = mass;
-    next.dynamic = dynamic;
-    next.inverseMass = dynamic ? 1 / mass : 0;
-    if (!this.scene.has(entity, "Collider"))
-      this.scene.add(entity, "Collider", defaultCollider());
+    this.writeComponent(entity, "RigidBody", {
+      mass,
+      inverseMass: dynamic ? 1 / mass : 0,
+      dynamic,
+    });
+    if (!this.scene.effectiveHas(entity, "Collider"))
+      this.writeComponent(entity, "Collider", defaultCollider());
     return { ok: true, entity };
   }
 
   private setAiState(command: Record<string, unknown>): CommandResult {
     const entity = requireEntity(this.scene, command.entity);
     const state = readEnum(command.state, aiStates, "state");
-    const ai = this.scene.get(entity, "AIState");
-    if (ai) ai.state = state;
-    else this.scene.add(entity, "AIState", { state });
+    this.writeComponent(entity, "AIState", { state });
     return { ok: true, entity };
   }
 
@@ -263,13 +270,7 @@ export class CommandInterpreter {
       command.looping === undefined
         ? true
         : readBoolean(command.looping, "looping");
-    const animation = this.scene.get(entity, "AnimationState");
-    const next =
-      animation ??
-      this.scene.add(entity, "AnimationState", { clip, time: 0, looping });
-    next.clip = clip;
-    next.time = 0;
-    next.looping = looping;
+    this.writeComponent(entity, "AnimationState", { clip, time: 0, looping });
     return { ok: true, entity };
   }
 
@@ -280,6 +281,18 @@ export class CommandInterpreter {
       return this.fail(
         "Parent requires an entity reference and is not attachable without one",
       );
+    if (isPrefabableComponent(type)) {
+      const instance = this.scene.get(entity, "PrefabInstance");
+      if (instance) {
+        if (this.scene.getPrefab(instance.prefab)?.components[type] !== undefined)
+          return { ok: true, entity };
+        // See writeComponent's own comment just below: TS can't prove a
+        // dynamically-typed component name and its value correlate, even
+        // though they provably do here by construction.
+        this.scene.setPrefabComponent(instance.prefab, type, defaultComponent(type) as never);
+        return { ok: true, entity };
+      }
+    }
     if (this.scene.has(entity, type)) return { ok: true, entity };
     this.scene.add(entity, type, defaultComponent(type));
     return { ok: true, entity };
@@ -288,10 +301,103 @@ export class CommandInterpreter {
   private removeComponent(command: Record<string, unknown>): CommandResult {
     const entity = requireEntity(this.scene, command.entity);
     const type = readComponentName(command.type);
+    if (isPrefabableComponent(type)) {
+      const instance = this.scene.get(entity, "PrefabInstance");
+      if (instance) {
+        const removed = this.scene.removePrefabComponent(instance.prefab, type);
+        return removed
+          ? { ok: true, entity }
+          : this.fail(`component not present: ${type}`);
+      }
+    }
     const removed = this.scene.remove(entity, type);
     return removed
       ? { ok: true, entity }
       : this.fail(`component not present: ${type}`);
+  }
+
+  // A prefab-shared component type on an instance entity is edited on the
+  // shared prefab, not the entity itself -- see Scene's own PrefabDefinition
+  // doc comment for why (live-shared, no per-instance override in v1).
+  //
+  // The `as never` casts in this method and its siblings below (createPrefab,
+  // unlinkInstance, Scene.setPrefabComponent) all bypass the same TypeScript
+  // limitation: a component name and its value are read from the same source
+  // together, so they always correlate at runtime, but the name is a plain
+  // (dynamically-widened) string type here, not a literal, and TS can't
+  // verify that correlation through a generic dictionary write -- the
+  // standard escape hatch for that gap.
+  private writeComponent<K extends ComponentName>(
+    entity: EntityRef,
+    type: K,
+    value: SceneComponents[K],
+  ): void {
+    if (isPrefabableComponent(type)) {
+      const instance = this.scene.get(entity, "PrefabInstance");
+      if (instance) {
+        this.scene.setPrefabComponent(instance.prefab, type, value as never);
+        return;
+      }
+    }
+    this.scene.add(entity, type, value);
+  }
+
+  private createPrefab(command: Record<string, unknown>): CommandResult {
+    const entity = requireEntity(this.scene, command.entity);
+    const name = readString(command.name, "name");
+    if (this.scene.has(entity, "PrefabInstance"))
+      throw new Error("Entity is already a prefab instance");
+    if (this.scene.hasPrefab(name)) throw new Error(`Prefab already exists: ${name}`);
+    const components: Partial<Pick<SceneComponents, PrefabableComponent>> = {};
+    for (const type of componentNames) {
+      if (!isPrefabableComponent(type)) continue;
+      const value = this.scene.get(entity, type);
+      if (value === undefined) continue;
+      components[type] = value as never;
+      this.scene.remove(entity, type);
+    }
+    this.scene.definePrefab(name, { components });
+    this.scene.add(entity, "PrefabInstance", { prefab: name });
+    return { ok: true, entity };
+  }
+
+  private placeInstance(command: Record<string, unknown>): CommandResult {
+    const name = readString(command.prefab, "prefab");
+    if (!this.scene.hasPrefab(name)) throw new Error(`Unknown prefab: ${name}`);
+    if (this.scene.entityCount >= 1024) throw new Error("Entity limit reached");
+    // Parse every input before creating the entity -- a failed command never
+    // reaches Document's undo stack (see EditorDocument.execute), so an
+    // entity allocated before validation and then abandoned here would leak,
+    // unreachable and un-undoable.
+    const position =
+      command.transform === undefined
+        ? { x: 0, y: 0, z: 0 }
+        : readVec3(command.transform, "transform");
+    const instanceName = command.name === undefined ? undefined : readString(command.name, "name");
+    const entity = this.scene.createEntity();
+    this.scene.add(entity, "Transform", { position });
+    this.scene.add(entity, "PrefabInstance", { prefab: name });
+    if (instanceName !== undefined) this.scene.add(entity, "Name", { value: instanceName });
+    return { ok: true, entity };
+  }
+
+  // Detaches an entity from its prefab, materializing whatever it currently
+  // resolves to as its own literal data -- a standalone entity going
+  // forward, unaffected by later edits to the prefab it came from.
+  private unlinkInstance(command: Record<string, unknown>): CommandResult {
+    const entity = requireEntity(this.scene, command.entity);
+    const instance = this.scene.get(entity, "PrefabInstance");
+    if (!instance) throw new Error("Entity is not a prefab instance");
+    const definition = this.scene.getPrefab(instance.prefab);
+    if (definition)
+      for (const [type, value] of Object.entries(definition.components))
+        // A clone, not the prefab's own object -- the prefab (and any still-
+        // linked instance) keeps that object; a later in-place edit on this
+        // now-standalone entity (set_physics et al. mutate their component
+        // in place) must not reach back into either.
+        this.scene.add(entity, type as PrefabableComponent, structuredClone(value) as never);
+    this.scene.remove(entity, "PrefabInstance");
+    return { ok: true, entity };
   }
 
   private listEntities(): unknown[] {
@@ -307,12 +413,16 @@ export class CommandInterpreter {
   private describe(command: Record<string, unknown>): CommandResult {
     const entity = requireEntity(this.scene, command.entity);
     const components: Record<string, unknown> = {};
-    for (const type of this.scene.getComponentNames(entity)) {
+    // Resolved, not literal -- for a PrefabInstance entity this reflects
+    // what's actually simulated (the shared prefab's data plus this
+    // entity's own Transform/Name/Parent), not just what the entity
+    // literally owns.
+    for (const type of this.scene.effectiveComponentNames(entity)) {
       if (type === "Parent") {
         const parent = this.scene.get(entity, "Parent");
         if (parent) components[type] = { entity: parent.entity };
       } else {
-        components[type] = this.scene.get(entity, type);
+        components[type] = this.scene.resolve(entity, type);
       }
     }
     return { ok: true, entity, data: components };

@@ -1649,3 +1649,100 @@ through the existing editor, not expanding the native playground's own surface.
   and from there into physics. Four new checks added to `tests/script_tests.cpp` covering
   all three; full `ctest` (still 14/14 executables) and the real-browser suite re-verified
   clean.
+
+## F29 — Prefabs: author once, place many, edit-propagates (0.29.0)
+
+The roadmap that followed the engine audit named prefabs a Tier 1 item alongside
+scripting: author "Player Car" once, place ten, edit the source and every instance
+updates. This round adds that as a new `PrefabInstance` component and a
+`PrefabDefinition` scene concept, entirely in the browser editor's TypeScript
+authoring layer — no bridge or engine-core changes, since a prefab is a relationship
+between authored data, not new simulated behavior.
+
+The model is **live-shared, not copy-on-place**: an instance entity stores only its
+own `Transform`/`Name`/`Parent`/`PrefabInstance` (placement and identity are always
+per-instance); every other component type — `Health`, `Renderable`, `RigidBody`,
+`Collider`, `Vehicle`, `AIState`, `Pedestrian`, `Player`, `AnimationState`, `Script`,
+`Velocity`, `Acceleration` — is defined once on the shared `PrefabDefinition` and
+read live by every instance. Editing a shared value through any one instance's
+inspector is instantly visible on every other instance, with no separate "apply to
+all" step and no risk of an instance drifting out of sync. The accepted trade-off for
+v1: no per-instance override of a prefab-defined value — an instance that needs to
+differ belongs to a different prefab. This was an explicit design choice (asked of
+the user directly, given the real alternative — copy-on-place with an explicit
+re-apply step, closer to Unity/Godot — trades that zero-staleness guarantee for
+per-instance overrides) rather than assumed.
+
+`Scene.ts` gains `prefabableComponentNames`/`PrefabableComponent` (the single runtime
+source of truth for which component types a prefab can define, also driving the
+compile-time type) and `PrefabDefinition`, plus a `prefabDefs` map and the read-side
+API: `resolve()` (an entity's own literal data if any, else its prefab's, mirroring
+`get()` for the placement/identity types that are never prefab-defined) and
+`effectiveHas()`/`effectiveComponentNames()` built on it. `CommandInterpreter.ts`
+gains three commands — `create_prefab` (captures a plain entity's current prefabable
+components into a new named definition, removing them from the entity's own storage
+and replacing them with a `PrefabInstance` reference), `place_instance` (a new entity
+with just `Transform` + `PrefabInstance`), and `unlink_instance` (materializes an
+instance's currently-resolved data as its own literal components and detaches it,
+standalone from then on) — and routes `set_component`/`attach_component`/
+`remove_component` to the shared prefab definition instead of the entity itself
+whenever the target entity is an instance and the component type is prefabable, so
+every existing inspector edit path "just works" for a prefab instance without the UI
+needing to know the difference.
+
+`SceneSerializer.ts` adds an optional top-level `prefabs` map to `SceneDocument`,
+serialized/deserialized alongside entities and validated the same way everything
+else is (an entity's `PrefabInstance.prefab` must name a prefab actually present in
+the document). `main.ts`'s inspector shows a banner ("Instance of prefab X…" plus an
+Unlink button) for an instance, and a "Make prefab…" button otherwise; the dock's
+Project panel gained a prefab picker and "Place instance" button, mirroring the
+existing "Add from catalog" flow. Every one of `main.ts`'s ~30 `doc.scene.get`/`has`/
+`getComponentNames` call sites — the inspector's field rendering, `syncRuntime()`,
+`rebuild()`, every status-bar readout — now goes through `resolve()`/`effectiveHas()`/
+`effectiveComponentNames()` instead, so a prefab instance's shared data reaches the
+actual WASM simulation and every display path with no separate wiring per call site
+(safe uniformly: those resolved accessors agree exactly with the literal ones for
+every type a prefab can't define, which is everything Transform/Rotation/Scale/Name/
+Parent/PrefabInstance touches).
+
+### F29 verification
+
+- Extended `apps/editor/tests/document.test.ts`: creating a prefab moves a
+  component off the source entity onto the shared definition; a second instance
+  shares that data from the moment it's placed; editing the shared component
+  through either instance updates both; `Transform` stays independent per
+  instance; unlinking materializes the current value and freezes it against later
+  shared edits; save/load round-trips the `prefabs` map and rejects a
+  `PrefabInstance` referencing an unknown prefab. `npm run typecheck` and
+  `npm test` (28/28, up from 27) both pass.
+- Full native rebuild + `ctest`: unaffected, still 14/14 (this round touches no
+  C++).
+- Built the real Emscripten/WASM editor runtime and extended `tests/browser/
+  editor.cjs` (genuine WebGL via Playwright): made a prefab from a real entity
+  through the inspector's "Make prefab…" button, placed a second instance through
+  the dock's prefab picker, edited `Health.maximum` on one instance through the
+  real inspector field and confirmed the other instance's own field read back the
+  same new value live, then unlinked one instance and confirmed it kept its
+  materialized value through a further shared edit that no longer reached it.
+- Post-review fixes (Codex, on PR #36): `set_velocity`/`set_physics`/`set_ai_state`/
+  `trigger_animation` read/wrote a linked instance's component directly instead of
+  through `writeComponent`, silently creating an entity-local override that stopped
+  following the shared prefab -- now routed the same way `set_component` already was.
+  `unlink_instance` handed the unlinked entity the prefab's own component objects by
+  reference rather than `structuredClone`d copies, so a later in-place edit (those
+  same four commands mutate their component in place) on the "unlinked" entity could
+  still corrupt the prefab and every instance still linked to it. `place_instance`
+  allocated its entity before validating `transform`/`name`, leaking an unreachable,
+  un-undoable entity on a validation failure -- inputs are parsed first now, matching
+  `spawn_entity`'s own convention. The prefab picker built its `<option>`s through
+  raw `innerHTML` string interpolation, which mis-parses a name containing `"`, `<`,
+  or `&` instead of just displaying it -- rebuilt with the `Option` constructor, the
+  same pattern already used elsewhere in this file. `serializeScene`'s prefab map was
+  built through incremental bracket assignment on a plain object literal, so a prefab
+  named `__proto__` would invoke that key's legacy setter instead of creating a real
+  own property and silently vanish from the saved file -- rebuilt through
+  `Object.fromEntries` instead, immune to the same footgun `JSON.parse` already is.
+  Four new cases added to `document.test.ts` covering all of the above; `npm run
+  typecheck` and `npm test` (32/32, up from 28) both pass; the real-browser suite
+  gained a check placing an instance of a prefab named `Boss "Red" & Co` through the
+  picker, re-verified clean end to end.

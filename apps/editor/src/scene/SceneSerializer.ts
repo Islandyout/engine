@@ -1,10 +1,22 @@
 import type { EntityRef } from "./Components";
-import { Scene, type SceneComponents } from "./Scene";
+import {
+  isPrefabableComponent,
+  Scene,
+  type PrefabableComponent,
+  type SceneComponents,
+} from "./Scene";
 import type { AIStateName } from "./Components";
 
 export interface SceneDocument {
   format: 1;
   name?: string;
+  // Named templates, keyed by name -- see Scene's own PrefabDefinition doc
+  // comment. Each instance entity persists only its own Transform/Name/
+  // Parent/PrefabInstance below; everything else lives here once, shared.
+  prefabs?: Record<
+    string,
+    { components: Partial<{ [K in PrefabableComponent]: SceneComponents[K] }> }
+  >;
   entities: Array<{
     name?: string;
     parent?: EntityRef;
@@ -21,9 +33,24 @@ export function serializeScene(scene: Scene, name?: string): SceneDocument {
   scene
     .eachAlive()
     .forEach((entity, index) => indexByEntity.set(entity.index, index));
+  // Object.fromEntries, not incremental bracket assignment (prefabs[name] =
+  // ...) on a plain object literal -- a prefab literally named "__proto__"
+  // would invoke that key's legacy prototype setter instead of creating an
+  // enumerable own property, silently dropping it from Object.keys/entries
+  // later (on save here, and were it built this way, on load too).
+  const prefabs: Record<string, { components: Record<string, unknown> }> =
+    Object.fromEntries(
+      scene.prefabEntries().map(([prefabName, definition]) => [
+        prefabName,
+        { components: jsonValue(definition.components) as Record<string, unknown> },
+      ]),
+    );
   return {
     format: 1,
     ...(name ? { name } : {}),
+    ...(Object.keys(prefabs).length
+      ? { prefabs: prefabs as SceneDocument["prefabs"] }
+      : {}),
     entities: scene.eachAlive().map((entity) => {
       const components = {} as Partial<{
         [K in keyof SceneComponents]: SceneComponents[K];
@@ -65,6 +92,17 @@ export function deserializeScene(scene: Scene, document: unknown): void {
     );
   validateSceneDocument(document);
   scene.clear();
+  for (const [prefabName, prefabDoc] of Object.entries(document.prefabs ?? {})) {
+    const components: Partial<{ [K in PrefabableComponent]: SceneComponents[K] }> = {};
+    for (const [type, raw] of Object.entries(prefabDoc.components)) {
+      if (!isPrefabableComponent(type))
+        throw new Error(`Unsupported prefab component: ${type}`);
+      // See CommandInterpreter.writeComponent's comment on the matching
+      // `as never` casts there -- same TypeScript limitation.
+      components[type] = normalizeComponent(type, raw) as never;
+    }
+    scene.definePrefab(prefabName, { components });
+  }
   const entities = document.entities.map(() => scene.createEntity());
   document.entities.forEach((entry, sourceIndex) => {
     const target = entities[sourceIndex]!;
@@ -108,6 +146,7 @@ function isSceneDocument(value: unknown): value is SceneDocument {
   const record = value as Record<string, unknown>;
   return (
     record.format === 1 &&
+    (!("prefabs" in record) || isPrefabsRecord(record.prefabs)) &&
     Array.isArray(record.entities) &&
     record.entities.every((entry) => {
       if (!entry || typeof entry !== "object") return false;
@@ -118,6 +157,17 @@ function isSceneDocument(value: unknown): value is SceneDocument {
         item.components !== null
       );
     })
+  );
+}
+
+function isPrefabsRecord(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return Object.values(value as Record<string, unknown>).every(
+    (entry) =>
+      !!entry &&
+      typeof entry === "object" &&
+      typeof (entry as Record<string, unknown>).components === "object" &&
+      (entry as Record<string, unknown>).components !== null,
   );
 }
 
@@ -139,6 +189,7 @@ const componentNames = [
   "Name",
   "Parent",
   "Script",
+  "PrefabInstance",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -242,6 +293,8 @@ export function normalizeComponent(
       };
     case "Name":
       return { value: string(value.value, "Name.value") };
+    case "PrefabInstance":
+      return { prefab: string(value.prefab, "PrefabInstance.prefab") };
     case "Parent":
       throw new Error("Parent is encoded separately.");
   }
@@ -285,13 +338,29 @@ export function validateSceneDocument(
 ): asserts document is SceneDocument {
   if (!isSceneDocument(document) || document.entities.length > 1024)
     throw new Error("Invalid scene document or entity limit exceeded");
+  for (const [prefabName, prefabDoc] of Object.entries(document.prefabs ?? {})) {
+    if (prefabName.length === 0) throw new Error("Prefab name must be non-empty");
+    for (const [type, value] of Object.entries(prefabDoc.components)) {
+      if (!isPrefabableComponent(type))
+        throw new Error(`Unsupported prefab component: ${type}`);
+      normalizeComponent(type, value);
+    }
+  }
   for (const [index, entry] of document.entities.entries()) {
     if (Array.isArray(entry.components))
       throw new Error("Components must be an object");
     for (const [type, value] of Object.entries(entry.components)) {
       if (!isComponentName(type))
         throw new Error(`Unsupported component: ${type}`);
-      if (type !== "Parent") normalizeComponent(type, value);
+      if (type === "Parent") continue;
+      const normalized = normalizeComponent(type, value);
+      if (
+        type === "PrefabInstance" &&
+        document.prefabs?.[(normalized as { prefab: string }).prefab] === undefined
+      )
+        throw new Error(
+          `PrefabInstance references unknown prefab: ${(normalized as { prefab: string }).prefab}`,
+        );
     }
     const seen = new Set<number>([index]);
     let parent = entry.parent;
