@@ -154,3 +154,82 @@ test("Script attaches with a starter template, edits round-trip through save/loa
     }),
   );
 });
+
+test("prefabs: create, place, live-shared edits propagate, Transform stays per-instance, unlink detaches, save/load round-trips", () => {
+  const d = new EditorDocument();
+  const source = d.execute({ command: "spawn_entity", name: "Car", transform: [0, 0, 0] }).entity!;
+  d.execute({ command: "attach_component", entity: source, type: "Health" });
+  d.execute({
+    command: "set_component",
+    entity: source,
+    type: "Health",
+    value: { current: 80, maximum: 80 },
+  });
+  const create = d.execute({ command: "create_prefab", entity: source, name: "Player Car" });
+  assert.equal(create.ok, true);
+  // Creating a prefab moves Health off the entity's own storage onto the
+  // shared definition -- the entity itself no longer literally owns it.
+  assert.equal(d.scene.has(source, "Health"), false);
+  assert.equal(d.scene.get(source, "PrefabInstance")?.prefab, "Player Car");
+  assert.equal(d.scene.resolve(source, "Health")?.maximum, 80);
+  assert.equal(d.execute({ command: "create_prefab", entity: source, name: "Player Car" }).ok, false);
+
+  const place = d.execute({
+    command: "place_instance",
+    prefab: "Player Car",
+    transform: [10, 0, 0],
+  });
+  assert.equal(place.ok, true);
+  const instance = place.entity!;
+  assert.equal(d.scene.resolve(instance, "Health")?.maximum, 80, "a new instance shares the prefab's data");
+  assert.equal(d.execute({ command: "place_instance", prefab: "Nonexistent" }).ok, false);
+
+  // Editing the shared component through either instance updates both --
+  // live-shared, no per-instance override, as designed.
+  assert.equal(
+    d.execute({
+      command: "set_component",
+      entity: instance,
+      type: "Health",
+      value: { current: 50, maximum: 50 },
+    }).ok,
+    true,
+  );
+  assert.equal(d.scene.resolve(source, "Health")?.maximum, 50, "editing one instance updates the other");
+  assert.equal(d.scene.resolve(instance, "Health")?.maximum, 50);
+
+  // Transform is always per-instance: moving one never moves the other.
+  assert.equal(d.scene.get(source, "Transform")!.position.x, 0);
+  assert.equal(d.scene.get(instance, "Transform")!.position.x, 10);
+
+  // Unlinking freezes the resolved data as the entity's own, disconnected
+  // from later prefab edits.
+  assert.equal(d.execute({ command: "unlink_instance", entity: instance }).ok, true);
+  assert.equal(d.scene.has(instance, "PrefabInstance"), false);
+  assert.equal(d.scene.get(instance, "Health")?.maximum, 50);
+  assert.equal(
+    d.execute({
+      command: "set_component",
+      entity: source,
+      type: "Health",
+      value: { current: 10, maximum: 10 },
+    }).ok,
+    true,
+  );
+  assert.equal(d.scene.get(instance, "Health")?.maximum, 50, "unlinked instance is unaffected by later prefab edits");
+  assert.equal(d.execute({ command: "unlink_instance", entity: instance }).ok, false);
+
+  const saved = d.save();
+  d.execute({ command: "destroy_entity", entity: source });
+  d.load(saved);
+  const [[reloadedSource]] = d.scene.query("PrefabInstance");
+  assert.equal(d.scene.resolve(reloadedSource, "Health")?.maximum, 10);
+  assert.throws(
+    () =>
+      d.load({
+        format: 1,
+        entities: [{ components: { PrefabInstance: { prefab: "Ghost" } } }],
+      }),
+    /unknown prefab/i,
+  );
+});

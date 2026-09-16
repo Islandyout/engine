@@ -497,6 +497,49 @@ const { chromium } = require("playwright");
       return text.includes("entities") && !text.includes("Script error:");
     });
     await page.locator("#stop").click();
+    // Prefabs: make a prefab from an entity, place a second instance, edit
+    // a shared component through one instance and confirm it updates the
+    // other live (no per-instance override in v1), then unlink one instance
+    // and confirm it stops following further shared edits.
+    await page.locator("#add").click();
+    const prefabSourceName = await page.locator(".entity").last().textContent();
+    await page
+      .locator(".entity")
+      .filter({ hasText: prefabSourceName })
+      .first()
+      .click();
+    await page.getByLabel("Add component").selectOption("Health");
+    page.once("dialog", (dialog) => dialog.accept("Test Prefab"));
+    await page.getByRole("button", { name: "Make prefab…" }).click();
+    await page.locator("#prefab-select").selectOption("Test Prefab");
+    await page.locator("#prefab-place").click();
+    await page.waitForFunction(
+      (name) =>
+        Array.from(document.querySelectorAll(".entity")).filter((e) =>
+          e.textContent.includes(name),
+        ).length === 2,
+      prefabSourceName,
+    );
+    const instances = page.locator(".entity").filter({ hasText: prefabSourceName });
+    await instances.nth(1).click();
+    await page.getByLabel("Health.maximum").fill("55");
+    await page.getByLabel("Health.maximum").press("Tab");
+    await instances.nth(0).click();
+    assert.equal(
+      await page.getByLabel("Health.maximum").inputValue(),
+      "55",
+      "editing a shared component through one instance updates the other live",
+    );
+    await page.getByRole("button", { name: "Unlink from prefab" }).click();
+    await instances.nth(1).click();
+    await page.getByLabel("Health.maximum").fill("99");
+    await page.getByLabel("Health.maximum").press("Tab");
+    await instances.nth(0).click();
+    assert.equal(
+      await page.getByLabel("Health.maximum").inputValue(),
+      "55",
+      "an unlinked instance keeps its materialized value, unaffected by further shared edits",
+    );
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -506,7 +549,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, vehicle driving, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), save/load, invalid-load preservation, authoring console passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, vehicle driving, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), save/load, invalid-load preservation, authoring console passed.",
     );
   } finally {
     if (browser) await browser.close();

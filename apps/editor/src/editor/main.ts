@@ -137,7 +137,7 @@ async function startEditor() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `<header>
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
-  <span class="brand-sub">BTAI Editor <span class="version">0.28.0</span></span>
+  <span class="brand-sub">BTAI Editor <span class="version">0.29.0</span></span>
   <a class="link-external" href="https://github.com/Islandyout/engine">View source${iconHtml("external")}</a>
 </header>
 <nav>
@@ -215,6 +215,11 @@ async function startEditor() {
       <button id="catalog-add" class="btn btn-sm">${iconHtml("cube")}<span>Add from catalog</span></button>
       <p class="hint">${modelCatalog.length} bundled CC0 models · Aether kit</p>
       <a class="link-external" href="./ASSET-CREDITS.txt">Asset credits</a>
+      <div class="field-row">
+        <select id="prefab-select" aria-label="Prefab"></select>
+      </div>
+      <button id="prefab-place" class="btn btn-sm">${iconHtml("copy")}<span>Place instance</span></button>
+      <p class="hint" id="prefab-hint">No prefabs yet — select an entity and use "Make prefab…" in the Inspector.</p>
     </div>
   </div>
   <div class="resizer resizer-v" id="resize-dock" role="separator" aria-orientation="vertical" aria-label="Resize console panel"></div>
@@ -332,7 +337,7 @@ async function startEditor() {
   // persists literal dimensions instead of quietly shrinking the model by
   // its own native size on the very next rebuild().
   function toLiteralScale(entity: EntityRef, scale: Vec3): Vec3 {
-    const meshId = doc.scene.get(entity, "Renderable")?.mesh ?? 0;
+    const meshId = doc.scene.resolve(entity, "Renderable")?.mesh ?? 0;
     const cached = meshId >= 1 ? catalogCache.get(meshId) : undefined;
     if (!cached) return scale;
     const n = cached.nativeSize;
@@ -545,24 +550,24 @@ async function startEditor() {
     runtime._editor_begin();
     playerIndex = -1;
     doc.scene.eachAlive().forEach((entity, index) => {
-      const p = doc.scene.get(entity, "Transform")?.position ?? {
+      const p = doc.scene.resolve(entity, "Transform")?.position ?? {
         x: 0,
         y: 0,
         z: 0,
       };
-      const v = doc.scene.get(entity, "Velocity")?.value ?? {
+      const v = doc.scene.resolve(entity, "Velocity")?.value ?? {
         x: 0,
         y: 0,
         z: 0,
       };
-      const s = doc.scene.get(entity, "Scale")?.value ?? { x: 1, y: 1, z: 1 };
-      const isChild = doc.scene.has(entity, "Parent") ? 1 : 0;
-      const isPlayer = doc.scene.has(entity, "Player") ? 1 : 0;
-      const isCollider = doc.scene.has(entity, "Collider") ? 1 : 0;
-      const isVehicle = doc.scene.has(entity, "Vehicle") ? 1 : 0;
-      const isAi = doc.scene.has(entity, "AIState") ? 1 : 0;
-      const isPedestrian = doc.scene.has(entity, "Pedestrian") ? 1 : 0;
-      const health = doc.scene.get(entity, "Health");
+      const s = doc.scene.resolve(entity, "Scale")?.value ?? { x: 1, y: 1, z: 1 };
+      const isChild = doc.scene.effectiveHas(entity, "Parent") ? 1 : 0;
+      const isPlayer = doc.scene.effectiveHas(entity, "Player") ? 1 : 0;
+      const isCollider = doc.scene.effectiveHas(entity, "Collider") ? 1 : 0;
+      const isVehicle = doc.scene.effectiveHas(entity, "Vehicle") ? 1 : 0;
+      const isAi = doc.scene.effectiveHas(entity, "AIState") ? 1 : 0;
+      const isPedestrian = doc.scene.effectiveHas(entity, "Pedestrian") ? 1 : 0;
+      const health = doc.scene.resolve(entity, "Health");
       // hp_max <= 0 is the bridge's own "no Health" sentinel (see
       // editor_add's doc comment) — a real Health always has a positive max.
       const hpCurrent = health?.current ?? 0;
@@ -586,7 +591,7 @@ async function startEditor() {
       // string, so a scripted entity's source is set through this companion
       // call instead (see editor_set_script_source's own doc comment,
       // bridge.cpp) — same index editor_add just placed this entity at.
-      const script = doc.scene.get(entity, "Script");
+      const script = doc.scene.resolve(entity, "Script");
       if (script)
         runtime.ccall(
           "editor_set_script_source",
@@ -609,7 +614,7 @@ async function startEditor() {
     animStates.length = 0;
     const refs = doc.scene.eachAlive();
     for (const entity of refs) {
-      const renderable = doc.scene.get(entity, "Renderable");
+      const renderable = doc.scene.resolve(entity, "Renderable");
       const meshId = renderable?.mesh ?? 0;
       const catalog = meshId >= 1 ? catalogEntry(meshId) : undefined;
       const cached = meshId >= 1 ? catalogCache.get(meshId) : undefined;
@@ -648,12 +653,12 @@ async function startEditor() {
         object = new THREE.Mesh(geometry, material);
       }
       object.visible = renderable?.visible ?? true;
-      const p = doc.scene.get(entity, "Transform")?.position;
+      const p = doc.scene.resolve(entity, "Transform")?.position;
       if (p) object.position.set(p.x, p.y, p.z);
       if (animState) animState.prevPosition.copy(object.position);
-      const r = doc.scene.get(entity, "Rotation")?.euler;
+      const r = doc.scene.resolve(entity, "Rotation")?.euler;
       if (r) object.rotation.set(r.x, r.y, r.z);
-      const s = doc.scene.get(entity, "Scale")?.value;
+      const s = doc.scene.resolve(entity, "Scale")?.value;
       if (s && cached) {
         // Normalize by the model's own native size so an authored Scale is
         // the mesh's literal world-space size, matching the physics Box's
@@ -670,7 +675,7 @@ async function startEditor() {
       animStates.push(animState);
     }
     refs.forEach((entity, i) => {
-      const parent = doc.scene.get(entity, "Parent")?.entity;
+      const parent = doc.scene.resolve(entity, "Parent")?.entity;
       if (parent && doc.scene.alive(parent)) {
         const pi = refs.findIndex((e) => e.index === parent.index);
         objects[pi]?.add(objects[i]!);
@@ -678,8 +683,20 @@ async function startEditor() {
     });
     updatePanels();
   }
+  function populatePrefabSelect() {
+    const select = el<HTMLSelectElement>("prefab-select");
+    const previous = select.value;
+    const names = doc.scene.prefabNames();
+    select.innerHTML = names.map((name) => `<option value="${name}">${name}</option>`).join("");
+    if (names.includes(previous)) select.value = previous;
+    const hasPrefabs = names.length > 0;
+    select.hidden = !hasPrefabs;
+    el<HTMLButtonElement>("prefab-place").disabled = !hasPrefabs || doc.mode !== "edit";
+    el("prefab-hint").hidden = hasPrefabs;
+  }
   function updatePanels() {
     gizmo.detach();
+    populatePrefabSelect();
     for (const id of [
       "translate",
       "rotate",
@@ -699,7 +716,7 @@ async function startEditor() {
     tree.replaceChildren();
     for (const entity of doc.scene.eachAlive()) {
       const name =
-        doc.scene.get(entity, "Name")?.value ?? `Entity ${entity.index}`;
+        doc.scene.resolve(entity, "Name")?.value ?? `Entity ${entity.index}`;
       if (
         !name
           .toLowerCase()
@@ -711,7 +728,7 @@ async function startEditor() {
       // Keep the exact "↳ "/"□ " text prefix (not just a decorative icon):
       // it is part of this button's accessible name, matched verbatim by
       // the browser test suite (getByRole("button", { name: "□ ..." })).
-      const hasParent = doc.scene.has(entity, "Parent");
+      const hasParent = doc.scene.effectiveHas(entity, "Parent");
       button.append(
         iconEl(hasParent ? "child" : "cube", "icon-tree"),
         textSpan((hasParent ? "↳ " : "□ ") + name, "entity-name"),
@@ -742,7 +759,7 @@ async function startEditor() {
     const header = document.createElement("div");
     header.className = "inspector-header";
     const name = document.createElement("input");
-    name.value = doc.scene.get(entity, "Name")?.value ?? "Entity";
+    name.value = doc.scene.resolve(entity, "Name")?.value ?? "Entity";
     name.setAttribute("aria-label", "Entity name");
     name.onchange = () =>
       execute({ command: "rename_entity", entity, name: name.value });
@@ -757,11 +774,11 @@ async function startEditor() {
       if (ref.index !== entity.index)
         parent.add(
           new Option(
-            doc.scene.get(ref, "Name")?.value ?? String(ref.index),
+            doc.scene.resolve(ref, "Name")?.value ?? String(ref.index),
             String(ref.index),
           ),
         );
-    parent.value = String(doc.scene.get(entity, "Parent")?.entity.index ?? "");
+    parent.value = String(doc.scene.resolve(entity, "Parent")?.entity.index ?? "");
     parent.onchange = () =>
       execute({
         command: "reparent_entity",
@@ -778,8 +795,31 @@ async function startEditor() {
     parentRow.append(textSpan("Parent"), parent);
     header.append(parentRow);
     inspector.append(header);
-    for (const type of doc.scene.getComponentNames(entity)) {
-      if (type === "Parent" || type === "Name") continue;
+    const prefabInstance = doc.scene.resolve(entity, "PrefabInstance");
+    if (prefabInstance) {
+      const banner = document.createElement("div");
+      banner.className = "prefab-banner";
+      banner.append(
+        textSpan(`Instance of prefab "${prefabInstance.prefab}" — editing a shared component updates every instance.`),
+      );
+      const unlink = document.createElement("button");
+      unlink.className = "btn btn-sm btn-ghost";
+      unlink.textContent = "Unlink from prefab";
+      unlink.onclick = () => execute({ command: "unlink_instance", entity });
+      banner.append(unlink);
+      inspector.append(banner);
+    } else {
+      const makePrefab = document.createElement("button");
+      makePrefab.className = "btn btn-sm btn-ghost";
+      makePrefab.textContent = "Make prefab…";
+      makePrefab.onclick = () => {
+        const name = prompt("Prefab name (used to place further instances):");
+        if (name) execute({ command: "create_prefab", entity, name });
+      };
+      inspector.append(makePrefab);
+    }
+    for (const type of doc.scene.effectiveComponentNames(entity)) {
+      if (type === "Parent" || type === "Name" || type === "PrefabInstance") continue;
       const section = document.createElement("details");
       section.className = "component-card";
       section.open = true;
@@ -788,7 +828,7 @@ async function startEditor() {
       section.append(legend);
       // Generate fields from the component's serializable property shape; validation stays in authoring.
       const value = structuredClone(
-        doc.scene.get(entity, type),
+        doc.scene.resolve(entity, type),
       ) as unknown as Record<string, unknown>;
       function fields(
         record: Record<string, unknown>,
@@ -897,7 +937,7 @@ async function startEditor() {
       "Renderable",
       "Script",
     ])
-      if (!doc.scene.has(entity, type as keyof SceneComponents))
+      if (!doc.scene.effectiveHas(entity, type as keyof SceneComponents))
         add.add(new Option(type, type));
     add.onchange = () => {
       if (add.value)
@@ -1058,6 +1098,10 @@ async function startEditor() {
         value: { mesh: entry.id, material: 0, visible: true },
       });
   };
+  el("prefab-place").onclick = () => {
+    const prefab = el<HTMLSelectElement>("prefab-select").value;
+    if (prefab) execute({ command: "place_instance", prefab, transform: [0, 0.5, 0] });
+  };
   renderer.domElement.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || gizmo.dragging || gizmo.axis !== null) return;
     const rect = renderer.domElement.getBoundingClientRect();
@@ -1150,7 +1194,7 @@ async function startEditor() {
       // the animated-entity facing below — that would lag and wobble
       // mid-turn, where a real heading is exact every tick.
       doc.scene.eachAlive().forEach((entity, i) => {
-        if (!doc.scene.has(entity, "Vehicle") || !doc.scene.has(entity, "Player")) return;
+        if (!doc.scene.effectiveHas(entity, "Vehicle") || !doc.scene.effectiveHas(entity, "Player")) return;
         const object = objects[i];
         if (object && runtime._editor_alive(i)) object.rotation.y = runtime._editor_value(i, 4);
       });
@@ -1172,7 +1216,7 @@ async function startEditor() {
       // tick-frame, flickering every render frame at 120/144 Hz instead of
       // reading as one continuous effect.
       const playerEntity = playerIndex >= 0 ? doc.scene.eachAlive()[playerIndex] : undefined;
-      if (steps > 0 && player && playerBaseScale && playerEntity && !doc.scene.has(playerEntity, "Vehicle")) {
+      if (steps > 0 && player && playerBaseScale && playerEntity && !doc.scene.effectiveHas(playerEntity, "Vehicle")) {
         const verticalDelta = player.position.y - playerPrevY;
         const stretch = Math.max(-0.18, Math.min(0.18, verticalDelta * 6));
         player.scale.set(
@@ -1222,7 +1266,7 @@ async function startEditor() {
         // Without this, a walk/run clip plays while the mesh keeps whatever
         // fixed orientation it was authored with, sliding sideways or
         // backwards instead of visibly running toward where it's going.
-        if (speed > 0.15 && !doc.scene.has(entities[i]!, "Vehicle")) {
+        if (speed > 0.15 && !doc.scene.effectiveHas(entities[i]!, "Vehicle")) {
           const targetYaw = Math.atan2(dx, dz);
           const diff = Math.atan2(
             Math.sin(targetYaw - object.rotation.y),
@@ -1264,7 +1308,7 @@ async function startEditor() {
     const selectedHealthReadout =
       doc.mode === "play" &&
       selectedIndex >= 0 &&
-      doc.scene.has(doc.selection!, "Health")
+      doc.scene.effectiveHas(doc.selection!, "Health")
         ? runtime._editor_alive(selectedIndex)
           ? ` · Selected health: ${Math.round(runtime._editor_value(selectedIndex, 3) * 100)}%`
           : " · Selected: defeated"
@@ -1276,7 +1320,7 @@ async function startEditor() {
     const selectedAiReadout =
       doc.mode === "play" &&
       selectedIndex >= 0 &&
-      doc.scene.has(doc.selection!, "AIState") &&
+      doc.scene.effectiveHas(doc.selection!, "AIState") &&
       runtime._editor_alive(selectedIndex)
         ? ` · Selected AI: ${aiStateNames[runtime._editor_value(selectedIndex, 5)] ?? "Idle"} (${runtime._editor_value(selectedIndex, 0).toFixed(1)}, ${runtime._editor_value(selectedIndex, 2).toFixed(1)})`
         : "";
@@ -1285,7 +1329,7 @@ async function startEditor() {
     // cause (see editor_script_error's own doc comment, bridge.cpp, on why
     // that's the one thing surfaced here rather than every field of `self`).
     const selectedScriptErrorReadout =
-      doc.mode === "play" && selectedIndex >= 0 && doc.scene.has(doc.selection!, "Script")
+      doc.mode === "play" && selectedIndex >= 0 && doc.scene.effectiveHas(doc.selection!, "Script")
         ? (() => {
             const error = runtime.ccall("editor_script_error", "string", ["number"], [selectedIndex]);
             return error ? ` · Script error: ${error}` : "";
@@ -1307,13 +1351,13 @@ async function startEditor() {
     hudCtx.clearRect(0, 0, hud.width, hud.height);
     if (doc.mode !== "play") return;
     doc.scene.eachAlive().forEach((entity, index) => {
-      if (!doc.scene.has(entity, "Health")) return;
+      if (!doc.scene.effectiveHas(entity, "Health")) return;
       if (!runtime._editor_alive(index)) return;
       const object = objects[index];
       if (!object) return;
       const ratio = runtime._editor_value(index, 3);
       if (ratio < 0) return;
-      const scaleY = doc.scene.get(entity, "Scale")?.value.y ?? 1;
+      const scaleY = doc.scene.resolve(entity, "Scale")?.value.y ?? 1;
       hudScratch.copy(object.position);
       hudScratch.y += scaleY / 2 + 0.35;
       hudScratch.project(camera);

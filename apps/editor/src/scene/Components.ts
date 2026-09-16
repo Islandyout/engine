@@ -76,6 +76,14 @@ export interface NameComponent {
 export interface ParentComponent {
   entity: EntityRef;
 }
+// Marks this entity as an instance of a named prefab (see Scene's own
+// prefabableComponentNames/PrefabDefinition doc comment for exactly which
+// component types a prefab can define and how an instance's data resolves).
+// Never itself prefab-defined -- an instance can't be an instance of an
+// instance.
+export interface PrefabInstanceComponent {
+  prefab: string;
+}
 // A marker, not a data component: its presence, not any field on it, is what
 // WASD/jump input in Play mode drives. Authoring is responsible for keeping
 // this to at most one entity — nothing here enforces that.
