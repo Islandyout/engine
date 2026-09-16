@@ -467,6 +467,55 @@ const { chromium } = require("playwright");
     );
     await page.keyboard.up("w");
     await page.locator("#stop").click();
+    // Collider shapes: Collider.type/radius have been authorable in the
+    // inspector for a while but were silently discarded by physics until
+    // this round -- a real Sphere collider now actually resolves as a
+    // sphere. Placed 3 units ahead of Entity 7's own parked z (still there,
+    // per "Play never mutates authored data" above) with radius 1.5, it
+    // should stop the same vehicle that just freely drove past this point
+    // unobstructed at a specific, computable distance: baseZ + 3 - 1.5 (sphere
+    // surface) - 0.5 (vehicle's own half-extent) = baseZ + 1.0 -- clearly
+    // short of the baseZ + 2.0 a same-radius box obstacle (or the old,
+    // shape-ignorant behavior) would have produced instead.
+    await page
+      .locator(".entity")
+      .filter({ hasText: "Entity 7" })
+      .first()
+      .click();
+    const baseZ = Number(
+      await page.getByLabel("Transform.position.z", { exact: true }).inputValue(),
+    );
+    await page.locator("#add").click();
+    await page.getByLabel("Add component").selectOption("Collider");
+    await page.getByLabel("Collider.type").selectOption("Sphere");
+    await page.getByLabel("Collider.radius").fill("1.5");
+    await page.getByLabel("Collider.radius").press("Tab");
+    await page
+      .getByLabel("Transform.position.z", { exact: true })
+      .fill(String(baseZ + 3));
+    await page.getByLabel("Transform.position.z", { exact: true }).press("Tab");
+    await page
+      .locator(".entity")
+      .filter({ hasText: "Entity 7" })
+      .first()
+      .click();
+    await page.locator("#play").click();
+    await page.waitForFunction(() =>
+      document.querySelector("#status").textContent.includes("Player ("),
+    );
+    await page.keyboard.down("w");
+    await page.waitForTimeout(2500);
+    await page.keyboard.up("w");
+    const sphereBlockedZ = Number(
+      (await page.locator("#status").textContent()).match(
+        /Player \([-\d.]+, [-\d.]+, ([-\d.]+)\)/,
+      )[1],
+    );
+    await page.locator("#stop").click();
+    assert.ok(
+      sphereBlockedZ < baseZ + 1.5 && sphereBlockedZ > baseZ + 0.5,
+      `sphere collider should stop the vehicle near baseZ+1.0 (baseZ=${baseZ}), got ${sphereBlockedZ}`,
+    );
     // AIState/Pedestrian: a fresh entity within ai_sense_radius (6 units) of
     // "Entity 7" (still parked at its authored origin — Play never mutates
     // authored data, confirmed above) closes the distance on its own once
@@ -692,7 +741,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider obstacle blocking, melee/blast combat, vehicle driving, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console passed.",
     );
   } finally {
     if (browser) await browser.close();

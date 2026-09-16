@@ -138,7 +138,7 @@ async function startEditor() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `<header>
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
-  <span class="brand-sub">BTAI Editor <span class="version">0.30.0</span></span>
+  <span class="brand-sub">BTAI Editor <span class="version">0.31.0</span></span>
   <a class="link-external" href="https://github.com/Islandyout/engine">View source${iconHtml("external")}</a>
 </header>
 <nav>
@@ -652,7 +652,13 @@ async function startEditor() {
       const s = doc.scene.resolve(entity, "Scale")?.value ?? { x: 1, y: 1, z: 1 };
       const isChild = doc.scene.effectiveHas(entity, "Parent") ? 1 : 0;
       const isPlayer = doc.scene.effectiveHas(entity, "Player") ? 1 : 0;
-      const isCollider = doc.scene.effectiveHas(entity, "Collider") ? 1 : 0;
+      const collider = doc.scene.resolve(entity, "Collider");
+      const isCollider = collider ? 1 : 0;
+      // "Sphere"/radius have been authorable here for a while (PropertyMetadata's
+      // Collider.type dropdown), previously discarded entirely -- editor_add
+      // now actually resolves the shape it's told, not always an AABB from Scale.
+      const colliderShape = collider?.type === "Sphere" ? 1 : 0;
+      const colliderRadius = collider?.radius ?? 0.5;
       const isVehicle = doc.scene.effectiveHas(entity, "Vehicle") ? 1 : 0;
       const isAi = doc.scene.effectiveHas(entity, "AIState") ? 1 : 0;
       const isPedestrian = doc.scene.effectiveHas(entity, "Pedestrian") ? 1 : 0;
@@ -669,6 +675,7 @@ async function startEditor() {
         !runtime._editor_add(
           p.x, p.y, p.z, v.x, v.y, v.z, s.x, s.y, s.z, isChild, isPlayer,
           isCollider, hpCurrent, hpMax, isVehicle, isAi, isPedestrian,
+          colliderShape, colliderRadius,
         )
       ) {
         runtime._editor_commit();
@@ -1444,7 +1451,7 @@ async function startEditor() {
             return error ? ` · Script error: ${error}` : "";
           })()
         : "";
-    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout}${selectedHealthReadout}${selectedAiReadout}${selectedScriptErrorReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider collision, Health-based combat (F melee, G blast), Vehicle driving (W/S/A/D), AIState/Pedestrian wander/chase/flee, Script (Lua on_tick), and Sound (Web Audio autoplay) are simulated`;
+    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout}${selectedHealthReadout}${selectedAiReadout}${selectedScriptErrorReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider box/sphere collision, Health-based combat (F melee, G blast), Vehicle driving (W/S/A/D), AIState/Pedestrian wander/chase/flee, Script (Lua on_tick), and Sound (Web Audio autoplay) are simulated`;
     requestAnimationFrame(frame);
   }
   const cameraForwardScratch = new THREE.Vector3();
