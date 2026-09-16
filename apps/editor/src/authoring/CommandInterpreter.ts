@@ -266,7 +266,7 @@ export class CommandInterpreter {
 
   private triggerAnimation(command: Record<string, unknown>): CommandResult {
     const entity = requireEntity(this.scene, command.entity);
-    const clip = readUnsigned(command.clip, "clip");
+    const clip = readString(command.clip, "clip");
     const looping =
       command.looping === undefined
         ? true
@@ -508,11 +508,6 @@ function readPositive(value: unknown, label: string): number {
     throw new Error(`${label} must be positive`);
   return value;
 }
-function readUnsigned(value: unknown, label: string): number {
-  if (!Number.isSafeInteger(value) || (value as number) < 0)
-    throw new Error(`${label} must be a non-negative integer`);
-  return value as number;
-}
 function readEnum<T extends string>(
   value: unknown,
   values: readonly T[],
@@ -562,7 +557,7 @@ export function defaultComponent(
     case "Vehicle":
       return { archetype: 0 };
     case "AnimationState":
-      return { clip: 0, time: 0, looping: true };
+      return { clip: "", time: 0, looping: true };
     case "Renderable":
       return { mesh: 0, material: 0, visible: true };
     case "Name":

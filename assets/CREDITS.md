@@ -91,3 +91,61 @@ Hashes (SHA-256):
 - `assets/source/audio/glass-break.ogg`: `b44b39a940e8948e74b9bd3776bff980df43cf220abdaf0d467dc4c43c0244a5`
 - `assets/source/audio/melee-hit.ogg`: `486988aa2d6440ffc4c62a0e8ccf3c23673ba84424bd4723378d451b7255eb5c`
 - `assets/source/audio/metal-hit.ogg`: `e07045693e4a2b3d165c424e3dab4c781d9ff8880a386880ac89a51315d7f831`
+
+## Animations (0.32.0)
+
+Source archives: three user-provided Quaternius CC0 1.0 packs (each pack's own
+`License.txt`, included in the supplied zip, confirms the grant):
+
+- `animal_animations.zip`, SHA-256
+  `752961a4bf3445e216e735d70b1146e096af71199c210e9005d8398acba1218d`
+- `Universal_Animation_Library[Standard].zip`, SHA-256
+  `cc73fc4e495b82958207316596317a3f40b9fa38065bde1027937452da537724`
+- `Universal_Animation_Library_2[Standard].zip`, SHA-256
+  `4008ea208a604773a2b2177d965f0f5d3195498b5bf838c3f5785d68e95f2a68`
+
+Investigated in response to a report that the existing Aether-kit `animals/**`/
+`people/**` clips "looked weird" during play. That turned out not to be a rig
+or clip bug -- a Playwright bone-world-position dump during a live Player-
+driven run confirmed every joint tracks its parent correctly, and an isolated
+render (same `GLTFLoader`/`SkeletonUtils.clone`/`AnimationMixer` calls, outside
+the editor) reproduced nothing wrong either. What *was* real: `main.ts`'s
+`THREE.WebGLRenderer` had no `toneMapping`/`outputColorSpace` set, so the
+scene's `HemisphereLight(3)` + `DirectionalLight(3)` blew out highlights and
+crushed shadow faces on the kit's low-poly materials (most visible on
+`animals/cow.glb`'s near-black `belly_cow` material) -- fixed by setting
+`ACESFilmicToneMapping`/`SRGBColorSpace` on construction, independent of the
+asset work below. The Aether kit's remaining "weirdness" is its own chunky,
+ball-jointed low-poly style, a stylistic property of that asset, not a bug.
+
+These packs are added as new catalog entries alongside the existing Aether
+kit (not a replacement for it — nothing above was actually broken):
+
+- `assets/source/kit/people/mannequin_f.glb`: Quaternius's "Female Mannequin"
+  mesh/skin (`Female Mannequin/Unreal-Godot/Mannequin_F.glb`, which ships
+  with no animations of its own) combined with 6 clips selected from
+  `Unreal-Godot/UAL1_Standard.glb` (same 67-bone skeleton, verified by
+  per-node name/order match) via `tools/import_quaternius_mannequin.py`,
+  renamed to this project's convention: `idle`\<-`Idle_Loop`,
+  `walk`\<-`Walk_Loop`, `run`\<-`Jog_Fwd_Loop`, `sprint`\<-`Sprint_Loop`,
+  `talk`\<-`Idle_Talking_Loop`, `sit`\<-`Sitting_Idle_Loop`.
+- `assets/source/kit/animals/{wolf,husky,stag,alpaca}.glb`: four
+  self-contained species from the `animal_animations` pack's `glTF/` export
+  (embedded buffer, no external textures), converted from `.gltf`+base64 to
+  single-file `.glb` via `tools/import_quaternius_animals.py`, with clips
+  renamed `idle`\<-`Idle`, `walk`\<-`Walk`, `run`\<-`Gallop` (their other
+  clips -- `Attack`, `Death`, `Eating`, etc. -- are kept under their original
+  names; `pickClipName` only looks for the renamed three plus `trot`/
+  `sprint`, which this pack doesn't have, and falls back gracefully).
+
+Consumed the same way as the existing animated kit entries: `GLTFLoader` to
+load, `SkeletonUtils.clone` + `AnimationMixer` per instance, wired into
+`apps/editor/src/scene/modelCatalog.ts` as ids 132-136.
+
+Hashes (SHA-256):
+
+- `assets/source/kit/people/mannequin_f.glb`: `58a7ea23e61f1234b67442f04db9233b7030178c3f357c9869a7ae18d3593fd4`
+- `assets/source/kit/animals/wolf.glb`: `baeb142eae5992e6d5a27def4ba63a4aed48f2ae29dff41d9d4b05e325642d8c`
+- `assets/source/kit/animals/husky.glb`: `a4d7aa457c2dfa643df8833bcfe913d3e63a283c34e68480f6bd3344a6fb25c4`
+- `assets/source/kit/animals/stag.glb`: `6d8f486cc46f4c93196e26a8cd5d645962b8d465d9929cf79f7d40859ee68adf`
+- `assets/source/kit/animals/alpaca.glb`: `662e6259dafd61d113159c45b1cf902f1cf7cd95d177d9c9bb89b73f335d0e35`

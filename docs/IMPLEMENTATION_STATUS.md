@@ -1892,3 +1892,146 @@ through instead of discarding them.
   obstacle — or the old, shape-ignorant behavior — would have produced instead),
   confirmed through the existing `Player (x, y, z)` status-bar readout rather than
   reaching into the page's internals.
+
+## F32 — Animation lighting fix, and Quaternius CC0 catalog additions (0.32.0)
+
+User report: the bundled Aether-kit `animals/**`/`people/**` animations "look weird,"
+unsure whether it's the joints or the animations themselves — alongside three
+user-supplied Quaternius CC0 1.0 animation packs to investigate wiring up.
+
+Diagnosis came first, deliberately, before touching any asset: a Playwright script
+placed a Hero under a real `Player` component and drove it forward in Play mode,
+dumping every bone's live `getWorldPosition()` mid-stride — every joint tracked its
+parent correctly, no drift, no detached limb. A second, fully isolated render (same
+`GLTFLoader` / `SkeletonUtils.clone` / `AnimationMixer` calls as `main.ts`, outside the
+editor entirely, both with and without cloning, both a single `walk` clip and a full
+idle→walk crossfade) reproduced nothing wrong either, across every clip on both a
+person and a quadruped. What actually was visibly off — a cow's near-black
+`belly_cow` material rendering as a blown-white/pure-black patchy mess — turned out to
+be a real, independent bug: `main.ts` constructed its `THREE.WebGLRenderer` with no
+`toneMapping`/`outputColorSpace` set at all, so the scene's `HemisphereLight(3)` +
+`DirectionalLight(3)` (already fairly hot for `NoToneMapping`) clipped bright faces to
+solid white and crushed dark ones to solid black on the kit's flat PBR materials —
+most visible on already-dark materials, worst on a low-poly mesh with abrupt per-face
+normals. Fixed by setting `renderer.toneMapping = THREE.ACESFilmicToneMapping` and
+`renderer.outputColorSpace = THREE.SRGBColorSpace` right after construction — a pure
+rendering fix, zero asset changes. The Aether kit's remaining look (chunky, ball-jointed
+low-poly limbs) is that kit's own style, not a bug: two early screenshots that seemed to
+show a "detached leg" or "giant balloon shoulder" turned out to be the same diagnostic
+mistake this round started by catching in the animal case — the default "First entity"
+box, or in the second case another catalog model, sharing the same `[0,0,0]` spawn
+origin `catalog-add` always uses, rendered on top of and mistaken for the character.
+
+Separately, the three supplied Quaternius packs (`animal_animations`, `Universal
+Animation Library[Standard]`, `Universal Animation Library 2[Standard]`) are wired in as
+*new* catalog entries, not a replacement for the Aether kit — nothing in it was actually
+broken, so there was nothing to swap out:
+
+- `assets/source/kit/people/mannequin_f.glb` (catalog id 132, "Mannequin F"): Quaternius's
+  "Female Mannequin" mesh/skin, which ships with no animations of its own, combined with
+  6 clips selected from `Universal Animation Library[Standard]`'s `UAL1_Standard.glb`
+  (same 67-bone skeleton, verified node-name/order match) via a new one-off script,
+  `tools/import_quaternius_mannequin.py`, renamed to this project's own convention:
+  `idle`/`walk`/`run`/`sprint`/`talk`/`sit`.
+- `assets/source/kit/animals/{wolf,husky,stag,alpaca}.glb` (catalog ids 133-136): four
+  self-contained species converted from the `animal_animations` pack's `.gltf` (embedded
+  base64 buffer, no external textures) to single-file `.glb` via another new one-off
+  script, `tools/import_quaternius_animals.py`, with `Idle`/`Walk`/`Gallop` renamed to
+  `idle`/`walk`/`run` (their other clips — `Attack`, `Death`, `Eating`, etc. — are kept
+  under their original names; `pickClipName` only looks for the renamed three, plus
+  `trot`/`sprint` which this pack doesn't have, and falls back gracefully when absent).
+
+Neither import script is wired into `tools/build_editor.sh` — both were run once against
+the user-supplied source archives, which (like the Aether/Kenney archives before them)
+aren't part of this repo, so they're kept for provenance/reproducibility rather than as a
+build step. See `assets/CREDITS.md` for pack hashes and the exact clip-rename mapping.
+
+### F32 verification
+
+- No C++/bridge changes this round (pure browser-editor rendering fix + new bundled
+  catalog assets); native `ctest` suite untouched, still 14/14.
+- `npm run typecheck` and `npm test` (33/33, including the existing `modelCatalog.test.ts`
+  checks that every catalog id is unique and every catalog path resolves to a real file
+  on disk — both pass against the 5 new entries with no changes needed) both pass.
+- Built the real Emscripten/WASM editor runtime and extended `tests/browser/editor.cjs`:
+  places "Mannequin F" (people) and "Wolf" (animals) by label from the catalog dropdown
+  and confirms both appear with no page error, alongside the whole existing suite (still
+  zero accumulated `pageerror`s across the full run).
+- Manually verified the diagnosis and the fix through the same real Playwright/Chromium
+  harness, outside the permanent suite: bone-world-position dump during live `Player`
+  movement (all joints correctly parented); isolated raw-`GLTFLoader` renders of `walk`/
+  `run`/`sprint` clips sampled across their full duration, with and without
+  `SkeletonUtils.clone`, with and without the idle→walk crossfade (no defects in any);
+  before/after screenshots of the cow's tone-mapping fix; and idle/walk/run/sprint
+  screenshots of both new "Mannequin F" and "Wolf" showing correctly connected, smoothly
+  posed limbs throughout.
+
+## F33 — AnimationState made real: per-model clip selection/preview (0.33.0)
+
+User request, right after F32 shipped the new catalog entries: "id like to able to
+select the animation movement from a list and apply it to any human or animal." Turned
+out the data model for exactly this already existed — `AnimationStateComponent` (`clip`,
+`time`, `looping`) has been fully wired through `Components.ts`, `SceneSerializer.ts`
+(save/load validation), `Scene.ts` (component registry), `CommandInterpreter.ts` (a
+`trigger_animation` console command, generic add/remove/reset via the inspector's "Add
+component" dropdown), and covered by a `document.test.ts` unit test — since a much
+earlier round. But nothing in `main.ts`'s `rebuild()` or its Play-mode ground-speed clip
+switcher ever *read* it: the exact "authored but inert" bug class `AIState` (F27),
+`Vehicle` (before F25), and `Collider` shape (F31) each had before their own rounds.
+
+`clip` changes from `number` (an arbitrary, semantically-empty index — `document.test.ts`
+literally tested `clip: 3` with no meaning behind the 3) to `string`, and this is a
+genuine type change, not a compromise: unlike `Sound.clip`, which indexes one shared
+`soundCatalog.ts` list, every animated catalog model has its own, differently-named clip
+set (a Cow's `walk`/`trot`/`run`/`graze`, a Hero's `wave`/`sit`/`talk`), so a numeric
+index can't mean the same thing across models the way it already does for sound. `""`
+is the default and means "no authored override" — automatic ground-speed-based selection
+(`animationClips.ts`'s `pickClipName`) behaves exactly as before.
+
+The inspector can't express this with `PropertyMetadata.ts`'s existing static
+`options: [...]` lookup (used for `AIState.state`, `Collider.type`, `Renderable.mesh`,
+`Sound.clip`) — those are fixed at module load, but which clips exist depends on
+*this* entity's own `Renderable.mesh`. `main.ts` special-cases `AnimationState.clip`
+inline in its generic component-field renderer instead: a new `animationClipOptions(entity)`
+resolves the entity's `Renderable.mesh` to a catalog entry, reads that model's own cached
+`AnimationClip[]`, and returns `"(Automatic)"` plus each clip's own name — same
+`<select>` rendering path every other enum field already uses, just fed dynamic options
+instead of `PropertyMetadata`'s static ones. No animated model resolved yet (still
+loading, or not an animated catalog entry) disables the dropdown down to just
+`"(Automatic)"` rather than offering choices that can't apply.
+
+Consumption is two small additions, not a new animation system: `rebuild()` (where an
+animated entity's `AnimState` is built) checks for a resolved `AnimationState` whose
+`clip` names one of that model's own actions; if so, that clip is what plays (with
+`looping`/`time` applied via `setLoop`/`clampWhenFinished`/`action.time`) instead of the
+automatic "resting" pick — live in Edit mode, not gated on Play, since `mixer.update()`
+already runs every frame in both modes. Play mode's own per-tick ground-speed clip
+switcher gets the same check and skips picking a `clipName` at all when overridden,
+leaving `state.current` alone rather than fighting the authored choice every tick. Face
+turning (the same block) is untouched either way — independent visual behavior, not a
+clip decision.
+
+### F33 verification
+
+- No C++/bridge/native changes needed: the C++ side has always treated `AnimationState`
+  as an opaque JSON blob (`scene_document.cpp`), so the `clip` type change is invisible
+  to it — native `ctest` suite untouched, still 14/14.
+- Updated `document.test.ts`'s existing `trigger_animation` case from the old
+  meaningless `clip: 3` to `clip: "wave"`, asserting the resolved component's `clip`
+  round-trips as that string. `npm run typecheck` and `npm test` (33/33) both pass.
+- Built the real Emscripten/WASM editor runtime and extended `tests/browser/editor.cjs`:
+  attaches `AnimationState` to a live Wolf entity, asserts its clip dropdown is headed by
+  `"(Automatic)"` and offers Wolf's own `Eating` clip but not Hero's `wave` (proving the
+  options are genuinely per-model, not a fixed list), selects `Eating`, then — since
+  `set_component` alone only triggers `rebuild()` (the 3D scene) and not a fresh
+  inspector render — clicks away to a different entity and back to force `updatePanels()`
+  to rebuild the panel from the document itself before reading the dropdown's value back,
+  proving the string actually persisted rather than the click merely landing in the DOM;
+  repeats the same round-trip clearing back to `"(Automatic)"`.
+- Manually verified the live preview through the same Playwright/Chromium harness outside
+  the permanent suite: screenshots of a Hero entity with `AnimationState.clip` set to
+  `wave` and to `sit`, and a Wolf set to `Eating`, each showing the model actually posed
+  in that clip in Edit mode (arms raised, seated posture, head lowered feeding) — not
+  just idling regardless of selection — plus confirming each dropdown lists only that
+  specific model's own clip names (Hero: `idle/walk/run/sprint/talk/sit/wave`; Wolf:
+  `Attack/Death/Eating/run/Gallop_Jump/idle/Idle_2/.../walk`).

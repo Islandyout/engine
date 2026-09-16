@@ -732,6 +732,70 @@ const { chromium } = require("playwright");
       await audioEventCount("stop"),
       "every started source must have a matching stop -- nothing left playing across the whole Sound sequence",
     );
+    // The Quaternius CC0 additions (0.32.0, see assets/CREDITS.md) go through
+    // the same animated-catalog path the Aether Cat entry above already
+    // exercises; just confirm both new entries are actually reachable by
+    // label from their respective categories and load without a page error.
+    const entitiesBeforeQuaternius = await page.locator(".entity").count();
+    await page.locator("#catalog-category").selectOption("people");
+    await page.locator("#catalog-model").selectOption({ label: "Mannequin F" });
+    await page.locator("#catalog-add").click();
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".entity")].some((e) =>
+        e.textContent.includes("Mannequin F"),
+      ),
+    );
+    await page.locator("#catalog-category").selectOption("animals");
+    await page.locator("#catalog-model").selectOption({ label: "Wolf" });
+    await page.locator("#catalog-add").click();
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".entity")].some((e) =>
+        e.textContent.includes("Wolf"),
+      ),
+    );
+    assert.equal(
+      await page.locator(".entity").count(),
+      entitiesBeforeQuaternius + 2,
+    );
+    // AnimationState (0.32.0): previously fully wired for authoring/save-load
+    // but never actually consumed by the renderer -- an "authored but inert"
+    // component (see docs/IMPLEMENTATION_STATUS.md's F27/F31 precedent).
+    // Wolf (just added, currently selected) is the live model here: its
+    // clip dropdown must be populated from its own glTF's clip names (not a
+    // fixed list -- a different animated model has a different clip set),
+    // selecting one must actually repose the live preview in Edit mode
+    // (not just Play), and clearing back to "(Automatic)" must hand control
+    // back to the ground-speed-based picker.
+    await page.getByLabel("Add component").selectOption("AnimationState");
+    const clipSelect = page.locator('[aria-label="AnimationState.clip"]');
+    const wolfClipOptions = await clipSelect.locator("option").allTextContents();
+    assert.deepEqual(wolfClipOptions[0], "(Automatic)");
+    assert.ok(wolfClipOptions.includes("Eating"), "Wolf's own Eating clip must be offered");
+    assert.ok(!wolfClipOptions.includes("wave"), "not Hero's clip set -- options are per-model");
+    await clipSelect.selectOption({ label: "Eating" });
+    // set_component only triggers rebuild() (the 3D scene), not a fresh
+    // inspector render, so the select's own DOM value alone would just
+    // reflect the click, not proof the command persisted anything -- select
+    // a different entity and back, forcing updatePanels() to rebuild this
+    // whole panel fresh from the document, the same round-trip-through-
+    // reselection technique the Stop/undo assertions above already use.
+    await page.locator(".entity").filter({ hasText: "Mannequin F" }).first().click();
+    await page.locator(".entity").filter({ hasText: "Wolf" }).first().click();
+    assert.equal(
+      await page.locator('[aria-label="AnimationState.clip"]').inputValue(),
+      "Eating",
+      "clip selection must survive a fresh inspector render, not just the DOM click",
+    );
+    await page
+      .locator('[aria-label="AnimationState.clip"]')
+      .selectOption({ label: "(Automatic)" });
+    await page.locator(".entity").filter({ hasText: "Mannequin F" }).first().click();
+    await page.locator(".entity").filter({ hasText: "Wolf" }).first().click();
+    assert.equal(
+      await page.locator('[aria-label="AnimationState.clip"]').inputValue(),
+      "",
+      "(Automatic) must persist too, handing control back to ground-speed selection",
+    );
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -741,7 +805,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview passed.",
     );
   } finally {
     if (browser) await browser.close();
