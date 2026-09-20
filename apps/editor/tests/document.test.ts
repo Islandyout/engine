@@ -411,3 +411,117 @@ test("Sound attaches with sensible defaults, edits round-trip through save/load,
   );
   assert.equal(d.scene.resolve(other, "Sound")?.clip, 2, "a shared Sound clip change reaches every instance live");
 });
+
+test("Light attaches with sensible defaults, edits round-trip through save/load, color/angle are validated, and Light is prefab-shared", () => {
+  const d = new EditorDocument();
+  const entity = d.execute({ command: "spawn_entity", name: "Lamp" }).entity!;
+  assert.equal(d.execute({ command: "attach_component", entity, type: "Light" }).ok, true);
+  const attached = d.scene.get(entity, "Light");
+  assert.equal(attached?.type, "Point");
+  assert.ok(attached!.intensity > 0);
+
+  assert.equal(
+    d.execute({
+      command: "set_component",
+      entity,
+      type: "Light",
+      value: {
+        type: "Spot",
+        color: { x: 0.2, y: 0.4, z: 1 },
+        intensity: 5,
+        range: 20,
+        angle: 0.4,
+      },
+    }).ok,
+    true,
+  );
+  assert.equal(d.execute({ command: "save_scene", path: "light-test" }).ok, true);
+  d.execute({ command: "destroy_entity", entity });
+  assert.equal(d.execute({ command: "load_scene", path: "light-test" }).ok, true);
+  const [[reloaded]] = d.scene.query("Light");
+  assert.equal(d.scene.get(reloaded, "Light")?.type, "Spot");
+  assert.equal(d.scene.get(reloaded, "Light")?.color.z, 1);
+  assert.equal(d.scene.get(reloaded, "Light")?.angle, 0.4);
+
+  assert.throws(
+    () =>
+      d.load({
+        format: 1,
+        entities: [
+          {
+            components: {
+              Light: {
+                type: "Point",
+                color: { x: 1.5, y: 1, z: 1 },
+                intensity: 1,
+                range: 0,
+                angle: 0.5,
+              },
+            },
+          },
+        ],
+      }),
+    /between 0 and 1/i,
+  );
+  assert.throws(
+    () =>
+      d.load({
+        format: 1,
+        entities: [
+          {
+            components: {
+              Light: {
+                type: "Spot",
+                color: { x: 1, y: 1, z: 1 },
+                intensity: 1,
+                range: 0,
+                angle: Math.PI,
+              },
+            },
+          },
+        ],
+      }),
+    /PI\/2/,
+  );
+  assert.throws(
+    () =>
+      d.load({
+        format: 1,
+        entities: [
+          {
+            components: {
+              Light: {
+                type: "Laser",
+                color: { x: 1, y: 1, z: 1 },
+                intensity: 1,
+                range: 0,
+                angle: 0.5,
+              },
+            },
+          },
+        ],
+      }),
+    /Point, Spot, or Directional/,
+  );
+
+  // Light is a prefab-shared component like Renderable/Sound -- editing one
+  // instance's color updates every instance live.
+  const source = d.execute({ command: "spawn_entity", name: "Streetlamp" }).entity!;
+  d.execute({ command: "attach_component", entity: source, type: "Light" });
+  d.execute({ command: "create_prefab", entity: source, name: "Streetlamp" });
+  const other = d.execute({ command: "place_instance", prefab: "Streetlamp" }).entity!;
+  assert.equal(
+    d.execute({
+      command: "set_component",
+      entity: source,
+      type: "Light",
+      value: { type: "Point", color: { x: 1, y: 0, z: 0 }, intensity: 3, range: 10, angle: 0.5 },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    d.scene.resolve(other, "Light")?.color.x,
+    1,
+    "a shared Light color change reaches every instance live",
+  );
+});

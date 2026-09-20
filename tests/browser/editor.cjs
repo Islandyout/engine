@@ -943,6 +943,39 @@ const { chromium } = require("playwright");
       "sit",
       "picking from the inline picker attaches AnimationState -- the advanced card now agrees",
     );
+    // Light (0.39.0): a real THREE light spawned per-entity, not just static
+    // scene ambience -- verified here at the authoring-DOM level (options
+    // offered, values persist through a fresh inspector render), same as
+    // every other component's black-box coverage; actual illumination was
+    // verified separately with a standalone Three.js render (this suite
+    // never pixel-diffs the WebGL canvas itself).
+    const appearance = groups.find((g) => g.label === "Appearance & Animation");
+    assert.ok(appearance.options.includes("Light"));
+    await page.getByLabel("Add component").selectOption("Light");
+    const lightType = page.locator('[aria-label="Light.type"]');
+    const lightTypeOptions = await lightType.locator("option").allTextContents();
+    assert.deepEqual(lightTypeOptions, ["Point", "Spot", "Directional"]);
+    assert.equal(await lightType.inputValue(), "Point", "sensible default type");
+    await lightType.selectOption("Spot");
+    await page.getByLabel("Light.color.x", { exact: true }).fill("0.2");
+    await page.getByLabel("Light.color.x", { exact: true }).press("Tab");
+    await page.getByLabel("Light.intensity", { exact: true }).fill("8");
+    await page.getByLabel("Light.intensity", { exact: true }).press("Tab");
+    await page.getByLabel("Light.angle", { exact: true }).fill("0.3");
+    await page.getByLabel("Light.angle", { exact: true }).press("Tab");
+    await page.locator(".entity").filter({ hasText: "Wolf" }).first().click();
+    await page.locator(".entity").filter({ hasText: "Mannequin F" }).first().click();
+    assert.equal(
+      await page.locator('[aria-label="Light.type"]').inputValue(),
+      "Spot",
+      "Light edits persist through a fresh inspector render, same as every other component",
+    );
+    assert.equal(
+      await page.locator('[aria-label="Light.color.x"]').inputValue(),
+      "0.2",
+    );
+    assert.equal(await page.locator('[aria-label="Light.angle"]').inputValue(), "0.3");
+
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -952,7 +985,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component passed.",
     );
   } finally {
     if (browser) await browser.close();

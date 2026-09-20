@@ -89,6 +89,27 @@ export interface SoundComponent {
   loop: boolean;
   autoplay: boolean;
 }
+// A real light source, not just a static ambience/sun -- main.ts's rebuild()
+// spawns an actual THREE.PointLight/SpotLight/DirectionalLight as a child of
+// this entity's own object, so it moves with Transform like everything else,
+// and Play-mode/Edit-mode both see it live (no Play-only lifecycle, unlike
+// Script/Sound -- a light is as "always on" as the entity itself). color is
+// 0-1 RGB, matching THREE.Color's own component range, not 0-255 or a hex
+// string, so it round-trips through save/load as plain finite numbers like
+// every other Vec3 field. range is Point/Spot-only (THREE's own
+// distance-cutoff meaning: 0 is "no cutoff, falls off forever"); angle is
+// Spot-only (radians, the cone half-angle) -- both are stored and validated
+// unconditionally, the same "meaningless but harmless off-type" pattern
+// Collider's shape-specific fields already use, rather than threading a type
+// check through validation just to leave one of two numbers unset.
+export type LightType = "Point" | "Spot" | "Directional";
+export interface LightComponent {
+  type: LightType;
+  color: Vec3;
+  intensity: number;
+  range: number;
+  angle: number;
+}
 export interface NameComponent {
   value: string;
 }
