@@ -66,6 +66,7 @@ const componentNames = [
   "Vehicle",
   "AnimationState",
   "Renderable",
+  "Light",
   "Name",
   "Parent",
   "Script",
@@ -560,6 +561,12 @@ export function defaultComponent(
       return { clip: "", time: 0, looping: true };
     case "Renderable":
       return { mesh: 0, material: 0, visible: true };
+    case "Light":
+      // A warm, moderate point light -- visible without overpowering
+      // whatever it's placed near, and Point is the least surprising default
+      // (an unaimed Spot would light nothing until its cone is pointed
+      // somewhere; Directional ignores position entirely).
+      return { type: "Point", color: { x: 1, y: 0.95, z: 0.85 }, intensity: 2, range: 15, angle: Math.PI / 6 };
     case "Name":
       return { value: "Entity" };
     case "Script":

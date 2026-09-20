@@ -186,6 +186,7 @@ const componentNames = [
   "Vehicle",
   "AnimationState",
   "Renderable",
+  "Light",
   "Name",
   "Parent",
   "Script",
@@ -299,6 +300,26 @@ export function normalizeComponent(
         material: unsigned(value.material, "Renderable.material", 0),
         visible: boolean(value.visible, "Renderable.visible"),
       };
+    case "Light": {
+      const lightType = value.type;
+      if (lightType !== "Point" && lightType !== "Spot" && lightType !== "Directional")
+        throw new Error("Light.type must be Point, Spot, or Directional.");
+      return {
+        type: lightType,
+        color: unitVec3(value.color, "Light.color"),
+        intensity: nonNegativeNumber(value.intensity, "Light.intensity"),
+        // range/angle are Spot/Point-only (see LightComponent's own doc
+        // comment), so -- like Collider's halfExtents/radius -- they get an
+        // inline default rather than being required on a type they don't
+        // apply to.
+        range:
+          value.range === undefined ? 0 : nonNegativeNumber(value.range, "Light.range"),
+        angle:
+          value.angle === undefined
+            ? Math.PI / 6
+            : spotAngle(value.angle, "Light.angle"),
+      };
+    }
     case "Name":
       return { value: string(value.value, "Name.value") };
     case "PrefabInstance":
@@ -362,6 +383,30 @@ function boundedIndex(value: unknown, label: string, fallback: number, count: nu
     result >= count
   )
     throw new Error(`${label} must be an integer from 0 to ${count - 1}.`);
+  return result;
+}
+// Like requiredVec3, but each component must be in [0,1] -- Light.color is
+// RGB in THREE.Color's own 0-1 range, not a 0-255 or hex-string color.
+function unitVec3(value: unknown, label: string): { x: number; y: number; z: number } {
+  if (!isVec3(value)) throw new Error(`${label} must be {x,y,z}.`);
+  for (const component of ["x", "y", "z"] as const) {
+    const v = value[component];
+    if (v < 0 || v > 1)
+      throw new Error(`${label}.${component} must be between 0 and 1.`);
+  }
+  return { x: value.x, y: value.y, z: value.z };
+}
+function nonNegativeNumber(value: unknown, label: string): number {
+  const result = number(value, label);
+  if (result < 0) throw new Error(`${label} must be non-negative.`);
+  return result;
+}
+// THREE.SpotLight.angle's own valid range is (0, PI/2] -- a wider cone isn't
+// representable, and 0 or negative isn't a cone at all.
+function spotAngle(value: unknown, label: string): number {
+  const result = number(value, label);
+  if (result <= 0 || result > Math.PI / 2)
+    throw new Error(`${label} must be greater than 0 and at most PI/2 radians.`);
   return result;
 }
 

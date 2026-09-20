@@ -5,6 +5,7 @@ import type {
   ColliderComponent,
   EntityRef,
   HealthComponent,
+  LightComponent,
   NameComponent,
   ParentComponent,
   PedestrianComponent,
@@ -39,6 +40,7 @@ export interface SceneComponents {
   Vehicle: VehicleComponent;
   AnimationState: AnimationStateComponent;
   Renderable: RenderableComponent;
+  Light: LightComponent;
   Name: NameComponent;
   Parent: ParentComponent;
   Script: ScriptComponent;
@@ -64,6 +66,7 @@ export const prefabableComponentNames = [
   "Vehicle",
   "AnimationState",
   "Renderable",
+  "Light",
   "Script",
   "Sound",
 ] as const satisfies readonly (keyof SceneComponents)[];
@@ -118,6 +121,7 @@ export class Scene {
     Vehicle: new Map(),
     AnimationState: new Map(),
     Renderable: new Map(),
+    Light: new Map(),
     Name: new Map(),
     Parent: new Map(),
     Script: new Map(),

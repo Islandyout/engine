@@ -12,6 +12,10 @@ import { CanvasRenderer } from "./CanvasRenderer";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { LocalStorageSceneStore } from "../authoring/CommandInterpreter";
 import { EditorDocument } from "./Document";
 import { modelCatalog, catalogCategories } from "../scene/modelCatalog";
@@ -277,6 +281,22 @@ async function startEditor() {
   scene.add(sun);
   const grid = new THREE.GridHelper(40, 40, 0x658ca8, 0x2b3c4c);
   scene.add(grid);
+  // Post-processing: a subtle, always-on bloom so a bright authored Light (or
+  // the sun/hemisphere above) actually reads as glowing instead of just a
+  // flat-lit surface -- no per-scene toggle, matching this project's existing
+  // preference for fixing the default look rather than exposing a render
+  // knob (see F32's tone-mapping fix). WebGL-only: the CanvasRenderer
+  // compatibility fallback below has no render-target/shader pipeline for
+  // EffectComposer to drive, so frame() falls back to a plain renderer.render
+  // for it, same as before this round.
+  const composer =
+    renderer instanceof THREE.WebGLRenderer ? new EffectComposer(renderer) : undefined;
+  if (composer) {
+    composer.addPass(new RenderPass(scene, camera));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.5, 0.85);
+    composer.addPass(bloom);
+    composer.addPass(new OutputPass());
+  }
   const objects: THREE.Object3D[] = [];
   interface AnimState {
     mixer: THREE.AnimationMixer;
@@ -723,6 +743,27 @@ async function startEditor() {
     keyQueue.length = 0;
     heldKeys.clear();
   }
+  // A fresh THREE.Light per rebuild(), same as every other object here --
+  // nothing caches or reuses it, so there's nothing extra to dispose when the
+  // entity's Light is removed or changed, only the recreate-on-every-rebuild()
+  // this file already does for meshes.
+  function createLight(light: {
+    type: "Point" | "Spot" | "Directional";
+    color: Vec3;
+    intensity: number;
+    range: number;
+    angle: number;
+  }): THREE.Light {
+    const color = new THREE.Color(light.color.x, light.color.y, light.color.z);
+    switch (light.type) {
+      case "Point":
+        return new THREE.PointLight(color, light.intensity, light.range);
+      case "Spot":
+        return new THREE.SpotLight(color, light.intensity, light.range, light.angle);
+      case "Directional":
+        return new THREE.DirectionalLight(color, light.intensity);
+    }
+  }
   function rebuild() {
     gizmo.detach();
     for (const object of objects) object.removeFromParent();
@@ -803,6 +844,16 @@ async function startEditor() {
           n.z > 1e-6 ? s.z / n.z : s.z,
         );
       } else if (s) object.scale.set(s.x, s.y, s.z);
+      const light = doc.scene.resolve(entity, "Light");
+      // Added as a child, not pushed into `objects` -- objects/animStates
+      // are 1:1 with refs (the parenting loop and raycast-picking below both
+      // index by that), and a light has no geometry of its own to pick
+      // separately: the entity's usual box/model placeholder still marks
+      // where it is and stays what gets selected, same as any other entity
+      // before a real Renderable.mesh is chosen. Being a child means it
+      // inherits this entity's own position/rotation for free, no separate
+      // transform tracking.
+      if (light) object.add(createLight(light));
       scene.add(object);
       objects.push(object);
       animStates.push(animState);
@@ -1309,6 +1360,7 @@ async function startEditor() {
     const w = viewport.clientWidth,
       h = viewport.clientHeight;
     renderer.setSize(w, h);
+    composer?.setSize(w, h);
     camera.aspect = w / Math.max(h, 1);
     camera.updateProjectionMatrix();
     hud.width = w;
@@ -1484,7 +1536,8 @@ async function startEditor() {
     }
     if (selection.visible) selection.update();
     controls.update();
-    renderer.render(scene, camera);
+    if (composer) composer.render();
+    else renderer.render(scene, camera);
     drawHud();
     const status = el("status");
     status.dataset.mode = doc.mode;

@@ -33,6 +33,13 @@ const metadata: Record<string, PropertyMetadata> = {
     ]),
   },
   "Collider.type": { options: choice(["AABB", "Sphere"]) },
+  "Light.type": { options: choice(["Point", "Spot", "Directional"]) },
+  "Light.color.x": { label: "Color R (0-1)", step: "0.05" },
+  "Light.color.y": { label: "Color G (0-1)", step: "0.05" },
+  "Light.color.z": { label: "Color B (0-1)", step: "0.05" },
+  "Light.intensity": { step: "0.1" },
+  "Light.range": { label: "Range (Point/Spot; 0 = unlimited)", step: "1" },
+  "Light.angle": { label: "Cone angle (Spot, radians)", step: "0.05" },
   "Pedestrian.archetype": {
     label: "Archetype",
     options: indexedChoice(["Casual", "Brisk", "Lingering"]),
@@ -116,6 +123,6 @@ export const componentGroups: readonly ComponentGroup[] = [
     label: "Gameplay",
     types: ["Health", "AIState", "Pedestrian", "Player", "Vehicle"],
   },
-  { label: "Appearance & Animation", types: ["Renderable", "AnimationState"] },
+  { label: "Appearance & Animation", types: ["Renderable", "AnimationState", "Light"] },
   { label: "Scripting & Audio", types: ["Script", "Sound"] },
 ];

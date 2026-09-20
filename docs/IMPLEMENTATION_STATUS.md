@@ -2439,3 +2439,92 @@ fell back to flat grey; recolored to a single flat lavender rather than shipping
   established rigging pipeline placed joints reasonably, same as every other
   externally-sourced rig this project has imported without re-deriving the rigger's
   own correctness from scratch.
+
+## F39 — Lighting (Tier 2 roadmap item, 0.39.0)
+
+A real, authorable `Light` component: any entity can now carry a Point, Spot, or
+Directional light (color, intensity, and Point/Spot's own range and Spot's own cone
+angle), spawned as an actual `THREE.PointLight`/`SpotLight`/`DirectionalLight` --
+not just the scene's fixed hemisphere+sun ambience every entity has always shared,
+which is untouched. A single-file bloom post-process (`UnrealBloomPass`, subtle and
+always on, no per-scene toggle) rides along, matching this project's existing
+preference for fixing the default look rather than exposing a render knob (F32's
+tone-mapping fix is the same call).
+
+First surprise going in: does a purely visual/presentational component need native
+`bridge.cpp` changes at all? Checked `editor_add`'s own ABI (21 positional doubles)
+before assuming so -- it carries only simulation-relevant state (position, physics
+flags, Vehicle/Pedestrian archetype, Collider shape); `Renderable`, `AnimationState`,
+`Script`, and `Sound` are *never* in it, confirming (not assumed) that presentational
+components live only in the TS-side `EditorDocument`/`Scene` and are never touched by
+the native bridge at all. `Light` follows exactly that precedent: zero `bridge.cpp` or
+`editor_bridge_tests.cpp` changes this round, the smallest surface of any component
+addition so far.
+
+Registration follows the same six-point pattern every component needs (missed one on
+the first typecheck pass -- `Scene.ts`'s own internal `components` map literal, a
+seventh point this project's other component-addition rounds didn't call out
+explicitly, so recorded here for the next one): `Components.ts` (the `LightComponent`
+interface), `Scene.ts` (`SceneComponents`, the internal per-type `Map` literal,
+`prefabableComponentNames` -- Light is prefab-shared like Renderable/Sound),
+`SceneSerializer.ts` (`componentNames`, `normalizeComponent`'s validation case),
+`CommandInterpreter.ts` (its own separate `componentNames` list, `defaultComponent`'s
+case), and `PropertyMetadata.ts` (the `Light.type` dropdown, field labels, and the
+"Appearance & Animation" group, alongside Renderable/AnimationState).
+
+`main.ts`'s `rebuild()` adds the spawned light as a *child* of the entity's own
+mesh/box object, not a second top-level entry in the `objects`/`animStates` arrays
+those two are 1:1 with (the parenting-reattachment loop and raycast-picking both
+index by that pairing) -- being a child means it inherits the entity's own position
+for free, and the existing box/mesh placeholder still marks the entity and stays what
+gets selected, since a bare light has no geometry of its own to click. Recreated
+fresh on every `rebuild()`, same as every mesh here -- nothing caches or reuses a
+light, so there's nothing extra to dispose when one is removed or edited. Color is a
+plain `Vec3` (0-1 RGB, matching `THREE.Color`'s own component range) rather than a
+hex string or 0-255 triplet, reusing the same generic Vec3 inspector rendering
+`Transform.position` already has, so no new UI code was needed for a "color picker."
+range/angle are Point/Spot-only and Spot-only respectively but validated and stored
+unconditionally on every type -- the same "meaningless but harmless off-type field"
+precedent `Collider.halfExtents`/`radius` already established, rather than threading
+a type check through validation for one number.
+
+### F39 verification
+
+- `npm run typecheck` and `npm test` (36/36, up from 34) pass. New test: `Light`
+  attaches with sensible defaults, edits round-trip through save/load, `color`'s
+  0-1 bound and `angle`'s (0, PI/2] bound are each rejected with a clear message
+  naming the field (not a generic failure), an invalid `type` string is rejected,
+  and `Light` is confirmed prefab-shared (editing one instance's color updates
+  every instance live), the same coverage shape `Sound`'s own test already
+  established for a comparable component.
+- Verified the light itself actually illuminates, not just that the authoring
+  round-trips: a standalone, ambience-free Three.js scene (a lone box, zero
+  hemisphere/sun lights) went from fully invisible with no `PointLight` present, to
+  a dim warm-tinted glow at this round's own default intensity (2), to a bright
+  near-saturated surface at intensity 60 -- confirms `createLight()`'s exact
+  parameters produce real, scaling illumination, isolated from any inspector-DOM
+  interaction uncertainty. A first attempt to verify this by reading the real
+  editor's live WebGL canvas pixels via `drawImage`/`getImageData` came back all
+  zeros -- `WebGLRenderer`'s default `preserveDrawingBuffer: false` clears the
+  drawing buffer before an out-of-frame `page.evaluate` can read it, a known
+  gotcha, not a rendering bug -- caught by cross-checking against the isolated
+  scene above rather than trusting the zero reading.
+- In the full editor (existing `HemisphereLight(3)`/`DirectionalLight(3)` already
+  providing strong, neutral ambient light), an added colored point light visibly
+  warms/tints nearby surfaces rather than transforming them -- correct, expected
+  *additive* behavior for a fill/accent light in an already-lit scene, not a
+  weaker or broken effect; the isolated ambience-free test above is what actually
+  isolates and confirms the light's own contribution.
+- Built the real Emscripten/WASM editor and ran the full existing
+  `tests/browser/editor.cjs` black-box suite, extended with a new case: `Light`
+  appears in the "Appearance & Animation" Add-component group, its `type` dropdown
+  offers exactly Point/Spot/Directional with the documented default, and an edited
+  type/color/angle survives a fresh inspector render (the same reselect-and-back
+  technique every other persistence assertion in this suite already uses) --
+  passed end to end.
+- Not done here: a per-scene bloom toggle or intensity control -- deliberately
+  out of scope, matching the "fix the default, don't add a knob" call above; a
+  shadow-casting option for any light type -- shadow maps are a meaningfully
+  bigger addition (shadow camera frustum sizing per light type, performance cost
+  for every point/spot light in a scene) better scoped as a follow-up than folded
+  into this round unasked.
