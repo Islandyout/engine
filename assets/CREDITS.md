@@ -166,3 +166,53 @@ to make way for an imported, skeleton-rigged character pack. `modelCatalog.ts` f
 ids 119-131 without reassigning them -- a still-saved scene referencing one of those
 ids now falls back to the default box (`rebuild()`'s existing cache-miss behavior),
 not a crash, but they're retired rather than reused for whatever's imported next.
+
+## Mannequin F (Mixamo) (0.38.0)
+
+`people/mannequin_f_mixamo.glb`, id 137. Source: `mannequin_f.obj` (this repo's own
+`mannequin_f.glb` mesh, mesh-only re-export via Three.js's `OBJExporter`, no rig --
+see F36/F37's own history for `mannequin_f.glb`'s original Quaternius provenance,
+unchanged) run through Adobe Mixamo's free Auto-Rigger (auto-detects a skeleton from
+a few user-marked joints) and then three of Mixamo's own free animations applied to
+it: `Flying`, `Firing Rifle`, `Punching` -- each downloaded separately (Mixamo bakes
+one clip per FBX) as FBX Binary, 30 fps, With Skin, no keyframe reduction, and
+supplied to this repo as three uploaded files, not a URL (`drive.google.com`, tried
+for an earlier, larger, unrelated pack this same round, is blocked by this sandbox's
+egress policy -- see this file's git history for that attempt and why it was
+abandoned).
+
+The three FBX files all carry the identical Mixamo standard skeleton (`mixamorig*`
+bone names, 57 bones, verified by exact name-set comparison before merging) and the
+same mesh, since Mixamo re-exports the whole rigged character with every animation
+download -- so this is three-clips-on-one-mesh, not three separate characters. Parsed
+with Three.js's own `FBXLoader` (already a project dependency, no external FBX SDK or
+binary needed) directly in Node; the base mesh+skeleton came from `Flying.fbx`, the
+other two files' `AnimationClip`s were merged in unmodified (bone names match exactly
+across all three, so this is a straight clip merge, not a retarget); re-exported to
+`.glb` via Three.js's own `GLTFExporter`. Clips renamed from Mixamo's shared
+`mixamo.com` clip name to `flying`/`firing_rifle`/`punching`; none of the three match
+`pickClipName`'s tiered idle/walk/trot/run/sprint names, so this character always
+falls through to its first clip (`flying`) under the automatic ground-speed picker --
+expected and harmless (see `animationClips.ts`'s own fallback comment), same as any
+rig whose clips don't fit that tiering; all three remain individually selectable via
+the inspector's per-model `AnimationState.clip` dropdown.
+
+One known, accepted quality loss: the mesh's original two materials (`M_Main`,
+lavender; `M_Joints`, orange -- see `mannequin_f.glb`'s own hashes above) did not
+survive the OBJ round trip through Mixamo -- the `mannequin_f.obj` this round
+exported the correct two `usemtl` groups, but carried no companion `.mtl` (color
+values), so Mixamo's own pipeline received geometry with no material data and fell
+back to a flat grey `MeshPhongMaterial`. Recolored to a single flat lavender
+(`M_Main`'s own RGB) rather than leaving it grey; the original two-tone body/joint
+split isn't recoverable from these files (Mixamo's re-export merged everything into
+one un-named material/geometry group, so there's no per-face data left to split
+back out). A future OBJ (or FBX) export that includes real material colors would
+avoid this if a truer match is ever worth another pass through Mixamo.
+
+Consumed the same way as every other animated catalog entry: `GLTFLoader` +
+`SkeletonUtils.clone` + `AnimationMixer`, via `apps/editor/src/scene/modelCatalog.ts`
+id 137.
+
+Hashes (SHA-256):
+
+- `assets/source/kit/people/mannequin_f_mixamo.glb`: `c57f4e7b0e5da2d09322f73aeb163aa12cc871764676368085874b2e5aead69c`

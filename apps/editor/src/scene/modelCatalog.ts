@@ -146,6 +146,13 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 134, category: "animals", name: "Husky", path: "./kit/animals/husky.glb", animated: true },
   { id: 135, category: "animals", name: "Stag", path: "./kit/animals/stag.glb", animated: true },
   { id: 136, category: "animals", name: "Alpaca", path: "./kit/animals/alpaca.glb", animated: true },
+  // Mixamo auto-rig (0.38.0) -- see assets/CREDITS.md. Mannequin F's own mesh,
+  // re-rigged onto Mixamo's standard skeleton and given three of Mixamo's
+  // animations; a distinct entry, not merged into id 132, since the two don't
+  // share a skeleton (retargeting one onto the other was tried and abandoned --
+  // see F37/F38's own notes -- Mixamo's auto-rig sidesteps that entirely by
+  // rigging and animating the same mesh in one pass).
+  { id: 137, category: "people", name: "Mannequin F (Mixamo)", path: "./kit/people/mannequin_f_mixamo.glb", animated: true },
 ];
 
 export const catalogCategories = Array.from(

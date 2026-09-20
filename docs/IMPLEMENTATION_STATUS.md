@@ -2355,3 +2355,70 @@ fetch), which the import + skeleton-wiring work in a follow-up round depends on.
 - Not done here: the actual character import and skeleton wiring the removal was
   requested to make way for -- blocked on getting the 734 MB file some way this
   sandbox's network policy allows.
+
+## F38 — Mannequin F (Mixamo), a real rigged-and-animated import (0.38.0)
+
+The follow-up F37 set up for: a real "rig a skeleton onto a character and have it
+perform animations" import, landing this round.
+
+The originally-supplied 734 MB Google Drive link (F37) resolved, once uploaded to a
+GitHub release instead (`drive.google.com` stayed blocked throughout), to 263
+animation-only Rokoko Motion Library FBX files -- no mesh, a different skeleton
+convention (Autodesk HumanIK, `Character1_*` bone names, identity rest rotations)
+than anything in this catalog. A first-pass retarget onto Mannequin F's own skeleton
+(per-bone rest-pose quaternion correction, the standard technique) was built and
+tested -- and produced a visibly broken, twisted/collapsed pose (screenshotted and
+shown to the user before proceeding further), confirming the two rigs' local bone
+axis conventions don't line up under a simple correction. Not pursued further: a
+correct general retargeter needs real per-bone axis analysis (swing/twist
+decomposition), a substantially larger undertaking with no guaranteed result without
+an interactive tool to tune it. The Rokoko pack itself was scrapped rather than
+shipped half-working.
+
+Recommended Mixamo's free Auto-Rigger instead, which sidesteps retargeting entirely
+by rigging *and* animating the same mesh in one pass rather than trying to reconcile
+two independently-authored rigs. `mannequin_f.glb`'s own mesh was re-exported
+mesh-only (no rig) as `mannequin_f.obj` via Three.js's `OBJExporter`, handed to the
+user to run through Mixamo's Auto-Rigger and animation library (`mixamo.com` is
+blocked here same as every other new domain this round hit), and the resulting three
+animated FBX files (`Flying`, `Firing Rifle`, `Punching`) were supplied back as direct
+uploads.
+
+Landed as a new, separate catalog entry (id 137, `Mannequin F (Mixamo)`) rather than
+merged into id 132 -- Mixamo's own skeleton (`mixamorig*`, 57 bones) shares no bind
+pose or bone naming with Mannequin F's original Quaternius rig, so the two aren't
+interchangeable. See `assets/CREDITS.md` for the merge/re-export details and the one
+accepted quality loss (the original two-tone lavender/orange material didn't survive
+the OBJ round trip -- Mixamo's pipeline received untextured, uncolored geometry and
+fell back to flat grey; recolored to a single flat lavender rather than shipping grey).
+
+### F38 verification
+
+- Verified all three uploaded FBX files share the *exact* same 57-bone skeleton (name-
+  set comparison, not just eyeballing) before merging their clips onto one mesh --
+  confirms this is a safe clip merge, not something that would silently misapply one
+  clip's tracks to a differently-named bone in another.
+- Rendered the merged result with a standalone Three.js/`GLTFLoader`/`SkeletonUtils`
+  harness (same libraries and calls the editor itself uses, outside the editor),
+  screenshotted mid-clip for `flying` and `firing_rifle`, and separately caught
+  `flying` near its own start pose -- a fully recognizable, correctly-proportioned
+  "Superman-style" horizontal flying pose, arms forward and legs trailing, confirming
+  the skeleton, skinning, and animation all survived the FBX-parse-and-re-export
+  round trip intact. No twisting, collapse, or disconnected limbs, unlike the
+  abandoned Rokoko retarget attempt earlier this round.
+- Confirmed `pickClipName`'s existing fallback (`return names[0]`, see
+  `animationClips.ts`) handles a model with none of the tiered idle/walk/trot/run/
+  sprint names present -- this character always falls through to its first clip under
+  automatic ground-speed selection, which is documented, existing, harmless behavior
+  (the same fallback Wolf's `Eating`-only-reachable-manually clips already exercise),
+  not a new code path needing a change.
+- `npm run typecheck` and `npm test` pass; `modelCatalog.test.ts`'s existing checks
+  (id uniqueness, path-resolves-to-a-real-file, categories) cover the new entry
+  correctly with no test changes needed, same as F37's removal.
+- Built the real Emscripten/WASM editor and ran the full existing
+  `tests/browser/editor.cjs` black-box suite unmodified end to end: passed.
+- Not verified here: the exact Mixamo Auto-Rigger joint placement (the user did that
+  step in Mixamo's own UI, outside this sandbox) -- taken on faith that Mixamo's own
+  established rigging pipeline placed joints reasonably, same as every other
+  externally-sourced rig this project has imported without re-deriving the rigger's
+  own correctness from scratch.
