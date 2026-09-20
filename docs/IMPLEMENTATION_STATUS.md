@@ -2623,6 +2623,43 @@ Design notes on the simulation itself:
 
 ### F40 verification
 
+- Post-push fix: three Codex findings on the PR, all verified correct before
+  fixing. (1) `stepParticles()` originally spawned new particles *then* aged
+  every alive particle in the same call, including the ones just spawned --
+  any authored `lifetime` at or below one frame's `dt` (e.g. 0.01s at 60Hz)
+  died and blackened before ever being drawn, despite passing
+  `positiveNumber` validation as a legitimate value. Fixed by reordering to
+  age-then-spawn (a particle spawned this call isn't touched again until the
+  next, guaranteeing at least one rendered frame) and explicitly setting a
+  new spawn's color to full brightness at spawn time (it no longer passes
+  through the same call's aging loop to get that value). (2) Particle
+  positions start at the local origin and only move via direct buffer writes
+  (`needsUpdate = true`), which uploads new data but never invalidates
+  three.js's cached bounding sphere -- the first automatic frustum check
+  would compute and permanently cache a near-zero sphere, so a system whose
+  particles later spread beyond it could be wrongly culled whenever the
+  entity's own origin left the frustum. Fixed by setting
+  `points.frustumCulled = false`, the standard fix for a dynamically-moving
+  point cloud like this rather than recomputing bounds every frame. (3) Every
+  successful editor command calls `rebuild()` (confirmed by reading
+  `execute()` itself, not taken on faith) -- routine property edits, undo/
+  redo, renames -- and `createParticles()` allocates a fresh
+  `BufferGeometry`/`PointsMaterial` per entity per call, unlike a mesh (which
+  reuses `catalogCache`'s shared geometry/material, so nothing new is
+  allocated there). Without disposing, any scene with a Particles-carrying
+  entity leaked a full set of GPU buffers on essentially every editor
+  interaction. Fixed by disposing each emitter's geometry and material in
+  `rebuild()` before clearing `particleStates`. Verified (1) with a
+  standalone script against real three.js: a particle with `lifetime: 0.01`
+  and `rate: 1` (isolated from a same-slot immediate respawn, which an
+  earlier, faster-rate version of the same check had conflated with "didn't
+  die correctly") renders at full color the frame it spawns and only dies on
+  the following frame, never within its own spawn frame. (2)/(3) are
+  structural fixes (a flag set once, and freeing what's already allocated)
+  verified by code inspection and the full test suite below rather than a
+  dedicated numeric check. Re-ran `npm run typecheck`, `npm test` (36/36), a
+  fresh Emscripten/WASM build, and the full `tests/browser/editor.cjs`
+  black-box suite after the fixes -- all pass.
 - Verified the simulation's actual numeric behavior against real three.js math in
   a standalone script (not a reimplementation -- the exact same
   `createParticles`/`stepParticles` logic, copied out of the closure it lives in

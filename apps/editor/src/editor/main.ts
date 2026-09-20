@@ -389,8 +389,17 @@ async function startEditor() {
       sizeAttenuation: true,
     });
     const preset = PARTICLE_PRESETS[particles.preset];
+    const points = new THREE.Points(geo, material);
+    // Positions start (and, for a slot awaiting its next spawn, stay) at the
+    // local origin, so the very first automatic frustum-cull check computes
+    // and caches a near-zero bounding sphere -- three.js never recomputes it
+    // as particles move, so a stale sphere would wrongly cull the whole
+    // system once particles spread beyond it while the entity itself is
+    // off-frustum. Disabling culling is the standard fix for a dynamic point
+    // cloud like this rather than recomputing bounds every frame.
+    points.frustumCulled = false;
     return {
-      points: new THREE.Points(geo, material),
+      points,
       positions,
       colors,
       velocities: new Float32Array(capacity * 3),
@@ -415,6 +424,34 @@ async function startEditor() {
   // not queued or forced -- a saturated pool caps at `capacity` particles on
   // screen rather than bursting past it.
   function stepParticles(state: ParticleState, dt: number) {
+    // Ages/moves particles that were already alive *before* this call, then
+    // spawns new ones after -- not the other way around. A particle spawned
+    // this frame gets age 0 and isn't touched again until the next call, so
+    // it always renders for at least one full frame before it can expire;
+    // aging-then-spawning in the same pass would otherwise immediately kill
+    // (and blacken) any particle whose authored lifetime is at or below one
+    // frame's dt, before the renderer ever draws it.
+    for (let i = 0; i < state.capacity; i++) {
+      if (!state.alive[i]) continue;
+      const age = state.ages[i]! + dt;
+      state.ages[i] = age;
+      if (age >= state.lifetime) {
+        state.alive[i] = 0;
+        state.colors[i * 3] = state.colors[i * 3 + 1] = state.colors[i * 3 + 2] = 0;
+        continue;
+      }
+      const vx = state.velocities[i * 3]!;
+      const vy = state.velocities[i * 3 + 1]! + state.gravity * dt;
+      const vz = state.velocities[i * 3 + 2]!;
+      state.velocities[i * 3 + 1] = vy;
+      state.positions[i * 3] = state.positions[i * 3]! + vx * dt;
+      state.positions[i * 3 + 1] = state.positions[i * 3 + 1]! + vy * dt;
+      state.positions[i * 3 + 2] = state.positions[i * 3 + 2]! + vz * dt;
+      const remaining = 1 - age / state.lifetime;
+      state.colors[i * 3] = state.baseColor.r * remaining;
+      state.colors[i * 3 + 1] = state.baseColor.g * remaining;
+      state.colors[i * 3 + 2] = state.baseColor.b * remaining;
+    }
     state.emitAccumulator += dt * state.rate;
     while (state.emitAccumulator >= 1) {
       state.emitAccumulator -= 1;
@@ -440,27 +477,14 @@ async function startEditor() {
       state.positions[slot * 3] = 0;
       state.positions[slot * 3 + 1] = 0;
       state.positions[slot * 3 + 2] = 0;
-    }
-    for (let i = 0; i < state.capacity; i++) {
-      if (!state.alive[i]) continue;
-      const age = state.ages[i]! + dt;
-      state.ages[i] = age;
-      if (age >= state.lifetime) {
-        state.alive[i] = 0;
-        state.colors[i * 3] = state.colors[i * 3 + 1] = state.colors[i * 3 + 2] = 0;
-        continue;
-      }
-      const vx = state.velocities[i * 3]!;
-      const vy = state.velocities[i * 3 + 1]! + state.gravity * dt;
-      const vz = state.velocities[i * 3 + 2]!;
-      state.velocities[i * 3 + 1] = vy;
-      state.positions[i * 3] = state.positions[i * 3]! + vx * dt;
-      state.positions[i * 3 + 1] = state.positions[i * 3 + 1]! + vy * dt;
-      state.positions[i * 3 + 2] = state.positions[i * 3 + 2]! + vz * dt;
-      const remaining = 1 - age / state.lifetime;
-      state.colors[i * 3] = state.baseColor.r * remaining;
-      state.colors[i * 3 + 1] = state.baseColor.g * remaining;
-      state.colors[i * 3 + 2] = state.baseColor.b * remaining;
+      // Full brightness immediately, not left at whatever this reclaimed
+      // slot's color was (0, from the aging loop above zeroing a particle
+      // out the instant it dies) -- this spawn won't reach the aging loop
+      // until next call, so without this it would render invisible for its
+      // first frame instead of at age 0.
+      state.colors[slot * 3] = state.baseColor.r;
+      state.colors[slot * 3 + 1] = state.baseColor.g;
+      state.colors[slot * 3 + 2] = state.baseColor.b;
     }
     state.points.geometry.attributes.position!.needsUpdate = true;
     state.points.geometry.attributes.color!.needsUpdate = true;
@@ -943,6 +967,17 @@ async function startEditor() {
     for (const object of objects) object.removeFromParent();
     objects.length = 0;
     animStates.length = 0;
+    // Unlike a mesh (which reuses catalogCache's shared geometry/material --
+    // nothing new allocated per rebuild(), so nothing to dispose), every
+    // Particles emitter allocates its own fresh BufferGeometry/PointsMaterial
+    // (see createParticles()) each time. `execute()` calls rebuild() after
+    // every successful command -- routine property edits, undo/redo, renames
+    // -- so without disposing here, an entity with Particles would leak a new
+    // set of GPU buffers on essentially every editor interaction.
+    for (const state of particleStates) {
+      state?.points.geometry.dispose();
+      (state?.points.material as THREE.Material | undefined)?.dispose();
+    }
     particleStates.length = 0;
     const refs = doc.scene.eachAlive();
     for (const entity of refs) {
