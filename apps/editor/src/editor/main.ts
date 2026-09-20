@@ -747,6 +747,14 @@ async function startEditor() {
   // nothing caches or reuses it, so there's nothing extra to dispose when the
   // entity's Light is removed or changed, only the recreate-on-every-rebuild()
   // this file already does for meshes.
+  //
+  // Spot/Directional lights each construct their own separate `target`
+  // Object3D (three.js does this internally) that is NOT part of the scene
+  // graph by default, so it never inherits this entity's transform -- the
+  // beam would always aim at world origin regardless of authored rotation.
+  // Parenting `target` under the light itself, offset along local -Z, fixes
+  // that: the target's world position then follows the light's own world
+  // rotation, so aiming a Spot/Directional light is just rotating its entity.
   function createLight(light: {
     type: "Point" | "Spot" | "Directional";
     color: Vec3;
@@ -758,10 +766,18 @@ async function startEditor() {
     switch (light.type) {
       case "Point":
         return new THREE.PointLight(color, light.intensity, light.range);
-      case "Spot":
-        return new THREE.SpotLight(color, light.intensity, light.range, light.angle);
-      case "Directional":
-        return new THREE.DirectionalLight(color, light.intensity);
+      case "Spot": {
+        const l = new THREE.SpotLight(color, light.intensity, light.range, light.angle);
+        l.target.position.set(0, 0, -1);
+        l.add(l.target);
+        return l;
+      }
+      case "Directional": {
+        const l = new THREE.DirectionalLight(color, light.intensity);
+        l.target.position.set(0, 0, -1);
+        l.add(l.target);
+        return l;
+      }
     }
   }
   function rebuild() {
@@ -827,35 +843,46 @@ async function startEditor() {
         object = new THREE.Mesh(geometry, material);
       }
       object.visible = renderable?.visible ?? true;
+      // `anchor` -- not `object` -- carries this entity's Transform/Rotation/
+      // Scale and is what's pushed into `objects` (gizmo attach, raycast
+      // picking, parent-child reattachment below, and every runtime-driven
+      // position/rotation write in frame()). It's always visible, so a Light
+      // childed onto it (see below) keeps rendering even when the mesh's own
+      // Renderable.visible is false -- three.js's render traversal skips an
+      // invisible object's entire subtree, including any lights within it,
+      // so the light must not live under `object` itself.
+      const anchor = new THREE.Group();
       const p = doc.scene.resolve(entity, "Transform")?.position;
-      if (p) object.position.set(p.x, p.y, p.z);
-      if (animState) animState.prevPosition.copy(object.position);
+      if (p) anchor.position.set(p.x, p.y, p.z);
+      if (animState) animState.prevPosition.copy(anchor.position);
       const r = doc.scene.resolve(entity, "Rotation")?.euler;
-      if (r) object.rotation.set(r.x, r.y, r.z);
+      if (r) anchor.rotation.set(r.x, r.y, r.z);
       const s = doc.scene.resolve(entity, "Scale")?.value;
       if (s && cached) {
         // Normalize by the model's own native size so an authored Scale is
         // the mesh's literal world-space size, matching the physics Box's
         // dimensions (same s.x/y/z) instead of stacking on top of it.
         const n = cached.nativeSize;
-        object.scale.set(
+        anchor.scale.set(
           n.x > 1e-6 ? s.x / n.x : s.x,
           n.y > 1e-6 ? s.y / n.y : s.y,
           n.z > 1e-6 ? s.z / n.z : s.z,
         );
-      } else if (s) object.scale.set(s.x, s.y, s.z);
+      } else if (s) anchor.scale.set(s.x, s.y, s.z);
+      anchor.add(object);
       const light = doc.scene.resolve(entity, "Light");
-      // Added as a child, not pushed into `objects` -- objects/animStates
-      // are 1:1 with refs (the parenting loop and raycast-picking below both
-      // index by that), and a light has no geometry of its own to pick
-      // separately: the entity's usual box/model placeholder still marks
-      // where it is and stays what gets selected, same as any other entity
-      // before a real Renderable.mesh is chosen. Being a child means it
-      // inherits this entity's own position/rotation for free, no separate
-      // transform tracking.
-      if (light) object.add(createLight(light));
-      scene.add(object);
-      objects.push(object);
+      // A sibling of `object`, not a child of it -- see the comment on
+      // `anchor` above for why. Not pushed into `objects` itself:
+      // objects/animStates are 1:1 with refs (the parenting loop and
+      // raycast-picking below both index by that), and a light has no
+      // geometry of its own to pick separately -- the entity's usual
+      // box/model placeholder still marks where it is and stays what gets
+      // selected, same as any other entity before a real Renderable.mesh is
+      // chosen. Being a child of `anchor` means it inherits this entity's
+      // own position/rotation for free, no separate transform tracking.
+      if (light) anchor.add(createLight(light));
+      scene.add(anchor);
+      objects.push(anchor);
       animStates.push(animState);
     }
     refs.forEach((entity, i) => {

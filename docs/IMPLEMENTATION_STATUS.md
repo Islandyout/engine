@@ -2472,14 +2472,19 @@ interface), `Scene.ts` (`SceneComponents`, the internal per-type `Map` literal,
 case), and `PropertyMetadata.ts` (the `Light.type` dropdown, field labels, and the
 "Appearance & Animation" group, alongside Renderable/AnimationState).
 
-`main.ts`'s `rebuild()` adds the spawned light as a *child* of the entity's own
-mesh/box object, not a second top-level entry in the `objects`/`animStates` arrays
-those two are 1:1 with (the parenting-reattachment loop and raycast-picking both
-index by that pairing) -- being a child means it inherits the entity's own position
-for free, and the existing box/mesh placeholder still marks the entity and stays what
-gets selected, since a bare light has no geometry of its own to click. Recreated
-fresh on every `rebuild()`, same as every mesh here -- nothing caches or reuses a
-light, so there's nothing extra to dispose when one is removed or edited. Color is a
+`main.ts`'s `rebuild()` gives each entity an always-visible `anchor` group carrying
+its Transform/Rotation/Scale -- this, not the mesh/box object itself, is what's
+pushed into the `objects`/`animStates` arrays (the parenting-reattachment loop,
+raycast-picking, gizmo attach, and every runtime-driven position/rotation write in
+`frame()` all index by that). The mesh/box object and the spawned light are both
+*children* of `anchor`, siblings of each other rather than the light being a child
+of the mesh -- see the F39 post-push fix note below for why that distinction
+matters. Being a child of `anchor` means the light inherits the entity's own
+position/rotation for free, and the existing box/mesh placeholder still marks the
+entity and stays what gets selected, since a bare light has no geometry of its own
+to click. Recreated fresh on every `rebuild()`, same as every mesh here -- nothing
+caches or reuses a light, so there's nothing extra to dispose when one is removed or
+edited. Color is a
 plain `Vec3` (0-1 RGB, matching `THREE.Color`'s own component range) rather than a
 hex string or 0-255 triplet, reusing the same generic Vec3 inspector rendering
 `Transform.position` already has, so no new UI code was needed for a "color picker."
@@ -2490,6 +2495,31 @@ a type check through validation for one number.
 
 ### F39 verification
 
+- Post-push fix: two Codex findings on the PR, both verified correct against
+  three.js's actual source/behavior before fixing, not taken on faith. (1) Spot and
+  Directional lights each construct their own separate `target` Object3D
+  internally (confirmed via `SpotLight.js`'s own source) that isn't part of the
+  scene graph by default and so never inherits an entity's transform -- with the
+  light parented directly under the entity's mesh/box object as first shipped, the
+  target stayed pinned at world origin forever, meaning rotating the entity could
+  never actually aim a Spot/Directional light. (2) three.js's render traversal
+  skips an invisible object's *entire* subtree, lights included, when gathering
+  active lights each frame -- with the light childed under the mesh/box object as
+  first shipped, toggling `Renderable.visible` off also silently killed the light,
+  coupling two components that should be independent (no way to author a hidden
+  emitter with a still-active light). Fixed both by restructuring `rebuild()`
+  around the always-visible `anchor` group described above: the light is now a
+  sibling of the mesh, not its child, so `Renderable.visible` no longer reaches it;
+  and Spot/Directional lights get their own `target` parented as a child of the
+  light itself (offset along local -Z), so the target's world position now follows
+  the light's own world rotation instead of staying fixed at the origin. Verified
+  with a standalone script against the real vendored three.js (not a
+  reimplementation): confirmed the light has no invisible ancestor after hiding the
+  mesh, and confirmed a Spot light's aim direction actually rotates (90 degrees
+  around Y measurably moved the beam from -Z to -X) purely from rotating the
+  entity's anchor. Re-ran `npm run typecheck`, `npm test` (35/35), a fresh
+  Emscripten/WASM build, and the full `tests/browser/editor.cjs` black-box suite
+  after the fix -- all pass.
 - `npm run typecheck` and `npm test` (36/36, up from 34) pass. New test: `Light`
   attaches with sensible defaults, edits round-trip through save/load, `color`'s
   0-1 bound and `angle`'s (0, PI/2] bound are each rejected with a clear message
