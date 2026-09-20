@@ -2394,6 +2394,23 @@ fell back to flat grey; recolored to a single flat lavender rather than shipping
 
 ### F38 verification
 
+- Post-push fix: a Codex review flagged that the shipped `flying` clip's hips
+  position track travels ~21 m forward over the clip -- since none of this
+  character's three clip names match `pickClipName`'s tiers, `flying` (first by
+  insertion order) is the one that plays automatically and loops, so a placed
+  entity would visibly drift away and snap back every 2.63s, even at rest in Edit
+  mode. Verified independently against the actual exported track data (not just the
+  finding's own numbers) before fixing: confirmed a 21.1 m Z range on `flying`'s
+  hips, and near-zero drift already on `firing_rifle`/`punching`. First fix attempt
+  (subtracting a constant frame-0 offset) was wrong and didn't actually remove the
+  drift, only shifted where it started from -- caught by re-checking the exported
+  data after rebuilding, not assumed correct. Fixed properly by detrending each
+  clip's hips track (subtracting a straight-line start-to-end interpolation, not a
+  constant, from every frame) before export, re-verified the fix against the actual
+  re-exported file (`flying`'s Z range is now sub-2cm, matching the other two
+  clips), and re-rendered all three `flying` timepoints in the same standalone
+  harness to confirm the pose itself was untouched by only editing the position
+  track, not any rotation track.
 - Verified all three uploaded FBX files share the *exact* same 57-bone skeleton (name-
   set comparison, not just eyeballing) before merging their clips onto one mesh --
   confirms this is a safe clip merge, not something that would silently misapply one

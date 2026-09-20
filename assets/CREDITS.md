@@ -188,8 +188,15 @@ download -- so this is three-clips-on-one-mesh, not three separate characters. P
 with Three.js's own `FBXLoader` (already a project dependency, no external FBX SDK or
 binary needed) directly in Node; the base mesh+skeleton came from `Flying.fbx`, the
 other two files' `AnimationClip`s were merged in unmodified (bone names match exactly
-across all three, so this is a straight clip merge, not a retarget); re-exported to
-`.glb` via Three.js's own `GLTFExporter`. Clips renamed from Mixamo's shared
+across all three, so this is a straight clip merge, not a retarget). Each clip's hips
+position track is detrended (a straight-line start-to-end interpolation subtracted
+from every frame, per horizontal axis) before export -- Mixamo's raw `Flying` export
+otherwise travels the hips forward about 21 m over the clip, fine in Mixamo's own
+timeline view but not for a catalog entry meant to loop in place the way this
+project's other clips already do (flagged by a Codex review on the PR that added this
+file; verified against the actual exported track data, not just the finding's own
+numbers, before fixing). Re-exported to `.glb` via Three.js's own `GLTFExporter`.
+Clips renamed from Mixamo's shared
 `mixamo.com` clip name to `flying`/`firing_rifle`/`punching`; none of the three match
 `pickClipName`'s tiered idle/walk/trot/run/sprint names, so this character always
 falls through to its first clip (`flying`) under the automatic ground-speed picker --
@@ -215,4 +222,4 @@ id 137.
 
 Hashes (SHA-256):
 
-- `assets/source/kit/people/mannequin_f_mixamo.glb`: `c57f4e7b0e5da2d09322f73aeb163aa12cc871764676368085874b2e5aead69c`
+- `assets/source/kit/people/mannequin_f_mixamo.glb`: `d4e8f25846b5cbc1f41948e15c7686e9353ef480d4ca608adda095246307a73e`
