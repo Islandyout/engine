@@ -5,7 +5,7 @@ import {
   type PrefabableComponent,
   type SceneComponents,
 } from "./Scene";
-import type { AIStateName } from "./Components";
+import type { AIStateName, ParticlePreset } from "./Components";
 
 export interface SceneDocument {
   format: 1;
@@ -187,6 +187,7 @@ const componentNames = [
   "AnimationState",
   "Renderable",
   "Light",
+  "Particles",
   "Name",
   "Parent",
   "Script",
@@ -320,6 +321,20 @@ export function normalizeComponent(
             : spotAngle(value.angle, "Light.angle"),
       };
     }
+    case "Particles": {
+      const preset = value.preset;
+      const presets: readonly ParticlePreset[] = ["Sparkle", "Smoke", "Fire", "Confetti"];
+      if (typeof preset !== "string" || !presets.includes(preset as ParticlePreset))
+        throw new Error("Particles.preset must be Sparkle, Smoke, Fire, or Confetti.");
+      return {
+        preset: preset as ParticlePreset,
+        color: unitVec3(value.color, "Particles.color"),
+        rate: nonNegativeNumber(value.rate, "Particles.rate"),
+        lifetime: positiveNumber(value.lifetime, "Particles.lifetime"),
+        speed: nonNegativeNumber(value.speed, "Particles.speed"),
+        size: positiveNumber(value.size, "Particles.size"),
+      };
+    }
     case "Name":
       return { value: string(value.value, "Name.value") };
     case "PrefabInstance":
@@ -399,6 +414,15 @@ function unitVec3(value: unknown, label: string): { x: number; y: number; z: num
 function nonNegativeNumber(value: unknown, label: string): number {
   const result = number(value, label);
   if (result < 0) throw new Error(`${label} must be non-negative.`);
+  return result;
+}
+// Unlike nonNegativeNumber, 0 isn't a valid "off" state here -- main.ts sizes
+// a Particles system's fixed point-buffer capacity from rate*lifetime, and a
+// zero lifetime/size would either divide-by-zero that sizing or render a
+// system nothing could ever see.
+function positiveNumber(value: unknown, label: string): number {
+  const result = number(value, label);
+  if (result <= 0) throw new Error(`${label} must be positive.`);
   return result;
 }
 // THREE.SpotLight.angle's own valid range is (0, PI/2] -- a wider cone isn't

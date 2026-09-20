@@ -5,7 +5,7 @@ import {
   type TransformMode,
   type TransformSnapshot,
 } from "./TransformEdit";
-import type { AIStateName, EntityRef, Vec3 } from "../scene/Components";
+import type { AIStateName, EntityRef, ParticlePreset, Vec3 } from "../scene/Components";
 import { propertyMetadata, componentLabel, componentGroups } from "./PropertyMetadata";
 import { defaultComponent } from "../authoring/CommandInterpreter";
 import { CanvasRenderer } from "./CanvasRenderer";
@@ -24,6 +24,28 @@ import { pickClipName, groundSpeed } from "./animationClips";
 import { loadOnce } from "./loadOnce";
 import type { SceneComponents } from "../scene/Scene";
 import "./style.css";
+
+// Each preset's emission shape/motion. `direction` is the base emit
+// direction in the entity's own local space (particles are parented under
+// `anchor`, same as a Light, so they rotate with the entity); `spread`
+// blends that toward a uniformly-random direction (0 = exactly `direction`,
+// 1 = fully random). `gravity` is a constant world-space Y acceleration
+// added to every particle's velocity each frame -- negative falls
+// (Confetti), a small positive value stands in for buoyancy so Smoke/Fire
+// visibly rise, not real buoyancy physics.
+const PARTICLE_PRESETS: Record<
+  ParticlePreset,
+  { direction: THREE.Vector3; spread: number; gravity: number }
+> = {
+  Sparkle: { direction: new THREE.Vector3(0, 1, 0), spread: 1, gravity: 0 },
+  Smoke: { direction: new THREE.Vector3(0, 1, 0), spread: 0.3, gravity: 0.6 },
+  Fire: { direction: new THREE.Vector3(0, 1, 0), spread: 0.55, gravity: 1.1 },
+  Confetti: { direction: new THREE.Vector3(0, 1, 0), spread: 0.85, gravity: -4 },
+};
+// Hard cap on one emitter's point-buffer size regardless of authored
+// rate/lifetime, so an unreasonable value (e.g. rate 5000) degrades to
+// dropped spawns past this cap instead of an unbounded GPU buffer.
+const MAX_PARTICLES = 400;
 
 // Small, hand-drawn, dependency-free icon set (no external icon font/CDN,
 // consistent with this project's zero-external-asset constraints for the
@@ -307,6 +329,142 @@ async function startEditor() {
   // Parallel to `objects`; index i holds the animation state for objects[i], or
   // undefined for a non-animated (static) entity. Reset alongside objects on every rebuild().
   const animStates: (AnimState | undefined)[] = [];
+  interface ParticleState {
+    points: THREE.Points;
+    positions: Float32Array;
+    colors: Float32Array;
+    velocities: Float32Array;
+    ages: Float32Array;
+    alive: Uint8Array;
+    capacity: number;
+    emitAccumulator: number;
+    rate: number;
+    lifetime: number;
+    baseColor: THREE.Color;
+    direction: THREE.Vector3;
+    spread: number;
+    gravity: number;
+    speed: number;
+  }
+  // Parallel to `objects`, same shape as animStates. Reset alongside objects
+  // on every rebuild().
+  const particleStates: (ParticleState | undefined)[] = [];
+  // A fresh THREE.Points system per rebuild(), same as every mesh/light here
+  // -- nothing caches or reuses one, so there's nothing extra to dispose when
+  // the entity's Particles is removed or edited. Capacity is sized from
+  // rate*lifetime (how many particles are alive at once in steady state)
+  // with a 1.5x safety margin, capped at MAX_PARTICLES. Positions/velocities
+  // live in entity-local space -- the system is parented under `anchor` in
+  // rebuild(), same as a Light, so particles inherit the entity's own
+  // position/rotation for free. Renders additively (depthWrite off) and
+  // fades a particle by darkening its own color toward black as it ages,
+  // rather than a separate per-vertex alpha channel or a custom shader --
+  // fully-aged black contributes nothing once additively blended.
+  function createParticles(particles: {
+    preset: ParticlePreset;
+    color: Vec3;
+    rate: number;
+    lifetime: number;
+    speed: number;
+    size: number;
+  }): ParticleState {
+    const capacity = Math.min(
+      MAX_PARTICLES,
+      Math.max(4, Math.ceil(particles.rate * particles.lifetime * 1.5)),
+    );
+    const positions = new Float32Array(capacity * 3);
+    // Every slot starts fully black (invisible once additively blended) until
+    // stepParticles() spawns into it -- no separate "is this slot in use for
+    // rendering" flag needed on the GPU side, just `alive` on the CPU side.
+    const colors = new Float32Array(capacity * 3);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    const material = new THREE.PointsMaterial({
+      size: particles.size,
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      sizeAttenuation: true,
+    });
+    const preset = PARTICLE_PRESETS[particles.preset];
+    return {
+      points: new THREE.Points(geo, material),
+      positions,
+      colors,
+      velocities: new Float32Array(capacity * 3),
+      ages: new Float32Array(capacity),
+      alive: new Uint8Array(capacity),
+      capacity,
+      emitAccumulator: 0,
+      rate: particles.rate,
+      lifetime: particles.lifetime,
+      baseColor: new THREE.Color(particles.color.x, particles.color.y, particles.color.z),
+      direction: preset.direction,
+      spread: preset.spread,
+      gravity: preset.gravity,
+      speed: particles.speed,
+    };
+  }
+  const particleSpawnScratch = new THREE.Vector3();
+  // Advances one emitter by dt: accumulates fractional spawns from `rate`
+  // (so e.g. rate=0.5 spawns a particle every other call, not every call at
+  // half strength), ages and moves every alive particle, and reclaims a slot
+  // the instant it expires. A spawn with no free slot is silently dropped,
+  // not queued or forced -- a saturated pool caps at `capacity` particles on
+  // screen rather than bursting past it.
+  function stepParticles(state: ParticleState, dt: number) {
+    state.emitAccumulator += dt * state.rate;
+    while (state.emitAccumulator >= 1) {
+      state.emitAccumulator -= 1;
+      let slot = -1;
+      for (let i = 0; i < state.capacity; i++) {
+        if (!state.alive[i]) {
+          slot = i;
+          break;
+        }
+      }
+      if (slot === -1) break;
+      state.alive[slot] = 1;
+      state.ages[slot] = 0;
+      particleSpawnScratch
+        .set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1)
+        .normalize()
+        .lerp(state.direction, 1 - state.spread)
+        .normalize()
+        .multiplyScalar(state.speed);
+      state.velocities[slot * 3] = particleSpawnScratch.x;
+      state.velocities[slot * 3 + 1] = particleSpawnScratch.y;
+      state.velocities[slot * 3 + 2] = particleSpawnScratch.z;
+      state.positions[slot * 3] = 0;
+      state.positions[slot * 3 + 1] = 0;
+      state.positions[slot * 3 + 2] = 0;
+    }
+    for (let i = 0; i < state.capacity; i++) {
+      if (!state.alive[i]) continue;
+      const age = state.ages[i]! + dt;
+      state.ages[i] = age;
+      if (age >= state.lifetime) {
+        state.alive[i] = 0;
+        state.colors[i * 3] = state.colors[i * 3 + 1] = state.colors[i * 3 + 2] = 0;
+        continue;
+      }
+      const vx = state.velocities[i * 3]!;
+      const vy = state.velocities[i * 3 + 1]! + state.gravity * dt;
+      const vz = state.velocities[i * 3 + 2]!;
+      state.velocities[i * 3 + 1] = vy;
+      state.positions[i * 3] = state.positions[i * 3]! + vx * dt;
+      state.positions[i * 3 + 1] = state.positions[i * 3 + 1]! + vy * dt;
+      state.positions[i * 3 + 2] = state.positions[i * 3 + 2]! + vz * dt;
+      const remaining = 1 - age / state.lifetime;
+      state.colors[i * 3] = state.baseColor.r * remaining;
+      state.colors[i * 3 + 1] = state.baseColor.g * remaining;
+      state.colors[i * 3 + 2] = state.baseColor.b * remaining;
+    }
+    state.points.geometry.attributes.position!.needsUpdate = true;
+    state.points.geometry.attributes.color!.needsUpdate = true;
+  }
   const geometry = new THREE.BoxGeometry();
   const material = new THREE.MeshStandardMaterial({ color: 0x61adba });
   // Blast projectiles are spawned entirely at runtime in C++ (see
@@ -785,6 +943,7 @@ async function startEditor() {
     for (const object of objects) object.removeFromParent();
     objects.length = 0;
     animStates.length = 0;
+    particleStates.length = 0;
     const refs = doc.scene.eachAlive();
     for (const entity of refs) {
       const renderable = doc.scene.resolve(entity, "Renderable");
@@ -881,9 +1040,16 @@ async function startEditor() {
       // chosen. Being a child of `anchor` means it inherits this entity's
       // own position/rotation for free, no separate transform tracking.
       if (light) anchor.add(createLight(light));
+      const particles = doc.scene.resolve(entity, "Particles");
+      let particleState: ParticleState | undefined;
+      if (particles) {
+        particleState = createParticles(particles);
+        anchor.add(particleState.points);
+      }
       scene.add(anchor);
       objects.push(anchor);
       animStates.push(animState);
+      particleStates.push(particleState);
     }
     refs.forEach((entity, i) => {
       const parent = doc.scene.resolve(entity, "Parent")?.entity;
@@ -1513,6 +1679,9 @@ async function startEditor() {
     // Always advance mixers, even in edit mode: a rigged model sitting
     // perfectly still reads as a broken rig, and an idle clip is meant to loop.
     animStates.forEach((state) => state?.mixer.update(dt));
+    // Same reasoning as mixers above -- a Particles emitter is as "always on"
+    // as a Light, not gated to Play mode like Script/Sound.
+    particleStates.forEach((state) => state && stepParticles(state, dt));
     // Ground-speed clip selection runs on the fixed-step cadence (steps/60),
     // not every render frame — see groundSpeed()'s own comment for why.
     if (doc.mode === "play" && steps > 0) {

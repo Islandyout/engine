@@ -8,6 +8,7 @@ import type {
   LightComponent,
   NameComponent,
   ParentComponent,
+  ParticlesComponent,
   PedestrianComponent,
   PlayerComponent,
   PrefabInstanceComponent,
@@ -41,6 +42,7 @@ export interface SceneComponents {
   AnimationState: AnimationStateComponent;
   Renderable: RenderableComponent;
   Light: LightComponent;
+  Particles: ParticlesComponent;
   Name: NameComponent;
   Parent: ParentComponent;
   Script: ScriptComponent;
@@ -67,6 +69,7 @@ export const prefabableComponentNames = [
   "AnimationState",
   "Renderable",
   "Light",
+  "Particles",
   "Script",
   "Sound",
 ] as const satisfies readonly (keyof SceneComponents)[];
@@ -122,6 +125,7 @@ export class Scene {
     AnimationState: new Map(),
     Renderable: new Map(),
     Light: new Map(),
+    Particles: new Map(),
     Name: new Map(),
     Parent: new Map(),
     Script: new Map(),

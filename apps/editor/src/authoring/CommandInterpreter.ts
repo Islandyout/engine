@@ -67,6 +67,7 @@ const componentNames = [
   "AnimationState",
   "Renderable",
   "Light",
+  "Particles",
   "Name",
   "Parent",
   "Script",
@@ -567,6 +568,11 @@ export function defaultComponent(
       // (an unaimed Spot would light nothing until its cone is pointed
       // somewhere; Directional ignores position entirely).
       return { type: "Point", color: { x: 1, y: 0.95, z: 0.85 }, intensity: 2, range: 15, angle: Math.PI / 6 };
+    case "Particles":
+      // A gentle sparkle -- visible immediately without tuning, and Sparkle's
+      // omnidirectional burst doesn't need the gravity/rise tuning Smoke/
+      // Fire/Confetti each want to read correctly (see main.ts's preset table).
+      return { preset: "Sparkle", color: { x: 1, y: 0.9, z: 0.6 }, rate: 20, lifetime: 1.2, speed: 1.5, size: 0.12 };
     case "Name":
       return { value: "Entity" };
     case "Script":

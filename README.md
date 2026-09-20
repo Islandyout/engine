@@ -68,6 +68,8 @@ Engine version 0.38.0 lands that import: a new `Mannequin F (Mixamo)` catalog ch
 
 Engine version 0.39.0 adds a real `Light` component (Point/Spot/Directional, color, intensity, Point/Spot's own range, Spot's own cone angle) — any entity can now carry an actual light, not just the scene's fixed hemisphere+sun ambience every entity has always shared. A subtle, always-on bloom post-process rides along, matching this project's existing preference for fixing the default look rather than exposing a render knob. Purely presentational, like `Sound`/`AnimationState` before it — confirmed by checking `editor_add`'s own ABI before assuming so, rather than after — so this needed zero native `bridge.cpp` changes, the smallest surface of any component addition so far. See [F39](docs/IMPLEMENTATION_STATUS.md#f39--lighting-tier-2-roadmap-item-0390).
 
+Engine version 0.40.0 adds a real `Particles` component (Sparkle/Smoke/Fire/Confetti presets, color, emission rate, lifetime, speed, size) — any entity can now carry a lightweight `THREE.Points` emitter, simulated every frame in both Edit and Play mode. Purely presentational like `Light` before it, so this needed zero native `bridge.cpp` changes either. Particles live under the same always-visible `anchor` group F39's own post-push fix introduced, so a Particles emitter's visibility is independent of `Renderable.visible` from day one. See [F40](docs/IMPLEMENTATION_STATUS.md#f40--particles-tier-2-roadmap-item-0400).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 
