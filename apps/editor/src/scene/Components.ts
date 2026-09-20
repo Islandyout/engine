@@ -110,6 +110,27 @@ export interface LightComponent {
   range: number;
   angle: number;
 }
+// A lightweight, non-collidable particle emitter -- main.ts's rebuild()
+// spawns an actual THREE.Points system as a sibling of this entity's mesh and
+// Light (same always-visible anchor those live under, see main.ts's own doc
+// comment on `anchor`), simulated every frame in both Edit and Play mode, the
+// same "as always-on as the entity itself" precedent Light already set (no
+// Play-only lifecycle like Script/Sound). preset picks the emission shape/
+// motion (a fixed small table in main.ts: initial direction bias, spread, and
+// gravity/buoyancy) -- not itself authored per-field, the same "type picks
+// the behavior, the rest are generic knobs" split LightComponent.type uses.
+// color is 0-1 RGB like Light.color; particles render additively and fade by
+// darkening toward black as they age, so a fully-aged particle contributes
+// nothing rather than needing a separate alpha channel or a custom shader.
+export type ParticlePreset = "Sparkle" | "Smoke" | "Fire" | "Confetti";
+export interface ParticlesComponent {
+  preset: ParticlePreset;
+  color: Vec3;
+  rate: number;
+  lifetime: number;
+  speed: number;
+  size: number;
+}
 export interface NameComponent {
   value: string;
 }

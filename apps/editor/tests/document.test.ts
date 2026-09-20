@@ -525,3 +525,107 @@ test("Light attaches with sensible defaults, edits round-trip through save/load,
     "a shared Light color change reaches every instance live",
   );
 });
+
+test("Particles attaches with sensible defaults, edits round-trip through save/load, color/rate/lifetime/size are validated, and Particles is prefab-shared", () => {
+  const d = new EditorDocument();
+  const entity = d.execute({ command: "spawn_entity", name: "Torch" }).entity!;
+  assert.equal(d.execute({ command: "attach_component", entity, type: "Particles" }).ok, true);
+  const attached = d.scene.get(entity, "Particles");
+  assert.equal(attached?.preset, "Sparkle");
+  assert.ok(attached!.rate > 0);
+  assert.ok(attached!.lifetime > 0);
+
+  assert.equal(
+    d.execute({
+      command: "set_component",
+      entity,
+      type: "Particles",
+      value: {
+        preset: "Fire",
+        color: { x: 1, y: 0.4, z: 0 },
+        rate: 40,
+        lifetime: 0.8,
+        speed: 2,
+        size: 0.2,
+      },
+    }).ok,
+    true,
+  );
+  assert.equal(d.execute({ command: "save_scene", path: "particles-test" }).ok, true);
+  d.execute({ command: "destroy_entity", entity });
+  assert.equal(d.execute({ command: "load_scene", path: "particles-test" }).ok, true);
+  const [[reloaded]] = d.scene.query("Particles");
+  assert.equal(d.scene.get(reloaded, "Particles")?.preset, "Fire");
+  assert.equal(d.scene.get(reloaded, "Particles")?.color.y, 0.4);
+  assert.equal(d.scene.get(reloaded, "Particles")?.rate, 40);
+
+  const base = {
+    preset: "Sparkle",
+    color: { x: 1, y: 1, z: 1 },
+    rate: 10,
+    lifetime: 1,
+    speed: 1,
+    size: 0.1,
+  };
+  assert.throws(
+    () =>
+      d.load({
+        format: 1,
+        entities: [{ components: { Particles: { ...base, color: { x: 1.5, y: 1, z: 1 } } } }],
+      }),
+    /between 0 and 1/i,
+  );
+  assert.throws(
+    () =>
+      d.load({
+        format: 1,
+        entities: [{ components: { Particles: { ...base, lifetime: 0 } } }],
+      }),
+    /must be positive/i,
+  );
+  assert.throws(
+    () =>
+      d.load({
+        format: 1,
+        entities: [{ components: { Particles: { ...base, size: -1 } } }],
+      }),
+    /must be positive/i,
+  );
+  assert.throws(
+    () =>
+      d.load({
+        format: 1,
+        entities: [{ components: { Particles: { ...base, rate: -1 } } }],
+      }),
+    /must be non-negative/i,
+  );
+  assert.throws(
+    () =>
+      d.load({
+        format: 1,
+        entities: [{ components: { Particles: { ...base, preset: "Rainbow" } } }],
+      }),
+    /Sparkle, Smoke, Fire, or Confetti/,
+  );
+
+  // Particles is a prefab-shared component like Renderable/Sound/Light --
+  // editing one instance's rate updates every instance live.
+  const source = d.execute({ command: "spawn_entity", name: "Campfire" }).entity!;
+  d.execute({ command: "attach_component", entity: source, type: "Particles" });
+  d.execute({ command: "create_prefab", entity: source, name: "Campfire" });
+  const other = d.execute({ command: "place_instance", prefab: "Campfire" }).entity!;
+  assert.equal(
+    d.execute({
+      command: "set_component",
+      entity: source,
+      type: "Particles",
+      value: { ...base, rate: 99 },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    d.scene.resolve(other, "Particles")?.rate,
+    99,
+    "a shared Particles rate change reaches every instance live",
+  );
+});

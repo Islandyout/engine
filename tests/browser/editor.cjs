@@ -975,6 +975,33 @@ const { chromium } = require("playwright");
       "0.2",
     );
     assert.equal(await page.locator('[aria-label="Light.angle"]').inputValue(), "0.3");
+    // Particles (0.40.0): a real per-entity THREE.Points emitter, not just a
+    // static effect -- verified here at the authoring-DOM level (options
+    // offered, values persist through a fresh inspector render), same as
+    // every other component's black-box coverage; the actual spawn/fade/
+    // gravity simulation was verified separately against real three.js math
+    // (this suite never pixel-diffs the WebGL canvas itself).
+    assert.ok(appearance.options.includes("Particles"));
+    await page.locator(".entity").filter({ hasText: "Mannequin F" }).first().click();
+    await page.getByLabel("Add component").selectOption("Particles");
+    const particlesPreset = page.locator('[aria-label="Particles.preset"]');
+    const particlesPresetOptions = await particlesPreset.locator("option").allTextContents();
+    assert.deepEqual(particlesPresetOptions, ["Sparkle", "Smoke", "Fire", "Confetti"]);
+    assert.equal(await particlesPreset.inputValue(), "Sparkle", "sensible default preset");
+    await particlesPreset.selectOption("Fire");
+    await page.getByLabel("Particles.rate", { exact: true }).fill("40");
+    await page.getByLabel("Particles.rate", { exact: true }).press("Tab");
+    await page.getByLabel("Particles.lifetime", { exact: true }).fill("0.8");
+    await page.getByLabel("Particles.lifetime", { exact: true }).press("Tab");
+    await page.locator(".entity").filter({ hasText: "Wolf" }).first().click();
+    await page.locator(".entity").filter({ hasText: "Mannequin F" }).first().click();
+    assert.equal(
+      await page.locator('[aria-label="Particles.preset"]').inputValue(),
+      "Fire",
+      "Particles edits persist through a fresh inspector render, same as every other component",
+    );
+    assert.equal(await page.locator('[aria-label="Particles.rate"]').inputValue(), "40");
+    assert.equal(await page.locator('[aria-label="Particles.lifetime"]').inputValue(), "0.8");
 
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
@@ -985,7 +1012,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component passed.",
     );
   } finally {
     if (browser) await browser.close();

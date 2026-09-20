@@ -2558,3 +2558,146 @@ a type check through validation for one number.
   bigger addition (shadow camera frustum sizing per light type, performance cost
   for every point/spot light in a scene) better scoped as a follow-up than folded
   into this round unasked.
+
+## F40 — Particles (Tier 2 roadmap item, 0.40.0)
+
+A real, authorable `Particles` component: any entity can now carry a lightweight
+point-particle emitter (Sparkle, Smoke, Fire, or Confetti; color, emission rate,
+per-particle lifetime, initial speed, and point size), spawned as an actual
+`THREE.Points` system -- not a native/bridge feature, matching F39's own
+precedent that a purely presentational component lives entirely on the TS side
+(`Renderable`/`AnimationState`/`Script`/`Sound`/`Light` already established this;
+`Particles` needed zero `bridge.cpp` changes for the same reason).
+
+Registration followed the same by-now-familiar points: `Components.ts` (the
+`ParticlesComponent` interface, alongside a `ParticlePreset` union type),
+`Scene.ts` (`SceneComponents`, its internal per-type `Map` literal --
+double-checked this round specifically since F39 was the one that first missed
+it, `prefabableComponentNames` -- `Particles` is prefab-shared like Renderable/
+Sound/Light), `SceneSerializer.ts` (`componentNames`, `normalizeComponent`'s
+validation case, plus a new `positiveNumber` helper for `lifetime`/`size`, which
+-- unlike `nonNegativeNumber` -- reject 0: a zero lifetime or size both size the
+point buffer to nothing and render nothing, so they're not a meaningful "off"
+state the way Light's 0-range/0-rate are), `CommandInterpreter.ts` (its own
+separate `componentNames` list, `defaultComponent`'s case), and
+`PropertyMetadata.ts` (the `preset` dropdown, field labels, and the "Appearance &
+Animation" group, alongside Renderable/AnimationState/Light).
+
+`main.ts`'s `rebuild()` adds the spawned `THREE.Points` system as another child
+of the entity's `anchor` group -- the same always-visible wrapper F39's post-push
+fix introduced for exactly this reason, so a Particles emitter's own visibility
+is independent of `Renderable.visible` from day one, not something this round had
+to separately discover and fix. Simulated every frame in both Edit and Play mode
+(`stepParticles()`, called from `frame()` right next to `animStates`' own
+per-frame `mixer.update(dt)`) -- as "always on" as a Light, not gated to a
+Play-only lifecycle like Script/Sound.
+
+Design notes on the simulation itself:
+- Each emitter owns a fixed-capacity pool (`Float32Array` position/color/velocity
+  buffers, sized from `rate * lifetime * 1.5` -- how many particles are alive at
+  once in steady state, with a safety margin -- capped at a hard `MAX_PARTICLES`
+  of 400 regardless of authored values) rather than growing/shrinking a buffer
+  every frame. A spawn with no free slot is silently dropped, not queued or
+  forced, so a saturated pool caps visually at `capacity` rather than exceeding
+  it or crashing.
+- `preset` picks a small fixed table (`PARTICLE_PRESETS`) of emission direction,
+  spread (how much a spawn's initial velocity is randomized away from that
+  direction), and a constant Y "gravity" acceleration -- Confetti's is negative
+  (falls), Smoke/Fire's is a small positive value standing in for buoyancy (not
+  real buoyancy physics), Sparkle's is zero (omnidirectional, no drift). The same
+  "type picks the behavior, the rest are generic authored knobs" split
+  `Light.type` already established.
+- Particles render additively (`THREE.AdditiveBlending`, `depthWrite: false`) and
+  fade by darkening their own vertex color toward black as they age, rather than
+  a separate per-vertex alpha channel or a custom shader -- a fully-aged (black)
+  particle contributes nothing once additively blended, the same "cheapest stock-
+  API technique that still reads correctly" call bloom (`UnrealBloomPass`, F39)
+  and Light (no custom shader for `.target` either) already made this project's
+  norm. A deliberate simplification: this means every preset glows rather than
+  Smoke specifically reading as opaque/alpha-blended smoke -- acceptable for this
+  round's scope, not revisited without being asked.
+- Particle position/velocity live in the entity's own local space (the `Points`
+  system is parented under `anchor`, same as a Light), so particles inherit the
+  entity's position/rotation for free and a Fire/Smoke emitter's "up" rotates
+  with the entity, same as everything else under `anchor`.
+
+### F40 verification
+
+- Post-push fix: three Codex findings on the PR, all verified correct before
+  fixing. (1) `stepParticles()` originally spawned new particles *then* aged
+  every alive particle in the same call, including the ones just spawned --
+  any authored `lifetime` at or below one frame's `dt` (e.g. 0.01s at 60Hz)
+  died and blackened before ever being drawn, despite passing
+  `positiveNumber` validation as a legitimate value. Fixed by reordering to
+  age-then-spawn (a particle spawned this call isn't touched again until the
+  next, guaranteeing at least one rendered frame) and explicitly setting a
+  new spawn's color to full brightness at spawn time (it no longer passes
+  through the same call's aging loop to get that value). (2) Particle
+  positions start at the local origin and only move via direct buffer writes
+  (`needsUpdate = true`), which uploads new data but never invalidates
+  three.js's cached bounding sphere -- the first automatic frustum check
+  would compute and permanently cache a near-zero sphere, so a system whose
+  particles later spread beyond it could be wrongly culled whenever the
+  entity's own origin left the frustum. Fixed by setting
+  `points.frustumCulled = false`, the standard fix for a dynamically-moving
+  point cloud like this rather than recomputing bounds every frame. (3) Every
+  successful editor command calls `rebuild()` (confirmed by reading
+  `execute()` itself, not taken on faith) -- routine property edits, undo/
+  redo, renames -- and `createParticles()` allocates a fresh
+  `BufferGeometry`/`PointsMaterial` per entity per call, unlike a mesh (which
+  reuses `catalogCache`'s shared geometry/material, so nothing new is
+  allocated there). Without disposing, any scene with a Particles-carrying
+  entity leaked a full set of GPU buffers on essentially every editor
+  interaction. Fixed by disposing each emitter's geometry and material in
+  `rebuild()` before clearing `particleStates`. Verified (1) with a
+  standalone script against real three.js: a particle with `lifetime: 0.01`
+  and `rate: 1` (isolated from a same-slot immediate respawn, which an
+  earlier, faster-rate version of the same check had conflated with "didn't
+  die correctly") renders at full color the frame it spawns and only dies on
+  the following frame, never within its own spawn frame. (2)/(3) are
+  structural fixes (a flag set once, and freeing what's already allocated)
+  verified by code inspection and the full test suite below rather than a
+  dedicated numeric check. Re-ran `npm run typecheck`, `npm test` (36/36), a
+  fresh Emscripten/WASM build, and the full `tests/browser/editor.cjs`
+  black-box suite after the fixes -- all pass.
+- Verified the simulation's actual numeric behavior against real three.js math in
+  a standalone script (not a reimplementation -- the exact same
+  `createParticles`/`stepParticles` logic, copied out of the closure it lives in
+  since `main.ts` doesn't export it): steady-state alive count for a Sparkle
+  emitter converges on `rate * lifetime` as expected; a spawned particle's color
+  starts near-full, fades to roughly half partway through its lifetime, and
+  reaches exactly black (and is reclaimed, `alive[i] = 0`) at expiry, not before
+  or after; a zero-initial-speed Confetti particle visibly falls (negative Y)
+  and a zero-initial-speed Fire particle visibly rises (positive Y) purely from
+  each preset's own gravity constant; and an intentionally absurd rate (5000)
+  still caps the pool at exactly `MAX_PARTICLES` (400) with the alive count never
+  exceeding it. A first pass at this check used a single large timestep and
+  wrongly concluded the fade logic was broken -- caught by re-deriving by hand
+  that a rate-1 emitter needs a full accumulated second before its first spawn
+  fires at all, not a bug in `stepParticles()` itself; corrected the test to step
+  at the same ~60Hz cadence `frame()` actually uses, which then matched the
+  expected fade curve exactly.
+- `npm run typecheck` and `npm test` (36/36, up from 35) pass. New test:
+  `Particles` attaches with sensible defaults, edits round-trip through
+  save/load, `color`'s 0-1 bound and `lifetime`/`size`'s must-be-positive bound
+  and `rate`'s must-be-non-negative bound are each rejected with a clear message
+  naming the field, an invalid `preset` string is rejected, and `Particles` is
+  confirmed prefab-shared (editing one instance's rate updates every instance
+  live) -- the same coverage shape `Light`'s own test established.
+- Built the real Emscripten/WASM editor and ran the full existing
+  `tests/browser/editor.cjs` black-box suite, extended with a new case:
+  `Particles` appears in the "Appearance & Animation" Add-component group, its
+  `preset` dropdown offers exactly Sparkle/Smoke/Fire/Confetti with the
+  documented default, and edited preset/rate/lifetime values survive a fresh
+  inspector render (the same reselect-and-back technique every other
+  persistence assertion in this suite already uses) -- passed end to end.
+- Not done here: per-particle size animation (shrink-to-zero as it ages,
+  alongside the color fade) -- would need a custom `ShaderMaterial` for
+  per-vertex point size, a meaningfully bigger addition than this round's scope;
+  a burst/one-shot emission mode (spawn N particles once, not a continuous
+  rate) -- `rate: 0` already gives "off," and a genuine one-shot needs either a
+  Play-mode-triggered event (this project doesn't yet expose combat/collision
+  tick timing to the TS side outside AIState) or an authoring-time "trigger now"
+  action neither exists for any other component; collision/gravity against
+  Colliders -- particles are purely decorative, matching this round's own
+  "lightweight, non-collidable" scope, not a native/bridge feature.

@@ -40,6 +40,14 @@ const metadata: Record<string, PropertyMetadata> = {
   "Light.intensity": { step: "0.1" },
   "Light.range": { label: "Range (Point/Spot; 0 = unlimited)", step: "1" },
   "Light.angle": { label: "Cone angle (Spot, radians)", step: "0.05" },
+  "Particles.preset": { options: choice(["Sparkle", "Smoke", "Fire", "Confetti"]) },
+  "Particles.color.x": { label: "Color R (0-1)", step: "0.05" },
+  "Particles.color.y": { label: "Color G (0-1)", step: "0.05" },
+  "Particles.color.z": { label: "Color B (0-1)", step: "0.05" },
+  "Particles.rate": { label: "Emission rate (particles/sec)", step: "1" },
+  "Particles.lifetime": { label: "Lifetime (seconds)", step: "0.1" },
+  "Particles.speed": { label: "Initial speed (m/s)", step: "0.1" },
+  "Particles.size": { label: "Point size (world units)", step: "0.01" },
   "Pedestrian.archetype": {
     label: "Archetype",
     options: indexedChoice(["Casual", "Brisk", "Lingering"]),
@@ -123,6 +131,9 @@ export const componentGroups: readonly ComponentGroup[] = [
     label: "Gameplay",
     types: ["Health", "AIState", "Pedestrian", "Player", "Vehicle"],
   },
-  { label: "Appearance & Animation", types: ["Renderable", "AnimationState", "Light"] },
+  {
+    label: "Appearance & Animation",
+    types: ["Renderable", "AnimationState", "Light", "Particles"],
+  },
   { label: "Scripting & Audio", types: ["Script", "Sound"] },
 ];
