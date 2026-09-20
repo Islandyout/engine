@@ -14,22 +14,22 @@ c70cac7397eed5ee9941d88bc1afa4740b68aecc26a61042fab5a71ac211dd72.
 - source/kit/\*\*: 117 further exact files from assets/kit/{buildings,furniture,
   nature,roads,signs,vehicles,animals,people} in the same supplied archive, unmodified
   — every file in the kit except bench.glb, already imported above; `people/hero.glb`
-  and the 12 `people/npc-*.glb` files, regenerated in 0.36.0 (see that entry below,
-  which supersedes these 13 files' provenance); and `people/_animation-library.glb`, a
-  shared rig/clip source used at generation time, not a placeable model itself (every
-  individual character file already carries its own copy of the clips it needs). Same
-  aether-assetgen source, same CC0 1.0 grant, same prefix row as the exact bench file
-  already covers, so the row is one prefix rather than one per file. This is a
-  *different* file from the Khronos glTF-Sample-Models Fox (assets/fox.glb in the
-  supplied archive, CC BY 4.0, confirmed by hash — not imported here or anywhere in
-  this repo): `kit/animals/fox.glb` is aether-assetgen's own procedurally generated
-  fox, CC0 like the rest of the kit.
+  and the 12 `people/npc-*.glb` files, regenerated in 0.36.0 and then deleted outright
+  in 0.37.0 (no longer in this repo at all -- see that entry below, not a provenance
+  claim); and `people/_animation-library.glb`, a shared rig/clip source used at
+  generation time, not a placeable model itself (every individual character file
+  already carries its own copy of the clips it needs). Same aether-assetgen source,
+  same CC0 1.0 grant, same prefix row as the exact bench file already covers, so the
+  row is one prefix rather than one per file. This is a *different* file from the
+  Khronos glTF-Sample-Models Fox (assets/fox.glb in the supplied archive, CC BY 4.0,
+  confirmed by hash — not imported here or anywhere in this repo): `kit/animals/fox.glb`
+  is aether-assetgen's own procedurally generated fox, CC0 like the rest of the kit.
   Consumed directly by the editor (`apps/editor/src/scene/modelCatalog.ts`) via Three.js's
   own glTF loader (`GLTFLoader` for static props, `SkeletonUtils.clone` plus
-  `AnimationMixer` for the 27 rigged/animated `animals/**` and `people/**` entries, which
-  play their own embedded clips) — no cook_static_mesh.py step, since that cooker's
-  narrower single-node/no-skin contract is for the native CPU renderer specifically, not
-  the browser editor.
+  `AnimationMixer` for the 14 rigged/animated `animals/**` entries, which play their
+  own embedded clips) — no cook_static_mesh.py step, since that cooker's narrower
+  single-node/no-skin contract is for the native CPU renderer specifically, not the
+  browser editor.
 
 Hashes (SHA-256):
 
@@ -39,8 +39,8 @@ Hashes (SHA-256):
 - `assets/source/kit/**`: unmodified copies of the supplied archive's files at the same
   paths under `assets/kit/`; verify against the archive's own SHA-256 above rather than
   per-file hashes here (117 files, one shared provenance and license — excludes
-  `people/hero.glb` and the 12 `people/npc-*.glb` files, regenerated in 0.36.0; see that
-  entry's own hashes below).
+  `people/hero.glb` and the 12 `people/npc-*.glb` files, regenerated in 0.36.0 and
+  deleted in 0.37.0; no longer present in this repo, see that entry below).
 
 ## Audio (0.30.0)
 
@@ -154,62 +154,65 @@ Hashes (SHA-256):
 - `assets/source/kit/animals/stag.glb`: `6d8f486cc46f4c93196e26a8cd5d645962b8d465d9929cf79f7d40859ee68adf`
 - `assets/source/kit/animals/alpaca.glb`: `662e6259dafd61d113159c45b1cf902f1cf7cd95d177d9c9bb89b73f335d0e35`
 
-## People kit regeneration (0.36.0)
+## People kit removal (0.37.0)
 
-`people/hero.glb` and the 12 `people/npc-*.glb` files (above, imported unmodified in
-F19/F20) are regenerated from the *source code* of the same aether-assetgen generator
-that originally produced them, not the pre-baked files supplied in aether-complete.zip
-(SHA-256 above). That generator's own `tools/gen/**` -- confirmed, before any change,
-to reproduce every one of these 13 files byte-identical to the ones already committed
-here, using the exact character options (`seed`/`outfit`/`height`/`build`/`hairStyle`/
-...) `tools/build-assets.mjs`'s own `people` section already used -- is vendored (MIT,
-same grant as the rest of the Aether engine source; see `third_party/aether/LICENSE`)
-as the closure of 8 files `third_party/aether/gen/{glb,rng,materials,buildings,vehicles,
-assemble,mesh,humanoid}.mjs` needs to run `humanoid()`/`clips()`/`skinnedGLB()`, and
-regenerated via `tools/regenerate_npc_kit.mjs`.
+`people/hero.glb` and the 12 `people/npc-*.glb` files -- imported unmodified in
+F19/F20, then regenerated with smooth-shaded limbs in F36 (0.36.0, see this file's
+git history for that entry's own detail and hashes) -- are removed outright in this
+round, along with the `third_party/aether/gen/**` generator slice and
+`tools/regenerate_npc_kit.mjs` driver F36 vendored to rebuild them (nothing else
+referenced either, so both are dead weight once these 13 files are gone). Requested
+to make way for an imported, skeleton-rigged character pack. `modelCatalog.ts` frees
+ids 119-131 without reassigning them -- a still-saved scene referencing one of those
+ids now falls back to the default box (`rebuild()`'s existing cache-miss behavior),
+not a crash, but they're retired rather than reused for whatever's imported next.
 
-The one intentional change (see `third_party/aether/gen/mesh.mjs` and `humanoid.mjs`'s
-own header comments): `mesh.mjs`'s `Geo` gains a `cylSmooth()` method beside its
-original `cyl()` (kept, still used everywhere else -- buildings/vehicles/signs/nature/
-animals, and this file's own helmet-band/belt trim -- so their look is unchanged), and
-`humanoid.mjs`'s `limb()` calls it instead. `cyl()` gives every cylinder side face its
-own flat Newell normal (one normal per quad); `cylSmooth()` shares vertices around each
-ring and carries a per-vertex normal instead (radial, tilted by the taper slope for a
-cone), the same technique `sphere()` already used for the joint caps that were already
-smooth. Since every limb/torso/neck segment in `humanoid()` is built via `limb()`, this
-makes the whole body read as rounded rather than faceted, without changing the skeleton,
-outfits, proportions, or `clips()`'s animation curves at all -- same character, same
-clip set, smoother surface. Prompted by a request that the kit's `Npc *` characters
-move as smoothly as Mannequin F (0.32.0's Quaternius import, a sculpted/smooth-skinned
-mesh by construction) while keeping each one's own outfit identity, not replacing them
-with copies of Mannequin F.
+## Mannequin F (Mixamo) (0.38.0)
 
-Post-push fix: a Codex review bot flagged that `cylSmooth()`'s side-wall triangle
-winding disagreed with its own emitted per-vertex normals (verified independently by
-direct cross-product-vs-normal comparison against the generated files, and by hand for
-the specific triangle the bot cited -- both confirmed the winding was backwards).
-Reversed it (`idx.push(a, b, d, a, d, c)` -> `idx.push(a, d, b, a, c, d)`, same
-triangles, opposite order) and regenerated. Separately confirmed, with a standalone
-Three.js render from four angles around a character, that this made no visible
-difference either way -- the pre-existing `sphere()` primitive (used for every joint
-cap, unmodified, shipped for many rounds without incident) has the *same*
-winding-vs-normal relationship by the same direct measurement, so this renderer
-evidently isn't culling or mis-lighting on it. Kept the reversal anyway since it's
-free, harmless, and brings the geometry in line with the standard convention rather
-than relying on that same tolerance.
+`people/mannequin_f_mixamo.glb`, id 137. Source: `mannequin_f.obj` (this repo's own
+`mannequin_f.glb` mesh, mesh-only re-export via Three.js's `OBJExporter`, no rig --
+see F36/F37's own history for `mannequin_f.glb`'s original Quaternius provenance,
+unchanged) run through Adobe Mixamo's free Auto-Rigger (auto-detects a skeleton from
+a few user-marked joints) and then three of Mixamo's own free animations applied to
+it: `Flying`, `Firing Rifle`, `Punching` -- each downloaded separately (Mixamo bakes
+one clip per FBX) as FBX Binary, 30 fps, With Skin, no keyframe reduction, and
+supplied to this repo as three uploaded files, not a URL (`drive.google.com`, tried
+for an earlier, larger, unrelated pack this same round, is blocked by this sandbox's
+egress policy -- see this file's git history for that attempt and why it was
+abandoned).
+
+The three FBX files all carry the identical Mixamo standard skeleton (`mixamorig*`
+bone names, 57 bones, verified by exact name-set comparison before merging) and the
+same mesh, since Mixamo re-exports the whole rigged character with every animation
+download -- so this is three-clips-on-one-mesh, not three separate characters. Parsed
+with Three.js's own `FBXLoader` (already a project dependency, no external FBX SDK or
+binary needed) directly in Node; the base mesh+skeleton came from `Flying.fbx`, the
+other two files' `AnimationClip`s were merged in unmodified (bone names match exactly
+across all three, so this is a straight clip merge, not a retarget); re-exported to
+`.glb` via Three.js's own `GLTFExporter`. Clips renamed from Mixamo's shared
+`mixamo.com` clip name to `flying`/`firing_rifle`/`punching`; none of the three match
+`pickClipName`'s tiered idle/walk/trot/run/sprint names, so this character always
+falls through to its first clip (`flying`) under the automatic ground-speed picker --
+expected and harmless (see `animationClips.ts`'s own fallback comment), same as any
+rig whose clips don't fit that tiering; all three remain individually selectable via
+the inspector's per-model `AnimationState.clip` dropdown.
+
+One known, accepted quality loss: the mesh's original two materials (`M_Main`,
+lavender; `M_Joints`, orange -- see `mannequin_f.glb`'s own hashes above) did not
+survive the OBJ round trip through Mixamo -- the `mannequin_f.obj` this round
+exported the correct two `usemtl` groups, but carried no companion `.mtl` (color
+values), so Mixamo's own pipeline received geometry with no material data and fell
+back to a flat grey `MeshPhongMaterial`. Recolored to a single flat lavender
+(`M_Main`'s own RGB) rather than leaving it grey; the original two-tone body/joint
+split isn't recoverable from these files (Mixamo's re-export merged everything into
+one un-named material/geometry group, so there's no per-face data left to split
+back out). A future OBJ (or FBX) export that includes real material colors would
+avoid this if a truer match is ever worth another pass through Mixamo.
+
+Consumed the same way as every other animated catalog entry: `GLTFLoader` +
+`SkeletonUtils.clone` + `AnimationMixer`, via `apps/editor/src/scene/modelCatalog.ts`
+id 137.
 
 Hashes (SHA-256):
 
-- `assets/source/kit/people/hero.glb`: `0deee30959ece60f97ae87847fa5269a8f26ab20b65f7fe340c3cabb2b202c57`
-- `assets/source/kit/people/npc-office-m.glb`: `6417a49f54e8f28c0a0803d3e3599d445bacf7302bcbfb4d2009c0f4f880f06e`
-- `assets/source/kit/people/npc-office-f.glb`: `43f31f1d41f65810ad98264f062b7f1a49ad590fa3c3d16ab27ff7e443f27558`
-- `assets/source/kit/people/npc-casual-1.glb`: `e36e13c35d8c95d6491afb70c426c3a298593d28aef27b22392400314afac10f`
-- `assets/source/kit/people/npc-casual-2.glb`: `2b5dbefe06c5bf74e4e73d3f27e3e863779043ba75884387165739ff75e1dff5`
-- `assets/source/kit/people/npc-hoodie.glb`: `dfc1108fee2017b7d5335831be056fb9a7d6ccb06a11b31cf20aa5eadaa79a54`
-- `assets/source/kit/people/npc-worker.glb`: `be5fc18148147ba1c8b9459e89326f505e74bf20c4b9b0ea322e3582980e3956`
-- `assets/source/kit/people/npc-sport.glb`: `ff004e77a6719e4e2889acaadbba66c303e73fccb77554495fa1ceb273e9aa7e`
-- `assets/source/kit/people/npc-dress.glb`: `cb126500732ce90f45318119d4efe2681927215ef2fa54e015d9bf90a9ca5040`
-- `assets/source/kit/people/npc-vendor.glb`: `5bb4913810bcf86933e97b43d0a8d23cf3c105a06b7d8d13f25334b8d3b51c0a`
-- `assets/source/kit/people/npc-uniform.glb`: `b4c2196eb2299b01651ceb26e3f557622f564b38eab6a65839d7888f8f96a20a`
-- `assets/source/kit/people/npc-elder.glb`: `ea3c328766a0ce329b383a0aa16539a0dd4b8d1e1b862575701ce0489423be91`
-- `assets/source/kit/people/npc-teen.glb`: `19d67695d09fbd4f694ddbcb8da4cd6a24b075940bee527fd1798ff42a957c45`
+- `assets/source/kit/people/mannequin_f_mixamo.glb`: `c57f4e7b0e5da2d09322f73aeb163aa12cc871764676368085874b2e5aead69c`

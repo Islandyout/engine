@@ -2295,3 +2295,130 @@ silently going stale.
   in this renderer -- but the fix is free and brings the geometry in line with the
   standard convention, so it was kept regardless of whether the visible symptom the
   finding predicted actually manifests here.
+
+## F37 — People kit removal, clearing the way for an imported pack (0.37.0)
+
+Request right after F36 shipped: remove `Hero` and every `Npc *` catalog entry (the
+procedurally-generated Aether kit characters, ids 119-131) outright, to make way for
+importing a user-supplied, skeleton-rigged character pack.
+
+`modelCatalog.ts` drops those 13 entries; their `.glb` files
+(`assets/source/kit/people/{hero,npc-*}.glb`) are deleted from the repo, not just
+delisted. The `third_party/aether/gen/**` generator slice and
+`tools/regenerate_npc_kit.mjs` driver F36 vendored specifically to rebuild these 13
+files are removed too -- nothing else in the repo ever referenced either, so once the
+files they regenerate are gone, they're dead weight, not a reusable tool worth
+keeping around speculatively. Ids 119-131 are freed, not reassigned: a still-saved
+scene referencing one now renders as the default box (`main.ts`'s existing
+`loadCatalogModel()`/`loadOnce()` cache-miss path already handles an id with no
+`modelCatalog` entry this way -- confirmed by reading that path, not assumed), not a
+crash or a silent id collision with whatever's imported next.
+
+`assets/CREDITS.md` is updated to match: the F36 "People kit regeneration" section
+(no longer accurate -- those files don't exist anymore) is replaced with a short
+removal note, the `source/kit/**` prefix entry's aside about hero/npc is reworded from
+"regenerated, see that entry" to "regenerated then deleted, no longer in this repo,"
+and the "27 rigged/animated `animals/**` and `people/**` entries" claim (accurate when
+written) is corrected to "14 rigged/animated `animals/**` entries," since `people/**`
+no longer has any Aether-kit entries of its own (Mannequin F, a separate Quaternius
+import, is untouched).
+
+The requested import itself -- a 734 MB file supplied as a Google Drive share link --
+is not done in this round: `drive.google.com` is blocked by this sandbox's egress
+proxy policy (a hard `403`, not a flake; the proxy's own guidance is to report a
+blocked host, not retry or route around it), so the file couldn't be fetched here.
+Reported to the user; the session's established pattern for a file this size is a
+direct upload into the conversation (every prior asset import -- the Aether kit itself,
+the Kenney audio packs, the three Quaternius packs -- arrived this way, never via URL
+fetch), which the import + skeleton-wiring work in a follow-up round depends on.
+
+### F37 verification
+
+- `npm run typecheck` and `npm test` pass; `modelCatalog.test.ts`'s existing checks
+  (unique ids, every path resolves to a real file, categories match) cover the removal
+  correctly without modification -- they're computed from `modelCatalog`'s actual
+  contents, not a hardcoded count, so 13 fewer entries and 13 fewer files just means
+  13 fewer things checked, not a broken assumption.
+- Grepped the whole editor source, its tests, and the browser black-box suite for any
+  hardcoded dependency on ids 119-131 or the `Hero`/`Npc *` names before deleting
+  anything: `document.test.ts`'s "Hero" is an arbitrary `spawn_entity` name string, not
+  a reference to the catalog entry; `editor.cjs`'s "not Hero's clip set" is an assertion
+  message explaining why `wave` shouldn't appear in Wolf's own clip list, not a spawn of
+  the Hero model. Neither depends on the removed entries actually existing.
+- Read (not assumed) `main.ts`'s `loadCatalogModel()`/`loadOnce()` fallback path to
+  confirm a removed id degrades to the default box rather than throwing, before writing
+  that claim in `assets/CREDITS.md`.
+- Built the real Emscripten/WASM editor and ran the full existing
+  `tests/browser/editor.cjs` black-box suite unmodified end to end: passed -- it never
+  referenced `Hero` or any `Npc *` entry by name, so removing them changed nothing it
+  exercises.
+- Not done here: the actual character import and skeleton wiring the removal was
+  requested to make way for -- blocked on getting the 734 MB file some way this
+  sandbox's network policy allows.
+
+## F38 — Mannequin F (Mixamo), a real rigged-and-animated import (0.38.0)
+
+The follow-up F37 set up for: a real "rig a skeleton onto a character and have it
+perform animations" import, landing this round.
+
+The originally-supplied 734 MB Google Drive link (F37) resolved, once uploaded to a
+GitHub release instead (`drive.google.com` stayed blocked throughout), to 263
+animation-only Rokoko Motion Library FBX files -- no mesh, a different skeleton
+convention (Autodesk HumanIK, `Character1_*` bone names, identity rest rotations)
+than anything in this catalog. A first-pass retarget onto Mannequin F's own skeleton
+(per-bone rest-pose quaternion correction, the standard technique) was built and
+tested -- and produced a visibly broken, twisted/collapsed pose (screenshotted and
+shown to the user before proceeding further), confirming the two rigs' local bone
+axis conventions don't line up under a simple correction. Not pursued further: a
+correct general retargeter needs real per-bone axis analysis (swing/twist
+decomposition), a substantially larger undertaking with no guaranteed result without
+an interactive tool to tune it. The Rokoko pack itself was scrapped rather than
+shipped half-working.
+
+Recommended Mixamo's free Auto-Rigger instead, which sidesteps retargeting entirely
+by rigging *and* animating the same mesh in one pass rather than trying to reconcile
+two independently-authored rigs. `mannequin_f.glb`'s own mesh was re-exported
+mesh-only (no rig) as `mannequin_f.obj` via Three.js's `OBJExporter`, handed to the
+user to run through Mixamo's Auto-Rigger and animation library (`mixamo.com` is
+blocked here same as every other new domain this round hit), and the resulting three
+animated FBX files (`Flying`, `Firing Rifle`, `Punching`) were supplied back as direct
+uploads.
+
+Landed as a new, separate catalog entry (id 137, `Mannequin F (Mixamo)`) rather than
+merged into id 132 -- Mixamo's own skeleton (`mixamorig*`, 57 bones) shares no bind
+pose or bone naming with Mannequin F's original Quaternius rig, so the two aren't
+interchangeable. See `assets/CREDITS.md` for the merge/re-export details and the one
+accepted quality loss (the original two-tone lavender/orange material didn't survive
+the OBJ round trip -- Mixamo's pipeline received untextured, uncolored geometry and
+fell back to flat grey; recolored to a single flat lavender rather than shipping grey).
+
+### F38 verification
+
+- Verified all three uploaded FBX files share the *exact* same 57-bone skeleton (name-
+  set comparison, not just eyeballing) before merging their clips onto one mesh --
+  confirms this is a safe clip merge, not something that would silently misapply one
+  clip's tracks to a differently-named bone in another.
+- Rendered the merged result with a standalone Three.js/`GLTFLoader`/`SkeletonUtils`
+  harness (same libraries and calls the editor itself uses, outside the editor),
+  screenshotted mid-clip for `flying` and `firing_rifle`, and separately caught
+  `flying` near its own start pose -- a fully recognizable, correctly-proportioned
+  "Superman-style" horizontal flying pose, arms forward and legs trailing, confirming
+  the skeleton, skinning, and animation all survived the FBX-parse-and-re-export
+  round trip intact. No twisting, collapse, or disconnected limbs, unlike the
+  abandoned Rokoko retarget attempt earlier this round.
+- Confirmed `pickClipName`'s existing fallback (`return names[0]`, see
+  `animationClips.ts`) handles a model with none of the tiered idle/walk/trot/run/
+  sprint names present -- this character always falls through to its first clip under
+  automatic ground-speed selection, which is documented, existing, harmless behavior
+  (the same fallback Wolf's `Eating`-only-reachable-manually clips already exercise),
+  not a new code path needing a change.
+- `npm run typecheck` and `npm test` pass; `modelCatalog.test.ts`'s existing checks
+  (id uniqueness, path-resolves-to-a-real-file, categories) cover the new entry
+  correctly with no test changes needed, same as F37's removal.
+- Built the real Emscripten/WASM editor and ran the full existing
+  `tests/browser/editor.cjs` black-box suite unmodified end to end: passed.
+- Not verified here: the exact Mixamo Auto-Rigger joint placement (the user did that
+  step in Mixamo's own UI, outside this sandbox) -- taken on faith that Mixamo's own
+  established rigging pipeline placed joints reasonably, same as every other
+  externally-sourced rig this project has imported without re-deriving the rigger's
+  own correctness from scratch.
