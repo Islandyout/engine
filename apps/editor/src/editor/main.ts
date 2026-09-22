@@ -1651,7 +1651,30 @@ async function startEditor() {
     if (exportedScene) console.error(e);
   }
   rebuild();
-  if (exportedScene) el<HTMLButtonElement>("play").click();
+  if (exportedScene) {
+    el<HTMLButtonElement>("play").click();
+    // That click() is script-triggered, not a real user gesture (verified:
+    // navigator.userActivation isn't set by it in a real browser -- an
+    // automation-driven one like Playwright's own default state already
+    // reads as activated regardless, which would otherwise hide this), so
+    // the AudioContext startSounds() just created inside it stays suspended
+    // -- silent -- until a genuine gesture resumes it. Player mode hides
+    // every button that would normally serve as that gesture, so the first
+    // real pointer/key input anywhere on the page (WASD, a click to look
+    // around -- whatever this particular scene expects) does it instead,
+    // once, with no visible prompt. A scene with truly no player
+    // interaction at all stays silent -- the one limitation browsers'
+    // autoplay policy leaves no way around short of an explicit "click to
+    // start" overlay, which player mode's own "just the game, no chrome"
+    // goal argues against adding for this round.
+    const resumeAudio = () => {
+      window.removeEventListener("pointerdown", resumeAudio);
+      window.removeEventListener("keydown", resumeAudio);
+      if (audioContext?.state === "suspended") void audioContext.resume();
+    };
+    window.addEventListener("pointerdown", resumeAudio);
+    window.addEventListener("keydown", resumeAudio);
+  }
   function frame(now: number) {
     const dt = Math.min((now - previous) / 1000, 5 / 60);
     previous = now;

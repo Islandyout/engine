@@ -2904,6 +2904,59 @@ within ~1.5s of load, no console errors.
 
 ### F42 verification
 
+- Post-push fix: five Codex findings on the PR (two P1, three P2), all
+  verified against real conditions before fixing, not taken on faith.
+  - P1: the synthetic `el("play").click()` that starts a player build isn't a
+    real user gesture, so `startSounds()`'s `AudioContext` would stay
+    suspended -- silent -- forever in a real browser, with no visible button
+    left to click to fix it. My own first Playwright check of this
+    (misleadingly) showed the context running regardless -- traced to
+    Playwright-controlled pages reading `navigator.userActivation.hasBeenActive`
+    as `true` before *any* interaction at all, an automation-environment quirk
+    that doesn't reflect a real user's browser and would have hidden this bug
+    from any test relying on it. Confirmed the real mechanism instead by
+    force-suspending the context and checking the fix resumes it: fixed by
+    resuming on the page's first genuine `pointerdown`/`keydown` (a real,
+    trusted Playwright `page.mouse` event, not `element.click()`), which then
+    correctly flips a force-suspended context back to `running` and never
+    fires a second time.
+  - P1: `--out . --force` or `--out build/site --force` would recursively
+    delete the repository checkout or the very build source being copied
+    from, since `--out` was accepted and `rmSync`'d without checking what it
+    resolved to. Fixed with a `destroys()` check rejecting an `--out` that
+    is, or contains, the repo root or `build/site`; verified against exactly
+    those two cases plus `--out build` (an ancestor of `build/site`), all
+    three now refused with a clear error and `build/site` left untouched,
+    while the normal default (`build/export/<name>`) still works.
+  - P2: the exported `<title>` was interpolated via `String.replace`'s
+    string form (where a literal `$` in `--name` is interpreted specially)
+    and never HTML-escaped (so `--name` containing `</title>` could inject
+    markup). Fixed with an HTML-escape helper and a replacer *function*
+    (immune to `$`-pattern interpretation); verified with a deliberately
+    hostile `--name` (`</title><script>...`, plus a literal `$&`) producing
+    a single, correctly-escaped, inert `<title>` tag.
+  - P2: only `</script` was escaped in the embedded scene JSON, not every
+    `<` -- HTML's script-data tokenizer has its own escaped/double-escaped
+    states triggered by `<!--` followed by `<script`, which a free-text
+    field a scene author fully controls (`Script.source`, an entity name)
+    could contain, desyncing the parser so the real closing `</script>`
+    below gets read as text instead of ending the tag. Reproduced exactly
+    that pattern in a real scene and confirmed (before the fix, by
+    inspecting the embedded tag's parsed `textContent`) it broke; fixed by
+    escaping every `<` as `<`, verified the same reproduction scene
+    now loads correctly in a real browser (1 entity, Play mode reached, no
+    parse failure).
+  - P2: the editor's own `@media (max-width: 900px) { #app { min-width:
+    700px } }` rule (sized for the editor's panel-heavy layout) still
+    applied under `.player-mode`, clipping/scrolling a full-bleed player on
+    any phone narrower than 700px. Fixed with `#app.player-mode { min-width:
+    0 }` (its higher specificity wins over the media query's plain `#app`
+    regardless of source order); verified at a real 375px viewport --
+    `#app` now measures the full 375px with zero horizontal overflow, vs.
+    clipped/scrolled before the fix.
+  Re-ran the full existing `tests/browser/editor.cjs` black-box suite and
+  `npm run typecheck`/`npm test` (36/36) after all five fixes -- still pass,
+  zero regression to the ordinary editor.
 - Built the real editor (`tools/build_editor.sh`) and exported
   `examples/demo-game.json` (an 11-entity scene: a drivable vehicle, AI-driven
   pedestrians/drones, colliders, catalog buildings) with the actual CLI, not

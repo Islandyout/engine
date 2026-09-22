@@ -707,6 +707,14 @@ input[readonly] {
    listeners), just invisible. */
 #app.player-mode {
   grid-template-rows: 1fr;
+  /* Overrides the @media (max-width: 900px) rule below, which forces #app
+     to at least 700px so the editor's own panel-heavy layout doesn't get
+     crushed -- irrelevant to a single full-bleed viewport, and left alone
+     would clip/scroll a player build on any phone narrower than 700px. This
+     rule's higher specificity (#app.player-mode) wins over that media
+     query's plain #app regardless of source order, so this doesn't need to
+     live inside a matching media block itself. */
+  min-width: 0;
 }
 #app.player-mode > header,
 #app.player-mode > nav,

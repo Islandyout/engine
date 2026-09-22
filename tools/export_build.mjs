@@ -57,6 +57,27 @@ function dirSize(dir) {
   return total;
 }
 
+function escapeHtml(text) {
+  return text.replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[c]);
+}
+
+// True if `dir` is `target` itself or a directory containing it -- i.e.
+// deleting `dir` would destroy `target`. Guards --out against resolving to
+// (or above) the repository root or build/site: --out . --force would
+// otherwise recursively delete the whole checkout before cpSync even runs,
+// and --out build/site --force would delete the very source being copied
+// from. The normal case (--out under build/export/, the default) is neither.
+function destroys(dir, target) {
+  const rel = path.relative(dir, target);
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const scenePath = args._[0];
@@ -78,6 +99,8 @@ function main() {
 
   const stem = path.basename(scenePath, path.extname(scenePath));
   const outDir = args.out ? path.resolve(args.out) : path.join(ROOT, "build/export", stem);
+  if (destroys(outDir, ROOT) || destroys(outDir, SITE_DIR))
+    fail(`--out ${outDir} would delete the repository checkout or its own build source -- refusing`);
   if (existsSync(outDir)) {
     if (!args.force) fail(`${outDir} already exists -- pass --force to overwrite it`);
     rmSync(outDir, { recursive: true });
@@ -97,18 +120,31 @@ function main() {
   // the built JS bundle itself, only in these two HTML tags).
   html = html.replace(/(src|href)="\/[^"]+\/assets\//g, '$1="./assets/');
 
-  const title = args.name ?? stem;
-  html = html.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`);
+  // HTML-escaped, and substituted via a replacer function rather than a
+  // plain string -- String.replace's string form treats a literal "$" in
+  // the replacement specially ($&, $1, ...), which a --name containing one
+  // would otherwise silently corrupt; a function form doesn't. Escaping
+  // guards against a --name containing "</title>" injecting markup into the
+  // exported page.
+  const title = escapeHtml(args.name ?? stem);
+  html = html.replace(/<title>[^<]*<\/title>/, () => `<title>${title}</title>`);
 
   // The scene is embedded as literal JSON text, not re-serialized -- avoids
   // any risk of this tool's own JSON.stringify subtly changing a value
   // EditorDocument.load() would parse differently (e.g. number formatting).
-  // </script> can't appear inside it without ending the tag early; a valid
-  // scene document never contains it, but escaped defensively anyway.
-  const escapedScene = sceneText.replace(/<\/script/gi, "<\\/script");
+  // Every "<" is escaped, not just "</script" -- HTML's script-data parser
+  // has its own escaped/double-escaped states triggered by "<!--" followed
+  // by "<script" appearing in a script element's text; a free-text field a
+  // scene author fully controls (Script.source, an entity Name, ...)
+  // containing that sequence could otherwise desync the parser so the real
+  // closing </script> below is read as text instead of ending the tag,
+  // corrupting the embedded JSON and leaving the exported player with an
+  // empty scene. Escaping every "<" as < sidesteps the whole class of
+  // parser-state tricks rather than chasing each one.
+  const escapedScene = sceneText.replace(/</g, "\\u003c");
   html = html.replace(
     "</body>",
-    `<script type="application/json" id="exported-scene">${escapedScene}</script>\n</body>`,
+    () => `<script type="application/json" id="exported-scene">${escapedScene}</script>\n</body>`,
   );
 
   writeFileSync(htmlPath, html);
