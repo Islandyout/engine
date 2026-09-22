@@ -1598,21 +1598,83 @@ async function startEditor() {
   wireResizer(el("resize-right"), "x", "--panel-right", 220, 480, true);
   wireResizer(el("resize-bottom"), "y", "--dock-height", 120, 480, true);
   wireResizer(el("resize-dock"), "x", "--dock-left-width", 220, 640);
+  // tools/export_build.mjs bakes a scene straight into the exported HTML as
+  // this script tag -- its presence, not a URL flag, is what turns this same
+  // build into a player: no separate "player" bundle/entry point to keep in
+  // sync, just the editor's own existing DOM/render/simulation code with the
+  // editor-only chrome hidden by the .player-mode CSS class (style.css) and
+  // Play started automatically below instead of waiting for a click.
+  const exportedScene = document.getElementById("exported-scene")?.textContent;
   try {
-    const saved = localStorage.getItem("game-engine-editor:scene");
-    if (saved) doc.load(JSON.parse(saved));
-    else {
-      doc.execute({
-        command: "spawn_entity",
-        name: "First entity",
-        transform: [0, 0.5, 0],
-      });
-      doc.markSaved();
+    if (exportedScene) {
+      app.classList.add("player-mode");
+      doc.load(JSON.parse(exportedScene));
+      // Preload every catalog model this scene references before the first
+      // rebuild()/Play below. Without this, Play would start immediately
+      // against empty placeholder boxes -- and they'd stay boxes: the
+      // catalog-load callback inside rebuild() only rebuild()s again in Edit
+      // mode (mid-Play, that would reset every entity's simulated position/
+      // animation state back to its authored spawn, not just swap in the one
+      // placeholder that finished loading). A player build starts in Play
+      // immediately, so without preloading here that race is the norm, not
+      // an edge case.
+      const meshIds = new Set<number>();
+      for (const entity of doc.scene.eachAlive()) {
+        const mesh = doc.scene.resolve(entity, "Renderable")?.mesh;
+        if (mesh && mesh >= 1) meshIds.add(mesh);
+      }
+      await Promise.all(
+        [...meshIds].map((id) =>
+          loadCatalogModel(id)?.catch((error) =>
+            log(`Catalog model ${id} failed to load: ${String(error)}`),
+          ),
+        ),
+      );
+    } else {
+      const saved = localStorage.getItem("game-engine-editor:scene");
+      if (saved) doc.load(JSON.parse(saved));
+      else {
+        doc.execute({
+          command: "spawn_entity",
+          name: "First entity",
+          transform: [0, 0.5, 0],
+        });
+        doc.markSaved();
+      }
     }
   } catch (e) {
     log(String(e));
+    // The authoring console this normally surfaces in is itself part of the
+    // hidden chrome in player mode, so a broken exported scene would
+    // otherwise fail silently behind a blank viewport -- also put it where a
+    // player (or whoever they report the bug to) can actually find it.
+    if (exportedScene) console.error(e);
   }
   rebuild();
+  if (exportedScene) {
+    el<HTMLButtonElement>("play").click();
+    // That click() is script-triggered, not a real user gesture (verified:
+    // navigator.userActivation isn't set by it in a real browser -- an
+    // automation-driven one like Playwright's own default state already
+    // reads as activated regardless, which would otherwise hide this), so
+    // the AudioContext startSounds() just created inside it stays suspended
+    // -- silent -- until a genuine gesture resumes it. Player mode hides
+    // every button that would normally serve as that gesture, so the first
+    // real pointer/key input anywhere on the page (WASD, a click to look
+    // around -- whatever this particular scene expects) does it instead,
+    // once, with no visible prompt. A scene with truly no player
+    // interaction at all stays silent -- the one limitation browsers'
+    // autoplay policy leaves no way around short of an explicit "click to
+    // start" overlay, which player mode's own "just the game, no chrome"
+    // goal argues against adding for this round.
+    const resumeAudio = () => {
+      window.removeEventListener("pointerdown", resumeAudio);
+      window.removeEventListener("keydown", resumeAudio);
+      if (audioContext?.state === "suspended") void audioContext.resume();
+    };
+    window.addEventListener("pointerdown", resumeAudio);
+    window.addEventListener("keydown", resumeAudio);
+  }
   function frame(now: number) {
     const dt = Math.min((now - previous) / 1000, 5 / 60);
     previous = now;
