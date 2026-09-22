@@ -3059,6 +3059,29 @@ also re-selects whatever 3D object happens to sit behind it on screen.
 
 ### F43 verification
 
+- Post-push fix: two Codex findings on the PR, both reproduced against real
+  conditions before fixing. (1) A Button's label was drawn off-center for
+  every anchor except `"center"` itself: `hudCtx.textAlign`/`textBaseline`
+  were reset to `"center"`/`"middle"` *after* the `fillText()` call that
+  needed them, not before, so `fillText` still read the anchor's own
+  left/top-style alignment while being given the box's *center* point as
+  its draw position -- shifting the label toward the box's bottom-right.
+  Reproduced with a `top-left`-anchored Button and a pixel scan of the
+  rendered text's own horizontal extent versus the button box's: 0.5px off
+  center after the fix (previously visibly shifted, confirmed by the same
+  scan before it). Fixed by moving the alignment reset before the
+  `fillText` call. (2) Two overlapping Buttons (same anchor, or long labels
+  on a narrow viewport) hit-tested in paint order, so a click landed on
+  whichever was pushed into `uiButtonHits` *first* -- the visually
+  bottom/obscured one -- not the one actually drawn on top and visible to
+  the click. Reproduced with two same-anchor Buttons with different actions
+  (`quit` drawn first/underneath, `pause` drawn second/on top): clicking
+  landed on `quit`'s effect before the fix. Fixed by hit-testing
+  `uiButtonHits` in reverse (back-to-front, i.e. top-to-bottom visually),
+  re-verified the same reproduction now correctly triggers `pause` (the
+  visually-topmost button's own action). Re-ran `npm run typecheck`,
+  `npm test` (37/37), a fresh Emscripten/WASM build, and the full
+  `tests/browser/editor.cjs` black-box suite after both fixes -- all pass.
 - `npm run typecheck` and `npm test` (37/37, up from 36) pass. New test:
   `UI` attaches with sensible defaults, edits round-trip through save/load,
   `kind`/`anchor`/`visibleWhen`/`action` are each rejected with a clear

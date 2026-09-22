@@ -1603,7 +1603,12 @@ async function startEditor() {
     // below when it hits.
     const clickX = e.clientX - rect.left,
       clickY = e.clientY - rect.top;
-    for (const button of uiButtonHits) {
+    // Checked back-to-front (reverse of uiButtonHits' own paint order,
+    // drawHud()'s entity iteration order): two overlapping buttons paint the
+    // later entity's on top, so a click there must hit the one the user
+    // actually sees, not whichever happened to be pushed first.
+    for (let i = uiButtonHits.length - 1; i >= 0; i--) {
+      const button = uiButtonHits[i]!;
       if (
         clickX >= button.x &&
         clickX <= button.x + button.width &&
@@ -2011,9 +2016,15 @@ async function startEditor() {
         hudCtx.strokeStyle = "rgba(140, 190, 220, 0.6)";
         hudCtx.strokeRect(left + 0.5, top + 0.5, width - 1, height - 1);
         hudCtx.fillStyle = "#eaf6ff";
-        hudCtx.fillText(ui.text, left + width / 2, top + height / 2);
+        // Set before fillText, not after -- fillText reads textAlign/
+        // textBaseline at call time, and this draw point is already the
+        // box's own center, not the anchor-derived point every other
+        // anchor's align/baseline still describes at this point in the
+        // function; leaving them unchanged shifted the label toward
+        // bottom-right for every anchor except "center" itself.
         hudCtx.textAlign = "center";
         hudCtx.textBaseline = "middle";
+        hudCtx.fillText(ui.text, left + width / 2, top + height / 2);
         // Clickable only outside Edit mode -- see UIComponent's own doc
         // comment (Components.ts) for why authoring a scene must never be
         // able to accidentally trigger a Button's command.
