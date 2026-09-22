@@ -3250,6 +3250,54 @@ velocity write" rule already documented for a Script+AIState combination.
 
 ### F44 verification
 
+- Post-push fix: three Codex findings on the PR, all P2, all confirmed
+  real and fixed before merge (verified against real browser conditions,
+  not taken on faith).
+  - "Allow play when local storage is unavailable" — `seedSavedProgress()`
+    read `localStorage.length` unconditionally; in a context that denies
+    storage access (a sandboxed iframe without `allow-same-origin`, among
+    others) that throws a `SecurityError`, which propagated out of
+    `syncRuntime()` and back through the Play button's own `try`/`catch`
+    *before* it ever reached `doc.mode = "play"` — so Play could never
+    start at all, even for a game whose scripts never touch `save`.
+    Reproduced with a real page whose `localStorage` getter is patched to
+    throw: before the fix, `#play` never set `data-mode="play"`; fixed by
+    wrapping the whole scan in one `try`/`catch` (`localStorage.key`/
+    `.getItem` would throw the same way mid-scan, not just `.length`),
+    treating denied storage as an empty store — confirmed the same page
+    now reaches `data-mode="play"` with zero page errors.
+  - "Encode save namespace components before joining them" —
+    `saveKey()` joined `document.title` and a script's key with a raw,
+    unescaped `:`. Title `"Quest:Part"` with key `"score"` and title
+    `"Quest"` with key `"Part:score"` produced the *identical* joined
+    string, since `:` is valid in both `export_build.mjs`'s `--name` and
+    an ordinary Lua string — silently merging two unrelated exported
+    games' save data. Fixed by running both components through
+    `encodeURIComponent` (which always escapes `:`) before joining;
+    verified the two example title/key pairs above now produce distinct
+    keys, and added a permanent black-box check confirming the stored key
+    is the encoded form, not the raw concatenation.
+  - "Keep the render loop alive when persisting a save fails" —
+    `persistDirtySaves()` called `localStorage.setItem` with no
+    `try`/`catch`; a `QuotaExceededError` (or storage denial) would escape
+    `frame()` *before* its own trailing `requestAnimationFrame(frame)`
+    call, permanently freezing rendering and simulation over a single
+    failed save — and since `editor_take_dirty_saves()` had already
+    drained `Runtime`'s own pending set, the value would also be lost
+    outright, not just delayed. Reproduced with a real page whose
+    `Storage.prototype.setItem` is patched to always throw
+    `QuotaExceededError`: before the fix, the fixed-tick counter stopped
+    advancing entirely the moment a script's first `save.set` tried to
+    persist; fixed by catching per-key, and holding a failed key/value in
+    a small `failedSaveWrites` map retried on every later call until one
+    succeeds — verified the tick counter keeps climbing throughout a
+    sustained failure, and that clearing the failure (letting `setItem`
+    succeed again) lets the queued value land in `localStorage` on the
+    very next frame, with nothing lost.
+  Re-ran `npm run typecheck`/`npm test` (37/37) and the full
+  `tests/browser/editor.cjs` black-box suite (extended with the raw-vs-
+  encoded-key check above) after all three fixes — still pass, zero
+  regression.
 - Native unit tests (`tests/script_tests.cpp`, five new cases added to the
   existing 12): `save.set` from one entity's VM is visible to `save.get` in
   a completely separate entity's own VM; `save.get` on a never-set key

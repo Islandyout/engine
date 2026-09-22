@@ -880,8 +880,16 @@ async function startEditor() {
   // its own Play-mode testing always shares one namespace -- the same
   // single-instance-per-origin assumption CommandInterpreter.ts's own
   // LocalStorageSceneStore already makes for the document autosave.
+  //
+  // Both components go through encodeURIComponent, not raw string
+  // concatenation, so neither can ever contain the literal ":" this
+  // function's own format uses as a separator -- title "Quest:Part" with
+  // key "score" and title "Quest" with key "Part:score" would otherwise
+  // both produce the exact same joined key (and the prefix scan below
+  // would then import one game's data into the other's), since ":" is
+  // valid both in export_build.mjs's --name and in an ordinary Lua string.
   function saveKey(key: string): string {
-    return `game-engine-editor:save:${document.title}:${key}`;
+    return `game-engine-editor:save:${encodeURIComponent(document.title)}:${encodeURIComponent(key)}`;
   }
   // Restores every previously-persisted save key into the freshly committed
   // Runtime before any script's on_tick runs -- see
@@ -890,34 +898,66 @@ async function startEditor() {
   // save.get(). localStorage has no "list keys under this prefix" call, so
   // this walks every key in the whole store once -- fine, since it only
   // ever runs once per syncRuntime() (Play, or Stop-then-Play again), not
-  // per frame.
+  // per frame. Wrapped in one try/catch: a sandboxed iframe without
+  // allow-same-origin (or any other context denying storage access) throws
+  // a SecurityError on the very first property read, not just a specific
+  // call -- treated as an empty store (a script's save.get sees nil for
+  // everything, same as a real first-ever session) rather than a reason
+  // Play can never start, since syncRuntime()'s caller only sets
+  // doc.mode = "play" after this returns.
   function seedSavedProgress() {
     const prefix = saveKey("");
-    for (let i = 0; i < localStorage.length; i++) {
-      const fullKey = localStorage.key(i);
-      if (!fullKey || !fullKey.startsWith(prefix)) continue;
-      const value = localStorage.getItem(fullKey);
-      if (value !== null)
-        runtime.ccall(
-          "editor_seed_save",
-          null,
-          ["string", "string"],
-          [fullKey.slice(prefix.length), value],
-        );
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const fullKey = localStorage.key(i);
+        if (!fullKey || !fullKey.startsWith(prefix)) continue;
+        const value = localStorage.getItem(fullKey);
+        if (value !== null)
+          runtime.ccall(
+            "editor_seed_save",
+            null,
+            ["string", "string"],
+            [decodeURIComponent(fullKey.slice(prefix.length)), value],
+          );
+      }
+    } catch {
+      // Storage access denied -- see this function's own doc comment above.
     }
   }
+  // Save keys a previous persistDirtySaves() call failed to write (a full
+  // origin quota, or storage access denied) -- engine::script::Runtime has
+  // already forgotten these were ever dirty by the time that failure
+  // happens (take_dirty_saves() drains its own pending set unconditionally,
+  // whether or not the write that follows actually succeeds), so this is
+  // the only place left holding them. Retried on every later call until one
+  // succeeds; a newly-dirty write to the same key simply replaces the
+  // queued value, the same last-write-wins semantics set_saved itself uses.
+  const failedSaveWrites = new Map<string, string>();
   // Polls whatever a script's save.set has actually changed since the last
   // call (see editor_take_dirty_saves's own doc comment, bridge.cpp) and
   // writes each one to localStorage -- the one place this file touches
   // browser persistence for game save data, called once per rendered frame
   // from frame() below, not per fixed tick (a save doesn't need tick
   // granularity, and localStorage writes are comparatively expensive).
+  // setItem can throw (QuotaExceededError, or storage access denied);
+  // caught per key, not left to escape frame() before its own trailing
+  // requestAnimationFrame(frame) call, which would otherwise permanently
+  // freeze rendering and simulation over a single oversized or
+  // storage-denied save.
   function persistDirtySaves() {
     const count = runtime._editor_take_dirty_saves();
     for (let i = 0; i < count; i++) {
       const key = runtime.ccall("editor_dirty_save_key", "string", ["number"], [i]);
       const value = runtime.ccall("editor_dirty_save_value", "string", ["number"], [i]);
-      localStorage.setItem(saveKey(key), value);
+      failedSaveWrites.set(key, value);
+    }
+    for (const [key, value] of failedSaveWrites) {
+      try {
+        localStorage.setItem(saveKey(key), value);
+        failedSaveWrites.delete(key);
+      } catch {
+        // Still failing -- leave it queued for the next frame's retry.
+      }
     }
   }
   function syncRuntime() {

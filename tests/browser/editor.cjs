@@ -1075,10 +1075,26 @@ const { chromium } = require("playwright");
     await page.click("#stop");
     assert.equal(
       await page.evaluate(
-        () => localStorage.getItem(`game-engine-editor:save:${document.title}:progress`),
+        () =>
+          localStorage.getItem(
+            `game-engine-editor:save:${encodeURIComponent(document.title)}:${encodeURIComponent("progress")}`,
+          ),
       ),
       "level3",
-      "save.set persisted to localStorage (namespaced by document.title) once Stop tore the Runtime down",
+      "save.set persisted to localStorage (namespaced by document.title, URI-encoded to keep the namespace unambiguous) once Stop tore the Runtime down",
+    );
+    // The raw, unencoded form of that same key must not exist -- confirms
+    // encoding actually ran (title/key are joined with a literal ":", so an
+    // unencoded title or key containing one could otherwise collide with a
+    // different title/key pair that happens to join into the same string;
+    // this document's own title contains no ":", so this also doubles as a
+    // check that encoding didn't silently no-op).
+    assert.equal(
+      await page.evaluate(
+        () => localStorage.getItem(`game-engine-editor:save:${document.title}:progress`),
+      ),
+      null,
+      "the save key is stored URI-encoded, not as a raw, unescaped concatenation",
     );
     // Direction 2: localStorage -> save.get, seeded *before* any script of
     // this session has run. Plants a value directly (standing in for a
@@ -1097,7 +1113,10 @@ const { chromium } = require("playwright");
     // that ordering), so this entity's Script always has the final say
     // over its velocity despite also carrying an authored AIState.
     await page.evaluate(() => {
-      localStorage.setItem(`game-engine-editor:save:${document.title}:multiplier`, "1000");
+      localStorage.setItem(
+        `game-engine-editor:save:${encodeURIComponent(document.title)}:${encodeURIComponent("multiplier")}`,
+        "1000",
+      );
     });
     await page.getByLabel("Add component").selectOption("AIState");
     await page
