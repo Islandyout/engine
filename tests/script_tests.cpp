@@ -297,10 +297,119 @@ int main() {
             check(std::abs(velocity.x - 2) < 0.01F, "a rejected NaN falls back to the velocity from before this tick");
         }
 
+        {
+            // save.set(key, value) from one entity's script is visible to
+            // save.get(key) in another entity's own, fully separate VM --
+            // the save table is shared Runtime-wide, unlike self or a
+            // script's own globals (verified as isolated per-VM above).
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            const auto writer = world.create();
+            world.set(writer, Box{{0, 5, 0}, {1, 1, 1}});
+            world.set(writer, RigidBody{});
+            world.set(writer, Script{"function on_tick(dt) save.set('score', 42) end"});
+            const auto reader = world.create();
+            world.set(reader, Box{{0, 5, 0}, {1, 1, 1}});
+            world.set(reader, RigidBody{});
+            world.set(reader, Script{"function on_tick(dt) self.vx = tonumber(save.get('score')) or -1 end"});
+            Runtime runtime;
+            for (int i = 0; i < 2; ++i)
+                runtime.step(world, 1.0F / 60);
+            check(std::abs(world.get<RigidBody>(reader)->velocity.x - 42) < 0.01F,
+                  "save.set from one entity is visible to save.get from another");
+        }
+        {
+            // save.get on a key nothing has ever set/seeded returns nil, not
+            // an error -- the ordinary "first ever play session" case.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            const auto entity = world.create();
+            world.set(entity, Box{{0, 5, 0}, {1, 1, 1}});
+            world.set(entity, RigidBody{});
+            world.set(entity, Script{"function on_tick(dt) self.vx = save.get('never_set') == nil and 7 or -1 end"});
+            Runtime runtime;
+            runtime.step(world, 1.0F / 60);
+            check(std::abs(world.get<RigidBody>(entity)->velocity.x - 7) < 0.01F,
+                  "save.get on an unset key is nil, not an error");
+        }
+        {
+            // Runtime::seed_saved (the host's way of restoring a
+            // previously-persisted value, e.g. from localStorage, before any
+            // script runs) is visible to save.get exactly like a script's
+            // own save.set would have left it.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            const auto entity = world.create();
+            world.set(entity, Box{{0, 5, 0}, {1, 1, 1}});
+            world.set(entity, RigidBody{});
+            world.set(entity, Script{"function on_tick(dt) self.vx = tonumber(save.get('level')) or -1 end"});
+            Runtime runtime;
+            runtime.seed_saved("level", "3");
+            runtime.step(world, 1.0F / 60);
+            check(std::abs(world.get<RigidBody>(entity)->velocity.x - 3) < 0.01F,
+                  "seed_saved is visible to save.get before any script has run");
+        }
+        {
+            // take_dirty_saves() reports a key exactly once per actual
+            // change: a script that calls save.set with the same value every
+            // tick doesn't keep re-reporting it, and seed_saved (the host
+            // telling Runtime what it already knows) never appears in it at
+            // all -- only a genuinely new value from save.set does.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            const auto entity = world.create();
+            world.set(entity, Box{{0, 5, 0}, {1, 1, 1}});
+            world.set(entity, RigidBody{});
+            world.set(entity, Script{"function on_tick(dt) save.set('coins', 10) end"});
+            Runtime runtime;
+            runtime.seed_saved("level", "1");
+            for (int i = 0; i < 3; ++i)
+                runtime.step(world, 1.0F / 60);
+            auto dirty = runtime.take_dirty_saves();
+            check(dirty.size() == 1, "an unchanged repeated save.set is reported exactly once, seed_saved not at all");
+            check(dirty[0].first == "coins" && dirty[0].second == "10", "the reported key/value match what was saved");
+            check(runtime.take_dirty_saves().empty(), "take_dirty_saves clears the pending set once read");
+        }
+        {
+            // save.set/save.get keep working (and the store survives) across
+            // a script source change -- the save table lives on Runtime
+            // itself, not the per-Instance VM that changing Script.source
+            // recompiles from scratch.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            const auto entity = world.create();
+            world.set(entity, Box{{0, 5, 0}, {1, 1, 1}});
+            world.set(entity, RigidBody{});
+            world.set(entity, Script{"function on_tick(dt) save.set('lives', 9) end"});
+            Runtime runtime;
+            runtime.step(world, 1.0F / 60);
+            world.set(entity, Script{"function on_tick(dt) self.vx = tonumber(save.get('lives')) or -1 end"});
+            runtime.step(world, 1.0F / 60);
+            check(std::abs(world.get<RigidBody>(entity)->velocity.x - 9) < 0.01F,
+                  "a saved value survives a Script.source change (recompiled VM, same Runtime)");
+        }
+
         std::cout << "Script: velocity control, read-only self.x/y/z, no-op without on_tick, "
                      "compile/runtime error containment, non-string error() values, source-change "
                      "recompilation, os/io sandboxing, runaway-loop watchdog, cleanup on Script removal, "
-                     "per-entity VM isolation, and non-finite velocity rejection passed.\n";
+                     "per-entity VM isolation, non-finite velocity rejection, and save/load persistence "
+                     "(cross-VM sharing, unset keys, host seeding, dirty-tracking, surviving a source "
+                     "change) passed.\n";
     } catch (const std::exception &e) {
         std::cerr << "script test failed: " << e.what() << "\n";
         return 1;
