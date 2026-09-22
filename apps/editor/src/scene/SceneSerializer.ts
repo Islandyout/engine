@@ -5,7 +5,19 @@ import {
   type PrefabableComponent,
   type SceneComponents,
 } from "./Scene";
-import type { AIStateName, ParticlePreset } from "./Components";
+import type { AIStateName, ParticlePreset, UIAnchor } from "./Components";
+
+const uiAnchors: readonly UIAnchor[] = [
+  "top-left",
+  "top-center",
+  "top-right",
+  "middle-left",
+  "center",
+  "middle-right",
+  "bottom-left",
+  "bottom-center",
+  "bottom-right",
+];
 
 export interface SceneDocument {
   format: 1;
@@ -188,6 +200,7 @@ const componentNames = [
   "Renderable",
   "Light",
   "Particles",
+  "UI",
   "Name",
   "Parent",
   "Script",
@@ -333,6 +346,32 @@ export function normalizeComponent(
         lifetime: positiveNumber(value.lifetime, "Particles.lifetime"),
         speed: nonNegativeNumber(value.speed, "Particles.speed"),
         size: positiveNumber(value.size, "Particles.size"),
+      };
+    }
+    case "UI": {
+      const kind = value.kind;
+      if (kind !== "Text" && kind !== "Button")
+        throw new Error("UI.kind must be Text or Button.");
+      const anchor = value.anchor;
+      if (typeof anchor !== "string" || !uiAnchors.includes(anchor as UIAnchor))
+        throw new Error(`UI.anchor must be one of ${uiAnchors.join(", ")}.`);
+      const visibleWhen = value.visibleWhen;
+      if (visibleWhen !== "always" && visibleWhen !== "play" && visibleWhen !== "pause")
+        throw new Error("UI.visibleWhen must be always, play, or pause.");
+      const action = value.action;
+      if (
+        action !== "restart" &&
+        action !== "resume" &&
+        action !== "pause" &&
+        action !== "quit"
+      )
+        throw new Error("UI.action must be restart, resume, pause, or quit.");
+      return {
+        kind,
+        text: string(value.text, "UI.text"),
+        anchor: anchor as UIAnchor,
+        visibleWhen,
+        action,
       };
     }
     case "Name":

@@ -629,3 +629,95 @@ test("Particles attaches with sensible defaults, edits round-trip through save/l
     "a shared Particles rate change reaches every instance live",
   );
 });
+
+test("UI attaches with sensible defaults, edits round-trip through save/load, kind/anchor/visibleWhen/action are validated, and UI is prefab-shared", () => {
+  const d = new EditorDocument();
+  const entity = d.execute({ command: "spawn_entity", name: "Score Label" }).entity!;
+  assert.equal(d.execute({ command: "attach_component", entity, type: "UI" }).ok, true);
+  const attached = d.scene.get(entity, "UI");
+  assert.equal(attached?.kind, "Text");
+  assert.equal(attached?.anchor, "top-left");
+  assert.equal(attached?.visibleWhen, "always");
+
+  assert.equal(
+    d.execute({
+      command: "set_component",
+      entity,
+      type: "UI",
+      value: {
+        kind: "Button",
+        text: "Restart",
+        anchor: "center",
+        visibleWhen: "pause",
+        action: "restart",
+      },
+    }).ok,
+    true,
+  );
+  assert.equal(d.execute({ command: "save_scene", path: "ui-test" }).ok, true);
+  d.execute({ command: "destroy_entity", entity });
+  assert.equal(d.execute({ command: "load_scene", path: "ui-test" }).ok, true);
+  const [[reloaded]] = d.scene.query("UI");
+  assert.equal(d.scene.get(reloaded, "UI")?.kind, "Button");
+  assert.equal(d.scene.get(reloaded, "UI")?.anchor, "center");
+  assert.equal(d.scene.get(reloaded, "UI")?.visibleWhen, "pause");
+  assert.equal(d.scene.get(reloaded, "UI")?.action, "restart");
+
+  const base = {
+    kind: "Text",
+    text: "Text",
+    anchor: "top-left",
+    visibleWhen: "always",
+    action: "restart",
+  };
+  assert.throws(
+    () =>
+      d.load({ format: 1, entities: [{ components: { UI: { ...base, kind: "Label" } } }] }),
+    /Text or Button/,
+  );
+  assert.throws(
+    () =>
+      d.load({
+        format: 1,
+        entities: [{ components: { UI: { ...base, anchor: "top-middle" } } }],
+      }),
+    /UI\.anchor must be one of/,
+  );
+  assert.throws(
+    () =>
+      d.load({
+        format: 1,
+        entities: [{ components: { UI: { ...base, visibleWhen: "sometimes" } } }],
+      }),
+    /always, play, or pause/,
+  );
+  assert.throws(
+    () =>
+      d.load({
+        format: 1,
+        entities: [{ components: { UI: { ...base, action: "explode" } } }],
+      }),
+    /restart, resume, pause, or quit/,
+  );
+
+  // UI is a prefab-shared component like Renderable/Sound/Light/Particles --
+  // editing one instance's text updates every instance live.
+  const source = d.execute({ command: "spawn_entity", name: "Title" }).entity!;
+  d.execute({ command: "attach_component", entity: source, type: "UI" });
+  d.execute({ command: "create_prefab", entity: source, name: "Title" });
+  const other = d.execute({ command: "place_instance", prefab: "Title" }).entity!;
+  assert.equal(
+    d.execute({
+      command: "set_component",
+      entity: source,
+      type: "UI",
+      value: { ...base, text: "Game Over" },
+    }).ok,
+    true,
+  );
+  assert.equal(
+    d.scene.resolve(other, "UI")?.text,
+    "Game Over",
+    "a shared UI text change reaches every instance live",
+  );
+});

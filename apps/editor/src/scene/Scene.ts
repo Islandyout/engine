@@ -19,6 +19,7 @@ import type {
   ScriptComponent,
   SoundComponent,
   TransformComponent,
+  UIComponent,
   Vec3,
   VehicleComponent,
   VelocityComponent,
@@ -43,6 +44,7 @@ export interface SceneComponents {
   Renderable: RenderableComponent;
   Light: LightComponent;
   Particles: ParticlesComponent;
+  UI: UIComponent;
   Name: NameComponent;
   Parent: ParentComponent;
   Script: ScriptComponent;
@@ -70,6 +72,7 @@ export const prefabableComponentNames = [
   "Renderable",
   "Light",
   "Particles",
+  "UI",
   "Script",
   "Sound",
 ] as const satisfies readonly (keyof SceneComponents)[];
@@ -126,6 +129,7 @@ export class Scene {
     Renderable: new Map(),
     Light: new Map(),
     Particles: new Map(),
+    UI: new Map(),
     Name: new Map(),
     Parent: new Map(),
     Script: new Map(),

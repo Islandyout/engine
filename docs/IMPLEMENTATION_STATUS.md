@@ -2994,3 +2994,110 @@ within ~1.5s of load, no console errors.
   not a full distribution/hosting story); a native distributable build (see
   the scoping discussion above -- would need a real native renderer this
   project doesn't have).
+
+## F43 — UI/menu system: authorable screen-space UI (Tier 3 roadmap item, 0.43.0)
+
+Lands the "UI/menu system" roadmap item, scoped by asking the user first (two
+real options: an authorable in-game UI component, or a narrower fixed
+pause/main-menu pair) -- authorable UI, since it lets a scene author build
+either a HUD or a menu out of the same primitive rather than this project
+shipping one fixed, non-authorable menu design.
+
+A new `UI` component: `kind` (`Text` or `Button`), `text`, `anchor` (nine
+screen-space presets -- every combination of top/middle/bottom x
+left/center/right, e.g. `top-left`, `center`), `visibleWhen` (`always`,
+`play`, or `pause`), and `action` (Button only; see below). Rendered on the
+existing 2D HUD canvas (`main.ts`'s `drawHud()`, previously Health bars
+only) at a fixed screen position -- unlike a Health bar, never projected
+from the entity's own 3D Transform, since a HUD/menu element has no
+meaningful world position. An entity carrying `UI` still gets the usual
+placeholder box in the 3D viewport, the same as any other component
+combination with no inherent 3D appearance (a Script-only or Sound-only
+entity already works this way); author `Renderable.visible: false` on it if
+that's unwanted, rather than this component special-casing it.
+
+### A real design flaw found and fixed by actually testing a click, not just rendering
+
+The first design had `Button` carry a free-form `command: string`, a JSON
+command executed through the exact same `doc.execute()` path the Authoring
+Console's own text box already exposes -- reusing existing infrastructure
+instead of inventing a new action vocabulary, and it rendered and hit-tested
+correctly in every check. But a real end-to-end test (spawn a Button, enter
+Play, click it, check whether its command's effect actually happened) kept
+failing, and tracing it down turned up something the design had missed
+entirely: `EditorDocument.execute()` (`apps/editor/src/editor/Document.ts`)
+unconditionally rejects *every* command while `doc.mode` isn't `"edit"` --
+protecting the native runtime/`objects[]`/`animStates[]`'s own per-entity
+indexing from a scene mutation arriving mid-Play, the same hazard F42's own
+post-push fix (the catalog-model preload race) ran into. Since a Button is
+only ever clickable in Play/Pause (never Edit, so authoring a scene can
+never accidentally trigger one), the free-form command design meant a
+Button's command could *never* actually do anything -- 100% of the time,
+not an edge case. This was caught by testing the actual click-through
+effect, not by reading the code or checking that the command was stored and
+retrievable, which is exactly why the first, wrong design still passed
+every check up to that point.
+
+Redesigned `action` as a small, fixed vocabulary instead --
+`"restart" | "resume" | "pause" | "quit"` -- each one implemented by
+clicking the real, already-correct Play/Pause/Stop transport button that
+already does it (`el("play").click()`, etc.) rather than going through
+`doc.execute()` at all, exactly the same way those buttons themselves
+already take the document through a mode transition. `restart` is the one
+action with no existing single button for it, so it chains Stop (which
+`rebuild()`s every entity back to its authored state) immediately followed
+by Play. This is a narrower vocabulary than the original free-form design,
+deliberately: a HUD/pause-menu Button's realistic job -- restart, resume,
+pause, quit-to-edit -- is exactly these four actions, and none of them were
+ever reachable through the design this replaced.
+
+Click handling: `drawHud()` also populates a `uiButtonHits` array (screen
+rects + actions) for every currently-visible Button each frame it draws one;
+the existing viewport `pointerdown` handler (previously just 3D
+entity-selection raycasting) checks it first, so clicking a Button never
+also re-selects whatever 3D object happens to sit behind it on screen.
+
+### F43 verification
+
+- `npm run typecheck` and `npm test` (37/37, up from 36) pass. New test:
+  `UI` attaches with sensible defaults, edits round-trip through save/load,
+  `kind`/`anchor`/`visibleWhen`/`action` are each rejected with a clear
+  message naming the field on an invalid value, and `UI` is confirmed
+  prefab-shared (editing one instance's text updates every instance live) --
+  the same coverage shape every other component's own test already
+  establishes.
+- Verified rendering and interaction against the real running editor with
+  real Playwright, not just DOM/authoring-level checks: a `Text` element
+  with `visibleWhen: "always"` actually paints non-transparent pixels on the
+  HUD canvas in Edit mode; a `visibleWhen: "pause"` element paints only
+  while paused, not otherwise; a `Button`'s rendered position (measured via
+  its own computed rect) matches where a real mouse click needs to land to
+  hit it -- caught, and fixed as described above, the free-form `command`
+  design's total non-functionality this way, not by inspection.
+- Verified all four `action`s against the real editor end-to-end, each via
+  an actual rendered Button clicked at real screen coordinates, not by
+  calling `runUIAction()` directly: `pause` (Play -> click -> `doc.mode`
+  reaches `"pause"`), `resume` (Paused -> click -> back to `"play"`),
+  `quit` (Paused -> click -> back to `"edit"`), and `restart` (Paused ->
+  click -> `doc.mode` returns to `"play"` *and* the fixed-tick counter
+  measurably resets to a small number instead of continuing to climb,
+  confirming a genuinely fresh Play session started, not just a mode-label
+  change).
+- Built the real Emscripten/WASM editor and ran the full existing
+  `tests/browser/editor.cjs` black-box suite, extended with a new case:
+  `UI` appears in its own "UI" Add-component group, its `kind` dropdown
+  offers exactly Text/Button with the documented default, edited
+  anchor/visibleWhen/action values survive a fresh inspector render, and --
+  the one interaction test folded into the permanent suite, not just the ad
+  hoc verification above -- a `pause`-action Button placed at `center` and
+  clicked for real during Play actually pauses the document. Passed end to
+  end.
+- Not done here: dynamic/bound text (a live score or timer -- `UI.text` is
+  static, authored content; showing a changing value needs either a
+  template-binding mechanism or driving `UI.text` from a Script, neither of
+  which this round adds); image/icon UI elements (Text and Button cover a
+  menu's real needs; an image would need its own asset-loading path
+  separate from the 3D model catalog); nine-anchor coverage was chosen over
+  free-form pixel offsets for the same "presets over a new coordinate system
+  to learn" reasoning `Light`/`Particles` already established for their own
+  enums.

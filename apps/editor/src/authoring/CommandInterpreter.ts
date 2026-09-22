@@ -68,6 +68,7 @@ const componentNames = [
   "Renderable",
   "Light",
   "Particles",
+  "UI",
   "Name",
   "Parent",
   "Script",
@@ -573,6 +574,10 @@ export function defaultComponent(
       // omnidirectional burst doesn't need the gravity/rise tuning Smoke/
       // Fire/Confetti each want to read correctly (see main.ts's preset table).
       return { preset: "Sparkle", color: { x: 1, y: 0.9, z: 0.6 }, rate: 20, lifetime: 1.2, speed: 1.5, size: 0.12 };
+    case "UI":
+      // A visible-immediately Text label, not a Button -- reads as
+      // placeholder content to edit, the more inviting default of the two.
+      return { kind: "Text", text: "Text", anchor: "top-left", visibleWhen: "always", action: "restart" };
     case "Name":
       return { value: "Entity" };
     case "Script":
