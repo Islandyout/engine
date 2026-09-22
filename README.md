@@ -70,6 +70,8 @@ Engine version 0.39.0 adds a real `Light` component (Point/Spot/Directional, col
 
 Engine version 0.40.0 adds a real `Particles` component (Sparkle/Smoke/Fire/Confetti presets, color, emission rate, lifetime, speed, size) — any entity can now carry a lightweight `THREE.Points` emitter, simulated every frame in both Edit and Play mode. Purely presentational like `Light` before it, so this needed zero native `bridge.cpp` changes either. Particles live under the same always-visible `anchor` group F39's own post-push fix introduced, so a Particles emitter's visibility is independent of `Renderable.visible` from day one. See [F40](docs/IMPLEMENTATION_STATUS.md#f40--particles-tier-2-roadmap-item-0400).
 
+Engine version 0.41.0 adds `tools/import_model.mjs`, a reusable CLI that replaces the one-off script every prior model import (the Aether kit, Quaternius packs, F37/F38's Mixamo import) hand-rolled from scratch. Point it at a local `.glb`/`.fbx`, give it a category and display name, and it validates the file, copies/re-exports it into `assets/source/kit/`, inserts a new `modelCatalog.ts` entry (auto-detecting `animated` from the file's own `AnimationClip`s), and prints an `assets/CREDITS.md` draft with the mechanical facts already filled in — it deliberately doesn't write the provenance/license claim itself, or automate combining multiple source files onto one mesh/skeleton (still a bespoke script, same as the Mixamo/Quaternius merges). See [F41](docs/IMPLEMENTATION_STATUS.md#f41--asset-import-a-reusable-cli-tier-2-roadmap-item-0410).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

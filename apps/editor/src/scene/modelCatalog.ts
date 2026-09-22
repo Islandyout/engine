@@ -9,6 +9,15 @@ export interface CatalogEntry {
   animated?: boolean;
 }
 
+// Ids that once belonged to a catalog entry since removed -- never reused
+// (see the 119-131 comment below for why), and checked by
+// tools/import_model.mjs so a new import can't accidentally resurrect one.
+// A structural record of that rule, not just the prose comment, so both this
+// file's own history and any tool reading it agree on what's retired.
+export const retiredCatalogIds: readonly number[] = [
+  119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131,
+];
+
 export const modelCatalog: CatalogEntry[] = [
   { id: 2, category: "buildings", name: "Apartment 1", path: "./kit/buildings/apartment-1.glb" },
   { id: 3, category: "buildings", name: "Apartment 2", path: "./kit/buildings/apartment-2.glb" },

@@ -2701,3 +2701,128 @@ Design notes on the simulation itself:
   action neither exists for any other component; collision/gravity against
   Colliders -- particles are purely decorative, matching this round's own
   "lightweight, non-collidable" scope, not a native/bridge feature.
+
+## F41 — Asset import, a reusable CLI (Tier 2 roadmap item, 0.41.0)
+
+Every model import into this project before this round -- the 131-entry Aether
+kit, the Quaternius animals/mannequin packs, F37/F38's Mixamo import -- hand-rolled
+its own one-off script to do the same mechanical steps: load the file, sanity-check
+it, copy it into `assets/source/kit/`, and hand-edit `modelCatalog.ts`
+(`tools/import_quaternius_*.py`; the Mixamo round's own build script was never even
+committed, a scratch file). `tools/import_model.mjs` is that common case done once,
+reusable: point it at a local self-contained `.glb` or `.fbx`, give it a category
+and display name, and it validates the file, copies/re-exports it into place,
+inserts a new `modelCatalog.ts` entry (auto-detecting `animated` from whether the
+file actually has `AnimationClip`s, rather than trusting a hand-typed flag), and
+prints a `assets/CREDITS.md` draft with the mechanical facts (hash, path, computed
+native size) already filled in.
+
+Two things it deliberately does *not* do, both flagged in its own header comment
+rather than silently out of scope:
+- Combining multiple source files onto one mesh/skeleton -- the Mixamo three-clip
+  merge, the Quaternius mesh-plus-shared-animation-library merge
+  `tools/import_quaternius_mannequin.py` did -- stays a bespoke, one-off script.
+  That kind of merge needs source-specific judgment (which bones actually match by
+  name/order, whether root motion needs stripping) a generic tool can't safely
+  guess at; F38's own abandoned Rokoko retarget attempt is the cautionary example
+  of what guessing at bone correspondence produces.
+- Writing `assets/CREDITS.md` itself. A provenance/license claim needs a human (or
+  an agent acting on the user's behalf) to actually read and vouch for the source,
+  not a script asserting it -- the tool prints a draft with only the facts it can
+  verify mechanically (a computed hash, the detected `animated` flag, the resolved
+  path) and leaves the actual source/license sentence as a blank to fill in.
+
+Implementation notes:
+- Reuses exactly the loader/exporter pattern this session's own ad hoc Mixamo
+  import script used (`FBXLoader.parse` on a Node `ArrayBuffer`, `GLTFLoader.parse`
+  for `.glb`, `GLTFExporter` with a minimal `FileReader` polyfill for FBX's binary
+  re-export path -- Node has no native `FileReader`), now committed and reusable
+  instead of rewritten from scratch per import.
+- A `.glb` input is copied byte-for-byte to its destination, not re-encoded through
+  the exporter -- preserves an exact-copy, hash-verifiable provenance claim
+  wherever the source is already self-contained, matching every existing
+  exact-copy row in `assets/CREDITS.md`. Only `.fbx` (which the catalog never
+  loads directly) goes through `GLTFExporter`.
+- A loose `.gltf` (separate `.bin`/texture files, not a single binary blob) is
+  explicitly rejected with a clear message rather than silently mishandled --
+  every asset this project has ever imported has been a self-contained `.glb` or
+  `.fbx`, so resolving a `.gltf`'s external references was left out rather than
+  built and left untested.
+- New `modelCatalog.ts` entries are inserted right after the *last* existing entry
+  sharing the same category, not resorted into alphabetical position -- the file's
+  own category blocks already aren't fully contiguous (e.g. `people` ids 132 and
+  137 are separated by `animals` entries added in between), so matching that
+  established, simpler convention was preferred over reordering the file.
+- Ids are never reused, `--id` defaults to one past the current highest id, and
+  `--dry-run` performs every step (load, validate, hash, compute the catalog diff)
+  without writing `assets/source/**` or `modelCatalog.ts`, so a real run can be
+  previewed first.
+
+### F41 verification
+
+- Post-push fix: three Codex findings on the PR, all reproduced against real
+  conditions before fixing, not taken on faith. (1) Any model referencing an
+  image texture failed deep inside three.js's loaders with a confusing
+  `ReferenceError: self is not defined` (`document`/`Image`/`createImageBitmap`
+  don't exist in plain Node, and this tool only polyfills `FileReader`) --
+  reproduced by hand-constructing a minimal textured `.glb` (a 1x1 PNG as a
+  glTF data-URI image) and running it through the actual tool, which confirmed
+  the exact crash. Checked first whether this was even reachable: every asset
+  in this catalog today is genuinely textureless (checked each bundled `.glb`'s
+  own glTF JSON chunk for a non-empty `images` array -- none), so real Node
+  image decoding was deliberately not added (a new dependency for a case
+  nothing here has ever needed); instead a textured `.glb` is now detected
+  up front by peeking its JSON chunk before running the full loader, and any
+  other browser-only-global failure (covers `.fbx`, which has no equivalent
+  cheap peek) is caught and re-raised as the same clear message. (2) An
+  explicit `--id` in the 119-131 gap (ids retired in F37, below the current
+  active maximum so the auto-picked default was never at risk) was silently
+  accepted, since `existingIds()` only scans currently-declared entries --
+  reproduced with `--id 125`. Fixed structurally rather than by parsing prose:
+  added `modelCatalog.ts`'s own `retiredCatalogIds` export (a code-level record
+  of the same invariant the file's existing comment already states in prose),
+  which the tool now also checks. (3) `--category "../../etc"` (or similar)
+  would have `path.join` normalize straight through the intended
+  `assets/source/kit/` directory, and `tools/build_editor.sh` only ever copies
+  that one directory into the deployed site, so a milder escape would silently
+  404 at runtime rather than fail loudly at import time -- fixed by validating
+  `--category` is a single lowercase, path-safe segment (matching every
+  existing category name) before it's ever used in a path. Re-ran every check
+  from the first verification pass below plus the three new ones (a
+  hand-crafted textured `.glb`, `--id 125`, and two traversal-shaped
+  `--category` values) -- all now rejected with a clear, specific error; the
+  previously-passing paths (byte-identical `.glb` copy, `.fbx` re-export and
+  reload, all four original rejection cases) still pass unchanged. `modelCatalog.ts`
+  changed this round (the new `retiredCatalogIds` export), so `npm run
+  typecheck`/`npm test` were re-run for real reasons this time (36/36 pass),
+  not just as a formality.
+- Otherwise a standalone CLI tool under `tools/`, same category as the
+  pre-existing `tools/import_quaternius_*.py`/`tools/cook_static_mesh.py` --
+  the real Emscripten/WASM build and `tests/browser/editor.cjs` black-box
+  suite weren't run this round, zero coverage benefit for the browser-facing
+  surface neither this round nor its post-push fix touch (the one
+  `apps/editor` change, `retiredCatalogIds`, is covered by `npm test` above).
+- Exercised every path against real files, not just read for plausibility:
+  imported an existing bundled asset (`kit/nature/rock-small.glb`) as a throwaway
+  test entry, first with `--dry-run` (confirmed the printed hash matches an
+  independent `sha256sum` of the same file exactly) then for real, and confirmed
+  by `diff` that the written copy is byte-identical to the source and by `git
+  diff` that the new `modelCatalog.ts` line landed exactly where intended (end of
+  the `nature` block, before `roads` begins). Reverted both (removed the test
+  file, `git checkout --` the catalog) before committing the tool itself.
+- Exercised the `.fbx` path the same way with one of F38's own source files
+  (`Punching.fbx`): confirmed `animated` correctly auto-detects true from its one
+  `AnimationClip`, and — since a `.fbx` re-export is exactly the kind of step that
+  can silently corrupt a rig — reloaded the *written* `.glb` back through a fresh
+  `GLTFLoader` in a separate check and confirmed it still parses, still carries
+  its one animation clip, and its `SkinnedMesh` still has all 46 bones, rather
+  than trusting that "the exporter didn't throw" meant the output was correct.
+- Exercised every rejection path against real conditions, not just read for
+  plausibility: a duplicate `--id`, a destination file that already exists
+  (without `--force`), a nonexistent input path, and an unsupported extension
+  (`.md`) each produced the intended clear, specific error and a non-zero exit
+  code.
+- Not done here: wiring this tool into `tools/build_editor.sh` or CI -- it's a
+  manually-run authoring step (a human decides what to import and supplies the
+  category/name), the same category as every pre-existing `tools/*.py` script,
+  none of which are build-step-wired either.
