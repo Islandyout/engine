@@ -2826,3 +2826,118 @@ Implementation notes:
   manually-run authoring step (a human decides what to import and supplies the
   category/name), the same category as every pre-existing `tools/*.py` script,
   none of which are build-step-wired either.
+
+## F42 — Export/packaging, a standalone player build (Tier 2 roadmap item, 0.42.0)
+
+Lands the "Export/packaging" roadmap item, scoped deliberately: this project's
+real visual gameplay (models, lighting, particles, sound) exists only in the
+browser build -- `apps/native_playground` renders scenes as flat colored boxes
+plus one hardcoded debug mesh (`engine::BoxView`), a simulation-correctness
+proof, not a real visual renderer -- so a native standalone executable with
+real graphics would mean writing a native glTF loader and 3D renderer from
+scratch, well outside one round's reasonable scope. Asked the user to confirm
+before committing to either direction; the answer was a standalone *web*
+player build, reusing the browser rendering/simulation pipeline this project
+has already built and verified across F30-F41 rather than building a new one.
+
+`tools/export_build.mjs <scene.json>` packages one authored scene into a
+shareable, self-contained folder: a copy of the already-built editor
+(`build/site/`, from `npm run build`/`tools/build_editor.sh`) with the scene
+baked in and started automatically, every editor-only affordance hidden.
+Critically, this is *not* a separate player codebase to keep in sync with the
+editor -- it's the exact same `main.ts`/`style.css`/`runtime.js` build, with:
+
+- A new `.player-mode` CSS class (`style.css`) that hides the title bar,
+  New/Save/Open/Undo/Redo/transport toolbar, hierarchy/inspector panels, the
+  Project/Console dock, the viewport's own Move/Rotate/Scale/Snap/Grid
+  toolbar, and the mode status bar -- pure CSS, not a different DOM tree, so
+  every element `main.ts` already builds and wires (`el()` lookups, event
+  listeners) keeps working exactly as before, just invisible. Only the
+  full-bleed 3D viewport remains.
+- `main.ts`'s existing scene-bootstrap block (previously: load from
+  localStorage, or spawn a default "First entity") gains a third source: a
+  scene baked into the page as `<script type="application/json"
+  id="exported-scene">`. Its presence, not a URL flag or build-time branch,
+  is what turns a given build into a player -- checked once at startup, not
+  threaded through the rest of the file.
+- Play is started programmatically (`el("play").click()`) right after that
+  bootstrap instead of waiting for a click, so the exported page is already
+  playing the moment it's visually ready.
+
+`export_build.mjs` itself: validates the scene JSON parses, copies
+`build/site/` into `build/export/<name>/` (or `--out`), rewrites the copy's
+`index.html` script/stylesheet references from vite's own absolute
+`/engine/assets/...` (correct for where *this project's* editor is deployed,
+meaningless for a folder meant to be hosted anywhere or shared standalone) to
+relative `./assets/...`, sets `<title>` from `--name` or the input filename,
+and injects the scene JSON verbatim before `</body>`. Every bundled kit/audio
+asset is copied wholesale rather than trimmed to what the scene actually
+references -- simpler and safer than cross-referencing `Renderable.mesh`/
+`Sound.clip` ids against the catalogs, at the cost of a larger export than a
+single small scene strictly needs.
+
+### A real bug this round found and fixed, not just exercised
+
+Testing the exported player against `examples/demo-game.json` in a real
+Playwright browser (not just reading the code for plausibility) surfaced a
+genuine pre-existing race, not something the export machinery introduced:
+`rebuild()`'s catalog-model-finished-loading callback only calls `rebuild()`
+again if `doc.mode === "edit"` -- mid-Play, rebuilding would reset every
+entity's simulated position/animation state back to its authored spawn
+transform, not just swap in the one placeholder mesh that finished loading,
+so that guard is correct, not a bug itself. But a player build starts Play
+*immediately*, before any catalog `.glb` fetch has had time to resolve --
+making the exact race that guard was never meant to handle the *normal*
+case, not a rare one: every catalog-modeled entity rendered as its box
+placeholder forever, permanently stuck, confirmed by screenshot (a demo
+scene's car and mannequin both showing as plain boxes indefinitely, well
+after their `.glb` fetches had actually completed over the network).
+
+Fixed by preloading: the exported-scene bootstrap now collects every
+`Renderable.mesh` id the loaded scene references and `await`s
+`loadCatalogModel()` for each (already memoized/dedup'd by mesh id, reused
+as-is) *before* the first `rebuild()`/auto-Play, so every model is already
+cached by the time Play starts and needs no mid-Play swap at all. Re-verified
+against the same real Playwright check: the car and mannequin both now
+render as their actual models (the mannequin mid-animation, not a T-pose)
+within ~1.5s of load, no console errors.
+
+### F42 verification
+
+- Built the real editor (`tools/build_editor.sh`) and exported
+  `examples/demo-game.json` (an 11-entity scene: a drivable vehicle, AI-driven
+  pedestrians/drones, colliders, catalog buildings) with the actual CLI, not
+  a synthetic fixture.
+- Verified the exported `index.html` directly: asset references rewritten to
+  `./assets/...` (confirmed nothing else in the built JS bundle references
+  the old `/engine/` base path, so nothing else needed rewriting), `<title>`
+  set, the scene embedded as literal, byte-for-byte JSON text.
+- Served the export over a real local HTTP server (fetch() is blocked from
+  `file://` origins, so this isn't optional for a meaningful check) and drove
+  it with real Playwright, not just reading the code: confirmed
+  `#app` carries `.player-mode`, `header`/`nav`/`.dock`/`footer`/
+  `.viewport-toolbar` all compute `display: none`, the status bar reaches
+  `data-mode="play"` on its own with no click, and (catching the real bug
+  above) that the car/mannequin actually render as their real models, not
+  boxes, after the preload fix -- zero console errors (the one 404 seen was
+  the browser's own automatic `/favicon.ico` request, not anything this
+  build serves or is expected to).
+- Confirmed zero regression to the ordinary (non-exported) editor: the full
+  existing `tests/browser/editor.cjs` black-box suite passes unchanged (same
+  bootstrap code path, `exportedScene` simply absent), and `npm run
+  typecheck`/`npm test` (36/36) pass.
+- Exercised `export_build.mjs`'s rejection paths against real conditions: a
+  missing scene file, invalid JSON, an existing output directory without
+  `--force`, and a missing `build/site/` (editor not built yet) each produced
+  a clear, specific error and non-zero exit; `--force`, `--name`, and `--out`
+  each verified to do exactly what they claim.
+- Not done here: trimming the export to only the scene's referenced assets
+  (see above); a loading-progress indicator during the preload pause (the
+  hidden status bar that would normally show this is part of the hidden
+  chrome -- acceptable for this round, a multi-second pause on a slow
+  connection before Play visibly starts is a rougher edge than a broken
+  render, not one); packaging as a downloadable `.zip` rather than a folder
+  (the printed `npx serve` hint is the minimum viable "now go host this,"
+  not a full distribution/hosting story); a native distributable build (see
+  the scoping discussion above -- would need a real native renderer this
+  project doesn't have).

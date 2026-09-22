@@ -698,3 +698,29 @@ input[readonly] {
   opacity: 0.6;
   cursor: default;
 }
+/* An exported player build (tools/export_build.mjs) sets this on #app --
+   every editor-only affordance (title bar, New/Save/Open/Undo/Redo/transport
+   buttons, hierarchy/inspector panels, the Project/Console dock, the mode
+   status bar) hidden, leaving just the viewport full-bleed. Pure CSS, not a
+   separate DOM/bundle: the exact same elements main.ts already builds and
+   wires stay in the document and keep working (el() lookups, event
+   listeners), just invisible. */
+#app.player-mode {
+  grid-template-rows: 1fr;
+}
+#app.player-mode > header,
+#app.player-mode > nav,
+#app.player-mode > .resizer-h,
+#app.player-mode > .dock,
+#app.player-mode > footer {
+  display: none;
+}
+#app.player-mode #workspace {
+  grid-template-columns: 1fr;
+}
+#app.player-mode .resizer-v,
+#app.player-mode #panel-hierarchy,
+#app.player-mode #panel-inspector,
+#app.player-mode .viewport-toolbar {
+  display: none;
+}
