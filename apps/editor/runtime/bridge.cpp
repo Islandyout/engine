@@ -634,6 +634,14 @@ struct Runtime {
 std::unique_ptr<Runtime> active = std::make_unique<Runtime>();
 std::unique_ptr<Runtime> staging;
 bool failed{};
+// Snapshot taken by editor_take_dirty_saves() and read by
+// editor_dirty_save_key/editor_dirty_save_value until the next take call
+// replaces it. A snapshot, not a live view, because
+// engine::script::Runtime::take_dirty_saves() itself drains the pending set
+// it reads from -- calling it more than once per frame would silently lose
+// whichever keys the first call already took, so JS must call the count
+// function exactly once per poll and then index into what it returned.
+std::vector<std::pair<std::string, std::string>> pending_dirty_saves;
 } // namespace
 extern "C" {
 EXPORT void editor_begin() {
@@ -897,6 +905,40 @@ EXPORT const char *editor_script_error(int index) {
         if (found != active->script_errors.end())
             result = found->second;
     }
+    return result.c_str();
+}
+// Restores one previously-persisted save key (e.g. read from localStorage by
+// the host) into the active Runtime's save table before any script runs --
+// the host side of engine::script::Runtime::seed_saved (see its own doc
+// comment, script.hpp, for why this is distinct from a script's own
+// save.set). Call once per key right after editor_commit() succeeds, before
+// the first editor_tick().
+EXPORT void editor_seed_save(const char *key, const char *value) { active->script_runtime.seed_saved(key, value); }
+// Takes every save key a script has actually changed via save.set since the
+// last call to this function (engine::script::Runtime::take_dirty_saves(),
+// which drains what it reports -- see pending_dirty_saves's own doc comment
+// above for why this must be called exactly once per poll), snapshots it,
+// and returns how many keys came back. Call this first each poll, then
+// editor_dirty_save_key/editor_dirty_save_value with an index below that
+// count to read what changed -- e.g. once a rendered frame, persisting each
+// one to localStorage.
+EXPORT int editor_take_dirty_saves() {
+    pending_dirty_saves = active->script_runtime.take_dirty_saves();
+    return static_cast<int>(pending_dirty_saves.size());
+}
+EXPORT const char *editor_dirty_save_key(int index) {
+    static std::string result; // same "outlives the call, never held past it" contract as
+                                // editor_script_error's own result above.
+    result.clear();
+    if (index >= 0 && static_cast<std::size_t>(index) < pending_dirty_saves.size())
+        result = pending_dirty_saves[static_cast<std::size_t>(index)].first;
+    return result.c_str();
+}
+EXPORT const char *editor_dirty_save_value(int index) {
+    static std::string result;
+    result.clear();
+    if (index >= 0 && static_cast<std::size_t>(index) < pending_dirty_saves.size())
+        result = pending_dirty_saves[static_cast<std::size_t>(index)].second;
     return result.c_str();
 }
 // Projectiles are spawned entirely at runtime (a "blast" press), so unlike every other entity

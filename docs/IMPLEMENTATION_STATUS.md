@@ -3124,3 +3124,162 @@ also re-selects whatever 3D object happens to sit behind it on screen.
   free-form pixel offsets for the same "presets over a new coordinate system
   to learn" reasoning `Light`/`Particles` already established for their own
   enums.
+
+## F44 — Save/progress: a scriptable persistence API (Tier 3 roadmap item, 0.44.0)
+
+Lands the "Save/progress" roadmap item, scoped by asking the user first (two
+options: a `save(key,value)`/`load(key)` Lua API vs. a no-code "SaveTrigger"
+component). The answer was the scripting API — the general-purpose "a game
+can remember things" primitive, reusing the `Script` component every game
+already authors logic in rather than adding a new special-cased component.
+
+A `save` global table is now exposed to every sandboxed Lua VM
+(`engine::script::Runtime`, `source/engine/script/script.cpp`):
+`save.set(key, value)` / `save.get(key)`. Deliberately a table with two
+fields, not two bare globals named e.g. `save`/`load` as first proposed to
+the user — `load` is one of the five base-library names this sandbox
+removes specifically to prevent a script loading code from outside its own
+source (`open_sandboxed_libs`'s existing `for (const char *global :
+{"load", "loadstring", ...})` loop); reusing that exact name for an
+unrelated getter would misleadingly suggest it was ever still reachable to a
+reader auditing the sandbox. `save.set`/`save.get` share one map
+(`Runtime::saved_`) across every entity's VM on that `Runtime` — unlike
+`self`, which is strictly per-VM — since the whole point is a game
+remembering something regardless of which script (or which play session)
+wrote it. Values go through the same `luaL_tolstring` conversion `error()`
+already uses, so `save.set(key, {})` is valid Lua that saves a
+harmless-if-useless string instead of crashing the host, and a loaded
+numeric-looking value still works in arithmetic through Lua's ordinary
+string-to-number coercion.
+
+`Runtime` itself has no notion of browsers or files — it only holds the
+data in memory for as long as it's alive, same as `self`. Actually
+persisting it (and restoring it on the next session) is the host's job,
+mirroring how Sound/UI/HUD rendering already live entirely on the browser
+side rather than in engine core:
+
+- `Runtime::take_dirty_saves()` returns every key a script has actually
+  *changed* via `save.set` since the last call, paired with its current
+  value, then clears that pending set — a `set_saved(key, value)` that
+  rewrites a key to the exact value it already holds is a no-op, not a
+  dirty mark, so a script calling `save.set` with an unchanged value every
+  tick doesn't spam the host with the same key forever.
+- `Runtime::seed_saved(key, value)` restores a previously-persisted value
+  before any script runs — distinct from `set_saved` because seeding is the
+  host telling `Runtime` what it already knows, not a new write, so a
+  seeded key never itself appears in the next `take_dirty_saves()`.
+- Four new bridge exports (`apps/editor/runtime/bridge.cpp`, same
+  count-then-indexed-getter idiom `editor_projectile_count`/
+  `editor_projectile_value` already established, not a JSON blob — nothing
+  else in this file's exported API shape uses one): `editor_seed_save(key,
+  value)`, `editor_take_dirty_saves()` (returns how many keys changed),
+  `editor_dirty_save_key(index)`, `editor_dirty_save_value(index)`.
+- `main.ts` calls `editor_seed_save` once per key, right after
+  `editor_commit()` succeeds in `syncRuntime()` (so every previously-saved
+  value is visible before the very first tick of a fresh Play session, not
+  lazily on first `save.get`), and polls `editor_take_dirty_saves` once per
+  rendered frame in `frame()` (not per fixed tick — a save doesn't need
+  tick granularity, and `localStorage` writes are comparatively expensive),
+  writing each changed key straight to `localStorage`.
+- The `localStorage` key is namespaced by `` `game-engine-editor:save:${document.title}:${key}` ``
+  — keyed by `document.title`, not a fixed string, because the exported
+  standalone player (F42, `export_build.mjs`) sets `<title>` per export;
+  two different exported games hosted under the same browser origin (e.g.
+  a portfolio site serving several at different paths — `localStorage` is
+  origin-scoped, not path-scoped) now get separate save data instead of
+  silently sharing, and clobbering, one bucket. Free: it needed zero new
+  export-side plumbing, since `<title>` was already set from `--name` or
+  the input filename. The ordinary (non-exported) editor's title never
+  changes, so its own Play-mode save testing always shares one namespace —
+  the same single-editor-instance-per-origin assumption
+  `CommandInterpreter.ts`'s own `LocalStorageSceneStore` already makes for
+  the document autosave.
+
+### A test bug this round found in its own first attempt, not in the feature
+
+The first version of the real-browser verification (`tests/browser/
+editor.cjs`) attached a script that branched on `save.get('seen') == nil`:
+set `seen` and move slowly the first time, move fast every time after. Run
+against the real WASM build, the *very first* Play session already moved
+fast — looking exactly like save data was somehow persisting before any
+had ever been written.
+
+The actual cause was the test's own logic, not `save`/`Runtime`: a single
+browser-rendered frame can run up to five fixed ticks in a catch-up burst
+(`frame()`'s own `while (accumulator >= 1/60 && steps++ < 5)`), and
+`save.set`/`save.get` share one `Runtime`-wide map visible to every tick
+immediately — including the very next tick in that same burst. So `seen`
+was set on the burst's first tick and already non-nil by its second,
+several ticks before the test ever got to read the status bar; a "first
+ever session" branch measured out to almost entirely the "already seen"
+one. This is correct, intended behavior (the whole point of `save` is a
+value written now being visible to a read microseconds later, same
+`Runtime`, same or a different script) — just not a fact a script's own
+read of what it *just wrote itself, moments earlier* can distinguish from
+"a genuinely separate prior session wrote this." Confirmed by computing the
+exact expected displacement from ticks-mostly-at-1000 rather than
+mostly-at-1: it matched the observed position to three significant figures.
+
+Fixed by testing each direction of the round trip against something
+independent of same-session script timing instead: direction one
+(`save.set` → `localStorage`) checked directly against
+`localStorage.getItem(...)` after Stop, not through any script's own later
+read; direction two (`localStorage` → `save.get`) planted a value with
+`page.evaluate(() => localStorage.setItem(...))` — standing in for a truly
+separate prior session, with zero dependency on direction one — before the
+very first Play click, so a fresh `Runtime`'s first-ever tick reading it
+back can only have come from `editor_seed_save`, never from the same
+script's own prior write.
+
+A second, unrelated issue surfaced fixing the first: the rewritten
+direction-two check used the entity's `Player` tag and the status bar's
+`Player (x, y, z)` readout (same idiom the WASD test earlier in the suite
+uses) to observe movement live — but by this point in the suite an earlier
+test had already made a *different* entity ("Entity 7") the scene's first
+Player-tagged entity, and `playerReadout` is pinned to whichever entity
+`syncRuntime()` saw first (`if (isPlayer && playerIndex < 0) playerIndex =
+index`), not to whichever one is newest or selected. A second `Player`
+entity's own movement is real but invisible to that readout, which is
+exactly why the fixed version's `waitForFunction` timed out. Fixed by
+tagging the test entity `AIState` instead and reading the already-existing
+`Selected AI: <state> (x, z)` readout, which tracks whichever entity is
+*selected* (`doc.selection`) regardless of Player status —
+`editor.script`'s order-2 write still wins over `editor.ai`'s order-1 one
+each tick, the same "whichever system ran last overwrites the other's
+velocity write" rule already documented for a Script+AIState combination.
+
+### F44 verification
+
+- Native unit tests (`tests/script_tests.cpp`, five new cases added to the
+  existing 12): `save.set` from one entity's VM is visible to `save.get` in
+  a completely separate entity's own VM; `save.get` on a never-set key
+  returns Lua `nil`, not an error; `Runtime::seed_saved` is visible to
+  `save.get` before any script has run; `take_dirty_saves()` reports a
+  changed key exactly once (an unchanged repeated `save.set` doesn't
+  re-report it, and `seed_saved` never appears in it at all) and clears the
+  pending set once read; a saved value survives a `Script.source` change
+  (the per-Instance VM recompiles from scratch, the Runtime-wide save table
+  does not). Full `ctest` (14/14 executables, including
+  `engine_editor_bridge_tests` after wiring the four new bridge exports)
+  re-verified clean.
+- Built the real Emscripten/WASM editor and extended the existing
+  `tests/browser/editor.cjs` black-box suite with the two-direction check
+  described above (fixed after the test bug this round found, not
+  hand-waved past it): `save.set` → `localStorage` verified directly via
+  `localStorage.getItem`, and `localStorage` → `save.get` verified via a
+  value planted with `page.evaluate` before the first-ever Play click,
+  observed live through the `Selected AI` status readout. Full suite green
+  end to end, zero regression to every earlier component's own case
+  (`npm run typecheck`/`npm test`, 37/37, also re-verified clean).
+- Not done here: saving a whole table/structured value in one call (`save`
+  stores plain strings only, through the same `tostring`-style conversion
+  `error()` already uses — a game that wants structured progress data
+  authors its own small serialize/deserialize in Lua, e.g. concatenating a
+  few `save.set` calls under distinct keys, rather than this round adding a
+  JSON encoder to the sandbox); a save slot/multiple-profile concept (one
+  flat key-value namespace per exported game, not per player profile within
+  it — out of scope for "a game can remember things" as a primitive);
+  quota/error handling for `localStorage` filling up (an exported game
+  saving a realistic amount of small progress data is nowhere near
+  `localStorage`'s typical several-MB-per-origin limit; not worth the
+  complexity this round).

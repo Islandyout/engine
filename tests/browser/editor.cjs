@@ -1043,6 +1043,77 @@ const { chromium } = require("playwright");
       "clicking a visible UI Button actually runs its action",
     );
     await page.click("#stop");
+    // Save/progress (this round): a script's save.set/save.get persist a
+    // small value across a Play *session* boundary, via localStorage keyed
+    // by document.title (see main.ts's saveKey doc comment). The native
+    // unit tests (tests/script_tests.cpp) already cover the Lua binding and
+    // Runtime's own in-memory dirty-tracking exhaustively; this is the one
+    // real-browser check that the localStorage round-trip actually
+    // happens, in both directions, checked separately so neither depends
+    // on same-session tick timing (save.set/save.get share one Runtime-wide
+    // map that's visible to every tick immediately, including the very
+    // next one in the same catch-up burst -- so "does this session's own
+    // first tick see a value only a *previous* session could have written"
+    // isn't actually observable from inside a script's own read of what it
+    // just wrote moments earlier; each direction is instead verified
+    // against localStorage or a value planted independently of any script).
+    //
+    // Direction 1: save.set -> localStorage. A plain Script entity (no
+    // movement needed) that saves a fixed value every tick; Stop should
+    // have already flushed it to localStorage by the time Play tears the
+    // Runtime down.
+    await page.locator("#add").click();
+    await page.getByLabel("Add component").selectOption("Script");
+    await page
+      .locator('[aria-label="Script.source"]')
+      .fill("function on_tick(dt) save.set('progress', 'level3') end");
+    await page.click("#play");
+    await page.waitForFunction(() =>
+      document.querySelector("#status").textContent.includes("C++ fixed ticks"),
+    );
+    await page.waitForTimeout(200);
+    await page.click("#stop");
+    assert.equal(
+      await page.evaluate(
+        () => localStorage.getItem(`game-engine-editor:save:${document.title}:progress`),
+      ),
+      "level3",
+      "save.set persisted to localStorage (namespaced by document.title) once Stop tore the Runtime down",
+    );
+    // Direction 2: localStorage -> save.get, seeded *before* any script of
+    // this session has run. Plants a value directly (standing in for a
+    // truly separate prior session, with zero dependency on direction 1
+    // above), then a fresh Play (bridge.cpp's editor_begin/editor_commit
+    // recreate the Runtime from scratch) must feed it through
+    // editor_seed_save before the very first tick -- verified via the live
+    // "Selected AI: <state> (x, z)" status readout (same per-frame-updated
+    // mechanism the AIState/Pedestrian case above uses, not "Player (...)":
+    // that one is pinned to whichever Player-tagged entity syncRuntime saw
+    // *first* across the whole scene -- the WASD/vehicle test above already
+    // made "Entity 7" that entity, so a second Player here wouldn't move
+    // its own readout at all). AIState, not Player, so the readout tracks
+    // *this* entity by selection instead. editor.script (order 2) always
+    // runs after editor.ai (order 1, see bridge.cpp's own doc comment on
+    // that ordering), so this entity's Script always has the final say
+    // over its velocity despite also carrying an authored AIState.
+    await page.evaluate(() => {
+      localStorage.setItem(`game-engine-editor:save:${document.title}:multiplier`, "1000");
+    });
+    await page.getByLabel("Add component").selectOption("AIState");
+    await page
+      .locator('[aria-label="Script.source"]')
+      .fill("function on_tick(dt) self.vx = tonumber(save.get('multiplier')) or 1 end");
+    await page.click("#play");
+    await page.waitForFunction(() =>
+      document.querySelector("#status").textContent.includes("Selected AI:"),
+    );
+    await page.waitForFunction(() => {
+      const match = document
+        .querySelector("#status")
+        .textContent.match(/Selected AI: \w+ \(([-\d.]+),/);
+      return match && Number(match[1]) > 20;
+    });
+    await page.click("#stop");
 
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
@@ -1053,7 +1124,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses) passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage) passed.",
     );
   } finally {
     if (browser) await browser.close();

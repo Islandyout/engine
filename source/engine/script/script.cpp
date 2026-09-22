@@ -21,11 +21,44 @@ void instruction_watchdog(lua_State *L, lua_Debug *) {
     luaL_error(L, "exceeded its per-call instruction budget (a runaway loop?)");
 }
 
+// save.set(key, value): the C side of the `save` table every VM gets — see
+// Runtime's own doc comment (script.hpp) for why it's a table, not a bare
+// global. `self` is the owning Runtime, passed as this closure's one
+// upvalue (see open_sandboxed_libs below). Values go through the same
+// luaL_tolstring conversion error_text uses for error(), so save.set(key,
+// {}) or save.set(key, nil) are valid Lua that saves a useless-but-harmless
+// string instead of crashing the host, exactly like error() with a
+// non-string argument already does.
+int lua_save_set(lua_State *L) {
+    auto *self = static_cast<Runtime *>(lua_touserdata(L, lua_upvalueindex(1)));
+    const char *key = luaL_checkstring(L, 1);
+    size_t length = 0;
+    const char *text = luaL_tolstring(L, 2, &length);
+    self->set_saved(key, std::string(text, length));
+    lua_pop(L, 1); // luaL_tolstring's own pushed string
+    return 0;
+}
+
+// save.get(key): nil for a key nothing has ever set_saved/seed_saved, its
+// stored text otherwise. Never errors on a missing key — a script checking
+// `if save.get("score") == nil` for "first ever play session" is the
+// expected, ordinary use, not a failure case.
+int lua_save_get(lua_State *L) {
+    auto *self = static_cast<Runtime *>(lua_touserdata(L, lua_upvalueindex(1)));
+    const char *key = luaL_checkstring(L, 1);
+    std::string value;
+    if (self->get_saved(key, value))
+        lua_pushlstring(L, value.data(), value.size());
+    else
+        lua_pushnil(L);
+    return 1;
+}
+
 // The only libraries a sandboxed VM ever opens — no io, os, package/require,
 // or debug. See Runtime's own doc comment and lua_vendored's CMakeLists.txt
 // comment for why those four aren't merely left unopened here but not even
 // compiled into the binary at all.
-void open_sandboxed_libs(lua_State *L) {
+void open_sandboxed_libs(lua_State *L, Runtime *self) {
     luaL_requiref(L, LUA_GNAME, luaopen_base, 1);
     lua_pop(L, 1);
     luaL_requiref(L, LUA_TABLIBNAME, luaopen_table, 1);
@@ -45,6 +78,19 @@ void open_sandboxed_libs(lua_State *L) {
         lua_pushnil(L);
         lua_setglobal(L, global);
     }
+    // save.set(key, value) / save.get(key) — see Runtime's own doc comment
+    // (script.hpp) for why this is a table with two fields rather than two
+    // bare globals. `self` (this VM's owning Runtime) travels into each
+    // closure as its one upvalue, the same lightuserdata-upvalue pattern
+    // both functions read back via lua_upvalueindex(1).
+    lua_newtable(L);
+    lua_pushlightuserdata(L, self);
+    lua_pushcclosure(L, lua_save_set, 1);
+    lua_setfield(L, -2, "set");
+    lua_pushlightuserdata(L, self);
+    lua_pushcclosure(L, lua_save_get, 1);
+    lua_setfield(L, -2, "get");
+    lua_setglobal(L, "save");
     lua_sethook(L, instruction_watchdog, LUA_MASKCOUNT, instruction_budget);
 }
 
@@ -108,6 +154,33 @@ void Runtime::set_error_handler(std::function<void(Entity, const std::string &)>
     on_error_ = std::move(handler);
 }
 
+void Runtime::set_saved(const std::string &key, std::string value) {
+    auto it = saved_.find(key);
+    if (it != saved_.end() && it->second == value)
+        return; // an unchanged rewrite is not a write worth reporting back
+    saved_[key] = std::move(value);
+    dirty_saves_.insert(key);
+}
+
+bool Runtime::get_saved(const std::string &key, std::string &out) const {
+    const auto it = saved_.find(key);
+    if (it == saved_.end())
+        return false;
+    out = it->second;
+    return true;
+}
+
+void Runtime::seed_saved(const std::string &key, std::string value) { saved_[key] = std::move(value); }
+
+std::vector<std::pair<std::string, std::string>> Runtime::take_dirty_saves() {
+    std::vector<std::pair<std::string, std::string>> result;
+    result.reserve(dirty_saves_.size());
+    for (const auto &key : dirty_saves_)
+        result.emplace_back(key, saved_.at(key));
+    dirty_saves_.clear();
+    return result;
+}
+
 void Runtime::step(World &world, float dt) {
     // Drop instances for entities that no longer qualify — Script removed,
     // or the entity itself destroyed — so a VM is never kept running (or a
@@ -140,7 +213,7 @@ void Runtime::step(World &world, float dt) {
             instance->compiled_source = source;
             instance->broken = false;
             instance->L = luaL_newstate();
-            open_sandboxed_libs(instance->L);
+            open_sandboxed_libs(instance->L, this);
             if (luaL_dostring(instance->L, source.c_str()) != LUA_OK) {
                 if (on_error_)
                     on_error_(entity, error_text(instance->L, -1));

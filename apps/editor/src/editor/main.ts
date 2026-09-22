@@ -138,11 +138,14 @@ type Runtime = {
   _editor_key(code: number, down: number): void;
   _editor_projectile_count(): number;
   _editor_projectile_value(index: number, field: number): number;
-  // editor_set_script_source/editor_script_error's own doc comments (bridge.cpp)
-  // explain why these two go through ccall instead of a direct _editor_*
-  // binding like everything above: a Lua source string, and an error message
-  // string, can't travel through the all-double ABI the rest of this type
-  // uses. Exported via -sEXPORTED_RUNTIME_METHODS=ccall in tools/build_editor.sh.
+  _editor_take_dirty_saves(): number;
+  // editor_set_script_source/editor_script_error/editor_seed_save/
+  // editor_dirty_save_key/editor_dirty_save_value's own doc comments
+  // (bridge.cpp) explain why these go through ccall instead of a direct
+  // _editor_* binding like everything above: a Lua source string, an error
+  // message, and a save key/value are text, which can't travel through the
+  // all-double ABI the rest of this type uses. Exported via
+  // -sEXPORTED_RUNTIME_METHODS=ccall in tools/build_editor.sh.
   ccall(
     name: "editor_set_script_source",
     returnType: null,
@@ -151,6 +154,24 @@ type Runtime = {
   ): void;
   ccall(
     name: "editor_script_error",
+    returnType: "string",
+    argTypes: ["number"],
+    args: [number],
+  ): string;
+  ccall(
+    name: "editor_seed_save",
+    returnType: null,
+    argTypes: ["string", "string"],
+    args: [string, string],
+  ): void;
+  ccall(
+    name: "editor_dirty_save_key",
+    returnType: "string",
+    argTypes: ["number"],
+    args: [number],
+  ): string;
+  ccall(
+    name: "editor_dirty_save_value",
     returnType: "string",
     argTypes: ["number"],
     args: [number],
@@ -851,6 +872,54 @@ async function startEditor() {
     if (result.ok) rebuild();
     return result;
   }
+  // Keyed by document.title, not a fixed string -- the exported standalone
+  // player (see export_build.mjs) sets <title> per export, so two different
+  // exported games hosted under the same browser origin get separate save
+  // data instead of silently sharing (and clobbering) one localStorage
+  // bucket. The ordinary (non-exported) editor's title never changes, so
+  // its own Play-mode testing always shares one namespace -- the same
+  // single-instance-per-origin assumption CommandInterpreter.ts's own
+  // LocalStorageSceneStore already makes for the document autosave.
+  function saveKey(key: string): string {
+    return `game-engine-editor:save:${document.title}:${key}`;
+  }
+  // Restores every previously-persisted save key into the freshly committed
+  // Runtime before any script's on_tick runs -- see
+  // engine::script::Runtime::seed_saved's own doc comment (script.hpp) for
+  // why this must happen before the first tick, not lazily on first
+  // save.get(). localStorage has no "list keys under this prefix" call, so
+  // this walks every key in the whole store once -- fine, since it only
+  // ever runs once per syncRuntime() (Play, or Stop-then-Play again), not
+  // per frame.
+  function seedSavedProgress() {
+    const prefix = saveKey("");
+    for (let i = 0; i < localStorage.length; i++) {
+      const fullKey = localStorage.key(i);
+      if (!fullKey || !fullKey.startsWith(prefix)) continue;
+      const value = localStorage.getItem(fullKey);
+      if (value !== null)
+        runtime.ccall(
+          "editor_seed_save",
+          null,
+          ["string", "string"],
+          [fullKey.slice(prefix.length), value],
+        );
+    }
+  }
+  // Polls whatever a script's save.set has actually changed since the last
+  // call (see editor_take_dirty_saves's own doc comment, bridge.cpp) and
+  // writes each one to localStorage -- the one place this file touches
+  // browser persistence for game save data, called once per rendered frame
+  // from frame() below, not per fixed tick (a save doesn't need tick
+  // granularity, and localStorage writes are comparatively expensive).
+  function persistDirtySaves() {
+    const count = runtime._editor_take_dirty_saves();
+    for (let i = 0; i < count; i++) {
+      const key = runtime.ccall("editor_dirty_save_key", "string", ["number"], [i]);
+      const value = runtime.ccall("editor_dirty_save_value", "string", ["number"], [i]);
+      localStorage.setItem(saveKey(key), value);
+    }
+  }
   function syncRuntime() {
     runtime._editor_begin();
     playerIndex = -1;
@@ -920,6 +989,7 @@ async function startEditor() {
     });
     if (!runtime._editor_commit())
       throw new Error("Runtime scene commit failed");
+    seedSavedProgress();
     ticks = 0;
     accumulator = 0;
     keyQueue.length = 0;
@@ -1748,6 +1818,7 @@ async function startEditor() {
         ticks++;
         accumulator -= 1 / 60;
       }
+      persistDirtySaves();
       objects.forEach((object, i) => {
         // Combat can destroy an authored entity (Health reaching 0) mid-session;
         // its index stays in objects[] (entities can't be added/removed while
