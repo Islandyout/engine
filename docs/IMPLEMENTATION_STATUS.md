@@ -2760,13 +2760,48 @@ Implementation notes:
 
 ### F41 verification
 
-- No `apps/editor` source changed this round (a standalone CLI tool under
-  `tools/`, same category as the pre-existing `tools/import_quaternius_*.py`/
-  `tools/cook_static_mesh.py`), so `npm run typecheck` and `npm test` were re-run
-  to confirm the round left them untouched (36/36 still pass) rather than because
-  anything here could plausibly break them; the real Emscripten/WASM build and
-  `tests/browser/editor.cjs` black-box suite weren't re-run for the same reason --
-  zero coverage benefit for the browser-facing surface this round didn't touch.
+- Post-push fix: three Codex findings on the PR, all reproduced against real
+  conditions before fixing, not taken on faith. (1) Any model referencing an
+  image texture failed deep inside three.js's loaders with a confusing
+  `ReferenceError: self is not defined` (`document`/`Image`/`createImageBitmap`
+  don't exist in plain Node, and this tool only polyfills `FileReader`) --
+  reproduced by hand-constructing a minimal textured `.glb` (a 1x1 PNG as a
+  glTF data-URI image) and running it through the actual tool, which confirmed
+  the exact crash. Checked first whether this was even reachable: every asset
+  in this catalog today is genuinely textureless (checked each bundled `.glb`'s
+  own glTF JSON chunk for a non-empty `images` array -- none), so real Node
+  image decoding was deliberately not added (a new dependency for a case
+  nothing here has ever needed); instead a textured `.glb` is now detected
+  up front by peeking its JSON chunk before running the full loader, and any
+  other browser-only-global failure (covers `.fbx`, which has no equivalent
+  cheap peek) is caught and re-raised as the same clear message. (2) An
+  explicit `--id` in the 119-131 gap (ids retired in F37, below the current
+  active maximum so the auto-picked default was never at risk) was silently
+  accepted, since `existingIds()` only scans currently-declared entries --
+  reproduced with `--id 125`. Fixed structurally rather than by parsing prose:
+  added `modelCatalog.ts`'s own `retiredCatalogIds` export (a code-level record
+  of the same invariant the file's existing comment already states in prose),
+  which the tool now also checks. (3) `--category "../../etc"` (or similar)
+  would have `path.join` normalize straight through the intended
+  `assets/source/kit/` directory, and `tools/build_editor.sh` only ever copies
+  that one directory into the deployed site, so a milder escape would silently
+  404 at runtime rather than fail loudly at import time -- fixed by validating
+  `--category` is a single lowercase, path-safe segment (matching every
+  existing category name) before it's ever used in a path. Re-ran every check
+  from the first verification pass below plus the three new ones (a
+  hand-crafted textured `.glb`, `--id 125`, and two traversal-shaped
+  `--category` values) -- all now rejected with a clear, specific error; the
+  previously-passing paths (byte-identical `.glb` copy, `.fbx` re-export and
+  reload, all four original rejection cases) still pass unchanged. `modelCatalog.ts`
+  changed this round (the new `retiredCatalogIds` export), so `npm run
+  typecheck`/`npm test` were re-run for real reasons this time (36/36 pass),
+  not just as a formality.
+- Otherwise a standalone CLI tool under `tools/`, same category as the
+  pre-existing `tools/import_quaternius_*.py`/`tools/cook_static_mesh.py` --
+  the real Emscripten/WASM build and `tests/browser/editor.cjs` black-box
+  suite weren't run this round, zero coverage benefit for the browser-facing
+  surface neither this round nor its post-push fix touch (the one
+  `apps/editor` change, `retiredCatalogIds`, is covered by `npm test` above).
 - Exercised every path against real files, not just read for plausibility:
   imported an existing bundled asset (`kit/nature/rock-small.glb`) as a throwaway
   test entry, first with `--dry-run` (confirmed the printed hash matches an

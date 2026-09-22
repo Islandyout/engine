@@ -87,27 +87,73 @@ function toSlug(name) {
     .replace(/^-+|-+$/g, "");
 }
 
+// --category becomes a literal path segment below (assets/source/kit/<category>/...)
+// and part of the saved `path: "./kit/<category>/..."` string every scene file
+// embeds -- something like "../../etc" would have path.join's own normalization
+// write outside assets/source/kit entirely (and tools/build_editor.sh only ever
+// copies that one directory into the deployed site, so even a milder escape
+// would silently 404 at runtime rather than fail loudly here). Restricting it to
+// exactly what every existing category name already looks like closes both.
+function isSafeCategory(category) {
+  return /^[a-z][a-z0-9-]*$/.test(category);
+}
+
 function sha256(buffer) {
   return createHash("sha256").update(buffer).digest("hex");
 }
 
+// three.js's loaders eventually decode any image texture via the browser's
+// own Image/createImageBitmap, neither of which exists in plain Node -- this
+// tool only polyfills FileReader (needed for GLTFExporter's binary path, see
+// above), not image decoding, so a textured input fails deep inside the
+// loader with a confusing "self/document is not defined" instead of a clear
+// message. Every asset actually in this catalog today is textureless (flat/
+// vertex-color materials -- checked, not assumed), so rather than add real
+// Node image decoding (a new dependency this project's asset pipeline has
+// never otherwise needed) for a case nothing here exercises yet, a textured
+// input is detected up front for .glb (cheap: peek the JSON chunk before
+// running the full loader) and otherwise caught by its actual failure mode.
+function glbHasImages(buffer) {
+  if (buffer.readUInt32LE(0) !== 0x46546c67 /* "glTF" magic */) return false;
+  const jsonLength = buffer.readUInt32LE(12);
+  const json = JSON.parse(buffer.subarray(20, 20 + jsonLength).toString("utf8"));
+  return Array.isArray(json.images) && json.images.length > 0;
+}
+
+const TEXTURE_UNSUPPORTED_MESSAGE =
+  "this model references an image texture, which this tool can't decode " +
+  "outside a browser (no Node-side image decoding is wired up -- every asset " +
+  "in this catalog today is textureless). Strip textures from the source " +
+  "file, or extend this tool with real Node image decoding, before importing it.";
+
 // Loads a model purely for inspection (native size, whether it has
 // AnimationClips) -- doesn't decide how the file ends up on disk, see main().
 async function loadModel(inputPath, ext, buffer) {
+  if (ext === ".glb" && glbHasImages(buffer)) fail(TEXTURE_UNSUPPORTED_MESSAGE);
   const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-  if (ext === ".fbx") {
-    const group = new FBXLoader().parse(arrayBuffer, "");
-    return { scene: group, animations: group.animations };
-  }
-  if (ext === ".glb") {
-    return new Promise((resolve, reject) => {
-      new GLTFLoader().parse(
-        arrayBuffer,
-        "",
-        (gltf) => resolve({ scene: gltf.scene, animations: gltf.animations }),
-        reject,
-      );
-    });
+  try {
+    if (ext === ".fbx") {
+      const group = new FBXLoader().parse(arrayBuffer, "");
+      return { scene: group, animations: group.animations };
+    }
+    if (ext === ".glb") {
+      return await new Promise((resolve, reject) => {
+        new GLTFLoader().parse(
+          arrayBuffer,
+          "",
+          (gltf) => resolve({ scene: gltf.scene, animations: gltf.animations }),
+          reject,
+        );
+      });
+    }
+  } catch (error) {
+    // Covers .fbx (not pre-checked above -- the binary format has no cheap
+    // peek like a glTF JSON chunk) and anything glbHasImages() didn't catch:
+    // a browser-only global going unresolved this deep is always this same
+    // problem, whatever exact global three.js reached for this time.
+    if (/\b(self|document|Image|ImageBitmap|window)\b.*is not defined/.test(String(error)))
+      fail(TEXTURE_UNSUPPORTED_MESSAGE);
+    throw error;
   }
   fail(
     `unsupported extension "${ext}" on ${inputPath} -- only .glb and .fbx are ` +
@@ -125,6 +171,21 @@ async function fbxToGlb(scene, animations) {
 
 function existingIds(catalogText) {
   return [...catalogText.matchAll(/id:\s*(\d+)/g)].map((m) => Number(m[1]));
+}
+
+// modelCatalog.ts's own retiredCatalogIds array -- ids that once belonged to
+// a removed entry and must never be reused, even though existingIds() above
+// (which only sees currently-declared entries) wouldn't otherwise flag them
+// as taken. Parsed as text like everything else here, not imported: this is
+// a plain .mjs script running under plain Node, not the TS toolchain.
+function retiredIds(catalogText) {
+  const match = catalogText.match(/retiredCatalogIds:\s*readonly number\[\]\s*=\s*\[([^\]]*)\]/);
+  if (!match) return [];
+  return match[1]
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(Number);
 }
 
 // Inserted right after the LAST existing entry of the same category, not
@@ -183,6 +244,11 @@ async function main() {
     );
   if (!existsSync(inputPath)) fail(`input file not found: ${inputPath}`);
   if (!args.category) fail("--category is required");
+  if (!isSafeCategory(args.category))
+    fail(
+      `--category "${args.category}" must be a single lowercase, path-safe segment ` +
+        `(letters, digits, hyphens -- like the existing "buildings"/"vehicles"/...)`,
+    );
   if (!args.name) fail("--name is required");
 
   const ext = path.extname(inputPath).toLowerCase();
@@ -190,9 +256,12 @@ async function main() {
 
   const catalogText = readFileSync(CATALOG_PATH, "utf8");
   const ids = existingIds(catalogText);
-  const id = args.id !== undefined ? Number(args.id) : Math.max(...ids) + 1;
+  const retired = retiredIds(catalogText);
+  const id = args.id !== undefined ? Number(args.id) : Math.max(...ids, ...retired) + 1;
   if (!Number.isInteger(id) || id < 0) fail(`--id must be a non-negative integer, got "${args.id}"`);
   if (ids.includes(id)) fail(`id ${id} is already used in modelCatalog.ts`);
+  if (retired.includes(id))
+    fail(`id ${id} is retired (modelCatalog.ts's retiredCatalogIds) -- an older saved scene may still reference it`);
 
   const { scene, animations } = await loadModel(inputPath, ext, inputBuffer);
   const nativeSize = new THREE.Box3().setFromObject(scene).getSize(new THREE.Vector3());
