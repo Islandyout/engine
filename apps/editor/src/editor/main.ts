@@ -5,7 +5,7 @@ import {
   type TransformMode,
   type TransformSnapshot,
 } from "./TransformEdit";
-import type { AIStateName, EntityRef, ParticlePreset, Vec3 } from "../scene/Components";
+import type { AIStateName, EntityRef, ParticlePreset, UIAction, UIAnchor, Vec3 } from "../scene/Components";
 import { propertyMetadata, componentLabel, componentGroups } from "./PropertyMetadata";
 import { defaultComponent } from "../authoring/CommandInterpreter";
 import { CanvasRenderer } from "./CanvasRenderer";
@@ -1567,9 +1567,53 @@ async function startEditor() {
     const prefab = el<HTMLSelectElement>("prefab-select").value;
     if (prefab) execute({ command: "place_instance", prefab, transform: [0, 0.5, 0] });
   };
+  // Runs a UI Button's authored action by clicking the real transport button
+  // that already does it, rather than reimplementing (or going through
+  // doc.execute(), which unconditionally rejects everything outside Edit
+  // mode -- see UIComponent's own doc comment for why that ruled out a
+  // free-form command here). "restart" is Stop (rebuild()s every entity back
+  // to its authored Transform/state) immediately followed by Play (re-syncs
+  // and starts a fresh session) -- there's no single existing button for
+  // that combination, so it's the one action that chains two clicks.
+  function runUIAction(action: UIAction) {
+    switch (action) {
+      case "restart":
+        el<HTMLButtonElement>("stop").click();
+        el<HTMLButtonElement>("play").click();
+        break;
+      case "resume":
+        el<HTMLButtonElement>("play").click();
+        break;
+      case "pause":
+        el<HTMLButtonElement>("pause").click();
+        break;
+      case "quit":
+        el<HTMLButtonElement>("stop").click();
+        break;
+    }
+  }
   renderer.domElement.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || gizmo.dragging || gizmo.axis !== null) return;
     const rect = renderer.domElement.getBoundingClientRect();
+    // A UI Button's hit-test comes first, in the same CSS-pixel coordinate
+    // space drawHud() laid it out in (hud's own width/height are unscaled
+    // CSS pixels, same as clientX/clientY - rect.left/top here) -- clicking
+    // a Button must never also re-select whatever 3D object happens to sit
+    // behind it, so this returns instead of falling through to the raycast
+    // below when it hits.
+    const clickX = e.clientX - rect.left,
+      clickY = e.clientY - rect.top;
+    for (const button of uiButtonHits) {
+      if (
+        clickX >= button.x &&
+        clickX <= button.x + button.width &&
+        clickY >= button.y &&
+        clickY <= button.y + button.height
+      ) {
+        runUIAction(button.action);
+        return;
+      }
+    }
     const pointer = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
       (-(e.clientY - rect.top) / rect.height) * 2 + 1,
@@ -1879,43 +1923,113 @@ async function startEditor() {
   }
   const cameraForwardScratch = new THREE.Vector3();
   const hudScratch = new THREE.Vector3();
-  // Screen-space Health bars, Play mode only (matches the player readout's
-  // own scoping) — one small rectangle per alive entity that carries an
-  // authored Health, positioned from its projected world position the same
-  // way the native playground's BoxView::draw_bar reads a screen-space
-  // position from a world one, redrawn from scratch every frame rather than
-  // tracked incrementally since entities can be defeated (and combat, unlike
-  // WASD, has no held/released state worth diffing against).
+  // anchor -> (x/y fraction of the HUD canvas, canvas textAlign/textBaseline)
+  // -- a UI element's screen position, unlike a Health bar's, is never
+  // projected from a world position; it's just one of nine fixed points on
+  // the viewport, the same layout language any screen-anchored HUD/menu uses.
+  function uiAnchorLayout(anchor: UIAnchor) {
+    const xFrac = anchor.includes("left") ? 0 : anchor.includes("right") ? 1 : 0.5;
+    const yFrac = anchor.includes("top") ? 0 : anchor.includes("bottom") ? 1 : 0.5;
+    const align: CanvasTextAlign = xFrac === 0 ? "left" : xFrac === 1 ? "right" : "center";
+    const baseline: CanvasTextBaseline = yFrac === 0 ? "top" : yFrac === 1 ? "bottom" : "middle";
+    return { xFrac, yFrac, align, baseline };
+  }
+  // Populated fresh by drawHud() every frame a Button is visible; consulted
+  // by the pointerdown handler below to hit-test a click before it falls
+  // through to normal 3D entity-selection raycasting. Screen-space rects,
+  // not scene objects, so no relation to objects[]/animStates[]'s own
+  // per-entity indexing.
+  interface UIButtonHit {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    action: UIAction;
+  }
+  const uiButtonHits: UIButtonHit[] = [];
+  // Screen-space Health bars (Play mode only, matches the player readout's
+  // own scoping) and authored UI Text/Button elements (main.ts's own
+  // player-mode bootstrap aside, visible per each element's own
+  // `visibleWhen`, not tied to Play like Health bars) -- both drawn on the
+  // same 2D canvas, redrawn from scratch every frame rather than tracked
+  // incrementally, matching the Health bars' own established reasoning
+  // (entities/UI state can change every tick; nothing here is worth diffing
+  // against a held/released-style previous frame).
   function drawHud() {
     hudCtx.clearRect(0, 0, hud.width, hud.height);
-    if (doc.mode !== "play") return;
-    doc.scene.eachAlive().forEach((entity, index) => {
-      if (!doc.scene.effectiveHas(entity, "Health")) return;
-      if (!runtime._editor_alive(index)) return;
-      const object = objects[index];
-      if (!object) return;
-      const ratio = runtime._editor_value(index, 3);
-      if (ratio < 0) return;
-      const scaleY = doc.scene.resolve(entity, "Scale")?.value.y ?? 1;
-      hudScratch.copy(object.position);
-      hudScratch.y += scaleY / 2 + 0.35;
-      hudScratch.project(camera);
-      if (hudScratch.z > 1) return; // behind the camera
-      const x = ((hudScratch.x + 1) / 2) * hud.width;
-      const y = ((1 - hudScratch.y) / 2) * hud.height;
-      const barWidth = 40,
-        barHeight = 5;
-      hudCtx.fillStyle = "rgba(10, 16, 24, 0.75)";
-      hudCtx.fillRect(x - barWidth / 2, y - barHeight / 2, barWidth, barHeight);
-      hudCtx.fillStyle =
-        ratio > 0.5 ? "#4caf50" : ratio > 0.25 ? "#ffb300" : "#e53935";
-      hudCtx.fillRect(
-        x - barWidth / 2,
-        y - barHeight / 2,
-        barWidth * Math.max(0, Math.min(1, ratio)),
-        barHeight,
-      );
-    });
+    uiButtonHits.length = 0;
+    if (doc.mode === "play")
+      doc.scene.eachAlive().forEach((entity, index) => {
+        if (!doc.scene.effectiveHas(entity, "Health")) return;
+        if (!runtime._editor_alive(index)) return;
+        const object = objects[index];
+        if (!object) return;
+        const ratio = runtime._editor_value(index, 3);
+        if (ratio < 0) return;
+        const scaleY = doc.scene.resolve(entity, "Scale")?.value.y ?? 1;
+        hudScratch.copy(object.position);
+        hudScratch.y += scaleY / 2 + 0.35;
+        hudScratch.project(camera);
+        if (hudScratch.z > 1) return; // behind the camera
+        const x = ((hudScratch.x + 1) / 2) * hud.width;
+        const y = ((1 - hudScratch.y) / 2) * hud.height;
+        const barWidth = 40,
+          barHeight = 5;
+        hudCtx.fillStyle = "rgba(10, 16, 24, 0.75)";
+        hudCtx.fillRect(x - barWidth / 2, y - barHeight / 2, barWidth, barHeight);
+        hudCtx.fillStyle =
+          ratio > 0.5 ? "#4caf50" : ratio > 0.25 ? "#ffb300" : "#e53935";
+        hudCtx.fillRect(
+          x - barWidth / 2,
+          y - barHeight / 2,
+          barWidth * Math.max(0, Math.min(1, ratio)),
+          barHeight,
+        );
+      });
+    for (const entity of doc.scene.eachAlive()) {
+      const ui = doc.scene.resolve(entity, "UI");
+      if (!ui) continue;
+      if (ui.visibleWhen === "play" && doc.mode !== "play") continue;
+      if (ui.visibleWhen === "pause" && doc.mode !== "pause") continue;
+      const padding = 16;
+      const { xFrac, yFrac, align, baseline } = uiAnchorLayout(ui.anchor);
+      const x = xFrac * hud.width + (xFrac === 0 ? padding : xFrac === 1 ? -padding : 0);
+      const y = yFrac * hud.height + (yFrac === 0 ? padding : yFrac === 1 ? -padding : 0);
+      hudCtx.font = "600 16px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif";
+      hudCtx.textAlign = align;
+      hudCtx.textBaseline = baseline;
+      if (ui.kind === "Button") {
+        const metrics = hudCtx.measureText(ui.text);
+        const boxPadX = 14,
+          boxPadY = 9;
+        const width = metrics.width + boxPadX * 2;
+        const height = 16 + boxPadY * 2;
+        const left = x - (align === "left" ? 0 : align === "right" ? width : width / 2);
+        const top = y - (baseline === "top" ? 0 : baseline === "bottom" ? height : height / 2);
+        hudCtx.fillStyle = "rgba(30, 42, 56, 0.85)";
+        hudCtx.fillRect(left, top, width, height);
+        hudCtx.strokeStyle = "rgba(140, 190, 220, 0.6)";
+        hudCtx.strokeRect(left + 0.5, top + 0.5, width - 1, height - 1);
+        hudCtx.fillStyle = "#eaf6ff";
+        hudCtx.fillText(ui.text, left + width / 2, top + height / 2);
+        hudCtx.textAlign = "center";
+        hudCtx.textBaseline = "middle";
+        // Clickable only outside Edit mode -- see UIComponent's own doc
+        // comment (Components.ts) for why authoring a scene must never be
+        // able to accidentally trigger a Button's command.
+        if (doc.mode === "play" || doc.mode === "pause")
+          uiButtonHits.push({ x: left, y: top, width, height, action: ui.action });
+      } else {
+        // Text gets a stroke outline instead of Button's background rect --
+        // legible over any 3D scene content behind it without needing its
+        // own backdrop.
+        hudCtx.lineWidth = 3;
+        hudCtx.strokeStyle = "rgba(10, 16, 24, 0.85)";
+        hudCtx.strokeText(ui.text, x, y);
+        hudCtx.fillStyle = "#eaf6ff";
+        hudCtx.fillText(ui.text, x, y);
+      }
+    }
   }
   requestAnimationFrame(frame);
 }

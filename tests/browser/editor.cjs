@@ -1002,6 +1002,47 @@ const { chromium } = require("playwright");
     );
     assert.equal(await page.locator('[aria-label="Particles.rate"]').inputValue(), "40");
     assert.equal(await page.locator('[aria-label="Particles.lifetime"]').inputValue(), "0.8");
+    // UI (0.43.0): screen-anchored HUD/menu elements, not 3D objects --
+    // verified here at the authoring-DOM level like every other component
+    // (options offered, values persist through a fresh inspector render),
+    // plus one real interaction: a Button's action actually fires through a
+    // real click, not just that it's stored. Full coverage of all four
+    // actions (restart/resume/pause/quit) and the rendering/visibleWhen
+    // gating was done separately against the real running editor.
+    const ui = groups.find((g) => g.label === "UI");
+    assert.ok(ui.options.includes("UI"));
+    await page.locator(".entity").filter({ hasText: "Mannequin F" }).first().click();
+    await page.getByLabel("Add component").selectOption("UI");
+    const uiKind = page.locator('[aria-label="UI.kind"]');
+    assert.deepEqual(await uiKind.locator("option").allTextContents(), ["Text", "Button"]);
+    assert.equal(await uiKind.inputValue(), "Text", "sensible default kind");
+    await uiKind.selectOption("Button");
+    await page.getByLabel("UI.text", { exact: true }).fill("Pause");
+    await page.getByLabel("UI.text", { exact: true }).press("Tab");
+    await page.locator('[aria-label="UI.anchor"]').selectOption("center");
+    await page.locator('[aria-label="UI.visibleWhen"]').selectOption("play");
+    await page.locator('[aria-label="UI.action"]').selectOption("pause");
+    await page.locator(".entity").filter({ hasText: "Wolf" }).first().click();
+    await page.locator(".entity").filter({ hasText: "Mannequin F" }).first().click();
+    assert.equal(
+      await page.locator('[aria-label="UI.action"]').inputValue(),
+      "pause",
+      "UI edits persist through a fresh inspector render, same as every other component",
+    );
+    await page.click("#play");
+    await page.waitForFunction(() => document.getElementById("status")?.dataset.mode === "play");
+    const canvasBox = await page.evaluate(() => {
+      const rect = document.querySelector("#viewport canvas").getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    });
+    await page.mouse.click(canvasBox.x + canvasBox.width / 2, canvasBox.y + canvasBox.height / 2);
+    await page.waitForFunction(() => document.getElementById("status")?.dataset.mode === "pause");
+    assert.equal(
+      await page.evaluate(() => document.getElementById("status").dataset.mode),
+      "pause",
+      "clicking a visible UI Button actually runs its action",
+    );
+    await page.click("#stop");
 
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
@@ -1012,7 +1053,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses) passed.",
     );
   } finally {
     if (browser) await browser.close();

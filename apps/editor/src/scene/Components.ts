@@ -131,6 +131,57 @@ export interface ParticlesComponent {
   speed: number;
   size: number;
 }
+// Screen-space UI -- a HUD/menu element, not a 3D object: rendered on the
+// existing 2D HUD canvas (main.ts's drawHud(), previously Health bars only)
+// at a fixed screen anchor, never projected from this entity's own Transform
+// the way a Health bar is. An entity carrying UI still gets the usual
+// placeholder box in the 3D viewport like any other component combination
+// that has no inherent 3D appearance (a Script-only or Sound-only entity
+// already works the same way) -- author Renderable.visible: false on it if
+// that's unwanted, rather than this component silently special-casing it.
+// kind picks Text (label only) or Button (clickable; fires only while
+// doc.mode is "play" or "pause", never "edit", so authoring a scene can
+// never accidentally trigger one).
+//
+// action is a fixed, small vocabulary (Restart/Resume/Pause/Quit-to-edit),
+// not an arbitrary JSON command like the Authoring Console's own text box
+// takes -- deliberately, not for lack of trying: EditorDocument.execute()
+// unconditionally rejects every command while doc.mode isn't "edit" (so
+// simulation state -- the native runtime, objects[]/animStates[]' own
+// per-entity indexing -- can't be corrupted by a scene mutation arriving
+// mid-Play), which a real click-through-to-command test caught: a Button
+// clickable only in Play/Pause could therefore never fire a command that
+// actually does anything. Each action instead reuses the exact same,
+// already-correct code the Play/Pause/Stop transport buttons themselves run
+// (main.ts's own doc comment on `action` has the mapping), the same way
+// those buttons already safely take a scene through a mode transition
+// without going through doc.execute() at all. Stored and validated
+// unconditionally even for a Text element that never reads it, the same
+// "meaningless but harmless off-type field" pattern Collider's shape-specific
+// fields already use. visibleWhen controls which of Edit/Play/Pause the
+// element renders in: "always" (Edit included, so an author sees where it
+// lands without pressing Play), "play", or "pause" (e.g. a pause menu that
+// isn't there the rest of the time).
+export type UIKind = "Text" | "Button";
+export type UIAnchor =
+  | "top-left"
+  | "top-center"
+  | "top-right"
+  | "middle-left"
+  | "center"
+  | "middle-right"
+  | "bottom-left"
+  | "bottom-center"
+  | "bottom-right";
+export type UIVisibility = "always" | "play" | "pause";
+export type UIAction = "restart" | "resume" | "pause" | "quit";
+export interface UIComponent {
+  kind: UIKind;
+  text: string;
+  anchor: UIAnchor;
+  visibleWhen: UIVisibility;
+  action: UIAction;
+}
 export interface NameComponent {
   value: string;
 }

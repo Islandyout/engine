@@ -48,6 +48,28 @@ const metadata: Record<string, PropertyMetadata> = {
   "Particles.lifetime": { label: "Lifetime (seconds)", step: "0.1" },
   "Particles.speed": { label: "Initial speed (m/s)", step: "0.1" },
   "Particles.size": { label: "Point size (world units)", step: "0.01" },
+  "UI.kind": { options: choice(["Text", "Button"]) },
+  "UI.anchor": {
+    options: choice([
+      "top-left",
+      "top-center",
+      "top-right",
+      "middle-left",
+      "center",
+      "middle-right",
+      "bottom-left",
+      "bottom-center",
+      "bottom-right",
+    ]),
+  },
+  "UI.visibleWhen": {
+    label: "Visible in",
+    options: choice(["always", "play", "pause"]),
+  },
+  "UI.action": {
+    label: "Action (Button only)",
+    options: choice(["restart", "resume", "pause", "quit"]),
+  },
   "Pedestrian.archetype": {
     label: "Archetype",
     options: indexedChoice(["Casual", "Brisk", "Lingering"]),
@@ -136,4 +158,5 @@ export const componentGroups: readonly ComponentGroup[] = [
     types: ["Renderable", "AnimationState", "Light", "Particles"],
   },
   { label: "Scripting & Audio", types: ["Script", "Sound"] },
+  { label: "UI", types: ["UI"] },
 ];
