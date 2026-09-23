@@ -3549,3 +3549,109 @@ frame `editor_alive(i)` reads false for a previously-alive entity:
   so this applies uniformly already); what happens when the Player's own
   Health reaches 0 (still tracked separately, task "Player death /
   game-over handling"); the key→animation Lua binding (still not started).
+
+## F47 — A key→animation Lua API: `input.down`/`input.pressed` and `self.animate` (Tier 3, gap audit item 3, 0.47.0)
+
+The third item from the same gap audit: the user could already place an
+entity, add animation clips, and attach a `Script`, but had no way to make a
+specific key trigger a specific clip in Play mode — the underlying ask was
+"tie a hit animation to F, a shooting stance to G," generalized (per the
+user's own call, after weighing a narrow F/G-only hook against a general
+system) into a scoped, general binding mechanism exposed through the
+existing Lua sandbox rather than a new no-code component, reusing the same
+per-entity `self` table pattern `save`/`self.vx` already established.
+
+### Design
+
+- A new `input` table, global but Runtime-wide (not per-entity — physical
+  keys aren't a property of any one script), with two read-only methods:
+  `input.down(key)` (level — true for as long as the key is held) and
+  `input.pressed(key)` (edge — true only on the tick the key transitioned
+  from up to down, mirroring the existing `keyQueue`/edge-detection idiom
+  already used for the editor's own hotkeys). Both take the same lowercase
+  key string DOM `KeyboardEvent.key` already produces.
+- A new **write-only** `self.animate` field: setting it from Lua
+  (`self.animate = "Attack"`) queues a one-shot animation request for that
+  entity, read back and cleared by the bridge/TS layer the same tick.
+  Numbers coerce to strings (Lua's own `lua_isstring` treats a number as
+  "always convertible," the same tolerant semantics `save.set` already
+  relies on elsewhere); tables and booleans are rejected, matching what a
+  clip name can plausibly be.
+- Bridge: `editor_script_key(key, down)` applies a key edge directly to the
+  active `Runtime` (called once per real DOM edge, not queued/batched like
+  `editor_key`, since Lua's `on_tick` needs to see `pressed()` go true for
+  exactly one tick regardless of how many render frames a keypress spans);
+  `editor_take_animation_request(index)` drains one entity's pending
+  request string (empty string = none), following the established
+  count/indexed-getter and `static std::string result` idioms already used
+  elsewhere in `bridge.cpp`.
+- TS (`main.ts`): keyboard listeners now also forward every physical key
+  edge to a new `scriptKeyQueue` (in addition to the pre-existing
+  `boundKeyCodes`-gated `keyQueue` for editor hotkeys — scripts can bind
+  any key, not just the ones the editor itself recognizes), drained once
+  per frame via `editor_script_key`. A new `pollAnimationRequests()`
+  function, called once per frame alongside `persistDirtySaves()`, drains
+  each entity's pending request and — if the entity's `AnimState` has a
+  matching clip — plays it as a `THREE.LoopOnce` one-shot
+  (`clampWhenFinished`, crossfaded in from whatever was previously
+  playing), setting a new `AnimState.oneShot` flag for the duration.
+- The existing per-tick ground-speed locomotion picker (already gated on
+  `deathStates[i]` since F46) gained a second gate,
+  `if (deathStates[i] || state.oneShot) return;` — without it, a one-shot
+  clip would be immediately overridden the same frame by the
+  speed-0-means-idle logic, the identical class of bug F46 already found
+  and fixed for death clips. A `mixer` `"finished"` listener clears
+  `oneShot` and hands control back to the locomotion picker once the clip
+  actually completes, so scripts don't need to poll or reset state
+  themselves.
+
+### F47 verification
+
+- New native `engine_script_tests` coverage (4 blocks): `input.down` level
+  semantics across press/hold/release; `input.pressed` edge semantics,
+  including that pressing, releasing, and pressing the same key again
+  produces a second edge; `self.animate` request/take, confirming a
+  fetched request is cleared (non-sticky — a stale `"Attack"` from two
+  ticks ago doesn't silently re-fire); and that a non-string, non-number
+  `self.animate` (a table) is correctly rejected while a number is
+  correctly coerced.
+  - A first draft of that last test asserted `self.animate = 42` should be
+    rejected — it failed. Root cause was in the test's own assumption, not
+    the implementation: Lua's C API `lua_isstring()` returns true for
+    numbers too (the Lua reference manual documents this — a number is
+    always convertible to a string), so `42` becoming `"42"` is correct,
+    consistent Lua semantics, not a bug. Fixed the test to use a table
+    instead, which `lua_isstring` does correctly reject, and reworded it to
+    describe the real, intended semantic.
+- New native `engine_editor_bridge_tests` coverage: one integration block
+  driving `editor_script_key` directly (real bridge entry point, not the
+  `Runtime` API alone) and confirming `input.down`, `input.pressed`, and
+  `self.animate` all reach a running script correctly end-to-end, using
+  generous tick-count margins per phase rather than single-tick deltas to
+  avoid coupling the test to exact scheduling.
+- Full `ctest` — 14/14 passing, including both new/extended suites above.
+- `npm run typecheck`/`npm test` — 37/37 passing.
+- Built the real Emscripten/WASM editor and verified the actual mechanism
+  against a live session, not by inspection: temporarily exposed
+  `{ animStates }` on `window` (removed before this was committed — the
+  shipped app has no such hook), placed the bundled Wolf catalog model
+  (real clips include `Attack`), attached a `Script` component running
+  `if input.pressed('1') then self.animate = 'Attack' end`, entered Play,
+  and pressed `1` with a real DOM keyboard event. Polled `animStates[i]`
+  every ~100ms: `current` held `"idle"` before the press, flipped to
+  `{"current":"Attack","oneShot":true}` for exactly the clip's duration,
+  then reverted to `{"current":"idle","oneShot":false}` on its own once
+  the one-shot finished — confirming the request reaches Lua, triggers the
+  clip, resists the locomotion picker's override for the clip's full
+  duration, and correctly hands control back afterward, with no debug
+  hook's own errors reported.
+- Full existing `tests/browser/editor.cjs` black-box suite re-run after the
+  change (and again after the temporary debug hook was removed) — zero
+  regression.
+- Not done here: no permanent black-box test asserting the one-shot
+  animation pixel-by-pixel (the same judgment call F46 made for the death
+  fade — the triggering path is covered by native tests, and the visual
+  result was hand-verified above); a no-code "bindings list" UI as an
+  alternative to scripting (the user explicitly chose the Script/Lua route
+  over this); the player death/game-over handling (still tracked
+  separately, the last item on this gap audit).
