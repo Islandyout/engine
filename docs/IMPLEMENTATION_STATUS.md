@@ -3331,3 +3331,84 @@ velocity write" rule already documented for a Script+AIState combination.
   saving a realistic amount of small progress data is nowhere near
   `localStorage`'s typical several-MB-per-origin limit; not worth the
   complexity this round).
+
+## F45 — Hostile AI attacks back (Tier 3, part of a "make this a real game" gap audit, 0.45.0)
+
+Started from a user report while playing a Chasing AIAgent by hand: catching
+up to it "does nothing" — no hostility. Rather than guess, read the actual
+combat code (`apps/editor/runtime/bridge.cpp`) before touching anything, and
+confirmed it: `damage()` is only ever called from `editor.combat` (Player's F
+melee) and the projectile system (Player's G blast) — every single call site
+targets *away* from the Player, never toward it. The `Chasing` branch of
+`editor.ai` only ever writes `body.velocity`, moving the agent toward the
+Player and nothing else. Combat was entirely one-directional by construction,
+not a bug that only shows up sometimes.
+
+Widening the scope: the same investigation also confirmed two more real
+gaps the user separately flagged (death is an instant `defer_destroy`, no
+clip or fade; no key→animation binding exists at all) and one they didn't
+(no player-death/game-over handling, since nothing could ever kill the
+Player until this round). Asked the user which to build first, rather than
+doing all four in one round the way every other Fxx round in this project
+has been scoped — the answer was this one, AI hostility, since it's the
+prerequisite that makes the other three meaningful (a death sequence and a
+game-over screen are both moot if the Player can never actually take
+damage).
+
+### Design
+
+A new `editor.ai_attack` fixed system, ordered 21 (right after
+`editor.combat`'s 20 — see its own doc comment for why: a killing blow the
+Player lands this same tick removes the target before it can also land its
+own hit, so a simultaneous kill favors the Player, not a trade). Mirrors
+the shape of the existing Player→enemy melee (Box-overlap test, `damage()`),
+not a new combat model:
+
+- Only a `Chasing` `AIAgent` can land a hit — never `Fleeing` (self-
+  preservation, not hostility) and never reachable for a `Pedestrian` at all
+  (it never enters `Chasing` in the first place, per `editor.ai`'s own
+  existing state machine — a harmless wanderer stays harmless).
+- Rate-limited by a new per-agent `attack_cooldown` field (`AIAgent`,
+  `ai_attack_interval` = 1s), not damage on every tick of contact — at 60
+  ticks/s, undamped contact damage would down a 100 HP Player in a fraction
+  of a second, which reads as an instant, un-reactable death rather than a
+  fight.
+- `ai_attack_damage` (8) is deliberately weaker than the Player's own melee
+  (20) — the Player should still have the advantage in a fair fight.
+- A no-op if the Player has no `Health` component authored at all (the
+  query `w.query<Box, PlayerMarker, Health>()` simply finds nothing) — the
+  same opt-in contract `damage()` already gives every other entity, not a
+  special case for the Player. This also means the existing HUD Health bar
+  (`drawHud()` in `main.ts`, already generic over "any alive entity with
+  Health") shows the Player's own health for free the moment a scene author
+  attaches `Health` to their Player entity — no new UI needed this round.
+
+### F45 verification
+
+- Native unit tests (`tests/editor_bridge_tests.cpp`, four new cases added
+  to the existing suite): a `Chasing` AIAgent overlapping a Player with
+  Health lands a hit immediately, no second hit inside the 1s cooldown, a
+  second hit exactly once the cooldown clears; a `Fleeing` agent overlapping
+  the Player never attacks; a `Pedestrian` overlapping the Player never
+  attacks; a Player with no `Health` authored is simply never damaged and
+  nothing crashes reaching for a component that isn't there. Full `ctest`
+  (14/14 executables) re-verified clean.
+- Built the real Emscripten/WASM editor and verified against a live running
+  session, not just the native numbers: authored a Player with `Health`
+  (100/100) and a hostile `AIState` entity 2 units away, entered Play, and
+  watched the Player's own `Selected health` status readout drop for real —
+  100% → 84% → 76% → 68% → 60%, an 8-point hit roughly once a second,
+  matching `ai_attack_damage`/`ai_attack_interval` exactly.
+- Full existing `tests/browser/editor.cjs` black-box suite and `npm run
+  typecheck`/`npm test` (37/37) re-run after the change — zero regression;
+  no changes were needed to either, since this round is entirely native
+  (`bridge.cpp`) and the existing generic Health-bar/HUD machinery already
+  covers a Player with Health for free.
+- Not done here (explicitly deferred, per the user's own priority choice):
+  a death animation/fade for *any* entity reaching 0 health (still an
+  instant `defer_destroy`, unchanged this round); what happens when the
+  Player's own health reaches 0 — today that's the same generic
+  "destroyed, `editor_alive()` false, object hidden" path every other
+  entity already gets, with no death/game-over/respawn handling layered on
+  top; the key→animation Lua binding scoped earlier in this same
+  conversation, not started.
