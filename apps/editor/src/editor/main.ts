@@ -370,6 +370,22 @@ async function startEditor() {
   // Parallel to `objects`, same shape as animStates. Reset alongside objects
   // on every rebuild().
   const particleStates: (ParticleState | undefined)[] = [];
+  interface DeathState {
+    elapsed: number; // seconds since editor_alive(i) first read false this Play session
+    // Materials cloned specifically for this one dying object -- see
+    // startDeath's own doc comment for why fading in place isn't safe.
+    // Disposed once the fade finishes or on the next rebuild(), whichever
+    // comes first.
+    materials: THREE.Material[];
+  }
+  // Parallel to `objects`, same shape as animStates/particleStates. Reset
+  // (disposing any still-fading materials) alongside objects on every
+  // rebuild() -- safe because rebuild() never runs mid-Play (doc.execute()
+  // itself refuses outside Edit mode, and the one async rebuild trigger
+  // that could fire during Play, a catalog model finishing its load, is
+  // gated to doc.mode === "edit"), so a fade in progress is never
+  // interrupted by one.
+  const deathStates: (DeathState | undefined)[] = [];
   // A fresh THREE.Points system per rebuild(), same as every mesh/light here
   // -- nothing caches or reuses one, so there's nothing extra to dispose when
   // the entity's Particles is removed or edited. Capacity is sized from
@@ -509,6 +525,62 @@ async function startEditor() {
     }
     state.points.geometry.attributes.position!.needsUpdate = true;
     state.points.geometry.attributes.color!.needsUpdate = true;
+  }
+  const deathFadeDuration = 1.0; // seconds; how long a defeated entity lingers, fading out
+  // Called once, the first frame editor_alive(i) reads false for an entity
+  // that was previously alive -- starts its death sequence (a clip, if its
+  // model has one, plus a fade-out) instead of the object just vanishing
+  // the instant combat/AI damage brings its Health to 0.
+  function startDeath(
+    anchor: THREE.Object3D,
+    animState: AnimState | undefined,
+  ): DeathState {
+    // "death"/"die" are the two conventional clip names this project's own
+    // kits already use elsewhere (see animationClips.ts's pickClipName for
+    // the same "look for a conventional name, fall back gracefully if this
+    // particular rig doesn't have one" approach) -- not every model has a
+    // death clip, so this is a bonus when present, not a requirement.
+    if (animState) {
+      const deathClip = ["death", "die"].find((name) => animState.actions.has(name));
+      if (deathClip) {
+        const action = animState.actions.get(deathClip)!;
+        const previous = animState.current
+          ? animState.actions.get(animState.current)
+          : undefined;
+        action.reset().setLoop(THREE.LoopOnce, 1);
+        action.clampWhenFinished = true;
+        action.fadeIn(0.15).play();
+        if (previous && previous !== action) previous.fadeOut(0.15);
+        animState.current = deathClip;
+      }
+    }
+    // Every material this object's mesh hierarchy uses is shared with every
+    // other placed instance of the same model (rebuild()'s own comment on
+    // why cloning is skipped there for exactly this reason -- nothing to
+    // dispose per rebuild otherwise) -- fading one in place would
+    // incorrectly fade every other entity using that model too, so each one
+    // is cloned here, lazily, only for the one object that's actually
+    // dying, and disposed once its fade finishes (or on the next rebuild(),
+    // whichever comes first).
+    const materials: THREE.Material[] = [];
+    const cloned = new Map<THREE.Material, THREE.Material>();
+    anchor.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      const clone = (material: THREE.Material): THREE.Material => {
+        let result = cloned.get(material);
+        if (!result) {
+          result = material.clone();
+          result.transparent = true;
+          cloned.set(material, result);
+          materials.push(result);
+        }
+        return result;
+      };
+      child.material = Array.isArray(child.material)
+        ? child.material.map(clone)
+        : clone(child.material);
+    });
+    return { elapsed: 0, materials };
   }
   const geometry = new THREE.BoxGeometry();
   const material = new THREE.MeshStandardMaterial({ color: 0x61adba });
@@ -1089,6 +1161,8 @@ async function startEditor() {
       (state?.points.material as THREE.Material | undefined)?.dispose();
     }
     particleStates.length = 0;
+    for (const state of deathStates) state?.materials.forEach((m) => m.dispose());
+    deathStates.length = 0;
     const refs = doc.scene.eachAlive();
     for (const entity of refs) {
       const renderable = doc.scene.resolve(entity, "Renderable");
@@ -1195,6 +1269,7 @@ async function startEditor() {
       objects.push(anchor);
       animStates.push(animState);
       particleStates.push(particleState);
+      deathStates.push(undefined);
     }
     refs.forEach((entity, i) => {
       const parent = doc.scene.resolve(entity, "Parent")?.entity;
@@ -1860,15 +1935,21 @@ async function startEditor() {
       }
       persistDirtySaves();
       objects.forEach((object, i) => {
-        // Combat can destroy an authored entity (Health reaching 0) mid-session;
+        // Combat/AI can destroy an authored entity (Health reaching 0) mid-session;
         // its index stays in objects[] (entities can't be added/removed while
-        // playing), but editor_value() on a dead entity is meaningless, so hide
-        // it instead of snapping it to the origin. Only forces visible false,
-        // never true: rebuild() already set each object's visibility from its
-        // own authored Renderable.visible, and an entity that's still alive
-        // never needs that touched here.
+        // playing), but editor_value() on a dead entity is meaningless. Rather
+        // than vanish instantly, it plays a death clip (if its model has one)
+        // and fades out over deathFadeDuration -- see startDeath's own doc
+        // comment. Only ever forces visible false, never true: rebuild()
+        // already set each object's visibility from its own authored
+        // Renderable.visible, and an entity that's still alive never needs
+        // that touched here.
         if (!runtime._editor_alive(i)) {
-          object.visible = false;
+          const state = (deathStates[i] ??= startDeath(object, animStates[i]));
+          state.elapsed += dt;
+          const opacity = Math.max(0, 1 - state.elapsed / deathFadeDuration);
+          for (const material of state.materials) material.opacity = opacity;
+          if (state.elapsed >= deathFadeDuration) object.visible = false;
           return;
         }
         object.position.set(
