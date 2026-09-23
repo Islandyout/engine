@@ -3385,6 +3385,27 @@ not a new combat model:
 
 ### F45 verification
 
+- Post-push fix (pushed straight to the same still-open PR, not a
+  branch-restart -- it hadn't merged yet): a P2 Codex finding, confirmed
+  real before fixing, not taken on faith. "Skip defeated AI before
+  counterattacking" -- ordering `editor.ai_attack` after `editor.combat`
+  (21 vs 20) does *not* actually stop an agent the Player's melee/blast
+  already defeated this same tick from also landing a hit:
+  `FixedSystems::run` (`source/engine/world/fixed_systems.cpp`) only
+  flushes `World::defer_destroy`'s queued removals once per whole phase,
+  not between same-phase systems, so a defeated agent stays fully
+  queryable (`Health` and all) until every `FixedPhase::update` system,
+  `editor.ai_attack` included, has already run this tick. Verified the
+  claim against the real flush code before fixing, then verified the fix
+  itself two ways: added a regression test (a 1 HP `Chasing` agent killed
+  by the same F press that would otherwise also trigger its
+  counterattack) and confirmed it actually catches the bug by reverting
+  the fix locally and watching the test abort
+  (`terminate called after throwing 'editor bridge test failed'`) before
+  restoring it. Fixed with an explicit `own_health->current > 0` check,
+  not reliance on system order. Re-ran the full `ctest` suite (14/14) and
+  `tests/browser/editor.cjs`/`npm run typecheck`/`npm test` (37/37) after
+  the fix -- still pass, zero regression.
 - Native unit tests (`tests/editor_bridge_tests.cpp`, four new cases added
   to the existing suite): a `Chasing` AIAgent overlapping a Player with
   Health lands a hit immediately, no second hit inside the 1s cooldown, a
@@ -3412,3 +3433,119 @@ not a new combat model:
   entity already gets, with no death/game-over/respawn handling layered on
   top; the key→animation Lua binding scoped earlier in this same
   conversation, not started.
+
+## F46 — Death sequence: a clip and a fade instead of instantly vanishing (Tier 3, gap audit item 2, 0.46.0)
+
+The second item from the same gap audit that produced F45: a defeated
+entity's `object.visible` was forced straight to `false` the instant
+`editor_alive()` read false, one rendered frame after `Health` hit 0 — the
+"just disappears" the user's own playtesting flagged. Entirely a rendering
+concern, not a simulation one (the native side already destroys the entity
+correctly; nothing about *when* physics/combat stop tracking it needed to
+change), so — like Sound/Particles/UI before it — this lands entirely in
+`main.ts`, with zero `bridge.cpp` changes.
+
+### Design
+
+A new `DeathState` per entity (`elapsed`, `materials`), parallel to
+`animStates`/`particleStates`, created lazily by `startDeath()` the first
+frame `editor_alive(i)` reads false for a previously-alive entity:
+
+- Plays a `"death"`/`"die"` clip if the model actually has one (the same
+  "look for the conventional name, fall back gracefully" approach
+  `animationClips.ts`'s `pickClipName` already uses for locomotion clips) —
+  a bonus when present, not a requirement, since not every kit rig has a
+  death animation.
+- Fades the mesh's opacity from 1 to 0 over `deathFadeDuration` (1s), only
+  then finally setting `object.visible = false` — the entity lingers
+  visibly instead of popping out of existence.
+- The one real subtlety: every material a catalog model or the plain box
+  mesh uses is **shared** across every placed instance of that
+  model/material (`rebuild()`'s own comment on why — nothing is cloned per
+  entity normally, so there's nothing extra to dispose on a routine
+  rebuild). Fading a shared material in place would incorrectly fade every
+  other entity using the same model too. `startDeath()` clones each unique
+  material it finds on the dying object's own mesh hierarchy — lazily,
+  only for the one object that's actually dying — fades the clone, and
+  disposes it once the fade finishes (or on the next `rebuild()`,
+  whichever comes first; `rebuild()` never runs mid-Play, so a fade in
+  progress is never interrupted by one).
+
+### F46 verification
+
+- Post-push fix: three Codex findings on the PR, all P2, all confirmed real
+  against a live running session before fixing.
+  - "Match death clip names without case sensitivity" — several bundled
+    animated models (Alpaca, Stag, Husky, Wolf) expose their clip as
+    `"Death"` (capital D), while `loadCatalogModel()` keeps each
+    `clip.name` exactly as authored in the `actions` Map's own keys, so
+    the original `["death", "die"].find((name) => actions.has(name))`
+    lookup — lowercase only — never matched any of them; those models
+    just faded, no death clip. Fixed by matching case-insensitively
+    (`name.toLowerCase()`) while still looking the clip up by its real,
+    original-case key.
+  - "Exclude dying entities from locomotion clip selection" — a second,
+    separate per-frame pass (the existing ground-speed locomotion
+    picker) ran over every `animStates` entry unconditionally, with no
+    `deathStates`/`editor_alive()` check of its own. A dying entity's
+    position stops updating the instant it dies, so that pass read speed
+    0, picked `"idle"`, and immediately crossfaded away from the death
+    clip `startDeath()` had just started — the same frame it started.
+    Fixed by skipping any entity with a `deathStates[i]` entry in that
+    second pass.
+  - "Preserve each material's initial opacity during the fade" — an
+    already-transparent material (shipped vehicle glass at 0.45, several
+    building materials at 0.35/0.55) has its own real starting opacity,
+    but the fade computed an absolute value (`1 - elapsed/duration`,
+    starting at 1.0) instead of scaling down from where that material
+    actually started — its first fade frame snapped it to nearly opaque
+    before fading out, backwards from the intended effect. Fixed by
+    capturing each clone's own opacity at clone time
+    (`baseOpacity`) and multiplying it by fade progress instead of
+    assigning progress directly.
+  Verified all three together against a real running session (the
+  bundled Wolf, whose real clip list is `Attack`/`Death`/`Eating`/`run`/
+  `Gallop_Jump`/`idle`/... — `Death`, capital D, confirming the finding):
+  killed it with a real F melee press and polled `animStates[i].current`
+  every 150ms — held at `"Death"` for the entire fade, never reverting to
+  `"idle"`. Separately set a material's opacity to 0.5 before the kill and
+  confirmed the polled fade ran 0.375 → 0.29 → 0.21 → 0.13 → 0.05 → 0
+  (visibly starting from 75% of 0.5, not from 1.0). Re-ran `npm run
+  typecheck`/`npm test` (37/37) and the full `tests/browser/editor.cjs`
+  black-box suite after all three fixes — still pass, zero regression.
+- `npm run typecheck`/`npm test` (37/37) — no logic these tests exercise
+  changed shape (entities still die/report dead exactly when they did
+  before; only what the renderer does with a dead entity's mesh changed),
+  so this is a regression check, not new coverage of the fade itself.
+- Built the real Emscripten/WASM editor and verified the actual mechanism
+  against a live session, not by inspection: temporarily exposed
+  `{ objects, deathStates }` on `window` (removed before this was
+  committed — the shipped app has no such hook), killed a `Health` entity
+  with a real F melee press, and polled its cloned material's `opacity`
+  and the object's `visible` flag every 150ms. Confirmed a smooth,
+  monotonic fade (0.75 → 0.58 → 0.42 → 0.25 → 0.08 → `visible: false`)
+  over almost exactly `deathFadeDuration`, not an instant jump. In the
+  same session, a second entity sharing the identical base material
+  stayed at `visible: true` throughout, confirming the per-entity material
+  clone actually prevents the "fading one fades all of them" regression
+  the design above exists to avoid.
+- Full existing `tests/browser/editor.cjs` black-box suite re-run after
+  the change (and again after the temporary debug hook was removed) —
+  zero regression; nothing in the existing suite asserts on
+  `object.visible` immediately after a kill (the closest existing check,
+  `"Selected: defeated"`, reads `editor_alive()`/`Health` directly, both
+  unchanged by this round), so nothing needed updating for the new
+  lingering-then-hidden behavior.
+- Not done here: no new *permanent* black-box test asserting the fade
+  itself pixel-by-pixel or frame-by-frame — the triggering condition
+  (`Health` reaching 0 → `editor_alive()` false) is already covered by
+  existing native and black-box tests, and the fade math itself is a
+  small, simple, already-hand-verified TS function; a screenshot-based
+  pixel-brightness check was considered and set aside as more fragility
+  (lighting, camera angle, anti-aliasing) than this cosmetic feature
+  currently warrants, a judgment call rather than an oversight. Also not
+  done: a death clip for the Player's own model specifically (there is no
+  "Player" model distinct from any other entity's authored `Renderable`,
+  so this applies uniformly already); what happens when the Player's own
+  Health reaches 0 (still tracked separately, task "Player death /
+  game-over handling"); the key→animation Lua binding (still not started).
