@@ -592,6 +592,24 @@ int main() {
         editor_tick(); // 65 ticks since the first hit -- past the 60-tick cooldown with margin
     check(std::abs(editor_value(1, 3) - (100.0 - 16.0) / 100.0) < 1e-3); // second hit landed
 
+    // Regression: an AIAgent editor.combat has already defeated *this same tick* must not
+    // also land a hit in editor.ai_attack, even though it's still fully queryable (Health
+    // and all) until FixedSystems flushes its deferred destroy -- see editor.ai_attack's
+    // own doc comment (bridge.cpp) for why ordering it after editor.combat alone doesn't
+    // guarantee this; only the explicit own_health->current > 0 check does. A 1 HP AIAgent
+    // overlapping the Player, killed by the very same F press that -- without that check --
+    // would also trigger its counterattack the same tick (editor.ai, order 1, already made
+    // it Chasing before editor.combat, order 20, kills it, both within this one tick).
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0.5, 0, 0) ==
+          1); // AI at 1 HP, index 0, overlapping the player
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) ==
+          1); // Player with Health, index 1
+    check(editor_commit() == 1);
+    attack_once();
+    check(editor_alive(0) == 0);                       // the AI died this tick
+    check(std::abs(editor_value(1, 3) - 1.0) < 1e-6);   // Player untouched -- no counterattack landed
+
     // Fleeing never attacks, even overlapping the Player -- self-preservation, not hostility.
     editor_begin();
     check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 10, 100, 0, 1, 0, 0, 0.5, 0, 0) ==

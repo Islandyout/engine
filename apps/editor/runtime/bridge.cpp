@@ -652,10 +652,16 @@ struct Runtime {
         // contract) or Health isn't authored on the Player at all (the query
         // below simply finds nothing) -- attacking back is opt-in the same
         // way taking damage already is for every other entity. Ordered after
-        // editor.combat (20), not before or at the same order: a killing
-        // blow the Player lands this same tick removes the target before it
-        // can also land its own hit, so a simultaneous kill favors the
-        // Player rather than trading.
+        // editor.combat (20), not before or at the same order -- but that
+        // alone does NOT stop an agent editor.combat already killed this
+        // same tick from also landing a hit here: FixedSystems::run only
+        // flushes World::defer_destroy's queued removals once per whole
+        // phase (see its own definition, fixed_systems.cpp), not between
+        // same-phase systems, so a defeated agent stays fully queryable,
+        // Health and all, until every FixedPhase::update system (including
+        // this one) has already run. The explicit health->current > 0 check
+        // below is what actually makes a simultaneous kill favor the
+        // Player, not the order number.
         systems.add(
             "editor.ai_attack", engine::FixedPhase::update, 21,
             [](engine::World &w, const engine::FixedUpdateContext &) {
@@ -666,6 +672,9 @@ struct Runtime {
                         agent.attack_cooldown -= dt;
                     if (agent.state != AIState::Chasing || agent.attack_cooldown > 0.0F)
                         continue;
+                    const auto *own_health = w.get<Health>(entity);
+                    if (own_health && own_health->current <= 0.0F)
+                        continue; // already defeated this tick, just not flushed yet
                     const auto &box = *w.get<engine::Box>(entity);
                     for (const auto target : w.query<engine::Box, PlayerMarker, Health>()) {
                         if (engine::physics::overlaps(box, *w.get<engine::Box>(target))) {
