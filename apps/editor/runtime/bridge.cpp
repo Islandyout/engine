@@ -75,6 +75,12 @@ struct AIAgent final {
     float dir_x{0.0F};  // current wander heading (unit vector), meaningless outside Walking/Running
     float dir_z{1.0F};
     std::uint32_t rng{1};
+    // Seconds remaining before this agent can land another hit -- see the
+    // "editor.ai_attack" system below. Decremented every tick regardless of
+    // state, so a cooldown earned mid-chase keeps draining even through a
+    // Fleeing/wander detour rather than staying frozen and firing off
+    // instantly the moment the agent re-enters Chasing.
+    float attack_cooldown{0.0F};
 };
 // Which row of pedestrian_tuning (below) shapes a Pedestrian's own wander
 // pace — how long it lingers between phases and how briskly it moves once
@@ -201,6 +207,12 @@ constexpr float attack_damage = 20.0F;
 // to cross a typical engagement distance well within its lifetime.
 constexpr float blast_damage = 15.0F;
 constexpr float blast_speed = 8.0F;
+// Weaker than the Player's own melee (20) and on a real cooldown, not every
+// tick of contact (which at 60 ticks/s would down a 100 HP Player in under a
+// fifth of a second) -- a hostile AIAgent that's caught the Player is a
+// real threat, not a one-hit kill.
+constexpr float ai_attack_damage = 8.0F;
+constexpr float ai_attack_interval = 1.0F; // seconds between hits from the same agent
 
 // Small, explicit contract with the JS side (see editor_key's doc comment)
 // instead of trusting engine::Key's own enum ordinals, which are free to
@@ -626,6 +638,50 @@ struct Runtime {
                             continue;
                         if (engine::physics::overlaps(box, *w.get<engine::Box>(target)))
                             damage(w, target, attack_damage);
+                    }
+                }
+            });
+        // A hostile (Chasing) AIAgent hits back once it's actually caught the
+        // Player, instead of Player->enemy combat above being the only
+        // direction damage ever flows -- without this, a Chasing AIAgent
+        // catching the Player is harmless contact, no different from bumping
+        // into a wall. Gated to Chasing specifically (never Fleeing, and
+        // never reachable at all for a Pedestrian -- see "editor.ai"'s own
+        // state-machine above) so a fleeing or merely wandering agent never
+        // attacks. A no-op if the Player has no Health (damage()'s own
+        // contract) or Health isn't authored on the Player at all (the query
+        // below simply finds nothing) -- attacking back is opt-in the same
+        // way taking damage already is for every other entity. Ordered after
+        // editor.combat (20), not before or at the same order -- but that
+        // alone does NOT stop an agent editor.combat already killed this
+        // same tick from also landing a hit here: FixedSystems::run only
+        // flushes World::defer_destroy's queued removals once per whole
+        // phase (see its own definition, fixed_systems.cpp), not between
+        // same-phase systems, so a defeated agent stays fully queryable,
+        // Health and all, until every FixedPhase::update system (including
+        // this one) has already run. The explicit health->current > 0 check
+        // below is what actually makes a simultaneous kill favor the
+        // Player, not the order number.
+        systems.add(
+            "editor.ai_attack", engine::FixedPhase::update, 21,
+            [](engine::World &w, const engine::FixedUpdateContext &) {
+                constexpr float dt = 1.0F / 60.0F;
+                for (const auto entity : w.query<engine::Box, AIAgent>()) {
+                    auto &agent = *w.get<AIAgent>(entity);
+                    if (agent.attack_cooldown > 0.0F)
+                        agent.attack_cooldown -= dt;
+                    if (agent.state != AIState::Chasing || agent.attack_cooldown > 0.0F)
+                        continue;
+                    const auto *own_health = w.get<Health>(entity);
+                    if (own_health && own_health->current <= 0.0F)
+                        continue; // already defeated this tick, just not flushed yet
+                    const auto &box = *w.get<engine::Box>(entity);
+                    for (const auto target : w.query<engine::Box, PlayerMarker, Health>()) {
+                        if (engine::physics::overlaps(box, *w.get<engine::Box>(target))) {
+                            damage(w, target, ai_attack_damage);
+                            agent.attack_cooldown = ai_attack_interval;
+                            break;
+                        }
                     }
                 }
             });

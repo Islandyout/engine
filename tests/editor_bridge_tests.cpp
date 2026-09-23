@@ -572,6 +572,81 @@ int main() {
         editor_tick();
     check(editor_value(1, 0) - editor_value(0, 0) < chase_start_distance); // gap closed
 
+    // A Chasing AIAgent that's actually caught the Player (overlapping boxes) hits back --
+    // ai_attack_damage (8) per hit on a real cooldown (ai_attack_interval, 1s = 60 ticks),
+    // not just once on contact and not every tick of contact either (which at 60 ticks/s
+    // would down a 100 HP Player in well under a fifth of a second).
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.5, 0, 0) ==
+          1); // AI, index 0, overlapping the player
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) ==
+          1); // Player with Health, index 1
+    check(editor_commit() == 1);
+    editor_tick();
+    check(editor_value(0, 5) == 5);                                              // Chasing from tick one
+    check(std::abs(editor_value(1, 3) - (100.0 - 8.0) / 100.0) < 1e-3);          // first hit landed immediately
+    for (int i = 0; i < 30; ++i)
+        editor_tick(); // well inside the 1s cooldown (30 of 60 ticks)
+    check(std::abs(editor_value(1, 3) - (100.0 - 8.0) / 100.0) < 1e-3); // no second hit yet
+    for (int i = 0; i < 35; ++i)
+        editor_tick(); // 65 ticks since the first hit -- past the 60-tick cooldown with margin
+    check(std::abs(editor_value(1, 3) - (100.0 - 16.0) / 100.0) < 1e-3); // second hit landed
+
+    // Regression: an AIAgent editor.combat has already defeated *this same tick* must not
+    // also land a hit in editor.ai_attack, even though it's still fully queryable (Health
+    // and all) until FixedSystems flushes its deferred destroy -- see editor.ai_attack's
+    // own doc comment (bridge.cpp) for why ordering it after editor.combat alone doesn't
+    // guarantee this; only the explicit own_health->current > 0 check does. A 1 HP AIAgent
+    // overlapping the Player, killed by the very same F press that -- without that check --
+    // would also trigger its counterattack the same tick (editor.ai, order 1, already made
+    // it Chasing before editor.combat, order 20, kills it, both within this one tick).
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0.5, 0, 0) ==
+          1); // AI at 1 HP, index 0, overlapping the player
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) ==
+          1); // Player with Health, index 1
+    check(editor_commit() == 1);
+    attack_once();
+    check(editor_alive(0) == 0);                       // the AI died this tick
+    check(std::abs(editor_value(1, 3) - 1.0) < 1e-6);   // Player untouched -- no counterattack landed
+
+    // Fleeing never attacks, even overlapping the Player -- self-preservation, not hostility.
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 10, 100, 0, 1, 0, 0, 0.5, 0, 0) ==
+          1); // AI at 10% health, index 0
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) ==
+          1); // Player with Health, index 1, overlapping
+    check(editor_commit() == 1);
+    for (int i = 0; i < 90; ++i)
+        editor_tick();
+    check(editor_value(0, 5) == 4);                                  // Fleeing
+    check(std::abs(editor_value(1, 3) - 1.0) < 1e-6);                // Player's health untouched
+
+    // A Pedestrian never attacks either -- it can never enter Chasing at all (see the
+    // Pedestrian wander case below), even placed overlapping the Player.
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0.5, 0, 0) ==
+          1); // pedestrian, index 0
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) ==
+          1); // Player with Health, index 1, overlapping
+    check(editor_commit() == 1);
+    for (int i = 0; i < 90; ++i)
+        editor_tick();
+    check(std::abs(editor_value(1, 3) - 1.0) < 1e-6); // Player's health untouched
+
+    // A Player with no Health authored at all is simply never damaged -- the same opt-in
+    // contract damage() already gives every other entity, not a special case for the
+    // Player; must also not crash reaching for a Health that isn't there.
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.5, 0, 0) ==
+          1); // AI, index 0
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) ==
+          1); // Player, no Health, index 1, overlapping
+    check(editor_commit() == 1);
+    for (int i = 0; i < 90; ++i)
+        editor_tick(); // must not crash
+    check(editor_alive(1) == 1);
+
     // AIAgent fleeing: the same setup, but with Health low enough (<= ai_flee_health_ratio)
     // that it runs from the Player instead of toward it — self-preservation outranks pursuit
     // even for a non-Pedestrian entity that would otherwise chase.
@@ -725,7 +800,9 @@ int main() {
                  "melee, ranged blast combat, frame/tick-decoupled combat edges, shooter "
                  "self-immunity, camera-relative movement, vehicle accelerate/steer driving, "
                  "vehicle footprint rotation, AIAgent wander/chase/flee/pedestrian behavior, "
-                 "resuming wander cleanly after a chase/flee ends, Vehicle/Pedestrian archetype "
-                 "handling profiles (and their range validation), and Script velocity control "
-                 "with compile-error reporting passed.\n";
+                 "a Chasing AIAgent attacking the Player back on a real cooldown (and Fleeing/"
+                 "Pedestrian/no-Health-Player never attacking), resuming wander cleanly after a "
+                 "chase/flee ends, Vehicle/Pedestrian archetype handling profiles (and their "
+                 "range validation), and Script velocity control with compile-error reporting "
+                 "passed.\n";
 }
