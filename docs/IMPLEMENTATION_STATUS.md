@@ -3473,6 +3473,46 @@ frame `editor_alive(i)` reads false for a previously-alive entity:
 
 ### F46 verification
 
+- Post-push fix: three Codex findings on the PR, all P2, all confirmed real
+  against a live running session before fixing.
+  - "Match death clip names without case sensitivity" — several bundled
+    animated models (Alpaca, Stag, Husky, Wolf) expose their clip as
+    `"Death"` (capital D), while `loadCatalogModel()` keeps each
+    `clip.name` exactly as authored in the `actions` Map's own keys, so
+    the original `["death", "die"].find((name) => actions.has(name))`
+    lookup — lowercase only — never matched any of them; those models
+    just faded, no death clip. Fixed by matching case-insensitively
+    (`name.toLowerCase()`) while still looking the clip up by its real,
+    original-case key.
+  - "Exclude dying entities from locomotion clip selection" — a second,
+    separate per-frame pass (the existing ground-speed locomotion
+    picker) ran over every `animStates` entry unconditionally, with no
+    `deathStates`/`editor_alive()` check of its own. A dying entity's
+    position stops updating the instant it dies, so that pass read speed
+    0, picked `"idle"`, and immediately crossfaded away from the death
+    clip `startDeath()` had just started — the same frame it started.
+    Fixed by skipping any entity with a `deathStates[i]` entry in that
+    second pass.
+  - "Preserve each material's initial opacity during the fade" — an
+    already-transparent material (shipped vehicle glass at 0.45, several
+    building materials at 0.35/0.55) has its own real starting opacity,
+    but the fade computed an absolute value (`1 - elapsed/duration`,
+    starting at 1.0) instead of scaling down from where that material
+    actually started — its first fade frame snapped it to nearly opaque
+    before fading out, backwards from the intended effect. Fixed by
+    capturing each clone's own opacity at clone time
+    (`baseOpacity`) and multiplying it by fade progress instead of
+    assigning progress directly.
+  Verified all three together against a real running session (the
+  bundled Wolf, whose real clip list is `Attack`/`Death`/`Eating`/`run`/
+  `Gallop_Jump`/`idle`/... — `Death`, capital D, confirming the finding):
+  killed it with a real F melee press and polled `animStates[i].current`
+  every 150ms — held at `"Death"` for the entire fade, never reverting to
+  `"idle"`. Separately set a material's opacity to 0.5 before the kill and
+  confirmed the polled fade ran 0.375 → 0.29 → 0.21 → 0.13 → 0.05 → 0
+  (visibly starting from 75% of 0.5, not from 1.0). Re-ran `npm run
+  typecheck`/`npm test` (37/37) and the full `tests/browser/editor.cjs`
+  black-box suite after all three fixes — still pass, zero regression.
 - `npm run typecheck`/`npm test` (37/37) — no logic these tests exercise
   changed shape (entities still die/report dead exactly when they did
   before; only what the renderer does with a dead entity's mesh changed),
