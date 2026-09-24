@@ -183,6 +183,15 @@ public:
     // once.
     std::string take_animation_request(Entity entity);
 
+    // Queues a one-shot animation request for `entity`, exactly as if that
+    // entity's own script had just set self.animate = clip -- but callable
+    // directly by native code (e.g. the editor bridge's own combat/AI-attack
+    // systems) that has no Lua VM of its own to go through. Last write wins
+    // if called more than once for the same entity before the next
+    // take_animation_request drains it, the same not-sticky contract
+    // self.animate itself has.
+    void request_animation(Entity entity, std::string clip);
+
 private:
     struct Instance;
     // unique_ptr so Instance (which owns a raw lua_State* the public header

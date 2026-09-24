@@ -28,8 +28,10 @@ int add_unit(double x, double y, double z, double vx, double vy, double vz) {
     return editor_add(x, y, z, vx, vy, vz, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0);
 }
 // key_for()'s own contract, mirrored here rather than re-derived from memory
-// each call site: 0=W, 1=A, 2=S, 3=D, 4=Shift, 5=F (attack), 6=G (blast).
-constexpr int key_w = 0, key_a = 1, key_s = 2, key_d = 3, key_shift = 4, key_f = 5, key_g = 6;
+// each call site: 0=W, 1=A, 2=S, 3=D, 4=Shift, 5=F (attack), 6=G (blast),
+// 7=C (crouch/sit).
+constexpr int key_w = 0, key_a = 1, key_s = 2, key_d = 3, key_shift = 4, key_f = 5, key_g = 6,
+              key_c = 7;
 } // namespace
 int main() {
     const auto check = [](bool ok) {
@@ -824,6 +826,78 @@ int main() {
         editor_tick();
     check(editor_value(0, 0) < 0); // released -- drifting negative again
 
+    // F queues a native "attack" animation request for the Player on every press, whether or
+    // not it actually connects with a Health entity -- the request reaches
+    // editor_take_animation_request the same channel a script's own self.animate would use
+    // (engine::script::Runtime::request_animation), just triggered from editor.combat instead
+    // of Lua. Checked both on a miss (nothing to hit) and a hit, since the request is tied to
+    // the action, not the outcome.
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // player only, index 0 -- nothing to hit
+    check(editor_commit() == 1);
+    check(std::string(editor_take_animation_request(0)).empty()); // nothing requested yet
+    attack_once();
+    check(std::string(editor_take_animation_request(0)) == "attack");
+    check(std::string(editor_take_animation_request(0)).empty()); // drained, not sticky
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // player, index 0
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 60, 60, 0, 0, 0, 0, 0.5, 0, 0) == 1); // target, index 1, overlapping
+    check(editor_commit() == 1);
+    attack_once();
+    check(std::abs(editor_value(1, 3) - 40.0 / 60.0) < 1e-3); // it did land
+    check(std::string(editor_take_animation_request(0)) == "attack");
+
+    // G queues a native "blast" animation request for the Player on every press, same
+    // "tied to the action" reasoning as F above -- checked with nothing to aim at, where the
+    // shot itself is a no-op (editor_projectile_count stays 0) but the animation still fires.
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // player only, index 0
+    check(editor_commit() == 1);
+    editor_input_begin_frame();
+    editor_key(key_g, 1);
+    editor_tick();
+    editor_key(key_g, 0);
+    check(editor_projectile_count() == 0);                       // nothing to aim at
+    check(std::string(editor_take_animation_request(0)) == "blast"); // animation still requested
+
+    // A Chasing AIAgent landing a hit on the Player also queues its own "attack" animation
+    // request (index 0, the AI, not the Player) -- but only on an actual landed hit, not
+    // merely being in the Chasing state with its cooldown still running.
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.5, 0, 0) ==
+          1); // AI, index 0, overlapping the player
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) ==
+          1); // Player with Health, index 1
+    check(editor_commit() == 1);
+    check(std::string(editor_take_animation_request(0)).empty()); // nothing requested pre-tick
+    editor_tick();                                                 // first hit lands immediately
+    check(std::string(editor_take_animation_request(0)) == "attack");
+    check(std::string(editor_take_animation_request(1)).empty()); // never on the Player itself
+    for (int i = 0; i < 30; ++i)
+        editor_tick(); // well inside the cooldown -- no further hit, so no further request
+    check(std::string(editor_take_animation_request(0)).empty());
+
+    // Crouch (C): held, it zeroes the Player's own WASD input entirely -- W+C together leaves
+    // the Player exactly where it started, where W alone (checked first, for contrast) moves
+    // it normally. Released, ordinary WASD movement resumes.
+    editor_begin();
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // player, index 0
+    check(editor_commit() == 1);
+    editor_input_begin_frame();
+    editor_key(key_c, 1);
+    editor_key(key_w, 1);
+    for (int i = 0; i < 30; ++i)
+        editor_tick();
+    check(std::abs(editor_value(0, 2)) < 1e-9); // crouching: W had no effect at all
+    editor_key(key_w, 0);
+    editor_key(key_c, 0);
+    editor_input_begin_frame();
+    editor_key(key_w, 1);
+    for (int i = 0; i < 30; ++i)
+        editor_tick();
+    check(editor_value(0, 2) < -0.1); // crouch released: W moves normally again (-z)
+    editor_key(key_w, 0);
+
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
                  "movement, jump/sustained-flight, Collider box and sphere obstacle blocking, "
@@ -835,5 +909,8 @@ int main() {
                  "chase/flee ends, Vehicle/Pedestrian archetype handling profiles (and their "
                  "range validation), Script velocity control with compile-error reporting, and "
                  "editor_script_key reaching a script's own input.down/input.pressed/self.animate "
-                 "(separate from editor_key's own bound W/A/S/D/Shift/F/G set) passed.\n";
+                 "(separate from editor_key's own bound W/A/S/D/Shift/F/G set), F/G natively "
+                 "queuing an attack/blast animation request on every press (hit or miss), a "
+                 "Chasing AIAgent's own landed hit queuing its own attack request, and C "
+                 "(crouch/sit) freezing Player WASD input while held passed.\n";
 }

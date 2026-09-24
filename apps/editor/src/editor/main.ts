@@ -358,12 +358,15 @@ async function startEditor() {
     actions: Map<string, THREE.AnimationAction>;
     current?: string;
     prevPosition: THREE.Vector3;
-    // True while a script-triggered self.animate one-shot (see
-    // pollAnimationRequests below) is still playing -- cleared once the
-    // mixer reports that specific action finished. The ground-speed
-    // locomotion picker must skip an entity while this is true, the same
-    // "don't fight a clip that was just deliberately started" reasoning
-    // startDeath()'s own deathStates gate already established.
+    // True while a one-shot animation request (see pollAnimationRequests
+    // below) is still playing -- either a script's own self.animate, or one
+    // of editor.combat/editor.move/editor.ai_attack's own native F/G
+    // requests (bridge.cpp's engine::script::Runtime::request_animation).
+    // Cleared once the mixer reports that specific action finished. The
+    // ground-speed locomotion picker must skip an entity while this is
+    // true, the same "don't fight a clip that was just deliberately
+    // started" reasoning startDeath()'s own deathStates gate already
+    // established.
     oneShot?: boolean;
   }
   // Parallel to `objects`; index i holds the animation state for objects[i], or
@@ -931,7 +934,9 @@ async function startEditor() {
   // (alt-tab, a window manager shortcut eating the key, etc.).
   const heldKeys = new Set<number>();
   // key_for()'s own contract (apps/editor/runtime/bridge.cpp): 0=W, 1=A,
-  // 2=S, 3=D, 4=Shift, 5=F (melee attack), 6=G (ranged blast).
+  // 2=S, 3=D, 4=Shift, 5=F (melee attack), 6=G (ranged blast), 7=C
+  // (crouch/sit -- freezes Player WASD input natively while held; see
+  // editor.move's own doc comment, bridge.cpp).
   const boundKeyCodes: Record<string, number> = {
     KeyW: 0,
     KeyA: 1,
@@ -941,7 +946,9 @@ async function startEditor() {
     ShiftRight: 4,
     KeyF: 5,
     KeyG: 6,
+    KeyC: 7,
   };
+  const crouchKeyCode = 7;
   // Every physical key (not just the bound seven above) queued the same way,
   // for a Script's own input.down/input.pressed (engine::script::Runtime's
   // own doc comment, script.hpp, on why this is a separate, wider path from
@@ -1093,22 +1100,50 @@ async function startEditor() {
       }
     }
   }
-  // Polls whatever a script requested via self.animate this tick (see
-  // engine::script::Runtime's own doc comment, script.hpp, and
-  // editor_take_animation_request, bridge.cpp) and plays it as a one-shot,
-  // once per rendered frame like persistDirtySaves above, not per fixed
-  // tick. Silently ignored if the entity has no AnimState (a plain box has
-  // nothing to animate) or the requested name isn't one of this model's own
-  // clips -- the same "bonus when present, not a requirement" contract
-  // startDeath()'s own death-clip lookup already has, not an error.
+  // Synonyms for the three reserved action keys editor.combat/editor.move/
+  // editor.ai_attack (bridge.cpp) request natively -- "attack" on F, "blast"
+  // on G, "sit" while crouching -- tried in order, case-insensitively,
+  // against whatever clips a given model actually has. Different imported
+  // packs name the "same" action differently (the Aether animal kit's
+  // `Attack`, Mannequin F (Mixamo)'s `punching`, Mannequin F's own `sit`;
+  // see assets/CREDITS.md), so a single literal-name lookup would silently
+  // no-op on most of the catalog. Not used for an ordinary Lua self.animate
+  // request -- resolveActionClip below only expands a name that's actually
+  // one of these three keys; anything else still resolves case-insensitively
+  // against its own exact name only, the same as before this list existed.
+  const actionClipSynonyms: Record<string, string[]> = {
+    attack: ["attack", "punch", "punching", "melee"],
+    blast: ["blast", "shoot", "firing_rifle", "fire", "ranged"],
+    sit: ["sit", "sitting", "crouch", "crouching"],
+  };
+  function resolveActionClip(state: AnimState, requested: string): string | undefined {
+    const candidates = actionClipSynonyms[requested] ?? [requested];
+    for (const candidate of candidates) {
+      const lower = candidate.toLowerCase();
+      for (const name of state.actions.keys()) if (name.toLowerCase() === lower) return name;
+    }
+    return undefined;
+  }
+  // Polls whatever was requested via editor_take_animation_request this tick
+  // (bridge.cpp) and plays it as a one-shot, once per rendered frame like
+  // persistDirtySaves above, not per fixed tick. The request itself may come
+  // from a script's own self.animate (engine::script::Runtime's own doc
+  // comment, script.hpp) or natively from editor.combat/editor.move on a F/G
+  // press (see AnimState.oneShot's own doc comment above) -- both reach this
+  // same channel and are resolved identically via resolveActionClip.
+  // Silently ignored if the entity has no AnimState (a plain box has nothing
+  // to animate) or nothing resolves to one of this model's own clips -- the
+  // same "bonus when present, not a requirement" contract startDeath()'s own
+  // death-clip lookup already has, not an error.
   function pollAnimationRequests() {
     const entities = doc.scene.eachAlive();
     animStates.forEach((state, i) => {
       if (!state) return;
-      const clip = runtime.ccall("editor_take_animation_request", "string", ["number"], [i]);
+      const requested = runtime.ccall("editor_take_animation_request", "string", ["number"], [i]);
+      if (!requested) return;
+      const clip = resolveActionClip(state, requested);
       if (!clip) return;
-      const action = state.actions.get(clip);
-      if (!action) return;
+      const action = state.actions.get(clip)!;
       const previous = state.current ? state.actions.get(state.current) : undefined;
       action.reset().setLoop(THREE.LoopOnce, 1);
       action.clampWhenFinished = true;
@@ -2195,9 +2230,19 @@ async function startEditor() {
         // must not fight it every tick.
         const override = doc.scene.resolve(entities[i]!, "AnimationState");
         const overridden = override?.clip && state.actions.has(override.clip);
-        const clipName = overridden
-          ? undefined
-          : pickClipName([...state.actions.keys()], speed);
+        // Crouching (C, key_for() code 7 -- see boundKeyCodes' own doc
+        // comment) takes priority over both the authored pin and ordinary
+        // ground-speed picking: it's an explicit, held player action, the
+        // same way a one-shot request already preempts this whole loop via
+        // the oneShot gate above, just sustained instead of one-shot.
+        // Native-frozen (editor.move's own crouch gate, bridge.cpp) so
+        // `speed` already reads ~0 here regardless; this only decides which
+        // clip plays at that speed. Player-only: heldKeys has no meaning for
+        // an AI/Pedestrian, which never receives editor_key edges at all.
+        const crouching = i === playerIndex && heldKeys.has(crouchKeyCode);
+        const sitClip = crouching ? resolveActionClip(state, "sit") : undefined;
+        const clipName =
+          sitClip ?? (overridden ? undefined : pickClipName([...state.actions.keys()], speed));
         if (clipName && clipName !== state.current) {
           const next = state.actions.get(clipName);
           const previous = state.current
