@@ -30,6 +30,14 @@ export interface ColliderComponent {
   type: "AABB" | "Sphere";
   halfExtents: Vec3;
   radius: number;
+  // Non-solid: reports overlaps (Lua on_trigger_enter/exit) instead of blocking.
+  isTrigger: boolean;
+  // 0..31. Two colliders interact only when each one's mask has the other's layer bit.
+  layer: number;
+  // 32-bit layer bitmask; 4294967295 (every bit) collides with every layer.
+  mask: number;
+  // 0..1: fraction of into-surface speed reflected on contact.
+  bounciness: number;
 }
 export interface HealthComponent {
   current: number;

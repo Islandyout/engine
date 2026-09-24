@@ -529,7 +529,15 @@ function readComponentName(value: unknown): ComponentName {
   return value as ComponentName;
 }
 function defaultCollider(): ColliderComponent {
-  return { type: "AABB", halfExtents: { x: 0.5, y: 0.5, z: 0.5 }, radius: 0.5 };
+  return {
+    type: "AABB",
+    halfExtents: { x: 0.5, y: 0.5, z: 0.5 },
+    radius: 0.5,
+    isTrigger: false,
+    layer: 0,
+    mask: 4294967295,
+    bounciness: 0,
+  };
 }
 export function defaultComponent(
   type: Exclude<ComponentName, "Parent">,

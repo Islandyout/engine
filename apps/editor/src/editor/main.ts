@@ -139,6 +139,14 @@ type Runtime = {
   _editor_projectile_count(): number;
   _editor_projectile_value(index: number, field: number): number;
   _editor_take_dirty_saves(): number;
+  _editor_set_body(index: number, authored: number, mass: number, dynamic: number): void;
+  _editor_set_collider(
+    index: number,
+    isTrigger: number,
+    layer: number,
+    mask: number,
+    bounciness: number,
+  ): void;
   // editor_set_script_source/editor_script_error/editor_seed_save/
   // editor_dirty_save_key/editor_dirty_save_value's own doc comments
   // (bridge.cpp) explain why these go through ccall instead of a direct
@@ -1214,6 +1222,23 @@ async function startEditor() {
           "Runtime rejects coordinates/velocity outside ±1,000,000",
         );
       }
+      // Mass/dynamic and trigger/layer/mask/bounciness: see editor_set_body
+      // and editor_set_collider (bridge.cpp) for what each one means.
+      const body = doc.scene.resolve(entity, "RigidBody");
+      runtime._editor_set_body(
+        index,
+        body ? 1 : 0,
+        body?.mass ?? 1,
+        body?.dynamic === false ? 0 : 1,
+      );
+      if (collider)
+        runtime._editor_set_collider(
+          index,
+          collider.isTrigger ? 1 : 0,
+          collider.layer,
+          collider.mask,
+          collider.bounciness,
+        );
       // editor_add's own all-double ABI has no way to carry a Lua source
       // string, so a scripted entity's source is set through this companion
       // call instead (see editor_set_script_source's own doc comment,

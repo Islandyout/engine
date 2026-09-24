@@ -280,6 +280,8 @@ struct Runtime {
     float camera_forward_z{-1.0F};
     engine::script::Runtime script_runtime;
     std::map<engine::Entity, std::string> script_errors;
+    // Contact/trigger bookkeeping across physics steps (enter/stay/exit).
+    engine::physics::Events physics_events;
     Runtime() {
         world.register_component<engine::Box>("editor.box");
         world.register_component<engine::physics::RigidBody>("editor.rigid_body");
@@ -590,8 +592,8 @@ struct Runtime {
                 }
             });
         systems.add("editor.physics", engine::FixedPhase::update, 10,
-                    [](engine::World &w, const engine::FixedUpdateContext &) {
-                        engine::physics::step(w, 1.0F / 60.0F);
+                    [this](engine::World &w, const engine::FixedUpdateContext &) {
+                        engine::physics::step(w, 1.0F / 60.0F, {}, &physics_events);
                     });
         // Order 15: after physics moves everything (10) but before combat (20)
         // resolves melee for this same tick — matches the native playground's
@@ -844,6 +846,45 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
 // (added unconditionally for every non-child entity, see editor_add's is_child
 // handling) but nothing else — a scripted entity is otherwise ordinary
 // authored data, not implicitly a Player or an AIAgent.
+// Physics-body settings editor_add's fixed ABI has no room for, set after
+// it for the same index. `authored` is whether the entity carries an
+// authored RigidBody component at all: without one the body keeps mass 0
+// (the engine's original "immovable to finite-mass bodies" contract, see
+// physics::RigidBody). A non-dynamic authored body becomes kinematic.
+// Ignored for an entity editor_add gave no RigidBody (a child).
+EXPORT void editor_set_body(int index, int authored, double mass, int dynamic) {
+    if (!staging || index < 0 || static_cast<std::size_t>(index) >= staging->entities.size())
+        return;
+    auto *body = staging->world.get<engine::physics::RigidBody>(staging->entities[static_cast<std::size_t>(index)]);
+    if (!body || !authored)
+        return;
+    if (!std::isfinite(mass) || mass <= 0 || mass > 1000000) {
+        failed = true;
+        return;
+    }
+    body->mass = static_cast<float>(mass);
+    body->type = dynamic ? engine::physics::BodyType::Dynamic : engine::physics::BodyType::Kinematic;
+}
+// Collider settings beyond editor_add's shape/radius: trigger, layer (0..31),
+// mask (32-bit layer bitmask), bounciness (0..1). Ignored when the entity
+// has no Collider.
+EXPORT void editor_set_collider(int index, int is_trigger, double layer, double mask, double bounciness) {
+    if (!staging || index < 0 || static_cast<std::size_t>(index) >= staging->entities.size())
+        return;
+    auto *collider = staging->world.get<engine::physics::Collider>(staging->entities[static_cast<std::size_t>(index)]);
+    if (!collider)
+        return;
+    if (!(layer >= 0 && layer <= 31 && layer == std::floor(layer)) ||
+        !(mask >= 0 && mask <= 4294967295.0 && mask == std::floor(mask)) ||
+        !(bounciness >= 0 && bounciness <= 1)) {
+        failed = true;
+        return;
+    }
+    collider->is_trigger = is_trigger != 0;
+    collider->layer = static_cast<std::uint8_t>(layer);
+    collider->mask = static_cast<std::uint32_t>(mask);
+    collider->bounciness = static_cast<float>(bounciness);
+}
 EXPORT void editor_set_script_source(int index, const char *source) {
     if (!staging || index < 0 || static_cast<std::size_t>(index) >= staging->entities.size())
         return;

@@ -263,6 +263,15 @@ export function normalizeComponent(
           value.radius === undefined
             ? 0.5
             : number(value.radius, "Collider.radius"),
+        // Added in 0.48.0; scenes saved before default to a plain solid
+        // collider on layer 0 that collides with everything.
+        isTrigger:
+          value.isTrigger === undefined
+            ? false
+            : boolean(value.isTrigger, "Collider.isTrigger"),
+        layer: colliderLayer(value.layer),
+        mask: colliderMask(value.mask),
+        bounciness: colliderBounciness(value.bounciness),
       };
     }
     case "Health":
@@ -519,4 +528,26 @@ export function validateSceneDocument(
       parent = document.entities[parent.index]!.parent;
     }
   }
+}
+
+function colliderLayer(value: unknown): number {
+  if (value === undefined) return 0;
+  const layer = number(value, "Collider.layer");
+  if (!Number.isInteger(layer) || layer < 0 || layer > 31)
+    throw new Error("Collider.layer must be an integer from 0 to 31.");
+  return layer;
+}
+function colliderMask(value: unknown): number {
+  if (value === undefined) return 4294967295;
+  const mask = number(value, "Collider.mask");
+  if (!Number.isInteger(mask) || mask < 0 || mask > 4294967295)
+    throw new Error("Collider.mask must be an integer from 0 to 4294967295.");
+  return mask;
+}
+function colliderBounciness(value: unknown): number {
+  if (value === undefined) return 0;
+  const bounciness = number(value, "Collider.bounciness");
+  if (bounciness < 0 || bounciness > 1)
+    throw new Error("Collider.bounciness must be from 0 to 1.");
+  return bounciness;
 }

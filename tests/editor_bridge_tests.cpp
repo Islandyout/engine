@@ -22,6 +22,8 @@ int editor_projectile_count();
 double editor_projectile_value(int, int);
 void editor_script_key(const char *, int);
 const char *editor_take_animation_request(int);
+void editor_set_body(int, int, double, int);
+void editor_set_collider(int, int, double, double, double);
 }
 namespace {
 int add_unit(double x, double y, double z, double vx, double vy, double vz) {
@@ -824,6 +826,50 @@ int main() {
         editor_tick();
     check(editor_value(0, 0) < 0); // released -- drifting negative again
 
+    {
+        // Authored RigidBody mass/dynamic reach the runtime: a moving mass-1
+        // crate hitting a resting mass-9 crate (both with colliders, ground
+        // at 0) nudges it instead of stopping dead against it.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 5, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(0, 1, 1, 1);
+        check(editor_add(1.2, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(1, 1, 9, 1);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 10; ++i)
+            editor_tick();
+        check(editor_value(1, 0) > 1.2); // the heavy crate moved
+        check(editor_value(0, 0) < editor_value(1, 0) - 0.99); // no interpenetration
+
+        // A kinematic authored body ignores gravity.
+        editor_begin();
+        check(editor_add(0, 5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(0, 1, 1, 0);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 30; ++i)
+            editor_tick();
+        check(std::abs(editor_value(0, 1) - 5) < 1e-6);
+
+        // A trigger Collider does not block a mover passing through it.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 5, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_add(1.5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_collider(1, 1, 0, 4294967295.0, 0);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(editor_value(0, 0) > 3);
+
+        // Out-of-range settings fail the whole commit, like editor_add's own validation.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_collider(0, 0, 32, 1, 0);
+        check(editor_commit() == 0);
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(0, 1, -1, 1);
+        check(editor_commit() == 0);
+    }
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
                  "movement, jump/sustained-flight, Collider box and sphere obstacle blocking, "
@@ -835,5 +881,6 @@ int main() {
                  "chase/flee ends, Vehicle/Pedestrian archetype handling profiles (and their "
                  "range validation), Script velocity control with compile-error reporting, and "
                  "editor_script_key reaching a script's own input.down/input.pressed/self.animate "
-                 "(separate from editor_key's own bound W/A/S/D/Shift/F/G set) passed.\n";
+                 "(separate from editor_key's own bound W/A/S/D/Shift/F/G set), and authored "
+                 "RigidBody mass/kinematic and Collider trigger/layer settings passed.\n";
 }

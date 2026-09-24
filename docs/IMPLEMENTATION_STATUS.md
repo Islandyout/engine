@@ -3655,3 +3655,41 @@ per-entity `self` table pattern `save`/`self.vx` already established.
   alternative to scripting (the user explicitly chose the Script/Lua route
   over this); the player death/game-over handling (still tracked
   separately, the last item on this gap audit).
+
+## F48 — Physics core: dynamic pairs, kinematic bodies, triggers, layers, bounciness, forces (0.48.0)
+
+This is the first item in the order of work from [the Unity gap analysis](unity/GAP_ANALYSIS.md). It also fixes an "authored but inert" field set: `RigidBody.mass`/`inverseMass`/`dynamic` have been authorable since early on, but `bridge.cpp` never read them.
+
+### Design
+
+`engine::physics` keeps its original contract for anything that doesn't opt in. The demo scene and every earlier test behave the same.
+
+- **Mass 0 means "unspecified"**, and is the default. A mass-0 body is pushed fully out of solid colliders, exactly as before, and acts as an immovable obstacle to finite-mass bodies. The editor sends a real mass only for entities that carry an authored `RigidBody`, so a Player without one still shoves physics crates aside instead of being stopped by them.
+- **Finite-mass dynamic pairs**: two bodies with mass > 0 that overlap through their colliders separate in inverse proportion to their masses. They exchange momentum along the contact normal with an impulse, with restitution taken from the larger `bounciness`. Box–box, sphere–box and sphere–sphere contacts are supported.
+- **Kinematic bodies** (`BodyType::Kinematic`, the editor's `dynamic: false`) move only by velocity. They have no gravity and no ground clamp, and are never pushed. They still push finite-mass bodies aside.
+- **Triggers** (`Collider.is_trigger`) are never solid. A moving body carrying a trigger collider passes through everything. Each trigger is checked against every moving body.
+- **Layers**: `Collider.layer` (0–31) and `mask` (32-bit). A pair interacts only when each mask includes the other's layer. An entity with no Collider counts as layer 0 with every mask bit set.
+- **Bounciness** reflects the into-surface velocity component instead of zeroing it. That applies both on the original push-out path and on the pair impulse.
+- **Forces and impulses**: `add_force` accumulates a force that the next `step()` applies and clears. `add_impulse` changes velocity immediately. Both divide by mass, and mass 0 is treated as 1 here.
+- **Contact events**: `step()` takes an optional `physics::Events`. It remembers which (a, b, trigger) pairs touched last step and reports enter, stay and exit events, with a normal from `a` to `b` for solid contacts. The editor runtime keeps one `Events` per simulation, and F49 exposes these events to Lua.
+- **Queries**: `raycast()` and the new `overlap_sphere()` take a `QueryFilter` (layer mask, include triggers, ignore one entity). By default, triggers are skipped.
+
+Two new bridge calls carry the new settings without widening `editor_add`'s 21-double ABI:
+- `editor_set_body(index, authored, mass, dynamic)`
+- `editor_set_collider(index, is_trigger, layer, mask, bounciness)`
+
+Out-of-range values fail the whole commit, the same as `editor_add`'s own validation. Scenes saved before 0.48.0 load with a solid, layer-0, all-layers, zero-bounce Collider.
+
+### F48 verification
+
+- `engine_physics_tests` adds coverage for:
+  - a mass-weighted dynamic pair, including momentum conservation;
+  - a mass-0 body shoving a finite-mass crate;
+  - a kinematic body ignoring gravity and walls;
+  - trigger enter/stay/exit counts;
+  - solid contact events and their normals;
+  - layer masking, bounciness, forces and impulses;
+  - raycast and overlap filters.
+- `engine_editor_bridge_tests` covers `editor_set_body` and `editor_set_collider`: a heavy crate is nudged and not pushed through, a kinematic body stays put, a trigger does not block, and out-of-range settings fail the commit.
+- Editor unit test `tests/physics.test.ts` checks Collider defaults for old scenes, round-tripping and range checks.
+- The full browser suite (`tests/browser/editor.cjs`) still passes against a WASM build.
