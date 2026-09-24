@@ -3911,3 +3911,36 @@ This is item 7 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work.
 - `engine_editor_bridge_tests` checks that `on_ui` reaches every script with numbers as numbers, and that `ui.set_value`/`set_visible` queue commands.
 - The document test and the browser suite's UI-kind dropdown check were updated for the new kinds and actions.
 - The browser suite covers: `ui.set_value` filling a Bar; a real click on a script Button → `on_ui GoButton click`; a click on a Toggle → 1; and a real drag across half a Slider → 0.5.
+
+## F55 — Particles: shapes, over-lifetime, world space, bursts, and trails (0.55.0)
+
+This is item 8 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. The F40 `Particles` component had four presets and fixed-size points, emitted only at a constant rate.
+
+### Design
+
+- **Simulation module**: the simulation moved out of `main.ts` into `src/editor/particles.ts`, which is pure, three.js-free and unit-tested. `main.ts` keeps only the GPU side.
+- **Emitter shapes**:
+  - **Point**.
+  - **Sphere**: uniform in the ball, launched outward.
+  - **Box**: launched outward.
+  - **Cone**: a base disc of `shapeSize`, with velocities within `coneAngle` of up.
+- **Over lifetime**: color lerps from `color` to `endColor` and size from `size` to `size × endSize`, while brightness fades to zero as before. `gravityScale` multiplies the preset's gravity.
+- **Simulation space**:
+  - **Local** particles are parented under the entity, as before.
+  - **World** particles live at the scene root and spawn from the entity's current world position, so they stay behind a moving emitter.
+- **Bursts**: `burst` spawns that many particles when Play starts. Scripts call `particles.burst(n)` and `particles.set_emitting(bool)` on their own entity through the command queue. Capacity grows with the burst size, up to 1000 particles.
+- **Rendering**: a small shader replaces `PointsMaterial`, so every particle has its own size and draws as a soft round sprite, additively blended.
+- **Defaults**: older scenes get `endColor = color`, `endSize = 1`, Point shape, Local space and no burst, which reproduces the old look. The presets' gravity sign is converted, so their motion is unchanged.
+- **`Trail`** (new component):
+  - During Play, `trail.ts` records the entity's world position every `minDistance` and drops points older than `lifetime`.
+  - It builds a camera-facing ribbon that narrows and fades toward the tail. The ribbon is drawn additively and cleared in Edit mode.
+
+### F55 verification
+
+- `tests/particles.test.ts` covers:
+  - rate/lifetime steady state, motion, and color and size at a known age;
+  - gravity, bursts and the emitting toggle;
+  - every spawned particle staying inside its Sphere, Box or Cone (and within the cone angle);
+  - trail recording by distance, expiry by age, and ribbon width and fade.
+- The browser suite adds a World-space Cone emitter with a Play-start burst and a Lua burst plus `set_emitting(false)`, and a Trail on a launched body, with no page errors.
+- A clean-scene screenshot shows the fountain rising in a cone, with particles shrinking and reddening with age.

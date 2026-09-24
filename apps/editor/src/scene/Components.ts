@@ -137,6 +137,7 @@ export interface LightComponent {
 // darkening toward black as they age, so a fully-aged particle contributes
 // nothing rather than needing a separate alpha channel or a custom shader.
 export type ParticlePreset = "Sparkle" | "Smoke" | "Fire" | "Confetti";
+export type ParticleShape = "Point" | "Sphere" | "Box" | "Cone";
 export interface ParticlesComponent {
   preset: ParticlePreset;
   color: Vec3;
@@ -144,6 +145,22 @@ export interface ParticlesComponent {
   lifetime: number;
   speed: number;
   size: number;
+  // 0.55.0 (older scenes get these defaults, which match the old look):
+  endColor: Vec3; // color at the end of life (defaults to `color`)
+  endSize: number; // size multiplier at the end of life
+  gravityScale: number; // multiplies the preset's gravity
+  shape: ParticleShape;
+  shapeSize: number; // sphere radius / box half-extent / cone base radius
+  coneAngle: number; // degrees
+  space: "Local" | "World"; // World: particles stay behind a moving emitter
+  burst: number; // particles emitted at once when Play starts
+}
+// A ribbon following the entity's recent path during Play (0.55.0).
+export interface TrailComponent {
+  color: Vec3;
+  width: number; // world units at the head
+  lifetime: number; // seconds a point lasts
+  minDistance: number; // world units between recorded points
 }
 // Screen-space UI -- a HUD/menu element, not a 3D object: rendered on the
 // existing 2D HUD canvas (main.ts's drawHud(), previously Health bars only)

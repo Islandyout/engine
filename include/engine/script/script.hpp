@@ -106,7 +106,8 @@ public:
 // name, alive, position, set_position, velocity, set_velocity, spawn,
 // destroy, health, damage, raycast, overlap, send, path), physics (add_force,
 // add_impulse), sound.play, ui.set_text/set_value/set_visible (and the
-// on_ui(element, value) callback), anim.set/anim.trigger, camera.shake, log, and after/every/cancel/
+// on_ui(element, value) callback), anim.set/anim.trigger, camera.shake,
+// particles.burst/set_emitting, log, and after/every/cancel/
 // start/wait for timers and coroutines. world/sound/ui/log go through the
 // Host; without one they return nil or do nothing.
 //

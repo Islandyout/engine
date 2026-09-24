@@ -564,6 +564,16 @@ struct LuaApi final {
         emit(L, "camera_shake", std::to_string(number_arg(L, 1, 0.3F)), std::to_string(number_arg(L, 2, 0.4F)));
         return 0;
     }
+    // particles.burst(count) / particles.set_emitting(bool) on this entity's
+    // Particles emitter (simulated editor-side).
+    static int particles_burst(lua_State *L) {
+        emit(L, "particles_burst", std::to_string(luaL_optinteger(L, 1, 10)), "");
+        return 0;
+    }
+    static int particles_emitting(lua_State *L) {
+        emit(L, "particles_emitting", lua_toboolean(L, 1) != 0 ? "1" : "0", "");
+        return 0;
+    }
     // ui.set_value(name, 0..1) / ui.set_visible(name, bool)
     static int set_ui_value(lua_State *L) {
         const char *name = luaL_checkstring(L, 1);
@@ -763,6 +773,7 @@ struct LuaApi final {
         table(L, self, "ui", {{"set_text", set_ui_text}, {"set_value", set_ui_value}, {"set_visible", set_ui_visible}});
         table(L, self, "anim", {{"set", anim_set}, {"trigger", anim_trigger}});
         table(L, self, "camera", {{"shake", camera_shake}});
+        table(L, self, "particles", {{"burst", particles_burst}, {"set_emitting", particles_emitting}});
         extend_input(L, self);
         lua_pushlightuserdata(L, self);
         lua_pushcclosure(L, log, 1);

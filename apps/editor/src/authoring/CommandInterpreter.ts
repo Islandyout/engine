@@ -80,6 +80,7 @@ const componentNames = [
   "Animator",
   "CameraFollow",
   "InputActions",
+  "Trail",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -595,7 +596,22 @@ export function defaultComponent(
       // A gentle sparkle -- visible immediately without tuning, and Sparkle's
       // omnidirectional burst doesn't need the gravity/rise tuning Smoke/
       // Fire/Confetti each want to read correctly (see main.ts's preset table).
-      return { preset: "Sparkle", color: { x: 1, y: 0.9, z: 0.6 }, rate: 20, lifetime: 1.2, speed: 1.5, size: 0.12 };
+      return {
+        preset: "Sparkle",
+        color: { x: 1, y: 0.9, z: 0.6 },
+        rate: 20,
+        lifetime: 1.2,
+        speed: 1.5,
+        size: 0.12,
+        endColor: { x: 1, y: 0.9, z: 0.6 },
+        endSize: 1,
+        gravityScale: 1,
+        shape: "Point",
+        shapeSize: 0.5,
+        coneAngle: 25,
+        space: "Local",
+        burst: 0,
+      };
     case "UI":
       // A visible-immediately Text label, not a Button -- reads as
       // placeholder content to edit, the more inviting default of the two.
@@ -631,6 +647,8 @@ export function defaultComponent(
       return defaultEnvironment();
     case "Camera":
       return { projection: "Perspective", fov: 50, near: 0.1, far: 2000, orthoSize: 10, priority: 0 };
+    case "Trail":
+      return { color: { x: 0.5, y: 0.85, z: 1 }, width: 0.3, lifetime: 0.5, minDistance: 0.1 };
     case "InputActions":
       // Kept in sync with editor_bindings::default_text (bindings.hpp).
       return {

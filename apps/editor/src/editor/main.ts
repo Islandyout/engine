@@ -13,6 +13,8 @@ import type {
   EnvironmentComponent,
   MaterialComponent,
   ParticlePreset,
+  ParticlesComponent,
+  TrailComponent,
   UIAction,
   UIAnchor,
   UIComponent,
@@ -37,6 +39,8 @@ import { pickClipName, groundSpeed } from "./animationClips";
 import { loadOnce } from "./loadOnce";
 import type { SceneComponents } from "../scene/Scene";
 import { encodeProps, reconcileProps } from "../scene/scriptProps";
+import { burst, createEmitter, stepEmitter, type EmitterSettings, type EmitterState } from "./particles";
+import { buildRibbon, updateTrail, type TrailPoint } from "./trail";
 import { autoSize, contains, layoutRect, sliderValue, type UIRect } from "./uiLayout";
 import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGraph } from "./animator";
 import { defaultEnvironment } from "../authoring/CommandInterpreter";
@@ -59,10 +63,6 @@ const PARTICLE_PRESETS: Record<
   Fire: { direction: new THREE.Vector3(0, 1, 0), spread: 0.55, gravity: 1.1 },
   Confetti: { direction: new THREE.Vector3(0, 1, 0), spread: 0.85, gravity: -4 },
 };
-// Hard cap on one emitter's point-buffer size regardless of authored
-// rate/lifetime, so an unreasonable value (e.g. rate 5000) degrades to
-// dropped spawns past this cap instead of an unbounded GPU buffer.
-const MAX_PARTICLES = 400;
 
 // Small, hand-drawn, dependency-free icon set (no external icon font/CDN,
 // consistent with this project's zero-external-asset constraints for the
@@ -716,21 +716,13 @@ async function startEditor() {
   // undefined for a non-animated (static) entity. Reset alongside objects on every rebuild().
   const animStates: (AnimState | undefined)[] = [];
   interface ParticleState {
-    points: THREE.Points;
-    positions: Float32Array;
-    colors: Float32Array;
-    velocities: Float32Array;
-    ages: Float32Array;
-    alive: Uint8Array;
-    capacity: number;
-    emitAccumulator: number;
-    rate: number;
-    lifetime: number;
-    baseColor: THREE.Color;
-    direction: THREE.Vector3;
-    spread: number;
-    gravity: number;
-    speed: number;
+    emitter: EmitterState;
+    points: THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>;
+    // World-space emitters live at the scene root and spawn from this
+    // anchor's world position; local ones are parented under it.
+    anchor: THREE.Object3D;
+    world: boolean;
+    burstOnPlay: number;
   }
   // Parallel to `objects`, same shape as animStates. Reset alongside objects
   // on every rebuild().
@@ -755,145 +747,129 @@ async function startEditor() {
   // gated to doc.mode === "edit"), so a fade in progress is never
   // interrupted by one.
   const deathStates: (DeathState | undefined)[] = [];
-  // A fresh THREE.Points system per rebuild(), same as every mesh/light here
-  // -- nothing caches or reuses one, so there's nothing extra to dispose when
-  // the entity's Particles is removed or edited. Capacity is sized from
-  // rate*lifetime (how many particles are alive at once in steady state)
-  // with a 1.5x safety margin, capped at MAX_PARTICLES. Positions/velocities
-  // live in entity-local space -- the system is parented under `anchor` in
-  // rebuild(), same as a Light, so particles inherit the entity's own
-  // position/rotation for free. Renders additively (depthWrite off) and
-  // fades a particle by darkening its own color toward black as it ages,
-  // rather than a separate per-vertex alpha channel or a custom shader --
-  // fully-aged black contributes nothing once additively blended.
-  function createParticles(particles: {
-    preset: ParticlePreset;
-    color: Vec3;
-    rate: number;
-    lifetime: number;
-    speed: number;
-    size: number;
-  }): ParticleState {
-    const capacity = Math.min(
-      MAX_PARTICLES,
-      Math.max(4, Math.ceil(particles.rate * particles.lifetime * 1.5)),
-    );
-    const positions = new Float32Array(capacity * 3);
-    // Every slot starts fully black (invisible once additively blended) until
-    // stepParticles() spawns into it -- no separate "is this slot in use for
-    // rendering" flag needed on the GPU side, just `alive` on the CPU side.
-    const colors = new Float32Array(capacity * 3);
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    const material = new THREE.PointsMaterial({
+  // A fresh emitter per rebuild(), same as every mesh/light here. The
+  // simulation lives in particles.ts; this owns the GPU side: a Points
+  // cloud whose shader reads per-particle color and size and draws each as
+  // a soft round sprite, blended additively (a fully faded particle is
+  // black, which adds nothing).
+  const particleVertexShader = `
+    attribute float size;
+    attribute vec3 color;
+    uniform float scale;
+    varying vec3 vColor;
+    void main() {
+      vColor = color;
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = size * scale / max(-mv.z, 0.001);
+      gl_Position = projectionMatrix * mv;
+    }`;
+  const particleFragmentShader = `
+    varying vec3 vColor;
+    void main() {
+      vec2 c = gl_PointCoord - 0.5;
+      float d = dot(c, c);
+      if (d > 0.25) discard;
+      gl_FragColor = vec4(vColor * (1.0 - d * 4.0), 1.0);
+    }`;
+  const particleScale = { value: 500 };
+  function createParticles(particles: ParticlesComponent, anchor: THREE.Object3D): ParticleState {
+    const preset = PARTICLE_PRESETS[particles.preset];
+    const settings: EmitterSettings = {
+      rate: particles.rate,
+      lifetime: particles.lifetime,
+      speed: particles.speed,
       size: particles.size,
-      vertexColors: true,
+      endSize: particles.endSize,
+      color: [particles.color.x, particles.color.y, particles.color.z],
+      endColor: [particles.endColor.x, particles.endColor.y, particles.endColor.z],
+      direction: [preset.direction.x, preset.direction.y, preset.direction.z],
+      spread: preset.spread,
+      // The presets store an upward pull as positive; the simulation's
+      // gravity pulls down.
+      gravity: -preset.gravity * particles.gravityScale,
+      shape: particles.shape,
+      shapeSize: particles.shapeSize,
+      coneAngle: particles.coneAngle,
+    };
+    const emitter = createEmitter(settings, particles.burst);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(emitter.positions, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(emitter.colors, 3));
+    geo.setAttribute("size", new THREE.BufferAttribute(emitter.sizes, 1));
+    const shader = new THREE.ShaderMaterial({
+      uniforms: { scale: particleScale },
+      vertexShader: particleVertexShader,
+      fragmentShader: particleFragmentShader,
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
-      sizeAttenuation: true,
     });
-    const preset = PARTICLE_PRESETS[particles.preset];
-    const points = new THREE.Points(geo, material);
-    // Positions start (and, for a slot awaiting its next spawn, stay) at the
-    // local origin, so the very first automatic frustum-cull check computes
-    // and caches a near-zero bounding sphere -- three.js never recomputes it
-    // as particles move, so a stale sphere would wrongly cull the whole
-    // system once particles spread beyond it while the entity itself is
-    // off-frustum. Disabling culling is the standard fix for a dynamic point
-    // cloud like this rather than recomputing bounds every frame.
+    const points = new THREE.Points(geo, shader);
+    // Particles move away from wherever the bounding sphere was first
+    // computed; culling would hide a system that is still on screen.
     points.frustumCulled = false;
-    return {
-      points,
-      positions,
-      colors,
-      velocities: new Float32Array(capacity * 3),
-      ages: new Float32Array(capacity),
-      alive: new Uint8Array(capacity),
-      capacity,
-      emitAccumulator: 0,
-      rate: particles.rate,
-      lifetime: particles.lifetime,
-      baseColor: new THREE.Color(particles.color.x, particles.color.y, particles.color.z),
-      direction: preset.direction,
-      spread: preset.spread,
-      gravity: preset.gravity,
-      speed: particles.speed,
-    };
+    const world = particles.space === "World";
+    if (world) scene.add(points);
+    else anchor.add(points);
+    return { emitter, points, anchor, world, burstOnPlay: particles.burst };
   }
-  const particleSpawnScratch = new THREE.Vector3();
-  // Advances one emitter by dt: accumulates fractional spawns from `rate`
-  // (so e.g. rate=0.5 spawns a particle every other call, not every call at
-  // half strength), ages and moves every alive particle, and reclaims a slot
-  // the instant it expires. A spawn with no free slot is silently dropped,
-  // not queued or forced -- a saturated pool caps at `capacity` particles on
-  // screen rather than bursting past it.
+  const particleOrigin = new THREE.Vector3();
   function stepParticles(state: ParticleState, dt: number) {
-    // Ages/moves particles that were already alive *before* this call, then
-    // spawns new ones after -- not the other way around. A particle spawned
-    // this frame gets age 0 and isn't touched again until the next call, so
-    // it always renders for at least one full frame before it can expire;
-    // aging-then-spawning in the same pass would otherwise immediately kill
-    // (and blacken) any particle whose authored lifetime is at or below one
-    // frame's dt, before the renderer ever draws it.
-    for (let i = 0; i < state.capacity; i++) {
-      if (!state.alive[i]) continue;
-      const age = state.ages[i]! + dt;
-      state.ages[i] = age;
-      if (age >= state.lifetime) {
-        state.alive[i] = 0;
-        state.colors[i * 3] = state.colors[i * 3 + 1] = state.colors[i * 3 + 2] = 0;
-        continue;
-      }
-      const vx = state.velocities[i * 3]!;
-      const vy = state.velocities[i * 3 + 1]! + state.gravity * dt;
-      const vz = state.velocities[i * 3 + 2]!;
-      state.velocities[i * 3 + 1] = vy;
-      state.positions[i * 3] = state.positions[i * 3]! + vx * dt;
-      state.positions[i * 3 + 1] = state.positions[i * 3 + 1]! + vy * dt;
-      state.positions[i * 3 + 2] = state.positions[i * 3 + 2]! + vz * dt;
-      const remaining = 1 - age / state.lifetime;
-      state.colors[i * 3] = state.baseColor.r * remaining;
-      state.colors[i * 3 + 1] = state.baseColor.g * remaining;
-      state.colors[i * 3 + 2] = state.baseColor.b * remaining;
+    if (state.world) {
+      state.anchor.getWorldPosition(particleOrigin);
+      state.emitter.origin = [particleOrigin.x, particleOrigin.y, particleOrigin.z];
     }
-    state.emitAccumulator += dt * state.rate;
-    while (state.emitAccumulator >= 1) {
-      state.emitAccumulator -= 1;
-      let slot = -1;
-      for (let i = 0; i < state.capacity; i++) {
-        if (!state.alive[i]) {
-          slot = i;
-          break;
-        }
+    stepEmitter(state.emitter, dt);
+    const attributes = state.points.geometry.attributes;
+    attributes.position!.needsUpdate = true;
+    attributes.color!.needsUpdate = true;
+    attributes.size!.needsUpdate = true;
+  }
+  // Trails (0.55.0): a camera-facing ribbon behind each Trail entity,
+  // recorded during Play (trail.ts builds the geometry).
+  interface TrailState {
+    component: TrailComponent;
+    anchor: THREE.Object3D;
+    points: TrailPoint[];
+    mesh: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
+  }
+  const trailStates: TrailState[] = [];
+  function createTrail(component: TrailComponent, anchor: THREE.Object3D): TrailState {
+    const geometry = new THREE.BufferGeometry();
+    const material = new THREE.ShaderMaterial({
+      uniforms: { color: { value: colorOf(component.color) } },
+      vertexShader: `
+        attribute float fade;
+        varying float vFade;
+        void main() { vFade = fade; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: `
+        uniform vec3 color;
+        varying float vFade;
+        void main() { gl_FragColor = vec4(color * vFade, 1.0); }`,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.frustumCulled = false;
+    scene.add(mesh);
+    return { component, anchor, points: [], mesh };
+  }
+  const trailScratch = new THREE.Vector3();
+  function stepTrails(dt: number) {
+    for (const trail of trailStates) {
+      if (doc.mode === "edit") trail.points.length = 0;
+      else if (doc.mode === "play") {
+        trail.anchor.getWorldPosition(trailScratch);
+        updateTrail(trail.points, trailScratch, dt, trail.component.lifetime, trail.component.minDistance);
       }
-      if (slot === -1) break;
-      state.alive[slot] = 1;
-      state.ages[slot] = 0;
-      particleSpawnScratch
-        .set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1)
-        .normalize()
-        .lerp(state.direction, 1 - state.spread)
-        .normalize()
-        .multiplyScalar(state.speed);
-      state.velocities[slot * 3] = particleSpawnScratch.x;
-      state.velocities[slot * 3 + 1] = particleSpawnScratch.y;
-      state.velocities[slot * 3 + 2] = particleSpawnScratch.z;
-      state.positions[slot * 3] = 0;
-      state.positions[slot * 3 + 1] = 0;
-      state.positions[slot * 3 + 2] = 0;
-      // Full brightness immediately, not left at whatever this reclaimed
-      // slot's color was (0, from the aging loop above zeroing a particle
-      // out the instant it dies) -- this spawn won't reach the aging loop
-      // until next call, so without this it would render invisible for its
-      // first frame instead of at age 0.
-      state.colors[slot * 3] = state.baseColor.r;
-      state.colors[slot * 3 + 1] = state.baseColor.g;
-      state.colors[slot * 3 + 2] = state.baseColor.b;
+      const ribbon = buildRibbon(trail.points, viewCamera.position, trail.component.width, trail.component.lifetime);
+      const geometry = trail.mesh.geometry;
+      geometry.setAttribute("position", new THREE.BufferAttribute(ribbon.positions, 3));
+      geometry.setAttribute("fade", new THREE.BufferAttribute(ribbon.fades, 1));
+      geometry.setIndex(new THREE.BufferAttribute(ribbon.indices, 1));
     }
-    state.points.geometry.attributes.position!.needsUpdate = true;
-    state.points.geometry.attributes.color!.needsUpdate = true;
   }
   const deathFadeDuration = 1.0; // seconds; how long a defeated entity lingers, fading out
   // Called once, the first frame editor_alive(i) reads false for an entity
@@ -1741,7 +1717,11 @@ async function startEditor() {
       if (kind === "log") log(`[script] ${a}`);
       else if (kind === "sound") playOneShot(a);
       else if (kind === "ui_text") uiTextOverrides.set(a, b);
-      else if (kind === "ui_value") uiValues.set(a, Math.min(1, Math.max(0, Number(b) || 0)));
+      else if (kind === "particles_burst" || kind === "particles_emitting") {
+        const state = particleStates[runtime._editor_command_entity(i)];
+        if (state && kind === "particles_burst") burst(state.emitter, Math.max(0, Math.min(1000, Number(a) || 0)));
+        else if (state) state.emitter.emitting = a === "1";
+      } else if (kind === "ui_value") uiValues.set(a, Math.min(1, Math.max(0, Number(b) || 0)));
       else if (kind === "ui_visible") uiVisibility.set(a, b === "1");
       else if (kind === "mouse_lock") {
         if (a === "1") void renderer.domElement.requestPointerLock?.();
@@ -2003,10 +1983,9 @@ async function startEditor() {
     });
     const particles = get("Particles");
     let particleState: ParticleState | undefined;
-    if (particles) {
-      particleState = createParticles(particles);
-      anchor.add(particleState.points);
-    }
+    if (particles) particleState = createParticles(particles, anchor);
+    const trail = get("Trail");
+    if (trail) trailStates.push(createTrail(trail, anchor));
     scene.add(anchor);
     objects.push(anchor);
     animStates.push(animState);
@@ -2032,9 +2011,16 @@ async function startEditor() {
     // -- so without disposing here, an entity with Particles would leak a new
     // set of GPU buffers on essentially every editor interaction.
     for (const state of particleStates) {
+      state?.points.removeFromParent();
       state?.points.geometry.dispose();
-      (state?.points.material as THREE.Material | undefined)?.dispose();
+      state?.points.material.dispose();
     }
+    for (const trail of trailStates) {
+      trail.mesh.removeFromParent();
+      trail.mesh.geometry.dispose();
+      trail.mesh.material.dispose();
+    }
+    trailStates.length = 0;
     particleStates.length = 0;
     for (const state of deathStates) state?.materials.forEach(({ material }) => material.dispose());
     for (const created of materialOverrides) created.dispose();
@@ -2424,6 +2410,7 @@ async function startEditor() {
         shake.remaining = 0;
         for (const animator of animators)
           if (animator) animator.runtime = new AnimatorRuntime(animator.graph);
+        for (const state of particleStates) if (state?.burstOnPlay) burst(state.emitter, state.burstOnPlay);
         if (animatorErrors.length) log(`Animator: ${animatorErrors.join("; ")}`);
         const playerObject = playerIndex >= 0 ? objects[playerIndex] : undefined;
         playerBaseScale = playerObject ? playerObject.scale.clone() : null;
@@ -2825,7 +2812,9 @@ async function startEditor() {
     animStates.forEach((state) => state?.mixer.update(dt));
     // Same reasoning as mixers above -- a Particles emitter is as "always on"
     // as a Light, not gated to Play mode like Script/Sound.
+    particleScale.value = viewport.clientHeight / 2;
     particleStates.forEach((state) => state && stepParticles(state, dt));
+    stepTrails(dt);
     // Ground-speed clip selection runs on the fixed-step cadence (steps/60),
     // not every render frame — see groundSpeed()'s own comment for why.
     if (doc.mode === "play" && steps > 0) {

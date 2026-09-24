@@ -1313,6 +1313,33 @@ const { chromium } = require("playwright");
     await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("VolumeSlider=0.5"));
     await page.click("#stop");
 
+    // F55: a world-space cone emitter with color/size over lifetime, a
+    // burst on Play plus one from Lua, and a Trail on a moving body.
+    const fountain = await run({ command: "spawn_entity", name: "Fountain", transform: [3, 0.5, -3] });
+    await run({
+      command: "set_component",
+      entity: fountain.entity,
+      type: "Particles",
+      value: {
+        preset: "Fire", color: { x: 1, y: 0.8, z: 0.2 }, rate: 60, lifetime: 1.5, speed: 3, size: 0.25,
+        endColor: { x: 1, y: 0.1, z: 0 }, endSize: 0.2, gravityScale: 1, shape: "Cone", shapeSize: 0.3,
+        coneAngle: 20, space: "World", burst: 40,
+      },
+    });
+    await run({
+      command: "set_component",
+      entity: fountain.entity,
+      type: "Script",
+      value: { source: 'function on_start() particles.burst(30); after(0.5, function() particles.set_emitting(false) end) end', props: {} },
+    });
+    const comet = await run({ command: "spawn_entity", name: "Comet", transform: [-3, 3, -3] });
+    await run({ command: "set_component", entity: comet.entity, type: "Trail", value: { color: { x: 0.4, y: 0.9, z: 1 }, width: 0.4, lifetime: 1, minDistance: 0.05 } });
+    await run({ command: "set_component", entity: comet.entity, type: "Velocity", value: { value: { x: 4, y: 6, z: 0 } } });
+    await page.click("#play");
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: "build/browser-evidence/f55-particles.png" });
+    await page.click("#stop");
+
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({ path: "build/browser-evidence/f50-edit.png" });
     await page.click("#play");
@@ -1330,7 +1357,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), a CameraFollow rig with shake, keyboard/mouse input through native actions, and interactive UI (script Button, Toggle, Slider, Bar) passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), a CameraFollow rig with shake, keyboard/mouse input through native actions, and interactive UI (script Button, Toggle, Slider, Bar), and shaped/world-space particles with bursts plus a Trail passed.",
     );
   } finally {
     if (browser) await browser.close();

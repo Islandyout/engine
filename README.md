@@ -147,6 +147,15 @@ Engine version 0.54.0 expands the `UI` component:
 
 See [F54](docs/IMPLEMENTATION_STATUS.md#f54--ui-expansion-panels-images-bars-sliders-toggles-script-buttons-layout-0540).
 
+Engine version 0.55.0 expands `Particles`:
+
+- **Emitters**: Point, Sphere, Box and Cone shapes; color and size over lifetime; a gravity scale; Local or World simulation space; a burst when Play starts.
+- **Rendering**: particles draw as soft round sprites with per-particle size.
+- **Lua**: `particles.burst(n)` and `particles.set_emitting(bool)`.
+- **`Trail`**: a new component that draws a camera-facing ribbon behind a moving entity.
+
+The simulation moved into a pure, unit-tested module. See [F55](docs/IMPLEMENTATION_STATUS.md#f55--particles-shapes-over-lifetime-world-space-bursts-and-trails-0550).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

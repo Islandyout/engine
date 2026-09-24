@@ -213,6 +213,7 @@ const componentNames = [
   "Animator",
   "CameraFollow",
   "InputActions",
+  "Trail",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -409,6 +410,13 @@ export function normalizeComponent(
     }
     case "Animator":
       return { graph: string(value.graph, "Animator.graph") };
+    case "Trail":
+      return {
+        color: unitVec3(value.color, "Trail.color"),
+        width: positiveNumber(value.width, "Trail.width"),
+        lifetime: positiveNumber(value.lifetime, "Trail.lifetime"),
+        minDistance: positiveNumber(value.minDistance, "Trail.minDistance"),
+      };
     case "InputActions":
       return { bindings: string(value.bindings, "InputActions.bindings") };
     case "CameraFollow":
@@ -448,6 +456,15 @@ export function normalizeComponent(
         lifetime: positiveNumber(value.lifetime, "Particles.lifetime"),
         speed: nonNegativeNumber(value.speed, "Particles.speed"),
         size: positiveNumber(value.size, "Particles.size"),
+        endColor:
+          value.endColor === undefined ? unitVec3(value.color, "Particles.color") : unitVec3(value.endColor, "Particles.endColor"),
+        endSize: value.endSize === undefined ? 1 : nonNegativeNumber(value.endSize, "Particles.endSize"),
+        gravityScale: value.gravityScale === undefined ? 1 : number(value.gravityScale, "Particles.gravityScale"),
+        shape: particleShape(value.shape),
+        shapeSize: value.shapeSize === undefined ? 0.5 : nonNegativeNumber(value.shapeSize, "Particles.shapeSize"),
+        coneAngle: particleConeAngle(value.coneAngle),
+        space: value.space === undefined ? "Local" : particleSpace(value.space),
+        burst: value.burst === undefined ? 0 : particleBurst(value.burst),
       };
     }
     case "UI": {
@@ -660,4 +677,27 @@ function colliderBounciness(value: unknown): number {
   if (bounciness < 0 || bounciness > 1)
     throw new Error("Collider.bounciness must be from 0 to 1.");
   return bounciness;
+}
+
+function particleShape(value: unknown): "Point" | "Sphere" | "Box" | "Cone" {
+  if (value === undefined) return "Point";
+  if (value !== "Point" && value !== "Sphere" && value !== "Box" && value !== "Cone")
+    throw new Error("Particles.shape must be Point, Sphere, Box, or Cone.");
+  return value;
+}
+function particleConeAngle(value: unknown): number {
+  if (value === undefined) return 25;
+  const angle = number(value, "Particles.coneAngle");
+  if (angle < 0 || angle > 90) throw new Error("Particles.coneAngle must be from 0 to 90 degrees.");
+  return angle;
+}
+function particleSpace(value: unknown): "Local" | "World" {
+  if (value !== "Local" && value !== "World") throw new Error("Particles.space must be Local or World.");
+  return value;
+}
+function particleBurst(value: unknown): number {
+  const count = number(value, "Particles.burst");
+  if (!Number.isInteger(count) || count < 0 || count > 1000)
+    throw new Error("Particles.burst must be a whole number from 0 to 1000.");
+  return count;
 }
