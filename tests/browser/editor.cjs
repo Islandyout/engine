@@ -1172,6 +1172,46 @@ const { chromium } = require("playwright");
     await page.waitForFunction(() => !document.querySelector("#status").textContent.includes("spawned"));
     assert.match(await page.locator("#hud-text").textContent(), /Score: 0/, "Stop restores the authored UI text");
 
+    // F50: Environment (procedural sky + fog), a Material override, and a
+    // game Camera that takes over the view during Play. Checked for page
+    // errors (the `errors` assertion below) and captured as evidence.
+    const env = await run({ command: "spawn_entity", name: "Environment" });
+    await run({
+      command: "set_component",
+      entity: env.entity,
+      type: "Environment",
+      value: {
+        sky: "Procedural", skyColor: { x: 0.2, y: 0.4, z: 0.8 }, horizonColor: { x: 0.7, y: 0.8, z: 0.9 },
+        groundColor: { x: 0.3, y: 0.3, z: 0.25 }, sunElevation: 35, sunAzimuth: 120, sunIntensity: 3,
+        sunColor: { x: 1, y: 0.95, z: 0.9 }, ambientIntensity: 1.5, fog: "Linear",
+        fogColor: { x: 0.7, y: 0.8, z: 0.9 }, fogNear: 30, fogFar: 150, fogDensity: 0.01,
+        shadows: true, exposure: 0.8,
+      },
+    });
+    const painted = await run({ command: "spawn_entity", name: "Painted", transform: [-2, 1, 0] });
+    await run({
+      command: "set_component",
+      entity: painted.entity,
+      type: "Material",
+      value: { color: { x: 0.9, y: 0.2, z: 0.2 }, metalness: 0.6, roughness: 0.3,
+               emissive: { x: 0, y: 0, z: 0 }, emissiveIntensity: 1, opacity: 1, keepTextures: true },
+    });
+    const cam = await run({ command: "spawn_entity", name: "Game Camera", transform: [0, 4, 14] });
+    await run({
+      command: "set_component",
+      entity: cam.entity,
+      type: "Camera",
+      value: { projection: "Perspective", fov: 60, near: 0.1, far: 500, orthoSize: 10, priority: 5 },
+    });
+    await run({ command: "set_component", entity: cam.entity, type: "RigidBody", value: { mass: 1, dynamic: false } });
+    await fs.mkdir("build/browser-evidence", { recursive: true });
+    await page.screenshot({ path: "build/browser-evidence/f50-edit.png" });
+    await page.click("#play");
+    await page.waitForFunction(() => document.querySelector("#status").textContent.includes("C++ fixed ticks"));
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: "build/browser-evidence/f50-play.png" });
+    await page.click("#stop");
+
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -1181,7 +1221,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override and a game Camera passed.",
     );
   } finally {
     if (browser) await browser.close();

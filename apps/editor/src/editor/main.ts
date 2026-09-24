@@ -5,7 +5,17 @@ import {
   type TransformMode,
   type TransformSnapshot,
 } from "./TransformEdit";
-import type { AIStateName, EntityRef, ParticlePreset, UIAction, UIAnchor, Vec3 } from "../scene/Components";
+import type {
+  AIStateName,
+  CameraComponent,
+  EntityRef,
+  EnvironmentComponent,
+  MaterialComponent,
+  ParticlePreset,
+  UIAction,
+  UIAnchor,
+  Vec3,
+} from "../scene/Components";
 import { propertyMetadata, componentLabel, componentGroups } from "./PropertyMetadata";
 import { defaultComponent } from "../authoring/CommandInterpreter";
 import { CanvasRenderer } from "./CanvasRenderer";
@@ -24,6 +34,7 @@ import { pickClipName, groundSpeed } from "./animationClips";
 import { loadOnce } from "./loadOnce";
 import type { SceneComponents } from "../scene/Scene";
 import { encodeProps, reconcileProps } from "../scene/scriptProps";
+import { defaultEnvironment } from "../authoring/CommandInterpreter";
 import "./style.css";
 
 // Each preset's emission shape/motion. `direction` is the base emit
@@ -333,6 +344,9 @@ async function startEditor() {
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // Real-time shadows (0.50.0): the sun, plus any Light with castShadows.
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   } catch {
     renderer = new CanvasRenderer();
     backend = "Canvas compatibility";
@@ -366,10 +380,202 @@ async function startEditor() {
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(0, 1, 0);
   controls.update();
-  scene.add(new THREE.HemisphereLight(0xd8eeff, 0x405036, 3));
+  const hemisphere = new THREE.HemisphereLight(0xd8eeff, 0x405036, 3);
+  scene.add(hemisphere);
   const sun = new THREE.DirectionalLight(0xffffff, 3);
   sun.position.set(4, 8, 5);
   scene.add(sun);
+  scene.add(sun.target);
+  // The sun's shadow frustum is a 50 x 50 box that follows the camera's
+  // focus point every frame (see updateSunShadow), so shadows stay sharp
+  // near the action instead of stretching over the whole world.
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -25;
+  sun.shadow.camera.right = 25;
+  sun.shadow.camera.top = 25;
+  sun.shadow.camera.bottom = -25;
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 120;
+  sun.shadow.bias = -0.0005;
+  sun.shadow.normalBias = 0.02;
+  const sunDirection = new THREE.Vector3(4, 8, 5).normalize();
+  // The physics ground plane (y = 0) had no visible surface; this one only
+  // shows shadows, so the look is otherwise unchanged.
+  const shadowGround = new THREE.Mesh(
+    new THREE.PlaneGeometry(400, 400),
+    new THREE.ShadowMaterial({ opacity: 0.35 }),
+  );
+  shadowGround.rotation.x = -Math.PI / 2;
+  shadowGround.receiveShadow = true;
+  scene.add(shadowGround);
+  // Environment (0.50.0): sky, sun, ambient, fog, exposure. Applied on every
+  // rebuild(); the sky and its image-based lighting are only regenerated
+  // when the Environment's values actually change.
+  let environmentKey = "";
+  let skyMesh: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial> | undefined;
+  let environmentTexture: THREE.Texture | undefined;
+  const pmrem = renderer instanceof THREE.WebGLRenderer ? new THREE.PMREMGenerator(renderer) : undefined;
+  function colorOf(v: Vec3) {
+    return new THREE.Color(v.x, v.y, v.z);
+  }
+  function gradientTexture(env: EnvironmentComponent) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 2;
+    canvas.height = 256;
+    const ctx = canvas.getContext("2d")!;
+    const fill = ctx.createLinearGradient(0, 0, 0, 256);
+    const css = (v: Vec3) => `#${colorOf(v).getHexString()}`;
+    fill.addColorStop(0, css(env.skyColor));
+    fill.addColorStop(0.5, css(env.horizonColor));
+    fill.addColorStop(1, css(env.groundColor));
+    ctx.fillStyle = fill;
+    ctx.fillRect(0, 0, 2, 256);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }
+  function applyEnvironment(env: EnvironmentComponent) {
+    const elevation = THREE.MathUtils.degToRad(env.sunElevation);
+    const azimuth = THREE.MathUtils.degToRad(env.sunAzimuth);
+    sunDirection.set(
+      Math.cos(elevation) * Math.sin(azimuth),
+      Math.sin(elevation),
+      Math.cos(elevation) * Math.cos(azimuth),
+    );
+    sun.color.copy(colorOf(env.sunColor));
+    sun.intensity = env.sunIntensity;
+    sun.castShadow = env.shadows;
+    shadowGround.visible = env.shadows;
+    hemisphere.intensity = env.ambientIntensity;
+    if (renderer instanceof THREE.WebGLRenderer) renderer.toneMappingExposure = env.exposure;
+    scene.fog =
+      env.fog === "Linear"
+        ? new THREE.Fog(colorOf(env.fogColor), env.fogNear, env.fogFar)
+        : env.fog === "Exponential"
+          ? new THREE.FogExp2(colorOf(env.fogColor), env.fogDensity)
+          : null;
+    const key = JSON.stringify([env.sky, env.skyColor, env.horizonColor, env.groundColor, env.sunElevation, env.sunAzimuth]);
+    if (key === environmentKey) return;
+    environmentKey = key;
+    if (skyMesh) {
+      scene.remove(skyMesh);
+      skyMesh.geometry.dispose();
+      (skyMesh.material as THREE.Material).dispose();
+      skyMesh = undefined;
+    }
+    environmentTexture?.dispose();
+    environmentTexture = undefined;
+    scene.environment = null;
+    if (env.sky === "Color") {
+      scene.background = colorOf(env.skyColor);
+      hemisphere.color.set(0xd8eeff);
+      hemisphere.groundColor.set(0x405036);
+      return;
+    }
+    hemisphere.color.copy(colorOf(env.sky === "Gradient" ? env.horizonColor : env.skyColor));
+    hemisphere.groundColor.copy(colorOf(env.groundColor));
+    if (env.sky === "Gradient") {
+      const texture = gradientTexture(env);
+      scene.background = texture;
+      if (pmrem) environmentTexture = pmrem.fromEquirectangular(texture).texture;
+    } else {
+      skyMesh = createSky(env);
+      scene.background = null;
+      if (pmrem) {
+        const skyScene = new THREE.Scene();
+        const probe = createSky(env);
+        skyScene.add(probe);
+        environmentTexture = pmrem.fromScene(skyScene).texture;
+        probe.geometry.dispose();
+        probe.material.dispose();
+      }
+      scene.add(skyMesh);
+    }
+    if (environmentTexture) scene.environment = environmentTexture;
+    // The sky's radiance is far brighter than the scene's own lights were
+    // tuned for; scaled down so image-based lighting adds fill, not glare.
+    scene.environmentIntensity = 0.6;
+  }
+  // Game cameras (0.50.0): during Play the highest-priority Camera entity
+  // renders the view from its own position and rotation.
+  const gamePerspective = new THREE.PerspectiveCamera();
+  const gameOrthographic = new THREE.OrthographicCamera();
+  function gameCamera(): THREE.Camera | undefined {
+    if (doc.mode === "edit") return undefined;
+    let best: { component: CameraComponent; index: number } | undefined;
+    doc.scene.eachAlive().forEach((entity, index) => {
+      const component = doc.scene.resolve(entity, "Camera");
+      if (!component || !objects[index] || !runtime._editor_alive(index)) return;
+      if (!best || component.priority > best.component.priority) best = { component, index };
+    });
+    if (!best) return undefined;
+    const { component, index } = best;
+    const aspect = viewport.clientWidth / Math.max(viewport.clientHeight, 1);
+    const view =
+      component.projection === "Perspective"
+        ? Object.assign(gamePerspective, { fov: component.fov, aspect })
+        : Object.assign(gameOrthographic, {
+            left: -component.orthoSize * aspect,
+            right: component.orthoSize * aspect,
+            top: component.orthoSize,
+            bottom: -component.orthoSize,
+          });
+    view.near = component.near;
+    view.far = component.far;
+    view.updateProjectionMatrix();
+    const anchor = objects[index]!;
+    anchor.updateWorldMatrix(true, false);
+    anchor.getWorldPosition(view.position);
+    anchor.getWorldQuaternion(view.quaternion);
+    return view;
+  }
+  // Procedural sky: a large inside-out sphere shaded from the Environment's
+  // zenith/horizon/ground colors, with a sun disc and glow toward the sun.
+  // Hand-written rather than three's Sky.js, whose raw HDR output washes the
+  // scene out through bloom and rendered flat grey in headless WebGL.
+  function createSky(env: EnvironmentComponent) {
+    const material = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      depthWrite: false,
+      uniforms: {
+        zenith: { value: colorOf(env.skyColor) },
+        horizon: { value: colorOf(env.horizonColor) },
+        ground: { value: colorOf(env.groundColor) },
+        sunColor: { value: colorOf(env.sunColor) },
+        sunDirection: { value: sunDirection.clone() },
+      },
+      vertexShader: `
+        varying vec3 vDirection;
+        void main() {
+          vDirection = normalize(position);
+          vec4 clip = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          gl_Position = clip.xyww; // always at the far plane
+        }`,
+      fragmentShader: `
+        uniform vec3 zenith, horizon, ground, sunColor, sunDirection;
+        varying vec3 vDirection;
+        void main() {
+          vec3 d = normalize(vDirection);
+          float h = d.y;
+          vec3 color = h > 0.0 ? mix(horizon, zenith, pow(h, 0.45)) : mix(horizon, ground, pow(-h, 0.35));
+          float s = max(dot(d, normalize(sunDirection)), 0.0);
+          color += sunColor * (pow(s, 900.0) * 6.0 + pow(s, 12.0) * 0.18);
+          gl_FragColor = vec4(color, 1.0);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
+    });
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 32, 16), material);
+    sky.frustumCulled = false;
+    sky.renderOrder = -1;
+    return sky;
+  }
+  // Keeps the sun's shadow frustum centered on what the camera looks at.
+  function updateSunShadow() {
+    sun.target.position.copy(controls.target);
+    sun.position.copy(controls.target).addScaledVector(sunDirection, 50);
+  }
   const grid = new THREE.GridHelper(40, 40, 0x658ca8, 0x2b3c4c);
   scene.add(grid);
   // Post-processing: a subtle, always-on bloom so a bright authored Light (or
@@ -382,8 +588,12 @@ async function startEditor() {
   // for it, same as before this round.
   const composer =
     renderer instanceof THREE.WebGLRenderer ? new EffectComposer(renderer) : undefined;
+  const renderPass = new RenderPass(scene, camera);
+  // The camera the last frame rendered with: the editor camera, or a game
+  // Camera entity during Play. HUD projection and WASD use the same one.
+  let viewCamera: THREE.Camera = camera;
   if (composer) {
-    composer.addPass(new RenderPass(scene, camera));
+    composer.addPass(renderPass);
     const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.5, 0.85);
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
@@ -1385,28 +1595,62 @@ async function startEditor() {
   // Parenting `target` under the light itself, offset along local -Z, fixes
   // that: the target's world position then follows the light's own world
   // rotation, so aiming a Spot/Directional light is just rotating its entity.
+  // Material component: on the shared placeholder box (or with keepTextures
+  // off) a fresh MeshStandardMaterial replaces the mesh's own; otherwise
+  // each model material is cloned and tinted, keeping its texture maps.
+  // Always a new material, never an edit of the shared/cached one.
+  function applyMaterial(mesh: THREE.Mesh, m: MaterialComponent) {
+    const build = (base: THREE.Material): THREE.Material => {
+      const standard =
+        m.keepTextures && base !== material && base instanceof THREE.MeshStandardMaterial
+          ? base.clone()
+          : new THREE.MeshStandardMaterial();
+      standard.color.copy(colorOf(m.color));
+      standard.metalness = m.metalness;
+      standard.roughness = m.roughness;
+      standard.emissive.copy(colorOf(m.emissive));
+      standard.emissiveIntensity = m.emissiveIntensity;
+      standard.opacity = m.opacity;
+      standard.transparent = m.opacity < 1;
+      standard.depthWrite = m.opacity >= 1;
+      return standard;
+    };
+    mesh.material = Array.isArray(mesh.material) ? mesh.material.map(build) : build(mesh.material);
+    for (const created of Array.isArray(mesh.material) ? mesh.material : [mesh.material])
+      materialOverrides.push(created);
+  }
+  // Materials applyMaterial() created, disposed on the next rebuild() --
+  // rebuild runs after every edit, so they would otherwise leak GPU memory.
+  const materialOverrides: THREE.Material[] = [];
   function createLight(light: {
     type: "Point" | "Spot" | "Directional";
     color: Vec3;
     intensity: number;
     range: number;
     angle: number;
+    castShadows: boolean;
   }): THREE.Light {
     const color = new THREE.Color(light.color.x, light.color.y, light.color.z);
+    const withShadows = <L extends THREE.PointLight | THREE.SpotLight | THREE.DirectionalLight>(l: L): L => {
+      l.castShadow = light.castShadows;
+      l.shadow.mapSize.set(1024, 1024);
+      l.shadow.bias = -0.0005;
+      return l;
+    };
     switch (light.type) {
       case "Point":
-        return new THREE.PointLight(color, light.intensity, light.range);
+        return withShadows(new THREE.PointLight(color, light.intensity, light.range));
       case "Spot": {
         const l = new THREE.SpotLight(color, light.intensity, light.range, light.angle);
         l.target.position.set(0, 0, -1);
         l.add(l.target);
-        return l;
+        return withShadows(l);
       }
       case "Directional": {
         const l = new THREE.DirectionalLight(color, light.intensity);
         l.target.position.set(0, 0, -1);
         l.add(l.target);
-        return l;
+        return withShadows(l);
       }
     }
   }
@@ -1511,6 +1755,15 @@ async function startEditor() {
     // chosen. Being a child of `anchor` means it inherits this entity's
     // own position/rotation for free, no separate transform tracking.
     if (light) anchor.add(createLight(light));
+    // Every mesh casts and receives shadows; a Material component overrides
+    // the surface (see applyMaterial).
+    const materialOverride = get("Material");
+    object.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      child.castShadow = true;
+      child.receiveShadow = true;
+      if (materialOverride) applyMaterial(child, materialOverride);
+    });
     const particles = get("Particles");
     let particleState: ParticleState | undefined;
     if (particles) {
@@ -1525,6 +1778,10 @@ async function startEditor() {
   }
   function rebuild() {
     gizmo.detach();
+    const environmentEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "Environment"));
+    applyEnvironment(
+      (environmentEntity && doc.scene.resolve(environmentEntity, "Environment")) ?? defaultEnvironment(),
+    );
     for (const object of objects) object.removeFromParent();
     objects.length = 0;
     animStates.length = 0;
@@ -1541,6 +1798,8 @@ async function startEditor() {
     }
     particleStates.length = 0;
     for (const state of deathStates) state?.materials.forEach(({ material }) => material.dispose());
+    for (const created of materialOverrides) created.dispose();
+    materialOverrides.length = 0;
     deathStates.length = 0;
     const refs = doc.scene.eachAlive();
     for (const entity of refs) createEntityObject((type) => doc.scene.resolve(entity, type));
@@ -2196,7 +2455,7 @@ async function startEditor() {
       // Once per rendered frame too, so this frame's on-foot movement (see
       // Runtime::camera_forward_x/z's own doc comment in bridge.cpp) reflects
       // wherever the camera is pointed right now, including mid-orbit.
-      camera.getWorldDirection(cameraForwardScratch);
+      viewCamera.getWorldDirection(cameraForwardScratch);
       runtime._editor_set_camera_forward(cameraForwardScratch.x, cameraForwardScratch.z);
       for (const [code, down] of keyQueue) runtime._editor_key(code, down);
       keyQueue.length = 0;
@@ -2367,8 +2626,11 @@ async function startEditor() {
     }
     if (selection.visible) selection.update();
     controls.update();
+    viewCamera = gameCamera() ?? camera;
+    updateSunShadow();
+    renderPass.camera = viewCamera;
     if (composer) composer.render();
-    else renderer.render(scene, camera);
+    else renderer.render(scene, viewCamera);
     drawHud();
     const status = el("status");
     status.dataset.mode = doc.mode;
@@ -2466,7 +2728,7 @@ async function startEditor() {
         const scaleY = doc.scene.resolve(entity, "Scale")?.value.y ?? 1;
         hudScratch.copy(object.position);
         hudScratch.y += scaleY / 2 + 0.35;
-        hudScratch.project(camera);
+        hudScratch.project(viewCamera);
         if (hudScratch.z > 1) return; // behind the camera
         const x = ((hudScratch.x + 1) / 2) * hud.width;
         const y = ((1 - hudScratch.y) / 2) * hud.height;

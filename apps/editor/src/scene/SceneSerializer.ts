@@ -207,6 +207,9 @@ const componentNames = [
   "Script",
   "Sound",
   "PrefabInstance",
+  "Environment",
+  "Camera",
+  "Material",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -346,6 +349,75 @@ export function normalizeComponent(
           value.angle === undefined
             ? Math.PI / 6
             : spotAngle(value.angle, "Light.angle"),
+        // Added in 0.50.0; older scenes' lights don't cast shadows.
+        castShadows:
+          value.castShadows === undefined ? false : boolean(value.castShadows, "Light.castShadows"),
+      };
+    }
+    case "Environment": {
+      const sky = value.sky;
+      if (sky !== "Color" && sky !== "Gradient" && sky !== "Procedural")
+        throw new Error("Environment.sky must be Color, Gradient, or Procedural.");
+      const fog = value.fog;
+      if (fog !== "None" && fog !== "Linear" && fog !== "Exponential")
+        throw new Error("Environment.fog must be None, Linear, or Exponential.");
+      const fogNear = nonNegativeNumber(value.fogNear, "Environment.fogNear");
+      const fogFar = positiveNumber(value.fogFar, "Environment.fogFar");
+      if (fogFar <= fogNear) throw new Error("Environment.fogFar must be greater than fogNear.");
+      const elevation = number(value.sunElevation, "Environment.sunElevation");
+      if (elevation < -90 || elevation > 90)
+        throw new Error("Environment.sunElevation must be from -90 to 90 degrees.");
+      return {
+        sky,
+        skyColor: unitVec3(value.skyColor, "Environment.skyColor"),
+        horizonColor: unitVec3(value.horizonColor, "Environment.horizonColor"),
+        groundColor: unitVec3(value.groundColor, "Environment.groundColor"),
+        sunElevation: elevation,
+        sunAzimuth: number(value.sunAzimuth, "Environment.sunAzimuth"),
+        sunIntensity: nonNegativeNumber(value.sunIntensity, "Environment.sunIntensity"),
+        sunColor: unitVec3(value.sunColor, "Environment.sunColor"),
+        ambientIntensity: nonNegativeNumber(value.ambientIntensity, "Environment.ambientIntensity"),
+        fog,
+        fogColor: unitVec3(value.fogColor, "Environment.fogColor"),
+        fogNear,
+        fogFar,
+        fogDensity: nonNegativeNumber(value.fogDensity, "Environment.fogDensity"),
+        shadows: boolean(value.shadows, "Environment.shadows"),
+        exposure: positiveNumber(value.exposure, "Environment.exposure"),
+      };
+    }
+    case "Camera": {
+      const projection = value.projection;
+      if (projection !== "Perspective" && projection !== "Orthographic")
+        throw new Error("Camera.projection must be Perspective or Orthographic.");
+      const fov = number(value.fov, "Camera.fov");
+      if (fov <= 0 || fov >= 180) throw new Error("Camera.fov must be between 0 and 180 degrees.");
+      const near = positiveNumber(value.near, "Camera.near");
+      const far = positiveNumber(value.far, "Camera.far");
+      if (far <= near) throw new Error("Camera.far must be greater than Camera.near.");
+      return {
+        projection,
+        fov,
+        near,
+        far,
+        orthoSize: positiveNumber(value.orthoSize, "Camera.orthoSize"),
+        priority: number(value.priority, "Camera.priority"),
+      };
+    }
+    case "Material": {
+      const metalness = number(value.metalness, "Material.metalness");
+      const roughness = number(value.roughness, "Material.roughness");
+      const opacity = number(value.opacity, "Material.opacity");
+      for (const [label, v] of [["metalness", metalness], ["roughness", roughness], ["opacity", opacity]] as const)
+        if (v < 0 || v > 1) throw new Error(`Material.${label} must be from 0 to 1.`);
+      return {
+        color: unitVec3(value.color, "Material.color"),
+        metalness,
+        roughness,
+        emissive: unitVec3(value.emissive, "Material.emissive"),
+        emissiveIntensity: nonNegativeNumber(value.emissiveIntensity, "Material.emissiveIntensity"),
+        opacity,
+        keepTextures: boolean(value.keepTextures, "Material.keepTextures"),
       };
     }
     case "Particles": {

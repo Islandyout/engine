@@ -9,6 +9,9 @@ import type {
   NameComponent,
   ParentComponent,
   ParticlesComponent,
+  EnvironmentComponent,
+  CameraComponent,
+  MaterialComponent,
   PedestrianComponent,
   PlayerComponent,
   PrefabInstanceComponent,
@@ -50,6 +53,9 @@ export interface SceneComponents {
   Script: ScriptComponent;
   Sound: SoundComponent;
   PrefabInstance: PrefabInstanceComponent;
+  Environment: EnvironmentComponent;
+  Camera: CameraComponent;
+  Material: MaterialComponent;
 }
 
 // The component types a prefab definition can carry -- deliberately every
@@ -75,6 +81,8 @@ export const prefabableComponentNames = [
   "UI",
   "Script",
   "Sound",
+  "Camera",
+  "Material",
 ] as const satisfies readonly (keyof SceneComponents)[];
 export type PrefabableComponent = (typeof prefabableComponentNames)[number];
 const prefabableComponentSet: ReadonlySet<string> = new Set(
@@ -129,6 +137,9 @@ export class Scene {
     Renderable: new Map(),
     Light: new Map(),
     Particles: new Map(),
+    Environment: new Map(),
+    Camera: new Map(),
+    Material: new Map(),
     UI: new Map(),
     Name: new Map(),
     Parent: new Map(),

@@ -120,6 +120,9 @@ export interface LightComponent {
   intensity: number;
   range: number;
   angle: number;
+  // Casts real-time shadows (0.50.0). Off by default: every shadow-casting
+  // Point light renders the scene six more times.
+  castShadows: boolean;
 }
 // A lightweight, non-collidable particle emitter -- main.ts's rebuild()
 // spawns an actual THREE.Points system as a sibling of this entity's mesh and
@@ -215,4 +218,55 @@ export type PlayerComponent = Record<string, never>;
 export interface EntityRef {
   index: number;
   generation: number;
+}
+
+// Scene-wide look (0.50.0): sky, sun, ambient light, fog, shadows and
+// exposure. The first entity carrying one wins; without any, the scene keeps
+// the defaults below, which reproduce the editor's original fixed lighting.
+export type SkyMode = "Color" | "Gradient" | "Procedural";
+export type FogMode = "None" | "Linear" | "Exponential";
+export interface EnvironmentComponent {
+  sky: SkyMode;
+  // Color: the whole background. Gradient: zenith, horizon and below-horizon.
+  skyColor: Vec3;
+  horizonColor: Vec3;
+  groundColor: Vec3;
+  // Degrees. Elevation 90 is straight overhead; azimuth 0 points the sun
+  // from +Z, 90 from +X. Also positions the Procedural sky's sun disc.
+  sunElevation: number;
+  sunAzimuth: number;
+  sunIntensity: number;
+  sunColor: Vec3;
+  ambientIntensity: number;
+  fog: FogMode;
+  fogColor: Vec3;
+  fogNear: number;
+  fogFar: number;
+  fogDensity: number;
+  shadows: boolean;
+  exposure: number;
+}
+// A game camera (0.50.0). During Play the highest-priority Camera entity
+// renders the game view from its own position and Rotation instead of the
+// editor's orbit camera.
+export type CameraProjection = "Perspective" | "Orthographic";
+export interface CameraComponent {
+  projection: CameraProjection;
+  fov: number; // vertical, degrees
+  near: number;
+  far: number;
+  orthoSize: number; // half the view height, world units
+  priority: number;
+}
+// Surface appearance override (0.50.0). On the placeholder box it replaces
+// the default material; on a catalog model it tints every mesh, keeping the
+// model's own textures when keepTextures is on.
+export interface MaterialComponent {
+  color: Vec3;
+  metalness: number;
+  roughness: number;
+  emissive: Vec3;
+  emissiveIntensity: number;
+  opacity: number;
+  keepTextures: boolean;
 }

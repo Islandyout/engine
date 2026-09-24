@@ -1,3 +1,4 @@
+import type { EnvironmentComponent } from "../scene/Components";
 import {
   deserializeScene,
   normalizeComponent,
@@ -73,6 +74,9 @@ const componentNames = [
   "Parent",
   "Script",
   "Sound",
+  "Environment",
+  "Camera",
+  "Material",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -576,7 +580,14 @@ export function defaultComponent(
       // whatever it's placed near, and Point is the least surprising default
       // (an unaimed Spot would light nothing until its cone is pointed
       // somewhere; Directional ignores position entirely).
-      return { type: "Point", color: { x: 1, y: 0.95, z: 0.85 }, intensity: 2, range: 15, angle: Math.PI / 6 };
+      return {
+        type: "Point",
+        color: { x: 1, y: 0.95, z: 0.85 },
+        intensity: 2,
+        range: 15,
+        angle: Math.PI / 6,
+        castShadows: false,
+      };
     case "Particles":
       // A gentle sparkle -- visible immediately without tuning, and Sparkle's
       // omnidirectional burst doesn't need the gravity/rise tuning Smoke/
@@ -598,6 +609,20 @@ export function defaultComponent(
       };
     case "Sound":
       return { clip: 1, volume: 1, loop: false, autoplay: true };
+    case "Environment":
+      return defaultEnvironment();
+    case "Camera":
+      return { projection: "Perspective", fov: 50, near: 0.1, far: 2000, orthoSize: 10, priority: 0 };
+    case "Material":
+      return {
+        color: { x: 0.38, y: 0.68, z: 0.73 },
+        metalness: 0,
+        roughness: 1,
+        emissive: { x: 0, y: 0, z: 0 },
+        emissiveIntensity: 1,
+        opacity: 1,
+        keepTextures: true,
+      };
   }
 }
 
@@ -606,3 +631,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export type { SceneDocument };
+
+// Reproduces the editor's original fixed lighting (dark blue backdrop,
+// hemisphere ambient 3, sun at (4, 8, 5) with intensity 3), so adding an
+// Environment changes nothing until its values are edited.
+export function defaultEnvironment(): EnvironmentComponent {
+  return {
+    sky: "Color",
+    skyColor: { x: 0.063, y: 0.102, z: 0.149 },
+    horizonColor: { x: 0.55, y: 0.7, z: 0.85 },
+    groundColor: { x: 0.25, y: 0.31, z: 0.21 },
+    sunElevation: 51.3,
+    sunAzimuth: 38.7,
+    sunIntensity: 3,
+    sunColor: { x: 1, y: 1, z: 1 },
+    ambientIntensity: 3,
+    fog: "None",
+    fogColor: { x: 0.063, y: 0.102, z: 0.149 },
+    fogNear: 20,
+    fogFar: 120,
+    fogDensity: 0.015,
+    shadows: true,
+    exposure: 1,
+  };
+}

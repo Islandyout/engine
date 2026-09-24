@@ -98,6 +98,15 @@ Engine version 0.49.0 widens the Lua `Script` API so most small games need no C+
 
 See [F49](docs/IMPLEMENTATION_STATUS.md#f49--lua-api-breadth-callbacks-world-api-spawn-timers-props-sound-and-ui-0490).
 
+Engine version 0.50.0 covers the rendering basics from the gap analysis:
+
+- **Real-time shadows**: the sun casts soft shadows onto everything and onto a shadow-only ground plane, and any `Light` can opt in with `castShadows`.
+- **`Environment`**: a scene-wide component with a Color, Gradient or Procedural sky, image-based lighting from that sky, sun direction/color/intensity, ambient level, Linear or Exponential fog, a shadows toggle and exposure.
+- **`Camera`**: during Play the highest-priority camera renders the game view from its entity, in perspective or orthographic.
+- **`Material`**: color, metalness, roughness, emissive and opacity, which replace the placeholder box's surface or tint a catalog model while keeping its textures.
+
+See [F50](docs/IMPLEMENTATION_STATUS.md#f50--rendering-basics-shadows-environment-camera-material-0500).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 
