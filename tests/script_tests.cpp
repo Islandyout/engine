@@ -4,6 +4,8 @@
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
+#include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -12,6 +14,45 @@ void check(bool pass, const char *message) {
     if (!pass)
         throw std::runtime_error{message};
 }
+
+// A minimal Host for tests: names by map, prefabs spawn a plain body, and
+// every emit() is recorded.
+struct TestHost final : engine::script::Host {
+    std::map<engine::Entity, std::string> names;
+    std::vector<std::string> emitted;
+    std::optional<engine::Entity> find(const engine::World &world, const std::string &name) override {
+        for (const auto &[entity, value] : names)
+            if (value == name && world.alive(entity))
+                return entity;
+        return std::nullopt;
+    }
+    std::string name_of(const engine::World &, engine::Entity entity) override {
+        const auto found = names.find(entity);
+        return found == names.end() ? "" : found->second;
+    }
+    std::optional<engine::Entity> spawn(engine::World &world, const std::string &prefab, engine::Vec3 position,
+                                        engine::Vec3 velocity) override {
+        if (prefab != "Ball")
+            return std::nullopt;
+        const auto entity = world.defer_create();
+        world.defer_set(entity, engine::Box{position, {0.5F, 0.5F, 0.5F}});
+        world.defer_set(entity, engine::physics::RigidBody{velocity});
+        names[entity] = "Ball";
+        return entity;
+    }
+    void destroy(engine::World &world, engine::Entity entity) override { world.defer_destroy(entity); }
+    bool health(const engine::World &, engine::Entity, float &current, float &max) override {
+        current = 40;
+        max = 100;
+        return true;
+    }
+    void damage(engine::World &, engine::Entity, float amount) override {
+        emitted.push_back("damage:" + std::to_string(static_cast<int>(amount)));
+    }
+    void emit(engine::Entity, const std::string &kind, const std::string &a, const std::string &b) override {
+        emitted.push_back(kind + ":" + a + (b.empty() ? "" : ":" + b));
+    }
+};
 } // namespace
 
 int main() {
@@ -44,8 +85,8 @@ int main() {
             check(world.get<Box>(entity)->center.x > 0.4F, "script-driven velocity moved the entity");
         }
         {
-            // self.x/y/z are read-only: a script assigning to them has no effect
-            // on the entity's actual position, only self.vx/vy/vz round-trips.
+            // Since 0.49.0 assigning self.x/y/z teleports the entity; an
+            // untouched coordinate keeps whatever physics gives it.
             World world;
             world.register_component<Box>("box");
             world.register_component<RigidBody>("rigidbody");
@@ -58,8 +99,10 @@ int main() {
             Runtime runtime;
             runtime.step(world, 1.0F / 60);
             physics::step(world, 1.0F / 60);
-            check(std::abs(world.get<Box>(entity)->center.x - 2) < 0.1F,
-                  "assigning self.x from a script does not move the entity");
+            check(std::abs(world.get<Box>(entity)->center.x - 999) < 0.1F,
+                  "assigning self.x from a script teleports the entity");
+            check(std::abs(world.get<Box>(entity)->center.z - 3) < 0.1F,
+                  "an untouched coordinate is left alone");
         }
         {
             // No on_tick defined at all is a silent no-op tick, not an error --
@@ -508,14 +551,145 @@ int main() {
                   "a table self.animate is not coerced into an animation request");
         }
 
+
+        {
+            // on_start runs once before the first on_tick; timers, coroutines,
+            // time and props all work; log/sound/ui reach the host.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            const auto entity = world.create();
+            world.set(entity, Box{{0, 5, 0}, {1, 1, 1}});
+            world.set(entity, RigidBody{});
+            Script script{R"lua(
+                starts, ticks, fired, repeats, stage = 0, 0, 0, 0, 0
+                function on_start() starts = starts + 1; log("hello " .. props.greeting) end
+                function on_tick(dt)
+                  ticks = ticks + 1
+                  self.vx = props.speed
+                  if ticks == 1 then
+                    after(0.1, function() fired = fired + 1 end)
+                    every(0.05, function() repeats = repeats + 1 end)
+                    start(function() stage = 1; wait(0.2); stage = 2; sound.play("coin"); ui.set_text("Score", 42) end)
+                  end
+                  if ticks == 30 then log(string.format("%d %d %d %d %.2f", starts, fired, repeats, stage, time.now)) end
+                end
+            )lua"};
+            Script::Prop speed{"speed", Script::Prop::Kind::number, 2.5, false, ""};
+            Script::Prop greeting{"greeting", Script::Prop::Kind::text, 0, false, "props"};
+            script.props = {speed, greeting};
+            world.set(entity, script);
+            TestHost host;
+            Runtime runtime;
+            runtime.set_host(&host);
+            for (int i = 0; i < 30; ++i)
+                runtime.step(world, 1.0F / 60);
+            check(world.get<RigidBody>(entity)->velocity.x == 2.5F, "a number prop reaches the script");
+            check(host.emitted.size() == 4, "log, sound, ui and the final log were emitted");
+            check(host.emitted[0] == "log:hello props", "on_start ran with a text prop");
+            check(host.emitted[1] == "sound:coin" && host.emitted[2] == "ui_text:Score:42",
+                  "a coroutine resumed after wait() and reached sound/ui");
+            // 29 ticks elapsed at the time of the log: one after(), floor(29/60 / 0.05) repeats.
+            check(host.emitted[3] == "log:1 1 9 2 0.48", "one start, one after, nine every, stage 2, time.now");
+        }
+        {
+            // Collision and trigger callbacks receive the other entity's id,
+            // and world.name/find/send/spawn/destroy/health/damage work.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            TestHost host;
+            const auto runner = world.create();
+            world.set(runner, Box{{0, 0.5F, 0}, {1, 1, 1}});
+            world.set(runner, RigidBody{{6, 0, 0}});
+            world.set(runner, Script{R"lua(
+                function on_trigger_enter(other) log("enter " .. world.name(other)) end
+                function on_trigger_exit(other) log("exit " .. world.name(other)) end
+                function on_collision_enter(other)
+                  log("hit " .. world.name(other))
+                  local hp, max = world.health(other); world.damage(other, 5)
+                  world.send(other, "ouch", hp)
+                  local ball = world.spawn("Ball", 0, 3, 0, 1, 0, 0)
+                  log("spawned " .. tostring(ball ~= nil) .. " " .. tostring(world.find("Wall") == other))
+                  world.destroy(other)
+                end
+            )lua"});
+            host.names[runner] = "Runner";
+            const auto zone = world.create();
+            world.set(zone, Box{{2, 0.5F, 0}, {1, 1, 1}});
+            Collider trigger{};
+            trigger.is_trigger = true;
+            world.set(zone, trigger);
+            host.names[zone] = "Zone";
+            const auto wall = world.create();
+            world.set(wall, Box{{6, 0.5F, 0}, {1, 3, 3}});
+            world.set(wall, RigidBody{{0, 0, 0}, false, 0.0F, physics::BodyType::Kinematic});
+            world.set(wall, Collider{});
+            world.set(wall, Script{R"lua(
+                function on_message(name, value, sender) log(name .. " " .. tostring(value) .. " from " .. world.name(sender)) end
+                function on_destroy() log("wall destroyed") end
+            )lua"});
+            host.names[wall] = "Wall";
+            Runtime runtime;
+            runtime.set_host(&host);
+            physics::Events events;
+            for (int i = 0; i < 60 && world.alive(wall); ++i) {
+                runtime.step(world, 1.0F / 60);
+                world.flush();
+                physics::step(world, 1.0F / 60, {}, &events);
+                runtime.dispatch_contacts(world, events);
+                world.flush();
+            }
+            runtime.step(world, 1.0F / 60); // lets the wall's on_destroy run
+            const std::vector<std::string> expected{
+                "log:enter Zone", "log:exit Zone", "log:hit Wall", "damage:5",
+                "log:ouch 40.0 from Runner", "log:spawned true true", "log:wall destroyed"};
+            check(host.emitted == expected, "callbacks, world API and on_destroy ran in order");
+            check(world.query<Box>().size() == 3, "the spawned ball exists and the wall is gone");
+        }
+        {
+            // world.raycast/overlap see colliders; physics.add_impulse moves self.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            const auto target = world.create();
+            world.set(target, Box{{5, 1, 0}, {1, 1, 1}});
+            world.set(target, Collider{});
+            const auto entity = world.create();
+            world.set(entity, Box{{0, 1, 0}, {1, 1, 1}});
+            world.set(entity, RigidBody{{0, 0, 0}, false, 2.0F});
+            world.set(entity, Script{R"lua(
+                function on_start()
+                  local hit, distance = world.raycast(0, 1, 0, 1, 0, 0, 20)
+                  log(tostring(hit) .. " " .. string.format("%.1f", distance))
+                  log(#world.overlap(5, 1, 0, 1))
+                  physics.add_impulse(0, 0, 4)
+                end
+            )lua"});
+            TestHost host;
+            Runtime runtime;
+            runtime.set_host(&host);
+            runtime.step(world, 1.0F / 60);
+            check(host.emitted.size() == 2 && host.emitted[1] == "log:1", "overlap finds the target");
+            check(host.emitted[0].find(" 4.5") != std::string::npos, "raycast hits the target at 4.5");
+            check(std::abs(world.get<RigidBody>(entity)->velocity.z - 2.0F) < 1e-5F, "impulse / mass");
+        }
         std::cout << "Script: velocity control, read-only self.x/y/z, no-op without on_tick, "
                      "compile/runtime error containment, non-string error() values, source-change "
                      "recompilation, os/io sandboxing, runaway-loop watchdog, cleanup on Script removal, "
                      "per-entity VM isolation, non-finite velocity rejection, save/load persistence "
                      "(cross-VM sharing, unset keys, host seeding, dirty-tracking, surviving a source "
                      "change), input.down/input.pressed (level vs. edge semantics), and self.animate "
-                     "animation requests (including non-sticky and non-string-coercible handling) "
-                     "passed.\n";
+                     "animation requests (including non-sticky and non-string-coercible handling), "
+                     "on_start/timers/coroutines/props/time, collision and trigger callbacks, the world "
+                     "API (find/name/send/spawn/destroy/health/damage/raycast/overlap), on_destroy and "
+                     "physics impulses passed.\n";
     } catch (const std::exception &e) {
         std::cerr << "script test failed: " << e.what() << "\n";
         return 1;

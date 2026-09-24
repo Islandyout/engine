@@ -64,6 +64,9 @@ export interface PedestrianComponent {
 // VM with no io/os/package/debug and an instruction-count watchdog).
 export interface ScriptComponent {
   source: string;
+  // Values for the props the source declares with `-- @prop name default`
+  // (see scriptProps.ts); always reconciled against the source on load/edit.
+  props: Record<string, number | boolean | string>;
 }
 export interface VehicleComponent {
   archetype: number;

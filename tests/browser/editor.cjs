@@ -1134,6 +1134,44 @@ const { chromium } = require("playwright");
     });
     await page.click("#stop");
 
+    // F49: the Lua API reaches the editor. A prefab template spawned from a
+    // script's on_start gets its own render object (the "N spawned" status
+    // readout), a declared @prop's value reaches the script, and
+    // ui.set_text/log land in the HUD and the log panel.
+    const run = async (command) => {
+      await page.locator("#json").fill(JSON.stringify(command));
+      await page.locator("#command button").click();
+      return JSON.parse(await page.locator("#log").textContent());
+    };
+    const coin = await run({ command: "spawn_entity", name: "Coin", transform: [0, -40, 0] });
+    assert.equal(coin.ok, true);
+    assert.equal((await run({ command: "create_prefab", entity: coin.entity, name: "Coin" })).ok, true);
+    const label = await run({ command: "spawn_entity", name: "ScoreText" });
+    await run({
+      command: "set_component",
+      entity: label.entity,
+      type: "UI",
+      value: { kind: "Text", text: "Score: 0", anchor: "top-left", visibleWhen: "always", action: "pause" },
+    });
+    const spawner = await run({ command: "spawn_entity", name: "Spawner", transform: [0, 1, 0] });
+    await run({
+      command: "set_component",
+      entity: spawner.entity,
+      type: "Script",
+      value: {
+        source:
+          '-- @prop label "Coins"\nfunction on_start()\n  local c = world.spawn("Coin", 2, 3, 0)\n  ui.set_text("ScoreText", props.label .. ": " .. tostring(c ~= nil))\n  log("spawner ready")\nend',
+        props: { label: "Gold" },
+      },
+    });
+    await page.click("#play");
+    await page.waitForFunction(() => document.querySelector("#status").textContent.includes("1 spawned"));
+    await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("Gold: true"));
+    await page.waitForFunction(() => document.querySelector("#log").textContent.includes("[script] spawner ready"));
+    await page.click("#stop");
+    await page.waitForFunction(() => !document.querySelector("#status").textContent.includes("spawned"));
+    assert.match(await page.locator("#hud-text").textContent(), /Score: 0/, "Stop restores the authored UI text");
+
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -1143,7 +1181,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage) passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log passed.",
     );
   } finally {
     if (browser) await browser.close();

@@ -589,7 +589,13 @@ export function defaultComponent(
     case "Name":
       return { value: "Entity" };
     case "Script":
-      return { source: "function on_tick(dt)\n  -- self.x/y/z (read-only), self.vx/vy/vz (read-write)\nend" };
+      return {
+        source:
+          "-- @prop speed 3\n" +
+          "function on_start()\n  -- runs once when Play starts\nend\n\n" +
+          "function on_tick(dt)\n  -- self.x/y/z and self.vx/vy/vz are read-write; props.speed is set in the inspector\nend\n",
+        props: { speed: 3 },
+      };
     case "Sound":
       return { clip: 1, volume: 1, loop: false, autoplay: true };
   }

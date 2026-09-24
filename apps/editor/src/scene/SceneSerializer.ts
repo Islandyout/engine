@@ -1,3 +1,4 @@
+import { reconcileProps } from "./scriptProps";
 import type { EntityRef } from "./Components";
 import {
   isPrefabableComponent,
@@ -298,8 +299,12 @@ export function normalizeComponent(
       return {
         archetype: boundedIndex(value.archetype, "Pedestrian.archetype", 0, 3),
       };
-    case "Script":
-      return { source: string(value.source, "Script.source") };
+    case "Script": {
+      const source = string(value.source, "Script.source");
+      if (value.props !== undefined && (typeof value.props !== "object" || value.props === null || Array.isArray(value.props)))
+        throw new Error("Script.props must be an object.");
+      return { source, props: reconcileProps(source, value.props as Record<string, unknown> | undefined) };
+    }
     case "Sound":
       return {
         clip: unsigned(value.clip, "Sound.clip", 1),

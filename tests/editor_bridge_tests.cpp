@@ -24,6 +24,14 @@ void editor_script_key(const char *, int);
 const char *editor_take_animation_request(int);
 void editor_set_body(int, int, double, int);
 void editor_set_collider(int, int, double, double, double);
+void editor_set_script_props(int, const char *);
+void editor_set_name(int, const char *);
+void editor_template_begin(const char *);
+int editor_entity_count();
+const char *editor_spawned_prefab(int);
+int editor_take_commands();
+const char *editor_command_text(int, int);
+int editor_command_entity(int);
 }
 namespace {
 int add_unit(double x, double y, double z, double vx, double vy, double vz) {
@@ -870,6 +878,40 @@ int main() {
         editor_set_body(0, 1, -1, 1);
         check(editor_commit() == 0);
     }
+    {
+        // Scripts reach the bridge host: world.spawn instantiates a prefab
+        // template (which is never simulated itself), world.find uses
+        // authored names, props arrive, and sound/ui/log queue as commands.
+        editor_begin();
+        editor_template_begin("Coin");
+        check(editor_add(0, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(-1, 1, 1, 0); // kinematic: stays where it spawns
+        editor_set_collider(-1, 1, 0, 4294967295.0, 0);
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_name(0, "Spawner");
+        editor_set_script_source(0, R"lua(
+            function on_start()
+              local coin = world.spawn("Coin", props.x, 2, 0)
+              log(tostring(coin ~= nil) .. " " .. tostring(world.find("Spawner") == self.id))
+              sound.play("coin")
+              ui.set_text("Score", props.label)
+            end
+        )lua");
+        editor_set_script_props(0, "x\tn\t4\nlabel\ts\tScore: 1\nbad line\nflag\tb\t1");
+        check(editor_commit() == 1);
+        check(editor_entity_count() == 1);
+        editor_tick();
+        check(editor_entity_count() == 2);
+        check(std::string(editor_spawned_prefab(1)) == "Coin");
+        check(std::string(editor_spawned_prefab(0)).empty());
+        check(editor_alive(1) == 1 && std::abs(editor_value(1, 0) - 4) < 1e-6 && std::abs(editor_value(1, 1) - 2) < 1e-6);
+        check(editor_take_commands() == 3);
+        check(std::string(editor_command_text(0, 0)) == "log" && std::string(editor_command_text(0, 1)) == "true true");
+        check(std::string(editor_command_text(1, 0)) == "sound" && std::string(editor_command_text(1, 1)) == "coin");
+        check(std::string(editor_command_text(2, 1)) == "Score" && std::string(editor_command_text(2, 2)) == "Score: 1");
+        check(editor_command_entity(2) == 0);
+        check(editor_take_commands() == 0);
+    }
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
                  "movement, jump/sustained-flight, Collider box and sphere obstacle blocking, "
@@ -882,5 +924,6 @@ int main() {
                  "range validation), Script velocity control with compile-error reporting, and "
                  "editor_script_key reaching a script's own input.down/input.pressed/self.animate "
                  "(separate from editor_key's own bound W/A/S/D/Shift/F/G set), and authored "
-                 "RigidBody mass/kinematic and Collider trigger/layer settings passed.\n";
+                 "RigidBody mass/kinematic and Collider trigger/layer settings, and the script host "
+                 "(prefab templates for world.spawn, names, props, sound/ui/log commands) passed.\n";
 }

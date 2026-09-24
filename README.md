@@ -86,6 +86,18 @@ Engine version 0.47.0 answers the third gap-audit item — no way to tie a speci
 
 Engine version 0.48.0 rebuilds the physics core, starting the Unity gap analysis ([docs/unity/GAP_ANALYSIS.md](docs/unity/GAP_ANALYSIS.md)). Dynamic bodies now collide with each other: they share the separation by mass and exchange momentum, so a light crate barely moves a heavy one. The editor's `RigidBody.mass` and `dynamic` fields finally do something; they had been authorable but were never read. Unticking `dynamic` makes a body kinematic: no gravity, never pushed, but it still pushes. `Collider` gains `isTrigger` (overlap-only, reports enter/stay/exit), `layer`/`mask` (a per-collider layer collision matrix) and `bounciness`. The engine API also adds `add_force`/`add_impulse`, contact events, and raycast/`overlap_sphere` query filters. See [F48](docs/IMPLEMENTATION_STATUS.md#f48--physics-core-dynamic-pairs-kinematic-bodies-triggers-layers-bounciness-forces-0480).
 
+Engine version 0.49.0 widens the Lua `Script` API so most small games need no C++ changes. It adds:
+
+- **Callbacks**: `on_start`, `on_destroy`, `on_collision_enter/stay/exit(other)`, `on_trigger_enter/stay/exit(other)` (fed by 0.48.0's contact events) and `on_message`.
+- **A `world` API**: `find`, `name`, `position`/`set_position`, `velocity`/`set_velocity`, `spawn` (any prefab, rendered live), `destroy`, `health`/`damage`, `raycast`, `overlap`, and `send` for messaging between scripts.
+- **Physics**: `physics.add_force`/`add_impulse`.
+- **Timers and coroutines**: `after`/`every`/`cancel` and `start`/`wait`.
+- **Output**: `sound.play`, `ui.set_text`, `log`, and `time.now`.
+- **Inspector-editable props**, declared in the source with `-- @prop speed 5`.
+- **Writable position**: `self.x/y/z` now teleport the entity when written.
+
+See [F49](docs/IMPLEMENTATION_STATUS.md#f49--lua-api-breadth-callbacks-world-api-spawn-timers-props-sound-and-ui-0490).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

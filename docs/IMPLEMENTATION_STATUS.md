@@ -3693,3 +3693,50 @@ Out-of-range values fail the whole commit, the same as `editor_add`'s own valida
 - `engine_editor_bridge_tests` covers `editor_set_body` and `editor_set_collider`: a heavy crate is nudged and not pushed through, a kinematic body stays put, a trigger does not block, and out-of-range settings fail the commit.
 - Editor unit test `tests/physics.test.ts` checks Collider defaults for old scenes, round-tripping and range checks.
 - The full browser suite (`tests/browser/editor.cjs`) still passes against a WASM build.
+
+## F49 — Lua API breadth: callbacks, world API, spawn, timers, props, sound and UI (0.49.0)
+
+This is item 2 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. Before this change a `Script` could only read its own position and write its own velocity. Now it can react to events, affect other entities, and create them.
+
+### Design
+
+- **`engine::script::Host`** is the application side a script can reach: names, spawn, destroy, health/damage, and an `emit` for things outside the simulation (sound, UI text, log). The editor bridge implements it with `BridgeHost`. A Runtime without a host just returns nil for these calls.
+- **Callbacks** run through a single `Runtime::call()`:
+  - It rebuilds `self` before each call and writes back only the fields the script changed. Without that, `world.set_velocity(self.id, …)` or `physics.add_impulse` on self would be clobbered by the stale values `self` was created with.
+  - `on_start` runs once, before the first `on_tick`.
+  - `on_destroy` runs the tick after the entity is gone.
+  - `dispatch_contacts()` turns `physics::Events` into `on_collision_*`/`on_trigger_*` calls on both entities. The bridge runs it as system `editor.script_contacts`, at order 11 (right after physics).
+- **Entity ids**: `Entity` is opaque, so the Runtime hands scripts stable integer ids.
+- **Messaging**: `world.send(id, name, value)` calls the target's `on_message` immediately. Only scalars can cross between two entities' Lua VMs.
+- **Timers and coroutines** (`after`, `every`, `cancel`, `start`, `wait`) are a small Lua prelude run in every VM. It fires in handle order, so behavior is deterministic.
+- **`world.spawn(prefab, x, y, z[, vx, vy, vz])`** returns a real id right away:
+  - `syncRuntime()` now sends every prefab definition to the bridge as a *template* (`editor_template_begin` + the usual `editor_add`/setters on index -1). Templates live in a second `World` that is never simulated.
+  - `BridgeHost::spawn` copies a template with deferred create/set and appends it to the bridge's entity list.
+  - `frame()` gives each new index a render object built from the prefab definition. `rebuild()`'s per-entity code became `createEntityObject(get)` so both paths share it.
+- **Props**:
+  - A script declares props with `-- @prop name default` (number, `true`/`false`, a quoted or bare string).
+  - The Script component stores their values in `props`. `scriptProps.ts` reconciles stored values against the declarations on every load and edit: same-typed values are kept, others fall back to the default, and undeclared entries are dropped. The inspector therefore always shows exactly the declared props.
+  - Props reach the runtime through `editor_set_script_props`.
+- **Commands**:
+  - `sound.play(clip)` plays a catalog clip once. The clip is matched by id, by name, or by name prefix (`"coin"` matches "Coin Pickup").
+  - `ui.set_text(name, text)` overrides a named UI element's text for the rest of the Play session.
+  - `log(msg)` writes to the log panel.
+- **Other editor changes**:
+  - The HUD's text is mirrored into a visually hidden `aria-live` region, `#hud-text`, for screen readers and the browser test.
+  - While playing, the status bar reports how many entities have been spawned.
+
+### Behavior change
+
+Writing `self.x/y/z` now teleports the entity. Before, those writes were silently ignored. `script_tests` was updated to match.
+
+### F49 verification
+
+- `engine_script_tests` covers:
+  - on_start ordering, `after`/`every`/coroutine `wait`, `time.now`, number and text props;
+  - sound/ui/log emits;
+  - trigger enter/exit and collision callbacks with names;
+  - `health`/`damage`/`send`/`on_message`/`spawn`/`find`/`destroy`/`on_destroy`, in order;
+  - `raycast`/`overlap` and impulses on self.
+- `engine_editor_bridge_tests` covers a prefab template spawned from `on_start` at the right place, `find` by authored name, props parsing (malformed lines skipped), and the sound/ui/log command queue.
+- Editor unit tests (`scriptProps.test.ts`) cover declaration parsing, reconciliation, encoding and Script normalization.
+- The browser suite spawns a prefab from a script and checks the "1 spawned" readout, a prop value reaching `ui.set_text` (via `#hud-text`), the log line, and that Stop restores the authored UI text.
