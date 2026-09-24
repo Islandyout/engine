@@ -1111,12 +1111,13 @@ async function startEditor() {
   // on G, "sit" while crouching -- tried in order, case-insensitively,
   // against whatever clips a given model actually has. Different imported
   // packs name the "same" action differently (the Aether animal kit's
-  // `Attack`, Mannequin F (Mixamo)'s `punching`, Mannequin F's own `sit`;
-  // see assets/CREDITS.md), so a single literal-name lookup would silently
-  // no-op on most of the catalog. Not used for an ordinary Lua self.animate
-  // request -- resolveActionClip below only expands a name that's actually
-  // one of these three keys; anything else still resolves case-insensitively
-  // against its own exact name only, the same as before this list existed.
+  // `Attack`, Mannequin F's own retargeted `punching`/`firing_rifle` vs its
+  // native `sit`; see assets/CREDITS.md), so a single literal-name lookup
+  // would silently no-op on most of the catalog. Not used for an ordinary
+  // Lua self.animate request -- resolveActionClip below only expands a name
+  // that's actually one of these three keys; anything else still resolves
+  // case-insensitively against its own exact name only, the same as before
+  // this list existed.
   // A Map, not a plain object literal -- a script's self.animate can be any
   // string a Lua author writes, including "constructor"/"toString"/
   // "__proto__", which a plain-object lookup would resolve to an inherited

@@ -3811,3 +3811,105 @@ directly (no Lua involved), and a new bound key.
   against a saved patch, and opened a new PR rather than reusing the merged
   one, per this project's established recovery convention for that exact
   race.
+
+## F49 — Merge Mannequin F (Mixamo) into Mannequin F via skeletal retarget (0.49.0)
+
+Requested: fold the "Mannequin F (Mixamo)" catalog entry (id 137, F37/F38,
+0.38.0) into "Mannequin F" (id 132) as a single model with all nine clips,
+rather than two separate entries for what's visually the same character.
+F37/F38's own history called a direct retarget "tried and abandoned" in
+favor of shipping id 137 as a second, independently-rigged entry (see
+`assets/CREDITS.md`'s "Mannequin F (Mixamo)" section) -- this round retried
+it with a different technique and got a visually correct result.
+
+### Design
+
+- The two rigs share a mesh (id 137's came from a mesh-only re-export of id
+  132's own glb) but not a skeleton at all: Quaternius's 65-joint, UE-style-
+  named rig (`pelvis`/`spine_01`/`clavicle_l`/...) versus Mixamo's 46-joint
+  `mixamorig*` auto-rig, no name or joint-count correspondence. A clip copy
+  (what worked for the three Mixamo FBX files onto each other, since they
+  share Mixamo's own skeleton) can't work here; this needed an actual
+  skeletal retarget: reinterpret the source's motion in terms of the
+  target's own bones.
+- 21 bones mapped by anatomical correspondence (hips/spine x3/neck/head/
+  shoulder/upper-arm/forearm/hand x2/upper-leg/lower-leg/foot/toe x2).
+  Fingers intentionally left unmapped -- none of the three clips'
+  silhouettes depend on finger curl, and mapping Quaternius's 4-finger
+  x4-joint x2-hand chains to Mixamo's simpler ones wasn't worth the extra
+  work for a cosmetic-only payoff.
+- Retarget method, per mapped bone per frame: compute the source bone's
+  world-space rotation delta from its own rest pose, then re-apply that
+  same world-space delta onto the target bone's own rest pose, then convert
+  back to a local quaternion using the target *parent's own animated* world
+  quat for that frame (bones processed strictly parent-before-child so this
+  is available). This is axis-convention-agnostic -- it never needs the two
+  rigs to agree on which local axis means "bone forward" -- as long as both
+  loaded scenes share one overall world orientation, which `FBXLoader`/
+  `GLTFLoader` both guarantee (Y-up, same Three.js scene graph).
+- Hips/pelvis root motion gets the same world-space-delta treatment, plus
+  the same horizontal-drift fix (straight-line X/Z subtraction, Y/vertical
+  bob untouched) id 137's own build already needed for its raw `Flying`
+  export, ported into the retarget script since it has to apply to the
+  *source* track before the delta is computed, not after.
+- `modelCatalog.ts`: id 137 removed and added to `retiredCatalogIds` (a
+  saved scene still referencing it falls back to the default box, not a
+  crash, same as every other retired id); id 132 unchanged (same id, same
+  path, same filename) but its `mannequin_f.glb` now carries all nine clips.
+  No TS runtime code changed -- `pollAnimationRequests`'s existing
+  `resolveActionClip`/`actionClipSynonyms` machinery (F48) already resolves
+  `attack`/`blast`/`sit` to whatever clips a model actually has by name, so
+  `punching`/`firing_rifle`/`sit` living on one model instead of two needed
+  no new wiring.
+
+### F49 verification
+
+- Two real bugs caught before landing, both by rendering actual frames (a
+  standalone Three.js viewer page + Playwright screenshot of the retargeted
+  model, not just reading track numbers) and comparing side-by-side against
+  the same clip fraction rendered on the untouched, pre-merge id-137 file:
+  1. First version used the target parent's *rest* world quat instead of
+     its *animated* one when converting a child's world quat back to
+     local -- silently assumes every ancestor stays frozen, and the error
+     compounds with chain depth. A shallow pose (`punching`'s wind-up)
+     looked plausible by coincidence; `firing_rifle`'s sustained two-handed
+     chest-level aim (5 animated ancestors deep through the whole spine and
+     a shoulder) came out clearly wrong -- hands bunched near one shoulder,
+     head hidden. Fixed by threading each bone's own freshly-computed
+     animated world quat top-down through the retarget pass instead of
+     reusing the constant rest value.
+  2. `flying`'s raw Hips track still carried the same ~21m horizontal drift
+     already known from id 137's own history (`assets/CREDITS.md`), but
+     unstripped this time. Retargeting routes it through the target's own
+     corrective root-bone rotation on the way from world back to local
+     space, so the same drift landed on a different local axis than
+     before -- pelvis's LOCAL Y instead of world Z -- which looked like the
+     character plummeting 21m instead of drifting forward, until the raw
+     track values were dumped and traced back to the same known cause.
+  3. (Not a retarget bug, but caught the same way, early:) `FBXLoader`
+     emits a redundant duplicate node sharing each real bone's own name,
+     self-parented -- an FBX limb/skeleton-attribute pairing artifact, not
+     a second joint. A naive parent-chain walk hit an undefined lookup on
+     the very first frame; fixed by keeping only the first-encountered
+     object per bone name.
+- After both fixes: `punching`'s jab/guard stance, `firing_rifle`'s
+  two-handed aim-down-sights, and `flying`'s arms-out horizontal glide all
+  visually match their id-137 source poses at the same clip fractions, no
+  skeleton distortion. `idle`/`walk`/`sit` (id 132's own original clips)
+  re-rendered from the merged file and confirmed unaffected, same session.
+- Mesh geometry unchanged through the re-export: 10,070 vertices, verified
+  against the pre-merge `mannequin_f.glb`'s own accessor count before
+  overwriting it.
+- `npm run typecheck`/`npm test` -- 37/37 passing, including "every catalog
+  path resolves to a real bundled asset" (confirms nothing still points at
+  the now-deleted `mannequin_f_mixamo.glb`) and the catalog id-uniqueness
+  checks (confirms 137 isn't both retired and live at once).
+- Full `ctest` unaffected (no native or TS runtime code changed, only the
+  catalog data, `assets/CREDITS.md`, and two doc-comment updates that named
+  the now-removed entry).
+- Not done here: a proper retarget for the unmapped finger bones (left at
+  rest pose, see Design); porting this retarget technique to a reusable
+  tool (`tools/import_model.mjs`'s own stated position -- a merge needing
+  this much source-specific judgment about which bones actually correspond
+  stays a bespoke one-off script, not committed, same as the Mixamo/
+  Quaternius merge tools that came before it).
