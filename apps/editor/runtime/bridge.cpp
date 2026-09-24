@@ -4,6 +4,8 @@
 #include "engine/script/script.hpp"
 #include "engine/world/fixed_systems.hpp"
 #include <algorithm>
+#include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <cmath>
 #include <iterator>
@@ -347,6 +349,21 @@ struct Runtime {
     // defaults), evaluated from `input` every tick.
     engine::ActionSystem actions{default_input_map()};
     std::string bindings_error;
+    // Milliseconds each system took on the most recent tick, for the
+    // editor's Stats overlay (editor_profile_text).
+    std::map<std::string, double> profile;
+    void add_timed(std::string name, engine::FixedPhase phase, engine::i32 order,
+                   engine::FixedSystems::Function function) {
+        systems.add(name, phase, order,
+                    [this, name, function = std::move(function)](engine::World &w,
+                                                                  const engine::FixedUpdateContext &context) {
+                        const auto start = std::chrono::steady_clock::now();
+                        function(w, context);
+                        profile[name] = std::chrono::duration<double, std::milli>(
+                                            std::chrono::steady_clock::now() - start)
+                                            .count();
+                    });
+    }
     static engine::InputMap default_input_map() {
         std::string error;
         return *editor_bindings::parse(editor_bindings::default_text, error);
@@ -357,14 +374,14 @@ struct Runtime {
         script_runtime.set_host(&host);
         script_runtime.set_nav(&nav_grid);
         script_runtime.set_input(&input, &actions);
-        systems.add("editor.actions", engine::FixedPhase::begin, 1,
+        add_timed("editor.actions", engine::FixedPhase::begin, 1,
                     [this](engine::World &, const engine::FixedUpdateContext &context) {
                         actions.update(context.input);
                     });
         // First, before anything moves: rebakes the navigation grid on the
         // first tick and then once a second. Movers (Player, AI) are never
         // obstacles to themselves.
-        systems.add("editor.nav", engine::FixedPhase::begin, 0,
+        add_timed("editor.nav", engine::FixedPhase::begin, 0,
                     [this](engine::World &w, const engine::FixedUpdateContext &context) {
                         if (context.tick % 60 != 0)
                             return;
@@ -403,7 +420,7 @@ struct Runtime {
         // entity outright the tick it hits 0 (see damage()), so there's never
         // a tick where an AIAgent survives with 0 health for this system to
         // observe and label.
-        systems.add(
+        add_timed(
             "editor.ai", engine::FixedPhase::update, 1,
             [&nav = nav_grid](engine::World &w, const engine::FixedUpdateContext &) {
                 constexpr float dt = 1.0F / 60.0F;
@@ -559,14 +576,14 @@ struct Runtime {
         // gets both an AIAgent and a Script instance; whichever ran last (here,
         // this one) simply overwrites the other's velocity write that tick —
         // not a crash, just not a combination there's a reason to author.
-        systems.add("editor.script", engine::FixedPhase::update, 2,
+        add_timed("editor.script", engine::FixedPhase::update, 2,
                     [this](engine::World &w, const engine::FixedUpdateContext &) {
                         script_runtime.step(w, 1.0F / 60.0F);
                     });
         // Order 0: apply this tick's input to the player's velocity before
         // order 10 integrates it — matches the native playground's own
         // move-then-physics ordering.
-        systems.add(
+        add_timed(
             "editor.move", engine::FixedPhase::update, 0,
             [this](engine::World &w, const engine::FixedUpdateContext &context) {
                 for (const auto entity : w.query<engine::physics::RigidBody, PlayerMarker>()) {
@@ -690,20 +707,20 @@ struct Runtime {
                     }
                 }
             });
-        systems.add("editor.physics", engine::FixedPhase::update, 10,
+        add_timed("editor.physics", engine::FixedPhase::update, 10,
                     [this](engine::World &w, const engine::FixedUpdateContext &) {
                         engine::physics::step(w, 1.0F / 60.0F, {}, &physics_events);
                     });
         // Right after physics, so scripts hear about this tick's contacts
         // (on_collision_*/on_trigger_*) before anything else reacts.
-        systems.add("editor.script_contacts", engine::FixedPhase::update, 11,
+        add_timed("editor.script_contacts", engine::FixedPhase::update, 11,
                     [this](engine::World &w, const engine::FixedUpdateContext &) {
                         script_runtime.dispatch_contacts(w, physics_events);
                     });
         // Order 15: after physics moves everything (10) but before combat (20)
         // resolves melee for this same tick — matches the native playground's
         // own ordering.
-        systems.add(
+        add_timed(
             "editor.projectiles", engine::FixedPhase::update, 15,
             [](engine::World &w, const engine::FixedUpdateContext &) {
                 constexpr float dt = 1.0F / 60.0F;
@@ -732,7 +749,7 @@ struct Runtime {
         // entity's Box — the same overlap test the native playground's combat
         // and goal checks use. Order 20 matches the native playground's own
         // combat system order.
-        systems.add(
+        add_timed(
             "editor.combat", engine::FixedPhase::update, 20,
             [this](engine::World &w, const engine::FixedUpdateContext &) {
                 if (!pending_attack)
@@ -769,7 +786,7 @@ struct Runtime {
         // this one) has already run. The explicit health->current > 0 check
         // below is what actually makes a simultaneous kill favor the
         // Player, not the order number.
-        systems.add(
+        add_timed(
             "editor.ai_attack", engine::FixedPhase::update, 21,
             [](engine::World &w, const engine::FixedUpdateContext &) {
                 constexpr float dt = 1.0F / 60.0F;
@@ -1486,6 +1503,17 @@ EXPORT int editor_command_entity(int index) {
     return index >= 0 && static_cast<std::size_t>(index) < pending_commands.size()
                ? pending_commands[static_cast<std::size_t>(index)].entity_index
                : -1;
+}
+// "system=ms;system=ms" for the most recent tick (Stats overlay).
+EXPORT const char *editor_profile_text() {
+    static std::string result;
+    result.clear();
+    char buffer[64];
+    for (const auto &[name, ms] : active->profile) {
+        std::snprintf(buffer, sizeof buffer, "%.3f", ms);
+        result += name + "=" + buffer + ";";
+    }
+    return result.c_str();
 }
 EXPORT int editor_projectile_count() {
     return static_cast<int>(active->world.query<engine::Box, Projectile>().size());

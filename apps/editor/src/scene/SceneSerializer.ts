@@ -442,6 +442,7 @@ export function normalizeComponent(
         emissiveIntensity: nonNegativeNumber(value.emissiveIntensity, "Material.emissiveIntensity"),
         opacity,
         keepTextures: boolean(value.keepTextures, "Material.keepTextures"),
+        texture: value.texture === undefined ? "" : string(value.texture, "Material.texture"),
       };
     }
     case "Particles": {

@@ -3944,3 +3944,31 @@ This is item 8 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work.
   - trail recording by distance, expiry by age, and ribbon width and fade.
 - The browser suite adds a World-space Cone emitter with a Play-start burst and a Lua burst plus `set_emitting(false)`, and a Trail on a launched body, with no page errors.
 - A clean-scene screenshot shows the fountain rising in a cone, with particles shrinking and reddening with age.
+
+## F56 — Asset import and a Stats overlay (0.56.0)
+
+This covers items 9 and 10 (the stats and profiler part) of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. Before it, the only way to add content was `tools/import_model.mjs` plus a rebuild, and there was no way to see what the engine was spending time on.
+
+### Asset import (`src/editor/userAssets.ts`)
+
+- **Import**: the Project panel's **Import asset…** accepts `.glb` models, png/jpg/webp/gif images and ogg/mp3/wav/m4a audio. Each file is saved to IndexedDB (`game-engine-editor-assets`) and restored on every load.
+- **Models and sounds** get catalog ids from 10000 up and are added to `modelCatalog`/`soundCatalog`, so every existing path works on them unchanged: the Model and Clip dropdowns (now computed on access), "Add from catalog" under the new **Imported** category, autoplay Sound and `sound.play`.
+- **Re-imports**: importing a file with the same name keeps its id, so scenes referencing it keep working.
+- **Images** are referenced as `asset:<file name>` by `UI.image` and the new `Material.texture` field. `Material.texture` also takes any URL. Textures are cached per URL, sRGB and repeating.
+- **Limitation**: imports live in the importing browser only. Elsewhere a scene shows placeholders, and `tools/export_build.mjs` does not bundle them yet.
+
+### Stats overlay
+
+- **Toggle**: the viewport's **Stats** button toggles a panel showing FPS, average frame time, C++ tick time per frame, draw calls and triangles, and the entity count including spawned entities.
+- **Draw calls and triangles** are counted across every render pass, bloom included: `renderer.info.autoReset` is off and the counters are reset once per frame.
+- **Per-system timings**: each C++ system's time on the last tick. Every bridge system is now registered through `add_timed()`, which measures it with `steady_clock`, and `editor_profile_text()` reports the timings.
+
+### F56 verification
+
+- `tests/userAssets.test.ts` covers asset kinds by extension, id assignment (starting at 10000, re-imports keeping their id) and `asset:` resolution.
+- `engine_editor_bridge_tests` checks that physics, script, AI and nav all report timings.
+- The browser suite:
+  - imports a real kit `.glb`, a PNG and an OGG, and checks the log's ids and that all three are in IndexedDB;
+  - places the model from the Imported category;
+  - textures a Material with `asset:checker.png`;
+  - opens Stats and waits for a draw-call count, then for a physics timing during Play.

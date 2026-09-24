@@ -1340,6 +1340,54 @@ const { chromium } = require("playwright");
     await page.screenshot({ path: "build/browser-evidence/f55-particles.png" });
     await page.click("#stop");
 
+    // F56: import a .glb, an image and a sound through the Project panel;
+    // they persist in IndexedDB, the model joins an "Imported" catalog
+    // category and can be placed, the image textures a Material through
+    // asset:<name>, and the Stats overlay reports renderer and system stats.
+    const glbPath = (await fs.readdir("assets/source/kit/nature")).find((f) => f.endsWith(".glb"));
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFklEQVQI12P4z8DwnwEJMDEwMDAwAAAqEwMAvXqKWAAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    await page.locator("#import-asset").setInputFiles([
+      { name: "My Tree.glb", mimeType: "model/gltf-binary", buffer: await fs.readFile(`assets/source/kit/nature/${glbPath}`) },
+      { name: "checker.png", mimeType: "image/png", buffer: png },
+      { name: "boop.ogg", mimeType: "audio/ogg", buffer: await fs.readFile("assets/source/audio/bell.ogg") },
+    ]);
+    await page.waitForFunction(() => document.querySelector("#log").textContent.includes("Imported My Tree.glb (model 10000)"));
+    assert.match(await page.locator("#log").textContent(), /checker\.png \(use asset:checker\.png\), boop\.ogg \(sound 10002\)/);
+    assert.equal(
+      await page.evaluate(
+        () =>
+          new Promise((resolve) => {
+            const request = indexedDB.open("game-engine-editor-assets", 1);
+            request.onsuccess = () => {
+              const count = request.result.transaction("assets").objectStore("assets").count();
+              count.onsuccess = () => resolve(count.result);
+            };
+          }),
+      ),
+      3,
+      "all three imports are stored in IndexedDB",
+    );
+    await page.locator("#catalog-category").selectOption("imported");
+    await page.locator("#catalog-add").click();
+    await page.waitForFunction(() => [...document.querySelectorAll(".entity")].some((e) => e.textContent.includes("My Tree")));
+    const textured = await run({ command: "spawn_entity", name: "Textured", transform: [0, 0.5, -8] });
+    await run({
+      command: "set_component",
+      entity: textured.entity,
+      type: "Material",
+      value: { color: { x: 1, y: 1, z: 1 }, metalness: 0, roughness: 1, emissive: { x: 0, y: 0, z: 0 },
+               emissiveIntensity: 1, opacity: 1, keepTextures: true, texture: "asset:checker.png" },
+    });
+    await page.click("#stats");
+    await page.waitForFunction(() => /Draw calls\s+\d+/.test(document.querySelector("#stats-panel").textContent));
+    await page.click("#play");
+    await page.waitForFunction(() => /physics\s+[\d.]+ ms/.test(document.querySelector("#stats-panel").textContent));
+    await page.click("#stop");
+    await page.click("#stats");
+
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({ path: "build/browser-evidence/f50-edit.png" });
     await page.click("#play");
@@ -1357,7 +1405,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), a CameraFollow rig with shake, keyboard/mouse input through native actions, and interactive UI (script Button, Toggle, Slider, Bar), and shaped/world-space particles with bursts plus a Trail passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), a CameraFollow rig with shake, keyboard/mouse input through native actions, and interactive UI (script Button, Toggle, Slider, Bar), shaped/world-space particles with bursts plus a Trail, and asset import (model/image/sound, IndexedDB) with the Stats overlay passed.",
     );
   } finally {
     if (browser) await browser.close();

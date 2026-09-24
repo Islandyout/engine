@@ -41,6 +41,15 @@ import type { SceneComponents } from "../scene/Scene";
 import { encodeProps, reconcileProps } from "../scene/scriptProps";
 import { burst, createEmitter, stepEmitter, type EmitterSettings, type EmitterState } from "./particles";
 import { buildRibbon, updateTrail, type TrailPoint } from "./trail";
+import {
+  assetKind,
+  assignId,
+  displayName,
+  loadStoredAssets,
+  resolveAssetUrl,
+  storeAsset,
+  type StoredAsset,
+} from "./userAssets";
 import { autoSize, contains, layoutRect, sliderValue, type UIRect } from "./uiLayout";
 import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGraph } from "./animator";
 import { defaultEnvironment } from "../authoring/CommandInterpreter";
@@ -178,6 +187,7 @@ type Runtime = {
     args: [number, string],
   ): void;
   ccall(name: "editor_template_begin", returnType: null, argTypes: ["string"], args: [string]): void;
+  ccall(name: "editor_profile_text", returnType: "string", argTypes: [], args: []): string;
   ccall(name: "editor_ui_event", returnType: null, argTypes: ["string", "string"], args: [string, string]): void;
   ccall(
     name: "editor_script_notify",
@@ -308,6 +318,7 @@ async function startEditor() {
       <select id="snap-size" class="select-sm" aria-label="Move snap distance"><option value="0.25">0.25 m</option><option value="0.5">0.5 m</option><option value="1" selected>1 m</option></select>
       <button id="frame" class="btn btn-sm btn-ghost">${iconHtml("target")}<span>Frame selected</span></button>
       <button id="grid" class="btn btn-sm btn-ghost">${iconHtml("grid")}<span>Grid</span></button>
+      <button id="stats" class="btn btn-sm btn-ghost" aria-pressed="false">${iconHtml("target")}<span>Stats</span></button>
       <span class="viewport-hint">Drag to orbit · right-drag to pan · scroll to zoom</span>
     </div>
     <div id="viewport"></div>
@@ -335,6 +346,11 @@ async function startEditor() {
       <button id="catalog-add" class="btn btn-sm">${iconHtml("cube")}<span>Add from catalog</span></button>
       <p class="hint">${modelCatalog.length} bundled CC0 models · Aether kit + Quaternius</p>
       <a class="link-external" href="./ASSET-CREDITS.txt">Asset credits</a>
+      <label class="btn btn-sm" id="import-label">${iconHtml("open")}<span>Import asset…</span>
+        <input id="import-asset" type="file" multiple hidden aria-label="Import asset"
+          accept=".glb,.png,.jpg,.jpeg,.webp,.gif,.ogg,.mp3,.wav,.m4a">
+      </label>
+      <p class="hint" id="import-hint">.glb models, images and audio · kept in this browser</p>
       <div class="field-row">
         <select id="prefab-select" aria-label="Prefab"></select>
       </div>
@@ -1813,12 +1829,29 @@ async function startEditor() {
       standard.emissiveIntensity = m.emissiveIntensity;
       standard.opacity = m.opacity;
       standard.transparent = m.opacity < 1;
+      const textureUrl = resolveAssetUrl(m.texture, importedImages);
+      if (textureUrl) standard.map = loadTexture(textureUrl);
       standard.depthWrite = m.opacity >= 1;
       return standard;
     };
     mesh.material = Array.isArray(mesh.material) ? mesh.material.map(build) : build(mesh.material);
     for (const created of Array.isArray(mesh.material) ? mesh.material : [mesh.material])
       materialOverrides.push(created);
+  }
+  // Textures by URL, shared by every material that uses them.
+  const textureCache = new Map<string, THREE.Texture>();
+  const textureLoader = new THREE.TextureLoader();
+  function loadTexture(url: string) {
+    let texture = textureCache.get(url);
+    if (!texture) {
+      texture = textureLoader.load(url, () => {
+        if (doc.mode === "edit" && !gizmo.dragging) rebuild();
+      });
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      textureCache.set(url, texture);
+    }
+    return texture;
   }
   // Materials applyMaterial() created, disposed on the next rebuild() --
   // rebuild runs after every edit, so they would otherwise leak GPU memory.
@@ -2458,6 +2491,112 @@ async function startEditor() {
     while (projectileMeshes.length) scene.remove(projectileMeshes.pop()!);
     rebuild();
   };
+  // -- Imported assets (0.56.0; see userAssets.ts) ------------------------
+  // Object URLs for imported images, by file name ("asset:<name>").
+  const importedImages = new Map<string, string>();
+  let storedAssets: StoredAsset[] = [];
+  function registerAsset(asset: StoredAsset) {
+    const url = URL.createObjectURL(asset.data);
+    if (asset.kind === "image") importedImages.set(asset.name, url);
+    else if (asset.kind === "model") {
+      const existing = modelCatalog.find((m) => m.id === asset.id);
+      if (existing) existing.path = url;
+      else modelCatalog.push({ id: asset.id, category: "imported", name: displayName(asset.name), path: url });
+      catalogPromises.delete(asset.id);
+      catalogCache.delete(asset.id);
+      const category = el<HTMLSelectElement>("catalog-category");
+      if (![...category.options].some((o) => o.value === "imported")) category.add(new Option("Imported", "imported"));
+    } else {
+      const existing = soundCatalog.find((s) => s.id === asset.id);
+      if (existing) existing.path = url;
+      else soundCatalog.push({ id: asset.id, category: "imported", name: displayName(asset.name), path: url });
+      soundBuffers.delete(asset.id);
+      soundBufferPromises.delete(asset.id);
+    }
+  }
+  async function importFiles(files: FileList | File[]) {
+    const imported: string[] = [];
+    for (const file of files) {
+      const kind = assetKind(file.name);
+      if (!kind) {
+        log(`Import: ${file.name} is not a .glb model, image or audio file`);
+        continue;
+      }
+      const asset: StoredAsset = { id: assignId(storedAssets, kind, file.name), kind, name: file.name, type: file.type, data: file };
+      storedAssets = [...storedAssets.filter((a) => a.id !== asset.id), asset];
+      try {
+        await storeAsset(asset);
+      } catch (error) {
+        log(`Import: ${file.name} could not be saved in this browser (${String(error)}); it lasts until reload`);
+      }
+      registerAsset(asset);
+      imported.push(
+        kind === "image" ? `${file.name} (use asset:${file.name})` : `${file.name} (${kind} ${asset.id})`,
+      );
+    }
+    if (imported.length) {
+      log(`Imported ${imported.join(", ")}`);
+      populateCatalogModels();
+      updatePanels();
+    }
+  }
+  el<HTMLInputElement>("import-asset").onchange = (event) => {
+    const input = event.target as HTMLInputElement;
+    if (input.files) void importFiles([...input.files]).finally(() => (input.value = ""));
+  };
+  void loadStoredAssets()
+    .then((assets) => {
+      storedAssets = assets;
+      assets.forEach(registerAsset);
+      if (assets.length) {
+        populateCatalogModels();
+        rebuild();
+      }
+    })
+    .catch((error) => log(`Imported assets unavailable: ${String(error)}`));
+  // -- Stats overlay (0.56.0) --------------------------------------------
+  const statsPanel = document.createElement("pre");
+  statsPanel.id = "stats-panel";
+  statsPanel.hidden = true;
+  statsPanel.style.cssText =
+    "position:absolute;top:8px;right:8px;margin:0;padding:8px 10px;background:rgba(8,12,18,0.82);" +
+    "color:#cfe8ff;font:12px/1.45 ui-monospace,monospace;border-radius:6px;pointer-events:none;z-index:5";
+  viewport.appendChild(statsPanel);
+  const stats = { frames: 0, frameMs: 0, tickMs: 0, since: performance.now() };
+  el("stats").onclick = () => {
+    statsPanel.hidden = !statsPanel.hidden;
+    el("stats").setAttribute("aria-pressed", String(!statsPanel.hidden));
+  };
+  function updateStats(frameMs: number, tickMs: number) {
+    stats.frames++;
+    stats.frameMs += frameMs;
+    stats.tickMs += tickMs;
+    const now = performance.now();
+    if (statsPanel.hidden || now - stats.since < 250) return;
+    const fps = (stats.frames * 1000) / (now - stats.since);
+    const info = renderer instanceof THREE.WebGLRenderer ? renderer.info : undefined;
+    const systems = runtime
+      .ccall("editor_profile_text", "string", [], [])
+      .split(";")
+      .filter(Boolean)
+      .map((entry) => {
+        const [name, ms] = entry.split("=");
+        return `  ${name!.replace("editor.", "").padEnd(16)}${Number(ms).toFixed(3)} ms`;
+      });
+    statsPanel.textContent = [
+      `FPS          ${fps.toFixed(0)}`,
+      `Frame        ${(stats.frameMs / stats.frames).toFixed(2)} ms`,
+      `C++ ticks    ${(stats.tickMs / stats.frames).toFixed(2)} ms/frame`,
+      `Draw calls   ${info?.render.calls ?? "-"}`,
+      `Triangles    ${info?.render.triangles ?? "-"}`,
+      `Entities     ${doc.scene.entityCount} (+${Math.max(0, objects.length - doc.scene.eachAlive().length)} spawned)`,
+      ...(systems.length ? ["Systems (last tick):", ...systems] : []),
+    ].join("\n");
+    stats.frames = 0;
+    stats.frameMs = 0;
+    stats.tickMs = 0;
+    stats.since = now;
+  }
   el("grid").onclick = () => {
     grid.visible = !grid.visible;
   };
@@ -2689,6 +2828,8 @@ async function startEditor() {
     window.addEventListener("keydown", resumeAudio);
   }
   function frame(now: number) {
+    const frameStart = performance.now();
+    let tickMs = 0;
     const dt = Math.min((now - previous) / 1000, 5 / 60);
     previous = now;
     let steps = 0;
@@ -2716,11 +2857,13 @@ async function startEditor() {
         runtime.ccall("editor_script_key", null, ["string", "number"], [key, down]);
       scriptKeyQueue.length = 0;
       accumulator += dt;
+      const tickStart = performance.now();
       while (accumulator >= 1 / 60 && steps++ < 5) {
         runtime._editor_tick();
         ticks++;
         accumulator -= 1 / 60;
       }
+      tickMs = performance.now() - tickStart;
       inputFrameConsumed = steps > 0;
       persistDirtySaves();
       pollAnimationRequests();
@@ -2902,9 +3045,16 @@ async function startEditor() {
     }
     updateSunShadow();
     renderPass.camera = viewCamera;
+    // Counted over every pass of the frame (bloom included), not just the
+    // last one, for the Stats overlay's draw calls and triangles.
+    if (renderer instanceof THREE.WebGLRenderer) {
+      renderer.info.autoReset = false;
+      renderer.info.reset();
+    }
     if (composer) composer.render();
     else renderer.render(scene, viewCamera);
     drawHud();
+    updateStats(performance.now() - frameStart, tickMs);
     const status = el("status");
     status.dataset.mode = doc.mode;
     const playerReadout =
@@ -3026,7 +3176,8 @@ async function startEditor() {
         }
         return;
       case "Image": {
-        const image = ui.image ? uiImage(ui.image) : undefined;
+        const imageUrl = resolveAssetUrl(ui.image, importedImages);
+        const image = imageUrl ? uiImage(imageUrl) : undefined;
         hudCtx.globalAlpha = ui.opacity;
         if (image?.complete && image.naturalWidth > 0) hudCtx.drawImage(image, left, top, width, height);
         else {

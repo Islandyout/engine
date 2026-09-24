@@ -156,6 +156,16 @@ Engine version 0.55.0 expands `Particles`:
 
 The simulation moved into a pure, unit-tested module. See [F55](docs/IMPLEMENTATION_STATUS.md#f55--particles-shapes-over-lifetime-world-space-bursts-and-trails-0550).
 
+Engine version 0.56.0 adds two editor features:
+
+- **Import asset…** (Project panel): add your own `.glb` models, images and audio. The files are stored in this browser's IndexedDB and survive reloads.
+  - Models appear under a new "Imported" catalog category.
+  - Sounds join the Sound clip list and `sound.play`.
+  - Images are referenced as `asset:<file>` from `UI.image` and from `Material.texture`, a new field that also accepts a URL.
+- **Stats** overlay: FPS, frame time, C++ tick time, draw calls, triangles, entity count and every C++ system's time on the last tick.
+
+See [F56](docs/IMPLEMENTATION_STATUS.md#f56--asset-import-and-a-stats-overlay-0560).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

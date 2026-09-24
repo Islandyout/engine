@@ -302,6 +302,8 @@ export interface MaterialComponent {
   emissiveIntensity: number;
   opacity: number;
   keepTextures: boolean;
+  // Color texture (0.56.0): a URL, or "asset:<file>" for an imported image.
+  texture: string;
 }
 
 // Animation state machine (0.51.0), authored as text -- see

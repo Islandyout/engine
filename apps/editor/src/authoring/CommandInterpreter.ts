@@ -687,6 +687,7 @@ export function defaultComponent(
         emissiveIntensity: 1,
         opacity: 1,
         keepTextures: true,
+        texture: "",
       };
   }
 }

@@ -45,6 +45,7 @@ void editor_set_input_bindings(const char *);
 const char *editor_bindings_error();
 double editor_action_value(const char *);
 void editor_ui_event(const char *, const char *);
+const char *editor_profile_text();
 }
 namespace {
 int add_unit(double x, double y, double z, double vx, double vy, double vz) {
@@ -1037,6 +1038,10 @@ int main() {
         check(editor_take_commands() == 4);
         check(std::string(editor_command_text(0, 1)) == "Volume number 0.75");
         check(std::string(editor_command_text(2, 1)) == "Start string click");
+        // Every system reports a timing after a tick.
+        const std::string profile = editor_profile_text();
+        for (const char *name : {"editor.physics=", "editor.script=", "editor.ai=", "editor.nav="})
+            check(profile.find(name) != std::string::npos);
     }
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "

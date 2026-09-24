@@ -72,6 +72,7 @@ const metadata: Record<string, PropertyMetadata> = {
   "Material.opacity": { label: "Opacity (0-1)", step: "0.05" },
   "Material.emissiveIntensity": { label: "Emissive intensity", step: "0.1" },
   "Material.keepTextures": { label: "Keep model textures (tint only)" },
+  "Material.texture": { label: "Texture (URL or asset:file.png)" },
   "Material.color.x": { label: "color R (0-1)", step: "0.05" },
   "Material.color.y": { label: "color G (0-1)", step: "0.05" },
   "Material.color.z": { label: "color B (0-1)", step: "0.05" },
@@ -164,13 +165,17 @@ const metadata: Record<string, PropertyMetadata> = {
     // mesh renders as before any catalog model has loaded, not a placeable
     // choice of its own — so it's listed here and nowhere else. Every other
     // id, bench (1) included, comes from modelCatalog itself.
-    options: [
-      { label: "Box", value: 0 },
-      ...modelCatalog.map((m) => ({
-        label: `${m.category[0]!.toUpperCase()}${m.category.slice(1)}: ${m.name}`,
-        value: m.id,
-      })),
-    ],
+    // A getter, not a fixed list: models imported at runtime (userAssets.ts)
+    // join modelCatalog after this module loads.
+    get options() {
+      return [
+        { label: "Box", value: 0 },
+        ...modelCatalog.map((m) => ({
+          label: `${m.category[0]!.toUpperCase()}${m.category.slice(1)}: ${m.name}`,
+          value: m.id,
+        })),
+      ];
+    },
   },
   "Renderable.material": { label: "Material (from model)", readOnly: true },
   "RigidBody.inverseMass": { label: "Inverse mass (derived)", readOnly: true },
@@ -182,10 +187,12 @@ const metadata: Record<string, PropertyMetadata> = {
   "InputActions.bindings": { label: "Action bindings (action: input, input)", multiline: true },
   "Sound.clip": {
     label: "Clip",
-    options: soundCatalog.map((s) => ({
-      label: `${s.category[0]!.toUpperCase()}${s.category.slice(1)}: ${s.name}`,
-      value: s.id,
-    })),
+    get options() {
+      return soundCatalog.map((s) => ({
+        label: `${s.category[0]!.toUpperCase()}${s.category.slice(1)}: ${s.name}`,
+        value: s.id,
+      }));
+    },
   },
   "Sound.volume": { step: "0.05" },
 };
