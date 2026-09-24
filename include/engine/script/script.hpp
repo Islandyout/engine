@@ -1,5 +1,6 @@
 #pragma once
 
+#include "engine/input/actions.hpp"
 #include "engine/nav/nav.hpp"
 #include "engine/physics/physics.hpp"
 #include "engine/world/world.hpp"
@@ -96,6 +97,10 @@ public:
 // Callbacks (all optional): on_start(), on_tick(dt), on_destroy(),
 // on_collision_enter/stay/exit(other), on_trigger_enter/stay/exit(other),
 // on_message(name, value, sender). Entities are integer ids.
+//
+// input also has action/action_down/action_pressed/action_released (named
+// actions), mouse() -> x, y, dx, dy, mouse_down/mouse_pressed(0|1|2),
+// wheel(), pad_down/pad_pressed(button), pad_axis(axis) and pad_connected().
 //
 // Globals: props (inspector values), time (dt, now, frame), world (find,
 // name, alive, position, set_position, velocity, set_velocity, spawn,
@@ -243,6 +248,13 @@ public:
     // The navigation grid world.path() searches; none means world.path()
     // returns nil.
     void set_nav(const nav::Grid *grid) { nav_ = grid; }
+    // Native input for the `input` table beyond input.down/pressed's string
+    // keys: raw mouse and gamepad state, and named actions (input.action*).
+    // Either may be null; the matching Lua calls then report nothing held.
+    void set_input(const InputState *state, const ActionSystem *actions) {
+        input_state_ = state;
+        actions_ = actions;
+    }
     // Calls on_collision_enter/stay/exit(other) and on_trigger_enter/stay/
     // exit(other) on both entities of every event, for entities whose
     // script defines them. Call once after each physics::step().
@@ -266,6 +278,8 @@ private:
               const std::function<void(lua_State *)> &push_args, int nargs);
     Host *host_{};
     const nav::Grid *nav_{};
+    const InputState *input_state_{};
+    const ActionSystem *actions_{};
     World *world_{};
     double now_{};
     std::uint64_t frame_{};

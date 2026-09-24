@@ -79,6 +79,7 @@ const componentNames = [
   "Material",
   "Animator",
   "CameraFollow",
+  "InputActions",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -615,6 +616,20 @@ export function defaultComponent(
       return defaultEnvironment();
     case "Camera":
       return { projection: "Perspective", fov: 50, near: 0.1, far: 2000, orthoSize: 10, priority: 0 };
+    case "InputActions":
+      // Kept in sync with editor_bindings::default_text (bindings.hpp).
+      return {
+        bindings: [
+          "move_x: d, -a, right, -left, pad_lx",
+          "move_y: w, -s, up, -down, -pad_ly",
+          "look_x: mouse_dx*0.05, pad_rx",
+          "look_y: mouse_dy*0.05, pad_ry",
+          "jump: space, pad_a",
+          "fire: mouse_left, pad_rt, pad_x",
+          "interact: e, pad_y",
+          "sprint: shift, pad_lb",
+        ].join("\n") + "\n",
+      };
     case "CameraFollow":
       return { target: "", offset: { x: 0, y: 4, z: 8 }, smoothing: 0.15, lookHeight: 1, collision: true, orbit: false };
     case "Animator":

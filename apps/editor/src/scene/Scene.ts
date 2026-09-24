@@ -14,6 +14,7 @@ import type {
   MaterialComponent,
   AnimatorComponent,
   CameraFollowComponent,
+  InputActionsComponent,
   PedestrianComponent,
   PlayerComponent,
   PrefabInstanceComponent,
@@ -60,6 +61,7 @@ export interface SceneComponents {
   Material: MaterialComponent;
   Animator: AnimatorComponent;
   CameraFollow: CameraFollowComponent;
+  InputActions: InputActionsComponent;
 }
 
 // The component types a prefab definition can carry -- deliberately every
@@ -148,6 +150,7 @@ export class Scene {
     Material: new Map(),
     Animator: new Map(),
     CameraFollow: new Map(),
+    InputActions: new Map(),
     UI: new Map(),
     Name: new Map(),
     Parent: new Map(),

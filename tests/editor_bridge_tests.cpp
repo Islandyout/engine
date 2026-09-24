@@ -34,6 +34,16 @@ int editor_take_commands();
 const char *editor_command_text(int, int);
 int editor_command_entity(int);
 void editor_script_notify(int, const char *, const char *);
+void editor_input_key(const char *, int);
+void editor_input_mouse_move(double, double, double, double);
+void editor_input_mouse_button(int, int, double, double);
+void editor_input_wheel(double, double);
+void editor_input_gamepad_connected(int);
+void editor_input_gamepad_button(int, int);
+void editor_input_gamepad_axis(int, double);
+void editor_set_input_bindings(const char *);
+const char *editor_bindings_error();
+double editor_action_value(const char *);
 }
 namespace {
 int add_unit(double x, double y, double z, double vx, double vy, double vz) {
@@ -947,6 +957,65 @@ int main() {
         check(std::string(editor_command_text(0, 1)) == "event footstep");
         check(std::string(editor_command_text(1, 1)) == "state run");
     }
+    {
+        // Native input (0.53.0): any key by DOM code drives both the default
+        // actions and the bound movement; mouse and gamepad reach scripts.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // Player
+        editor_set_script_source(0, R"lua(
+            function on_tick(dt)
+              local x, y, dx, dy = input.mouse()
+              if input.action_pressed("jump") then log("jump " .. input.action("move_y")) end
+              if input.mouse_pressed(0) then log(string.format("click %.0f %.0f", x, y)) end
+              if input.pad_pressed("a") then log(string.format("pad %.2f %s", input.pad_axis("lx"), tostring(input.pad_connected()))) end
+              if input.action_pressed("fire") then log("fire") end
+            end
+        )lua");
+        check(editor_commit() == 1);
+        check(std::string(editor_bindings_error()).empty());
+        editor_input_begin_frame();
+        editor_input_key("KeyW", 1);
+        editor_input_key("Space", 1);
+        editor_tick();
+        check(editor_action_value("move_y") == 1.0);
+        check(editor_value(0, 2) < 0); // W still walks the Player (camera-relative -z)
+        editor_input_begin_frame();
+        editor_input_mouse_move(120, 80, 5, 0);
+        editor_input_mouse_button(0, 1, 120, 80);
+        editor_tick();
+        editor_input_begin_frame();
+        editor_input_gamepad_connected(1);
+        editor_input_gamepad_axis(0, 0.5);
+        editor_input_gamepad_button(0, 1);
+        editor_tick();
+        check(editor_take_commands() == 4);
+        check(std::string(editor_command_text(0, 1)) == "jump 1.0");
+        check(std::string(editor_command_text(1, 1)) == "click 120 80");
+        check(std::string(editor_command_text(2, 1)) == "fire"); // mouse_left is bound to fire
+        check(std::string(editor_command_text(3, 1)) == "pad 0.50 true");
+        check(editor_action_value("move_x") > 0.4); // left stick past the dead zone
+
+        // Custom bindings replace the defaults; bad text keeps them and reports.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_input_bindings("dash: q, pad_b\nzoom: wheel*2");
+        check(editor_commit() == 1);
+        editor_input_begin_frame();
+        editor_input_key("KeyQ", 1);
+        editor_input_wheel(0, 0.25);
+        editor_tick();
+        check(editor_action_value("dash") == 1.0 && editor_action_value("zoom") == 0.5);
+        check(editor_action_value("jump") == 0.0); // defaults are gone
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_input_bindings("jump space\n");
+        check(editor_commit() == 1);
+        check(std::string(editor_bindings_error()).find("line 1") != std::string::npos);
+        editor_input_begin_frame();
+        editor_input_key("Space", 1);
+        editor_tick();
+        check(editor_action_value("jump") == 1.0); // defaults kept
+    }
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
                  "movement, jump/sustained-flight, Collider box and sphere obstacle blocking, "
@@ -960,5 +1029,6 @@ int main() {
                  "editor_script_key reaching a script's own input.down/input.pressed/self.animate "
                  "(separate from editor_key's own bound W/A/S/D/Shift/F/G set), and authored "
                  "RigidBody mass/kinematic and Collider trigger/layer settings, and the script host "
-                 "(prefab templates for world.spawn, names, props, sound/ui/log commands) passed.\n";
+                 "(prefab templates for world.spawn, names, props, sound/ui/log commands), and native "
+                 "keyboard/mouse/gamepad input with default and custom action bindings passed.\n";
 }

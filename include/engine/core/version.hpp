@@ -3,9 +3,9 @@
 #include <string_view>
 
 #define ENGINE_VERSION_MAJOR 0
-#define ENGINE_VERSION_MINOR 52
+#define ENGINE_VERSION_MINOR 53
 #define ENGINE_VERSION_PATCH 0
-#define ENGINE_VERSION_STRING "0.52.0"
+#define ENGINE_VERSION_STRING "0.53.0"
 
 namespace engine {
 

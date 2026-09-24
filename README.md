@@ -128,6 +128,15 @@ Engine version 0.52.0 adds navigation and a camera rig:
 
 See [F52](docs/IMPLEMENTATION_STATUS.md#f52--navigation-grid-a-pathfinding-and-a-camera-rig-0520).
 
+Engine version 0.53.0 brings the browser up to the engine's native input system:
+
+- **Devices**: every key, the mouse (position, buttons, deltas, wheel, pointer lock), touch (through pointer events) and the gamepad (standard mapping) now feed the native `InputState`.
+- **Actions**: the native `ActionSystem` evaluates named actions every tick. The defaults are `move_x`/`move_y`/`look_x`/`look_y`/`jump`/`fire`/`interact`/`sprint`, and a scene can rebind them with an `InputActions` component using lines like `jump: space, pad_a`.
+- **Lua**: scripts get `input.action/action_down/action_pressed/action_released`, `input.mouse()`, `mouse_down/mouse_pressed`, `wheel()`, `pad_down/pad_pressed/pad_axis/pad_connected` and `lock_mouse`.
+- **Fix**: presses and clicks no longer get lost on displays faster than 60 Hz.
+
+See [F53](docs/IMPLEMENTATION_STATUS.md#f53--input-parity-every-key-mouse-touch-gamepad-and-native-actions-in-the-browser-0530).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

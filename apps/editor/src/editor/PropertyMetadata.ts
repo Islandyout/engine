@@ -152,6 +152,7 @@ const metadata: Record<string, PropertyMetadata> = {
   "Rotation.euler.z": { label: "Z (radians)", step: "0.1" },
   "Script.source": { label: "Lua source", multiline: true },
   "Animator.graph": { label: "State machine (see docs)", multiline: true },
+  "InputActions.bindings": { label: "Action bindings (action: input, input)", multiline: true },
   "Sound.clip": {
     label: "Clip",
     options: soundCatalog.map((s) => ({
@@ -213,5 +214,5 @@ export const componentGroups: readonly ComponentGroup[] = [
   },
   { label: "Scripting & Audio", types: ["Script", "Sound"] },
   { label: "UI", types: ["UI"] },
-  { label: "Scene & Camera", types: ["Environment", "Camera", "CameraFollow"] },
+  { label: "Scene & Camera", types: ["Environment", "Camera", "CameraFollow", "InputActions"] },
 ];

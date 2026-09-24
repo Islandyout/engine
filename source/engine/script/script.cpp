@@ -1,5 +1,6 @@
 #include "engine/script/script.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 extern "C" {
@@ -589,6 +590,135 @@ struct LuaApi final {
         return 0;
     }
 
+    // -- Native input (0.53.0) ------------------------------------------
+    static const ActionState *action_state(lua_State *L) {
+        auto &self = runtime(L);
+        const char *name = luaL_checkstring(L, 1);
+        if (!self.actions_)
+            return nullptr;
+        const auto &map = self.actions_->map();
+        const ActionId id{name};
+        if (std::find(map.actions.begin(), map.actions.end(), id) == map.actions.end())
+            return nullptr;
+        return &self.actions_->state(id);
+    }
+    static int action(lua_State *L) {
+        const auto *state = action_state(L);
+        lua_pushnumber(L, state ? state->value : 0.0F);
+        return 1;
+    }
+    static int action_down(lua_State *L) {
+        const auto *state = action_state(L);
+        lua_pushboolean(L, state && state->down() ? 1 : 0);
+        return 1;
+    }
+    static int action_pressed(lua_State *L) {
+        const auto *state = action_state(L);
+        lua_pushboolean(L, state && state->pressed ? 1 : 0);
+        return 1;
+    }
+    static int action_released(lua_State *L) {
+        const auto *state = action_state(L);
+        lua_pushboolean(L, state && state->released ? 1 : 0);
+        return 1;
+    }
+    static int mouse(lua_State *L) {
+        const auto *input = runtime(L).input_state_;
+        lua_pushnumber(L, input ? input->mouse_x() : 0.0F);
+        lua_pushnumber(L, input ? input->mouse_y() : 0.0F);
+        lua_pushnumber(L, input ? input->mouse_delta_x() : 0.0F);
+        lua_pushnumber(L, input ? input->mouse_delta_y() : 0.0F);
+        return 4;
+    }
+    static std::optional<MouseButton> mouse_button(lua_State *L) {
+        const auto index = luaL_optinteger(L, 1, 0);
+        if (index < 0 || index > 2)
+            return std::nullopt;
+        return index == 0 ? MouseButton::left : index == 1 ? MouseButton::middle : MouseButton::right;
+    }
+    static int mouse_down(lua_State *L) {
+        const auto *input = runtime(L).input_state_;
+        const auto button = mouse_button(L);
+        lua_pushboolean(L, input && button && input->mouse_down(*button) ? 1 : 0);
+        return 1;
+    }
+    static int mouse_pressed(lua_State *L) {
+        const auto *input = runtime(L).input_state_;
+        const auto button = mouse_button(L);
+        lua_pushboolean(L, input && button && input->mouse_pressed(*button) ? 1 : 0);
+        return 1;
+    }
+    static int wheel(lua_State *L) {
+        const auto *input = runtime(L).input_state_;
+        lua_pushnumber(L, input ? input->wheel_y() : 0.0F);
+        return 1;
+    }
+    static std::optional<GamepadButton> pad_button(const std::string &name) {
+        static const std::map<std::string, GamepadButton> names{
+            {"a", GamepadButton::south},      {"b", GamepadButton::east},
+            {"x", GamepadButton::west},       {"y", GamepadButton::north},
+            {"lb", GamepadButton::left_shoulder}, {"rb", GamepadButton::right_shoulder},
+            {"back", GamepadButton::back},    {"start", GamepadButton::start},
+            {"ls", GamepadButton::left_stick}, {"rs", GamepadButton::right_stick},
+            {"up", GamepadButton::dpad_up},   {"down", GamepadButton::dpad_down},
+            {"left", GamepadButton::dpad_left}, {"right", GamepadButton::dpad_right}};
+        const auto found = names.find(name);
+        return found == names.end() ? std::nullopt : std::optional{found->second};
+    }
+    static int pad_down(lua_State *L) {
+        const auto *input = runtime(L).input_state_;
+        const auto button = pad_button(luaL_checkstring(L, 1));
+        lua_pushboolean(L, input && button && input->gamepad_down(*button) ? 1 : 0);
+        return 1;
+    }
+    static int pad_pressed(lua_State *L) {
+        const auto *input = runtime(L).input_state_;
+        const auto button = pad_button(luaL_checkstring(L, 1));
+        lua_pushboolean(L, input && button && input->gamepad_pressed(*button) ? 1 : 0);
+        return 1;
+    }
+    static int pad_axis(lua_State *L) {
+        static const std::map<std::string, GamepadAxis> names{
+            {"lx", GamepadAxis::left_x}, {"ly", GamepadAxis::left_y},       {"rx", GamepadAxis::right_x},
+            {"ry", GamepadAxis::right_y}, {"lt", GamepadAxis::left_trigger}, {"rt", GamepadAxis::right_trigger}};
+        const auto *input = runtime(L).input_state_;
+        const auto found = names.find(luaL_checkstring(L, 1));
+        lua_pushnumber(L, input && found != names.end() ? input->gamepad_axis(found->second) : 0.0F);
+        return 1;
+    }
+    // input.lock_mouse(true|false): pointer lock for mouse-look (host-side).
+    static int lock_mouse(lua_State *L) {
+        emit(L, "mouse_lock", lua_toboolean(L, 1) != 0 ? "1" : "0", "");
+        return 0;
+    }
+    static int pad_connected(lua_State *L) {
+        const auto *input = runtime(L).input_state_;
+        lua_pushboolean(L, input && !input->gamepads().empty() ? 1 : 0);
+        return 1;
+    }
+    static void extend_input(lua_State *L, Runtime *self) {
+        lua_getglobal(L, "input");
+        for (const auto &[name, function] : std::initializer_list<std::pair<const char *, lua_CFunction>>{
+                 {"action", action},
+                 {"action_down", action_down},
+                 {"action_pressed", action_pressed},
+                 {"action_released", action_released},
+                 {"mouse", mouse},
+                 {"mouse_down", mouse_down},
+                 {"mouse_pressed", mouse_pressed},
+                 {"wheel", wheel},
+                 {"pad_down", pad_down},
+                 {"pad_pressed", pad_pressed},
+                 {"pad_axis", pad_axis},
+                 {"pad_connected", pad_connected},
+                 {"lock_mouse", lock_mouse}}) {
+            lua_pushlightuserdata(L, self);
+            lua_pushcclosure(L, function, 1);
+            lua_setfield(L, -2, name);
+        }
+        lua_pop(L, 1);
+    }
+
     static void table(lua_State *L, Runtime *self, const char *global,
                       std::initializer_list<std::pair<const char *, lua_CFunction>> functions) {
         lua_newtable(L);
@@ -621,6 +751,7 @@ struct LuaApi final {
         table(L, self, "ui", {{"set_text", set_ui_text}});
         table(L, self, "anim", {{"set", anim_set}, {"trigger", anim_trigger}});
         table(L, self, "camera", {{"shake", camera_shake}});
+        extend_input(L, self);
         lua_pushlightuserdata(L, self);
         lua_pushcclosure(L, log, 1);
         lua_setglobal(L, "log");

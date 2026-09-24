@@ -150,6 +150,15 @@ type Runtime = {
   _editor_input_begin_frame(): void;
   _editor_set_camera_forward(x: number, z: number): void;
   _editor_key(code: number, down: number): void;
+  _editor_input_mouse_move(x: number, y: number, dx: number, dy: number): void;
+  _editor_input_mouse_button(button: number, down: number, x: number, y: number): void;
+  _editor_input_wheel(dx: number, dy: number): void;
+  _editor_input_gamepad_connected(connected: number): void;
+  _editor_input_gamepad_button(button: number, down: number): void;
+  _editor_input_gamepad_axis(axis: number, value: number): void;
+  ccall(name: "editor_input_key", returnType: null, argTypes: ["string", "number"], args: [string, number]): void;
+  ccall(name: "editor_set_input_bindings", returnType: null, argTypes: ["string"], args: [string]): void;
+  ccall(name: "editor_bindings_error", returnType: "string", argTypes: [], args: []): string;
   _editor_projectile_count(): number;
   _editor_projectile_value(index: number, field: number): number;
   _editor_take_dirty_saves(): number;
@@ -1242,6 +1251,8 @@ async function startEditor() {
     el("status").textContent = "Runtime failed to load. Reload or check build.";
     throw error;
   }
+  // Whether the last Play frame ran at least one fixed tick (see frame()).
+  let inputFrameConsumed = true;
   let accumulator = 0,
     previous = performance.now(),
     ticks = 0;
@@ -1281,23 +1292,13 @@ async function startEditor() {
     "Chasing",
     "Dead",
   ];
-  const keyQueue: Array<[code: number, down: number]> = [];
-  // Bound codes currently held down, so a Pause or a lost window focus can
-  // force them back up even when no matching keyup DOM event arrives
-  // (alt-tab, a window manager shortcut eating the key, etc.).
-  const heldKeys = new Set<number>();
-  // key_for()'s own contract (apps/editor/runtime/bridge.cpp): 0=W, 1=A,
-  // 2=S, 3=D, 4=Shift, 5=F (melee attack), 6=G (ranged blast).
-  const boundKeyCodes: Record<string, number> = {
-    KeyW: 0,
-    KeyA: 1,
-    KeyS: 2,
-    KeyD: 3,
-    ShiftLeft: 4,
-    ShiftRight: 4,
-    KeyF: 5,
-    KeyG: 6,
-  };
+  // Every key by KeyboardEvent.code, for the native InputState (movement,
+  // F/G combat and named actions -- see editor_input_key, bridge.cpp).
+  const keyQueue: Array<[code: string, down: number]> = [];
+  // Codes currently held down, so a Pause or a lost window focus can force
+  // them back up even when no matching keyup DOM event arrives (alt-tab, a
+  // window manager shortcut eating the key, etc.).
+  const heldKeys = new Set<string>();
   // Every physical key (not just the bound seven above) queued the same way,
   // for a Script's own input.down/input.pressed (engine::script::Runtime's
   // own doc comment, script.hpp, on why this is a separate, wider path from
@@ -1330,11 +1331,12 @@ async function startEditor() {
   }
   window.addEventListener("keydown", (event) => {
     if (doc.mode !== "play" || event.repeat) return;
-    const code = boundKeyCodes[event.code];
-    if (code !== undefined) {
-      keyQueue.push([code, 1]);
-      heldKeys.add(code);
-    }
+    // Keep Space/arrows from scrolling the page while a game has the keys --
+    // unless the user is typing into a field.
+    const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+    if (!typing && (event.code === "Space" || event.code.startsWith("Arrow"))) event.preventDefault();
+    keyQueue.push([event.code, 1]);
+    heldKeys.add(event.code);
     const key = event.key.toLowerCase();
     scriptKeyByCode.set(event.code, key);
     scriptKeyQueue.push([key, 1]);
@@ -1342,11 +1344,7 @@ async function startEditor() {
   });
   window.addEventListener("keyup", (event) => {
     if (doc.mode === "edit") return;
-    const code = boundKeyCodes[event.code];
-    if (code !== undefined) {
-      keyQueue.push([code, 0]);
-      heldKeys.delete(code);
-    }
+    if (heldKeys.delete(event.code)) keyQueue.push([event.code, 0]);
     const key = scriptKeyByCode.get(event.code) ?? event.key.toLowerCase();
     scriptKeyByCode.delete(event.code);
     scriptKeyQueue.push([key, 0]);
@@ -1654,6 +1652,79 @@ async function startEditor() {
     }
     runtime.ccall("editor_script_notify", null, ["number", "string", "string"], [i, "on_anim_state", result.entered.state.name]);
   }
+  // -- Mouse, touch and gamepad (0.53.0) ---------------------------------
+  // Pointer events cover mouse, pen and touch alike (a tap is a left click).
+  // Positions are viewport pixels; queued and applied once per frame with
+  // the keys, so every tick of a frame sees the same edges.
+  const pointerQueue: Array<() => void> = [];
+  function viewportPoint(event: MouseEvent) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  }
+  renderer.domElement.addEventListener("pointermove", (event) => {
+    if (doc.mode !== "play") return;
+    const { x, y } = viewportPoint(event);
+    pointerQueue.push(() => runtime._editor_input_mouse_move(x, y, event.movementX, event.movementY));
+  });
+  renderer.domElement.addEventListener("pointerdown", (event) => {
+    if (doc.mode !== "play" || event.button > 2) return;
+    const { x, y } = viewportPoint(event);
+    pointerQueue.push(() => runtime._editor_input_mouse_button(event.button, 1, x, y));
+  });
+  window.addEventListener("pointerup", (event) => {
+    if (doc.mode === "edit" || event.button > 2) return;
+    const { x, y } = viewportPoint(event);
+    pointerQueue.push(() => runtime._editor_input_mouse_button(event.button, 0, x, y));
+  });
+  renderer.domElement.addEventListener(
+    "wheel",
+    (event) => {
+      if (doc.mode !== "play") return;
+      pointerQueue.push(() => runtime._editor_input_wheel(-event.deltaX / 100, -event.deltaY / 100));
+    },
+    { passive: true },
+  );
+  // While the pointer is locked (a script's input.lock_mouse(true)) there is
+  // no pointermove target position, only movement -- document-level events
+  // still carry it.
+  document.addEventListener("mousemove", (event) => {
+    if (doc.mode !== "play" || document.pointerLockElement !== renderer.domElement) return;
+    pointerQueue.push(() => runtime._editor_input_mouse_move(0, 0, event.movementX, event.movementY));
+  });
+  function flushPointerInput() {
+    for (const apply of pointerQueue) apply();
+    pointerQueue.length = 0;
+  }
+  // Standard-mapping gamepad button index -> engine::GamepadButton.
+  const gamepadButtonMap: Record<number, number> = {
+    0: 0, 1: 1, 2: 2, 3: 3, 4: 9, 5: 10, 8: 4, 9: 6, 10: 7, 11: 8, 12: 11, 13: 12, 14: 13, 15: 14, 16: 5,
+  };
+  let padSnapshot: { buttons: boolean[]; axes: number[] } | undefined;
+  function pollGamepad() {
+    const pad = navigator.getGamepads?.().find((p) => p && p.connected) ?? undefined;
+    if (!pad) {
+      if (padSnapshot) runtime._editor_input_gamepad_connected(0);
+      padSnapshot = undefined;
+      return;
+    }
+    if (!padSnapshot) {
+      runtime._editor_input_gamepad_connected(1);
+      padSnapshot = { buttons: [], axes: [] };
+    }
+    pad.buttons.forEach((button, index) => {
+      const mapped = gamepadButtonMap[index];
+      if (mapped === undefined || padSnapshot!.buttons[index] === button.pressed) return;
+      padSnapshot!.buttons[index] = button.pressed;
+      runtime._editor_input_gamepad_button(mapped, button.pressed ? 1 : 0);
+    });
+    // Sticks, then the analog triggers (standard buttons 6/7) as axes 4/5.
+    const axes = [...pad.axes.slice(0, 4), pad.buttons[6]?.value ?? 0, pad.buttons[7]?.value ?? 0];
+    axes.forEach((value, axis) => {
+      if (padSnapshot!.axes[axis] === value) return;
+      padSnapshot!.axes[axis] = value;
+      runtime._editor_input_gamepad_axis(axis, value);
+    });
+  }
   function runScriptCommands() {
     const count = runtime._editor_take_commands();
     for (let i = 0; i < count; i++) {
@@ -1663,7 +1734,10 @@ async function startEditor() {
       if (kind === "log") log(`[script] ${a}`);
       else if (kind === "sound") playOneShot(a);
       else if (kind === "ui_text") uiTextOverrides.set(a, b);
-      else if (kind === "camera_shake") {
+      else if (kind === "mouse_lock") {
+        if (a === "1") void renderer.domElement.requestPointerLock?.();
+        else if (document.pointerLockElement) document.exitPointerLock();
+      } else if (kind === "camera_shake") {
         shake.intensity = Math.max(0, Number(a) || 0);
         shake.duration = Math.max(0.01, Number(b) || 0.01);
         shake.remaining = shake.duration;
@@ -1680,6 +1754,8 @@ async function startEditor() {
   }
   function syncRuntime() {
     uiTextOverrides.clear();
+    padSnapshot = undefined;
+    pointerQueue.length = 0;
     runtime._editor_begin();
     playerIndex = -1;
     // Prefab templates first, so a script's world.spawn("Name") can
@@ -1702,8 +1778,14 @@ async function startEditor() {
         doc.scene.resolve(entity, "Name")?.value,
       );
     });
+    // Custom action bindings: the first InputActions component in the scene.
+    const bindingsEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "InputActions"));
+    const bindings = bindingsEntity && doc.scene.resolve(bindingsEntity, "InputActions");
+    if (bindings) runtime.ccall("editor_set_input_bindings", null, ["string"], [bindings.bindings]);
     if (!runtime._editor_commit())
       throw new Error("Runtime scene commit failed");
+    const bindingsError = runtime.ccall("editor_bindings_error", "string", [], []);
+    if (bindingsError) log(`Input bindings: ${bindingsError} (using the defaults)`);
     seedSavedProgress();
     ticks = 0;
     accumulator = 0;
@@ -2363,6 +2445,7 @@ async function startEditor() {
   };
   el("stop").onclick = () => {
     doc.mode = "edit";
+    if (document.pointerLockElement) document.exitPointerLock();
     accumulator = 0;
     releaseHeldKeys();
     stopSounds();
@@ -2600,15 +2683,21 @@ async function startEditor() {
       // Once per rendered frame, before any of this frame's ticks — mirrors
       // the native platform's own begin_frame()-then-apply-events-then-step
       // loop, so key_pressed()/key_released() read as single-frame edges
-      // shared by every tick this frame runs, not per-tick.
-      runtime._editor_input_begin_frame();
+      // shared by every tick this frame runs, not per-tick. Skipped after a
+      // frame that ran no tick (a display faster than 60 Hz): otherwise a
+      // press or click landing in that frame would be cleared before any
+      // tick saw it, and mouse deltas would be dropped.
+      if (inputFrameConsumed) runtime._editor_input_begin_frame();
       // Once per rendered frame too, so this frame's on-foot movement (see
       // Runtime::camera_forward_x/z's own doc comment in bridge.cpp) reflects
       // wherever the camera is pointed right now, including mid-orbit.
       viewCamera.getWorldDirection(cameraForwardScratch);
       runtime._editor_set_camera_forward(cameraForwardScratch.x, cameraForwardScratch.z);
-      for (const [code, down] of keyQueue) runtime._editor_key(code, down);
+      for (const [code, down] of keyQueue)
+        runtime.ccall("editor_input_key", null, ["string", "number"], [code, down]);
       keyQueue.length = 0;
+      flushPointerInput();
+      pollGamepad();
       for (const [key, down] of scriptKeyQueue)
         runtime.ccall("editor_script_key", null, ["string", "number"], [key, down]);
       scriptKeyQueue.length = 0;
@@ -2618,6 +2707,7 @@ async function startEditor() {
         ticks++;
         accumulator -= 1 / 60;
       }
+      inputFrameConsumed = steps > 0;
       persistDirtySaves();
       pollAnimationRequests();
       adoptSpawnedEntities();

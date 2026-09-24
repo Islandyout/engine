@@ -1244,6 +1244,30 @@ const { chromium } = require("playwright");
     await page.waitForFunction(() => document.querySelector("#log").textContent.includes("[script] animator hop>midway>idle>"), null, { timeout: 15000 });
     await page.click("#stop");
 
+    // F53: real keyboard and mouse events reach the native InputState and the
+    // default actions: Space fires the "jump" action, a click on the viewport
+    // is mouse button 0 at the clicked position (and the "fire" action).
+    const reader = await run({ command: "spawn_entity", name: "Input Reader", transform: [-6, 0.5, -6] });
+    await run({
+      command: "set_component",
+      entity: reader.entity,
+      type: "Script",
+      value: {
+        source:
+          'function on_tick(dt)\n  if input.action_pressed("jump") then log("jump action") end\n  if input.mouse_pressed(0) and input.action_pressed("fire") then local x, y = input.mouse(); log(string.format("click at %.0f,%.0f", x, y)) end\nend',
+        props: {},
+      },
+    });
+    await page.click("#play");
+    await page.waitForFunction(() => document.querySelector("#status").textContent.includes("C++ fixed ticks"));
+    await page.keyboard.down("Space");
+    await page.waitForFunction(() => document.querySelector("#log").textContent.includes("[script] jump action"));
+    await page.keyboard.up("Space");
+    const gameCanvas = await page.locator("#viewport canvas").first().boundingBox();
+    await page.mouse.click(gameCanvas.x + 200, gameCanvas.y + 150);
+    await page.waitForFunction(() => document.querySelector("#log").textContent.includes("[script] click at 200,150"));
+    await page.click("#stop");
+
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({ path: "build/browser-evidence/f50-edit.png" });
     await page.click("#play");
@@ -1261,7 +1285,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), and a CameraFollow rig with shake passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), a CameraFollow rig with shake, and keyboard/mouse input through native actions passed.",
     );
   } finally {
     if (browser) await browser.close();

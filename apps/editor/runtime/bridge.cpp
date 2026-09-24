@@ -1,3 +1,4 @@
+#include "bindings.hpp"
 #include "engine/nav/nav.hpp"
 #include "engine/physics/physics.hpp"
 #include "engine/script/script.hpp"
@@ -342,11 +343,24 @@ struct Runtime {
     // Walkability grid for chasing AI and world.path(), rebaked from the
     // static colliders once a second (see the "editor.nav" system).
     engine::nav::Grid nav_grid{engine::nav::Settings{}};
+    // Named actions from the scene's InputActions bindings (or the
+    // defaults), evaluated from `input` every tick.
+    engine::ActionSystem actions{default_input_map()};
+    std::string bindings_error;
+    static engine::InputMap default_input_map() {
+        std::string error;
+        return *editor_bindings::parse(editor_bindings::default_text, error);
+    }
     Runtime() {
         register_components(world);
         register_components(templates);
         script_runtime.set_host(&host);
         script_runtime.set_nav(&nav_grid);
+        script_runtime.set_input(&input, &actions);
+        systems.add("editor.actions", engine::FixedPhase::begin, 1,
+                    [this](engine::World &, const engine::FixedUpdateContext &context) {
+                        actions.update(context.input);
+                    });
         // First, before anything moves: rebakes the navigation grid on the
         // first tick and then once a second. Movers (Player, AI) are never
         // obstacles to themselves.
@@ -1211,6 +1225,104 @@ EXPORT void editor_key(int code, int down) {
 // whatever string the game author picks). Call once per physical
 // keydown/keyup edge, same timing as editor_key -- before the editor_tick()
 // call(s) that edge should be visible to.
+// Browser KeyboardEvent.code -> engine::Key, for the native InputState that
+// actions and the bound movement keys read.
+engine::Key key_for_code(const std::string &code) {
+    using engine::Key;
+    if (code.size() == 4 && code.rfind("Key", 0) == 0 && code[3] >= 'A' && code[3] <= 'Z')
+        return static_cast<Key>(static_cast<int>(Key::a) + (code[3] - 'A'));
+    if (code.size() == 6 && code.rfind("Digit", 0) == 0 && code[5] >= '0' && code[5] <= '9')
+        return static_cast<Key>(static_cast<int>(Key::digit0) + (code[5] - '0'));
+    if (code.size() >= 2 && code[0] == 'F') {
+        const int n = std::atoi(code.c_str() + 1);
+        if (n >= 1 && n <= 12 && code == "F" + std::to_string(n))
+            return static_cast<Key>(static_cast<int>(Key::f1) + n - 1);
+    }
+    static const std::map<std::string, Key> named{
+        {"Space", Key::space},          {"Enter", Key::enter},           {"Escape", Key::escape},
+        {"Tab", Key::tab},              {"Backspace", Key::backspace},   {"ArrowUp", Key::up},
+        {"ArrowDown", Key::down},       {"ArrowLeft", Key::left},        {"ArrowRight", Key::right},
+        {"ShiftLeft", Key::left_shift}, {"ShiftRight", Key::right_shift}, {"ControlLeft", Key::left_control},
+        {"ControlRight", Key::right_control}, {"AltLeft", Key::left_alt}, {"AltRight", Key::right_alt}};
+    const auto found = named.find(code);
+    return found == named.end() ? Key::unknown : found->second;
+}
+// Any key by its KeyboardEvent.code (0.53.0). Replaces editor_key for the
+// browser: F and G still set the melee/blast edges.
+EXPORT void editor_input_key(const char *code, int down) {
+    if (!code)
+        return;
+    const auto key = key_for_code(code);
+    if (key == engine::Key::unknown)
+        return;
+    if (down && key == engine::Key::f)
+        active->pending_attack = true;
+    if (down && key == engine::Key::g)
+        active->pending_blast = true;
+    active->input.apply(engine::KeyEvent{
+        1, key, down ? engine::ButtonAction::pressed : engine::ButtonAction::released, false});
+}
+// Mouse position is in viewport pixels; deltas accumulate within a frame.
+EXPORT void editor_input_mouse_move(double x, double y, double dx, double dy) {
+    active->input.apply(engine::MouseMotionEvent{1, static_cast<float>(x), static_cast<float>(y),
+                                                 static_cast<float>(dx), static_cast<float>(dy)});
+}
+// button: 0 left, 1 middle, 2 right.
+EXPORT void editor_input_mouse_button(int button, int down, double x, double y) {
+    if (button < 0 || button > 2)
+        return;
+    const auto which = button == 0 ? engine::MouseButton::left
+                       : button == 1 ? engine::MouseButton::middle
+                                     : engine::MouseButton::right;
+    active->input.apply(engine::MouseButtonEvent{1, which,
+                                                 down ? engine::ButtonAction::pressed : engine::ButtonAction::released,
+                                                 1, static_cast<float>(x), static_cast<float>(y)});
+}
+EXPORT void editor_input_wheel(double dx, double dy) {
+    active->input.apply(engine::MouseWheelEvent{1, static_cast<float>(dx), static_cast<float>(dy)});
+}
+// Gamepad (device 2): connection, engine::GamepadButton index, and
+// engine::GamepadAxis index with a value in -1..1 (triggers 0..1).
+EXPORT void editor_input_gamepad_connected(int connected) {
+    active->input.apply(engine::GamepadConnectionEvent{
+        2, connected ? engine::GamepadConnection::connected : engine::GamepadConnection::disconnected});
+}
+EXPORT void editor_input_gamepad_button(int button, int down) {
+    if (button < 0 || button >= static_cast<int>(engine::GamepadButton::count))
+        return;
+    active->input.apply(engine::GamepadButtonEvent{
+        2, static_cast<engine::GamepadButton>(button), down ? engine::ButtonAction::pressed : engine::ButtonAction::released});
+}
+EXPORT void editor_input_gamepad_axis(int axis, double value) {
+    if (axis < 0 || axis >= static_cast<int>(engine::GamepadAxis::count) || !std::isfinite(value))
+        return;
+    active->input.apply(engine::GamepadAxisEvent{2, static_cast<engine::GamepadAxis>(axis),
+                                                 static_cast<float>(std::clamp(value, -1.0, 1.0))});
+}
+// Custom action bindings for the runtime being staged (see bindings.hpp).
+// Invalid text keeps the defaults; editor_bindings_error() says why.
+EXPORT void editor_set_input_bindings(const char *text) {
+    if (!staging || !text)
+        return;
+    std::string error;
+    if (auto map = editor_bindings::parse(text, error)) {
+        staging->actions = engine::ActionSystem{std::move(*map)};
+        staging->bindings_error.clear();
+    } else {
+        staging->bindings_error = error;
+    }
+}
+EXPORT const char *editor_bindings_error() { return active->bindings_error.c_str(); }
+// An action's current value, for the editor's own readouts and tests.
+EXPORT double editor_action_value(const char *name) {
+    if (!name)
+        return 0;
+    const auto &map = active->actions.map();
+    const engine::ActionId id{name};
+    if (std::find(map.actions.begin(), map.actions.end(), id) == map.actions.end())
+        return 0;
+    return active->actions.state(id).value;
+}
 EXPORT void editor_script_key(const char *key, int down) {
     active->script_runtime.set_key_down(key, down != 0);
 }

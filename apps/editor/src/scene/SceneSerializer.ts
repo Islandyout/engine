@@ -212,6 +212,7 @@ const componentNames = [
   "Material",
   "Animator",
   "CameraFollow",
+  "InputActions",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -408,6 +409,8 @@ export function normalizeComponent(
     }
     case "Animator":
       return { graph: string(value.graph, "Animator.graph") };
+    case "InputActions":
+      return { bindings: string(value.bindings, "InputActions.bindings") };
     case "CameraFollow":
       return {
         target: string(value.target, "CameraFollow.target"),

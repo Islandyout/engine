@@ -291,3 +291,10 @@ export interface CameraFollowComponent {
   collision: boolean;
   orbit: boolean;
 }
+
+// Named input actions (0.53.0): one `action: source, source` per line (see
+// apps/editor/runtime/bindings.hpp). The first entity with one sets the
+// scene's bindings; without one the defaults below apply.
+export interface InputActionsComponent {
+  bindings: string;
+}
