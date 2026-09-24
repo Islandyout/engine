@@ -516,6 +516,22 @@ struct LuaApi final {
         emit(L, "ui_text", luaL_checkstring(L, 1), value);
         return 0;
     }
+    // anim.set(name, value) / anim.trigger(name): Animator parameters,
+    // forwarded to the host (the Animator runs editor-side).
+    static int anim_set(lua_State *L) {
+        const char *name = luaL_checkstring(L, 1);
+        luaL_checkany(L, 2);
+        size_t length = 0;
+        const char *text = luaL_tolstring(L, 2, &length);
+        const std::string value(text, length);
+        lua_pop(L, 1);
+        emit(L, "anim_set", name, value);
+        return 0;
+    }
+    static int anim_trigger(lua_State *L) {
+        emit(L, "anim_trigger", luaL_checkstring(L, 1), "");
+        return 0;
+    }
     static int log(lua_State *L) {
         size_t length = 0;
         const char *text = luaL_tolstring(L, 1, &length);
@@ -572,6 +588,7 @@ struct LuaApi final {
         table(L, self, "physics", {{"add_force", add_force}, {"add_impulse", add_impulse}});
         table(L, self, "sound", {{"play", play_sound}});
         table(L, self, "ui", {{"set_text", set_ui_text}});
+        table(L, self, "anim", {{"set", anim_set}, {"trigger", anim_trigger}});
         lua_pushlightuserdata(L, self);
         lua_pushcclosure(L, log, 1);
         lua_setglobal(L, "log");
@@ -754,6 +771,15 @@ void Runtime::step(World &world, float dt) {
     keys_just_pressed_.clear(); // see key_just_pressed's own doc comment: a whole-tick window
     now_ += dt;
     ++frame_;
+}
+
+void Runtime::notify(World &world, Entity entity, const std::string &function_name, const std::string &argument) {
+    world_ = &world;
+    const auto found = instances_.find(entity);
+    if (found == instances_.end() || !found->second || !found->second->started)
+        return;
+    call(world, entity, *found->second, function_name.c_str(),
+         [&argument](lua_State *L) { lua_pushlstring(L, argument.data(), argument.size()); }, 1);
 }
 
 void Runtime::dispatch_contacts(World &world, const physics::Events &events) {

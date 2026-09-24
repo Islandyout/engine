@@ -99,7 +99,7 @@ public:
 // Globals: props (inspector values), time (dt, now, frame), world (find,
 // name, alive, position, set_position, velocity, set_velocity, spawn,
 // destroy, health, damage, raycast, overlap, send), physics (add_force,
-// add_impulse), sound.play, ui.set_text, log, and after/every/cancel/
+// add_impulse), sound.play, ui.set_text, anim.set/anim.trigger, log, and after/every/cancel/
 // start/wait for timers and coroutines. world/sound/ui/log go through the
 // Host; without one they return nil or do nothing.
 //
@@ -243,6 +243,10 @@ public:
     // exit(other) on both entities of every event, for entities whose
     // script defines them. Call once after each physics::step().
     void dispatch_contacts(World &world, const physics::Events &events);
+    // Calls `function_name(argument)` in an entity's script, if it has a
+    // started one that defines it. For host-side events such as the
+    // editor's on_anim_event / on_anim_state.
+    void notify(World &world, Entity entity, const std::string &function_name, const std::string &argument);
     // Seconds of simulated time this Runtime has stepped (`time.now`).
     [[nodiscard]] double now() const { return now_; }
 

@@ -77,6 +77,7 @@ const componentNames = [
   "Environment",
   "Camera",
   "Material",
+  "Animator",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -613,6 +614,19 @@ export function defaultComponent(
       return defaultEnvironment();
     case "Camera":
       return { projection: "Perspective", fov: 50, near: 0.1, far: 2000, orthoSize: 10, priority: 0 };
+    case "Animator":
+      return {
+        graph: [
+          "state idle clip=idle",
+          "state walk clip=walk",
+          "state run clip=run",
+          "start idle",
+          "idle -> walk when speed > 0.15",
+          "walk -> run when speed > 2.5",
+          "run -> walk when speed <= 2.5",
+          "walk -> idle when speed <= 0.15",
+        ].join("\n"),
+      };
     case "Material":
       return {
         color: { x: 0.38, y: 0.68, z: 0.73 },

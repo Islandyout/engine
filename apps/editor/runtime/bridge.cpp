@@ -1313,6 +1313,16 @@ EXPORT const char *editor_command_text(int index, int field) {
     }
     return result.c_str();
 }
+// Delivers an editor-side event to an entity's script: only on_anim_event
+// and on_anim_state (the Animator's callbacks) are accepted.
+EXPORT void editor_script_notify(int index, const char *function_name, const char *argument) {
+    if (!function_name || !argument || index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
+        return;
+    const std::string name(function_name);
+    if (name != "on_anim_event" && name != "on_anim_state")
+        return;
+    active->script_runtime.notify(active->world, active->entities[static_cast<std::size_t>(index)], name, argument);
+}
 EXPORT int editor_command_entity(int index) {
     return index >= 0 && static_cast<std::size_t>(index) < pending_commands.size()
                ? pending_commands[static_cast<std::size_t>(index)].entity_index

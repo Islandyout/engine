@@ -32,6 +32,7 @@ const char *editor_spawned_prefab(int);
 int editor_take_commands();
 const char *editor_command_text(int, int);
 int editor_command_entity(int);
+void editor_script_notify(int, const char *, const char *);
 }
 namespace {
 int add_unit(double x, double y, double z, double vx, double vy, double vz) {
@@ -911,6 +912,29 @@ int main() {
         check(std::string(editor_command_text(2, 1)) == "Score" && std::string(editor_command_text(2, 2)) == "Score: 1");
         check(editor_command_entity(2) == 0);
         check(editor_take_commands() == 0);
+
+        // Animator plumbing: anim.set/trigger become commands, and the
+        // editor's on_anim_event/on_anim_state reach the script (others don't).
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_script_source(0, R"lua(
+            function on_start() anim.set("aiming", true); anim.set("speed", 2.5); anim.trigger("jump") end
+            function on_anim_event(name) log("event " .. name) end
+            function on_anim_state(name) log("state " .. name) end
+            function on_destroy() log("should not be callable") end
+        )lua");
+        check(editor_commit() == 1);
+        editor_tick();
+        check(editor_take_commands() == 3);
+        check(std::string(editor_command_text(0, 0)) == "anim_set" && std::string(editor_command_text(0, 2)) == "true");
+        check(std::string(editor_command_text(1, 2)) == "2.5");
+        check(std::string(editor_command_text(2, 0)) == "anim_trigger" && std::string(editor_command_text(2, 1)) == "jump");
+        editor_script_notify(0, "on_anim_event", "footstep");
+        editor_script_notify(0, "on_anim_state", "run");
+        editor_script_notify(0, "on_destroy", "");
+        check(editor_take_commands() == 2);
+        check(std::string(editor_command_text(0, 1)) == "event footstep");
+        check(std::string(editor_command_text(1, 1)) == "state run");
     }
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "

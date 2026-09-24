@@ -210,6 +210,7 @@ const componentNames = [
   "Environment",
   "Camera",
   "Material",
+  "Animator",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -404,6 +405,8 @@ export function normalizeComponent(
         priority: number(value.priority, "Camera.priority"),
       };
     }
+    case "Animator":
+      return { graph: string(value.graph, "Animator.graph") };
     case "Material": {
       const metalness = number(value.metalness, "Material.metalness");
       const roughness = number(value.roughness, "Material.roughness");

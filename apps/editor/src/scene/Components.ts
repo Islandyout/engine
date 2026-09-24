@@ -270,3 +270,9 @@ export interface MaterialComponent {
   opacity: number;
   keepTextures: boolean;
 }
+
+// Animation state machine (0.51.0), authored as text -- see
+// src/editor/animator.ts for the syntax.
+export interface AnimatorComponent {
+  graph: string;
+}

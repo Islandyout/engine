@@ -107,6 +107,18 @@ Engine version 0.50.0 covers the rendering basics from the gap analysis:
 
 See [F50](docs/IMPLEMENTATION_STATUS.md#f50--rendering-basics-shadows-environment-camera-material-0500).
 
+Engine version 0.51.0 adds an `Animator` component, which is an animation state machine written as short text:
+
+```
+state idle
+state attack clip=Attack once
+any -> attack when trigger attack
+attack -> idle when end
+event attack 0.4 hit
+```
+
+It supports states with a clip, loop/once and a speed; transitions with `and`-joined conditions (comparisons, booleans, triggers, `end`) and crossfade times; and animation events at a normalized clip time. Scripts drive it with `anim.set`/`anim.trigger` and hear back through `on_anim_event`/`on_anim_state`. The editor fills in `speed`, `grounded` and `vy` automatically. See [F51](docs/IMPLEMENTATION_STATUS.md#f51--animator-state-machine-states-transitions-parameters-events-0510).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

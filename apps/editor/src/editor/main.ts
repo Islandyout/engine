@@ -34,6 +34,7 @@ import { pickClipName, groundSpeed } from "./animationClips";
 import { loadOnce } from "./loadOnce";
 import type { SceneComponents } from "../scene/Scene";
 import { encodeProps, reconcileProps } from "../scene/scriptProps";
+import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGraph } from "./animator";
 import { defaultEnvironment } from "../authoring/CommandInterpreter";
 import "./style.css";
 
@@ -164,6 +165,12 @@ type Runtime = {
     args: [number, string],
   ): void;
   ccall(name: "editor_template_begin", returnType: null, argTypes: ["string"], args: [string]): void;
+  ccall(
+    name: "editor_script_notify",
+    returnType: null,
+    argTypes: ["number", "string", "string"],
+    args: [number, string, string],
+  ): void;
   ccall(name: "editor_spawned_prefab", returnType: "string", argTypes: ["number"], args: [number]): string;
   ccall(
     name: "editor_command_text",
@@ -599,6 +606,10 @@ async function startEditor() {
     composer.addPass(new OutputPass());
   }
   const objects: THREE.Object3D[] = [];
+  // Animator state machines, indexed like objects[]: the parsed graph plus a
+  // runtime that is recreated whenever Play starts.
+  const animators: ({ graph: AnimatorGraph; runtime: AnimatorRuntime } | undefined)[] = [];
+  const animatorErrors: string[] = [];
   interface AnimState {
     mixer: THREE.AnimationMixer;
     actions: Map<string, THREE.AnimationAction>;
@@ -1540,6 +1551,36 @@ async function startEditor() {
       );
     }
   }
+  // One Animator step for entity i: built-in parameters, events to the
+  // entity's script, and a crossfade when the state changes.
+  function runAnimator(
+    i: number,
+    state: AnimState,
+    animator: AnimatorRuntime,
+    speed: number,
+    verticalSpeed: number,
+    dt: number,
+  ) {
+    animator.set("speed", speed);
+    animator.set("vy", verticalSpeed);
+    animator.set("grounded", Math.abs(verticalSpeed) < 0.2);
+    const clip = state.actions.get(animator.current.clip)?.getClip();
+    const result = animator.step(dt, clip?.duration);
+    for (const name of result.events)
+      runtime.ccall("editor_script_notify", null, ["number", "string", "string"], [i, "on_anim_event", name]);
+    if (!result.entered) return;
+    const next = state.actions.get(result.entered.state.clip);
+    if (next) {
+      const previous = state.current ? state.actions.get(state.current) : undefined;
+      next.setLoop(result.entered.state.loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+      next.clampWhenFinished = !result.entered.state.loop;
+      next.setEffectiveTimeScale(result.entered.state.speed);
+      next.reset().fadeIn(result.entered.fade).play();
+      if (previous && previous !== next) previous.fadeOut(result.entered.fade);
+      state.current = result.entered.state.clip;
+    }
+    runtime.ccall("editor_script_notify", null, ["number", "string", "string"], [i, "on_anim_state", result.entered.state.name]);
+  }
   function runScriptCommands() {
     const count = runtime._editor_take_commands();
     for (let i = 0; i < count; i++) {
@@ -1549,6 +1590,14 @@ async function startEditor() {
       if (kind === "log") log(`[script] ${a}`);
       else if (kind === "sound") playOneShot(a);
       else if (kind === "ui_text") uiTextOverrides.set(a, b);
+      else if (kind === "anim_set" || kind === "anim_trigger") {
+        const animator = animators[runtime._editor_command_entity(i)]?.runtime;
+        if (kind === "anim_trigger") animator?.trigger(a);
+        else {
+          const value = parseParamValue(b);
+          if (value !== undefined) animator?.set(a, value);
+        }
+      }
     }
   }
   function syncRuntime() {
@@ -1716,6 +1765,22 @@ async function startEditor() {
         );
       object = new THREE.Mesh(geometry, material);
     }
+    const animatorSource = get("Animator");
+    let animator: (typeof animators)[number];
+    if (animatorSource) {
+      const parsed = parseAnimatorGraph(animatorSource.graph);
+      if (parsed.graph) {
+        animator = { graph: parsed.graph, runtime: new AnimatorRuntime(parsed.graph) };
+        // Edit-mode preview: the start state's clip, like any resting clip.
+        const startClip = animState?.actions.get(parsed.graph.states.get(parsed.graph.start)!.clip);
+        if (animState && startClip) {
+          animState.mixer.stopAllAction();
+          startClip.play();
+          animState.current = parsed.graph.states.get(parsed.graph.start)!.clip;
+        }
+      } else animatorErrors.push(...parsed.errors);
+    }
+    animators.push(animator);
     object.visible = renderable?.visible ?? true;
     // `anchor` -- not `object` -- carries this entity's Transform/Rotation/
     // Scale and is what's pushed into `objects` (gizmo attach, raycast
@@ -1785,6 +1850,8 @@ async function startEditor() {
     for (const object of objects) object.removeFromParent();
     objects.length = 0;
     animStates.length = 0;
+    animators.length = 0;
+    animatorErrors.length = 0;
     // Unlike a mesh (which reuses catalogCache's shared geometry/material --
     // nothing new allocated per rebuild(), so nothing to dispose), every
     // Particles emitter allocates its own fresh BufferGeometry/PointsMaterial
@@ -2181,6 +2248,9 @@ async function startEditor() {
       if (doc.mode === "edit") {
         prePlayTarget = controls.target.clone();
         syncRuntime();
+        for (const animator of animators)
+          if (animator) animator.runtime = new AnimatorRuntime(animator.graph);
+        if (animatorErrors.length) log(`Animator: ${animatorErrors.join("; ")}`);
         const playerObject = playerIndex >= 0 ? objects[playerIndex] : undefined;
         playerBaseScale = playerObject ? playerObject.scale.clone() : null;
         playerPrevY = playerObject?.position.y ?? 0;
@@ -2580,6 +2650,7 @@ async function startEditor() {
         const dx = object.position.x - state.prevPosition.x;
         const dz = object.position.z - state.prevPosition.z;
         const speed = groundSpeed(object.position, state.prevPosition, tickDt);
+        const verticalSpeed = (object.position.y - state.prevPosition.y) / tickDt;
         state.prevPosition.copy(object.position);
         // Face the direction actually traveled — not for a Vehicle, whose
         // facing already comes from its own steered heading above, which is
@@ -2595,6 +2666,11 @@ async function startEditor() {
           );
           const maxTurn = 10 * tickDt; // rad; generous enough not to lag a sharp turn
           object.rotation.y += Math.max(-maxTurn, Math.min(maxTurn, diff));
+        }
+        const animator = animators[i];
+        if (animator) {
+          runAnimator(i, state, animator.runtime, speed, verticalSpeed, tickDt);
+          return;
         }
         // An authored AnimationState.clip (see rebuild()) pins the clip
         // rebuild() already applied -- Play mode's own ground-speed pick
