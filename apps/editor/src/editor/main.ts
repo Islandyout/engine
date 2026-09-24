@@ -2281,6 +2281,7 @@ async function startEditor() {
         // needs this loop to actively restore override.clip itself; the
         // `clipName !== state.current` check below makes this a no-op once
         // it's already showing, so it's harmless in the ordinary case too.
+        const restoringPin = !sitClip && overridden;
         const clipName =
           sitClip ?? (overridden ? override!.clip : pickClipName([...state.actions.keys()], speed));
         if (clipName && clipName !== state.current) {
@@ -2289,14 +2290,29 @@ async function startEditor() {
             ? state.actions.get(state.current)
             : undefined;
           if (next) {
-            // A script's self.animate (pollAnimationRequests above) may have
-            // left this exact action set to LoopOnce/clampWhenFinished from
-            // an earlier one-shot -- .reset() alone doesn't touch loop mode,
-            // so without this it would play once here and freeze instead of
-            // looping like ordinary locomotion.
-            next.setLoop(THREE.LoopRepeat, Infinity);
-            next.clampWhenFinished = false;
-            next.reset().fadeIn(0.2).play();
+            if (restoringPin) {
+              // Crouch just released (or an authored pin is regaining
+              // priority some other way) -- restore it with its own
+              // authored looping/time settings, the exact same three lines
+              // rebuild()'s initial apply and onFinished's one-shot restore
+              // already use, instead of the generic always-loop-from-zero
+              // locomotion configuration below. Skipping this would force a
+              // non-looping pinned clip into infinite looping from frame 0,
+              // silently discarding what the user authored.
+              next.setLoop(override!.looping ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+              next.clampWhenFinished = !override!.looping;
+              if (Number.isFinite(override!.time)) next.time = override!.time;
+              next.reset().fadeIn(0.2).play();
+            } else {
+              // A script's self.animate (pollAnimationRequests above) may have
+              // left this exact action set to LoopOnce/clampWhenFinished from
+              // an earlier one-shot -- .reset() alone doesn't touch loop mode,
+              // so without this it would play once here and freeze instead of
+              // looping like ordinary locomotion.
+              next.setLoop(THREE.LoopRepeat, Infinity);
+              next.clampWhenFinished = false;
+              next.reset().fadeIn(0.2).play();
+            }
             if (previous && previous !== next) previous.fadeOut(0.2);
             state.current = clipName;
           }
