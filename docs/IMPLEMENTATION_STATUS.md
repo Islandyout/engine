@@ -3754,3 +3754,60 @@ directly (no Lua involved), and a new bound key.
   tiers (`pickClipName`), which is why the user's own request to
   "extrapolate this to every other animation like sitting and sprinting"
   only actually needed new work for sitting.
+- Post-push fix: four Codex findings across this round's two PRs (three on
+  the original PR, merged before the fixes landed — see the "PR merged
+  before fix lands" note below — and a fourth caught on the follow-up PR
+  itself), all verified correct before fixing. (1) Pressing F then G before
+  F's one-shot clip finished left the old action's `finished` mixer listener
+  still attached; it fired later, when the punching clip's own duration
+  naturally elapsed, and stomped `state.current` even though the newer
+  `firing_rifle` one-shot was still actively playing. Fixed by tracking the
+  active listener in a new `state.oneShotHandler` field and explicitly
+  detaching the previous one before attaching a new one. (2)
+  `actionClipSynonyms[requested]` used a plain object literal as a lookup
+  table, so a script setting `self.animate = "constructor"` (or
+  `"toString"`/`"__proto__"`) resolved to an inherited `Object.prototype`
+  value instead of `undefined`, then crashed trying to iterate it as a
+  candidate list — an uncaught exception inside the render loop that hung
+  the whole app for the rest of the session. Fixed by switching to a
+  `Map<string, string[]>` (no inherited keys). (3) Releasing crouch while an
+  authored `AnimationState.clip` pin was active never restored the pin —
+  `sitClip` becomes `undefined` and `overridden` stays `true`, so the
+  original `sitClip ?? (overridden ? undefined : ...)` formula evaluated to
+  "leave whatever's currently playing alone," permanently. Fixed by
+  explicitly re-asserting `override!.clip`. (4) That fix from (3) was itself
+  incomplete: selecting `override!.clip` fed into the same generic
+  locomotion-apply block ordinary ground-speed picks use, which
+  unconditionally forces `LoopRepeat`/`clampWhenFinished = false`/time reset
+  to 0 — silently discarding an authored `looping: false` or a specific
+  `time`. Fixed by adding a `restoringPin` branch that instead applies the
+  same three-line restore already proven correct in `rebuild()`'s initial
+  pin apply and `onFinished`'s one-shot restore:
+  `setLoop(override.looping ? LoopRepeat : LoopOnce, Infinity)`,
+  `clampWhenFinished = !override.looping`, and
+  `if (Number.isFinite(override.time)) ...time = override.time`. Verified
+  (1) in a real browser: F then G in quick succession, confirmed
+  `firing_rifle` wins immediately and is never later reverted, checked well
+  past both clips' natural durations. Verified (2) two ways: with the fix,
+  `self.animate = "constructor"` on a real animated entity with a Script
+  produces zero page errors and the app keeps running; reverting the fix and
+  rebuilding reproduced the hang directly — the `#play` button's own
+  `dataset.mode === "play"` wait timed out at 30s, proof the render loop
+  genuinely dies on the unfixed code. Verified (3) in a real browser: pinned
+  a Mannequin F to its `talk` clip, crouched (confirmed switch to `sit`),
+  released crouch (confirmed restored to `talk`, not stuck on `sit`).
+  Verified (4) in a real browser: pinned a Mannequin F to `talk` with
+  `looping: false` and a specific `time` via the authoring console's
+  `set_component`, crouched, released — confirmed restored as
+  `LoopOnce`/`clampWhenFinished: true` rather than forced into infinite
+  `LoopRepeat`; reverting just this fix and rebuilding reproduced the bug
+  (`loop === LoopRepeat`) even before ever crouching, since the same generic
+  block is what applies an authored pin the first time too. Full `ctest`,
+  `npm run typecheck`/`npm test`, and the full `tests/browser/editor.cjs`
+  black-box suite re-run clean after each fix. PR merged before the first
+  three fixes landed (a background full-suite run finished just after the
+  merge notification arrived) — restarted the branch from `origin/main`,
+  confirmed the uncommitted diff still applied identically via `diff -q`
+  against a saved patch, and opened a new PR rather than reusing the merged
+  one, per this project's established recovery convention for that exact
+  race.

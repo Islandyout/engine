@@ -368,6 +368,12 @@ async function startEditor() {
     // started" reasoning startDeath()'s own deathStates gate already
     // established.
     oneShot?: boolean;
+    // The mixer "finished" listener for whichever one-shot is currently
+    // playing (see pollAnimationRequests below), so a second request
+    // arriving before the first one's own clip finishes (e.g. F then G in
+    // quick succession) can detach the first's now-stale handler before it
+    // has a chance to fire later and clobber state set by the second.
+    oneShotHandler?: (event: { action: THREE.AnimationAction }) => void;
   }
   // Parallel to `objects`; index i holds the animation state for objects[i], or
   // undefined for a non-animated (static) entity. Reset alongside objects on every rebuild().
@@ -1111,13 +1117,25 @@ async function startEditor() {
   // request -- resolveActionClip below only expands a name that's actually
   // one of these three keys; anything else still resolves case-insensitively
   // against its own exact name only, the same as before this list existed.
-  const actionClipSynonyms: Record<string, string[]> = {
-    attack: ["attack", "punch", "punching", "melee"],
-    blast: ["blast", "shoot", "firing_rifle", "fire", "ranged"],
-    sit: ["sit", "sitting", "crouch", "crouching"],
-  };
+  // A Map, not a plain object literal -- a script's self.animate can be any
+  // string a Lua author writes, including "constructor"/"toString"/
+  // "__proto__", which a plain-object lookup would resolve to an inherited
+  // Object.prototype value instead of undefined, crashing the render loop
+  // (that value isn't an iterable string array) the moment the code below
+  // tries to iterate it as one. A Map has no inherited keys to collide with.
+  // A Map, not a plain object literal -- a script's self.animate can be any
+  // string a Lua author writes, including "constructor"/"toString"/
+  // "__proto__", which a plain-object lookup would resolve to an inherited
+  // Object.prototype value instead of undefined, crashing the render loop
+  // (that value isn't an iterable string array) the moment the code below
+  // tries to iterate it as one. A Map has no inherited keys to collide with.
+  const actionClipSynonyms = new Map<string, string[]>([
+    ["attack", ["attack", "punch", "punching", "melee"]],
+    ["blast", ["blast", "shoot", "firing_rifle", "fire", "ranged"]],
+    ["sit", ["sit", "sitting", "crouch", "crouching"]],
+  ]);
   function resolveActionClip(state: AnimState, requested: string): string | undefined {
-    const candidates = actionClipSynonyms[requested] ?? [requested];
+    const candidates = actionClipSynonyms.get(requested) ?? [requested];
     for (const candidate of candidates) {
       const lower = candidate.toLowerCase();
       for (const name of state.actions.keys()) if (name.toLowerCase() === lower) return name;
@@ -1145,6 +1163,17 @@ async function startEditor() {
       if (!clip) return;
       const action = state.actions.get(clip)!;
       const previous = state.current ? state.actions.get(state.current) : undefined;
+      // A still-registered listener from an earlier one-shot that hasn't
+      // finished yet (e.g. F then G before punching's own clip ends) must be
+      // detached now, before it's replaced -- left in place, it fires later
+      // on the OLD action's own completion, still passes its own `event.action
+      // !== action` identity check (that guards against a *different* clip,
+      // not a *stale* one), and clobbers state.oneShot/state.current out from
+      // under whatever this newer one-shot is still doing.
+      if (state.oneShotHandler) {
+        state.mixer.removeEventListener("finished", state.oneShotHandler);
+        state.oneShotHandler = undefined;
+      }
       action.reset().setLoop(THREE.LoopOnce, 1);
       action.clampWhenFinished = true;
       action.fadeIn(0.15).play();
@@ -1160,6 +1189,7 @@ async function startEditor() {
         if (event.action !== action) return;
         state.oneShot = false;
         state.mixer.removeEventListener("finished", onFinished);
+        state.oneShotHandler = undefined;
         // An authored AnimationState.clip (see rebuild()) pins a specific
         // resting clip that the ground-speed picker deliberately never
         // fights (it treats `overridden` as "leave it alone"). Left
@@ -1192,6 +1222,7 @@ async function startEditor() {
           action.reset().play();
         }
       };
+      state.oneShotHandler = onFinished;
       state.mixer.addEventListener("finished", onFinished);
     });
   }
@@ -2241,22 +2272,47 @@ async function startEditor() {
         // an AI/Pedestrian, which never receives editor_key edges at all.
         const crouching = i === playerIndex && heldKeys.has(crouchKeyCode);
         const sitClip = crouching ? resolveActionClip(state, "sit") : undefined;
+        // Once crouch releases, an authored pin must be explicitly
+        // re-asserted here, not merely left as undefined ("leave whatever's
+        // already playing alone") -- that fallback only ever worked because
+        // nothing before crouch existed could still be showing a *different*
+        // clip while `overridden` was true. Now that crouching can
+        // temporarily replace state.current with the sit clip, releasing it
+        // needs this loop to actively restore override.clip itself; the
+        // `clipName !== state.current` check below makes this a no-op once
+        // it's already showing, so it's harmless in the ordinary case too.
+        const restoringPin = !sitClip && overridden;
         const clipName =
-          sitClip ?? (overridden ? undefined : pickClipName([...state.actions.keys()], speed));
+          sitClip ?? (overridden ? override!.clip : pickClipName([...state.actions.keys()], speed));
         if (clipName && clipName !== state.current) {
           const next = state.actions.get(clipName);
           const previous = state.current
             ? state.actions.get(state.current)
             : undefined;
           if (next) {
-            // A script's self.animate (pollAnimationRequests above) may have
-            // left this exact action set to LoopOnce/clampWhenFinished from
-            // an earlier one-shot -- .reset() alone doesn't touch loop mode,
-            // so without this it would play once here and freeze instead of
-            // looping like ordinary locomotion.
-            next.setLoop(THREE.LoopRepeat, Infinity);
-            next.clampWhenFinished = false;
-            next.reset().fadeIn(0.2).play();
+            if (restoringPin) {
+              // Crouch just released (or an authored pin is regaining
+              // priority some other way) -- restore it with its own
+              // authored looping/time settings, the exact same three lines
+              // rebuild()'s initial apply and onFinished's one-shot restore
+              // already use, instead of the generic always-loop-from-zero
+              // locomotion configuration below. Skipping this would force a
+              // non-looping pinned clip into infinite looping from frame 0,
+              // silently discarding what the user authored.
+              next.setLoop(override!.looping ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+              next.clampWhenFinished = !override!.looping;
+              if (Number.isFinite(override!.time)) next.time = override!.time;
+              next.reset().fadeIn(0.2).play();
+            } else {
+              // A script's self.animate (pollAnimationRequests above) may have
+              // left this exact action set to LoopOnce/clampWhenFinished from
+              // an earlier one-shot -- .reset() alone doesn't touch loop mode,
+              // so without this it would play once here and freeze instead of
+              // looping like ordinary locomotion.
+              next.setLoop(THREE.LoopRepeat, Infinity);
+              next.clampWhenFinished = false;
+              next.reset().fadeIn(0.2).play();
+            }
             if (previous && previous !== next) previous.fadeOut(0.2);
             state.current = clipName;
           }
