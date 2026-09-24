@@ -24,6 +24,7 @@ Current to **Unity 6.7 beta** (September 2026). The API detail comes from Unity'
 | 14 | [Platforms, build and content](14-platforms-build.md) | Platforms, Player settings, IL2CPP/Mono/CoreCLR, stripping, AssetBundles, Addressables, XR/AR, Web |
 | 15 | [Profiling, debugging, testing](15-profiling-testing.md) | Profiler and all modules, Memory Profiler, Frame Debugger, Rendering/Physics debuggers, Project Auditor, Test Framework |
 | 16 | [AI/ML and version history](16-ai-versions.md) | Sentis/Inference Engine, ML-Agents, Unity AI; what shipped in each Unity 6.x release |
+| — | [**Gap analysis vs this engine**](GAP_ANALYSIS.md) | What engine 0.47.0 has vs Unity, prioritized gaps and suggested order |
 
 ## Sources and method
 
