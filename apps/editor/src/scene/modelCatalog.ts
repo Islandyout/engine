@@ -14,13 +14,19 @@ export interface CatalogEntry {
 // tools/import_model.mjs so a new import can't accidentally resurrect one.
 // A structural record of that rule, not just the prose comment, so both this
 // file's own history and any tool reading it agree on what's retired.
+//
+// 137 was "Mannequin F (Mixamo)" (0.38.0-0.48.0): its 3 clips are
+// retargeted onto id 132's own skeleton as of 0.49.0 (see
+// assets/CREDITS.md), so this separate entry is gone -- a saved scene still
+// referencing 137 falls back to the default box (rebuild()'s existing
+// cache-miss behavior), not a crash.
+//
+// No comments *inside* the array below -- tools/import_model.mjs's own
+// retiredIds() parses this literal as plain text (split on "," -> Number()),
+// so a comment placed between the brackets becomes a bogus, comma-bearing
+// "entry" of its own and corrupts every id parsed after it into NaN.
 export const retiredCatalogIds: readonly number[] = [
-  119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131,
-  // "Mannequin F (Mixamo)" (0.38.0-0.48.0): its 3 clips are retargeted onto
-  // id 132's own skeleton as of 0.49.0 (see assets/CREDITS.md), so this
-  // separate entry is gone -- a saved scene still referencing 137 falls back
-  // to the default box (rebuild()'s existing cache-miss behavior), not a crash.
-  137,
+  119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 137,
 ];
 
 export const modelCatalog: CatalogEntry[] = [
