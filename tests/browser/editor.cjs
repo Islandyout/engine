@@ -1204,6 +1204,20 @@ const { chromium } = require("playwright");
       value: { projection: "Perspective", fov: 60, near: 0.1, far: 500, orthoSize: 10, priority: 5 },
     });
     await run({ command: "set_component", entity: cam.entity, type: "RigidBody", value: { mass: 1, dynamic: false } });
+    // F52: the camera follows the Player through a CameraFollow rig, and a
+    // script shakes it.
+    await run({
+      command: "set_component",
+      entity: cam.entity,
+      type: "CameraFollow",
+      value: { target: "", offset: { x: 0, y: 3, z: 7 }, smoothing: 0.15, lookHeight: 1, collision: true, orbit: true },
+    });
+    await run({
+      command: "set_component",
+      entity: painted.entity,
+      type: "Script",
+      value: { source: 'function on_start() camera.shake(0.3, 0.5) end', props: {} },
+    });
     // F51: an Animator state machine on a real animated model. A trigger
     // set from on_start moves idle -> hop, the hop state's event reaches
     // on_anim_event, `end` returns to idle, and on_anim_state reports both.
@@ -1247,7 +1261,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end) passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), and a CameraFollow rig with shake passed.",
     );
   } finally {
     if (browser) await browser.close();

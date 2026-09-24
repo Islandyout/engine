@@ -2,6 +2,7 @@
 #include <iostream>
 #include <limits>
 #include <stdexcept>
+#include <source_location>
 #include <string>
 extern "C" {
 void editor_begin();
@@ -43,9 +44,9 @@ int add_unit(double x, double y, double z, double vx, double vy, double vz) {
 constexpr int key_w = 0, key_a = 1, key_s = 2, key_d = 3, key_shift = 4, key_f = 5, key_g = 6;
 } // namespace
 int main() {
-    const auto check = [](bool ok) {
+    const auto check = [](bool ok, std::source_location where = std::source_location::current()) {
         if (!ok)
-            throw std::runtime_error{"editor bridge test failed"};
+            throw std::runtime_error{"editor bridge test failed at line " + std::to_string(where.line())};
     };
     editor_begin();
     check(add_unit(0, 2, 3, 6, 0, 0) == 1);
@@ -719,17 +720,27 @@ int main() {
     check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0.5, 0, 3) == 0);
     check(editor_commit() == 0);
 
-    // A chasing AIAgent is still ordinary physics underneath — it stops at a Collider wall
-    // like anything else with a RigidBody, rather than the AI system's velocity write
-    // bypassing collision resolution. Same obstacle geometry as the Player-vs-Collider case
-    // above: unit box centered at x=3, near face at x=2.5.
+    // Since 0.52.0 a chasing AIAgent follows an A* path, so it walks around a
+    // wall between it and the Player instead of pressing against it.
     editor_begin();
     check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // wall, index 0
     check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.5, 0, 0) == 1); // AI, index 1
     check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // Player, index 2
     check(editor_commit() == 1);
     for (int i = 0; i < 300; ++i)
-        editor_tick(); // far more than enough time to cross the gap if the wall didn't stop it
+        editor_tick();
+    check(editor_value(1, 0) > 3.5); // went around the wall to the Player's side
+
+    // It is still ordinary physics underneath: with no way around (a wall
+    // spanning the whole navigation grid), it falls back to heading
+    // straight for the Player and stops at the wall's face.
+    editor_begin();
+    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 200, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // wall, index 0
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.5, 0, 0) == 1); // AI, index 1
+    check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // Player, index 2
+    check(editor_commit() == 1);
+    for (int i = 0; i < 300; ++i)
+        editor_tick();
     check(editor_value(1, 0) < 2.0 + 1e-3); // stopped at the wall's face, not past it
     check(editor_value(1, 0) > 1.5);        // and did actually approach, not stall at the start
 

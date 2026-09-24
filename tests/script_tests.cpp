@@ -680,7 +680,39 @@ int main() {
             check(host.emitted[0].find(" 4.5") != std::string::npos, "raycast hits the target at 4.5");
             check(std::abs(world.get<RigidBody>(entity)->velocity.z - 2.0F) < 1e-5F, "impulse / mass");
         }
-        std::cout << "Script: velocity control, read-only self.x/y/z, no-op without on_tick, "
+
+        {
+            // world.path returns waypoints around a wall, or nil without a grid.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            const auto wall = world.create();
+            world.set(wall, Box{{0, 1, 0}, {1, 2, 10}});
+            world.set(wall, Collider{});
+            const auto walker = world.create();
+            world.set(walker, Box{{-4, 0.5F, 0}, {1, 1, 1}});
+            world.set(walker, RigidBody{});
+            world.set(walker, Script{R"lua(
+                function on_start()
+                  local p = world.path(self.x, self.y, self.z, 4, 0.5, 0)
+                  log(#p .. " " .. string.format("%.1f %.1f", p[#p].x, p[#p].z))
+                end
+            )lua"});
+            nav::Grid grid{nav::Settings{}};
+            grid.bake(world);
+            TestHost host;
+            Runtime runtime;
+            runtime.set_host(&host);
+            runtime.set_nav(&grid);
+            runtime.step(world, 1.0F / 60);
+            check(host.emitted.size() == 1 && host.emitted[0].size() > 6 &&
+                      host.emitted[0].substr(host.emitted[0].size() - 7) == "4.0 0.0",
+                  "world.path ends at the goal");
+            check(host.emitted[0][4] >= '2', "the path has corners around the wall");
+        }
+        std::cout << "Script: velocity control, writable self.x/y/z, no-op without on_tick, "
                      "compile/runtime error containment, non-string error() values, source-change "
                      "recompilation, os/io sandboxing, runaway-loop watchdog, cleanup on Script removal, "
                      "per-entity VM isolation, non-finite velocity rejection, save/load persistence "
@@ -689,7 +721,7 @@ int main() {
                      "animation requests (including non-sticky and non-string-coercible handling), "
                      "on_start/timers/coroutines/props/time, collision and trigger callbacks, the world "
                      "API (find/name/send/spawn/destroy/health/damage/raycast/overlap), on_destroy and "
-                     "physics impulses passed.\n";
+                     "physics impulses, and world.path pathfinding passed.\n";
     } catch (const std::exception &e) {
         std::cerr << "script test failed: " << e.what() << "\n";
         return 1;

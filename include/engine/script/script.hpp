@@ -1,5 +1,6 @@
 #pragma once
 
+#include "engine/nav/nav.hpp"
 #include "engine/physics/physics.hpp"
 #include "engine/world/world.hpp"
 #include <functional>
@@ -98,8 +99,8 @@ public:
 //
 // Globals: props (inspector values), time (dt, now, frame), world (find,
 // name, alive, position, set_position, velocity, set_velocity, spawn,
-// destroy, health, damage, raycast, overlap, send), physics (add_force,
-// add_impulse), sound.play, ui.set_text, anim.set/anim.trigger, log, and after/every/cancel/
+// destroy, health, damage, raycast, overlap, send, path), physics (add_force,
+// add_impulse), sound.play, ui.set_text, anim.set/anim.trigger, camera.shake, log, and after/every/cancel/
 // start/wait for timers and coroutines. world/sound/ui/log go through the
 // Host; without one they return nil or do nothing.
 //
@@ -239,6 +240,9 @@ public:
     std::string take_animation_request(Entity entity);
 
     void set_host(Host *host) { host_ = host; }
+    // The navigation grid world.path() searches; none means world.path()
+    // returns nil.
+    void set_nav(const nav::Grid *grid) { nav_ = grid; }
     // Calls on_collision_enter/stay/exit(other) and on_trigger_enter/stay/
     // exit(other) on both entities of every event, for entities whose
     // script defines them. Call once after each physics::step().
@@ -261,6 +265,7 @@ private:
     void call(World &world, Entity entity, Instance &instance, const char *function_name,
               const std::function<void(lua_State *)> &push_args, int nargs);
     Host *host_{};
+    const nav::Grid *nav_{};
     World *world_{};
     double now_{};
     std::uint64_t frame_{};

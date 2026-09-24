@@ -276,3 +276,18 @@ export interface MaterialComponent {
 export interface AnimatorComponent {
   graph: string;
 }
+
+// Camera rig (0.52.0), on the same entity as a Camera: during Play the
+// camera follows a target from `offset` (in the target's frame when
+// orbit is off: +z is behind), eases toward it over `smoothing` seconds,
+// looks at the target raised by `lookHeight`, pulls in front of anything
+// between it and the target when `collision` is on, and can be orbited by
+// dragging when `orbit` is on.
+export interface CameraFollowComponent {
+  target: string; // entity Name; "" follows the Player
+  offset: Vec3;
+  smoothing: number;
+  lookHeight: number;
+  collision: boolean;
+  orbit: boolean;
+}

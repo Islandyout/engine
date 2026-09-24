@@ -454,6 +454,31 @@ struct LuaApi final {
         }
         return 1;
     }
+    // world.path(x, y, z, tx, ty, tz) -> array of {x=, y=, z=} waypoints
+    // around obstacles (the last one is the goal or the closest reachable
+    // point), an empty array when already there, or nil when unreachable.
+    static int path(lua_State *L) {
+        auto &self = runtime(L);
+        if (!self.nav_)
+            return lua_pushnil(L), 1;
+        const auto points = self.nav_->find_path({number_arg(L, 1), number_arg(L, 2), number_arg(L, 3)},
+                                                 {number_arg(L, 4), number_arg(L, 5), number_arg(L, 6)});
+        if (!points)
+            return lua_pushnil(L), 1;
+        lua_createtable(L, static_cast<int>(points->size()), 0);
+        lua_Integer i = 1;
+        for (const auto &point : *points) {
+            lua_createtable(L, 0, 3);
+            lua_pushnumber(L, point.x);
+            lua_setfield(L, -2, "x");
+            lua_pushnumber(L, point.y);
+            lua_setfield(L, -2, "y");
+            lua_pushnumber(L, point.z);
+            lua_setfield(L, -2, "z");
+            lua_rawseti(L, -2, i++);
+        }
+        return 1;
+    }
     // world.send(id, name[, value]): calls on_message(name, value, sender)
     // in the target's script right away. value may be nil, a boolean, a
     // number or a string (tables can't cross between entities' VMs).
@@ -532,6 +557,11 @@ struct LuaApi final {
         emit(L, "anim_trigger", luaL_checkstring(L, 1), "");
         return 0;
     }
+    // camera.shake(intensity, seconds): editor-side screen shake.
+    static int camera_shake(lua_State *L) {
+        emit(L, "camera_shake", std::to_string(number_arg(L, 1, 0.3F)), std::to_string(number_arg(L, 2, 0.4F)));
+        return 0;
+    }
     static int log(lua_State *L) {
         size_t length = 0;
         const char *text = luaL_tolstring(L, 1, &length);
@@ -584,11 +614,13 @@ struct LuaApi final {
                {"damage", damage},
                {"raycast", raycast},
                {"overlap", overlap},
-               {"send", send}});
+               {"send", send},
+               {"path", path}});
         table(L, self, "physics", {{"add_force", add_force}, {"add_impulse", add_impulse}});
         table(L, self, "sound", {{"play", play_sound}});
         table(L, self, "ui", {{"set_text", set_ui_text}});
         table(L, self, "anim", {{"set", anim_set}, {"trigger", anim_trigger}});
+        table(L, self, "camera", {{"shake", camera_shake}});
         lua_pushlightuserdata(L, self);
         lua_pushcclosure(L, log, 1);
         lua_setglobal(L, "log");

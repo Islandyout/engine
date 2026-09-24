@@ -3806,3 +3806,44 @@ This is item 4 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work.
   - a once-state event followed by `end`.
 - `engine_editor_bridge_tests` checks that `anim.set`/`trigger` become commands with the right text, and that `editor_script_notify` delivers `on_anim_event`/`on_anim_state` but refuses other names.
 - The browser suite puts an Animator and a Script on the animated Cat: `trigger go` → hop (walk clip, once) → the `midway` event → `end` → idle, with the script logging `hop>midway>idle>`.
+
+## F52 — Navigation (grid A* pathfinding) and a camera rig (0.52.0)
+
+This is item 5 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. Before it, AI steered straight at its target, and the only play camera was the editor's orbit camera re-targeted onto the Player.
+
+### Navigation (`engine::nav`, new `engine_nav` library)
+
+- **Grid**: `Grid` is a walkability grid on the XZ plane. Defaults: 0.5 m cells over ±60 m, agent radius 0.4, step height 0.35, max height 2.
+- **`bake()`** blocks every cell a solid collider overlaps, inflated by the agent radius. It skips:
+  - triggers;
+  - colliders entirely below `step_height` (curbs) or above `max_height`;
+  - finite-mass dynamic bodies, which move and get pushed aside;
+  - an `ignore` list.
+- **`find_path()`**:
+  - Runs 8-connected A* with an octile heuristic and no corner cutting.
+  - A blocked goal snaps to the nearest open cell. An unreachable goal returns the path to the closest reachable cell.
+  - The result is shortened by line-of-sight smoothing.
+- **Editor runtime**:
+  - Rebakes on the first tick and then once a second (system `editor.nav`, begin phase). Players and AI agents are never obstacles to themselves.
+  - A Chasing `AIAgent` repaths every 0.5 s and steers to its next waypoint. With no path it falls back to heading straight at the Player, so physics still stops it at a wall with no way around.
+- **Lua**: `world.path(x, y, z, tx, ty, tz)` returns `{x, y, z}` waypoints, `{}` when already there, or nil.
+
+### Camera rig (`CameraFollow`, editor-side)
+
+- **Placement**: on the active `Camera` entity, the rig places the view at `offset` from the target. The target is the Player, or the entity named in `target`. The offset is taken in the target's frame, so the camera swings behind it as it turns.
+- **Motion**: the view eases toward its goal over `smoothing` seconds and looks at the target raised by `lookHeight`.
+- **Collision**: with `collision` on, a raycast from the focus point pulls the camera in front of anything in between.
+- **Orbit**: with `orbit` on, dragging during Play turns the rig (yaw, plus pitch clamped to −0.2…1.4 rad).
+- **Placeholder**: the camera entity's own placeholder is hidden while it is the view.
+- **Shake**: `camera.shake(intensity, seconds)` in Lua queues a decaying random offset. It applies to the game camera, or during Play to a copy of the editor camera, so the orbit camera itself never drifts.
+
+### F52 verification
+
+- `engine_nav_tests` covers baking (wall, agent inflation, curb, trigger, dynamic crate), line of sight, a path around a wall (every segment walkable, a sensible detour length, at most four corners), a straight path on open ground, the same-cell and out-of-grid cases, and goal snapping.
+- `engine_editor_bridge_tests`: the old "a chasing AI stops at a wall" check became two:
+  - it now goes *around* a small wall to reach the Player;
+  - it still stops at the face of a wall spanning the whole grid.
+
+  The bridge test's `check()` now reports the failing line.
+- `engine_script_tests` checks that `world.path` ends at the goal with corners around a wall.
+- The browser suite adds a `CameraFollow` rig (collision and orbit on) following the Player, and `camera.shake` from `on_start`, with no page errors.

@@ -8,6 +8,7 @@ import {
 import type {
   AIStateName,
   CameraComponent,
+  CameraFollowComponent,
   EntityRef,
   EnvironmentComponent,
   MaterialComponent,
@@ -507,6 +508,7 @@ async function startEditor() {
   // Game cameras (0.50.0): during Play the highest-priority Camera entity
   // renders the view from its own position and rotation.
   const gamePerspective = new THREE.PerspectiveCamera();
+  const shakeCamera = new THREE.PerspectiveCamera();
   const gameOrthographic = new THREE.OrthographicCamera();
   function gameCamera(): THREE.Camera | undefined {
     if (doc.mode === "edit") return undefined;
@@ -532,10 +534,81 @@ async function startEditor() {
     view.far = component.far;
     view.updateProjectionMatrix();
     const anchor = objects[index]!;
-    anchor.updateWorldMatrix(true, false);
-    anchor.getWorldPosition(view.position);
-    anchor.getWorldQuaternion(view.quaternion);
+    // The camera entity's own placeholder would sit in (or block) the view;
+    // rebuild() on Stop restores its visibility.
+    anchor.visible = false;
+    const follow = doc.scene.resolve(doc.scene.eachAlive()[index]!, "CameraFollow");
+    const target = follow ? followTarget(follow.target) : undefined;
+    if (follow && target) placeRig(view, follow, target);
+    else {
+      anchor.updateWorldMatrix(true, false);
+      anchor.getWorldPosition(view.position);
+      anchor.getWorldQuaternion(view.quaternion);
+    }
     return view;
+  }
+  // -- Camera rig (CameraFollow) and shake --------------------------------
+  const rig = { position: new THREE.Vector3(), yaw: 0, pitch: 0, placed: false, frameDt: 1 / 60 };
+  const shake = { intensity: 0, remaining: 0, duration: 1 };
+  const rigRaycaster = new THREE.Raycaster();
+  function followTarget(name: string): THREE.Object3D | undefined {
+    if (!name) return playerIndex >= 0 ? objects[playerIndex] : undefined;
+    const index = doc.scene.eachAlive().findIndex((e) => doc.scene.resolve(e, "Name")?.value === name);
+    return index >= 0 && runtime._editor_alive(index) ? objects[index] : undefined;
+  }
+  function placeRig(view: THREE.Camera, follow: CameraFollowComponent, target: THREE.Object3D) {
+    const focus = target.position.clone();
+    focus.y += follow.lookHeight;
+    const distance = Math.hypot(follow.offset.x, follow.offset.y, follow.offset.z);
+    if (!rig.placed) {
+      // Start from the authored offset, in the target's frame.
+      rig.yaw = Math.atan2(follow.offset.x, follow.offset.z) + target.rotation.y;
+      rig.pitch = Math.asin(THREE.MathUtils.clamp(follow.offset.y / Math.max(distance, 1e-6), -1, 1));
+    } else if (!follow.orbit) {
+      // Without orbit the rig swings behind the target as it turns.
+      rig.yaw = Math.atan2(follow.offset.x, follow.offset.z) + target.rotation.y;
+    }
+    const desired = new THREE.Vector3(
+      Math.sin(rig.yaw) * Math.cos(rig.pitch),
+      Math.sin(rig.pitch),
+      Math.cos(rig.yaw) * Math.cos(rig.pitch),
+    )
+      .multiplyScalar(distance)
+      .add(target.position);
+    if (follow.collision) {
+      const toCamera = desired.clone().sub(focus);
+      const length = toCamera.length();
+      rigRaycaster.set(focus, toCamera.normalize());
+      rigRaycaster.far = length;
+      const blockers = objects.filter((o) => o !== target && o.visible);
+      const hit = rigRaycaster.intersectObjects(blockers, true)[0];
+      if (hit) desired.copy(focus).addScaledVector(toCamera, Math.max(0.3, hit.distance - 0.3));
+    }
+    if (!rig.placed || follow.smoothing <= 0) rig.position.copy(desired);
+    else rig.position.lerp(desired, 1 - Math.exp(-rig.frameDt / follow.smoothing));
+    rig.placed = true;
+    view.position.copy(rig.position);
+    view.lookAt(focus);
+  }
+  // Orbit: dragging on the viewport during Play turns the rig.
+  let orbitDrag: { x: number; y: number } | undefined;
+  renderer.domElement.addEventListener("pointerdown", (event) => {
+    if (doc.mode === "play") orbitDrag = { x: event.clientX, y: event.clientY };
+  });
+  window.addEventListener("pointerup", () => (orbitDrag = undefined));
+  window.addEventListener("pointermove", (event) => {
+    if (!orbitDrag) return;
+    rig.yaw -= (event.clientX - orbitDrag.x) * 0.005;
+    rig.pitch = THREE.MathUtils.clamp(rig.pitch + (event.clientY - orbitDrag.y) * 0.005, -0.2, 1.4);
+    orbitDrag = { x: event.clientX, y: event.clientY };
+  });
+  function applyShake(view: THREE.Camera, dt: number) {
+    if (shake.remaining <= 0) return;
+    shake.remaining = Math.max(0, shake.remaining - dt);
+    const amount = shake.intensity * (shake.remaining / shake.duration);
+    view.position.x += (Math.random() * 2 - 1) * amount;
+    view.position.y += (Math.random() * 2 - 1) * amount;
+    view.position.z += (Math.random() * 2 - 1) * amount;
   }
   // Procedural sky: a large inside-out sphere shaded from the Environment's
   // zenith/horizon/ground colors, with a sun disc and glow toward the sun.
@@ -1590,6 +1663,11 @@ async function startEditor() {
       if (kind === "log") log(`[script] ${a}`);
       else if (kind === "sound") playOneShot(a);
       else if (kind === "ui_text") uiTextOverrides.set(a, b);
+      else if (kind === "camera_shake") {
+        shake.intensity = Math.max(0, Number(a) || 0);
+        shake.duration = Math.max(0.01, Number(b) || 0.01);
+        shake.remaining = shake.duration;
+      }
       else if (kind === "anim_set" || kind === "anim_trigger") {
         const animator = animators[runtime._editor_command_entity(i)]?.runtime;
         if (kind === "anim_trigger") animator?.trigger(a);
@@ -2248,6 +2326,8 @@ async function startEditor() {
       if (doc.mode === "edit") {
         prePlayTarget = controls.target.clone();
         syncRuntime();
+        rig.placed = false;
+        shake.remaining = 0;
         for (const animator of animators)
           if (animator) animator.runtime = new AnimatorRuntime(animator.graph);
         if (animatorErrors.length) log(`Animator: ${animatorErrors.join("; ")}`);
@@ -2702,7 +2782,18 @@ async function startEditor() {
     }
     if (selection.visible) selection.update();
     controls.update();
-    viewCamera = gameCamera() ?? camera;
+    rig.frameDt = dt;
+    const game = gameCamera();
+    viewCamera = game ?? camera;
+    // Shake the game camera, or during Play a copy of the editor camera, so
+    // the orbit camera itself never drifts.
+    if (doc.mode !== "edit" && shake.remaining > 0) {
+      if (!game) {
+        shakeCamera.copy(camera);
+        viewCamera = shakeCamera;
+      }
+      applyShake(viewCamera, dt);
+    }
     updateSunShadow();
     renderPass.camera = viewCamera;
     if (composer) composer.render();

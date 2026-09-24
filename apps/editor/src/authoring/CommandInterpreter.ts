@@ -78,6 +78,7 @@ const componentNames = [
   "Camera",
   "Material",
   "Animator",
+  "CameraFollow",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -614,6 +615,8 @@ export function defaultComponent(
       return defaultEnvironment();
     case "Camera":
       return { projection: "Perspective", fov: 50, near: 0.1, far: 2000, orthoSize: 10, priority: 0 };
+    case "CameraFollow":
+      return { target: "", offset: { x: 0, y: 4, z: 8 }, smoothing: 0.15, lookHeight: 1, collision: true, orbit: false };
     case "Animator":
       return {
         graph: [

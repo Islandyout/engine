@@ -1,3 +1,4 @@
+#include "engine/nav/nav.hpp"
 #include "engine/physics/physics.hpp"
 #include "engine/script/script.hpp"
 #include "engine/world/fixed_systems.hpp"
@@ -82,6 +83,10 @@ struct AIAgent final {
     // Fleeing/wander detour rather than staying frozen and firing off
     // instantly the moment the agent re-enters Chasing.
     float attack_cooldown{0.0F};
+    // Chasing follows an A* path around obstacles (see the "editor.ai"
+    // system); recomputed every ai_repath_interval seconds.
+    std::vector<engine::Vec3> path;
+    float repath{0.0F};
 };
 // Which row of pedestrian_tuning (below) shapes a Pedestrian's own wander
 // pace — how long it lingers between phases and how briskly it moves once
@@ -184,6 +189,7 @@ constexpr float ai_sense_radius = 6.0F;       // units; distance at which an AIA
 constexpr float ai_flee_health_ratio = 0.3F;  // flee once current/max health drops to/below this
 constexpr float ai_wander_min_phase = 1.0F;   // seconds; shortest idle or walk/run phase
 constexpr float ai_wander_max_phase = 3.0F;   // seconds; longest idle or walk/run phase
+constexpr float ai_repath_interval = 0.5F;    // seconds between chase path recomputations
 // One row per PedestrianArchetype, in that enum's declared order. Casual
 // (index 0) reproduces ai_wander_min_phase/ai_wander_max_phase and an
 // unscaled walk/run speed exactly — this project's original, single-profile
@@ -333,10 +339,28 @@ struct Runtime {
     std::map<engine::Entity, std::string> script_errors;
     // Contact/trigger bookkeeping across physics steps (enter/stay/exit).
     engine::physics::Events physics_events;
+    // Walkability grid for chasing AI and world.path(), rebaked from the
+    // static colliders once a second (see the "editor.nav" system).
+    engine::nav::Grid nav_grid{engine::nav::Settings{}};
     Runtime() {
         register_components(world);
         register_components(templates);
         script_runtime.set_host(&host);
+        script_runtime.set_nav(&nav_grid);
+        // First, before anything moves: rebakes the navigation grid on the
+        // first tick and then once a second. Movers (Player, AI) are never
+        // obstacles to themselves.
+        systems.add("editor.nav", engine::FixedPhase::begin, 0,
+                    [this](engine::World &w, const engine::FixedUpdateContext &context) {
+                        if (context.tick % 60 != 0)
+                            return;
+                        std::vector<engine::Entity> movers;
+                        for (const auto entity : w.query<PlayerMarker>())
+                            movers.push_back(entity);
+                        for (const auto entity : w.query<AIAgent>())
+                            movers.push_back(entity);
+                        nav_grid.bake(w, movers);
+                    });
         // Recorded once per entity, the first time its script fails to compile
         // or errors at runtime (engine::script::Runtime's own "reported once,
         // not retried every tick" contract) — editor_script_error() reads this
@@ -367,7 +391,7 @@ struct Runtime {
         // observe and label.
         systems.add(
             "editor.ai", engine::FixedPhase::update, 1,
-            [](engine::World &w, const engine::FixedUpdateContext &) {
+            [&nav = nav_grid](engine::World &w, const engine::FixedUpdateContext &) {
                 constexpr float dt = 1.0F / 60.0F;
                 // Every AIAgent reacts to the same single point — the first
                 // Player found — matching the "one Player" authoring
@@ -410,8 +434,25 @@ struct Runtime {
                         }
                     } else if (!is_pedestrian && player_near) {
                         next_state = AIState::Chasing;
-                        const float dx = player_pos->x - box.center.x;
-                        const float dz = player_pos->z - box.center.z;
+                        // Follow an A* path around obstacles, refreshed every
+                        // ai_repath_interval; with no path (unreachable, or
+                        // nothing in the way) head straight for the Player.
+                        agent.repath -= dt;
+                        if (agent.repath <= 0.0F || agent.state != AIState::Chasing) {
+                            agent.repath = ai_repath_interval;
+                            const auto found = nav.find_path(box.center, *player_pos);
+                            agent.path = found ? *found : std::vector<engine::Vec3>{};
+                        }
+                        while (!agent.path.empty()) {
+                            const float wx = agent.path.front().x - box.center.x;
+                            const float wz = agent.path.front().z - box.center.z;
+                            if (wx * wx + wz * wz > 0.35F * 0.35F || agent.path.size() == 1)
+                                break;
+                            agent.path.erase(agent.path.begin());
+                        }
+                        const engine::Vec3 aim = agent.path.empty() ? *player_pos : agent.path.front();
+                        const float dx = aim.x - box.center.x;
+                        const float dz = aim.z - box.center.z;
                         const float len = std::sqrt(dx * dx + dz * dz);
                         if (len > 0.001F) {
                             target_x = dx / len;
@@ -975,7 +1016,7 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
             // to assert on it at all.
             target.set(
                 e, AIAgent{AIState::Idle, 0.0F, 0.0F, 1.0F,
-                           static_cast<std::uint32_t>(staging->entities.size()) + 1});
+                           static_cast<std::uint32_t>(staging->entities.size()) + 1, 0.0F, {}, 0.0F});
             if (is_pedestrian != 0)
                 target.set(
                     e, Pedestrian{static_cast<PedestrianArchetype>(static_cast<int>(pedestrian_archetype))});

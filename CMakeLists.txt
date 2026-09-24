@@ -169,6 +169,11 @@ add_library(GameEngine::Physics ALIAS engine_physics)
 target_link_libraries(engine_physics PUBLIC GameEngine::World GameEngine::Graphics)
 engine_set_project_warnings(engine_physics)
 
+add_library(engine_nav STATIC source/engine/nav/nav.cpp)
+add_library(GameEngine::Nav ALIAS engine_nav)
+target_link_libraries(engine_nav PUBLIC GameEngine::World GameEngine::Graphics GameEngine::Physics)
+engine_set_project_warnings(engine_nav)
+
 # Vendored Lua 5.4.7 (third_party/lua/README.md) — deliberately not run through
 # engine_set_project_warnings: it's unmodified third-party C, not code this
 # project holds to its own -Wall -Wextra -Wpedantic -Wconversion -Wshadow
@@ -213,7 +218,7 @@ set_target_properties(lua_vendored PROPERTIES C_EXTENSIONS OFF)
 
 add_library(engine_script STATIC source/engine/script/script.cpp)
 add_library(GameEngine::Script ALIAS engine_script)
-target_link_libraries(engine_script PUBLIC GameEngine::World PRIVATE lua_vendored)
+target_link_libraries(engine_script PUBLIC GameEngine::World GameEngine::Physics GameEngine::Nav PRIVATE lua_vendored)
 target_compile_features(engine_script PUBLIC cxx_std_20)
 engine_set_project_warnings(engine_script)
 
@@ -239,6 +244,10 @@ if(ENGINE_BUILD_TESTS)
     target_link_libraries(engine_physics_tests PRIVATE GameEngine::World GameEngine::Graphics GameEngine::Physics)
     engine_set_project_warnings(engine_physics_tests)
     add_test(NAME engine_physics_tests COMMAND engine_physics_tests)
+    add_executable(engine_nav_tests tests/nav_tests.cpp)
+    target_link_libraries(engine_nav_tests PRIVATE GameEngine::Nav)
+    engine_set_project_warnings(engine_nav_tests)
+    add_test(NAME engine_nav_tests COMMAND engine_nav_tests)
     add_executable(engine_script_tests tests/script_tests.cpp)
     target_link_libraries(engine_script_tests PRIVATE GameEngine::World GameEngine::Graphics GameEngine::Physics GameEngine::Script)
     engine_set_project_warnings(engine_script_tests)
@@ -264,7 +273,7 @@ endif()
 
 if(ENGINE_BUILD_TESTS)
     add_executable(engine_editor_bridge_tests tests/editor_bridge_tests.cpp apps/editor/runtime/bridge.cpp)
-    target_link_libraries(engine_editor_bridge_tests PRIVATE GameEngine::World GameEngine::Physics GameEngine::Script)
+    target_link_libraries(engine_editor_bridge_tests PRIVATE GameEngine::World GameEngine::Physics GameEngine::Nav GameEngine::Script)
     engine_set_project_warnings(engine_editor_bridge_tests)
     add_test(NAME engine_editor_bridge_tests COMMAND engine_editor_bridge_tests)
 endif()

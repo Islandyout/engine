@@ -119,6 +119,15 @@ event attack 0.4 hit
 
 It supports states with a clip, loop/once and a speed; transitions with `and`-joined conditions (comparisons, booleans, triggers, `end`) and crossfade times; and animation events at a normalized clip time. Scripts drive it with `anim.set`/`anim.trigger` and hear back through `on_anim_event`/`on_anim_state`. The editor fills in `speed`, `grounded` and `vy` automatically. See [F51](docs/IMPLEMENTATION_STATUS.md#f51--animator-state-machine-states-transitions-parameters-events-0510).
 
+Engine version 0.52.0 adds navigation and a camera rig:
+
+- **Navigation** (`engine::nav`): a new grid A* module, baked from solid colliders and inflated by the agent radius. It ignores low curbs, triggers and movable bodies, and smooths paths with line-of-sight checks.
+- **Chasing AI** now walks around walls instead of pressing into them. Scripts get the same paths through `world.path(...)`.
+- **`CameraFollow`**: on a `Camera` entity, a follow rig that tracks the Player or a named entity from an offset, eases toward it, pulls in front of obstacles, and can be orbited by dragging.
+- **`camera.shake(intensity, seconds)`** gives scripts screen shake.
+
+See [F52](docs/IMPLEMENTATION_STATUS.md#f52--navigation-grid-a-pathfinding-and-a-camera-rig-0520).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

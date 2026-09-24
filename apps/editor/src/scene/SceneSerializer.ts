@@ -211,6 +211,7 @@ const componentNames = [
   "Camera",
   "Material",
   "Animator",
+  "CameraFollow",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -407,6 +408,15 @@ export function normalizeComponent(
     }
     case "Animator":
       return { graph: string(value.graph, "Animator.graph") };
+    case "CameraFollow":
+      return {
+        target: string(value.target, "CameraFollow.target"),
+        offset: requiredVec3(value.offset, "CameraFollow.offset"),
+        smoothing: nonNegativeNumber(value.smoothing, "CameraFollow.smoothing"),
+        lookHeight: number(value.lookHeight, "CameraFollow.lookHeight"),
+        collision: boolean(value.collision, "CameraFollow.collision"),
+        orbit: boolean(value.orbit, "CameraFollow.orbit"),
+      };
     case "Material": {
       const metalness = number(value.metalness, "Material.metalness");
       const roughness = number(value.roughness, "Material.roughness");

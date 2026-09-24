@@ -59,6 +59,11 @@ const metadata: Record<string, PropertyMetadata> = {
   "Environment.shadows": { label: "Sun shadows" },
   "Environment.exposure": { label: "Exposure", step: "0.05" },
   "Camera.projection": { options: choice(["Perspective", "Orthographic"]) },
+  "CameraFollow.target": { label: "Target (entity name; empty = Player)" },
+  "CameraFollow.smoothing": { label: "Smoothing (seconds)", step: "0.05" },
+  "CameraFollow.lookHeight": { label: "Look height", step: "0.1" },
+  "CameraFollow.collision": { label: "Avoid obstacles" },
+  "CameraFollow.orbit": { label: "Orbit by dragging" },
   "Camera.fov": { label: "Field of view (degrees, vertical)", step: "1" },
   "Camera.orthoSize": { label: "Orthographic size (half height)", step: "0.5" },
   "Camera.priority": { label: "Priority (highest active camera renders)", step: "1" },
@@ -208,5 +213,5 @@ export const componentGroups: readonly ComponentGroup[] = [
   },
   { label: "Scripting & Audio", types: ["Script", "Sound"] },
   { label: "UI", types: ["UI"] },
-  { label: "Scene & Camera", types: ["Environment", "Camera"] },
+  { label: "Scene & Camera", types: ["Environment", "Camera", "CameraFollow"] },
 ];
