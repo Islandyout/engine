@@ -9,6 +9,26 @@ This compares engine **0.47.0** (commit `f29a081`) against the [Unity feature re
 
 The coverage percentages are rough estimates of the Unity feature surface in each area. They are not measurements.
 
+## Progress since this analysis (0.48.0–0.56.0)
+
+The suggested order below was worked through in nine features. Each has a README note and an `IMPLEMENTATION_STATUS.md` section.
+
+| Version | Feature | Closes |
+|---|---|---|
+| 0.48.0 | F48 Physics core | Dynamic-vs-dynamic collision, mass/forces/impulses, kinematic bodies, triggers + events, layers, bounciness, query filters. The inert `RigidBody.mass/dynamic` fields are now wired up |
+| 0.49.0 | F49 Lua API | Lifecycle and collision/trigger callbacks, `world.*` (find, spawn, destroy, raycast, overlap, send…), timers/coroutines, props, sound/UI/log from scripts, writable position |
+| 0.50.0 | F50 Rendering basics | Shadows, `Environment` (sky/IBL/fog/sun/exposure), `Camera`, `Material` |
+| 0.51.0 | F51 Animator | State machine, parameters, triggers, events, `on_anim_*` |
+| 0.52.0 | F52 Navigation + camera rig | Grid A* (`engine::nav`), AI and `world.path`, `CameraFollow` with collision/orbit, `camera.shake` |
+| 0.53.0 | F53 Input parity | All keys, mouse, touch, gamepad into the native `InputState`; native `ActionSystem` with rebindable `InputActions` |
+| 0.54.0 | F54 UI | Panel/Image/Bar/Slider/Toggle, layout, `on_ui`, `ui.set_value/visible` |
+| 0.55.0 | F55 Particles + trails | Shapes, over-lifetime, world space, bursts, `Trail` |
+| 0.56.0 | F56 Assets + stats | In-editor import (IndexedDB), `Material.texture`, Stats overlay with per-system timings |
+
+The biggest areas still open:
+- **P2**: multi-select and prefab overrides, a native GPU renderer, LOD/instancing, rotational physics and joints, blend trees and IK, audio mixer and 3D sound, terrain, splines.
+- **P3**: 2D, networking, an ECS job system, AI/ML.
+
 ## Scorecard
 
 | # | Area | Coverage | What exists | Biggest gaps |
