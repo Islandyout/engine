@@ -70,6 +70,35 @@ struct Script final {
 // and apps/editor/runtime/bridge.cpp's editor_seed_save/
 // editor_take_dirty_saves/editor_dirty_save_key/editor_dirty_save_value for
 // the browser host that actually does it via localStorage.
+//
+// An `input` global table gives every VM read access to the keyboard:
+// `input.down(key)` (true while `key` is physically held) and
+// `input.pressed(key)` (true only on the tick(s) the host reported `key`
+// transitioning from up to down since the last time this Runtime's
+// pending-press set was drained — see set_key_down's own doc comment).
+// `key` is a lowercase string (e.g. "f", "1", " "), not a native engine::Key
+// or a browser KeyCode — Runtime has no notion of either; it's whatever
+// string the host chooses to report, so it's the host's job (main.ts's own
+// keydown/keyup listeners) to decide which physical keys exist at all and
+// what to call them. Unlike self.vx/vy/vz (per-VM) or save (Runtime-wide,
+// read AND write from any script), input is Runtime-wide and read-only from
+// Lua's side — a script can react to a key, never simulate one being
+// pressed.
+//
+// A script also gets one write, `self.animate = "clipName"`, to request a
+// one-shot animation on its own entity — the same self table self.vx/vy/vz
+// already use, since this is exactly that table's job: the one channel
+// between a script and its own entity. Like self.vx/vy/vz, self.animate is
+// read back only after on_tick returns and only if it's actually a string
+// this tick (self is a fresh table every tick, so a script requests one
+// again each time it wants it re-triggered, the same way self.vx must be
+// re-set every tick to keep moving rather than being "sticky"). Runtime
+// itself has no idea what a clip even is — playing it, and deciding what
+// happens if the entity's model doesn't have a clip by that name, is
+// entirely the host's job (main.ts's own AnimationMixer/actions, the same
+// one startDeath() already drives) — see take_animation_request below and
+// apps/editor/runtime/bridge.cpp's editor_take_animation_request for how
+// the request actually reaches it.
 class Runtime final {
 public:
     Runtime();
@@ -89,6 +118,9 @@ public:
     // entity with no on_tick function defined is a silent no-op tick, not an
     // error — a script that only wants to run once at load time (global
     // statements outside any function) is a legitimate use, not a mistake.
+    // Also clears whatever key_just_pressed() reported true, once every
+    // entity's on_tick this call has run — see key_just_pressed's own doc
+    // comment for why that's a whole-tick window, not per entity.
     void step(World &world, float dt);
 
     // Called at most once per entity, the first time its script fails to
@@ -124,6 +156,33 @@ public:
     // without Runtime itself knowing anything about browsers or files.
     std::vector<std::pair<std::string, std::string>> take_dirty_saves();
 
+    // Called by the host once per physical keydown/keyup edge (not once per
+    // tick, and not polled — an edge the host never reports is simply never
+    // known to Runtime), before the next step() call that edge should be
+    // visible to. down=true on a genuine down-edge marks key_just_pressed
+    // true for every entity's on_tick during the very next step() call only
+    // (step() clears it once that call finishes — see step()'s own doc
+    // comment); down=false only clears key_down and never marks a press.
+    void set_key_down(const std::string &key, bool down);
+
+    // What a script's input.down(key) reads: is `key` physically held right
+    // now, per the host's own most recent set_key_down("key", ...) call.
+    bool key_down(const std::string &key) const;
+
+    // What a script's input.pressed(key) reads: did `key` transition from up
+    // to down since the last time step() cleared this set (i.e. since the
+    // previous tick) — true for every entity's on_tick during the one
+    // step() call right after the down-edge was reported, false again on
+    // every call after that until another down-edge arrives.
+    bool key_just_pressed(const std::string &key) const;
+
+    // Whatever this entity's self.animate = "clipName" requested this tick,
+    // or "" if it didn't request one -- taken once per entity per host poll
+    // (see apps/editor/runtime/bridge.cpp's editor_take_animation_request)
+    // and cleared on read, so a request is only ever handed to the host
+    // once.
+    std::string take_animation_request(Entity entity);
+
 private:
     struct Instance;
     // unique_ptr so Instance (which owns a raw lua_State* the public header
@@ -140,6 +199,16 @@ private:
     // call — a set, not a vector, so a key written more than once between
     // polls is still reported exactly once, with its latest value.
     std::set<std::string> dirty_saves_;
+    // Keys currently physically held, and keys that transitioned to held
+    // since step()'s own last clear -- see set_key_down/key_down/
+    // key_just_pressed's own doc comments. Runtime-wide (like saved_), not
+    // per-Instance -- every script sees the same keyboard.
+    std::set<std::string> keys_down_;
+    std::set<std::string> keys_just_pressed_;
+    // One pending self.animate request per entity, read back after on_tick
+    // runs (see the class's own doc comment on self.animate above) and
+    // taken by the host via take_animation_request.
+    std::map<Entity, std::string> animation_requests_;
 };
 
 } // namespace engine::script

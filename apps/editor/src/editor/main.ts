@@ -176,6 +176,18 @@ type Runtime = {
     argTypes: ["number"],
     args: [number],
   ): string;
+  ccall(
+    name: "editor_script_key",
+    returnType: null,
+    argTypes: ["string", "number"],
+    args: [string, number],
+  ): void;
+  ccall(
+    name: "editor_take_animation_request",
+    returnType: "string",
+    argTypes: ["number"],
+    args: [number],
+  ): string;
 };
 declare const createEditorRuntime: () => Runtime | Promise<Runtime>;
 async function startEditor() {
@@ -346,6 +358,13 @@ async function startEditor() {
     actions: Map<string, THREE.AnimationAction>;
     current?: string;
     prevPosition: THREE.Vector3;
+    // True while a script-triggered self.animate one-shot (see
+    // pollAnimationRequests below) is still playing -- cleared once the
+    // mixer reports that specific action finished. The ground-speed
+    // locomotion picker must skip an entity while this is true, the same
+    // "don't fight a clip that was just deliberately started" reasoning
+    // startDeath()'s own deathStates gate already established.
+    oneShot?: boolean;
   }
   // Parallel to `objects`; index i holds the animation state for objects[i], or
   // undefined for a non-animated (static) entity. Reset alongside objects on every rebuild().
@@ -923,6 +942,21 @@ async function startEditor() {
     KeyF: 5,
     KeyG: 6,
   };
+  // Every physical key (not just the bound seven above) queued the same way,
+  // for a Script's own input.down/input.pressed (engine::script::Runtime's
+  // own doc comment, script.hpp, on why this is a separate, wider path from
+  // InputState/editor_key). Keyed by event.key.toLowerCase(), not
+  // event.code -- the readable form a script author actually writes
+  // (input.down("f")), not a physical-layout string like "KeyF".
+  const scriptKeyQueue: Array<[key: string, down: number]> = [];
+  const heldScriptKeys = new Set<string>();
+  // event.key depends on modifier state (Shift+1 is "!"), so recomputing it
+  // on keyup can pair a key-down with a different key-up identity -- e.g.
+  // Shift released before "1": the down edge queued "!", but the up edge
+  // would then queue "1", leaving input.down("!") stuck true forever with
+  // no matching release. Recording each physical event.code's logical key
+  // at press time and releasing that same value avoids the mismatch.
+  const scriptKeyByCode = new Map<string, string>();
   // Releases are accepted in both Play and Pause (only Edit is excluded) so
   // a key physically released while paused still clears its held state,
   // matching the native platform's own semantics. Guarding both on
@@ -934,6 +968,9 @@ async function startEditor() {
   function releaseHeldKeys() {
     for (const code of heldKeys) keyQueue.push([code, 0]);
     heldKeys.clear();
+    for (const key of heldScriptKeys) scriptKeyQueue.push([key, 0]);
+    heldScriptKeys.clear();
+    scriptKeyByCode.clear();
   }
   window.addEventListener("keydown", (event) => {
     if (doc.mode !== "play" || event.repeat) return;
@@ -942,6 +979,10 @@ async function startEditor() {
       keyQueue.push([code, 1]);
       heldKeys.add(code);
     }
+    const key = event.key.toLowerCase();
+    scriptKeyByCode.set(event.code, key);
+    scriptKeyQueue.push([key, 1]);
+    heldScriptKeys.add(key);
   });
   window.addEventListener("keyup", (event) => {
     if (doc.mode === "edit") return;
@@ -950,6 +991,10 @@ async function startEditor() {
       keyQueue.push([code, 0]);
       heldKeys.delete(code);
     }
+    const key = scriptKeyByCode.get(event.code) ?? event.key.toLowerCase();
+    scriptKeyByCode.delete(event.code);
+    scriptKeyQueue.push([key, 0]);
+    heldScriptKeys.delete(key);
   });
   window.addEventListener("blur", () => {
     if (doc.mode !== "edit") releaseHeldKeys();
@@ -1047,6 +1092,73 @@ async function startEditor() {
         // Still failing -- leave it queued for the next frame's retry.
       }
     }
+  }
+  // Polls whatever a script requested via self.animate this tick (see
+  // engine::script::Runtime's own doc comment, script.hpp, and
+  // editor_take_animation_request, bridge.cpp) and plays it as a one-shot,
+  // once per rendered frame like persistDirtySaves above, not per fixed
+  // tick. Silently ignored if the entity has no AnimState (a plain box has
+  // nothing to animate) or the requested name isn't one of this model's own
+  // clips -- the same "bonus when present, not a requirement" contract
+  // startDeath()'s own death-clip lookup already has, not an error.
+  function pollAnimationRequests() {
+    const entities = doc.scene.eachAlive();
+    animStates.forEach((state, i) => {
+      if (!state) return;
+      const clip = runtime.ccall("editor_take_animation_request", "string", ["number"], [i]);
+      if (!clip) return;
+      const action = state.actions.get(clip);
+      if (!action) return;
+      const previous = state.current ? state.actions.get(state.current) : undefined;
+      action.reset().setLoop(THREE.LoopOnce, 1);
+      action.clampWhenFinished = true;
+      action.fadeIn(0.15).play();
+      if (previous && previous !== action) previous.fadeOut(0.15);
+      state.current = clip;
+      state.oneShot = true;
+      // Captured now, not re-resolved from doc.scene inside onFinished --
+      // rebuild() never runs mid-Play (same invariant startDeath() already
+      // relies on), so this entity/index pairing stays valid for as long as
+      // this one-shot can still be playing.
+      const entity = entities[i];
+      const onFinished = (event: { action: THREE.AnimationAction }) => {
+        if (event.action !== action) return;
+        state.oneShot = false;
+        state.mixer.removeEventListener("finished", onFinished);
+        // An authored AnimationState.clip (see rebuild()) pins a specific
+        // resting clip that the ground-speed picker deliberately never
+        // fights (it treats `overridden` as "leave it alone"). Left
+        // unhandled, that means nobody ever un-clamps this one-shot's own
+        // final frame once it's done -- the entity would sit there forever
+        // instead of returning to its authored pin. Replay the pin with the
+        // exact same loop/time configuration rebuild() itself applies.
+        const override = entity && doc.scene.resolve(entity, "AnimationState");
+        if (override?.clip && state.actions.has(override.clip)) {
+          const pinned = state.actions.get(override.clip)!;
+          pinned.setLoop(override.looping ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+          pinned.clampWhenFinished = !override.looping;
+          if (Number.isFinite(override.time)) pinned.time = override.time;
+          pinned.reset().fadeIn(0.15).play();
+          if (pinned !== action) action.fadeOut(0.15);
+          state.current = override.clip;
+        } else {
+          // No authored pin -- hand this action back to ordinary looping
+          // playback instead of leaving it clamped on its final frame.
+          // Needed even though the ground-speed picker below also resets
+          // loop mode on every clip it (re)selects: if the requested clip
+          // shares its name with whatever's already state.current (a script
+          // reusing a locomotion clip's own name as its "hit" animation,
+          // e.g. self.animate = "idle" while already idle), the picker's
+          // `clipName !== state.current` guard is false and it never
+          // revisits this action at all -- it would otherwise stay frozen
+          // forever with no further event to unstick it.
+          action.setLoop(THREE.LoopRepeat, Infinity);
+          action.clampWhenFinished = false;
+          action.reset().play();
+        }
+      };
+      state.mixer.addEventListener("finished", onFinished);
+    });
   }
   function syncRuntime() {
     runtime._editor_begin();
@@ -1943,6 +2055,9 @@ async function startEditor() {
       runtime._editor_set_camera_forward(cameraForwardScratch.x, cameraForwardScratch.z);
       for (const [code, down] of keyQueue) runtime._editor_key(code, down);
       keyQueue.length = 0;
+      for (const [key, down] of scriptKeyQueue)
+        runtime.ccall("editor_script_key", null, ["string", "number"], [key, down]);
+      scriptKeyQueue.length = 0;
       accumulator += dt;
       while (accumulator >= 1 / 60 && steps++ < 5) {
         runtime._editor_tick();
@@ -1950,6 +2065,7 @@ async function startEditor() {
         accumulator -= 1 / 60;
       }
       persistDirtySaves();
+      pollAnimationRequests();
       objects.forEach((object, i) => {
         // Combat/AI can destroy an authored entity (Health reaching 0) mid-session;
         // its index stays in objects[] (entities can't be added/removed while
@@ -2048,8 +2164,12 @@ async function startEditor() {
         // fought here -- its position stopped updating the moment it died
         // (see the objects.forEach block above), so an unconditional pass
         // reads that as speed 0 and immediately crossfades to "idle",
-        // undoing the death clip the very frame it started.
-        if (deathStates[i]) return;
+        // undoing the death clip the very frame it started. A script's own
+        // self.animate one-shot (pollAnimationRequests above) is the same
+        // problem one tick earlier: the entity is very much still moving,
+        // so ground speed alone can't tell "mid one-shot" apart from
+        // "should already be back to walk/run."
+        if (deathStates[i] || state.oneShot) return;
         const object = objects[i]!;
         const dx = object.position.x - state.prevPosition.x;
         const dz = object.position.z - state.prevPosition.z;
@@ -2084,6 +2204,13 @@ async function startEditor() {
             ? state.actions.get(state.current)
             : undefined;
           if (next) {
+            // A script's self.animate (pollAnimationRequests above) may have
+            // left this exact action set to LoopOnce/clampWhenFinished from
+            // an earlier one-shot -- .reset() alone doesn't touch loop mode,
+            // so without this it would play once here and freeze instead of
+            // looping like ordinary locomotion.
+            next.setLoop(THREE.LoopRepeat, Infinity);
+            next.clampWhenFinished = false;
             next.reset().fadeIn(0.2).play();
             if (previous && previous !== next) previous.fadeOut(0.2);
             state.current = clipName;

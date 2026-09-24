@@ -20,6 +20,8 @@ int editor_count();
 const char *editor_script_error(int);
 int editor_projectile_count();
 double editor_projectile_value(int, int);
+void editor_script_key(const char *, int);
+const char *editor_take_animation_request(int);
 }
 namespace {
 int add_unit(double x, double y, double z, double vx, double vy, double vz) {
@@ -794,6 +796,34 @@ int main() {
     editor_tick();
     check(std::string(editor_script_error(0)).empty());
 
+    // editor_script_key reaches a script's own input.down/input.pressed -- entirely separate
+    // from editor_key's own small W/A/S/D/Shift/F/G set (key_for's own contract): a plain
+    // string, not one of key_for's seven codes, still reaches the sandbox's `input` table.
+    // Generous tick counts and position margins throughout, not razor-thin single-tick deltas,
+    // so this checks the actual direction of drift rather than exact per-tick arithmetic.
+    editor_begin();
+    check(add_unit(0, 0.5, 0, 0, 0, 0) == 1);
+    editor_set_script_source(
+        0, "function on_tick(dt) if input.pressed('1') then self.animate = 'hit' end "
+           "self.vx = input.down('1') and 5 or -5 end");
+    check(editor_commit() == 1);
+    for (int i = 0; i < 10; ++i)
+        editor_tick(); // '1' never reported held -- input.down is false, so vx stays negative
+    check(editor_value(0, 0) < -0.5);
+    check(std::string(editor_take_animation_request(0)).empty()); // never pressed
+    editor_script_key("1", 1);
+    editor_tick();
+    check(std::string(editor_take_animation_request(0)) == "hit"); // input.pressed fired this tick
+    editor_tick(); // still held, but not a fresh press -- no new request
+    check(std::string(editor_take_animation_request(0)).empty());
+    for (int i = 0; i < 20; ++i)
+        editor_tick(); // held throughout -- vx positive long enough to reverse the earlier drift
+    check(editor_value(0, 0) > 0.5);
+    editor_script_key("1", 0);
+    for (int i = 0; i < 20; ++i)
+        editor_tick();
+    check(editor_value(0, 0) < 0); // released -- drifting negative again
+
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
                  "movement, jump/sustained-flight, Collider box and sphere obstacle blocking, "
@@ -803,6 +833,7 @@ int main() {
                  "a Chasing AIAgent attacking the Player back on a real cooldown (and Fleeing/"
                  "Pedestrian/no-Health-Player never attacking), resuming wander cleanly after a "
                  "chase/flee ends, Vehicle/Pedestrian archetype handling profiles (and their "
-                 "range validation), and Script velocity control with compile-error reporting "
-                 "passed.\n";
+                 "range validation), Script velocity control with compile-error reporting, and "
+                 "editor_script_key reaching a script's own input.down/input.pressed/self.animate "
+                 "(separate from editor_key's own bound W/A/S/D/Shift/F/G set) passed.\n";
 }

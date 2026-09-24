@@ -404,12 +404,118 @@ int main() {
                   "a saved value survives a Script.source change (recompiled VM, same Runtime)");
         }
 
+        {
+            // input.down(key) reflects the host's own set_key_down calls: true while held,
+            // false once released -- a plain level check, no edge semantics.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            const auto entity = world.create();
+            world.set(entity, Box{{0, 5, 0}, {1, 1, 1}});
+            world.set(entity, RigidBody{});
+            world.set(entity, Script{"function on_tick(dt) self.vx = input.down('f') and 1 or -1 end"});
+            Runtime runtime;
+            runtime.step(world, 1.0F / 60);
+            check(std::abs(world.get<RigidBody>(entity)->velocity.x - -1) < 0.01F,
+                  "input.down is false for a key never reported held");
+            runtime.set_key_down("f", true);
+            runtime.step(world, 1.0F / 60);
+            check(std::abs(world.get<RigidBody>(entity)->velocity.x - 1) < 0.01F,
+                  "input.down is true while the host reports the key held");
+            runtime.set_key_down("f", false);
+            runtime.step(world, 1.0F / 60);
+            check(std::abs(world.get<RigidBody>(entity)->velocity.x - -1) < 0.01F,
+                  "input.down goes back to false once the host reports the key released");
+        }
+        {
+            // input.pressed(key) is edge-triggered: true only on the one step() call right
+            // after a down-edge, false again on every later call even while still held --
+            // distinct from input.down's plain level check.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            const auto entity = world.create();
+            world.set(entity, Box{{0, 5, 0}, {1, 1, 1}});
+            world.set(entity, RigidBody{});
+            world.set(entity, Script{"function on_tick(dt) self.vx = input.pressed('f') and 1 or -1 end"});
+            Runtime runtime;
+            runtime.set_key_down("f", true);
+            runtime.step(world, 1.0F / 60);
+            check(std::abs(world.get<RigidBody>(entity)->velocity.x - 1) < 0.01F,
+                  "input.pressed is true on the tick right after the down-edge");
+            runtime.step(world, 1.0F / 60);
+            check(std::abs(world.get<RigidBody>(entity)->velocity.x - -1) < 0.01F,
+                  "input.pressed is false on a later tick, even while the key is still held");
+            runtime.set_key_down("f", false);
+            runtime.set_key_down("f", true);
+            runtime.step(world, 1.0F / 60);
+            check(std::abs(world.get<RigidBody>(entity)->velocity.x - 1) < 0.01F,
+                  "input.pressed fires again on a genuinely new down-edge (release then re-press)");
+        }
+        {
+            // self.animate = "clipName" is picked up by take_animation_request(entity) --
+            // the one write channel from a script to the host's own animation system.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            const auto entity = world.create();
+            world.set(entity, Box{{0, 5, 0}, {1, 1, 1}});
+            world.set(entity, RigidBody{});
+            world.set(entity, Script{"function on_tick(dt) if input.pressed('f') then self.animate = 'hit' end end"});
+            Runtime runtime;
+            check(runtime.take_animation_request(entity).empty(),
+                  "no animation request before any script has run");
+            runtime.step(world, 1.0F / 60); // no key pressed yet -- self.animate never set this tick
+            check(runtime.take_animation_request(entity).empty(),
+                  "no animation request on a tick the script didn't set self.animate");
+            runtime.set_key_down("f", true);
+            runtime.step(world, 1.0F / 60);
+            check(runtime.take_animation_request(entity) == "hit",
+                  "self.animate = 'hit' is picked up as this entity's pending animation request");
+            check(runtime.take_animation_request(entity).empty(),
+                  "take_animation_request clears the request once read");
+            // self is a fresh table every tick, so an unchanged script (still only setting
+            // self.animate on input.pressed, not every tick) does not keep re-requesting it
+            // while the key stays held but isn't a fresh press.
+            runtime.step(world, 1.0F / 60);
+            check(runtime.take_animation_request(entity).empty(),
+                  "self.animate is not sticky -- a script must re-set it to re-trigger");
+        }
+        {
+            // self.animate set to a table (never a valid clip name, and not a value
+            // lua_isstring's own number-coercion accepts either -- unlike self.animate = 42,
+            // which Lua's C API treats as if it were the string "42", same as save.set's own
+            // tolstring coercion elsewhere) is simply never treated as a request, not a crash
+            // or a stale one left over from an earlier tick.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            const auto entity = world.create();
+            world.set(entity, Box{{0, 5, 0}, {1, 1, 1}});
+            world.set(entity, RigidBody{});
+            world.set(entity, Script{"function on_tick(dt) self.animate = {} end"});
+            Runtime runtime;
+            runtime.step(world, 1.0F / 60); // must not crash converting a table self.animate
+            check(runtime.take_animation_request(entity).empty(),
+                  "a table self.animate is not coerced into an animation request");
+        }
+
         std::cout << "Script: velocity control, read-only self.x/y/z, no-op without on_tick, "
                      "compile/runtime error containment, non-string error() values, source-change "
                      "recompilation, os/io sandboxing, runaway-loop watchdog, cleanup on Script removal, "
-                     "per-entity VM isolation, non-finite velocity rejection, and save/load persistence "
+                     "per-entity VM isolation, non-finite velocity rejection, save/load persistence "
                      "(cross-VM sharing, unset keys, host seeding, dirty-tracking, surviving a source "
-                     "change) passed.\n";
+                     "change), input.down/input.pressed (level vs. edge semantics), and self.animate "
+                     "animation requests (including non-sticky and non-string-coercible handling) "
+                     "passed.\n";
     } catch (const std::exception &e) {
         std::cerr << "script test failed: " << e.what() << "\n";
         return 1;

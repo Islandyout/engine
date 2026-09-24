@@ -904,6 +904,19 @@ EXPORT void editor_key(int code, int down) {
     active->input.apply(engine::KeyEvent{
         1, key_for(code), down ? engine::ButtonAction::pressed : engine::ButtonAction::released, false});
 }
+// The general-purpose companion to editor_key() above: forwards every
+// physical key the JS side chooses to report (not just the small
+// W/A/S/D/Shift/F/G set key_for() understands) into the Script sandbox's own
+// `input` table -- see engine::script::Runtime::set_key_down's own doc
+// comment (script.hpp) for why this is a plain string, not an engine::Key,
+// and entirely separate from InputState/editor_key above (movement/combat
+// keys stay native-typed and fixed; a script's own key bindings are
+// whatever string the game author picks). Call once per physical
+// keydown/keyup edge, same timing as editor_key -- before the editor_tick()
+// call(s) that edge should be visible to.
+EXPORT void editor_script_key(const char *key, int down) {
+    active->script_runtime.set_key_down(key, down != 0);
+}
 // field 0/1/2 are Box.center.x/y/z; field 3 is Health.current/Health.max (a ratio in [0, 1]),
 // or -1 if the entity has no Health; field 4 is Heading.yaw (radians, 0 for an entity with no
 // Heading — indistinguishable from a real yaw of 0, but JS only ever reads this for an entity
@@ -961,6 +974,19 @@ EXPORT const char *editor_script_error(int index) {
         if (found != active->script_errors.end())
             result = found->second;
     }
+    return result.c_str();
+}
+// Whatever the entity at this index requested via self.animate = "clipName"
+// this tick (see engine::script::Runtime's own doc comment, script.hpp), or
+// "" if it didn't -- same "static std::string result, outlives the call"
+// contract as editor_script_error above, and the same "call once per entity
+// per frame" idiom the host uses elsewhere for anything Runtime tracks
+// per-entity. Out of range returns "".
+EXPORT const char *editor_take_animation_request(int index) {
+    static std::string result;
+    result.clear();
+    if (index >= 0 && static_cast<std::size_t>(index) < active->entities.size())
+        result = active->script_runtime.take_animation_request(active->entities[static_cast<std::size_t>(index)]);
     return result.c_str();
 }
 // Restores one previously-persisted save key (e.g. read from localStorage by
