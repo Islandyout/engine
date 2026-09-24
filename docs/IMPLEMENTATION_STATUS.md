@@ -3655,3 +3655,102 @@ per-entity `self` table pattern `save`/`self.vx` already established.
   alternative to scripting (the user explicitly chose the Script/Lua route
   over this); the player death/game-over handling (still tracked
   separately, the last item on this gap audit).
+
+## F48 — F/G play an animation natively, plus a crouch/sit key (0.48.0)
+
+A direct follow-up to F47: F (melee) and G (ranged blast) already dealt
+damage, but nothing ever played a matching animation unless the entity
+happened to carry a hand-authored Script doing `self.animate = "..."` --
+the user's own ask was for this to work with no scripting at all, and to
+extend the same idea to a real crouch/sit interaction. Landed as two
+pieces: a native animation-request channel any bridge system can use
+directly (no Lua involved), and a new bound key.
+
+### Design
+
+- `engine::script::Runtime::request_animation(Entity, clip)` — a new public
+  method that writes into the exact same `animation_requests_` map a
+  script's own `self.animate` already uses, just called directly from C++.
+  Native code has no Lua VM of its own to go through, so this is the
+  natural extension point rather than a second, parallel channel: the host
+  (`main.ts`'s `pollAnimationRequests`) can't tell a native request from a
+  scripted one, and doesn't need to.
+- `editor.combat` (F) and `editor.move`'s blast branch (G) call it with
+  `"attack"`/`"blast"` on every press, hit or miss — the animation is tied
+  to the action, matching how a real game plays its swing/fire animation
+  even on a whiff, not gated on `damage()` actually landing. `editor.ai_attack`
+  calls it with `"attack"` too, but only when a hostile `AIAgent` actually
+  lands a hit (its cooldown-gated overlap check *is* its own action, unlike
+  the Player's separate press/hit distinction).
+- A new key, C (`key_for()` code 7), makes the Player crouch/sit while
+  held: `editor.move`'s on-foot branch ignores WASD entirely for as long as
+  C is down (sitting-while-sliding-across-the-floor would look wrong), and
+  freeing this is a native gate rather than something `main.ts` has to
+  fight against every frame.
+- The gap this round actually had to close on the TS side: `"attack"`/
+  `"blast"`/`"sit"` are abstract keys, not real clip names — different
+  imported packs name the "same" action differently (the Aether animal
+  kit's `Attack`, Mannequin F (Mixamo)'s `punching`/`firing_rifle`,
+  Mannequin F's own `sit`; see `assets/CREDITS.md`), and
+  `pollAnimationRequests`'s existing exact-name lookup only ever worked for
+  a script naming its own model's clip literally. A new
+  `actionClipSynonyms`/`resolveActionClip` pair (`main.ts`) tries a short,
+  case-insensitive candidate list for exactly these three reserved keys —
+  `attack` → `punch`/`punching`/`melee` etc. — and falls back to a plain
+  case-insensitive exact-name match for anything else (an ordinary Lua
+  `self.animate` request), so nothing about F47's own contract changed for
+  a script author. The ground-speed locomotion picker gets the same
+  treatment for crouch: `sitClip` (resolved the same way, only while C is
+  held and only for the Player's own index) now takes priority over both
+  the automatic speed-based pick and an authored `AnimationState.clip` pin
+  — an explicit, held player action outranks both, the same way a one-shot
+  request already preempts the whole loop via the existing `oneShot` gate.
+
+### F48 verification
+
+- New native `engine_editor_bridge_tests` coverage: F queues `"attack"` on
+  both a miss (nothing to hit) and a hit, drained via
+  `editor_take_animation_request` and confirmed non-sticky; G queues
+  `"blast"` even with nothing to aim at (the shot itself no-ops, the
+  animation still fires); a Chasing `AIAgent` landing a hit queues its own
+  `"attack"` request (checked against its own index, never the Player's);
+  the same AI *not* landing a hit (still inside its cooldown) queues
+  nothing; C held zeroes the Player's own WASD input entirely (checked
+  against W specifically, then confirmed movement resumes once released).
+- Full `ctest` — 14/14 passing, including the new coverage above.
+- `npm run typecheck`/`npm test` — 37/37 passing.
+- Built the real Emscripten/WASM editor and verified all four pieces
+  against real running sessions, not by inspection: temporarily exposed
+  `{ animStates, heldKeys }` on `window` (removed before this was
+  committed — the shipped app has no such hook).
+  - Placed the bundled Mannequin F (Mixamo) catalog entry (real clips
+    `punching`/`firing_rifle`/`flying`) as the Player, pressed F and G with
+    real DOM keyboard events: `animStates[i].current` became `"punching"`
+    then, after it finished, `"firing_rifle"` — confirming the synonym-list
+    resolution actually reaches the right clip on a model whose clips don't
+    literally spell "attack"/"blast".
+  - Separately placed the plain Mannequin F (real clip `sit`) as the
+    Player, held C+W together: `animStates[i].current` became `"sit"` and
+    the status bar's own Player position readout stayed exactly fixed for
+    the whole hold (`(0, 0.5, 0)` throughout) — confirming both the clip
+    resolution and the native movement freeze. Released C, pressed W alone:
+    the Player moved normally again, confirming the freeze isn't sticky.
+  - Placed a Player overlapping a bundled Wolf (real clip `Attack`,
+    capitalized) with an `AIState` authored, entered Play: the Wolf's own
+    `animStates[i].current` became `"Attack"` the instant its first hit
+    landed — confirming the AI-attack path (a different bridge system, a
+    different entity's own index, no key press at all) reaches the exact
+    same resolution.
+- Full existing `tests/browser/editor.cjs` black-box suite re-run after the
+  change (and again after the temporary debug hook was removed) — zero
+  regression.
+- Not done here: a jump/fly gate while crouching (C only freezes
+  horizontal WASD; Shift still jumps/flies while held, a minor inconsistency
+  left as-is rather than widening this round's scope); a crouch/sit
+  interaction for any entity other than the Player (AI/Pedestrian never
+  receive key input at all, so this is Player-only by construction, matching
+  F/G's own Player-only reach); sprinting specifically was not touched at
+  all — it already plays automatically through the pre-existing ground-speed
+  tiers (`pickClipName`), which is why the user's own request to
+  "extrapolate this to every other animation like sitting and sprinting"
+  only actually needed new work for sitting.

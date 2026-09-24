@@ -233,6 +233,8 @@ engine::Key key_for(int code) {
         return engine::Key::f;
     case 6:
         return engine::Key::g;
+    case 7:
+        return engine::Key::c;
     default:
         return engine::Key::unknown;
     }
@@ -522,14 +524,22 @@ struct Runtime {
                         // own doc comment), not a fixed world axis, so the felt direction of
                         // every key stays correct regardless of how the camera's been orbited.
                         float right = 0, forward = 0;
-                        if (context.input.key_down(engine::Key::a))
-                            right -= 1;
-                        if (context.input.key_down(engine::Key::d))
-                            right += 1;
-                        if (context.input.key_down(engine::Key::w))
-                            forward += 1;
-                        if (context.input.key_down(engine::Key::s))
-                            forward -= 1;
+                        // Crouching/sitting (C, key_for() code 7) ignores WASD entirely
+                        // instead of merely playing a different clip over live movement --
+                        // sliding along the ground while visibly sitting would look wrong,
+                        // and freezing the input here is the simplest way to guarantee it,
+                        // rather than trying to keep a "sit" animation visually in sync with
+                        // a still-moving Box.
+                        if (!context.input.key_down(engine::Key::c)) {
+                            if (context.input.key_down(engine::Key::a))
+                                right -= 1;
+                            if (context.input.key_down(engine::Key::d))
+                                right += 1;
+                            if (context.input.key_down(engine::Key::w))
+                                forward += 1;
+                            if (context.input.key_down(engine::Key::s))
+                                forward -= 1;
+                        }
                         const float fx = camera_forward_x, fz = camera_forward_z;
                         const float right_x = -fz, right_z = fx; // cross(forward, up), up = +y
                         body.velocity.x = (right_x * right + fx * forward) * move_speed;
@@ -549,6 +559,12 @@ struct Runtime {
                     // own enemy.has_value() guard.
                     if (pending_blast) {
                         pending_blast = false; // consumed by this tick, not every tick this frame
+                        // Plays a firing/ranged-attack clip on every G press, whether or not
+                        // anything was actually in range to hit -- same reasoning as
+                        // editor.combat's own request_animation call below: the animation is
+                        // tied to the action, not its outcome, matching a real game where a
+                        // whiffed attack still plays its swing/fire animation.
+                        script_runtime.request_animation(entity, "blast");
                         const auto &box = *w.get<engine::Box>(entity);
                         std::optional<engine::Entity> nearest;
                         float nearest_distance_sq = 0;
@@ -632,6 +648,14 @@ struct Runtime {
                     return;
                 pending_attack = false; // consumed by this tick, not every tick this frame
                 for (const auto entity : w.query<engine::Box, PlayerMarker>()) {
+                    // Plays a punch/attack clip on every F press, whether or not it
+                    // actually connects with a Health entity below -- the animation is
+                    // tied to the action (a real game plays a swing animation on a miss
+                    // too), not gated on damage() actually landing. See
+                    // engine::script::Runtime::request_animation's own doc comment: this
+                    // reaches main.ts's pollAnimationRequests the same way a script's own
+                    // self.animate would, just triggered natively instead of from Lua.
+                    script_runtime.request_animation(entity, "attack");
                     const auto &box = *w.get<engine::Box>(entity);
                     for (const auto target : w.query<engine::Box, Health>()) {
                         if (target == entity)
@@ -664,7 +688,7 @@ struct Runtime {
         // Player, not the order number.
         systems.add(
             "editor.ai_attack", engine::FixedPhase::update, 21,
-            [](engine::World &w, const engine::FixedUpdateContext &) {
+            [this](engine::World &w, const engine::FixedUpdateContext &) {
                 constexpr float dt = 1.0F / 60.0F;
                 for (const auto entity : w.query<engine::Box, AIAgent>()) {
                     auto &agent = *w.get<AIAgent>(entity);
@@ -680,6 +704,11 @@ struct Runtime {
                         if (engine::physics::overlaps(box, *w.get<engine::Box>(target))) {
                             damage(w, target, ai_attack_damage);
                             agent.attack_cooldown = ai_attack_interval;
+                            // Unlike the Player's own F/G (which animate on every press,
+                            // hit or miss), an AIAgent's only "action" here is landing a
+                            // hit at all -- it has no separate swing/miss beat to animate,
+                            // so this is the one point that stands in for both.
+                            script_runtime.request_animation(entity, "attack");
                             break;
                         }
                     }
@@ -886,9 +915,9 @@ EXPORT void editor_set_camera_forward(double x, double z) {
     }
 }
 // code is one of the small set key_for() understands
-// (0=W,1=A,2=S,3=D,4=Shift,5=F/attack,6=G/blast); anything else maps to
-// Key::unknown and is silently inert. down is nonzero for a keydown, zero
-// for a keyup.
+// (0=W,1=A,2=S,3=D,4=Shift,5=F/attack,6=G/blast,7=C/crouch-sit); anything
+// else maps to Key::unknown and is silently inert. down is nonzero for a
+// keydown, zero for a keyup.
 EXPORT void editor_key(int code, int down) {
     // F/G set their own pending_attack/pending_blast edge here, independent of
     // InputState's own per-*frame* key_pressed() (see Runtime::pending_attack's

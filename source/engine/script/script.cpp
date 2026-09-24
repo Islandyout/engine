@@ -235,6 +235,8 @@ std::string Runtime::take_animation_request(Entity entity) {
     return result;
 }
 
+void Runtime::request_animation(Entity entity, std::string clip) { animation_requests_[entity] = std::move(clip); }
+
 void Runtime::step(World &world, float dt) {
     // Drop instances for entities that no longer qualify — Script removed,
     // or the entity itself destroyed — so a VM is never kept running (or a
