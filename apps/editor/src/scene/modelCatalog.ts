@@ -14,8 +14,19 @@ export interface CatalogEntry {
 // tools/import_model.mjs so a new import can't accidentally resurrect one.
 // A structural record of that rule, not just the prose comment, so both this
 // file's own history and any tool reading it agree on what's retired.
+//
+// 137 was "Mannequin F (Mixamo)" (0.38.0-0.48.0): its 3 clips are
+// retargeted onto id 132's own skeleton as of 0.49.0 (see
+// assets/CREDITS.md), so this separate entry is gone -- a saved scene still
+// referencing 137 falls back to the default box (rebuild()'s existing
+// cache-miss behavior), not a crash.
+//
+// No comments *inside* the array below -- tools/import_model.mjs's own
+// retiredIds() parses this literal as plain text (split on "," -> Number()),
+// so a comment placed between the brackets becomes a bogus, comma-bearing
+// "entry" of its own and corrupts every id parsed after it into NaN.
 export const retiredCatalogIds: readonly number[] = [
-  119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131,
+  119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 137,
 ];
 
 export const modelCatalog: CatalogEntry[] = [
@@ -149,19 +160,18 @@ export const modelCatalog: CatalogEntry[] = [
   // assets/CREDITS.md. Not reused: a future import gets its own fresh ids rather
   // than resurrecting ones a saved scene might still (however unlikely) reference.
   //
-  // Quaternius CC0 packs (0.32.0) -- see assets/CREDITS.md.
+  // Quaternius CC0 packs (0.32.0) -- see assets/CREDITS.md. `mannequin_f.glb`
+  // carries 9 clips as of 0.49.0: its own idle/walk/run/sprint/talk/sit plus
+  // flying/firing_rifle/punching, retargeted from the Mixamo auto-rig that
+  // used to ship as a separate "Mannequin F (Mixamo)" entry (id 137, now
+  // retired below) -- see assets/CREDITS.md's own "Mannequin F retarget
+  // merge" entry for how, and why an earlier attempt at this exact
+  // retarget (F37/F38) was abandoned in favor of that second entry.
   { id: 132, category: "people", name: "Mannequin F", path: "./kit/people/mannequin_f.glb", animated: true },
   { id: 133, category: "animals", name: "Wolf", path: "./kit/animals/wolf.glb", animated: true },
   { id: 134, category: "animals", name: "Husky", path: "./kit/animals/husky.glb", animated: true },
   { id: 135, category: "animals", name: "Stag", path: "./kit/animals/stag.glb", animated: true },
   { id: 136, category: "animals", name: "Alpaca", path: "./kit/animals/alpaca.glb", animated: true },
-  // Mixamo auto-rig (0.38.0) -- see assets/CREDITS.md. Mannequin F's own mesh,
-  // re-rigged onto Mixamo's standard skeleton and given three of Mixamo's
-  // animations; a distinct entry, not merged into id 132, since the two don't
-  // share a skeleton (retargeting one onto the other was tried and abandoned --
-  // see F37/F38's own notes -- Mixamo's auto-rig sidesteps that entirely by
-  // rigging and animating the same mesh in one pass).
-  { id: 137, category: "people", name: "Mannequin F (Mixamo)", path: "./kit/people/mannequin_f_mixamo.glb", animated: true },
 ];
 
 export const catalogCategories = Array.from(
