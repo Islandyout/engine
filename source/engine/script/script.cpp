@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 extern "C" {
 #include "lauxlib.h"
@@ -563,6 +564,17 @@ struct LuaApi final {
         emit(L, "camera_shake", std::to_string(number_arg(L, 1, 0.3F)), std::to_string(number_arg(L, 2, 0.4F)));
         return 0;
     }
+    // ui.set_value(name, 0..1) / ui.set_visible(name, bool)
+    static int set_ui_value(lua_State *L) {
+        const char *name = luaL_checkstring(L, 1);
+        emit(L, "ui_value", name, std::to_string(number_arg(L, 2)));
+        return 0;
+    }
+    static int set_ui_visible(lua_State *L) {
+        const char *name = luaL_checkstring(L, 1);
+        emit(L, "ui_visible", name, lua_toboolean(L, 2) != 0 ? "1" : "0");
+        return 0;
+    }
     static int log(lua_State *L) {
         size_t length = 0;
         const char *text = luaL_tolstring(L, 1, &length);
@@ -748,7 +760,7 @@ struct LuaApi final {
                {"path", path}});
         table(L, self, "physics", {{"add_force", add_force}, {"add_impulse", add_impulse}});
         table(L, self, "sound", {{"play", play_sound}});
-        table(L, self, "ui", {{"set_text", set_ui_text}});
+        table(L, self, "ui", {{"set_text", set_ui_text}, {"set_value", set_ui_value}, {"set_visible", set_ui_visible}});
         table(L, self, "anim", {{"set", anim_set}, {"trigger", anim_trigger}});
         table(L, self, "camera", {{"shake", camera_shake}});
         extend_input(L, self);
@@ -943,6 +955,33 @@ void Runtime::notify(World &world, Entity entity, const std::string &function_na
         return;
     call(world, entity, *found->second, function_name.c_str(),
          [&argument](lua_State *L) { lua_pushlstring(L, argument.data(), argument.size()); }, 1);
+}
+
+void Runtime::broadcast(World &world, const std::string &function_name, const std::string &name,
+                        const std::string &value) {
+    world_ = &world;
+    char *end = nullptr;
+    const double number = std::strtod(value.c_str(), &end);
+    const bool numeric = !value.empty() && end != value.c_str() && *end == '\0' && std::isfinite(number);
+    // Snapshot first: a callback may spawn or destroy entities.
+    std::vector<Entity> targets;
+    for (const auto &[entity, instance] : instances_)
+        if (instance && instance->started)
+            targets.push_back(entity);
+    for (const auto entity : targets) {
+        const auto found = instances_.find(entity);
+        if (found == instances_.end() || !found->second)
+            continue;
+        call(world, entity, *found->second, function_name.c_str(),
+             [&](lua_State *L) {
+                 lua_pushlstring(L, name.data(), name.size());
+                 if (numeric)
+                     lua_pushnumber(L, number);
+                 else
+                     lua_pushlstring(L, value.data(), value.size());
+             },
+             2);
+    }
 }
 
 void Runtime::dispatch_contacts(World &world, const physics::Events &events) {

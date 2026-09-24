@@ -137,6 +137,16 @@ Engine version 0.53.0 brings the browser up to the engine's native input system:
 
 See [F53](docs/IMPLEMENTATION_STATUS.md#f53--input-parity-every-key-mouse-touch-gamepad-and-native-actions-in-the-browser-0530).
 
+Engine version 0.54.0 expands the `UI` component:
+
+- **New kinds**: Panel, Image, Bar, Slider and Toggle, alongside Text and Button.
+- **Layout and look**: pixel offsets from the anchor, width/height (0 = automatic), font size, color, opacity, and an image URL.
+- **Interaction**: a Button with action `script`, a moved Slider or a flipped Toggle calls `on_ui(name, value)` in every script.
+- **Lua**: scripts drive elements with `ui.set_value` and `ui.set_visible`, next to `ui.set_text`.
+- **Fix**: authored 0–1 colors are now read as sRGB, so the default backdrop matches the original exactly.
+
+See [F54](docs/IMPLEMENTATION_STATUS.md#f54--ui-expansion-panels-images-bars-sliders-toggles-script-buttons-layout-0540).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

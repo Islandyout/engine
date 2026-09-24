@@ -105,7 +105,8 @@ public:
 // Globals: props (inspector values), time (dt, now, frame), world (find,
 // name, alive, position, set_position, velocity, set_velocity, spawn,
 // destroy, health, damage, raycast, overlap, send, path), physics (add_force,
-// add_impulse), sound.play, ui.set_text, anim.set/anim.trigger, camera.shake, log, and after/every/cancel/
+// add_impulse), sound.play, ui.set_text/set_value/set_visible (and the
+// on_ui(element, value) callback), anim.set/anim.trigger, camera.shake, log, and after/every/cancel/
 // start/wait for timers and coroutines. world/sound/ui/log go through the
 // Host; without one they return nil or do nothing.
 //
@@ -263,6 +264,10 @@ public:
     // started one that defines it. For host-side events such as the
     // editor's on_anim_event / on_anim_state.
     void notify(World &world, Entity entity, const std::string &function_name, const std::string &argument);
+    // Calls `function_name(name, value)` in every started script that
+    // defines it -- the editor's on_ui(element, value). `value` is passed as
+    // a number when it reads as one, otherwise as a string.
+    void broadcast(World &world, const std::string &function_name, const std::string &name, const std::string &value);
     // Seconds of simulated time this Runtime has stepped (`time.now`).
     [[nodiscard]] double now() const { return now_; }
 

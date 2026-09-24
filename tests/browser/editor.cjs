@@ -1014,7 +1014,7 @@ const { chromium } = require("playwright");
     await page.locator(".entity").filter({ hasText: "Mannequin F" }).first().click();
     await page.getByLabel("Add component").selectOption("UI");
     const uiKind = page.locator('[aria-label="UI.kind"]');
-    assert.deepEqual(await uiKind.locator("option").allTextContents(), ["Text", "Button"]);
+    assert.deepEqual(await uiKind.locator("option").allTextContents(), ["Text", "Button", "Panel", "Image", "Bar", "Slider", "Toggle"]);
     assert.equal(await uiKind.inputValue(), "Text", "sensible default kind");
     await uiKind.selectOption("Button");
     await page.getByLabel("UI.text", { exact: true }).fill("Pause");
@@ -1268,6 +1268,51 @@ const { chromium } = require("playwright");
     await page.waitForFunction(() => document.querySelector("#log").textContent.includes("[script] click at 200,150"));
     await page.click("#stop");
 
+    // F54: interactive UI. A script-action Button, a Toggle and a Slider
+    // report through on_ui; ui.set_value drives a Bar (read back through
+    // the #hud-text mirror).
+    const uiEntity = async (name, ui) => {
+      const e = await run({ command: "spawn_entity", name });
+      await run({
+        command: "set_component",
+        entity: e.entity,
+        type: "UI",
+        value: { visibleWhen: "always", action: "restart", text: "", ...ui },
+      });
+    };
+    await uiEntity("GoButton", { kind: "Button", text: "Go!", anchor: "bottom-left", action: "script" });
+    await uiEntity("SoundToggle", { kind: "Toggle", text: "Sound", anchor: "bottom-left", offsetY: -60, value: 0 });
+    await uiEntity("VolumeSlider", { kind: "Slider", anchor: "bottom-left", offsetY: -110, width: 200, height: 20, value: 0 });
+    await uiEntity("EnergyBar", { kind: "Bar", anchor: "bottom-right", width: 150, value: 0 });
+    await uiEntity("UiResult", { kind: "Text", text: "none", anchor: "top-right" });
+    const uiScript = await run({ command: "spawn_entity", name: "UI Script", transform: [-8, 0.5, 8] });
+    await run({
+      command: "set_component",
+      entity: uiScript.entity,
+      type: "Script",
+      value: {
+        source:
+          'function on_start() ui.set_value("EnergyBar", 0.25) end\nfunction on_ui(name, value) ui.set_text("UiResult", "ui " .. name .. " " .. tostring(value)) end',
+        props: {},
+      },
+    });
+    await page.click("#play");
+    await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("EnergyBar=0.25"));
+    const hudBox = await page.locator("#viewport canvas").first().boundingBox();
+    // bottom-left anchor: 16 px inset from the left and bottom edges.
+    await page.mouse.click(hudBox.x + 30, hudBox.y + hudBox.height - 30);
+    await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("ui GoButton click"));
+    await page.mouse.click(hudBox.x + 26, hudBox.y + hudBox.height - 16 - 60 - 12);
+    await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("ui SoundToggle 1"));
+    // Press at the slider's left end and drag to its middle: value 0.5.
+    const sliderY = hudBox.y + hudBox.height - 16 - 110 - 10;
+    await page.mouse.move(hudBox.x + 16, sliderY);
+    await page.mouse.down();
+    await page.mouse.move(hudBox.x + 116, sliderY, { steps: 5 });
+    await page.mouse.up();
+    await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("VolumeSlider=0.5"));
+    await page.click("#stop");
+
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({ path: "build/browser-evidence/f50-edit.png" });
     await page.click("#play");
@@ -1285,7 +1330,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), a CameraFollow rig with shake, and keyboard/mouse input through native actions passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), a CameraFollow rig with shake, keyboard/mouse input through native actions, and interactive UI (script Button, Toggle, Slider, Bar) passed.",
     );
   } finally {
     if (browser) await browser.close();

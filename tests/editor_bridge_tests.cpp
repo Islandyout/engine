@@ -44,6 +44,7 @@ void editor_input_gamepad_axis(int, double);
 void editor_set_input_bindings(const char *);
 const char *editor_bindings_error();
 double editor_action_value(const char *);
+void editor_ui_event(const char *, const char *);
 }
 namespace {
 int add_unit(double x, double y, double z, double vx, double vy, double vz) {
@@ -1015,6 +1016,27 @@ int main() {
         editor_input_key("Space", 1);
         editor_tick();
         check(editor_action_value("jump") == 1.0); // defaults kept
+
+        // UI events reach every script's on_ui (numbers as numbers), and
+        // ui.set_value/set_visible queue commands.
+        editor_begin();
+        for (int i = 0; i < 2; ++i) {
+            check(editor_add(i, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            editor_set_script_source(i, R"lua(
+                function on_ui(name, value) log(name .. " " .. type(value) .. " " .. tostring(value)) end
+                function on_start() ui.set_value("Health", 0.5); ui.set_visible("Menu", false) end
+            )lua");
+        }
+        check(editor_commit() == 1);
+        editor_tick();
+        check(editor_take_commands() == 4);
+        check(std::string(editor_command_text(0, 0)) == "ui_value" && std::string(editor_command_text(0, 2)) == "0.500000");
+        check(std::string(editor_command_text(1, 0)) == "ui_visible" && std::string(editor_command_text(1, 2)) == "0");
+        editor_ui_event("Volume", "0.75");
+        editor_ui_event("Start", "click");
+        check(editor_take_commands() == 4);
+        check(std::string(editor_command_text(0, 1)) == "Volume number 0.75");
+        check(std::string(editor_command_text(2, 1)) == "Start string click");
     }
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "

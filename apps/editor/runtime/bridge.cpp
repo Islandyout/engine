@@ -1476,6 +1476,12 @@ EXPORT void editor_script_notify(int index, const char *function_name, const cha
         return;
     active->script_runtime.notify(active->world, active->entities[static_cast<std::size_t>(index)], name, argument);
 }
+// A UI element changed (Button with action "script" clicked, Slider moved,
+// Toggle flipped): calls on_ui(name, value) in every script.
+EXPORT void editor_ui_event(const char *name, const char *value) {
+    if (name && value)
+        active->script_runtime.broadcast(active->world, "on_ui", name, value);
+}
 EXPORT int editor_command_entity(int index) {
     return index >= 0 && static_cast<std::size_t>(index) < pending_commands.size()
                ? pending_commands[static_cast<std::size_t>(index)].entity_index

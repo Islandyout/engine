@@ -673,7 +673,7 @@ test("UI attaches with sensible defaults, edits round-trip through save/load, ki
   assert.throws(
     () =>
       d.load({ format: 1, entities: [{ components: { UI: { ...base, kind: "Label" } } }] }),
-    /Text or Button/,
+    /Text, Button, Panel, Image, Bar, Slider, Toggle/,
   );
   assert.throws(
     () =>
@@ -697,7 +697,7 @@ test("UI attaches with sensible defaults, edits round-trip through save/load, ki
         format: 1,
         entities: [{ components: { UI: { ...base, action: "explode" } } }],
       }),
-    /restart, resume, pause, or quit/,
+    /restart, resume, pause, quit, script/,
   );
 
   // UI is a prefab-shared component like Renderable/Sound/Light/Particles --

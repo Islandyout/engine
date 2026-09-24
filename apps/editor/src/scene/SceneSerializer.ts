@@ -6,7 +6,7 @@ import {
   type PrefabableComponent,
   type SceneComponents,
 } from "./Scene";
-import type { AIStateName, ParticlePreset, UIAnchor } from "./Components";
+import type { AIStateName, ParticlePreset, UIAction, UIAnchor, UIKind } from "./Components";
 
 const uiAnchors: readonly UIAnchor[] = [
   "top-left",
@@ -452,8 +452,9 @@ export function normalizeComponent(
     }
     case "UI": {
       const kind = value.kind;
-      if (kind !== "Text" && kind !== "Button")
-        throw new Error("UI.kind must be Text or Button.");
+      const kinds: readonly UIKind[] = ["Text", "Button", "Panel", "Image", "Bar", "Slider", "Toggle"];
+      if (typeof kind !== "string" || !kinds.includes(kind as UIKind))
+        throw new Error(`UI.kind must be one of ${kinds.join(", ")}.`);
       const anchor = value.anchor;
       if (typeof anchor !== "string" || !uiAnchors.includes(anchor as UIAnchor))
         throw new Error(`UI.anchor must be one of ${uiAnchors.join(", ")}.`);
@@ -461,19 +462,35 @@ export function normalizeComponent(
       if (visibleWhen !== "always" && visibleWhen !== "play" && visibleWhen !== "pause")
         throw new Error("UI.visibleWhen must be always, play, or pause.");
       const action = value.action;
-      if (
-        action !== "restart" &&
-        action !== "resume" &&
-        action !== "pause" &&
-        action !== "quit"
-      )
-        throw new Error("UI.action must be restart, resume, pause, or quit.");
+      const actions: readonly UIAction[] = ["restart", "resume", "pause", "quit", "script"];
+      if (typeof action !== "string" || !actions.includes(action as UIAction))
+        throw new Error(`UI.action must be one of ${actions.join(", ")}.`);
+      const optional = (key: string, fallback: number) =>
+        value[key] === undefined ? fallback : number(value[key], `UI.${key}`);
+      const width = optional("width", 0);
+      const height = optional("height", 0);
+      const fontSize = optional("fontSize", 16);
+      const opacity = optional("opacity", 0.85);
+      const uiValue = optional("value", 0);
+      if (width < 0 || height < 0) throw new Error("UI.width/height must not be negative.");
+      if (fontSize <= 0) throw new Error("UI.fontSize must be positive.");
+      if (opacity < 0 || opacity > 1) throw new Error("UI.opacity must be from 0 to 1.");
+      if (uiValue < 0 || uiValue > 1) throw new Error("UI.value must be from 0 to 1.");
       return {
-        kind,
+        kind: kind as UIKind,
         text: string(value.text, "UI.text"),
         anchor: anchor as UIAnchor,
         visibleWhen,
-        action,
+        action: action as UIAction,
+        offsetX: optional("offsetX", 0),
+        offsetY: optional("offsetY", 0),
+        width,
+        height,
+        fontSize,
+        color: value.color === undefined ? { x: 0.118, y: 0.165, z: 0.22 } : unitVec3(value.color, "UI.color"),
+        opacity,
+        image: value.image === undefined ? "" : string(value.image, "UI.image"),
+        value: uiValue,
       };
     }
     case "Name":

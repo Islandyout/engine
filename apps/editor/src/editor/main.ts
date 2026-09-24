@@ -15,6 +15,8 @@ import type {
   ParticlePreset,
   UIAction,
   UIAnchor,
+  UIComponent,
+  UIKind,
   Vec3,
 } from "../scene/Components";
 import { propertyMetadata, componentLabel, componentGroups } from "./PropertyMetadata";
@@ -35,6 +37,7 @@ import { pickClipName, groundSpeed } from "./animationClips";
 import { loadOnce } from "./loadOnce";
 import type { SceneComponents } from "../scene/Scene";
 import { encodeProps, reconcileProps } from "../scene/scriptProps";
+import { autoSize, contains, layoutRect, sliderValue, type UIRect } from "./uiLayout";
 import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGraph } from "./animator";
 import { defaultEnvironment } from "../authoring/CommandInterpreter";
 import "./style.css";
@@ -175,6 +178,7 @@ type Runtime = {
     args: [number, string],
   ): void;
   ccall(name: "editor_template_begin", returnType: null, argTypes: ["string"], args: [string]): void;
+  ccall(name: "editor_ui_event", returnType: null, argTypes: ["string", "string"], args: [string, string]): void;
   ccall(
     name: "editor_script_notify",
     returnType: null,
@@ -432,8 +436,11 @@ async function startEditor() {
   let skyMesh: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial> | undefined;
   let environmentTexture: THREE.Texture | undefined;
   const pmrem = renderer instanceof THREE.WebGLRenderer ? new THREE.PMREMGenerator(renderer) : undefined;
+  // Authored 0-1 colors (Environment, Material, sky) are sRGB, like any
+  // color picker -- so defaultEnvironment()'s backdrop matches the
+  // original "#101a26" exactly.
   function colorOf(v: Vec3) {
-    return new THREE.Color(v.x, v.y, v.z);
+    return new THREE.Color().setRGB(v.x, v.y, v.z, THREE.SRGBColorSpace);
   }
   function gradientTexture(env: EnvironmentComponent) {
     const canvas = document.createElement("canvas");
@@ -1734,6 +1741,8 @@ async function startEditor() {
       if (kind === "log") log(`[script] ${a}`);
       else if (kind === "sound") playOneShot(a);
       else if (kind === "ui_text") uiTextOverrides.set(a, b);
+      else if (kind === "ui_value") uiValues.set(a, Math.min(1, Math.max(0, Number(b) || 0)));
+      else if (kind === "ui_visible") uiVisibility.set(a, b === "1");
       else if (kind === "mouse_lock") {
         if (a === "1") void renderer.domElement.requestPointerLock?.();
         else if (document.pointerLockElement) document.exitPointerLock();
@@ -1754,6 +1763,9 @@ async function startEditor() {
   }
   function syncRuntime() {
     uiTextOverrides.clear();
+    uiValues.clear();
+    uiVisibility.clear();
+    draggingSlider = undefined;
     padSnapshot = undefined;
     pointerQueue.length = 0;
     runtime._editor_begin();
@@ -2525,6 +2537,22 @@ async function startEditor() {
   // to its authored Transform/state) immediately followed by Play (re-syncs
   // and starts a fresh session) -- there's no single existing button for
   // that combination, so it's the one action that chains two clicks.
+  // A value change from interaction: stored for drawing and sent to every
+  // script's on_ui(name, value).
+  function setUIValue(name: string, value: number) {
+    uiValues.set(name, value);
+    uiEvent(name, String(value));
+  }
+  function uiEvent(name: string, value: string) {
+    runtime.ccall("editor_ui_event", null, ["string", "string"], [name, value]);
+  }
+  window.addEventListener("pointermove", (event) => {
+    if (!draggingSlider || doc.mode === "edit") return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    const next = sliderValue(draggingSlider, event.clientX - rect.left);
+    if (next !== uiValues.get(draggingSlider.name)) setUIValue(draggingSlider.name, next);
+  });
+  window.addEventListener("pointerup", () => (draggingSlider = undefined));
   function runUIAction(action: UIAction) {
     switch (action) {
       case "restart":
@@ -2558,16 +2586,15 @@ async function startEditor() {
     // later entity's on top, so a click there must hit the one the user
     // actually sees, not whichever happened to be pushed first.
     for (let i = uiButtonHits.length - 1; i >= 0; i--) {
-      const button = uiButtonHits[i]!;
-      if (
-        clickX >= button.x &&
-        clickX <= button.x + button.width &&
-        clickY >= button.y &&
-        clickY <= button.y + button.height
-      ) {
-        runUIAction(button.action);
-        return;
-      }
+      const hit = uiButtonHits[i]!;
+      if (!contains(hit, clickX, clickY)) continue;
+      if (hit.kind === "Toggle") setUIValue(hit.name, hit.value >= 0.5 ? 0 : 1);
+      else if (hit.kind === "Slider") {
+        draggingSlider = hit;
+        setUIValue(hit.name, sliderValue(hit, clickX));
+      } else if (hit.action === "script") uiEvent(hit.name, "click");
+      else runUIAction(hit.action);
+      return;
     }
     const pointer = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -2942,24 +2969,112 @@ async function startEditor() {
   // -- a UI element's screen position, unlike a Health bar's, is never
   // projected from a world position; it's just one of nine fixed points on
   // the viewport, the same layout language any screen-anchored HUD/menu uses.
-  function uiAnchorLayout(anchor: UIAnchor) {
-    const xFrac = anchor.includes("left") ? 0 : anchor.includes("right") ? 1 : 0.5;
-    const yFrac = anchor.includes("top") ? 0 : anchor.includes("bottom") ? 1 : 0.5;
-    const align: CanvasTextAlign = xFrac === 0 ? "left" : xFrac === 1 ? "right" : "center";
-    const baseline: CanvasTextBaseline = yFrac === 0 ? "top" : yFrac === 1 ? "bottom" : "middle";
-    return { xFrac, yFrac, align, baseline };
-  }
   // Populated fresh by drawHud() every frame a Button is visible; consulted
   // by the pointerdown handler below to hit-test a click before it falls
   // through to normal 3D entity-selection raycasting. Screen-space rects,
   // not scene objects, so no relation to objects[]/animStates[]'s own
   // per-entity indexing.
-  interface UIButtonHit {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
+  interface UIButtonHit extends UIRect {
+    kind: UIKind;
+    name: string;
     action: UIAction;
+    value: number;
+  }
+  // Play-session UI state from scripts and interaction, keyed by the UI
+  // entity's Name: values (Bar/Slider/Toggle) and visibility. Cleared
+  // whenever the runtime is rebuilt, like uiTextOverrides.
+  const uiValues = new Map<string, number>();
+  const uiVisibility = new Map<string, boolean>();
+  const uiImages = new Map<string, HTMLImageElement>();
+  let draggingSlider: UIButtonHit | undefined;
+  const css = (c: Vec3, alpha: number) =>
+    `rgba(${Math.round(c.x * 255)}, ${Math.round(c.y * 255)}, ${Math.round(c.z * 255)}, ${alpha})`;
+  function uiImage(url: string) {
+    let image = uiImages.get(url);
+    if (!image) {
+      image = new Image();
+      image.src = url;
+      uiImages.set(url, image);
+    }
+    return image;
+  }
+  // Paints one UI element in its box. Text and Button look exactly as they
+  // did before layout options existed when those options are left default.
+  function drawUIElement(ui: UIComponent, rect: UIRect, value: number) {
+    const { left, top, width, height } = rect;
+    const label = (x: number, y: number, align: CanvasTextAlign) => {
+      hudCtx.textAlign = align;
+      hudCtx.textBaseline = "middle";
+      hudCtx.lineWidth = 3;
+      hudCtx.strokeStyle = "rgba(10, 16, 24, 0.85)";
+      hudCtx.strokeText(ui.text, x, y);
+      hudCtx.fillStyle = "#eaf6ff";
+      hudCtx.fillText(ui.text, x, y);
+    };
+    switch (ui.kind) {
+      case "Text":
+        // A stroke outline instead of a backdrop -- legible over any scene.
+        hudCtx.textAlign = "left";
+        hudCtx.textBaseline = "top";
+        hudCtx.lineWidth = 3;
+        hudCtx.strokeStyle = "rgba(10, 16, 24, 0.85)";
+        hudCtx.strokeText(ui.text, left, top);
+        hudCtx.fillStyle = "#eaf6ff";
+        hudCtx.fillText(ui.text, left, top);
+        return;
+      case "Button":
+      case "Panel":
+        hudCtx.fillStyle = css(ui.color, ui.opacity);
+        hudCtx.fillRect(left, top, width, height);
+        hudCtx.strokeStyle = "rgba(140, 190, 220, 0.6)";
+        hudCtx.strokeRect(left + 0.5, top + 0.5, width - 1, height - 1);
+        if (ui.text) {
+          // A Button's label is centered; a Panel's is its title.
+          hudCtx.fillStyle = "#eaf6ff";
+          hudCtx.textAlign = "center";
+          hudCtx.textBaseline = "middle";
+          hudCtx.fillText(ui.text, left + width / 2, ui.kind === "Button" ? top + height / 2 : top + 8 + ui.fontSize / 2);
+        }
+        return;
+      case "Image": {
+        const image = ui.image ? uiImage(ui.image) : undefined;
+        hudCtx.globalAlpha = ui.opacity;
+        if (image?.complete && image.naturalWidth > 0) hudCtx.drawImage(image, left, top, width, height);
+        else {
+          hudCtx.fillStyle = css(ui.color, 1);
+          hudCtx.fillRect(left, top, width, height);
+        }
+        hudCtx.globalAlpha = 1;
+        if (ui.text) label(left + width / 2, top + height / 2, "center");
+        return;
+      }
+      case "Bar":
+      case "Slider": {
+        hudCtx.fillStyle = "rgba(10, 16, 24, 0.75)";
+        hudCtx.fillRect(left, top, width, height);
+        hudCtx.fillStyle = css(ui.kind === "Bar" && ui.color.x === 0.118 ? { x: 0.3, y: 0.69, z: 0.31 } : ui.color, 1);
+        hudCtx.fillRect(left, top, width * value, height);
+        if (ui.kind === "Slider") {
+          hudCtx.fillStyle = "#eaf6ff";
+          hudCtx.fillRect(left + width * value - 3, top - 2, 6, height + 4);
+        }
+        if (ui.text) label(left + width / 2, top + height / 2, "center");
+        return;
+      }
+      case "Toggle": {
+        const box = Math.min(height, ui.fontSize + 8);
+        hudCtx.fillStyle = css(ui.color, ui.opacity);
+        hudCtx.fillRect(left, top, box, box);
+        hudCtx.strokeStyle = "rgba(140, 190, 220, 0.8)";
+        hudCtx.strokeRect(left + 0.5, top + 0.5, box - 1, box - 1);
+        if (value >= 0.5) {
+          hudCtx.fillStyle = "#7fd4ff";
+          hudCtx.fillRect(left + 4, top + 4, box - 8, box - 8);
+        }
+        if (ui.text) label(left + box + 8, top + box / 2, "left");
+        return;
+      }
+    }
   }
   const uiButtonHits: UIButtonHit[] = [];
   // Screen-space Health bars (Play mode only, matches the player readout's
@@ -3005,56 +3120,34 @@ async function startEditor() {
     for (const entity of doc.scene.eachAlive()) {
       const authoredUi = doc.scene.resolve(entity, "UI");
       if (!authoredUi) continue;
-      const uiName = doc.scene.resolve(entity, "Name")?.value;
-      const override = doc.mode !== "edit" && uiName !== undefined ? uiTextOverrides.get(uiName) : undefined;
+      const uiName = doc.scene.resolve(entity, "Name")?.value ?? "";
+      const playing = doc.mode !== "edit";
+      const override = playing ? uiTextOverrides.get(uiName) : undefined;
       const ui = override === undefined ? authoredUi : { ...authoredUi, text: override };
       if (ui.visibleWhen === "play" && doc.mode !== "play") continue;
       if (ui.visibleWhen === "pause" && doc.mode !== "pause") continue;
-      const padding = 16;
-      const { xFrac, yFrac, align, baseline } = uiAnchorLayout(ui.anchor);
-      const x = xFrac * hud.width + (xFrac === 0 ? padding : xFrac === 1 ? -padding : 0);
-      const y = yFrac * hud.height + (yFrac === 0 ? padding : yFrac === 1 ? -padding : 0);
-      hudCtx.font = "600 16px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif";
-      hudCtx.textAlign = align;
-      hudCtx.textBaseline = baseline;
-      if (ui.kind === "Button") {
-        const metrics = hudCtx.measureText(ui.text);
-        const boxPadX = 14,
-          boxPadY = 9;
-        const width = metrics.width + boxPadX * 2;
-        const height = 16 + boxPadY * 2;
-        const left = x - (align === "left" ? 0 : align === "right" ? width : width / 2);
-        const top = y - (baseline === "top" ? 0 : baseline === "bottom" ? height : height / 2);
-        hudCtx.fillStyle = "rgba(30, 42, 56, 0.85)";
-        hudCtx.fillRect(left, top, width, height);
-        hudCtx.strokeStyle = "rgba(140, 190, 220, 0.6)";
-        hudCtx.strokeRect(left + 0.5, top + 0.5, width - 1, height - 1);
-        hudCtx.fillStyle = "#eaf6ff";
-        // Set before fillText, not after -- fillText reads textAlign/
-        // textBaseline at call time, and this draw point is already the
-        // box's own center, not the anchor-derived point every other
-        // anchor's align/baseline still describes at this point in the
-        // function; leaving them unchanged shifted the label toward
-        // bottom-right for every anchor except "center" itself.
-        hudCtx.textAlign = "center";
-        hudCtx.textBaseline = "middle";
-        hudCtx.fillText(ui.text, left + width / 2, top + height / 2);
-        // Clickable only outside Edit mode -- see UIComponent's own doc
-        // comment (Components.ts) for why authoring a scene must never be
-        // able to accidentally trigger a Button's command.
-        if (doc.mode === "play" || doc.mode === "pause")
-          uiButtonHits.push({ x: left, y: top, width, height, action: ui.action });
-      } else {
-        // Text gets a stroke outline instead of Button's background rect --
-        // legible over any 3D scene content behind it without needing its
-        // own backdrop.
-        hudCtx.lineWidth = 3;
-        hudCtx.strokeStyle = "rgba(10, 16, 24, 0.85)";
-        hudCtx.strokeText(ui.text, x, y);
-        hudCtx.fillStyle = "#eaf6ff";
-        hudCtx.fillText(ui.text, x, y);
-      }
-      hudLines.push(ui.text);
+      if (playing && uiVisibility.get(uiName) === false) continue;
+      const value = playing ? (uiValues.get(uiName) ?? ui.value) : ui.value;
+      hudCtx.font = `600 ${ui.fontSize}px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif`;
+      const auto = autoSize(ui.kind, ui.text ? hudCtx.measureText(ui.text).width : 0, ui.fontSize);
+      const rect = layoutRect(
+        ui.anchor,
+        hud.width,
+        hud.height,
+        ui.width || auto.width,
+        ui.height || auto.height,
+        ui.offsetX,
+        ui.offsetY,
+      );
+      drawUIElement(ui, rect, value);
+      // Clickable only outside Edit mode -- see UIComponent's own doc
+      // comment (Components.ts) for why authoring a scene must never be
+      // able to accidentally trigger a Button's command.
+      if (playing && (ui.kind === "Button" || ui.kind === "Slider" || ui.kind === "Toggle"))
+        uiButtonHits.push({ ...rect, kind: ui.kind, name: uiName, action: ui.action, value });
+      if (ui.text) hudLines.push(ui.text);
+      if (ui.kind === "Bar" || ui.kind === "Slider" || ui.kind === "Toggle")
+        hudLines.push(`${uiName || ui.kind}=${Math.round(value * 100) / 100}`);
     }
     const hudSummary = hudLines.join(" · ");
     if (hudText.textContent !== hudSummary) hudText.textContent = hudSummary;

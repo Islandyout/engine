@@ -599,7 +599,22 @@ export function defaultComponent(
     case "UI":
       // A visible-immediately Text label, not a Button -- reads as
       // placeholder content to edit, the more inviting default of the two.
-      return { kind: "Text", text: "Text", anchor: "top-left", visibleWhen: "always", action: "restart" };
+      return {
+        kind: "Text",
+        text: "Text",
+        anchor: "top-left",
+        visibleWhen: "always",
+        action: "restart",
+        offsetX: 0,
+        offsetY: 0,
+        width: 0,
+        height: 0,
+        fontSize: 16,
+        color: { x: 0.118, y: 0.165, z: 0.22 },
+        opacity: 0.85,
+        image: "",
+        value: 0,
+      };
     case "Name":
       return { value: "Entity" };
     case "Script":

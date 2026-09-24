@@ -176,7 +176,7 @@ export interface ParticlesComponent {
 // element renders in: "always" (Edit included, so an author sees where it
 // lands without pressing Play), "play", or "pause" (e.g. a pause menu that
 // isn't there the rest of the time).
-export type UIKind = "Text" | "Button";
+export type UIKind = "Text" | "Button" | "Panel" | "Image" | "Bar" | "Slider" | "Toggle";
 export type UIAnchor =
   | "top-left"
   | "top-center"
@@ -188,13 +188,29 @@ export type UIAnchor =
   | "bottom-center"
   | "bottom-right";
 export type UIVisibility = "always" | "play" | "pause";
-export type UIAction = "restart" | "resume" | "pause" | "quit";
+// "script" (0.54.0): a click calls on_ui(name, "click") in every script.
+export type UIAction = "restart" | "resume" | "pause" | "quit" | "script";
 export interface UIComponent {
   kind: UIKind;
   text: string;
   anchor: UIAnchor;
   visibleWhen: UIVisibility;
   action: UIAction;
+  // Layout and look (0.54.0; older scenes get these defaults). Offsets move
+  // the element from its anchor in screen pixels (+y down); a width/height
+  // of 0 sizes it automatically (see uiLayout.ts).
+  offsetX: number;
+  offsetY: number;
+  width: number;
+  height: number;
+  fontSize: number;
+  // Background (Button/Panel/Toggle box) or fill (Bar/Slider) color.
+  color: Vec3;
+  opacity: number;
+  // Image: a picture URL, e.g. one imported into the project.
+  image: string;
+  // Bar/Slider: 0..1; Toggle: 0 or 1. Scripts change it with ui.set_value.
+  value: number;
 }
 export interface NameComponent {
   value: string;

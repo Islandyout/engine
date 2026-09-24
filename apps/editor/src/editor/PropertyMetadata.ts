@@ -101,7 +101,18 @@ const metadata: Record<string, PropertyMetadata> = {
   "Particles.lifetime": { label: "Lifetime (seconds)", step: "0.1" },
   "Particles.speed": { label: "Initial speed (m/s)", step: "0.1" },
   "Particles.size": { label: "Point size (world units)", step: "0.01" },
-  "UI.kind": { options: choice(["Text", "Button"]) },
+  "UI.kind": { options: choice(["Text", "Button", "Panel", "Image", "Bar", "Slider", "Toggle"]) },
+  "UI.offsetX": { label: "Offset X (px)", step: "1" },
+  "UI.offsetY": { label: "Offset Y (px, down)", step: "1" },
+  "UI.width": { label: "Width (px, 0 = auto)", step: "1" },
+  "UI.height": { label: "Height (px, 0 = auto)", step: "1" },
+  "UI.fontSize": { label: "Font size (px)", step: "1" },
+  "UI.color.x": { label: "Color R (0-1)", step: "0.05" },
+  "UI.color.y": { label: "Color G (0-1)", step: "0.05" },
+  "UI.color.z": { label: "Color B (0-1)", step: "0.05" },
+  "UI.opacity": { label: "Opacity (0-1)", step: "0.05" },
+  "UI.image": { label: "Image URL (Image)" },
+  "UI.value": { label: "Value (0-1: Bar, Slider, Toggle)", step: "0.05" },
   "UI.anchor": {
     options: choice([
       "top-left",
@@ -120,8 +131,8 @@ const metadata: Record<string, PropertyMetadata> = {
     options: choice(["always", "play", "pause"]),
   },
   "UI.action": {
-    label: "Action (Button only)",
-    options: choice(["restart", "resume", "pause", "quit"]),
+    label: "Action (Button; script = call on_ui)",
+    options: choice(["restart", "resume", "pause", "quit", "script"]),
   },
   "Pedestrian.archetype": {
     label: "Archetype",
