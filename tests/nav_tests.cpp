@@ -94,7 +94,25 @@ int main() {
             check(rotated_grid.walkable(23, 23), "a corner of the enclosing box off the wall stays open");
             check(rotated_grid.walkable(-20, -20), "a walkable ramp does not block");
         }
-        std::cout << "Nav grid baking (walls, rotated walls, ramps, agent inflation, curbs, triggers, dynamic bodies), line of "
+        {
+            // Terrain: steep cells block, gentle ones don't.
+            World empty;
+            empty.register_component<Box>("box");
+            empty.register_component<physics::RigidBody>("rigidbody");
+            empty.register_component<physics::Collider>("collider");
+            physics::Heightfield terrain;
+            terrain.center = {-30, 0, 30};
+            terrain.size = 20;
+            terrain.resolution = 3;
+            terrain.heights = {0, 0, 0, 0, 30, 0, 0, 0, 0}; // a sharp 30-unit spike
+            nav::Grid terrain_grid{nav::Settings{}};
+            terrain_grid.bake(empty, {}, &terrain);
+            check(!terrain_grid.walkable(-33, 30), "the spike's steep sides block");
+            terrain.heights = {0, 0, 0, 0, 1, 0, 0, 0, 0}; // a gentle 1-unit bump
+            terrain_grid.bake(empty, {}, &terrain);
+            check(terrain_grid.walkable(-33, 30) && terrain_grid.blocked_count() == 0, "a gentle bump doesn't");
+        }
+        std::cout << "Nav grid baking (walls, rotated walls, ramps, steep terrain, agent inflation, curbs, triggers, dynamic bodies), line of "
                      "sight, A* around obstacles with smoothing, and goal snapping passed.\n";
     } catch (const std::exception &e) {
         std::cerr << "nav test failed: " << e.what() << "\n";

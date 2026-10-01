@@ -388,6 +388,32 @@ export interface AICombatComponent {
   meleeDamage: number; // without Weapons
 }
 
+// Terrain (0.63.0): a square heightfield of `size` centered on the entity's
+// Transform (Rotation and Scale don't apply), from seeded fractal noise
+// (height, frequency in features per 100 units, octaves) plus sculpted
+// offsets painted with the viewport's Sculpt tool. Colored sand / grass /
+// rock (by slope) / snow by height. `scatter` places catalog models on it,
+// one rule per line: "model density [minScale maxScale] [minNormalY]
+// [collide]" (see terrain.ts). Bodies stand on it, rays hit it, and steep
+// slopes block AI paths. The first Terrain in a scene is the simulated one.
+export interface TerrainComponent {
+  size: number;
+  resolution: number;
+  height: number;
+  seed: number;
+  frequency: number;
+  octaves: number;
+  sculpt: string;
+  grassColor: Vec3;
+  rockColor: Vec3;
+  sandColor: Vec3;
+  snowColor: Vec3;
+  sandHeight: number;
+  snowHeight: number;
+  rockSlope: number;
+  scatter: string;
+}
+
 // Named input actions (0.55.0): one `action: source, source` per line (see
 // apps/editor/runtime/bindings.hpp). The first entity with one sets the
 // scene's bindings; without one the defaults below apply.

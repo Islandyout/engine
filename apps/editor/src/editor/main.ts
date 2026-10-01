@@ -20,6 +20,7 @@ import type {
   UIComponent,
   UIKind,
   Vec3,
+  TerrainComponent,
 } from "../scene/Components";
 import { propertyMetadata, componentLabel, componentGroups } from "./PropertyMetadata";
 import { defaultComponent } from "../authoring/CommandInterpreter";
@@ -57,6 +58,18 @@ import { applyMouseLook, applyStickLook, ViewEffects, type Look } from "./fpsVie
 import { Sfx } from "./sfx";
 import { EventFlag, EventKind, WeaponFx } from "./weaponFx";
 import { buildViewmodel } from "./viewmodels";
+import {
+  applyBrush,
+  decodeSculpt,
+  encodeHeights,
+  encodeSculpt,
+  generateHeights,
+  parseScatter,
+  scatterInstances,
+  type BrushMode,
+  type TerrainParams,
+} from "./terrain";
+import { buildScatter, buildTerrainMesh, scatterObstacle, shapeTerrain, type TerrainLook } from "./terrainMesh";
 import { defaultEnvironment } from "../authoring/CommandInterpreter";
 import "./style.css";
 
@@ -213,6 +226,8 @@ type Runtime = {
   _editor_controller_value(index: number, field: number): number;
   _editor_weapon_value(index: number, field: number): number;
   _editor_set_soldier(index: number, ...settings: number[]): void;
+  _editor_add_obstacle(x: number, y: number, z: number, sx: number, sy: number, sz: number): void;
+  _editor_terrain_height(x: number, z: number): number;
   _editor_soldier_value(index: number, field: number): number;
   _editor_take_weapon_events(): number;
   _editor_weapon_event(index: number, field: number): number;
@@ -340,6 +355,13 @@ async function startEditor() {
       <button id="frame" class="btn btn-sm btn-ghost">${iconHtml("target")}<span>Frame selected</span></button>
       <button id="grid" class="btn btn-sm btn-ghost">${iconHtml("grid")}<span>Grid</span></button>
       <button id="stats" class="btn btn-sm btn-ghost" aria-pressed="false">${iconHtml("target")}<span>Stats</span></button>
+      <span id="sculpt-bar" class="sculpt-bar" hidden>
+        <select id="sculpt" class="select-sm" aria-label="Terrain sculpt tool">
+          <option value="off">Sculpt: off</option><option value="raise">Raise</option><option value="lower">Lower</option><option value="smooth">Smooth</option><option value="flatten">Flatten</option>
+        </select>
+        <label class="sculpt-slider">Radius <input id="sculpt-radius" type="range" min="1" max="30" step="0.5" value="6" aria-label="Brush radius"></label>
+        <label class="sculpt-slider">Strength <input id="sculpt-strength" type="range" min="0.05" max="2" step="0.05" value="0.5" aria-label="Brush strength"></label>
+      </span>
       <span class="viewport-hint">Drag to orbit · right-drag to pan · scroll to zoom</span>
     </div>
     <div id="viewport"></div>
@@ -1880,6 +1902,8 @@ async function startEditor() {
     // Weapons (0.61.0): see editor_set_weapons (bridge.cpp).
     const weapons = get("Weapons");
     if (weapons && !isChild) runtime.ccall("editor_set_weapons", null, ["number", "string"], [index, weapons.loadout]);
+    // A Terrain entity's own body must never fall or move.
+    if (get("Terrain")) runtime._editor_set_body(index, 1, 1, 0);
     // AICombat (0.62.0): see editor_set_soldier (bridge.cpp).
     const combat = get("AICombat");
     if (combat && !isChild) {
@@ -2127,6 +2151,26 @@ async function startEditor() {
         doc.scene.resolve(entity, "Name")?.value,
       );
     });
+    // The first Terrain is the simulated one (editor_set_terrain), plus its
+    // colliding scatter as static obstacles.
+    const terrainEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "Terrain"));
+    const terrain = terrainEntity && doc.scene.resolve(terrainEntity, "Terrain");
+    if (terrainEntity && terrain) {
+      const center = doc.scene.resolve(terrainEntity, "Transform")?.position ?? { x: 0, y: 0, z: 0 };
+      const params = terrainParams(terrain);
+      const heights = generateHeights(params);
+      runtime.ccall(
+        "editor_set_terrain",
+        null,
+        ["number", "number", "number", "number", "number", "string"],
+        [center.x, center.y, center.z, params.size, params.resolution, encodeHeights(heights)],
+      );
+      for (const instance of scatterInstances(params, heights, parseScatter(terrain.scatter).rules)) {
+        if (!instance.collide) continue;
+        const box = scatterObstacle(instance, catalogCache.get(instance.model)?.nativeSize);
+        runtime._editor_add_obstacle(center.x + box.x, center.y + box.y, center.z + box.z, box.sx, box.sy, box.sz);
+      }
+    }
     // Custom action bindings: the first InputActions component in the scene.
     const bindingsEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "InputActions"));
     const bindings = bindingsEntity && doc.scene.resolve(bindingsEntity, "InputActions");
@@ -2235,6 +2279,65 @@ async function startEditor() {
   // Particles, animation state) and appends it to objects[]/animStates[]/
   // particleStates[]/deathStates[] at the next index. Used for every scene
   // entity by rebuild() and for runtime-spawned prefab instances by frame().
+  // -- Terrain (0.63.0) ---------------------------------------------------
+  function terrainParams(t: TerrainComponent): TerrainParams {
+    return {
+      size: t.size,
+      resolution: t.resolution,
+      height: t.height,
+      seed: t.seed,
+      frequency: t.frequency,
+      octaves: t.octaves,
+      sculpt: t.sculpt,
+    };
+  }
+  function terrainLook(t: TerrainComponent): TerrainLook {
+    return {
+      grassColor: t.grassColor,
+      rockColor: t.rockColor,
+      sandColor: t.sandColor,
+      snowColor: t.snowColor,
+      sandHeight: t.sandHeight,
+      snowHeight: t.snowHeight,
+      rockSlope: t.rockSlope,
+    };
+  }
+  // Live terrain meshes by objects[] index, for sculpting.
+  const terrainMeshes = new Map<
+    number,
+    { mesh: THREE.Mesh; params: TerrainParams; look: TerrainLook; offsets: Int16Array }
+  >();
+  function buildTerrainObject(t: TerrainComponent, index: number): THREE.Object3D {
+    const params = terrainParams(t);
+    const look = terrainLook(t);
+    const offsets = decodeSculpt(t.sculpt, params.resolution * params.resolution);
+    const heights = generateHeights(params, offsets);
+    const group = new THREE.Group();
+    const mesh = buildTerrainMesh(params, look, heights);
+    group.add(mesh);
+    const { rules, errors } = parseScatter(t.scatter);
+    if (errors.length) log(`Terrain scatter: ${errors.join("; ")}`);
+    if (rules.length) {
+      const models = new Map<number, { scene: THREE.Object3D }>();
+      for (const rule of rules) {
+        const cached = catalogCache.get(rule.model);
+        if (cached) models.set(rule.model, cached);
+        else if (catalogEntry(rule.model))
+          loadOnce(
+            pendingCatalogRebuilds,
+            rule.model,
+            () => loadCatalogModel(rule.model),
+            () => {
+              if (doc.mode === "edit" && !gizmo.dragging) rebuild();
+            },
+            (error) => log(`Catalog model ${rule.model} failed to load: ${String(error)}`),
+          );
+      }
+      group.add(buildScatter(scatterInstances(params, heights, rules), models));
+    }
+    terrainMeshes.set(index, { mesh, params, look, offsets });
+    return group;
+  }
   function createEntityObject(
     get: <K extends keyof SceneComponents>(type: K) => SceneComponents[K] | undefined,
   ) {
@@ -2293,6 +2396,12 @@ async function startEditor() {
         );
       object = new THREE.Mesh(geometry, material);
     }
+    // Terrain (0.63.0) replaces the placeholder with its own mesh and scatter.
+    const terrainComponent = get("Terrain");
+    if (terrainComponent) {
+      object = buildTerrainObject(terrainComponent, objects.length);
+      animState = undefined;
+    }
     const animatorSource = get("Animator");
     let animator: (typeof animators)[number];
     if (animatorSource) {
@@ -2323,9 +2432,11 @@ async function startEditor() {
     if (p) anchor.position.set(p.x, p.y, p.z);
     if (animState) animState.prevPosition.copy(anchor.position);
     const r = get("Rotation")?.euler;
-    if (r) anchor.rotation.set(r.x, r.y, r.z);
+    if (r && !terrainComponent) anchor.rotation.set(r.x, r.y, r.z);
     const s = get("Scale")?.value;
-    if (s && cached) {
+    if (terrainComponent) {
+      // A terrain's size comes from the component, not Scale.
+    } else if (s && cached) {
       // Normalize by the model's own native size so an authored Scale is
       // the mesh's literal world-space size, matching the physics Box's
       // dimensions (same s.x/y/z) instead of stacking on top of it.
@@ -2389,6 +2500,7 @@ async function startEditor() {
     );
     for (const object of objects) object.removeFromParent();
     objects.length = 0;
+    terrainMeshes.clear();
     animStates.length = 0;
     animators.length = 0;
     animatorErrors.length = 0;
@@ -2442,6 +2554,7 @@ async function startEditor() {
     el("prefab-hint").hidden = hasPrefabs;
   }
   function updatePanels() {
+    updateSculptBar();
     gizmo.detach();
     populatePrefabSelect();
     for (const id of [
@@ -2860,6 +2973,77 @@ async function startEditor() {
     weaponFx.reset();
     rebuild();
   };
+  // -- Terrain sculpting (0.63.0) -------------------------------------------
+  // Looked up on use: updatePanels() can run before this section has.
+  const sculptElement = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
+  const sculptMode = () => sculptElement<HTMLSelectElement>("sculpt")?.value ?? "off";
+  function selectedTerrainIndex(): number {
+    if (doc.mode !== "edit" || !doc.selection || !doc.scene.effectiveHas(doc.selection, "Terrain")) return -1;
+    const index = doc.scene.eachAlive().findIndex((e) => e.index === doc.selection!.index);
+    return terrainMeshes.has(index) ? index : -1;
+  }
+  function sculpting(): boolean {
+    return sculptMode() !== "off" && selectedTerrainIndex() >= 0;
+  }
+  // Left-drag sculpts instead of orbiting while a brush is active.
+  function updateSculptBar() {
+    const bar = sculptElement("sculpt-bar");
+    if (!bar) return;
+    bar.hidden = doc.mode !== "edit" || !doc.selection || !doc.scene.effectiveHas(doc.selection, "Terrain");
+    const active = sculpting();
+    controls.mouseButtons.LEFT = (active ? null : THREE.MOUSE.ROTATE) as THREE.MOUSE;
+    gizmo.enabled = !active;
+  }
+  const sculptTool = el<HTMLSelectElement>("sculpt");
+  const sculptRadius = el<HTMLInputElement>("sculpt-radius");
+  const sculptStrength = el<HTMLInputElement>("sculpt-strength");
+  sculptTool.onchange = updateSculptBar;
+  const sculptRay = new THREE.Raycaster();
+  function terrainPoint(event: PointerEvent, index: number): THREE.Vector3 | undefined {
+    const rect = renderer.domElement.getBoundingClientRect();
+    sculptRay.setFromCamera(
+      new THREE.Vector2(((event.clientX - rect.left) / rect.width) * 2 - 1, (-(event.clientY - rect.top) / rect.height) * 2 + 1),
+      camera,
+    );
+    const hit = sculptRay.intersectObject(terrainMeshes.get(index)!.mesh, false)[0];
+    return hit ? objects[index]!.worldToLocal(hit.point.clone()) : undefined;
+  }
+  let sculptStroke: { index: number; entity: EntityRef } | undefined;
+  function sculptDab(event: PointerEvent) {
+    if (!sculptStroke) return;
+    const point = terrainPoint(event, sculptStroke.index);
+    const live = terrainMeshes.get(sculptStroke.index);
+    if (!point || !live) return;
+    applyBrush(
+      live.params,
+      live.offsets,
+      sculptTool.value as BrushMode,
+      point.x,
+      point.z,
+      Number(sculptRadius.value),
+      Number(sculptStrength.value) * 0.2,
+    );
+    shapeTerrain(live.mesh.geometry, generateHeights(live.params, live.offsets), live.look, live.params.seed);
+  }
+  renderer.domElement.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || !sculpting()) return;
+    const index = selectedTerrainIndex();
+    sculptStroke = { index, entity: doc.selection! };
+    sculptDab(event);
+  });
+  window.addEventListener("pointermove", (event) => {
+    if (sculptStroke && event.buttons & 1) sculptDab(event);
+  });
+  window.addEventListener("pointerup", () => {
+    if (!sculptStroke) return;
+    const { index, entity } = sculptStroke;
+    sculptStroke = undefined;
+    const live = terrainMeshes.get(index);
+    const current = doc.scene.resolve(entity, "Terrain");
+    if (!live || !current) return;
+    // One undoable edit per stroke.
+    execute({ command: "set_component", entity, type: "Terrain", value: { ...current, sculpt: encodeSculpt(live.offsets) } });
+  });
   // -- Imported assets (0.58.0; see userAssets.ts) ------------------------
   // Object URLs for imported images, by file name ("asset:<name>").
   const importedImages = new Map<string, string>();
@@ -3067,6 +3251,7 @@ async function startEditor() {
   }
   renderer.domElement.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || gizmo.dragging || gizmo.axis !== null) return;
+    if (sculpting()) return; // the sculpt brush owns left clicks
     const rect = renderer.domElement.getBoundingClientRect();
     // A UI Button's hit-test comes first, in the same CSS-pixel coordinate
     // space drawHud() laid it out in (hud's own width/height are unscaled

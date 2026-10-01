@@ -424,6 +424,36 @@ bool layers_interact(std::uint8_t layer_a, std::uint32_t mask_a, std::uint8_t la
     return (mask_a & bit(layer_b)) != 0 && (mask_b & bit(layer_a)) != 0;
 }
 
+bool Heightfield::contains(float x, float z) const {
+    return resolution >= 2 && heights.size() == static_cast<std::size_t>(resolution) * static_cast<std::size_t>(resolution) &&
+           std::abs(x - center.x) <= size / 2 && std::abs(z - center.z) <= size / 2;
+}
+
+float Heightfield::height_at(float x, float z) const {
+    if (resolution < 2 || heights.size() != static_cast<std::size_t>(resolution) * static_cast<std::size_t>(resolution))
+        return center.y;
+    const float step = size / static_cast<float>(resolution - 1);
+    const float last = static_cast<float>(resolution - 1) - 0.0001F;
+    const float fx = std::clamp((x - center.x + size / 2) / step, 0.0F, last);
+    const float fz = std::clamp((z - center.z + size / 2) / step, 0.0F, last);
+    const int c = static_cast<int>(fx), r = static_cast<int>(fz);
+    const float tx = fx - static_cast<float>(c), tz = fz - static_cast<float>(r);
+    const auto at = [&](int cc, int rr) {
+        return heights[static_cast<std::size_t>(rr) * static_cast<std::size_t>(resolution) + static_cast<std::size_t>(cc)];
+    };
+    const float top = at(c, r) + (at(c + 1, r) - at(c, r)) * tx;
+    const float bottom = at(c, r + 1) + (at(c + 1, r + 1) - at(c, r + 1)) * tx;
+    return center.y + top + (bottom - top) * tz;
+}
+
+Vec3 Heightfield::normal_at(float x, float z) const {
+    const float e = size / static_cast<float>(std::max(resolution - 1, 1)) * 0.25F;
+    const float dx = (height_at(x + e, z) - height_at(x - e, z)) / (2 * e);
+    const float dz = (height_at(x, z + e) - height_at(x, z - e)) / (2 * e);
+    const float length = std::sqrt(1 + dx * dx + dz * dz);
+    return {-dx / length, 1 / length, -dz / length};
+}
+
 bool is_oriented(const Collider &collider) {
     return collider.shape == ColliderShape::Box &&
            (collider.rotation.x != 0 || collider.rotation.y != 0 || collider.rotation.z != 0);
@@ -479,7 +509,25 @@ void step(World &world, float dt, const Config &config, Events *events) {
 
         if (!kinematic) {
             const float bottom = box.center.y - box.size.y / 2;
-            if (bottom < config.ground_y) {
+            if (config.terrain && config.terrain->contains(box.center.x, box.center.z)) {
+                const float ground = config.terrain->height_at(box.center.x, box.center.z);
+                if (bottom < ground) {
+                    const Vec3 n = config.terrain->normal_at(box.center.x, box.center.z);
+                    if (n.y >= walkable_normal_y) {
+                        box.center.y += ground - bottom;
+                        if (body.velocity.y < 0)
+                            body.velocity.y = 0;
+                        body.grounded = true;
+                    } else {
+                        const float depth = (ground - bottom) * n.y;
+                        box.center = {box.center.x + n.x * depth, box.center.y + n.y * depth, box.center.z + n.z * depth};
+                        const float into = dot(body.velocity, n);
+                        if (into < 0)
+                            body.velocity = {body.velocity.x - n.x * into, body.velocity.y - n.y * into,
+                                             body.velocity.z - n.z * into};
+                    }
+                }
+            } else if (bottom < config.ground_y) {
                 box.center.y += config.ground_y - bottom;
                 if (body.velocity.y < 0)
                     body.velocity.y = 0;
@@ -650,7 +698,45 @@ std::optional<RaycastHit> raycast(World &world, Vec3 origin, Vec3 direction, flo
 
     if (std::abs(direction.y) > 1e-9F) {
         const float t = (config.ground_y - origin.y) / direction.y;
-        consider(t, Entity{}, true, {0, direction.y < 0 ? 1.0F : -1.0F, 0});
+        const float px = origin.x + direction.x * t, pz = origin.z + direction.z * t;
+        // Inside the terrain's square the terrain is the ground instead.
+        if (!config.terrain || !config.terrain->contains(px, pz))
+            consider(t, Entity{}, true, {0, direction.y < 0 ? 1.0F : -1.0F, 0});
+    }
+    if (config.terrain) {
+        // March half a cell at a time; refine the first crossing by bisection.
+        const auto &terrain = *config.terrain;
+        const float step = terrain.size / static_cast<float>(std::max(terrain.resolution - 1, 1)) * 0.5F;
+        const auto above = [&](float t) {
+            const float x = origin.x + direction.x * t, z = origin.z + direction.z * t;
+            return origin.y + direction.y * t - terrain.height_at(x, z);
+        };
+        const auto inside = [&](float t) {
+            return terrain.contains(origin.x + direction.x * t, origin.z + direction.z * t);
+        };
+        float previous = 0;
+        bool previous_above = !inside(0) || above(0) > 0;
+        for (float t = std::min(step, max_distance); t <= max_distance; t = std::min(t + step, max_distance)) {
+            const bool now_inside = inside(t);
+            const bool now_above = !now_inside || above(t) > 0;
+            if (now_inside && previous_above && !now_above) {
+                float lo = previous, hi = t;
+                for (int i = 0; i < 12; ++i) {
+                    const float mid = (lo + hi) / 2;
+                    if (inside(mid) && above(mid) <= 0)
+                        hi = mid;
+                    else
+                        lo = mid;
+                }
+                const float x = origin.x + direction.x * hi, z = origin.z + direction.z * hi;
+                consider(hi, Entity{}, true, terrain.normal_at(x, z));
+                break;
+            }
+            previous = t;
+            previous_above = now_above;
+            if (t >= max_distance)
+                break;
+        }
     }
 
     for (const auto entity : world.query<Box, Collider>()) {

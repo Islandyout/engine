@@ -543,10 +543,72 @@ int main() {
             check(std::abs(hi.x - 1.4142135F) < 0.001F && std::abs(lo.z + 1.4142135F) < 0.001F,
                   "rotated bounds enclose the rotated box");
         }
+        {
+            // Terrain: a 3x3 heightfield over a 20x20 square with a 4-unit
+            // peak in the middle, centered at (100, 1, 0).
+            physics::Heightfield terrain;
+            terrain.center = {100, 1, 0};
+            terrain.size = 20;
+            terrain.resolution = 3;
+            terrain.heights = {0, 0, 0, 0, 4, 0, 0, 0, 0};
+            check(terrain.contains(109, 9) && !terrain.contains(111, 0), "terrain bounds");
+            check(std::abs(terrain.height_at(100, 0) - 5) < 1e-5F, "peak height (center.y + 4)");
+            check(std::abs(terrain.height_at(105, 0) - 3) < 1e-5F, "bilinear halfway down");
+            const auto n = terrain.normal_at(105, 0);
+            check(n.x > 0.3F && n.y > 0.5F && std::abs(n.z) < 1e-4F, "normal tilts away from the peak");
+            const Config config{.gravity = -18.0F, .ground_y = 0.0F, .terrain = &terrain};
+
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            // A gentle spot: settles on the surface, grounded.
+            const auto rests = world.create();
+            world.set(rests, Box{{108, 10, 8}, {1, 1, 1}});
+            world.set(rests, RigidBody{});
+            // Outside the square the flat ground plane still applies.
+            const auto outside = world.create();
+            world.set(outside, Box{{130, 5, 0}, {1, 1, 1}});
+            world.set(outside, RigidBody{});
+            for (int i = 0; i < 180; ++i)
+                physics::step(world, 1.0F / 60, config);
+            const float ground = terrain.height_at(108, 8);
+            check(world.get<RigidBody>(rests)->grounded, "resting on terrain is grounded");
+            check(std::abs(world.get<Box>(rests)->center.y - 0.5F - ground) < 0.02F, "rests on the terrain surface");
+            check(std::abs(world.get<Box>(outside)->center.y - 0.5F) < 1e-4F, "the plane holds outside the terrain");
+
+            // A steep slope can't be stood on: the body slides away from the peak.
+            physics::Heightfield cliff = terrain;
+            cliff.heights = {0, 0, 0, 0, 40, 0, 0, 0, 0};
+            const Config steep{.gravity = -18.0F, .ground_y = -100.0F, .terrain = &cliff};
+            World slide;
+            slide.register_component<Box>("box");
+            slide.register_component<RigidBody>("rigidbody");
+            slide.register_component<Collider>("collider");
+            const auto slider = slide.create();
+            slide.set(slider, Box{{103, cliff.height_at(103, 0) + 0.6F, 0}, {1, 1, 1}});
+            slide.set(slider, RigidBody{});
+            for (int i = 0; i < 60; ++i)
+                physics::step(slide, 1.0F / 60, steep);
+            check(slide.get<Box>(slider)->center.x > 104, "slides down a steep slope");
+            check(!slide.get<RigidBody>(slider)->grounded || slide.get<Box>(slider)->center.x > 109,
+                  "not grounded on the steep part");
+
+            // Raycasts hit the terrain surface with its normal; the plane under
+            // the terrain is ignored.
+            const auto down = physics::raycast(world, {105, 50, 0}, {0, -1, 0}, 100.0F, config);
+            check(down && down->hit_ground && std::abs(down->point.y - 3) < 0.01F, "ray down hits the slope");
+            check(down->normal.x > 0.3F, "with the slope's normal");
+            const auto across = physics::raycast(world, {85, 2, 0}, {1, 0, 0}, 40.0F, config);
+            check(across && across->hit_ground && std::abs(across->point.x - 92.5F) < 0.05F,
+                  "a level ray hits the hillside where it rises above y = 2");
+            const auto over = physics::raycast(world, {85, 6, 0}, {1, 0, 0}, 40.0F, config);
+            check(!over, "a ray above the peak misses");
+        }
 
         std::cout << "Physics gravity, ground rest, box/sphere collider resolution, raycasting, "
                      "no-op dt, dynamic pairs, kinematic bodies, triggers, contact events, layers, "
-                     "bounciness, forces/impulses, query filters, oriented boxes, ramps and hit normals passed.\n";
+                     "bounciness, forces/impulses, query filters, oriented boxes, ramps, hit normals and terrain heightfields passed.\n";
     } catch (const std::exception &e) {
         std::cerr << e.what() << '\n';
         return 1;

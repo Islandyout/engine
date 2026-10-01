@@ -25,8 +25,16 @@ Vec3 Grid::center(int cx, int cz, float y) const {
             -settings_.half_extent + (static_cast<float>(cz) + 0.5F) * settings_.cell_size};
 }
 
-void Grid::bake(const World& world, const std::vector<Entity>& ignore) {
+void Grid::bake(const World& world, const std::vector<Entity>& ignore, const physics::Heightfield* terrain) {
     std::fill(blocked_.begin(), blocked_.end(), std::uint8_t{0});
+    if (terrain)
+        for (int cz = 0; cz < size_; ++cz)
+            for (int cx = 0; cx < size_; ++cx) {
+                const auto c = center(cx, cz, 0);
+                if (terrain->contains(c.x, c.z) && terrain->normal_at(c.x, c.z).y < physics::walkable_normal_y)
+                    blocked_[static_cast<std::size_t>(cz) * static_cast<std::size_t>(size_) +
+                             static_cast<std::size_t>(cx)] = 1;
+            }
     for (const auto entity : world.query<Box, physics::Collider>()) {
         if (std::find(ignore.begin(), ignore.end(), entity) != ignore.end())
             continue;

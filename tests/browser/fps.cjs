@@ -203,9 +203,49 @@ const { chromium } = require("playwright");
     await page.evaluate(() => document.exitPointerLock());
     await page.click("#stop");
 
+    // F63: Terrain. A flat terrain raised to y = 2 replaces the ground plane
+    // under the player (they stand on it at 2.9); in Edit mode the Sculpt
+    // tool's Raise brush paints offsets into Terrain.sculpt in one undoable
+    // stroke.
+    const land = await run({ command: "spawn_entity", name: "Land", transform: [0, 2, 0] });
+    await run({
+      command: "set_component",
+      entity: land.entity,
+      type: "Terrain",
+      value: {
+        size: 80, resolution: 33, height: 0, seed: 1, frequency: 1.5, octaves: 4, sculpt: "",
+        grassColor: { x: 0.33, y: 0.48, z: 0.2 }, rockColor: { x: 0.42, y: 0.4, z: 0.38 },
+        sandColor: { x: 0.76, y: 0.7, z: 0.5 }, snowColor: { x: 0.95, y: 0.96, z: 1 },
+        sandHeight: -2.5, snowHeight: 9, rockSlope: 0.82, scatter: "46 0.002 1 1 0.5 collide\n",
+      },
+    });
+    await page.click("#play");
+    await page.waitForFunction(() => {
+      const match = document.querySelector("#status").textContent.match(/Player \(([-\d.]+), ([-\d.]+), ([-\d.]+)\)/);
+      return match && Math.abs(Number(match[2]) - 2.9) < 0.05;
+    });
+    await page.screenshot({ path: "build/browser-evidence/f63-terrain-play.png" });
+    await page.click("#stop");
+    await page.locator(".entity").filter({ hasText: "Land" }).first().click();
+    const sculptField = page.locator('[aria-label="Terrain.sculpt"]');
+    assert.equal(await sculptField.inputValue(), "");
+    assert.equal(await page.locator("#sculpt-bar").isVisible(), true, "the sculpt tool shows for a selected terrain");
+    await page.locator("#sculpt").selectOption("raise");
+    const center = await viewport();
+    await page.mouse.move(center.cx, center.cy);
+    await page.mouse.down({ button: "left" });
+    await page.mouse.move(center.cx + 40, center.cy, { steps: 8 });
+    await page.mouse.up({ button: "left" });
+    await page.waitForFunction(() => document.querySelector('[aria-label="Terrain.sculpt"]')?.value !== "");
+    await page.screenshot({ path: "build/browser-evidence/f63-terrain-sculpt.png" });
+    await page.locator("#undo").click();
+    await page.locator(".entity").filter({ hasText: "Land" }).first().click();
+    assert.equal(await page.locator('[aria-label="Terrain.sculpt"]').inputValue(), "", "undo removes the stroke");
+    await page.locator("#sculpt").selectOption("off");
+
     assert.deepEqual(errors, []);
     console.log(
-      "FPS browser: first-person CharacterController (camera, look, walk, step climbing) and weapons (hold-to-fire kill with on_death, reload from reserve, switching, HUD) and combat AI (a soldier spots and shoots the player, dies to return fire, on_kill) passed.",
+      "FPS browser: first-person CharacterController (camera, look, walk, step climbing) and weapons (hold-to-fire kill with on_death, reload from reserve, switching, HUD) and combat AI (a soldier spots and shoots the player, dies to return fire, on_kill) and terrain (standing on it, sculpting with undo) passed.",
     );
   } finally {
     if (browser) await browser.close();

@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <cstdlib>
 #include <cmath>
 #include <iterator>
@@ -440,6 +441,10 @@ struct Runtime {
     float look_pitch{0.0F};
     // Physics settings shared by every system that steps or queries it.
     engine::physics::Config physics_config{};
+    // The scene's terrain (editor_set_terrain), if any; physics_config and
+    // the nav grid point at it.
+    std::optional<engine::physics::Heightfield> terrain;
+    int obstacle_count{0};
     engine::script::Runtime script_runtime;
     std::map<engine::Entity, std::string> script_errors;
     // Contact/trigger bookkeeping across physics steps (enter/stay/exit).
@@ -1003,6 +1008,7 @@ struct Runtime {
         script_runtime.set_host(&host);
         script_runtime.set_nav(&nav_grid);
         script_runtime.set_input(&input, &actions);
+        script_runtime.set_physics_config(&physics_config);
         add_timed("editor.actions", engine::FixedPhase::begin, 1,
                     [this](engine::World &, const engine::FixedUpdateContext &context) {
                         actions.update(context.input);
@@ -1021,7 +1027,7 @@ struct Runtime {
                             movers.push_back(entity);
                         for (const auto entity : w.query<Soldier>())
                             movers.push_back(entity);
-                        nav_grid.bake(w, movers);
+                        nav_grid.bake(w, movers, terrain ? &*terrain : nullptr);
                     });
         // Recorded once per entity, the first time its script fails to compile
         // or errors at runtime (engine::script::Runtime's own "reported once,
@@ -2003,6 +2009,89 @@ EXPORT void editor_set_controller(int index, int mode, double walk, double sprin
     settings.air_accel = static_cast<float>(air);
     engine::gameplay::configure_body(*box, settings);
     world.set(target->second, controller);
+}
+namespace {
+// Standard base64 (RFC 4648) to bytes; returns false on malformed input.
+bool decode_base64(const char *text, std::vector<unsigned char> &out) {
+    out.clear();
+    unsigned value = 0;
+    int bits = 0;
+    for (const char *c = text; *c; ++c) {
+        int digit;
+        if (*c >= 'A' && *c <= 'Z')
+            digit = *c - 'A';
+        else if (*c >= 'a' && *c <= 'z')
+            digit = *c - 'a' + 26;
+        else if (*c >= '0' && *c <= '9')
+            digit = *c - '0' + 52;
+        else if (*c == '+')
+            digit = 62;
+        else if (*c == '/')
+            digit = 63;
+        else if (*c == '=')
+            break;
+        else
+            return false;
+        value = (value << 6) | static_cast<unsigned>(digit);
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            out.push_back(static_cast<unsigned char>((value >> bits) & 0xFF));
+        }
+    }
+    return true;
+}
+} // namespace
+// The scene's terrain (0.63.0), between editor_begin() and editor_commit():
+// a resolution x resolution heightfield over a `size` square centered on
+// (x, z), heights relative to y, as base64 little-endian float32 (row-major,
+// x fastest). Replaces any earlier terrain. Bad input fails the commit.
+EXPORT void editor_set_terrain(double x, double y, double z, double size, int resolution, const char *heights) {
+    if (!staging || !heights)
+        return;
+    std::vector<unsigned char> bytes;
+    const auto count = static_cast<std::size_t>(resolution) * static_cast<std::size_t>(std::max(resolution, 0));
+    if (resolution < 2 || resolution > 1025 || !std::isfinite(size) || size <= 0 || size > 100000 ||
+        !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) || !decode_base64(heights, bytes) ||
+        bytes.size() != count * 4) {
+        failed = true;
+        return;
+    }
+    engine::physics::Heightfield field;
+    field.center = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)};
+    field.size = static_cast<float>(size);
+    field.resolution = resolution;
+    field.heights.resize(count);
+    std::memcpy(field.heights.data(), bytes.data(), bytes.size());
+    for (const float h : field.heights)
+        if (!std::isfinite(h) || std::abs(h) > 100000) {
+            failed = true;
+            return;
+        }
+    staging->terrain = std::move(field);
+    staging->physics_config.terrain = &*staging->terrain;
+}
+// A static box obstacle (e.g. a scattered tree trunk) that isn't one of the
+// editor's entities: it blocks movement, bullets, sight and paths.
+EXPORT void editor_add_obstacle(double x, double y, double z, double sx, double sy, double sz) {
+    if (!staging || staging->obstacle_count >= 4000)
+        return;
+    for (const double v : {x, y, z, sx, sy, sz})
+        if (!std::isfinite(v) || std::abs(v) > 1000000)
+            return;
+    if (sx <= 0 || sy <= 0 || sz <= 0)
+        return;
+    const auto e = staging->world.create();
+    staging->world.set(e, engine::Box{{static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)},
+                                      {static_cast<float>(sx), static_cast<float>(sy), static_cast<float>(sz)}});
+    staging->world.set(e, engine::physics::Collider{});
+    ++staging->obstacle_count;
+}
+// The terrain's world height at (x, z), or NaN outside it (for tests and tools).
+EXPORT double editor_terrain_height(double x, double z) {
+    if (!active->terrain || !active->terrain->contains(static_cast<float>(x), static_cast<float>(z)))
+        return std::nan("");
+    return active->terrain->height_at(static_cast<float>(x), static_cast<float>(z));
 }
 // Makes the entity a combat soldier (0.62.0), after editor_add for the same
 // index: team (0 = the Player's), behavior (0 patrol, 1 guard, 2 hunt), sight

@@ -427,7 +427,8 @@ struct LuaApi final {
         filter.layer_mask = static_cast<std::uint32_t>(luaL_optinteger(L, 8, physics::all_layers));
         const auto hit = physics::raycast(*self.world_, {number_arg(L, 1), number_arg(L, 2), number_arg(L, 3)},
                                           {number_arg(L, 4), number_arg(L, 5), number_arg(L, 6)},
-                                          number_arg(L, 7, 100.0F), {}, filter);
+                                          number_arg(L, 7, 100.0F),
+                                          self.physics_config_ ? *self.physics_config_ : physics::Config{}, filter);
         if (!hit)
             return lua_pushnil(L), 1;
         if (hit->hit_ground)

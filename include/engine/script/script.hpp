@@ -266,6 +266,9 @@ public:
     void set_nav(const nav::Grid *grid) { nav_ = grid; }
     // Native input for the `input` table beyond input.down/pressed's string
     // keys: raw mouse and gamepad state, and named actions (input.action*).
+    // The physics settings world.raycast uses (ground plane, terrain); not
+    // owned. Without one, the defaults.
+    void set_physics_config(const physics::Config *config) { physics_config_ = config; }
     // Either may be null; the matching Lua calls then report nothing held.
     void set_input(const InputState *state, const ActionSystem *actions) {
         input_state_ = state;
@@ -312,6 +315,7 @@ private:
               const std::function<void(lua_State *)> &push_args, int nargs);
     Host *host_{};
     const nav::Grid *nav_{};
+    const physics::Config *physics_config_{};
     const InputState *input_state_{};
     const ActionSystem *actions_{};
     World *world_{};

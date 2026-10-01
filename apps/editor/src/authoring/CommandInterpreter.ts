@@ -84,6 +84,7 @@ const componentNames = [
   "CharacterController",
   "Weapons",
   "AICombat",
+  "Terrain",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -673,6 +674,24 @@ export function defaultComponent(
       };
     case "CharacterController":
       return defaultCharacterController();
+    case "Terrain":
+      return {
+        size: 120,
+        resolution: 97,
+        height: 6,
+        seed: 1,
+        frequency: 1.5,
+        octaves: 4,
+        sculpt: "",
+        grassColor: { x: 0.33, y: 0.48, z: 0.2 },
+        rockColor: { x: 0.42, y: 0.4, z: 0.38 },
+        sandColor: { x: 0.76, y: 0.7, z: 0.5 },
+        snowColor: { x: 0.95, y: 0.96, z: 1 },
+        sandHeight: -2.5,
+        snowHeight: 9,
+        rockSlope: 0.82,
+        scatter: "",
+      };
     case "AICombat":
       return {
         team: 1,

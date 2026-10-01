@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <source_location>
 #include <string>
+#include <vector>
 extern "C" {
 void editor_begin();
 int editor_add(double, double, double, double, double, double, double, double, double, double,
@@ -60,8 +61,27 @@ void editor_set_soldier(int, double, double, double, double, double, double, dou
                         int, double, double);
 void editor_set_soldier_patrol(int, const char *);
 double editor_soldier_value(int, int);
+void editor_set_terrain(double, double, double, double, int, const char *);
+void editor_add_obstacle(double, double, double, double, double, double);
+double editor_terrain_height(double, double);
 }
 namespace {
+std::string base64_floats(const std::vector<float> &values) {
+    static const char *alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string bytes(reinterpret_cast<const char *>(values.data()), values.size() * sizeof(float));
+    std::string out;
+    for (std::size_t i = 0; i < bytes.size(); i += 3) {
+        const unsigned b0 = static_cast<unsigned char>(bytes[i]);
+        const unsigned b1 = i + 1 < bytes.size() ? static_cast<unsigned char>(bytes[i + 1]) : 0;
+        const unsigned b2 = i + 2 < bytes.size() ? static_cast<unsigned char>(bytes[i + 2]) : 0;
+        const unsigned triple = (b0 << 16) | (b1 << 8) | b2;
+        out += alphabet[(triple >> 18) & 63];
+        out += alphabet[(triple >> 12) & 63];
+        out += i + 1 < bytes.size() ? alphabet[(triple >> 6) & 63] : '=';
+        out += i + 2 < bytes.size() ? alphabet[triple & 63] : '=';
+    }
+    return out;
+}
 int add_unit(double x, double y, double z, double vx, double vy, double vz) {
     return editor_add(x, y, z, vx, vy, vz, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0);
 }
@@ -1436,6 +1456,49 @@ int main() {
         check(editor_commit() == 0);
     }
 
+    {
+        // Terrain: a 40x40 hill (3x3 heights, peak 4) under a first-person
+        // player walking up its gentle side; the feet follow the surface. A
+        // scripted raycast hits it; an obstacle blocks a body; bad heights
+        // fail the commit.
+        editor_begin();
+        check(editor_add(-15, 3, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 0, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        check(editor_add(0, 20, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_script_source(1, "function on_tick(dt) local hit, d, x, y, z = world.raycast(5, 30, 0, 0, -1, 0, 100) "
+                                    "if hit == 'ground' then log(string.format('%.2f', y)) end end");
+        editor_set_terrain(0, 1, 0, 40, 3, base64_floats({0, 0, 0, 0, 4, 0, 0, 0, 0}).c_str());
+        editor_add_obstacle(-15, 1, 8, 4, 4, 1);
+        check(editor_add(-15, 1.5, 4, 0, 0, 6, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_commit() == 1);
+        check(std::abs(editor_terrain_height(0, 0) - 5) < 1e-5 && std::isnan(editor_terrain_height(30, 0)));
+        for (int i = 0; i < 30; ++i)
+            editor_tick();
+        const double start_feet = editor_controller_value(0, 6);
+        check(std::abs(start_feet - (1 + 4 * 0.25)) < 0.05); // terrain height at x = -15 is 2
+        editor_input_begin_frame();
+        editor_set_look(-1.5707963, 0); // face +x, up the hill
+        editor_input_key("KeyW", 1);
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("KeyW", 0);
+        const double x = editor_value(0, 0);
+        check(x > -12 && x < 0);
+        check(std::abs(editor_controller_value(0, 6) - editor_terrain_height(x, editor_value(0, 2))) < 0.1);
+        check(editor_controller_value(0, 6) > start_feet + 0.5); // climbed
+        bool logged = false;
+        const int commands = editor_take_commands();
+        for (int c = 0; c < commands; ++c)
+            logged = logged || std::string(editor_command_text(c, 1)) == "4.00"; // 1 + 4 * (1 - 5/20) at x = 5
+        check(logged);
+        check(editor_value(2, 2) < 8 - 0.5 - 0.49); // stopped by the obstacle's near face (z = 7.5)
+
+        editor_begin();
+        editor_set_terrain(0, 0, 0, 40, 3, "AAAA");
+        check(editor_commit() == 0);
+    }
+
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
                  "movement, jump/sustained-flight, Collider box and sphere obstacle blocking, "
@@ -1453,5 +1516,5 @@ int main() {
                  "(crouch/sit) freezing Player WASD input while held, authored "
                  "RigidBody mass/kinematic and Collider trigger/layer settings, the script host "
                  "(prefab templates for world.spawn, names, props, sound/ui/log commands), and native "
-                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill), and combat soldiers (sight, bursts, hearing, investigating around cover, reloading in cover, melee hunters, patrols) passed.\n";
+                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill), and combat soldiers (sight, bursts, hearing, investigating around cover, reloading in cover, melee hunters, patrols), and terrain (walking up a hill, scripted raycasts, obstacles) passed.\n";
 }

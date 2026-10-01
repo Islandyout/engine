@@ -102,9 +102,28 @@ struct Collider final {
 // y component is at least this (about 50 degrees).
 constexpr float walkable_normal_y = 0.64F;
 
+// A terrain heightfield (0.63.0): resolution x resolution heights over a
+// square of side `size` centered on `center` (x, z), row-major with x
+// varying fastest (row 0 is the -z edge, column 0 the -x edge). Heights are
+// relative to center.y. Inside its square it replaces the flat ground plane
+// for bodies and raycasts; outside, the plane still applies.
+struct Heightfield final {
+    Vec3 center{};
+    float size{1.0F};
+    int resolution{2};
+    std::vector<float> heights;
+    [[nodiscard]] bool contains(float x, float z) const;
+    // World-space surface height (bilinear); clamps at the edges.
+    [[nodiscard]] float height_at(float x, float z) const;
+    // Unit surface normal from the height gradient.
+    [[nodiscard]] Vec3 normal_at(float x, float z) const;
+};
+
 struct Config final {
     float gravity{-18.0F};
     float ground_y{0.0F};
+    // Optional terrain; not owned.
+    const Heightfield* terrain{nullptr};
 };
 
 enum class ContactPhase { enter, stay, exit };
@@ -165,6 +184,11 @@ public:
 //   kinematic or has mass 0 it pushes the other one fully aside; otherwise
 //   the two separate in inverse proportion to their masses and exchange
 //   momentum along the contact normal.
+//
+// Terrain: a body below the surface at its center is lifted onto it when the
+// slope there is walkable (and grounded); on steeper ground it is pushed out
+// along the surface normal and loses its into-slope velocity, so it slides
+// down rather than climbing.
 //
 // A body is marked grounded only when resolved upward (resting on the ground
 // plane or on top of a collider or another body). Entities with only one of

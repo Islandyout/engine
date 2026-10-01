@@ -732,3 +732,9 @@ input[readonly] {
 #app.player-mode .viewport-toolbar {
   display: none;
 }
+
+/* Terrain sculpt tool (0.63.0) */
+.sculpt-bar { display: inline-flex; align-items: center; gap: 8px; }
+.sculpt-bar[hidden] { display: none; }
+.sculpt-slider { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted, #9aa7b4); }
+.sculpt-slider input { width: 80px; }

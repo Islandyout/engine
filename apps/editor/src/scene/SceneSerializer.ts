@@ -217,6 +217,7 @@ const componentNames = [
   "CharacterController",
   "Weapons",
   "AICombat",
+  "Terrain",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -422,6 +423,32 @@ export function normalizeComponent(
       };
     case "InputActions":
       return { bindings: string(value.bindings, "InputActions.bindings") };
+    case "Terrain": {
+      const integer = (v: unknown, label: string, min: number, max: number) => {
+        const n = number(v, label);
+        if (!Number.isInteger(n) || n < min || n > max) throw new Error(`${label} must be a whole number from ${min} to ${max}.`);
+        return n;
+      };
+      const size = positiveNumber(value.size, "Terrain.size");
+      if (size > 4000) throw new Error("Terrain.size must be at most 4000.");
+      return {
+        size,
+        resolution: integer(value.resolution, "Terrain.resolution", 9, 257),
+        height: nonNegativeNumber(value.height, "Terrain.height"),
+        seed: integer(value.seed, "Terrain.seed", -1000000, 1000000),
+        frequency: nonNegativeNumber(value.frequency, "Terrain.frequency"),
+        octaves: integer(value.octaves, "Terrain.octaves", 1, 8),
+        sculpt: string(value.sculpt, "Terrain.sculpt"),
+        grassColor: unitVec3(value.grassColor, "Terrain.grassColor"),
+        rockColor: unitVec3(value.rockColor, "Terrain.rockColor"),
+        sandColor: unitVec3(value.sandColor, "Terrain.sandColor"),
+        snowColor: unitVec3(value.snowColor, "Terrain.snowColor"),
+        sandHeight: number(value.sandHeight, "Terrain.sandHeight"),
+        snowHeight: number(value.snowHeight, "Terrain.snowHeight"),
+        rockSlope: number(value.rockSlope, "Terrain.rockSlope"),
+        scatter: string(value.scatter, "Terrain.scatter"),
+      };
+    }
     case "AICombat": {
       const behavior = value.behavior;
       if (behavior !== "Patrol" && behavior !== "Guard" && behavior !== "Hunt")

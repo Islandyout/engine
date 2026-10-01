@@ -211,6 +211,15 @@ Engine version 0.62.0 adds combat AI with the `AICombat` component:
 
 See [F62](docs/IMPLEMENTATION_STATUS.md#f62--combat-ai-0620).
 
+Engine version 0.63.0 adds a `Terrain` component:
+
+- **Shape**: a heightfield from seeded fractal noise, plus offsets you paint with the viewport's **Sculpt** tool (raise, lower, smooth, flatten; radius and strength; one undo per stroke).
+- **Look**: colored sand, grass, rock (by slope) and snow (by height) over a detail texture.
+- **Scatter**: catalog models (trees, rocks, bushes) placed by density rules, drawn instanced, optionally with trunk colliders.
+- **Simulation**: bodies and the character controller stand on it, steep slopes can't be climbed, bullets and raycasts (including Lua's) hit it, and AI paths avoid cliffs.
+
+See [F63](docs/IMPLEMENTATION_STATUS.md#f63--terrain-0630).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 
