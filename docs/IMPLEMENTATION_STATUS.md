@@ -4621,3 +4621,25 @@ Software rendering, as in CI's headless Chromium, is slow with AO on: about 3 fp
   - shadow quality ordering and the grading shader's uniforms;
   - the component attaches with the preset and rejects an out-of-range vignette or an unknown AA mode.
 - `tests/browser/fps.cjs`: SMAA, grading, vignette, grain and high-quality shadows render through Play without errors. Evidence screenshot `f65-post-processing.png`.
+
+## F66 — Game-flow script APIs (0.66.0)
+
+Small additions the first-person shooter needed to be written entirely in Lua.
+
+- **`world.heal(id, amount)`** goes through a new `Host::heal` hook, whose default does nothing. The bridge raises Health up to its maximum, and only for entities still alive.
+- **`world.give_ammo(id, rounds[, slot])`** uses the existing `Host::weapon("give_ammo")` path, but on any entity instead of the script's own.
+- **Waypoints**: `ui.marker` and `ui.clear_marker` emit `ui_marker` / `ui_marker_clear` commands.
+  - The editor keeps the markers until the runtime is rebuilt.
+  - Each frame it draws a diamond with the label and the distance from the view. A marker off screen or behind the camera is pinned to the screen edge in its direction.
+- **Pausing from scripts**: `game.pause()` and `game.resume()` emit commands that run the same code as the Pause and Resume buttons.
+  - `runScriptCommands()` now also runs in frames while paused.
+  - So a title or pause screen's buttons (`on_ui`, which runs immediately) can resume the game.
+- **Death view**: once a first-person player is destroyed, the view stays at their last position. It sinks about 1.3 m and rolls about 50°, easing out over roughly 0.7 s, instead of jumping to the editor camera.
+
+### F66 verification
+
+`engine_editor_bridge_tests` checks that:
+
+- a script's `world.heal` caps at the player's maximum;
+- `world.give_ammo` raises the player's reserve;
+- `ui.marker` and `game.pause` queue their commands.

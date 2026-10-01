@@ -391,6 +391,7 @@ public:
     void destroy(engine::World &world, engine::Entity entity) override { world.defer_destroy(entity); }
     bool health(const engine::World &world, engine::Entity entity, float &current, float &max) override;
     void damage(engine::World &world, engine::Entity entity, float amount) override;
+    void heal(engine::World &world, engine::Entity entity, float amount) override;
     void emit(engine::Entity source, const std::string &kind, const std::string &a, const std::string &b) override;
     bool weapon(engine::World &world, engine::Entity self, const std::string &op, const std::vector<double> &args,
                 std::vector<double> &out) override;
@@ -1721,6 +1722,12 @@ bool BridgeHost::health(const engine::World &world, engine::Entity entity, float
     current = h->current;
     max = h->max;
     return true;
+}
+
+void BridgeHost::heal(engine::World &world, engine::Entity entity, float amount) {
+    auto *health = world.get<Health>(entity);
+    if (health && health->current > 0 && std::isfinite(amount) && amount > 0)
+        health->current = std::min(health->max, health->current + amount);
 }
 
 void BridgeHost::damage(engine::World &world, engine::Entity entity, float amount) {

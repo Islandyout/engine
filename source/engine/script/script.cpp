@@ -417,6 +417,27 @@ struct LuaApi final {
             self.host_->damage(*self.world_, *entity, number_arg(L, 2));
         return 0;
     }
+    // world.heal(id, amount): restores Health up to its maximum.
+    static int heal(lua_State *L) {
+        auto &self = runtime(L);
+        const auto entity = entity_arg(L, 1);
+        if (entity && self.host_)
+            self.host_->heal(*self.world_, *entity, number_arg(L, 2));
+        return 0;
+    }
+    // world.give_ammo(id, rounds[, slot]): adds reserve rounds to another
+    // entity's weapon (slot is 1-based; default its current weapon).
+    static int give_ammo(lua_State *L) {
+        auto &self = runtime(L);
+        const auto entity = entity_arg(L, 1);
+        std::vector<double> out;
+        if (entity && self.host_)
+            self.host_->weapon(*self.world_, *entity, "give_ammo",
+                               {static_cast<double>(luaL_checkinteger(L, 2)),
+                                static_cast<double>(luaL_optinteger(L, 3, 0) - 1)},
+                               out);
+        return 0;
+    }
     // world.raycast(ox, oy, oz, dx, dy, dz, max[, layer_mask]) ->
     //   hit (entity id, or "ground"), distance, x, y, z, nx, ny, nz -- or nil
     //   (n is the unit surface normal at the hit point)
@@ -635,6 +656,29 @@ struct LuaApi final {
         emit(L, "ui_value", name, std::to_string(number_arg(L, 2)));
         return 0;
     }
+    // ui.marker(name, x, y, z[, label]): an on-screen waypoint at a world
+    // position (edge-clamped when off screen, with its distance).
+    static int ui_marker(lua_State *L) {
+        const char *name = luaL_checkstring(L, 1);
+        char where[256];
+        std::snprintf(where, sizeof where, "%.3f,%.3f,%.3f,%s", number_arg(L, 2), number_arg(L, 3), number_arg(L, 4),
+                      luaL_optstring(L, 5, ""));
+        emit(L, "ui_marker", name, where);
+        return 0;
+    }
+    static int ui_clear_marker(lua_State *L) {
+        emit(L, "ui_marker_clear", luaL_checkstring(L, 1), "");
+        return 0;
+    }
+    // game.pause() / game.resume(): the same as the Pause/Resume buttons.
+    static int game_pause(lua_State *L) {
+        emit(L, "game_pause", "", "");
+        return 0;
+    }
+    static int game_resume(lua_State *L) {
+        emit(L, "game_resume", "", "");
+        return 0;
+    }
     static int set_ui_visible(lua_State *L) {
         const char *name = luaL_checkstring(L, 1);
         emit(L, "ui_visible", name, lua_toboolean(L, 2) != 0 ? "1" : "0");
@@ -819,13 +863,21 @@ struct LuaApi final {
                {"destroy", destroy},
                {"health", health},
                {"damage", damage},
+               {"heal", heal},
+               {"give_ammo", give_ammo},
                {"raycast", raycast},
                {"overlap", overlap},
                {"send", send},
                {"path", path}});
         table(L, self, "physics", {{"add_force", add_force}, {"add_impulse", add_impulse}});
         table(L, self, "sound", {{"play", play_sound}, {"play_at", play_sound_at}, {"volume", sound_volume}});
-        table(L, self, "ui", {{"set_text", set_ui_text}, {"set_value", set_ui_value}, {"set_visible", set_ui_visible}});
+        table(L, self, "ui",
+              {{"set_text", set_ui_text},
+               {"set_value", set_ui_value},
+               {"set_visible", set_ui_visible},
+               {"marker", ui_marker},
+               {"clear_marker", ui_clear_marker}});
+        table(L, self, "game", {{"pause", game_pause}, {"resume", game_resume}});
         table(L, self, "anim", {{"set", anim_set}, {"trigger", anim_trigger}});
         table(L, self, "camera", {{"shake", camera_shake}});
         table(L, self, "particles", {{"burst", particles_burst}, {"set_emitting", particles_emitting}});

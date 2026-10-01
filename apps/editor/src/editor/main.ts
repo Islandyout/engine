@@ -648,11 +648,33 @@ async function startEditor() {
     if (body) body.visible = false;
     return view;
   }
+  // A first-person player who died: the view stays where they fell,
+  // sinking toward the ground and rolling over (0.66.0).
+  let deathRoll = 0;
+  function deathView() {
+    return (
+      doc.mode !== "edit" &&
+      playerController()?.mode === "FirstPerson" &&
+      playerIndex >= 0 &&
+      runtime._editor_alive(playerIndex) === 0
+    );
+  }
+  function placeDeathView(dt: number): THREE.PerspectiveCamera {
+    const view = fps.camera;
+    deathRoll = Math.min(1, deathRoll + dt * 1.5);
+    const ease = 1 - (1 - deathRoll) * (1 - deathRoll);
+    view.position.set(fps.current.x, fps.current.y + 1.6 - ease * 1.3, fps.current.z);
+    view.rotation.set(fps.look.pitch * (1 - ease) - ease * 0.25, fps.look.yaw, ease * 0.9, "YXZ");
+    view.aspect = viewport.clientWidth / Math.max(viewport.clientHeight, 1);
+    view.updateProjectionMatrix();
+    return view;
+  }
   // Largest landing speed reported by this frame's ticks.
   let fpsLanding = 0;
   function gameCamera(): THREE.Camera | undefined {
     if (doc.mode === "edit") return undefined;
     if (firstPerson()) return placeFirstPerson(rig.frameDt);
+    if (deathView()) return placeDeathView(rig.frameDt);
     let best: { component: CameraComponent; index: number } | undefined;
     doc.scene.eachAlive().forEach((entity, index) => {
       const component = doc.scene.resolve(entity, "Camera");
@@ -2088,6 +2110,8 @@ async function startEditor() {
   // Script-set UI text (ui.set_text), keyed by the UI entity's Name.
   // Play-session state only: cleared whenever the runtime is rebuilt.
   const uiTextOverrides = new Map<string, string>();
+  // Script waypoints (ui.marker), by name (0.66.0).
+  const uiMarkers = new Map<string, { position: THREE.Vector3; label: string }>();
   // Runtime-spawned prefab instances (world.spawn) get render objects at the
   // same index the bridge appended them at.
   function adoptSpawnedEntities() {
@@ -2244,6 +2268,13 @@ async function startEditor() {
         else if (state) state.emitter.emitting = a === "1";
       } else if (kind === "ui_value") uiValues.set(a, Math.min(1, Math.max(0, Number(b) || 0)));
       else if (kind === "ui_visible") uiVisibility.set(a, b === "1");
+      else if (kind === "ui_marker") {
+        const [x = 0, y = 0, z = 0] = b.split(",", 3).map(Number);
+        const label = b.split(",").slice(3).join(",");
+        uiMarkers.set(a, { position: new THREE.Vector3(x, y, z), label });
+      } else if (kind === "ui_marker_clear") uiMarkers.delete(a);
+      else if (kind === "game_pause") runUIAction("pause");
+      else if (kind === "game_resume") runUIAction("resume");
       else if (kind === "mouse_lock") {
         if (a === "1") void renderer.domElement.requestPointerLock?.();
         else if (document.pointerLockElement) document.exitPointerLock();
@@ -2264,6 +2295,7 @@ async function startEditor() {
   }
   function syncRuntime() {
     uiTextOverrides.clear();
+    uiMarkers.clear();
     uiValues.clear();
     uiVisibility.clear();
     draggingSlider = undefined;
@@ -3064,6 +3096,7 @@ async function startEditor() {
         fps.look.yaw = playerRotation?.euler.y ?? 0;
         fps.look.pitch = 0;
         fps.view.reset();
+        deathRoll = 0;
         weaponFx.reset();
         zoomBlend = 0;
         weaponFx.equip(playerWeaponModel());
@@ -3541,6 +3574,9 @@ async function startEditor() {
     previous = now;
     let steps = 0;
     const player = playerIndex >= 0 ? objects[playerIndex] : undefined;
+    // UI clicks while paused (a script's on_ui) can still queue commands,
+    // e.g. game.resume() from a title screen's button.
+    if (doc.mode === "pause") runScriptCommands();
     if (doc.mode === "play") {
       // Once per rendered frame, before any of this frame's ticks — mirrors
       // the native platform's own begin_frame()-then-apply-events-then-step
@@ -4030,6 +4066,49 @@ async function startEditor() {
   // incrementally, matching the Health bars' own established reasoning
   // (entities/UI state can change every tick; nothing here is worth diffing
   // against a held/released-style previous frame).
+  // Script waypoints: a diamond with a label and distance, pinned to the
+  // screen edge (pointing the way) when off screen or behind the view.
+  function drawWaypoints() {
+    if (!uiMarkers.size) return;
+    const from = viewCamera.getWorldPosition(new THREE.Vector3());
+    const margin = 36;
+    for (const { position, label } of uiMarkers.values()) {
+      hudScratch.copy(position).project(viewCamera);
+      const behind = hudScratch.z > 1;
+      let x = hudScratch.x,
+        y = hudScratch.y;
+      if (behind) {
+        x = -x;
+        y = -y;
+      }
+      const offscreen = behind || Math.abs(x) > 1 || Math.abs(y) > 1;
+      if (offscreen) {
+        const scale = 1 / Math.max(Math.abs(x), Math.abs(y), 1e-6);
+        x *= scale;
+        y *= scale;
+      }
+      const px = Math.min(hud.width - margin, Math.max(margin, ((x + 1) / 2) * hud.width));
+      const py = Math.min(hud.height - margin, Math.max(margin, ((1 - y) / 2) * hud.height));
+      hudCtx.save();
+      hudCtx.translate(px, py);
+      hudCtx.rotate(Math.PI / 4);
+      hudCtx.fillStyle = "rgba(255, 211, 106, 0.9)";
+      hudCtx.strokeStyle = "rgba(0, 0, 0, 0.6)";
+      hudCtx.lineWidth = 2;
+      hudCtx.fillRect(-6, -6, 12, 12);
+      hudCtx.strokeRect(-6, -6, 12, 12);
+      hudCtx.restore();
+      hudCtx.font = "700 12px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif";
+      hudCtx.textAlign = "center";
+      hudCtx.textBaseline = "top";
+      hudCtx.lineWidth = 3;
+      hudCtx.strokeStyle = "rgba(0, 0, 0, 0.6)";
+      hudCtx.fillStyle = "#ffd36a";
+      const text = `${label ? label + " " : ""}${Math.round(from.distanceTo(position))}m`;
+      hudCtx.strokeText(text, px, py + 10);
+      hudCtx.fillText(text, px, py + 10);
+    }
+  }
   // "!" over soldiers in combat, "?" over ones that heard or lost something.
   function drawSoldierMarkers() {
     objects.forEach((object, i) => {
@@ -4147,7 +4226,10 @@ async function startEditor() {
           barHeight,
         );
       });
-    if (doc.mode !== "edit") drawSoldierMarkers();
+    if (doc.mode !== "edit") {
+      drawSoldierMarkers();
+      drawWaypoints();
+    }
     if (firstPerson()) hudLines.push(...drawFirstPersonOverlay());
     for (const entity of doc.scene.eachAlive()) {
       const authoredUi = doc.scene.resolve(entity, "UI");

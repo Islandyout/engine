@@ -242,6 +242,16 @@ Without the component the original look is unchanged. Adding one starts from a p
 
 See [F65](docs/IMPLEMENTATION_STATUS.md#f65--post-processing-0650).
 
+Engine version 0.66.0 adds game-flow support for scripts:
+
+- **`world.heal(id, amount)`** restores health, capped at the maximum.
+- **`world.give_ammo(id, rounds[, slot])`** adds reserve ammo to another entity's weapon.
+- **`ui.marker(name, x, y, z[, label])` / `ui.clear_marker(name)`** show on-screen waypoints with distance, pinned to the screen edge when off screen.
+- **`game.pause()` / `game.resume()`** work like the Pause and Resume buttons. Commands queued while paused (from `on_ui`) still run.
+- **Death view**: when a first-person player dies, the camera stays where they fell, sinking and rolling over.
+
+See [F66](docs/IMPLEMENTATION_STATUS.md#f66--game-flow-script-apis-0660).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 
