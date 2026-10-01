@@ -1466,6 +1466,10 @@ async function startEditor() {
     // Scale matching the physics box would blow the mesh up by its own
     // native size on top (see rebuild()).
     nativeSize: THREE.Vector3;
+    // Center of the model's own bounds: catalog models are authored with
+    // their origin at their feet, so they're shifted by this to sit centered
+    // on the entity's collision box (0.66.0).
+    nativeCenter: THREE.Vector3;
   }
   const catalogCache = new Map<number, CachedModel>();
   const catalogPromises = new Map<number, Promise<CachedModel>>();
@@ -1496,8 +1500,10 @@ async function startEditor() {
     let promise = catalogPromises.get(meshId);
     if (!promise) {
       promise = gltfLoader.loadAsync(entry.path).then((gltf) => {
-        const nativeSize = new THREE.Box3().setFromObject(gltf.scene).getSize(new THREE.Vector3());
-        const cached = { scene: gltf.scene, clips: gltf.animations, nativeSize };
+        const bounds = new THREE.Box3().setFromObject(gltf.scene);
+        const nativeSize = bounds.getSize(new THREE.Vector3());
+        const nativeCenter = bounds.getCenter(new THREE.Vector3());
+        const cached = { scene: gltf.scene, clips: gltf.animations, nativeSize, nativeCenter };
         catalogCache.set(meshId, cached);
         return cached;
       });
@@ -2109,6 +2115,13 @@ async function startEditor() {
   }
   // Script-set UI text (ui.set_text), keyed by the UI entity's Name.
   // Play-session state only: cleared whenever the runtime is rebuilt.
+  // Play-session UI state from scripts and interaction, keyed by the UI
+  // entity's Name: values (Bar/Slider/Toggle) and visibility. Cleared
+  // whenever the runtime is rebuilt, like uiTextOverrides. Declared before
+  // the player-mode bootstrap starts Play, whose first scripts set them.
+  const uiValues = new Map<string, number>();
+  const uiVisibility = new Map<string, boolean>();
+  let draggingSlider: UIButtonHit | undefined;
   const uiTextOverrides = new Map<string, string>();
   // Script waypoints (ui.marker), by name (0.66.0).
   const uiMarkers = new Map<string, { position: THREE.Vector3; label: string }>();
@@ -2337,7 +2350,8 @@ async function startEditor() {
         ["number", "number", "number", "number", "number", "string"],
         [center.x, center.y, center.z, params.size, params.resolution, encodeHeights(heights)],
       );
-      for (const instance of scatterInstances(params, heights, parseScatter(terrain.scatter).rules)) {
+      const scatter = parseScatter(terrain.scatter);
+      for (const instance of scatterInstances(params, heights, scatter.rules, scatter.exclusions)) {
         if (!instance.collide) continue;
         const box = scatterObstacle(instance, catalogCache.get(instance.model)?.nativeSize);
         runtime._editor_add_obstacle(center.x + box.x, center.y + box.y, center.z + box.z, box.sx, box.sy, box.sz);
@@ -2487,7 +2501,7 @@ async function startEditor() {
     const group = new THREE.Group();
     const mesh = buildTerrainMesh(params, look, heights);
     group.add(mesh);
-    const { rules, errors } = parseScatter(t.scatter);
+    const { rules, errors, exclusions } = parseScatter(t.scatter);
     if (errors.length) log(`Terrain scatter: ${errors.join("; ")}`);
     if (rules.length) {
       const models = new Map<number, { scene: THREE.Object3D }>();
@@ -2505,7 +2519,7 @@ async function startEditor() {
             (error) => log(`Catalog model ${rule.model} failed to load: ${String(error)}`),
           );
       }
-      group.add(buildScatter(scatterInstances(params, heights, rules), models));
+      group.add(buildScatter(scatterInstances(params, heights, rules, exclusions), models));
     }
     terrainMeshes.set(index, { mesh, params, look, offsets });
     return group;
@@ -2613,12 +2627,21 @@ async function startEditor() {
       // the mesh's literal world-space size, matching the physics Box's
       // dimensions (same s.x/y/z) instead of stacking on top of it.
       const n = cached.nativeSize;
-      anchor.scale.set(
-        n.x > 1e-6 ? s.x / n.x : s.x,
-        n.y > 1e-6 ? s.y / n.y : s.y,
-        n.z > 1e-6 ? s.z / n.z : s.z,
-      );
+      // Characters (an animated model driven by AI or a controller) keep
+      // their proportions: one uniform scale from the box's height, since a
+      // rig's bind pose (arms out) says nothing about its collision width.
+      const character = catalog?.animated && (get("AICombat") || get("CharacterController"));
+      if (character && n.y > 1e-6) anchor.scale.setScalar(s.y / n.y);
+      else
+        anchor.scale.set(
+          n.x > 1e-6 ? s.x / n.x : s.x,
+          n.y > 1e-6 ? s.y / n.y : s.y,
+          n.z > 1e-6 ? s.z / n.z : s.z,
+        );
     } else if (s) anchor.scale.set(s.x, s.y, s.z);
+    // Center a catalog model on the box rather than standing its feet at
+    // the box's center.
+    if (cached && !terrainComponent) object.position.copy(cached.nativeCenter).negate();
     anchor.add(object);
     // A soldier with Weapons visibly holds its first weapon (0.62.0).
     const loadout = get("AICombat") ? get("Weapons")?.loadout : undefined;
@@ -3514,6 +3537,10 @@ async function startEditor() {
       for (const entity of doc.scene.eachAlive()) {
         const mesh = doc.scene.resolve(entity, "Renderable")?.mesh;
         if (mesh && mesh >= 1) meshIds.add(mesh);
+        // Terrain scatter models too: without them the first rebuild()
+        // would place no foliage, and Play never rebuilds again.
+        const terrain = doc.scene.resolve(entity, "Terrain");
+        if (terrain) for (const rule of parseScatter(terrain.scatter).rules) meshIds.add(rule.model);
       }
       await Promise.all(
         [...meshIds].map((id) =>
@@ -3960,13 +3987,7 @@ async function startEditor() {
     action: UIAction;
     value: number;
   }
-  // Play-session UI state from scripts and interaction, keyed by the UI
-  // entity's Name: values (Bar/Slider/Toggle) and visibility. Cleared
-  // whenever the runtime is rebuilt, like uiTextOverrides.
-  const uiValues = new Map<string, number>();
-  const uiVisibility = new Map<string, boolean>();
   const uiImages = new Map<string, HTMLImageElement>();
-  let draggingSlider: UIButtonHit | undefined;
   const css = (c: Vec3, alpha: number) =>
     `rgba(${Math.round(c.x * 255)}, ${Math.round(c.y * 255)}, ${Math.round(c.z * 255)}, ${alpha})`;
   function uiImage(url: string) {
@@ -4206,6 +4227,9 @@ async function startEditor() {
         if (!object) return;
         const ratio = runtime._editor_value(index, 3);
         if (ratio < 0) return;
+        // In first person a bar is feedback on your own hits, not a radar:
+        // only damaged targets within 40 m get one.
+        if (firstPerson() && (ratio >= 1 || object.position.distanceTo(viewCamera.position) > 40)) return;
         const scaleY = doc.scene.resolve(entity, "Scale")?.value.y ?? 1;
         hudScratch.copy(object.position);
         hudScratch.y += scaleY / 2 + 0.35;

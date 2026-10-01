@@ -16,6 +16,10 @@
 // --name: overrides the exported page's <title>; defaults to the input
 //   filename's stem (e.g. "my-level.json" -> "my-level").
 // --force: overwrite an existing --out directory.
+// --page <file.html>: instead of a standalone folder, write just the baked
+//   page into build/site/ itself, next to the editor it reuses (that's how
+//   tools/build_editor.sh publishes examples/fps/last-signal.json as
+//   last-signal.html). The editor's own absolute asset paths stay as they are.
 //
 // Not done here: trimming the copied kit/**/audio/** down to only the
 // assets this specific scene actually references -- every bundled asset is
@@ -78,11 +82,43 @@ function destroys(dir, target) {
   return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
 }
 
+// Bakes the scene (and page title) into a copy of the editor's index.html.
+function bake(html, sceneText, name) {
+  // HTML-escaped, and substituted via a replacer function rather than a
+  // plain string -- String.replace's string form treats a literal "$" in
+  // the replacement specially ($&, $1, ...), which a --name containing one
+  // would otherwise silently corrupt; a function form doesn't. Escaping
+  // guards against a --name containing "</title>" injecting markup into the
+  // exported page.
+  const title = escapeHtml(name);
+  html = html.replace(/<title>[^<]*<\/title>/, () => `<title>${title}</title>`);
+
+  // The scene is embedded as literal JSON text, not re-serialized -- avoids
+  // any risk of this tool's own JSON.stringify subtly changing a value
+  // EditorDocument.load() would parse differently (e.g. number formatting).
+  // Every "<" is escaped, not just "</script" -- HTML's script-data parser
+  // has its own escaped/double-escaped states triggered by "<!--" followed
+  // by "<script" appearing in a script element's text; a free-text field a
+  // scene author fully controls (Script.source, an entity Name, ...)
+  // containing that sequence could otherwise desync the parser so the real
+  // closing </script> below is read as text instead of ending the tag,
+  // corrupting the embedded JSON and leaving the exported player with an
+  // empty scene. Escaping every "<" as < sidesteps the whole class of
+  // parser-state tricks rather than chasing each one.
+  const escapedScene = sceneText.replace(/</g, "\\u003c");
+  html = html.replace(
+    "</body>",
+    () => `<script type="application/json" id="exported-scene">${escapedScene}</script>\n</body>`,
+  );
+
+  return html;
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const scenePath = args._[0];
   if (!scenePath)
-    fail('usage: node tools/export_build.mjs <scene.json> [--out <dir>] [--name <title>] [--force]');
+    fail('usage: node tools/export_build.mjs <scene.json> [--out <dir> | --page <file.html>] [--name <title>] [--force]');
   if (!existsSync(scenePath)) fail(`scene file not found: ${scenePath}`);
   if (!existsSync(path.join(SITE_DIR, "index.html")))
     fail(
@@ -98,6 +134,14 @@ function main() {
   }
 
   const stem = path.basename(scenePath, path.extname(scenePath));
+  if (args.page) {
+    const page = path.basename(args.page);
+    if (!page.endsWith(".html") || page === "index.html") fail("--page needs a file name ending in .html, not index.html");
+    const pagePath = path.join(SITE_DIR, page);
+    writeFileSync(pagePath, bake(readFileSync(path.join(SITE_DIR, "index.html"), "utf8"), sceneText, args.name ?? stem));
+    console.log(`wrote ${path.relative(ROOT, pagePath)}`);
+    return;
+  }
   const outDir = args.out ? path.resolve(args.out) : path.join(ROOT, "build/export", stem);
   if (destroys(outDir, ROOT) || destroys(outDir, SITE_DIR))
     fail(`--out ${outDir} would delete the repository checkout or its own build source -- refusing`);
@@ -120,33 +164,7 @@ function main() {
   // the built JS bundle itself, only in these two HTML tags).
   html = html.replace(/(src|href)="\/[^"]+\/assets\//g, '$1="./assets/');
 
-  // HTML-escaped, and substituted via a replacer function rather than a
-  // plain string -- String.replace's string form treats a literal "$" in
-  // the replacement specially ($&, $1, ...), which a --name containing one
-  // would otherwise silently corrupt; a function form doesn't. Escaping
-  // guards against a --name containing "</title>" injecting markup into the
-  // exported page.
-  const title = escapeHtml(args.name ?? stem);
-  html = html.replace(/<title>[^<]*<\/title>/, () => `<title>${title}</title>`);
-
-  // The scene is embedded as literal JSON text, not re-serialized -- avoids
-  // any risk of this tool's own JSON.stringify subtly changing a value
-  // EditorDocument.load() would parse differently (e.g. number formatting).
-  // Every "<" is escaped, not just "</script" -- HTML's script-data parser
-  // has its own escaped/double-escaped states triggered by "<!--" followed
-  // by "<script" appearing in a script element's text; a free-text field a
-  // scene author fully controls (Script.source, an entity Name, ...)
-  // containing that sequence could otherwise desync the parser so the real
-  // closing </script> below is read as text instead of ending the tag,
-  // corrupting the embedded JSON and leaving the exported player with an
-  // empty scene. Escaping every "<" as < sidesteps the whole class of
-  // parser-state tricks rather than chasing each one.
-  const escapedScene = sceneText.replace(/</g, "\\u003c");
-  html = html.replace(
-    "</body>",
-    () => `<script type="application/json" id="exported-scene">${escapedScene}</script>\n</body>`,
-  );
-
+  html = bake(html, sceneText, args.name ?? stem);
   writeFileSync(htmlPath, html);
 
   const sizeMb = (dirSize(outDir) / (1024 * 1024)).toFixed(1);

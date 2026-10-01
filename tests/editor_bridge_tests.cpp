@@ -1457,6 +1457,23 @@ int main() {
     }
 
     {
+        // A level-sized terrain (260 m, 131x131) under a player and a soldier.
+        editor_begin();
+        check(editor_add(0, 6, 100, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 0, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        std::vector<float> big(131 * 131);
+        for (std::size_t i = 0; i < big.size(); ++i)
+            big[i] = static_cast<float>((i * 7919) % 13) * 0.5F;
+        editor_set_terrain(0, 0, 0, 260, 131, base64_floats(big).c_str());
+        check(editor_commit() == 1);
+        for (int i = 0; i < 180; ++i)
+            editor_tick();
+        // Standing on the surface (heights reach 6 m), not fallen through it.
+        const double feet = editor_controller_value(0, 6);
+        check(std::isfinite(feet) && std::abs(feet - editor_terrain_height(0, editor_value(0, 2))) < 0.1);
+    }
+
+    {
         // Terrain: a 40x40 hill (3x3 heights, peak 4) under a first-person
         // player walking up its gentle side; the feet follow the surface. A
         // scripted raycast hits it; an obstacle blocks a body; bad heights

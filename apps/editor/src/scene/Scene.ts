@@ -79,12 +79,16 @@ export interface SceneComponents {
 }
 
 // The component types a prefab definition can carry -- deliberately every
-// type except the "placement" ones (Transform/Rotation/Scale, since where
-// and how an instance sits is always its own) and the "identity" ones
+// type except the "placement" ones (Transform/Rotation, since where an
+// instance sits is always its own) and the "identity" ones
 // (Name, Parent, PrefabInstance itself). Single source of truth for both
 // the runtime check (CommandInterpreter, SceneSerializer) and the
 // compile-time PrefabableComponent type below, so the two can never drift.
 export const prefabableComponentNames = [
+  // Scale (0.66.0): a prefab's default size, which also sizes instances a
+  // script spawns at runtime (world.spawn); a placed instance's own Scale
+  // still wins.
+  "Scale",
   "Velocity",
   "Acceleration",
   "RigidBody",
