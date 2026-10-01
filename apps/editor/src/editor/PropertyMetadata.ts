@@ -73,6 +73,7 @@ const metadata: Record<string, PropertyMetadata> = {
   "CharacterController.invertY": { label: "Invert look Y" },
   "CharacterController.fov": { label: "Field of view (degrees)", step: "1" },
   "CharacterController.headBob": { label: "Head bob (0 = off)", step: "0.1" },
+  "Weapons.loadout": { label: "Loadout (name: key=value ...)", multiline: true },
   "CameraFollow.target": { label: "Target (entity name; empty = Player)" },
   "CameraFollow.smoothing": { label: "Smoothing (seconds)", step: "0.05" },
   "CameraFollow.lookHeight": { label: "Look height", step: "0.1" },
@@ -254,7 +255,7 @@ export const componentGroups: readonly ComponentGroup[] = [
   },
   {
     label: "Gameplay",
-    types: ["Health", "AIState", "Pedestrian", "Player", "CharacterController", "Vehicle"],
+    types: ["Health", "AIState", "Pedestrian", "Player", "CharacterController", "Weapons", "Vehicle"],
   },
   {
     label: "Appearance & Animation",

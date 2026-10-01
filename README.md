@@ -189,6 +189,17 @@ Engine version 0.60.0 adds a `CharacterController` component for the Player:
 
 See [F60](docs/IMPLEMENTATION_STATUS.md#f60--first-person-character-controller-0600).
 
+Engine version 0.61.0 adds weapons:
+
+- **`Weapons` component**: a text loadout, one weapon per line (`rifle: mode=auto rpm=620 damage=24 mag=30 reserve=180 reload=2.1 …`). It covers fire modes (semi, auto, burst), pellets, magazines and reserves, reloads (including shotgun-style per-shell reloads), spread (hip, aim, movement, airborne, bloom), recoil, damage falloff, headshots, aim zoom, and projectile weapons with gravity and splash damage.
+- **Player controls**: click to fire, right mouse to aim down sights, R to reload, 1–9, Q or the wheel to switch weapons. Gamepad: RT, LT, RB and d-pad up.
+- **First-person presentation**: procedural gun models (rifle, pistol, shotgun, SMG, sniper, launcher) drawn in their own pass, so they never clip into walls. They sway and bob, and animate recoil, reload, equip, aim and sprint. There are muzzle flashes, tracers, sparks and bullet-hole decals, and explosions.
+- **Sound**: synthesized gunshots and other combat sounds.
+- **HUD**: ammo, a crosshair that reflects real spread, hit and kill markers, damage-direction indicators, and health.
+- **Lua**: `weapon.fire([dx, dy, dz])`, `weapon.reload()`, `weapon.select(n)`, `weapon.ammo()` and `weapon.give_ammo(n)`. New callbacks are `on_damaged(amount, attacker, headshot)`, `on_death(attacker)` and `on_kill(victim, attacker)`.
+
+See [F61](docs/IMPLEMENTATION_STATUS.md#f61--weapons-0610).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

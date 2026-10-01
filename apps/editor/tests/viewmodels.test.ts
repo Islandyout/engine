@@ -12,7 +12,8 @@ test("every viewmodel builds with a muzzle in front of the grip and a sight abov
     assert.ok(model.muzzle.position.z < -0.15, `${name} muzzle is forward`);
     assert.ok(model.sightHeight > 0 && model.hip.x > 0 && model.hip.y < 0, `${name} hip pose`);
     const bounds = new THREE.Box3().setFromObject(model.group);
-    assert.ok(bounds.min.z <= model.muzzle.position.z + 0.02, `${name} barrel reaches the muzzle`);
+    const muzzle = model.muzzle.getWorldPosition(new THREE.Vector3());
+    assert.ok(bounds.min.z <= muzzle.z + 0.02, `${name} barrel reaches the muzzle`);
   }
   assert.equal(buildViewmodel("unknown").group.name, "viewmodel:unknown", "unknown names fall back to the rifle");
 });

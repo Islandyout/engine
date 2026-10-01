@@ -215,6 +215,7 @@ const componentNames = [
   "InputActions",
   "Trail",
   "CharacterController",
+  "Weapons",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -420,6 +421,8 @@ export function normalizeComponent(
       };
     case "InputActions":
       return { bindings: string(value.bindings, "InputActions.bindings") };
+    case "Weapons":
+      return { loadout: string(value.loadout, "Weapons.loadout") };
     case "CharacterController": {
       const mode = value.mode;
       if (mode !== "FirstPerson" && mode !== "ThirdPerson")

@@ -16,9 +16,11 @@ export interface Viewmodel {
   hip: THREE.Vector3;
 }
 
+const viewmodelScale = 0.85;
+
 const materials = {
-  metal: new THREE.MeshStandardMaterial({ color: 0x2b2e33, metalness: 0.85, roughness: 0.32 }),
-  polymer: new THREE.MeshStandardMaterial({ color: 0x1b1d20, metalness: 0.1, roughness: 0.72 }),
+  metal: new THREE.MeshStandardMaterial({ color: 0x3a3e45, metalness: 0.55, roughness: 0.38 }),
+  polymer: new THREE.MeshStandardMaterial({ color: 0x2a2c30, metalness: 0.1, roughness: 0.7 }),
   wood: new THREE.MeshStandardMaterial({ color: 0x6b4a2b, metalness: 0.0, roughness: 0.6 }),
   tan: new THREE.MeshStandardMaterial({ color: 0x8c7a5a, metalness: 0.05, roughness: 0.75 }),
   glass: new THREE.MeshStandardMaterial({ color: 0x223344, metalness: 0.2, roughness: 0.1, emissive: 0x0a1a2a }),
@@ -138,7 +140,9 @@ export function buildViewmodel(name: string): Viewmodel {
       box(group, materials.polymer, [0.034, 0.1, 0.04], [0, -0.05, 0.06], -0.3); // grip
       box(group, materials.polymer, [0.045, 0.075, 0.2], [0, 0.015, 0.2]); // stock
       box(group, materials.metal, [0.022, 0.012, 0.36], [0, 0.074, -0.15]); // top rail
-      box(group, materials.metal, [0.03, 0.03, 0.05], [0, 0.095, 0.04]); // rear sight
+      // Rear sight: two ears with an open notch, so aiming looks through it.
+      box(group, materials.metal, [0.009, 0.03, 0.04], [-0.013, 0.095, 0.04]);
+      box(group, materials.metal, [0.009, 0.03, 0.04], [0.013, 0.095, 0.04]);
       sightPost(group, 0.09, -0.36);
       muzzle.position.set(0, 0.04, -0.63);
       sightHeight = 0.103;
@@ -147,6 +151,9 @@ export function buildViewmodel(name: string): Viewmodel {
     }
   }
   group.add(muzzle);
+  // Built at real-world size; drawn a little smaller so it doesn't crowd the view.
+  group.scale.setScalar(viewmodelScale);
+  sightHeight *= viewmodelScale;
   group.traverse((object) => {
     if (object instanceof THREE.Mesh) {
       object.castShadow = false;

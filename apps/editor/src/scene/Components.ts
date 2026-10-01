@@ -353,6 +353,15 @@ export interface CharacterControllerComponent {
   headBob: number; // 0 = off, 1 = normal
 }
 
+// Weapons (0.61.0): a loadout, one weapon per line as `name: key=value ...`
+// (see engine::gameplay::parse_weapons in include/engine/gameplay/weapons.hpp
+// for every key). A Player fires with the fire/aim/reload/next_weapon/
+// weapon_scroll actions and 1-9; any other entity fires from its script with
+// weapon.fire(dx, dy, dz). Invalid text falls back to the default loadout.
+export interface WeaponsComponent {
+  loadout: string;
+}
+
 // Named input actions (0.55.0): one `action: source, source` per line (see
 // apps/editor/runtime/bindings.hpp). The first entity with one sets the
 // scene's bindings; without one the defaults below apply.

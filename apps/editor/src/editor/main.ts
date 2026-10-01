@@ -28,6 +28,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
@@ -53,6 +54,8 @@ import {
 import { autoSize, contains, layoutRect, sliderValue, type UIRect } from "./uiLayout";
 import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGraph } from "./animator";
 import { applyMouseLook, applyStickLook, ViewEffects, type Look } from "./fpsView";
+import { Sfx } from "./sfx";
+import { EventFlag, EventKind, WeaponFx } from "./weaponFx";
 import { defaultEnvironment } from "../authoring/CommandInterpreter";
 import "./style.css";
 
@@ -207,6 +210,9 @@ type Runtime = {
   _editor_set_controller(index: number, mode: number, ...settings: number[]): void;
   _editor_set_look(yaw: number, pitch: number): void;
   _editor_controller_value(index: number, field: number): number;
+  _editor_weapon_value(index: number, field: number): number;
+  _editor_take_weapon_events(): number;
+  _editor_weapon_event(index: number, field: number): number;
   // Catch-all for text calls added from 0.59.0 on.
   ccall(
     name: string,
@@ -597,9 +603,12 @@ async function startEditor() {
     fpsLanding = 0;
     const view = fps.camera;
     view.aspect = viewport.clientWidth / Math.max(viewport.clientHeight, 1);
-    view.fov = settings.fov + offsets.fovAdd;
+    const aiming = runtime._editor_weapon_value(playerIndex, 7) === 1;
+    zoomBlend += ((aiming ? 1 : 0) - zoomBlend) * (1 - Math.exp(-dt * 14));
+    const zoom = runtime._editor_weapon_value(playerIndex, 5) > 0 ? runtime._editor_weapon_value(playerIndex, 9) : 1;
+    view.fov = (settings.fov + offsets.fovAdd * (1 - zoomBlend)) * (1 + (zoom - 1) * zoomBlend);
     view.updateProjectionMatrix();
-    view.rotation.set(fps.look.pitch, fps.look.yaw, offsets.roll, "YXZ");
+    view.rotation.set(fps.look.pitch + weaponFx.punch, fps.look.yaw, offsets.roll, "YXZ");
     view.position.set(feet.x, feet.y + offsets.eyeHeight + offsets.y, feet.z);
     view.position.addScaledVector(new THREE.Vector3(1, 0, 0).applyQuaternion(view.quaternion), offsets.x);
     // The player's own body would fill the view.
@@ -865,6 +874,145 @@ async function startEditor() {
       gl_FragColor = vec4(vColor * (1.0 - d * 4.0), 1.0);
     }`;
   const particleScale = { value: 500 };
+  // Weapons (0.61.0): viewmodel, effects and combat HUD (weaponFx.ts), and
+  // the viewmodel's own render pass after the world (depth cleared, so the
+  // gun never clips into walls).
+  const weaponFx = new WeaponFx(scene, (emitter) => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(emitter.positions, 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(emitter.colors, 3));
+    geometry.setAttribute("size", new THREE.BufferAttribute(emitter.sizes, 1));
+    const points = new THREE.Points(
+      geometry,
+      new THREE.ShaderMaterial({
+        uniforms: { scale: particleScale },
+        vertexShader: particleVertexShader,
+        fragmentShader: particleFragmentShader,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    points.frustumCulled = false;
+    return points;
+  });
+  const viewmodelPass = new RenderPass(weaponFx.viewScene, weaponFx.viewCamera);
+  viewmodelPass.clear = false;
+  viewmodelPass.clearDepth = true;
+  viewmodelPass.enabled = false;
+  composer?.insertPass(viewmodelPass, 1);
+  let sfx: Sfx | undefined;
+  function sounds(): Sfx {
+    if (!sfx) {
+      const context = getAudioContext();
+      sfx = new Sfx(context, context.destination);
+    }
+    return sfx;
+  }
+  // Ease in/out of the aim-down-sights zoom.
+  let zoomBlend = 0;
+  let viewmodelStudio: THREE.Texture | undefined;
+  function playerWeaponModel(slot?: number): string {
+    if (playerIndex < 0 || runtime._editor_weapon_value(playerIndex, 5) <= 0) return "";
+    const current = slot ?? runtime._editor_weapon_value(playerIndex, 0);
+    return runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [playerIndex, current, 1]);
+  }
+  // Drains this frame's weapon events into effects, sounds, recoil and HUD.
+  function processCombatEvents() {
+    const count = runtime._editor_take_weapon_events();
+    const at = (i: number, field: number) => runtime._editor_weapon_event(i, field);
+    let pending: { shooter: number; origin: THREE.Vector3; direction: THREE.Vector3; hits: number } | undefined;
+    const listener = viewCamera.getWorldPosition(new THREE.Vector3());
+    const distanceVolume = (point: THREE.Vector3) => 1 / (1 + point.distanceTo(listener) / 10);
+    const muzzleOf = (shooter: number, origin: THREE.Vector3, direction: THREE.Vector3) =>
+      shooter === playerIndex && firstPerson()
+        ? weaponFx.muzzleWorld(fps.camera, new THREE.Vector3())
+        : origin.clone().addScaledVector(direction, 0.5);
+    const finishShot = () => {
+      if (pending && pending.hits === 0)
+        weaponFx.tracer(
+          muzzleOf(pending.shooter, pending.origin, pending.direction),
+          pending.origin.clone().addScaledVector(pending.direction, 80),
+        );
+      pending = undefined;
+    };
+    for (let i = 0; i < count; i++) {
+      const kind = at(i, 0),
+        shooter = at(i, 1),
+        target = at(i, 2),
+        value = at(i, 9),
+        flags = at(i, 10);
+      const point = new THREE.Vector3(at(i, 3), at(i, 4), at(i, 5));
+      const normal = new THREE.Vector3(at(i, 6), at(i, 7), at(i, 8));
+      const mine = shooter === playerIndex;
+      switch (kind) {
+        case EventKind.fire: {
+          finishShot();
+          pending = { shooter, origin: point, direction: normal, hits: 0 };
+          const model = runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [shooter, flags, 1]);
+          if (mine) {
+            weaponFx.fire(value);
+            sounds().gunshot(model);
+            // Recoil climbs the aim; aiming halves it.
+            const aimed = runtime._editor_weapon_value(playerIndex, 7) === 1;
+            fps.look.pitch = Math.min(1.55, fps.look.pitch + THREE.MathUtils.degToRad(value) * (aimed ? 0.4 : 0.7));
+            fps.look.yaw += THREE.MathUtils.degToRad(value) * 0.3 * (Math.random() - 0.5);
+          } else sounds().gunshot(model, distanceVolume(point));
+          weaponFx.muzzleFlashAt(muzzleOf(shooter, point, normal));
+          break;
+        }
+        case EventKind.impact: {
+          const flesh = (flags & EventFlag.flesh) !== 0;
+          weaponFx.impact(point, normal, flesh);
+          if (pending && pending.shooter === shooter) {
+            weaponFx.tracer(muzzleOf(shooter, pending.origin, pending.direction), point);
+            pending.hits++;
+          }
+          sounds().impact(flesh, 0.6 * distanceVolume(point));
+          break;
+        }
+        case EventKind.damaged: {
+          const killed = (flags & EventFlag.killed) !== 0;
+          if (mine && target !== playerIndex) {
+            weaponFx.hit(killed, (flags & EventFlag.headshot) !== 0);
+            sounds().hitmarker(killed);
+          }
+          if (target === playerIndex && playerIndex >= 0) {
+            const body = objects[playerIndex];
+            if (body) weaponFx.hurt(point, body.position, fps.look.yaw, value);
+            sounds().hurt();
+            shake.intensity = Math.max(shake.intensity, 0.04);
+            shake.duration = shake.remaining = 0.2;
+          }
+          break;
+        }
+        case EventKind.reload:
+          if (mine) {
+            if (playerWeaponModel(flags) === "shotgun") sounds().shell();
+            else sounds().reload(value);
+          }
+          break;
+        case EventKind.empty:
+          if (mine) sounds().dryFire();
+          break;
+        case EventKind.switched:
+          if (mine) {
+            weaponFx.equip(playerWeaponModel(flags));
+            sounds().equip();
+          }
+          break;
+        case EventKind.explode: {
+          weaponFx.explosion(point, value);
+          const volume = distanceVolume(point);
+          sounds().explosion(volume);
+          shake.intensity = Math.max(shake.intensity, 0.35 * volume);
+          shake.duration = shake.remaining = 0.5;
+          break;
+        }
+      }
+    }
+    finishShot();
+  }
   function createParticles(particles: ParticlesComponent, anchor: THREE.Object3D): ParticleState {
     const preset = PARTICLE_PRESETS[particles.preset];
     const settings: EmitterSettings = {
@@ -1726,6 +1874,9 @@ async function startEditor() {
         controller.acceleration,
         controller.airControl,
       );
+    // Weapons (0.61.0): see editor_set_weapons (bridge.cpp).
+    const weapons = get("Weapons");
+    if (weapons && !isChild) runtime.ccall("editor_set_weapons", null, ["number", "string"], [index, weapons.loadout]);
     // A rotated Box collider collides as an oriented box (0.59.0).
     const rotation = get("Rotation")?.euler;
     if (collider && rotation && (rotation.x || rotation.y || rotation.z))
@@ -1959,6 +2110,8 @@ async function startEditor() {
       throw new Error("Runtime scene commit failed");
     const bindingsError = runtime.ccall("editor_bindings_error", "string", [], []);
     if (bindingsError) log(`Input bindings: ${bindingsError} (using the defaults)`);
+    const weaponsError = runtime.ccall("editor_weapons_error", "string", [], []);
+    if (weaponsError) log(`Weapons: ${weaponsError} (using the default loadout)`);
     seedSavedProgress();
     ticks = 0;
     accumulator = 0;
@@ -2616,6 +2769,9 @@ async function startEditor() {
         fps.look.yaw = playerRotation?.euler.y ?? 0;
         fps.look.pitch = 0;
         fps.view.reset();
+        weaponFx.reset();
+        zoomBlend = 0;
+        weaponFx.equip(playerWeaponModel());
         if (playerIndex >= 0 && playerController()) {
           playerFeet(fps.previous);
           fps.current.copy(fps.previous);
@@ -2663,6 +2819,7 @@ async function startEditor() {
     // The runtime that owned them is discarded on Stop; drop the pool too,
     // rather than leaving stale blast meshes on screen in Edit mode.
     while (projectileMeshes.length) scene.remove(projectileMeshes.pop()!);
+    weaponFx.reset();
     rebuild();
   };
   // -- Imported assets (0.58.0; see userAssets.ts) ------------------------
@@ -3058,6 +3215,7 @@ async function startEditor() {
       pollAnimationRequests();
       adoptSpawnedEntities();
       runScriptCommands();
+      processCombatEvents();
       objects.forEach((object, i) => {
         // Combat/AI can destroy an authored entity (Health reaching 0) mid-session;
         // its index stays in objects[] (entities can't be added/removed while
@@ -3274,6 +3432,27 @@ async function startEditor() {
       }
       applyShake(viewCamera, dt);
     }
+    const viewmodelInput =
+      firstPerson() && runtime._editor_weapon_value(playerIndex, 5) > 0
+        ? {
+            look: fps.look,
+            aiming: runtime._editor_weapon_value(playerIndex, 7) === 1,
+            reloadProgress: runtime._editor_weapon_value(playerIndex, 3),
+            equipProgress: runtime._editor_weapon_value(playerIndex, 6),
+            speed: runtime._editor_controller_value(playerIndex, 4),
+            grounded: runtime._editor_controller_value(playerIndex, 2) === 1,
+            sprinting: runtime._editor_controller_value(playerIndex, 5) === 1,
+          }
+        : undefined;
+    weaponFx.update(dt, viewmodelInput, viewport.clientWidth / Math.max(viewport.clientHeight, 1));
+    viewmodelPass.enabled = !!viewmodelInput;
+    // The viewmodel reflects the same sky light as the world, or a neutral
+    // studio environment when the scene has none (metal would read black).
+    if (viewmodelInput) {
+      viewmodelStudio ??= pmrem?.fromScene(new RoomEnvironment(), 0.04).texture;
+      weaponFx.viewScene.environment = scene.environment ?? viewmodelStudio ?? null;
+      weaponFx.viewScene.environmentIntensity = scene.environment ? scene.environmentIntensity : 0.8;
+    }
     updateSunShadow();
     renderPass.camera = viewCamera;
     // Counted over every pass of the frame (bloom included), not just the
@@ -3457,9 +3636,39 @@ async function startEditor() {
   // (entities/UI state can change every tick; nothing here is worth diffing
   // against a held/released-style previous frame).
   // Crosshair, and a hint while the mouse isn't captured.
-  function drawFirstPersonOverlay() {
+  // Returns text for the HUD's screen-reader mirror.
+  function drawFirstPersonOverlay(): string[] {
     const cx = hud.width / 2,
       cy = hud.height / 2;
+    const weaponCount = runtime._editor_weapon_value(playerIndex, 5);
+    if (weaponCount > 0 || runtime._editor_value(playerIndex, 3) >= 0) {
+      const names: string[] = [];
+      for (let slot = 0; slot < weaponCount; slot++)
+        names.push(runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [playerIndex, slot, 0]));
+      const slot = runtime._editor_weapon_value(playerIndex, 0);
+      weaponFx.drawHud(hudCtx, hud.width, hud.height, {
+        weaponName: names[slot] ?? "",
+        magazine: runtime._editor_weapon_value(playerIndex, 1),
+        reserve: runtime._editor_weapon_value(playerIndex, 2),
+        reloadProgress: runtime._editor_weapon_value(playerIndex, 3),
+        spread: runtime._editor_weapon_value(playerIndex, 4),
+        aiming: runtime._editor_weapon_value(playerIndex, 7) === 1,
+        fov: fps.camera.fov,
+        health: runtime._editor_value(playerIndex, 3),
+        slot,
+        weaponNames: names,
+      });
+      drawCaptureHint(cx, cy);
+      const lines: string[] = [];
+      if (weaponCount > 0) {
+        const reserve = runtime._editor_weapon_value(playerIndex, 2);
+        lines.push(`${names[slot]} ${runtime._editor_weapon_value(playerIndex, 1)}/${reserve < 0 ? "∞" : reserve}`);
+        if (runtime._editor_weapon_value(playerIndex, 3) >= 0) lines.push("Reloading");
+      }
+      const health = runtime._editor_value(playerIndex, 3);
+      if (health >= 0) lines.push(`Health ${Math.round(health * 100)}`);
+      return lines;
+    }
     hudCtx.strokeStyle = "rgba(255, 255, 255, 0.9)";
     hudCtx.lineWidth = 2;
     hudCtx.beginPath();
@@ -3468,6 +3677,10 @@ async function startEditor() {
       hudCtx.lineTo(cx + dx * 11, cy + dy * 11);
     }
     hudCtx.stroke();
+    drawCaptureHint(cx, cy);
+    return [];
+  }
+  function drawCaptureHint(cx: number, cy: number) {
     if (doc.mode === "play" && document.pointerLockElement !== renderer.domElement) {
       hudCtx.font = "600 14px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif";
       hudCtx.textAlign = "center";
@@ -3475,9 +3688,9 @@ async function startEditor() {
       hudCtx.fillStyle = "rgba(10, 16, 24, 0.7)";
       const text = "Click to look around (Esc releases) · right-drag also looks";
       const width = hudCtx.measureText(text).width + 20;
-      hudCtx.fillRect(cx - width / 2, cy + 28, width, 26);
+      hudCtx.fillRect(cx - width / 2, cy + 110, width, 26);
       hudCtx.fillStyle = "#fff";
-      hudCtx.fillText(text, cx, cy + 34);
+      hudCtx.fillText(text, cx, cy + 116);
     }
   }
   function drawHud() {
@@ -3513,7 +3726,7 @@ async function startEditor() {
           barHeight,
         );
       });
-    if (firstPerson()) drawFirstPersonOverlay();
+    if (firstPerson()) hudLines.push(...drawFirstPersonOverlay());
     for (const entity of doc.scene.eachAlive()) {
       const authoredUi = doc.scene.resolve(entity, "UI");
       if (!authoredUi) continue;

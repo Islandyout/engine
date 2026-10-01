@@ -104,8 +104,63 @@ const { chromium } = require("playwright");
     await page.screenshot({ path: "build/browser-evidence/f60-first-person.png" });
     await page.click("#stop");
 
+    // F61: Weapons. Holding fire empties rounds into a target until its
+    // script's on_death fires; R reloads; 2 switches to the pistol. The
+    // HUD's screen-reader mirror (#hud-text) shows ammo, reload and health.
+    const hudText = () => page.locator("#hud-text").textContent();
+    await run({
+      command: "set_component",
+      entity: hero.entity,
+      type: "Weapons",
+      value: { loadout: "rifle: model=rifle mode=auto rpm=600 damage=40 mag=30 reserve=60 reload=0.8 spread=0.5 equip=0\npistol: model=pistol\n" },
+    });
+    await run({ command: "set_component", entity: hero.entity, type: "Health", value: { current: 100, maximum: 100 } });
+    const target = await run({ command: "spawn_entity", name: "Target", transform: [0, 0.9, -4] });
+    await run({ command: "set_component", entity: target.entity, type: "Scale", value: { value: { x: 1.2, y: 1.8, z: 1.2 } } });
+    await run({ command: "set_component", entity: target.entity, type: "Health", value: { current: 100, maximum: 100 } });
+    await run({
+      command: "set_component",
+      entity: target.entity,
+      type: "Script",
+      value: { source: "function on_death(attacker) ui.set_text('KillText', 'target down') end", props: {} },
+    });
+    const killText = await run({ command: "spawn_entity", name: "KillText" });
+    await run({
+      command: "set_component",
+      entity: killText.entity,
+      type: "UI",
+      value: { kind: "Text", text: "target up", anchor: "top-left", visibleWhen: "always", action: "pause" },
+    });
+    await page.click("#play");
+    await page.waitForFunction(() => /rifle 30\/60/.test(document.querySelector("#hud-text").textContent));
+    assert.match(await hudText(), /Health 100/);
+    const { cx, cy } = await viewport();
+    await page.mouse.move(cx, cy);
+    await page.mouse.down({ button: "left" });
+    await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("target down"), null, {
+      timeout: 15000,
+    });
+    await page.mouse.up({ button: "left" });
+    await page.waitForTimeout(200);
+    const [, loaded] = (await hudText()).match(/rifle (\d+)\/60/);
+    assert.ok(Number(loaded) < 30 && Number(loaded) >= 20, `a few rounds were spent (${loaded})`);
+    await page.screenshot({ path: "build/browser-evidence/f61-weapons.png" });
+    await page.keyboard.press("KeyR");
+    await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("Reloading"));
+    await page.waitForFunction(() => /rifle 30\/\d+/.test(document.querySelector("#hud-text").textContent), null, {
+      timeout: 10000,
+    });
+    assert.match(await hudText(), new RegExp(`rifle 30/${60 - (30 - Number(loaded))}`), "reload draws from the reserve");
+    await page.keyboard.press("Digit2");
+    await page.waitForFunction(() => /pistol 30\/120/.test(document.querySelector("#hud-text").textContent));
+    // The viewport click captured the mouse for look; release it like Esc does.
+    await page.evaluate(() => document.exitPointerLock());
+    await page.click("#stop");
+
     assert.deepEqual(errors, []);
-    console.log("FPS browser: first-person CharacterController (camera, look, walk, step climbing) passed.");
+    console.log(
+      "FPS browser: first-person CharacterController (camera, look, walk, step climbing) and weapons (hold-to-fire kill with on_death, reload from reserve, switching, HUD) passed.",
+    );
   } finally {
     if (browser) await browser.close();
     await new Promise((r) => server.close(r));

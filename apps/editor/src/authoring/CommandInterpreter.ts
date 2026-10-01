@@ -82,6 +82,7 @@ const componentNames = [
   "InputActions",
   "Trail",
   "CharacterController",
+  "Weapons",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -671,6 +672,15 @@ export function defaultComponent(
       };
     case "CharacterController":
       return defaultCharacterController();
+    case "Weapons":
+      // Kept in sync with engine::gameplay::default_weapons_text (weapons.cpp).
+      return {
+        loadout: [
+          "rifle: model=rifle mode=auto rpm=620 damage=24 mag=30 reserve=180 reload=2.1 spread=2.2 aim_spread=0.35 recoil=0.9 range=200 falloff=45 zoom=0.75",
+          "pistol: model=pistol mode=semi rpm=380 damage=34 mag=12 reserve=-1 reload=1.3 spread=1.6 aim_spread=0.3 recoil=1.8 range=120 falloff=30 zoom=0.85 equip=0.3",
+          "shotgun: model=shotgun mode=semi rpm=80 pellets=9 damage=12 mag=6 reserve=36 reload=0.5 per_shell spread=6 aim_spread=4.5 recoil=4.5 range=45 falloff=10 min_damage=0.2 zoom=0.9 equip=0.5",
+        ].join("\n") + "\n",
+      };
     case "CameraFollow":
       return { target: "", offset: { x: 0, y: 4, z: 8 }, smoothing: 0.15, lookHeight: 1, collision: true, orbit: false };
     case "Animator":
