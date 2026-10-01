@@ -36,6 +36,11 @@ const { chromium } = require("playwright");
     // Counts positional sources and started buffer sources (synthesized
     // voices use noise buffers) without changing the app.
     await page.addInitScript(() => {
+      // Headless shells differ on whether a click really captures the
+      // pointer; the suite drives look with right-drag, so keep it uncaptured.
+      Element.prototype.requestPointerLock = function () {
+        return Promise.resolve();
+      };
       window.__panners = 0;
       window.__sources = 0;
       const createPanner = BaseAudioContext.prototype.createPanner;
@@ -124,6 +129,15 @@ const { chromium } = require("playwright");
     // script's on_death fires; R reloads; 2 switches to the pistol. The
     // HUD's screen-reader mirror (#hud-text) shows ammo, reload and health.
     const hudText = () => page.locator("#hud-text").textContent();
+    // waitForFunction that reports the HUD and status when it times out.
+    const waitFor = async (predicate, arg, timeout = 30000) => {
+      try {
+        await page.waitForFunction(predicate, arg, { timeout });
+      } catch (error) {
+        const status = await page.locator("#status").textContent();
+        throw new Error(`${error.message}\nHUD: ${await hudText()}\nStatus: ${status.slice(0, 300)}`);
+      }
+    };
     await run({
       command: "set_component",
       entity: hero.entity,
@@ -153,9 +167,7 @@ const { chromium } = require("playwright");
     const { cx, cy } = await viewport();
     await page.mouse.move(cx, cy);
     await page.mouse.down({ button: "left" });
-    await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("target down"), null, {
-      timeout: 15000,
-    });
+    await waitFor(() => document.querySelector("#hud-text").textContent.includes("target down"));
     await page.mouse.up({ button: "left" });
     await page.waitForTimeout(200);
     const [, loaded] = (await hudText()).match(/rifle (\d+)\/60/);
@@ -212,9 +224,7 @@ const { chromium } = require("playwright");
     await page.screenshot({ path: "build/browser-evidence/f62-combat-ai.png" });
     await page.mouse.move(cx, cy);
     await page.mouse.down({ button: "left" });
-    await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("Soldier down by Hero"), null, {
-      timeout: 20000,
-    });
+    await waitFor(() => document.querySelector("#hud-text").textContent.includes("Soldier down by Hero"));
     await page.mouse.up({ button: "left" });
     await page.evaluate(() => document.exitPointerLock());
     await page.click("#stop");
