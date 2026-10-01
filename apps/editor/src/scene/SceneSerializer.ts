@@ -214,6 +214,7 @@ const componentNames = [
   "CameraFollow",
   "InputActions",
   "Trail",
+  "CharacterController",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -419,6 +420,33 @@ export function normalizeComponent(
       };
     case "InputActions":
       return { bindings: string(value.bindings, "InputActions.bindings") };
+    case "CharacterController": {
+      const mode = value.mode;
+      if (mode !== "FirstPerson" && mode !== "ThirdPerson")
+        throw new Error("CharacterController.mode must be FirstPerson or ThirdPerson.");
+      const standHeight = positiveNumber(value.standHeight, "CharacterController.standHeight");
+      const crouchHeight = positiveNumber(value.crouchHeight, "CharacterController.crouchHeight");
+      if (crouchHeight > standHeight)
+        throw new Error("CharacterController.crouchHeight must not exceed standHeight.");
+      const fov = positiveNumber(value.fov, "CharacterController.fov");
+      if (fov >= 180) throw new Error("CharacterController.fov must be below 180.");
+      return {
+        mode,
+        walkSpeed: positiveNumber(value.walkSpeed, "CharacterController.walkSpeed"),
+        sprintSpeed: positiveNumber(value.sprintSpeed, "CharacterController.sprintSpeed"),
+        crouchSpeed: positiveNumber(value.crouchSpeed, "CharacterController.crouchSpeed"),
+        jumpHeight: positiveNumber(value.jumpHeight, "CharacterController.jumpHeight"),
+        standHeight,
+        crouchHeight,
+        stepHeight: nonNegativeNumber(value.stepHeight, "CharacterController.stepHeight"),
+        acceleration: positiveNumber(value.acceleration, "CharacterController.acceleration"),
+        airControl: positiveNumber(value.airControl, "CharacterController.airControl"),
+        lookSensitivity: positiveNumber(value.lookSensitivity, "CharacterController.lookSensitivity"),
+        invertY: boolean(value.invertY, "CharacterController.invertY"),
+        fov,
+        headBob: nonNegativeNumber(value.headBob, "CharacterController.headBob"),
+      };
+    }
     case "CameraFollow":
       return {
         target: string(value.target, "CameraFollow.target"),

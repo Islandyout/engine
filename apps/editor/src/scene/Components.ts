@@ -327,6 +327,32 @@ export interface CameraFollowComponent {
   orbit: boolean;
 }
 
+// A character controller (0.60.0) for the Player: acceleration-based
+// movement from the named input actions (move_x/move_y, jump, sprint,
+// crouch), coyote time, jump buffering, step climbing and crouching (see
+// engine::gameplay, include/engine/gameplay/character.hpp). FirstPerson puts
+// the Play camera at the player's eyes with mouse look (click the viewport
+// to capture the mouse; right-drag also looks); ThirdPerson moves relative
+// to the camera instead. Sizes the player's collision box itself.
+export type ControllerMode = "FirstPerson" | "ThirdPerson";
+export interface CharacterControllerComponent {
+  mode: ControllerMode;
+  walkSpeed: number;
+  sprintSpeed: number;
+  crouchSpeed: number;
+  jumpHeight: number;
+  standHeight: number;
+  crouchHeight: number;
+  stepHeight: number;
+  acceleration: number;
+  airControl: number;
+  // First person only.
+  lookSensitivity: number;
+  invertY: boolean;
+  fov: number; // vertical, degrees
+  headBob: number; // 0 = off, 1 = normal
+}
+
 // Named input actions (0.55.0): one `action: source, source` per line (see
 // apps/editor/runtime/bindings.hpp). The first entity with one sets the
 // scene's bindings; without one the defaults below apply.

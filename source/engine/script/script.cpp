@@ -570,6 +570,42 @@ struct LuaApi final {
     }
     // particles.burst(count) / particles.set_emitting(bool) on this entity's
     // Particles emitter (simulated editor-side).
+    // weapon.fire([dx, dy, dz]) / weapon.reload() / weapon.select(slot) /
+    // weapon.ammo() -> magazine, reserve, slot, reloading / weapon.give_ammo(n[, slot])
+    // Slots are 1-based in Lua. Each returns nothing (or nil from ammo) when
+    // the entity has no Weapons.
+    static int weapon_call(lua_State *L, const char *op, std::vector<double> args) {
+        auto &self = runtime(L);
+        std::vector<double> out;
+        if (!self.host_ || !self.world_ || !self.host_->weapon(*self.world_, self_entity(L), op, args, out))
+            return 0;
+        for (const double value : out)
+            lua_pushnumber(L, value);
+        return static_cast<int>(out.size());
+    }
+    static int weapon_fire(lua_State *L) {
+        if (lua_isnoneornil(L, 1))
+            return weapon_call(L, "fire", {});
+        return weapon_call(L, "fire", {number_arg(L, 1), number_arg(L, 2), number_arg(L, 3)});
+    }
+    static int weapon_reload(lua_State *L) { return weapon_call(L, "reload", {}); }
+    static int weapon_select(lua_State *L) {
+        return weapon_call(L, "select", {static_cast<double>(luaL_checkinteger(L, 1) - 1)});
+    }
+    static int weapon_ammo(lua_State *L) {
+        const int count = weapon_call(L, "ammo", {});
+        if (count == 4) {
+            // Report the slot 1-based.
+            const double slot = lua_tonumber(L, -2);
+            lua_pushnumber(L, slot + 1);
+            lua_replace(L, -3);
+        }
+        return count;
+    }
+    static int weapon_give_ammo(lua_State *L) {
+        return weapon_call(L, "give_ammo",
+                           {static_cast<double>(luaL_checkinteger(L, 1)), static_cast<double>(luaL_optinteger(L, 2, 0) - 1)});
+    }
     static int particles_burst(lua_State *L) {
         emit(L, "particles_burst", std::to_string(luaL_optinteger(L, 1, 10)), "");
         return 0;
@@ -778,6 +814,12 @@ struct LuaApi final {
         table(L, self, "anim", {{"set", anim_set}, {"trigger", anim_trigger}});
         table(L, self, "camera", {{"shake", camera_shake}});
         table(L, self, "particles", {{"burst", particles_burst}, {"set_emitting", particles_emitting}});
+        table(L, self, "weapon",
+              {{"fire", weapon_fire},
+               {"reload", weapon_reload},
+               {"select", weapon_select},
+               {"ammo", weapon_ammo},
+               {"give_ammo", weapon_give_ammo}});
         extend_input(L, self);
         lua_pushlightuserdata(L, self);
         lua_pushcclosure(L, log, 1);
@@ -972,6 +1014,37 @@ void Runtime::notify(World &world, Entity entity, const std::string &function_na
         return;
     call(world, entity, *found->second, function_name.c_str(),
          [&argument](lua_State *L) { lua_pushlstring(L, argument.data(), argument.size()); }, 1);
+}
+
+void Runtime::notify_damage(World &world, Entity entity, float amount, std::optional<Entity> attacker, bool headshot,
+                            bool killed, const std::string &victim_name, const std::string &attacker_name) {
+    world_ = &world;
+    const auto found = instances_.find(entity);
+    if (found != instances_.end() && found->second && found->second->started) {
+        const auto attacker_id = attacker ? std::optional<std::int64_t>{id_of(*attacker)} : std::nullopt;
+        call(world, entity, *found->second, "on_damaged",
+             [&](lua_State *L) {
+                 lua_pushnumber(L, amount);
+                 if (attacker_id)
+                     lua_pushinteger(L, *attacker_id);
+                 else
+                     lua_pushnil(L);
+                 lua_pushboolean(L, headshot ? 1 : 0);
+             },
+             3);
+        const auto again = instances_.find(entity);
+        if (killed && again != instances_.end() && again->second)
+            call(world, entity, *again->second, "on_death",
+                 [&](lua_State *L) {
+                     if (attacker_id)
+                         lua_pushinteger(L, *attacker_id);
+                     else
+                         lua_pushnil(L);
+                 },
+                 1);
+    }
+    if (killed)
+        broadcast(world, "on_kill", victim_name, attacker_name);
 }
 
 void Runtime::broadcast(World &world, const std::string &function_name, const std::string &name,

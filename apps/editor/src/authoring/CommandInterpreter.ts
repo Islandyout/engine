@@ -1,4 +1,4 @@
-import type { EnvironmentComponent } from "../scene/Components";
+import type { CharacterControllerComponent, EnvironmentComponent } from "../scene/Components";
 import {
   deserializeScene,
   normalizeComponent,
@@ -81,6 +81,7 @@ const componentNames = [
   "CameraFollow",
   "InputActions",
   "Trail",
+  "CharacterController",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -661,8 +662,15 @@ export function defaultComponent(
           "fire: mouse_left, pad_rt, pad_x",
           "interact: e, pad_y",
           "sprint: shift, pad_lb",
+          "crouch: c, ctrl, pad_b",
+          "aim: mouse_right, pad_lt",
+          "reload: r, pad_rb",
+          "next_weapon: q, pad_up",
+          "weapon_scroll: wheel",
         ].join("\n") + "\n",
       };
+    case "CharacterController":
+      return defaultCharacterController();
     case "CameraFollow":
       return { target: "", offset: { x: 0, y: 4, z: 8 }, smoothing: 0.15, lookHeight: 1, collision: true, orbit: false };
     case "Animator":
@@ -701,6 +709,26 @@ export type { SceneDocument };
 // Reproduces the editor's original fixed lighting (dark blue backdrop,
 // hemisphere ambient 3, sun at (4, 8, 5) with intensity 3), so adding an
 // Environment changes nothing until its values are edited.
+// Mirrors engine::gameplay::ControllerSettings' own defaults.
+export function defaultCharacterController(): CharacterControllerComponent {
+  return {
+    mode: "FirstPerson",
+    walkSpeed: 4.5,
+    sprintSpeed: 7.5,
+    crouchSpeed: 2.2,
+    jumpHeight: 1.1,
+    standHeight: 1.8,
+    crouchHeight: 1.1,
+    stepHeight: 0.4,
+    acceleration: 45,
+    airControl: 12,
+    lookSensitivity: 1,
+    invertY: false,
+    fov: 75,
+    headBob: 1,
+  };
+}
+
 export function defaultEnvironment(): EnvironmentComponent {
   return {
     sky: "Color",

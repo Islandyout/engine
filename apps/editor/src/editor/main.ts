@@ -52,6 +52,7 @@ import {
 } from "./userAssets";
 import { autoSize, contains, layoutRect, sliderValue, type UIRect } from "./uiLayout";
 import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGraph } from "./animator";
+import { applyMouseLook, applyStickLook, ViewEffects, type Look } from "./fpsView";
 import { defaultEnvironment } from "../authoring/CommandInterpreter";
 import "./style.css";
 
@@ -203,6 +204,9 @@ type Runtime = {
     args: [number, number],
   ): string;
   _editor_set_rotation(index: number, x: number, y: number, z: number): void;
+  _editor_set_controller(index: number, mode: number, ...settings: number[]): void;
+  _editor_set_look(yaw: number, pitch: number): void;
+  _editor_controller_value(index: number, field: number): number;
   // Catch-all for text calls added from 0.59.0 on.
   ccall(
     name: string,
@@ -550,8 +554,64 @@ async function startEditor() {
   const gamePerspective = new THREE.PerspectiveCamera();
   const shakeCamera = new THREE.PerspectiveCamera();
   const gameOrthographic = new THREE.OrthographicCamera();
+  // -- First-person view (0.60.0) ----------------------------------------
+  // The editor owns look (mouse, right-drag, right stick) so it stays smooth
+  // at any display rate, and sends it to the runtime every frame
+  // (editor_set_look). The camera sits at the player's feet, interpolated
+  // between the last two fixed ticks, plus the eased eye height and the
+  // view effects in fpsView.ts.
+  const fps = {
+    look: { yaw: 0, pitch: 0 } as Look,
+    view: new ViewEffects(),
+    camera: new THREE.PerspectiveCamera(75, 1, 0.05, 2000),
+    previous: new THREE.Vector3(),
+    current: new THREE.Vector3(),
+  };
+  function playerController() {
+    if (playerIndex < 0) return undefined;
+    const entity = doc.scene.eachAlive()[playerIndex];
+    return entity ? doc.scene.resolve(entity, "CharacterController") : undefined;
+  }
+  function firstPerson() {
+    return doc.mode !== "edit" && playerController()?.mode === "FirstPerson" && runtime._editor_alive(playerIndex) === 1;
+  }
+  function playerFeet(target: THREE.Vector3) {
+    return target.set(
+      runtime._editor_value(playerIndex, 0),
+      runtime._editor_controller_value(playerIndex, 6),
+      runtime._editor_value(playerIndex, 2),
+    );
+  }
+  function placeFirstPerson(dt: number): THREE.PerspectiveCamera {
+    const settings = playerController()!;
+    const alpha = Math.min(1, accumulator * 60);
+    const feet = fps.previous.clone().lerp(fps.current, alpha);
+    const offsets = fps.view.step(dt, {
+      speed: runtime._editor_controller_value(playerIndex, 4),
+      grounded: runtime._editor_controller_value(playerIndex, 2) === 1,
+      landingSpeed: fpsLanding,
+      eyeHeight: runtime._editor_controller_value(playerIndex, 0),
+      sprinting: runtime._editor_controller_value(playerIndex, 5) === 1,
+      headBob: settings.headBob,
+    });
+    fpsLanding = 0;
+    const view = fps.camera;
+    view.aspect = viewport.clientWidth / Math.max(viewport.clientHeight, 1);
+    view.fov = settings.fov + offsets.fovAdd;
+    view.updateProjectionMatrix();
+    view.rotation.set(fps.look.pitch, fps.look.yaw, offsets.roll, "YXZ");
+    view.position.set(feet.x, feet.y + offsets.eyeHeight + offsets.y, feet.z);
+    view.position.addScaledVector(new THREE.Vector3(1, 0, 0).applyQuaternion(view.quaternion), offsets.x);
+    // The player's own body would fill the view.
+    const body = objects[playerIndex];
+    if (body) body.visible = false;
+    return view;
+  }
+  // Largest landing speed reported by this frame's ticks.
+  let fpsLanding = 0;
   function gameCamera(): THREE.Camera | undefined {
     if (doc.mode === "edit") return undefined;
+    if (firstPerson()) return placeFirstPerson(rig.frameDt);
     let best: { component: CameraComponent; index: number } | undefined;
     doc.scene.eachAlive().forEach((entity, index) => {
       const component = doc.scene.resolve(entity, "Camera");
@@ -1650,6 +1710,22 @@ async function startEditor() {
         collider.mask,
         collider.bounciness,
       );
+    // CharacterController (0.60.0): see editor_set_controller (bridge.cpp).
+    const controller = get("CharacterController");
+    if (controller && !isChild)
+      runtime._editor_set_controller(
+        index,
+        controller.mode === "FirstPerson" ? 0 : 1,
+        controller.walkSpeed,
+        controller.sprintSpeed,
+        controller.crouchSpeed,
+        controller.jumpHeight,
+        controller.standHeight,
+        controller.crouchHeight,
+        controller.stepHeight,
+        controller.acceleration,
+        controller.airControl,
+      );
     // A rotated Box collider collides as an oriented box (0.59.0).
     const rotation = get("Rotation")?.euler;
     if (collider && rotation && (rotation.x || rotation.y || rotation.z))
@@ -1738,8 +1814,16 @@ async function startEditor() {
     const rect = renderer.domElement.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
+  // Right-drag look shouldn't open the browser menu during Play.
+  renderer.domElement.addEventListener("contextmenu", (event) => {
+    if (doc.mode !== "edit") event.preventDefault();
+  });
   renderer.domElement.addEventListener("pointermove", (event) => {
     if (doc.mode !== "play") return;
+    // Right-drag looks around in first person without capturing the mouse.
+    const controller = playerController();
+    if (controller?.mode === "FirstPerson" && event.buttons & 2 && document.pointerLockElement !== renderer.domElement)
+      applyMouseLook(fps.look, event.movementX, event.movementY, controller.lookSensitivity, controller.invertY);
     const { x, y } = viewportPoint(event);
     pointerQueue.push(() => runtime._editor_input_mouse_move(x, y, event.movementX, event.movementY));
   });
@@ -1766,6 +1850,9 @@ async function startEditor() {
   // still carry it.
   document.addEventListener("mousemove", (event) => {
     if (doc.mode !== "play" || document.pointerLockElement !== renderer.domElement) return;
+    const controller = playerController();
+    if (controller?.mode === "FirstPerson")
+      applyMouseLook(fps.look, event.movementX, event.movementY, controller.lookSensitivity, controller.invertY);
     pointerQueue.push(() => runtime._editor_input_mouse_move(0, 0, event.movementX, event.movementY));
   });
   function flushPointerInput() {
@@ -2524,6 +2611,15 @@ async function startEditor() {
         for (const state of particleStates) if (state?.burstOnPlay) burst(state.emitter, state.burstOnPlay);
         if (animatorErrors.length) log(`Animator: ${animatorErrors.join("; ")}`);
         const playerObject = playerIndex >= 0 ? objects[playerIndex] : undefined;
+        // First person starts looking the way the player entity faces.
+        const playerRotation = playerIndex >= 0 ? doc.scene.resolve(doc.scene.eachAlive()[playerIndex]!, "Rotation") : undefined;
+        fps.look.yaw = playerRotation?.euler.y ?? 0;
+        fps.look.pitch = 0;
+        fps.view.reset();
+        if (playerIndex >= 0 && playerController()) {
+          playerFeet(fps.previous);
+          fps.current.copy(fps.previous);
+        }
         playerBaseScale = playerObject ? playerObject.scale.clone() : null;
         playerPrevY = playerObject?.position.y ?? 0;
         // Set before startSounds(), not after: a clip already decoded from
@@ -2800,6 +2896,11 @@ async function startEditor() {
       else runUIAction(hit.action);
       return;
     }
+    // First person: a click in the viewport captures the mouse for look.
+    if (doc.mode === "play" && firstPerson()) {
+      if (document.pointerLockElement !== renderer.domElement) void renderer.domElement.requestPointerLock?.();
+      return;
+    }
     const pointer = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
       (-(e.clientY - rect.top) / rect.height) * 2 + 1,
@@ -2931,13 +3032,23 @@ async function startEditor() {
       keyQueue.length = 0;
       flushPointerInput();
       pollGamepad();
+      const controller = playerController();
+      if (controller?.mode === "FirstPerson" && padSnapshot)
+        applyStickLook(fps.look, padSnapshot.axes[2] ?? 0, padSnapshot.axes[3] ?? 0, dt, controller.lookSensitivity, controller.invertY);
       for (const [key, down] of scriptKeyQueue)
         runtime.ccall("editor_script_key", null, ["string", "number"], [key, down]);
       scriptKeyQueue.length = 0;
       accumulator += dt;
       const tickStart = performance.now();
+      const firstPersonTicks = firstPerson();
+      if (firstPersonTicks) runtime._editor_set_look(fps.look.yaw, fps.look.pitch);
       while (accumulator >= 1 / 60 && steps++ < 5) {
+        if (firstPersonTicks) playerFeet(fps.previous);
         runtime._editor_tick();
+        if (firstPersonTicks) {
+          playerFeet(fps.current);
+          fpsLanding = Math.max(fpsLanding, runtime._editor_controller_value(playerIndex, 3));
+        }
         ticks++;
         accumulator -= 1 / 60;
       }
@@ -2999,7 +3110,14 @@ async function startEditor() {
       // tick-frame, flickering every render frame at 120/144 Hz instead of
       // reading as one continuous effect.
       const playerEntity = playerIndex >= 0 ? doc.scene.eachAlive()[playerIndex] : undefined;
-      if (steps > 0 && player && playerBaseScale && playerEntity && !doc.scene.effectiveHas(playerEntity, "Vehicle")) {
+      if (
+        steps > 0 &&
+        player &&
+        playerBaseScale &&
+        playerEntity &&
+        !doc.scene.effectiveHas(playerEntity, "Vehicle") &&
+        !doc.scene.effectiveHas(playerEntity, "CharacterController")
+      ) {
         const verticalDelta = player.position.y - playerPrevY;
         const stretch = Math.max(-0.18, Math.min(0.18, verticalDelta * 6));
         player.scale.set(
@@ -3338,6 +3456,30 @@ async function startEditor() {
   // incrementally, matching the Health bars' own established reasoning
   // (entities/UI state can change every tick; nothing here is worth diffing
   // against a held/released-style previous frame).
+  // Crosshair, and a hint while the mouse isn't captured.
+  function drawFirstPersonOverlay() {
+    const cx = hud.width / 2,
+      cy = hud.height / 2;
+    hudCtx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+    hudCtx.lineWidth = 2;
+    hudCtx.beginPath();
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      hudCtx.moveTo(cx + dx * 4, cy + dy * 4);
+      hudCtx.lineTo(cx + dx * 11, cy + dy * 11);
+    }
+    hudCtx.stroke();
+    if (doc.mode === "play" && document.pointerLockElement !== renderer.domElement) {
+      hudCtx.font = "600 14px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif";
+      hudCtx.textAlign = "center";
+      hudCtx.textBaseline = "top";
+      hudCtx.fillStyle = "rgba(10, 16, 24, 0.7)";
+      const text = "Click to look around (Esc releases) · right-drag also looks";
+      const width = hudCtx.measureText(text).width + 20;
+      hudCtx.fillRect(cx - width / 2, cy + 28, width, 26);
+      hudCtx.fillStyle = "#fff";
+      hudCtx.fillText(text, cx, cy + 34);
+    }
+  }
   function drawHud() {
     hudCtx.clearRect(0, 0, hud.width, hud.height);
     uiButtonHits.length = 0;
@@ -3346,6 +3488,7 @@ async function startEditor() {
       doc.scene.eachAlive().forEach((entity, index) => {
         if (!doc.scene.effectiveHas(entity, "Health")) return;
         if (!runtime._editor_alive(index)) return;
+        if (index === playerIndex && firstPerson()) return; // no bar over your own head
         const object = objects[index];
         if (!object) return;
         const ratio = runtime._editor_value(index, 3);
@@ -3370,6 +3513,7 @@ async function startEditor() {
           barHeight,
         );
       });
+    if (firstPerson()) drawFirstPersonOverlay();
     for (const entity of doc.scene.eachAlive()) {
       const authoredUi = doc.scene.resolve(entity, "UI");
       if (!authoredUi) continue;

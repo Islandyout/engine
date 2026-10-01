@@ -178,6 +178,17 @@ Engine version 0.59.0 makes rotated colliders real:
 
 See [F59](docs/IMPLEMENTATION_STATUS.md#f59--oriented-box-colliders-ramps-and-hit-normals-0590).
 
+Engine version 0.60.0 adds a `CharacterController` component for the Player:
+
+- **Movement**: from the named actions (`move_x`/`move_y`, `jump`, `sprint`, and a new default `crouch` on C, Ctrl or pad B). Ground speed accelerates and decelerates, and there is air control.
+- **Jumping**: coyote time and jump buffering.
+- **Crouching**: lowers the body. You only stand back up where there's headroom.
+- **Steps and slopes**: steps up to 0.4 m are climbed automatically, and the character sticks to stairs and slopes when walking down.
+- **FirstPerson mode**: Play puts the camera at the player's eyes with mouse look. Click the viewport to capture the mouse; right-drag and the right stick also look. The view has head bob, a landing dip, crouch easing, a sprint FOV kick and a crosshair.
+- **ThirdPerson mode**: movement is relative to the camera instead.
+
+See [F60](docs/IMPLEMENTATION_STATUS.md#f60--first-person-character-controller-0600).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

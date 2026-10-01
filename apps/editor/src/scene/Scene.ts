@@ -14,6 +14,7 @@ import type {
   MaterialComponent,
   AnimatorComponent,
   CameraFollowComponent,
+  CharacterControllerComponent,
   InputActionsComponent,
   TrailComponent,
   PedestrianComponent,
@@ -62,6 +63,7 @@ export interface SceneComponents {
   Material: MaterialComponent;
   Animator: AnimatorComponent;
   CameraFollow: CameraFollowComponent;
+  CharacterController: CharacterControllerComponent;
   InputActions: InputActionsComponent;
   Trail: TrailComponent;
 }
@@ -94,6 +96,7 @@ export const prefabableComponentNames = [
   "Animator",
   "CameraFollow",
   "Trail",
+  "CharacterController",
 ] as const satisfies readonly (keyof SceneComponents)[];
 export type PrefabableComponent = (typeof prefabableComponentNames)[number];
 const prefabableComponentSet: ReadonlySet<string> = new Set(
@@ -153,6 +156,7 @@ export class Scene {
     Material: new Map(),
     Animator: new Map(),
     CameraFollow: new Map(),
+    CharacterController: new Map(),
     InputActions: new Map(),
     Trail: new Map(),
     UI: new Map(),

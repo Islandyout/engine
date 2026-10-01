@@ -1,4 +1,6 @@
 #include "bindings.hpp"
+#include "engine/gameplay/character.hpp"
+#include "engine/gameplay/weapons.hpp"
 #include "engine/nav/nav.hpp"
 #include "engine/physics/physics.hpp"
 #include "engine/script/script.hpp"
@@ -150,6 +152,11 @@ struct Projectile final {
     // default (must stay before `lifetime` for that to work).
     engine::Entity owner{};
     float lifetime{1.5F}; // seconds remaining; destroyed at/below 0
+    // Weapon projectiles (0.61.0) carry their own damage, gravity scale and
+    // explosion radius; the G blast keeps these defaults.
+    float damage{15.0F};
+    float gravity{0.0F};
+    float splash{0.0F};
 };
 
 constexpr float move_speed = 4.8F; // units/s; matches the native playground's tuned feel
@@ -250,20 +257,46 @@ engine::Key key_for(int code) {
     }
 }
 
-// Shared by melee ("attack") and blast hits: applies damage to a Health
-// entity and destroys it on defeat. Mirrors the native playground's own
-// damage_enemy, generalized to whichever Health entity was actually hit
-// instead of one hardcoded enemy. A no-op if target has no Health (already
-// destroyed between the caller's query and this call, e.g. two projectiles
-// landing the same tick).
-void damage(engine::World &w, engine::Entity target, float amount) {
-    auto *health = w.get<Health>(target);
-    if (!health)
-        return;
-    health->current = std::max(0.0F, health->current - amount);
-    if (health->current <= 0)
-        w.defer_destroy(target);
-}
+// A CharacterController (0.60.0): the entity moves through
+// engine::gameplay's controller (acceleration, sprint/crouch, coyote time,
+// jump buffering, step climbing) from the named input actions instead of the
+// fixed WASD model. first_person: movement is relative to the look yaw the
+// editor sends each frame (editor_set_look); otherwise to the camera's
+// horizontal facing (editor_set_camera_forward).
+struct Controller final {
+    engine::gameplay::ControllerSettings settings;
+    engine::gameplay::ControllerState state;
+    bool first_person{true};
+};
+
+// Weapons (0.61.0): the entity's loadout and its engine::gameplay
+// state. A Player fires from the named actions (fire, aim, reload,
+// next_weapon, weapon_scroll, digit keys) along the look direction; any other
+// entity fires when its script calls weapon.fire().
+struct Arsenal final {
+    std::vector<engine::gameplay::WeaponDef> weapons;
+    engine::gameplay::WeaponState state;
+    bool aiming{false};
+    // Script-driven trigger for the next tick (weapon.fire / reload / select).
+    bool script_fire{false};
+    bool script_reload{false};
+    int script_select{-1};
+    std::optional<engine::Vec3> script_aim;
+};
+
+// What the editor hears about combat each frame (editor_take_weapon_events).
+enum class WeaponEventKind : int { fire, impact, reload, reloaded, empty, switched, explode, damaged };
+struct WeaponEvent final {
+    WeaponEventKind kind{};
+    int shooter{-1};
+    int target{-1};
+    engine::Vec3 point{};
+    engine::Vec3 normal{};
+    float value{};
+    int flags{};
+};
+// WeaponEvent::flags bits.
+constexpr int event_headshot = 1, event_killed = 2, event_flesh = 4;
 
 // Authored Name, so scripts can world.find()/world.name() entities.
 struct EntityName final {
@@ -300,6 +333,8 @@ public:
     bool health(const engine::World &world, engine::Entity entity, float &current, float &max) override;
     void damage(engine::World &world, engine::Entity entity, float amount) override;
     void emit(engine::Entity source, const std::string &kind, const std::string &a, const std::string &b) override;
+    bool weapon(engine::World &world, engine::Entity self, const std::string &op, const std::vector<double> &args,
+                std::vector<double> &out) override;
 
 private:
     Runtime &runtime_;
@@ -340,6 +375,13 @@ struct Runtime {
     // down -z, which this default simply assumes until told otherwise.
     float camera_forward_x{0.0F};
     float camera_forward_z{-1.0F};
+    // First-person look direction in radians, set by editor_set_look() once
+    // per rendered frame (the editor owns mouse look so it stays smooth at
+    // any display rate). yaw 0 looks down -z; pitch > 0 looks up.
+    float look_yaw{0.0F};
+    float look_pitch{0.0F};
+    // Physics settings shared by every system that steps or queries it.
+    engine::physics::Config physics_config{};
     engine::script::Runtime script_runtime;
     std::map<engine::Entity, std::string> script_errors;
     // Contact/trigger bookkeeping across physics steps (enter/stay/exit).
@@ -351,6 +393,163 @@ struct Runtime {
     // defaults), evaluated from `input` every tick.
     engine::ActionSystem actions{default_input_map()};
     std::string bindings_error;
+    std::vector<WeaponEvent> weapon_events;
+    std::string weapons_error;
+    int index_of(engine::Entity entity) const {
+        for (std::size_t i = 0; i < entities.size(); ++i)
+            if (entities[i] == entity)
+                return static_cast<int>(i);
+        return -1;
+    }
+    void push_event(WeaponEvent event) {
+        if (weapon_events.size() < 1024)
+            weapon_events.push_back(event);
+    }
+    // Every damage path (weapons, melee, blast, AI attacks, scripts) lands
+    // here: Health goes down, the editor gets a "damaged" event, the target's
+    // script hears on_damaged/on_death, and a defeated entity is destroyed.
+    // A no-op without Health or once already at 0.
+    void apply_damage(engine::World &w, engine::Entity target, float amount, std::optional<engine::Entity> attacker,
+                      bool headshot = false) {
+        auto *health = w.get<Health>(target);
+        if (!health || health->current <= 0 || !(amount > 0))
+            return;
+        health->current = std::max(0.0F, health->current - amount);
+        const bool killed = health->current <= 0;
+        if (killed)
+            w.defer_destroy(target);
+        WeaponEvent event{WeaponEventKind::damaged, attacker ? index_of(*attacker) : -1, index_of(target)};
+        const auto *source = attacker ? w.get<engine::Box>(*attacker) : nullptr;
+        event.point = source ? source->center : w.get<engine::Box>(target)->center;
+        event.value = amount;
+        event.flags = (headshot ? event_headshot : 0) | (killed ? event_killed : 0);
+        push_event(event);
+        const auto name = [&w](std::optional<engine::Entity> entity) {
+            const auto *n = entity ? w.get<EntityName>(*entity) : nullptr;
+            return n ? n->value : std::string{};
+        };
+        script_runtime.notify_damage(w, target, amount, attacker, headshot, killed, name(target), name(attacker));
+    }
+    // The nearest thing a ray hits: a Collider (or the ground) through
+    // physics::raycast, or any Box with Health that has no Collider.
+    struct Trace final {
+        std::optional<engine::Entity> entity;
+        engine::Vec3 point{};
+        engine::Vec3 normal{};
+        float distance{};
+    };
+    std::optional<Trace> trace(engine::World &w, engine::Vec3 origin, engine::Vec3 direction, float range,
+                               engine::Entity ignore) {
+        engine::physics::QueryFilter filter;
+        filter.ignore = ignore;
+        std::optional<Trace> best;
+        if (const auto hit = engine::physics::raycast(w, origin, direction, range, physics_config, filter))
+            best = Trace{hit->hit_ground ? std::nullopt : std::optional{hit->entity}, hit->point, hit->normal,
+                         hit->distance};
+        for (const auto entity : w.query<engine::Box, Health>()) {
+            if (entity == ignore || w.get<engine::physics::Collider>(entity))
+                continue;
+            const auto &box = *w.get<engine::Box>(entity);
+            // Slab test against the target's box.
+            float t_min = 0, t_max = best ? best->distance : range;
+            int axis_hit = -1;
+            const float o[3]{origin.x, origin.y, origin.z}, d[3]{direction.x, direction.y, direction.z};
+            const float c[3]{box.center.x, box.center.y, box.center.z}, h[3]{box.size.x / 2, box.size.y / 2,
+                                                                            box.size.z / 2};
+            bool miss = false;
+            for (int a = 0; a < 3 && !miss; ++a) {
+                if (std::abs(d[a]) < 1e-9F) {
+                    miss = o[a] < c[a] - h[a] || o[a] > c[a] + h[a];
+                    continue;
+                }
+                float t1 = (c[a] - h[a] - o[a]) / d[a], t2 = (c[a] + h[a] - o[a]) / d[a];
+                if (t1 > t2)
+                    std::swap(t1, t2);
+                if (t1 > t_min) {
+                    t_min = t1;
+                    axis_hit = a;
+                }
+                t_max = std::min(t_max, t2);
+                miss = t_min > t_max;
+            }
+            if (miss || (best && t_min >= best->distance))
+                continue;
+            float n[3]{0, 0, 0};
+            if (axis_hit >= 0)
+                n[axis_hit] = d[axis_hit] > 0 ? -1.0F : 1.0F;
+            best = Trace{entity,
+                         {origin.x + direction.x * t_min, origin.y + direction.y * t_min,
+                          origin.z + direction.z * t_min},
+                         {n[0], n[1], n[2]},
+                         t_min};
+        }
+        return best;
+    }
+    // Fires one round of `arsenal`'s current weapon from `origin` along
+    // `direction` (unit): hitscan pellets, or a projectile.
+    void fire_weapon(engine::World &w, engine::Entity shooter, Arsenal &arsenal, engine::Vec3 origin,
+                     engine::Vec3 direction, float spread) {
+        const auto slot = static_cast<std::size_t>(arsenal.state.current);
+        const auto &weapon = arsenal.weapons[slot];
+        WeaponEvent fired{WeaponEventKind::fire, index_of(shooter), -1, origin, direction, weapon.recoil,
+                          static_cast<int>(slot)};
+        push_event(fired);
+        if (weapon.projectile) {
+            const auto aim = engine::gameplay::spread_direction(direction, spread, arsenal.state.rng);
+            const auto projectile = w.defer_create();
+            w.defer_set(projectile, engine::Box{{origin.x + aim.x * 0.6F, origin.y + aim.y * 0.6F,
+                                                 origin.z + aim.z * 0.6F},
+                                                {0.25F, 0.25F, 0.25F}});
+            Projectile p{{aim.x * weapon.speed, aim.y * weapon.speed, aim.z * weapon.speed}, shooter};
+            p.lifetime = weapon.range / weapon.speed + 1.0F;
+            p.damage = weapon.damage;
+            p.gravity = weapon.gravity;
+            p.splash = weapon.splash;
+            w.defer_set(projectile, p);
+            return;
+        }
+        std::map<engine::Entity, std::pair<float, bool>> damage_by_target;
+        for (int pellet = 0; pellet < weapon.pellets; ++pellet) {
+            const auto aim = engine::gameplay::spread_direction(direction, spread, arsenal.state.rng);
+            const auto hit = trace(w, origin, aim, weapon.range, shooter);
+            if (!hit)
+                continue;
+            const bool flesh = hit->entity && w.get<Health>(*hit->entity);
+            push_event({WeaponEventKind::impact, index_of(shooter), hit->entity ? index_of(*hit->entity) : -1,
+                        hit->point, hit->normal, 0, flesh ? event_flesh : 0});
+            if (!flesh)
+                continue;
+            const auto &box = *w.get<engine::Box>(*hit->entity);
+            const bool headshot =
+                box.size.y >= 1.2F && hit->point.y >= box.center.y + box.size.y / 2 - box.size.y * 0.22F;
+            auto &entry = damage_by_target[*hit->entity];
+            entry.first += engine::gameplay::damage_at(weapon, hit->distance) * (headshot ? weapon.headshot : 1.0F);
+            entry.second = entry.second || headshot;
+        }
+        for (const auto &[target, entry] : damage_by_target)
+            apply_damage(w, target, entry.first, shooter, entry.second);
+    }
+    // An explosion: damage falls off linearly to 0 at the radius, and
+    // finite-mass bodies are pushed away.
+    void explode(engine::World &w, engine::Entity owner, engine::Vec3 at, float radius, float damage_amount) {
+        push_event({WeaponEventKind::explode, index_of(owner), -1, at, {0, 1, 0}, radius, 0});
+        for (const auto entity : w.query<engine::Box>()) {
+            const auto &box = *w.get<engine::Box>(entity);
+            const engine::Vec3 delta{box.center.x - at.x, box.center.y - at.y, box.center.z - at.z};
+            const float distance = std::sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
+            if (distance >= radius)
+                continue;
+            const float scale = 1.0F - distance / radius;
+            if (w.get<Health>(entity))
+                apply_damage(w, entity, damage_amount * scale, owner);
+            if (auto *body = w.get<engine::physics::RigidBody>(entity);
+                body && body->mass > 0 && body->type == engine::physics::BodyType::Dynamic && distance > 1e-3F) {
+                const float push = 12.0F * scale * body->mass;
+                engine::physics::add_impulse(*body, {delta.x / distance * push, delta.y / distance * push + push * 0.3F,
+                                                     delta.z / distance * push});
+            }
+        }
+    }
     // Milliseconds each system took on the most recent tick, for the
     // editor's Stats overlay (editor_profile_text).
     std::map<std::string, double> profile;
@@ -591,7 +790,31 @@ struct Runtime {
                 for (const auto entity : w.query<engine::physics::RigidBody, PlayerMarker>()) {
                     auto &body = *w.get<engine::physics::RigidBody>(entity);
                     auto *heading = w.get<Heading>(entity);
-                    if (heading) {
+                    auto *controller = w.get<Controller>(entity);
+                    if (controller) {
+                        const auto value = [this](const char *name) {
+                            return actions.state(engine::ActionId{name}).value;
+                        };
+                        engine::gameplay::ControllerInput intent;
+                        intent.move_x = value("move_x");
+                        intent.move_y = value("move_y");
+                        intent.jump_pressed = actions.state(engine::ActionId{"jump"}).pressed;
+                        intent.sprint = actions.state(engine::ActionId{"sprint"}).down();
+                        intent.crouch = actions.state(engine::ActionId{"crouch"}).down();
+                        if (const auto *arsenal = w.get<Arsenal>(entity)) {
+                            // Aiming down sights slows you and, like firing, stops a sprint.
+                            if (arsenal->aiming) {
+                                intent.move_x *= 0.55F;
+                                intent.move_y *= 0.55F;
+                            }
+                            if (arsenal->aiming || actions.state(engine::ActionId{"fire"}).down())
+                                intent.sprint = false;
+                        }
+                        intent.yaw = controller->first_person ? look_yaw
+                                                             : std::atan2(-camera_forward_x, -camera_forward_z);
+                        engine::gameplay::begin_step(w, entity, controller->state, controller->settings, intent,
+                                                     physics_config.gravity * body.gravity_scale, 1.0F / 60.0F);
+                    } else if (heading) {
                         // Vehicle model: W/S accelerate/reverse along the vehicle's own
                         // heading (momentum, not instant velocity), A/D steer that heading
                         // — "driving," not strafing. Self-relative by construction, so
@@ -665,8 +888,10 @@ struct Runtime {
                     }
                     // Press jump while grounded to launch; keep holding it
                     // while airborne to fly (a steady climb, not a single
-                    // decaying arc) — same as the native playground.
-                    if (context.input.key_pressed(engine::Key::left_shift) && body.grounded)
+                    // decaying arc) — same as the native playground. A
+                    // CharacterController jumps through its own actions.
+                    if (controller) {
+                    } else if (context.input.key_pressed(engine::Key::left_shift) && body.grounded)
                         body.velocity.y = jump_speed;
                     else if (context.input.key_down(engine::Key::left_shift) && !body.grounded)
                         body.velocity.y = fly_speed;
@@ -713,11 +938,12 @@ struct Runtime {
                                 const auto projectile = w.defer_create();
                                 w.defer_set(projectile,
                                             engine::Box{box.center, engine::Vec3{0.3F, 0.3F, 0.3F}});
-                                w.defer_set(projectile,
-                                            Projectile{engine::Vec3{direction.x * blast_speed,
-                                                                     direction.y * blast_speed,
-                                                                     direction.z * blast_speed},
-                                                       entity});
+                                Projectile blast{engine::Vec3{direction.x * blast_speed,
+                                                              direction.y * blast_speed,
+                                                              direction.z * blast_speed},
+                                                 entity};
+                                blast.damage = blast_damage;
+                                w.defer_set(projectile, blast);
                             }
                         }
                     }
@@ -725,11 +951,101 @@ struct Runtime {
             });
         add_timed("editor.physics", engine::FixedPhase::update, 10,
                     [this](engine::World &w, const engine::FixedUpdateContext &) {
-                        engine::physics::step(w, 1.0F / 60.0F, {}, &physics_events);
+                        engine::physics::step(w, 1.0F / 60.0F, physics_config, &physics_events);
                     });
+        // Right after physics: controllers climb steps and stick to the
+        // ground (engine::gameplay::end_step).
+        add_timed("editor.controller", engine::FixedPhase::update, 11,
+                  [this](engine::World &w, const engine::FixedUpdateContext &) {
+                      for (const auto entity : w.query<engine::physics::RigidBody, Controller>()) {
+                          auto &controller = *w.get<Controller>(entity);
+                          engine::gameplay::end_step(w, entity, controller.state, controller.settings,
+                                                     physics_config, 1.0F / 60.0F);
+                      }
+                  });
+        // After movement, physics and the controller, so shots leave from
+        // where the shooter actually is this tick.
+        add_timed("editor.weapons", engine::FixedPhase::update, 13,
+                  [this](engine::World &w, const engine::FixedUpdateContext &context) {
+                      constexpr float dt = 1.0F / 60.0F;
+                      for (const auto entity : w.query<engine::Box, Arsenal>()) {
+                          auto &arsenal = *w.get<Arsenal>(entity);
+                          if (arsenal.weapons.empty())
+                              continue;
+                          const auto &box = *w.get<engine::Box>(entity);
+                          const auto *controller = w.get<Controller>(entity);
+                          const bool player = w.get<PlayerMarker>(entity) != nullptr;
+                          engine::Vec3 origin = box.center;
+                          origin.y = controller ? box.center.y - box.size.y / 2 + engine::gameplay::eye_offset(box)
+                                                : box.center.y + box.size.y * 0.35F;
+                          engine::Vec3 direction{0, 0, -1};
+                          engine::gameplay::TriggerInput trigger;
+                          bool aim = false;
+                          if (player) {
+                              const auto &fire = actions.state(engine::ActionId{"fire"});
+                              trigger.fire_down = fire.down();
+                              trigger.fire_pressed = fire.pressed;
+                              trigger.reload = actions.state(engine::ActionId{"reload"}).pressed;
+                              aim = actions.state(engine::ActionId{"aim"}).down();
+                              if (actions.state(engine::ActionId{"next_weapon"}).pressed)
+                                  trigger.cycle = 1;
+                              const auto &scroll = actions.state(engine::ActionId{"weapon_scroll"});
+                              if (scroll.pressed)
+                                  trigger.cycle = scroll.value > 0 ? -1 : 1;
+                              for (int n = 0; n < 9; ++n)
+                                  if (context.input.key_pressed(
+                                          static_cast<engine::Key>(static_cast<int>(engine::Key::digit1) + n)))
+                                      trigger.select = n;
+                              const float cos_pitch = std::cos(look_pitch);
+                              direction = {-std::sin(look_yaw) * cos_pitch, std::sin(look_pitch),
+                                           -std::cos(look_yaw) * cos_pitch};
+                          }
+                          if (arsenal.script_fire)
+                              trigger.fire_down = trigger.fire_pressed = true;
+                          if (arsenal.script_reload)
+                              trigger.reload = true;
+                          if (arsenal.script_select >= 0)
+                              trigger.select = arsenal.script_select;
+                          if (arsenal.script_aim) {
+                              const auto a = *arsenal.script_aim;
+                              const float length = std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+                              if (length > 1e-6F)
+                                  direction = {a.x / length, a.y / length, a.z / length};
+                          }
+                          arsenal.script_fire = arsenal.script_reload = false;
+                          arsenal.script_select = -1;
+                          arsenal.script_aim.reset();
+                          arsenal.aiming =
+                              aim && arsenal.state.reload_left <= 0 && arsenal.state.equip_left <= 0;
+                          const float bloom = arsenal.state.bloom;
+                          const auto tick = engine::gameplay::update_weapon(arsenal.state, arsenal.weapons, trigger, dt);
+                          const int shooter = index_of(entity);
+                          const int slot = arsenal.state.current;
+                          const auto &weapon = arsenal.weapons[static_cast<std::size_t>(slot)];
+                          if (tick.switched)
+                              push_event({WeaponEventKind::switched, shooter, -1, origin, {}, weapon.equip_time, slot});
+                          if (tick.reload_started)
+                              push_event({WeaponEventKind::reload, shooter, -1, origin, {}, weapon.reload_time, slot});
+                          if (tick.reload_finished)
+                              push_event({WeaponEventKind::reloaded, shooter, -1, origin, {}, 0, slot});
+                          if (tick.empty)
+                              push_event({WeaponEventKind::empty, shooter, -1, origin, {}, 0, slot});
+                          if (tick.fired) {
+                              float speed_ratio = 0;
+                              bool airborne = false;
+                              if (controller) {
+                                  speed_ratio = controller->state.speed / controller->settings.walk_speed;
+                                  airborne = !controller->state.grounded;
+                              }
+                              fire_weapon(w, entity, arsenal, origin, direction,
+                                          engine::gameplay::current_spread(weapon, arsenal.aiming, speed_ratio,
+                                                                           airborne, bloom));
+                          }
+                      }
+                  });
         // Right after physics, so scripts hear about this tick's contacts
         // (on_collision_*/on_trigger_*) before anything else reacts.
-        add_timed("editor.script_contacts", engine::FixedPhase::update, 11,
+        add_timed("editor.script_contacts", engine::FixedPhase::update, 12,
                     [this](engine::World &w, const engine::FixedUpdateContext &) {
                         script_runtime.dispatch_contacts(w, physics_events);
                     });
@@ -738,27 +1054,45 @@ struct Runtime {
         // own ordering.
         add_timed(
             "editor.projectiles", engine::FixedPhase::update, 15,
-            [](engine::World &w, const engine::FixedUpdateContext &) {
+            [this](engine::World &w, const engine::FixedUpdateContext &) {
                 constexpr float dt = 1.0F / 60.0F;
                 for (const auto entity : w.query<engine::Box, Projectile>()) {
                     auto &box = *w.get<engine::Box>(entity);
                     auto &projectile = *w.get<Projectile>(entity);
-                    box.center.x += projectile.velocity.x * dt;
-                    box.center.y += projectile.velocity.y * dt;
-                    box.center.z += projectile.velocity.z * dt;
+                    projectile.velocity.y += physics_config.gravity * projectile.gravity * dt;
+                    const engine::Vec3 step{projectile.velocity.x * dt, projectile.velocity.y * dt,
+                                            projectile.velocity.z * dt};
+                    const float length = std::sqrt(step.x * step.x + step.y * step.y + step.z * step.z);
+                    // Stops at solid geometry (and the ground) along this tick's path.
+                    engine::physics::QueryFilter filter;
+                    filter.ignore = projectile.owner;
+                    const auto wall = length > 0 ? engine::physics::raycast(w, box.center, step, length,
+                                                                            physics_config, filter)
+                                                 : std::nullopt;
+                    if (wall)
+                        box.center = wall->point;
+                    else
+                        box.center = {box.center.x + step.x, box.center.y + step.y, box.center.z + step.z};
                     projectile.lifetime -= dt;
-                    bool hit = false;
-                    for (const auto target : w.query<engine::Box, Health>()) {
-                        if (target == projectile.owner)
+                    std::optional<engine::Entity> target;
+                    if (wall && !wall->hit_ground && w.get<Health>(wall->entity))
+                        target = wall->entity;
+                    for (const auto candidate : w.query<engine::Box, Health>()) {
+                        if (target || candidate == projectile.owner)
                             continue;
-                        if (engine::physics::overlaps(box, *w.get<engine::Box>(target))) {
-                            damage(w, target, blast_damage);
-                            hit = true;
-                            break;
-                        }
+                        if (engine::physics::overlaps(box, *w.get<engine::Box>(candidate)))
+                            target = candidate;
                     }
-                    if (hit || projectile.lifetime <= 0)
-                        w.defer_destroy(entity);
+                    if (!target && !wall && projectile.lifetime > 0)
+                        continue;
+                    if (projectile.splash > 0 && (target || wall))
+                        explode(w, projectile.owner, box.center, projectile.splash, projectile.damage);
+                    else if (target)
+                        apply_damage(w, *target, projectile.damage, projectile.owner);
+                    else if (wall)
+                        push_event({WeaponEventKind::impact, index_of(projectile.owner),
+                                    wall->hit_ground ? -1 : index_of(wall->entity), wall->point, wall->normal, 0, 0});
+                    w.defer_destroy(entity);
                 }
             });
         // Melee: press "attack" (F) while a Player's Box overlaps a Health
@@ -785,7 +1119,7 @@ struct Runtime {
                         if (target == entity)
                             continue;
                         if (engine::physics::overlaps(box, *w.get<engine::Box>(target)))
-                            damage(w, target, attack_damage);
+                            apply_damage(w, target, attack_damage, entity);
                     }
                 }
             });
@@ -826,7 +1160,7 @@ struct Runtime {
                     const auto &box = *w.get<engine::Box>(entity);
                     for (const auto target : w.query<engine::Box, PlayerMarker, Health>()) {
                         if (engine::physics::overlaps(box, *w.get<engine::Box>(target))) {
-                            damage(w, target, ai_attack_damage);
+                            apply_damage(w, target, ai_attack_damage, entity);
                             agent.attack_cooldown = ai_attack_interval;
                             // Unlike the Player's own F/G (which animate on every press,
                             // hit or miss), an AIAgent's only "action" here is landing a
@@ -853,6 +1187,8 @@ void register_components(engine::World &w) {
     w.register_component<engine::script::Script>("editor.script");
     w.register_component<EntityName>("editor.name");
     w.register_component<SpawnedFrom>("editor.spawned_from");
+    w.register_component<Controller>("editor.controller");
+    w.register_component<Arsenal>("editor.arsenal");
 }
 
 template <typename T> void copy_component(const engine::World &from, engine::Entity source, engine::World &to,
@@ -896,10 +1232,43 @@ std::optional<engine::Entity> BridgeHost::spawn(engine::World &world, const std:
     copy_component<AIAgent>(from, source, world, entity);
     copy_component<Pedestrian>(from, source, world, entity);
     copy_component<engine::script::Script>(from, source, world, entity);
+    copy_component<Controller>(from, source, world, entity);
+    copy_component<Arsenal>(from, source, world, entity);
     world.defer_set(entity, EntityName{prefab});
     world.defer_set(entity, SpawnedFrom{prefab});
     runtime_.entities.push_back(entity);
     return entity;
+}
+
+bool BridgeHost::weapon(engine::World &world, engine::Entity self, const std::string &op,
+                        const std::vector<double> &args, std::vector<double> &out) {
+    auto *arsenal = world.get<Arsenal>(self);
+    if (!arsenal || arsenal->weapons.empty())
+        return false;
+    auto &state = arsenal->state;
+    const int count = static_cast<int>(arsenal->weapons.size());
+    if (op == "fire") {
+        arsenal->script_fire = true;
+        if (args.size() == 3 && std::isfinite(args[0]) && std::isfinite(args[1]) && std::isfinite(args[2]))
+            arsenal->script_aim = engine::Vec3{static_cast<float>(args[0]), static_cast<float>(args[1]),
+                                               static_cast<float>(args[2])};
+    } else if (op == "reload") {
+        arsenal->script_reload = true;
+    } else if (op == "select") {
+        if (!args.empty() && args[0] >= 0 && args[0] < count)
+            arsenal->script_select = static_cast<int>(args[0]);
+    } else if (op == "ammo") {
+        const auto slot = static_cast<std::size_t>(state.current);
+        out = {static_cast<double>(state.magazine[slot]), static_cast<double>(state.reserve[slot]),
+               static_cast<double>(slot), state.reload_left > 0 ? 1.0 : 0.0};
+    } else if (op == "give_ammo") {
+        if (args.size() == 2 && std::isfinite(args[0]) && std::isfinite(args[1]))
+            engine::gameplay::give_ammo(state, args[1] < 0 ? state.current : static_cast<int>(args[1]),
+                                        static_cast<int>(std::clamp(args[0], 0.0, 100000.0)));
+    } else {
+        return false;
+    }
+    return true;
 }
 
 bool BridgeHost::health(const engine::World &world, engine::Entity entity, float &current, float &max) {
@@ -913,7 +1282,7 @@ bool BridgeHost::health(const engine::World &world, engine::Entity entity, float
 
 void BridgeHost::damage(engine::World &world, engine::Entity entity, float amount) {
     if (std::isfinite(amount) && amount > 0)
-        ::damage(world, entity, amount);
+        runtime_.apply_damage(world, entity, amount, std::nullopt);
 }
 
 void BridgeHost::emit(engine::Entity source, const std::string &kind, const std::string &a, const std::string &b) {
@@ -1160,6 +1529,166 @@ EXPORT void editor_set_rotation(int index, double x, double y, double z) {
         }
     collider->rotation = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)};
 }
+// Makes the entity a CharacterController (0.60.0), after editor_add for the
+// same index. mode 0 = first person, 1 = third person. Resizes its Box to the
+// controller's footprint and standing height, keeping its feet in place.
+// Ignored for an entity without a RigidBody (a child).
+EXPORT void editor_set_controller(int index, int mode, double walk, double sprint, double crouch, double jump,
+                                  double stand, double crouched, double step, double accel, double air) {
+    const auto target = staged(index);
+    if (!target)
+        return;
+    auto &world = *target->first;
+    auto *box = world.get<engine::Box>(target->second);
+    if (!box || !world.get<engine::physics::RigidBody>(target->second))
+        return;
+    for (const double v : {walk, sprint, crouch, jump, stand, crouched, accel, air})
+        if (!std::isfinite(v) || v <= 0 || v > 1000) {
+            failed = true;
+            return;
+        }
+    if (!std::isfinite(step) || step < 0 || step > 10 || crouched > stand) {
+        failed = true;
+        return;
+    }
+    Controller controller;
+    controller.first_person = mode == 0;
+    auto &settings = controller.settings;
+    settings.walk_speed = static_cast<float>(walk);
+    settings.sprint_speed = static_cast<float>(sprint);
+    settings.crouch_speed = static_cast<float>(crouch);
+    settings.jump_height = static_cast<float>(jump);
+    settings.stand_height = static_cast<float>(stand);
+    settings.crouch_height = static_cast<float>(crouched);
+    settings.step_height = static_cast<float>(step);
+    settings.ground_accel = static_cast<float>(accel);
+    settings.ground_decel = static_cast<float>(accel) * 0.8F;
+    settings.air_accel = static_cast<float>(air);
+    engine::gameplay::configure_body(*box, settings);
+    world.set(target->second, controller);
+}
+// Gives the entity Weapons (0.61.0) from loadout text (see
+// engine::gameplay::parse_weapons), after editor_add for the same index.
+// Invalid text falls back to the default loadout and editor_weapons_error()
+// says why.
+EXPORT void editor_set_weapons(int index, const char *text) {
+    const auto target = staged(index);
+    if (!target || !text)
+        return;
+    auto parsed = engine::gameplay::parse_weapons(text);
+    if (!parsed.error.empty()) {
+        staging->weapons_error = parsed.error;
+        parsed = engine::gameplay::parse_weapons(engine::gameplay::default_weapons_text);
+    }
+    Arsenal arsenal;
+    arsenal.weapons = std::move(parsed.weapons);
+    arsenal.state = engine::gameplay::make_weapon_state(arsenal.weapons);
+    arsenal.state.rng = 0x9E3779B9U + static_cast<std::uint32_t>(index + 2) * 2654435761U;
+    target->first->set(target->second, arsenal);
+}
+EXPORT const char *editor_weapons_error() { return active->weapons_error.c_str(); }
+// Weapon HUD state: field 0 = current slot, 1 = rounds loaded, 2 = reserve
+// (-1 unlimited), 3 = reload progress 0..1 (-1 when not reloading), 4 =
+// current spread in degrees, 5 = weapon count, 6 = equip progress 0..1 (-1
+// when ready), 7 = aiming, 8 = magazine size, 9 = aim zoom. 0 (and -1 for
+// 3/6) without Weapons.
+EXPORT double editor_weapon_value(int index, int field) {
+    const bool progress_field = field == 3 || field == 6;
+    if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
+        return progress_field ? -1 : 0;
+    const auto entity = active->entities[static_cast<std::size_t>(index)];
+    const auto *arsenal = active->world.alive(entity) ? active->world.get<Arsenal>(entity) : nullptr;
+    if (!arsenal || arsenal->weapons.empty())
+        return progress_field ? -1 : 0;
+    const auto &state = arsenal->state;
+    const auto slot = static_cast<std::size_t>(state.current);
+    const auto &weapon = arsenal->weapons[slot];
+    switch (field) {
+    case 0:
+        return static_cast<double>(slot);
+    case 1:
+        return state.magazine[slot];
+    case 2:
+        return state.reserve[slot];
+    case 3:
+        return state.reload_left > 0 ? 1.0 - state.reload_left / weapon.reload_time : -1;
+    case 4: {
+        const auto *controller = active->world.get<Controller>(entity);
+        const float ratio = controller ? controller->state.speed / controller->settings.walk_speed : 0.0F;
+        const bool airborne = controller && !controller->state.grounded;
+        return engine::gameplay::current_spread(weapon, arsenal->aiming, ratio, airborne, state.bloom);
+    }
+    case 5:
+        return static_cast<double>(arsenal->weapons.size());
+    case 6:
+        return state.equip_left > 0 && weapon.equip_time > 0 ? 1.0 - state.equip_left / weapon.equip_time : -1;
+    case 7:
+        return arsenal->aiming ? 1 : 0;
+    case 8:
+        return weapon.magazine;
+    case 9:
+        return weapon.zoom;
+    default:
+        return 0;
+    }
+}
+// A weapon's name (field 0) or first-person model (field 1).
+EXPORT const char *editor_weapon_text(int index, int slot, int field) {
+    static std::string result;
+    result.clear();
+    if (index >= 0 && static_cast<std::size_t>(index) < active->entities.size()) {
+        const auto entity = active->entities[static_cast<std::size_t>(index)];
+        const auto *arsenal = active->world.alive(entity) ? active->world.get<Arsenal>(entity) : nullptr;
+        if (arsenal && slot >= 0 && static_cast<std::size_t>(slot) < arsenal->weapons.size())
+            result = field == 0 ? arsenal->weapons[static_cast<std::size_t>(slot)].name
+                                : arsenal->weapons[static_cast<std::size_t>(slot)].model;
+    }
+    return result.c_str();
+}
+// Moves the combat event queue into a read buffer; returns its size.
+std::vector<WeaponEvent> pending_weapon_events;
+EXPORT int editor_take_weapon_events() {
+    pending_weapon_events = std::move(active->weapon_events);
+    active->weapon_events.clear();
+    return static_cast<int>(pending_weapon_events.size());
+}
+// field 0 = kind (0 fire, 1 impact, 2 reload, 3 reloaded, 4 empty, 5
+// switched, 6 explode, 7 damaged), 1 = shooter index, 2 = target index (-1
+// none), 3-5 = point (fire: muzzle origin; damaged: attacker position), 6-8 =
+// normal (fire: direction), 9 = value (fire: recoil degrees; reload: seconds;
+// explode: radius; damaged: amount), 10 = flags (fire/switch/reload: slot;
+// impact/damaged: 1 headshot, 2 killed, 4 flesh).
+EXPORT double editor_weapon_event(int index, int field) {
+    if (index < 0 || static_cast<std::size_t>(index) >= pending_weapon_events.size())
+        return 0;
+    const auto &e = pending_weapon_events[static_cast<std::size_t>(index)];
+    switch (field) {
+    case 0:
+        return static_cast<int>(e.kind);
+    case 1:
+        return e.shooter;
+    case 2:
+        return e.target;
+    case 3:
+        return e.point.x;
+    case 4:
+        return e.point.y;
+    case 5:
+        return e.point.z;
+    case 6:
+        return e.normal.x;
+    case 7:
+        return e.normal.y;
+    case 8:
+        return e.normal.z;
+    case 9:
+        return e.value;
+    case 10:
+        return e.flags;
+    default:
+        return 0;
+    }
+}
 EXPORT void editor_set_script_source(int index, const char *source) {
     const auto target = staged(index);
     if (!target)
@@ -1257,6 +1786,48 @@ EXPORT void editor_set_camera_forward(double x, double z) {
     if (length > 0.0001) {
         active->camera_forward_x = static_cast<float>(x / length);
         active->camera_forward_z = static_cast<float>(z / length);
+    }
+}
+// The first-person look direction (radians), once per rendered frame before
+// that frame's ticks. Pitch is clamped to just short of straight up/down.
+EXPORT void editor_set_look(double yaw, double pitch) {
+    if (!std::isfinite(yaw) || !std::isfinite(pitch))
+        return;
+    active->look_yaw = static_cast<float>(std::remainder(yaw, 2 * 3.14159265358979));
+    active->look_pitch = static_cast<float>(std::clamp(pitch, -1.55, 1.55));
+}
+// CharacterController state for the editor's camera and HUD. field 0 = eye
+// height above the feet, 1 = crouched, 2 = grounded, 3 = landing speed this
+// tick, 4 = horizontal speed, 5 = sprinting, 6 = feet (box bottom) world y.
+// 0 without a controller.
+EXPORT double editor_controller_value(int index, int field) {
+    if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
+        return 0;
+    const auto entity = active->entities[static_cast<std::size_t>(index)];
+    if (!active->world.alive(entity))
+        return 0;
+    const auto *controller = active->world.get<Controller>(entity);
+    const auto *box = active->world.get<engine::Box>(entity);
+    if (!controller || !box)
+        return 0;
+    const auto &state = controller->state;
+    switch (field) {
+    case 0:
+        return engine::gameplay::eye_offset(*box);
+    case 1:
+        return state.crouched ? 1 : 0;
+    case 2:
+        return state.grounded ? 1 : 0;
+    case 3:
+        return state.landing_speed;
+    case 4:
+        return state.speed;
+    case 5:
+        return state.sprinting ? 1 : 0;
+    case 6:
+        return box->center.y - box->size.y / 2;
+    default:
+        return 0;
     }
 }
 // code is one of the small set key_for() understands

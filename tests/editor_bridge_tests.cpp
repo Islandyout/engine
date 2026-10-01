@@ -47,6 +47,15 @@ double editor_action_value(const char *);
 void editor_ui_event(const char *, const char *);
 const char *editor_profile_text();
 void editor_set_rotation(int, double, double, double);
+void editor_set_controller(int, int, double, double, double, double, double, double, double, double, double);
+void editor_set_look(double, double);
+double editor_controller_value(int, int);
+void editor_set_weapons(int, const char *);
+const char *editor_weapons_error();
+double editor_weapon_value(int, int);
+const char *editor_weapon_text(int, int, int);
+int editor_take_weapon_events();
+double editor_weapon_event(int, int);
 }
 namespace {
 int add_unit(double x, double y, double z, double vx, double vy, double vz) {
@@ -1136,6 +1145,187 @@ int main() {
         check(editor_commit() == 0);
     }
 
+    {
+        // A first-person CharacterController moves from the named actions
+        // relative to the look yaw, sprints, jumps with Space and reports its
+        // eye height; a third-person one follows the camera's facing.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 0, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 5; ++i)
+            editor_tick();
+        check(std::abs(editor_value(0, 1) - 0.9) < 1e-3); // resized: 1.8 tall, feet on the ground
+        check(std::abs(editor_controller_value(0, 0) - 1.656) < 1e-3);
+        check(editor_controller_value(0, 2) == 1);
+        editor_input_begin_frame();
+        editor_set_look(1.5707963, 0);
+        editor_input_key("KeyW", 1);
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(editor_value(0, 0) < -3.5 && std::abs(editor_value(0, 2)) < 1e-3); // yaw 90: forward is -x
+        check(std::abs(editor_controller_value(0, 4) - 4.5) < 0.01);
+        editor_input_begin_frame();
+        editor_input_key("ShiftLeft", 1);
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(std::abs(editor_controller_value(0, 4) - 7.5) < 0.01 && editor_controller_value(0, 5) == 1);
+        editor_input_begin_frame();
+        editor_input_key("ShiftLeft", 0);
+        editor_input_key("KeyW", 0);
+        editor_input_key("Space", 1);
+        editor_tick();
+        for (int i = 0; i < 15; ++i)
+            editor_tick();
+        check(editor_value(0, 1) > 1.5); // airborne after Space
+        editor_input_begin_frame();
+        editor_input_key("Space", 0);
+        for (int i = 0; i < 90; ++i)
+            editor_tick();
+        check(std::abs(editor_value(0, 1) - 0.9) < 1e-3);
+
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 1, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        check(editor_commit() == 1);
+        editor_input_begin_frame();
+        editor_set_camera_forward(1, 0);
+        editor_input_key("KeyW", 1);
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(editor_value(0, 0) > 3.5); // third person: forward is the camera's facing (+x)
+        editor_input_begin_frame();
+        editor_input_key("KeyW", 0);
+
+        // Invalid settings fail the commit.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 0, 4.5, 7.5, 2.2, 1.1, 1.0, 1.8, 0.4, 45, 12); // crouch taller than standing
+        check(editor_commit() == 0);
+    }
+
+    {
+        // Weapons: a first-person player fires the default rifle along the
+        // look direction after the equip delay; a hit near the top of a tall
+        // target is a headshot; events report the shot, the flesh impact and
+        // the damage; R reloads from reserve; a Collider in the way stops it.
+        const auto count_events = [&](int kind, int flags_mask = 0) {
+            int found = 0;
+            const int n = editor_take_weapon_events();
+            for (int e = 0; e < n; ++e)
+                if (static_cast<int>(editor_weapon_event(e, 0)) == kind &&
+                    (static_cast<int>(editor_weapon_event(e, 10)) & flags_mask) == flags_mask)
+                    ++found;
+            return found;
+        };
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 0, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        editor_set_weapons(0, "");
+        check(editor_add(0, 0.9, -10, 0, 0, 0, 1, 1.8, 1, 0, 0, 0, 200, 200, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(1, 1, 1, 0); // kinematic: stays put
+        check(editor_commit() == 1);
+        check(std::string(editor_weapons_error()).rfind("line 0: no weapons", 0) == 0); // empty text -> defaults
+        check(editor_weapon_value(0, 5) == 3 && editor_weapon_value(0, 1) == 30);
+        check(std::string(editor_weapon_text(0, 2, 0)) == "shotgun" && std::string(editor_weapon_text(0, 1, 1)) == "pistol");
+        for (int i = 0; i < 30; ++i)
+            editor_tick(); // equip
+        editor_take_weapon_events();
+        editor_input_begin_frame();
+        editor_set_look(0, 0);
+        editor_input_mouse_button(2, 1, 0, 0); // aim down sights: tight spread
+        editor_input_mouse_button(0, 1, 0, 0);
+        editor_tick();
+        check(editor_weapon_value(0, 7) == 1 && editor_weapon_value(0, 4) < 1.0);
+        editor_input_begin_frame();
+        editor_input_mouse_button(0, 0, 0, 0);
+        editor_input_mouse_button(2, 0, 0, 0);
+        const int n = editor_take_weapon_events();
+        int fires = 0, flesh = 0, headshots = 0;
+        for (int e = 0; e < n; ++e) {
+            const int kind = static_cast<int>(editor_weapon_event(e, 0));
+            const int flags = static_cast<int>(editor_weapon_event(e, 10));
+            fires += kind == 0;
+            flesh += kind == 1 && (flags & 4) && editor_weapon_event(e, 2) == 1;
+            headshots += kind == 7 && (flags & 1) && editor_weapon_event(e, 1) == 0 && editor_weapon_event(e, 9) == 48;
+        }
+        check(fires == 1 && flesh == 1 && headshots == 1);
+        check(std::abs(editor_value(1, 3) - 152.0 / 200.0) < 1e-6);
+        check(editor_weapon_value(0, 1) == 29);
+        // Hold the trigger: automatic fire keeps going until the magazine runs dry.
+        editor_input_begin_frame();
+        editor_input_mouse_button(0, 1, 0, 0);
+        for (int i = 0; i < 400; ++i)
+            editor_tick();
+        check(!editor_alive(1)); // 200 HP doesn't survive a magazine
+        check(editor_weapon_value(0, 1) < 29);
+        editor_input_begin_frame();
+        editor_input_mouse_button(0, 0, 0, 0);
+        editor_input_key("KeyR", 1);
+        editor_tick();
+        check(editor_weapon_value(0, 3) >= 0); // reloading
+        editor_input_begin_frame();
+        editor_input_key("KeyR", 0);
+        for (int i = 0; i < 140; ++i)
+            editor_tick();
+        check(editor_weapon_value(0, 1) == 30 && editor_weapon_value(0, 3) == -1);
+        // Digit 3 selects the shotgun after its equip time.
+        editor_input_begin_frame();
+        editor_input_key("Digit3", 1);
+        editor_tick();
+        check(editor_weapon_value(0, 0) == 2 && editor_weapon_value(0, 6) >= 0);
+        check(count_events(5) == 1);
+        editor_input_begin_frame();
+        editor_input_key("Digit3", 0);
+
+        // A wall between shooter and target absorbs the shot.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 0, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        editor_set_weapons(0, "pistol: model=pistol damage=50 equip=0");
+        check(editor_add(0, 0.9, -10, 0, 0, 0, 1, 1.8, 1, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(1, 1, 1, 0);
+        check(editor_add(0, 1.5, -5, 0, 0, 0, 4, 3, 0.5, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_commit() == 1);
+        check(std::string(editor_weapons_error()).empty());
+        editor_input_begin_frame();
+        editor_set_look(0, -0.05);
+        editor_input_mouse_button(0, 1, 0, 0);
+        editor_tick();
+        check(count_events(1) == 1 && editor_value(1, 3) == 1);
+
+        // A scripted turret fires a splash launcher with weapon.fire(dir); the
+        // explosion damages both targets in range and the victims' scripts
+        // hear on_damaged / on_death, and every script hears on_kill.
+        editor_begin();
+        check(editor_add(0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(0, 1, 1, 0);
+        editor_set_name(0, "Turret");
+        editor_set_weapons(0, "rocket: model=launcher projectile speed=30 splash=3 damage=80 mag=1 reserve=1 equip=0");
+        editor_set_script_source(0, "fired = false\nfunction on_tick(dt) if not fired then weapon.fire(1, 0, 0) fired = true end end\n"
+                                    "function on_kill(victim, attacker) log(victim .. ' by ' .. attacker) end");
+        check(editor_add(10, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 50, 50, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(1, 1, 1, 0);
+        editor_set_name(1, "Near");
+        editor_set_script_source(1, "function on_damaged(amount, attacker, headshot) log('hit ' .. math.floor(amount)) end\n"
+                                    "function on_death(attacker) log('dead') end");
+        check(editor_add(11.5, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(2, 1, 1, 0);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(!editor_alive(1));                                     // direct-ish hit, killed
+        check(editor_value(2, 3) < 1 && editor_value(2, 3) > 0.3); // splash, reduced by distance
+        std::string logs;
+        const int commands = editor_take_commands();
+        for (int c = 0; c < commands; ++c)
+            if (std::string(editor_command_text(c, 0)) == "log")
+                logs += std::string(editor_command_text(c, 1)) + ";";
+        check(logs.find("hit ") != std::string::npos && logs.find("dead;") != std::string::npos &&
+              logs.find("Near by Turret;") != std::string::npos);
+        check(count_events(6) == 1); // one explosion event
+    }
+
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
                  "movement, jump/sustained-flight, Collider box and sphere obstacle blocking, "
@@ -1153,5 +1343,5 @@ int main() {
                  "(crouch/sit) freezing Player WASD input while held, authored "
                  "RigidBody mass/kinematic and Collider trigger/layer settings, the script host "
                  "(prefab templates for world.spawn, names, props, sound/ui/log commands), and native "
-                 "keyboard/mouse/gamepad input with default and custom action bindings, and rotated (oriented) colliders passed.\n";
+                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill) passed.\n";
 }
