@@ -19,6 +19,7 @@ import type {
   AICombatComponent,
   TerrainComponent,
   AudioSettingsComponent,
+  PostProcessingComponent,
   InputActionsComponent,
   TrailComponent,
   PedestrianComponent,
@@ -72,6 +73,7 @@ export interface SceneComponents {
   AICombat: AICombatComponent;
   Terrain: TerrainComponent;
   AudioSettings: AudioSettingsComponent;
+  PostProcessing: PostProcessingComponent;
   InputActions: InputActionsComponent;
   Trail: TrailComponent;
 }
@@ -172,6 +174,7 @@ export class Scene {
     AICombat: new Map(),
     Terrain: new Map(),
     AudioSettings: new Map(),
+    PostProcessing: new Map(),
     InputActions: new Map(),
     Trail: new Map(),
     UI: new Map(),

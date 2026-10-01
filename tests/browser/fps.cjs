@@ -283,9 +283,26 @@ const { chromium } = require("playwright");
     );
     await page.click("#stop");
 
+    // F65: PostProcessing (SMAA, grading, vignette; AO stays off here because
+    // software rendering in CI is slow) renders through Play without errors.
+    await run({
+      command: "set_component",
+      entity: mix.entity,
+      type: "PostProcessing",
+      value: {
+        antialias: "SMAA", ambientOcclusion: false, aoRadius: 0.5, aoIntensity: 1, bloom: 0.5, bloomRadius: 0.5,
+        bloomThreshold: 0.8, exposure: 1.1, contrast: 0.1, saturation: 0.1, temperature: 0.2, vignette: 0.4, grain: 0.05,
+        shadowQuality: "High",
+      },
+    });
+    await page.click("#play");
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: "build/browser-evidence/f65-post-processing.png" });
+    await page.click("#stop");
+
     assert.deepEqual(errors, []);
     console.log(
-      "FPS browser: first-person CharacterController (camera, look, walk, step climbing) and weapons (hold-to-fire kill with on_death, reload from reserve, switching, HUD) and combat AI (a soldier spots and shoots the player, dies to return fire, on_kill) and terrain (standing on it, sculpting with undo) and audio (positional play_at, mixer settings, footsteps) passed.",
+      "FPS browser: first-person CharacterController (camera, look, walk, step climbing) and weapons (hold-to-fire kill with on_death, reload from reserve, switching, HUD) and combat AI (a soldier spots and shoots the player, dies to return fire, on_kill) and terrain (standing on it, sculpting with undo) and audio (positional play_at, mixer settings, footsteps) and post-processing passed.",
     );
   } finally {
     if (browser) await browser.close();

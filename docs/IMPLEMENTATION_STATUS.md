@@ -4576,3 +4576,48 @@ Before this, every sound was a flat stereo clip straight to the speakers: no pos
   - a script's `sound.play_at` creates a positional source when Play starts with `AudioSettings` attached;
   - walking for 1.5 s starts footstep voices.
 - The main browser suite's Sound start/stop pairing still holds with sounds routed through the mixer.
+
+## F65 — Post-processing (0.65.0)
+
+Before this, the image pipeline was fixed: a render pass, a subtle bloom and tone mapping. There was no anti-aliasing (`EffectComposer` targets don't use the canvas's MSAA), no ambient occlusion and no grading.
+
+### Pipeline
+
+```
+world RenderPass → GTAO (when on) → viewmodel RenderPass → bloom → OutputPass (tone mapping, sRGB)
+  → grading (when it changes anything) → FXAA or SMAA
+```
+
+- **GTAO** is created on first use. Each frame it renders with the current view camera, so it works with first-person and game cameras.
+- **Grading** (`postFx.ts`) runs in display space:
+  - temperature (warm or cool shift);
+  - saturation around luma;
+  - contrast around mid-grey;
+  - a smoothstep vignette;
+  - animated hash grain.
+- **FXAA's** resolution follows the viewport size and pixel ratio. SMAA resizes with the composer.
+- **Shadow quality** sets the sun's shadow map size and the half-extent of its shadow box: Low 1024/25, Medium 2048/30, High 4096/45. The shadow map is reallocated when the size changes.
+- **Exposure** multiplies `Environment.exposure`.
+- **Terrain**: a scene with a Terrain now hides the flat y = 0 shadow catcher, which would otherwise cut through valleys.
+
+### Editor
+
+The `PostProcessing` component is listed under Scene & Camera.
+
+- **Fields**: antialias (None, FXAA, SMAA), ambientOcclusion, aoRadius, aoIntensity, bloom, bloomRadius, bloomThreshold, exposure, contrast, saturation, temperature, vignette, grain and shadowQuality. Ranges are validated.
+- **Scope**: the first one in the scene applies. With none, the defaults reproduce the original bloom-only look, so existing scenes don't change.
+
+### Notes
+
+The rest of the gap analysis's "rendering for an FPS" list landed in earlier features: bullet decals, muzzle and explosion lights, and tracers in F61; instanced foliage in F63.
+
+Software rendering, as in CI's headless Chromium, is slow with AO on: about 3 fps against an 11 fps baseline. On real GPUs these passes are cheap, but the browser test leaves AO off.
+
+### F65 verification
+
+- `tests/postFx.test.ts`:
+  - the defaults keep the original look;
+  - grading only runs when it changes something;
+  - shadow quality ordering and the grading shader's uniforms;
+  - the component attaches with the preset and rejects an out-of-range vignette or an unknown AA mode.
+- `tests/browser/fps.cjs`: SMAA, grading, vignette, grain and high-quality shadows render through Play without errors. Evidence screenshot `f65-post-processing.png`.

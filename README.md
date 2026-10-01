@@ -230,6 +230,18 @@ Engine version 0.64.0 upgrades audio:
 
 See [F64](docs/IMPLEMENTATION_STATUS.md#f64--spatial-audio-mixer-and-footsteps-0640).
 
+Engine version 0.65.0 adds a `PostProcessing` component:
+
+- **Anti-aliasing**: SMAA or FXAA.
+- **Ambient occlusion**: GTAO, with radius and intensity.
+- **Bloom**: strength, radius and threshold.
+- **Exposure**: a multiplier on the environment's exposure.
+- **Color grading**: contrast, saturation and temperature, plus vignette, film grain and sun shadow quality.
+
+Without the component the original look is unchanged. Adding one starts from a polished preset (SMAA, AO, a little contrast and vignette, high-quality shadows).
+
+See [F65](docs/IMPLEMENTATION_STATUS.md#f65--post-processing-0650).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

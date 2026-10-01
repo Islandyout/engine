@@ -219,6 +219,7 @@ const componentNames = [
   "AICombat",
   "Terrain",
   "AudioSettings",
+  "PostProcessing",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -333,6 +334,35 @@ export function normalizeComponent(
         minDistance: value.minDistance === undefined ? 2 : positiveNumber(value.minDistance, "Sound.minDistance"),
         maxDistance: value.maxDistance === undefined ? 60 : positiveNumber(value.maxDistance, "Sound.maxDistance"),
       };
+    case "PostProcessing": {
+      const within = (v: unknown, label: string, min: number, max: number) => {
+        const n = number(v, label);
+        if (n < min || n > max) throw new Error(`${label} must be from ${min} to ${max}.`);
+        return n;
+      };
+      const antialias = value.antialias;
+      if (antialias !== "None" && antialias !== "FXAA" && antialias !== "SMAA")
+        throw new Error("PostProcessing.antialias must be None, FXAA, or SMAA.");
+      const shadowQuality = value.shadowQuality;
+      if (shadowQuality !== "Low" && shadowQuality !== "Medium" && shadowQuality !== "High")
+        throw new Error("PostProcessing.shadowQuality must be Low, Medium, or High.");
+      return {
+        antialias,
+        ambientOcclusion: boolean(value.ambientOcclusion, "PostProcessing.ambientOcclusion"),
+        aoRadius: within(value.aoRadius, "PostProcessing.aoRadius", 0.05, 5),
+        aoIntensity: within(value.aoIntensity, "PostProcessing.aoIntensity", 0, 2),
+        bloom: within(value.bloom, "PostProcessing.bloom", 0, 5),
+        bloomRadius: within(value.bloomRadius, "PostProcessing.bloomRadius", 0, 1),
+        bloomThreshold: within(value.bloomThreshold, "PostProcessing.bloomThreshold", 0, 1),
+        exposure: within(value.exposure, "PostProcessing.exposure", 0.05, 8),
+        contrast: within(value.contrast, "PostProcessing.contrast", -1, 1),
+        saturation: within(value.saturation, "PostProcessing.saturation", -1, 1),
+        temperature: within(value.temperature, "PostProcessing.temperature", -1, 1),
+        vignette: within(value.vignette, "PostProcessing.vignette", 0, 1),
+        grain: within(value.grain, "PostProcessing.grain", 0, 1),
+        shadowQuality,
+      };
+    }
     case "AudioSettings": {
       const level = (v: unknown, label: string, max: number) => {
         const n = number(v, label);

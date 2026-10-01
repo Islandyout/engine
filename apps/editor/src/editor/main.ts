@@ -30,6 +30,10 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
+import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
+import { FXAAShader } from "three/examples/jsm/shaders/FXAAShader.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
@@ -57,6 +61,7 @@ import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGrap
 import { applyMouseLook, applyStickLook, ViewEffects, type Look } from "./fpsView";
 import { Sfx } from "./sfx";
 import { AudioMixer, defaultMixerSettings, FootstepTracker, type Bus } from "./audioMixer";
+import { defaultPostSettings, gradingActive, gradingShader, shadowQualities, type PostSettings } from "./postFx";
 import { EventFlag, EventKind, WeaponFx } from "./weaponFx";
 import { buildViewmodel } from "./viewmodels";
 import {
@@ -808,10 +813,11 @@ async function startEditor() {
   // The camera the last frame rendered with: the editor camera, or a game
   // Camera entity during Play. HUD projection and WASD use the same one.
   let viewCamera: THREE.Camera = camera;
+  let bloomPass: UnrealBloomPass | undefined;
   if (composer) {
     composer.addPass(renderPass);
-    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.5, 0.85);
-    composer.addPass(bloom);
+    bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.5, 0.85);
+    composer.addPass(bloomPass);
     composer.addPass(new OutputPass());
   }
   const objects: THREE.Object3D[] = [];
@@ -928,6 +934,63 @@ async function startEditor() {
   viewmodelPass.clearDepth = true;
   viewmodelPass.enabled = false;
   composer?.insertPass(viewmodelPass, 1);
+  // Post-processing (0.65.0; postFx.ts): grading and anti-aliasing after
+  // tone mapping, ambient occlusion on the world before the viewmodel.
+  const gradingPass = new ShaderPass(gradingShader);
+  gradingPass.enabled = false;
+  const fxaaPass = new ShaderPass(FXAAShader);
+  fxaaPass.enabled = false;
+  const smaaPass = new SMAAPass(1, 1);
+  smaaPass.enabled = false;
+  composer?.addPass(gradingPass);
+  composer?.addPass(fxaaPass);
+  composer?.addPass(smaaPass);
+  let gtaoPass: GTAOPass | undefined;
+  let postSettings: PostSettings = defaultPostSettings;
+  function applyPostProcessing(settings: PostSettings) {
+    postSettings = settings;
+    if (bloomPass) {
+      bloomPass.strength = settings.bloom;
+      bloomPass.radius = settings.bloomRadius;
+      bloomPass.threshold = settings.bloomThreshold;
+    }
+    if (renderer instanceof THREE.WebGLRenderer) renderer.toneMappingExposure *= settings.exposure;
+    gradingPass.enabled = !!composer && gradingActive(settings);
+    const uniforms = gradingPass.uniforms as Record<string, { value: number }>;
+    uniforms.contrast!.value = settings.contrast;
+    uniforms.saturation!.value = settings.saturation;
+    uniforms.temperature!.value = settings.temperature;
+    uniforms.vignette!.value = settings.vignette;
+    uniforms.grain!.value = settings.grain;
+    fxaaPass.enabled = !!composer && settings.antialias === "FXAA";
+    smaaPass.enabled = !!composer && settings.antialias === "SMAA";
+    if (composer && settings.ambientOcclusion && !gtaoPass) {
+      // Created on first use: it allocates its own normal and AO targets.
+      gtaoPass = new GTAOPass(scene, camera, viewport.clientWidth || 1, viewport.clientHeight || 1);
+      composer.insertPass(gtaoPass, 1);
+    }
+    if (gtaoPass) {
+      gtaoPass.enabled = settings.ambientOcclusion;
+      gtaoPass.blendIntensity = settings.aoIntensity;
+      gtaoPass.updateGtaoMaterial({ radius: settings.aoRadius });
+    }
+    const quality = shadowQualities[settings.shadowQuality];
+    if (sun.shadow.mapSize.x !== quality.mapSize) {
+      sun.shadow.mapSize.set(quality.mapSize, quality.mapSize);
+      sun.shadow.map?.dispose();
+      sun.shadow.map = null;
+    }
+    sun.shadow.camera.left = sun.shadow.camera.bottom = -quality.extent;
+    sun.shadow.camera.right = sun.shadow.camera.top = quality.extent;
+    sun.shadow.camera.updateProjectionMatrix();
+    resizeAntialias();
+  }
+  function resizeAntialias() {
+    const ratio = renderer instanceof THREE.WebGLRenderer ? renderer.getPixelRatio() : 1;
+    const w = Math.max(1, viewport.clientWidth),
+      h = Math.max(1, viewport.clientHeight);
+    (fxaaPass.material.uniforms.resolution!.value as THREE.Vector2).set(1 / (w * ratio), 1 / (h * ratio));
+  }
   // Audio (0.64.0): every sound goes through the mixer's buses; world
   // sounds are positional and muffled behind solid geometry.
   let mixer: AudioMixer | undefined;
@@ -2575,6 +2638,10 @@ async function startEditor() {
     applyEnvironment(
       (environmentEntity && doc.scene.resolve(environmentEntity, "Environment")) ?? defaultEnvironment(),
     );
+    // The flat shadow catcher at y = 0 would cut through a terrain's valleys.
+    if (doc.scene.eachAlive().some((e) => doc.scene.effectiveHas(e, "Terrain"))) shadowGround.visible = false;
+    const postEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "PostProcessing"));
+    applyPostProcessing((postEntity && doc.scene.resolve(postEntity, "PostProcessing")) ?? defaultPostSettings);
     for (const object of objects) object.removeFromParent();
     objects.length = 0;
     terrainMeshes.clear();
@@ -3380,6 +3447,7 @@ async function startEditor() {
       h = viewport.clientHeight;
     renderer.setSize(w, h);
     composer?.setSize(w, h);
+    resizeAntialias();
     camera.aspect = w / Math.max(h, 1);
     camera.updateProjectionMatrix();
     hud.width = w;
@@ -3780,6 +3848,8 @@ async function startEditor() {
     }
     updateSunShadow();
     renderPass.camera = viewCamera;
+    if (gtaoPass) gtaoPass.camera = viewCamera;
+    if (gradingPass.enabled) (gradingPass.uniforms as Record<string, { value: number }>).time!.value = (now / 1000) % 100;
     // Counted over every pass of the frame (bloom included), not just the
     // last one, for the Stats overlay's draw calls and triangles.
     if (renderer instanceof THREE.WebGLRenderer) {

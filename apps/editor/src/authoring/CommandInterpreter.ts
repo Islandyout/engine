@@ -86,6 +86,7 @@ const componentNames = [
   "AICombat",
   "Terrain",
   "AudioSettings",
+  "PostProcessing",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -656,6 +657,25 @@ export function defaultComponent(
         bus: "SFX",
         minDistance: 2,
         maxDistance: 60,
+      };
+    case "PostProcessing":
+      // A good-looking starting point rather than "no change": SMAA, AO, a
+      // touch of contrast and vignette.
+      return {
+        antialias: "SMAA",
+        ambientOcclusion: true,
+        aoRadius: 0.5,
+        aoIntensity: 1,
+        bloom: 0.35,
+        bloomRadius: 0.5,
+        bloomThreshold: 0.85,
+        exposure: 1,
+        contrast: 0.08,
+        saturation: 0.05,
+        temperature: 0,
+        vignette: 0.3,
+        grain: 0,
+        shadowQuality: "High",
       };
     case "AudioSettings":
       return { master: 1, sfx: 1, music: 0.7, ambient: 0.8, ui: 1, reverb: 0.18, occlusion: true };

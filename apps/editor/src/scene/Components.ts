@@ -434,6 +434,29 @@ export interface TerrainComponent {
   scatter: string;
 }
 
+// Post-processing (0.65.0): anti-aliasing, ambient occlusion, bloom, color
+// grading (contrast, saturation, temperature), vignette, film grain and sun
+// shadow quality. The first entity with one sets the scene's look; without
+// one the editor keeps its original subtle bloom.
+export type AntialiasMode = "None" | "FXAA" | "SMAA";
+export type ShadowQuality = "Low" | "Medium" | "High";
+export interface PostProcessingComponent {
+  antialias: AntialiasMode;
+  ambientOcclusion: boolean;
+  aoRadius: number;
+  aoIntensity: number; // 0..2
+  bloom: number; // strength
+  bloomRadius: number; // 0..1
+  bloomThreshold: number; // 0..1 luminance
+  exposure: number; // multiplies Environment.exposure
+  contrast: number; // -1..1
+  saturation: number; // -1..1
+  temperature: number; // -1 (cool) .. 1 (warm)
+  vignette: number; // 0..1
+  grain: number; // 0..1
+  shadowQuality: ShadowQuality;
+}
+
 // Named input actions (0.55.0): one `action: source, source` per line (see
 // apps/editor/runtime/bindings.hpp). The first entity with one sets the
 // scene's bindings; without one the defaults below apply.
