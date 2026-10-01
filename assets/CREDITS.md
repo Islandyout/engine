@@ -167,7 +167,15 @@ ids 119-131 without reassigning them -- a still-saved scene referencing one of t
 ids now falls back to the default box (`rebuild()`'s existing cache-miss behavior),
 not a crash, but they're retired rather than reused for whatever's imported next.
 
-## Mannequin F (Mixamo) (0.38.0)
+## Mannequin F (Mixamo) (0.38.0) -- superseded by the 0.49.0 retarget merge below
+
+Kept as history: as of 0.49.0 this file is deleted and id 137 is retired
+(`modelCatalog.ts`'s own `retiredCatalogIds`) -- its three clips now live on
+id 132's own `mannequin_f.glb` instead, retargeted onto that model's
+Quaternius skeleton rather than shipped on this separate Mixamo-rigged mesh.
+See "Mannequin F retarget merge (0.49.0)" below for how and why; everything
+below this paragraph describes the now-removed file as it existed from
+0.38.0 through 0.48.0, unchanged from that original entry.
 
 `people/mannequin_f_mixamo.glb`, id 137. Source: `mannequin_f.obj` (this repo's own
 `mannequin_f.glb` mesh, mesh-only re-export via Three.js's `OBJExporter`, no rig --
@@ -223,3 +231,93 @@ id 137.
 Hashes (SHA-256):
 
 - `assets/source/kit/people/mannequin_f_mixamo.glb`: `d4e8f25846b5cbc1f41948e15c7686e9353ef480d4ca608adda095246307a73e`
+
+## Mannequin F retarget merge (0.49.0)
+
+Requested: fold "Mannequin F (Mixamo)" (id 137, above) into "Mannequin F"
+(id 132) as one catalog entry with all nine clips, instead of two separate
+models. F37/F38's own notes on id 137 called a retarget "tried and
+abandoned" in favor of shipping a second, separately-rigged entry -- this
+round retried it with a different (and, it turned out, correct) technique.
+
+Source: the same three Mixamo FBX files behind id 137 above (`Flying.fbx`,
+`Firing_Rifle.fbx`, `Punching.fbx` -- identical `mixamorig*` 46-joint
+skeleton, same uploaded files, re-parsed fresh rather than reusing id 137's
+own already-exported clips) and `mannequin_f.glb`'s own Quaternius skeleton
+(65 joints, UE-style `pelvis`/`spine_01`/`clavicle_l`/... naming, no
+name or joint-count correspondence to Mixamo's rig at all). Retargeted with
+a bespoke Node script (Three.js `FBXLoader`/`GLTFLoader`/`GLTFExporter`,
+same pattern as every other asset-import tool in this repo -- not committed,
+per `tools/import_model.mjs`'s own stated position that a merge needing
+this much source-specific judgment stays a one-off, not a reusable tool):
+
+- 21 bones mapped by anatomical correspondence (Hips/Spine/Spine1/Spine2/
+  Neck/Head/Shoulder/Arm/ForeArm/Hand x2/UpLeg/Leg/Foot/ToeBase x2).
+  Fingers intentionally left unmapped (stay at `mannequin_f.glb`'s own rest
+  pose) -- none of the three clips' silhouettes depend on individual finger
+  curl, and Quaternius's 4-finger x4-joint x2-hand rig has no clean 1:1
+  correspondence to Mixamo's simpler finger chains worth the extra mapping
+  work for a cosmetic-only payoff.
+- For each mapped bone, per animation frame: compute the SOURCE bone's
+  world-space rotation delta from its own rest pose (`Rs_anim_world *
+  inverse(Rs_rest_world)`), then re-apply that same world-space delta onto
+  the TARGET bone's own rest pose (`delta * Rt_rest_world`), then convert
+  back to a local (parent-relative) quaternion using the target parent's
+  own ANIMATED world quat for this same frame (not its rest quat -- an
+  early version of this script used the parent's rest quat here, which
+  quietly assumes every ancestor stays frozen; the error compounds with
+  chain depth and was only obvious on deep/sustained poses like
+  `firing_rifle`'s two-handed chest-level aim, not shallow ones like
+  `punching`'s wind-up, until compared frame-by-frame against a render of
+  the untouched id-137 source). This "world-space delta transfer" method is
+  axis-convention-agnostic: it doesn't need the two rigs' bones to agree on
+  which local axis means "forward", only that both loaded scenes share one
+  overall world orientation, which `FBXLoader`/`GLTFLoader` both guarantee
+  (Y-up, into the same Three.js scene graph).
+- Hips/pelvis position (root motion): same treatment, transferring the
+  world-space position delta from source rest onto the target's own rest
+  world position. `Flying`'s own Hips track needed the identical horizontal
+  drift fix id 137's own build already applied (a straight-line start-to-
+  end subtraction on X/Z, Y/vertical bob untouched) -- ported into this
+  script rather than reused from the old export, since retargeting needs
+  the fix applied to the *source* track before the world-space delta is
+  computed, not after.
+- Two real bugs caught before landing, both by rendering actual frames (a
+  static three.js viewer page + Playwright screenshot, not just reading
+  track numbers) and comparing side-by-side against the untouched id-137
+  source at the same clip fraction: (1) the parent-rest-vs-parent-animated
+  bug above, first spotted as `firing_rifle`'s hands bunched near one
+  shoulder with the head hidden, instead of a two-handed aim held at chest
+  height; (2) the unstripped `Flying` root-motion drift, first spotted as
+  the character plunging around 21m in what should be an in-place hover --
+  the same ~21m the drift fix already known from id 137's own history,
+  just landing on a different local axis this time (pelvis's LOCAL Y, not
+  world Z) because retargeting routes it through the target's own
+  corrective root-bone rotation on the way from world back to local space.
+- Two bone-object quirks handled defensively while parsing: `FBXLoader`
+  emits a redundant duplicate node sharing each real bone's own name,
+  parented to itself (a limb/skeleton-attribute pairing artifact of the FBX
+  format itself, not a second joint) -- the first-encountered object per
+  name is kept, every later duplicate ignored outright, or a naive parent-
+  chain walk hits an undefined lookup on the very first frame.
+
+Verified: every retargeted frame rendered and visually compared against the
+same clip fraction's own frame on the untouched id-137 model (idle/walk/
+sit/talk/etc. on id 132 also re-checked unaffected, same renderer, same
+session) -- `punching`'s jab/guard stance, `firing_rifle`'s two-handed aim,
+and `flying`'s arms-out horizontal glide all match their id-137 source
+poses with no visible skeleton distortion. `npm run typecheck`/`npm test`
+(catalog id/path/category consistency checks) and full `ctest` unaffected
+(no native/TS runtime code changed, only the catalog data and the removal
+of id 137's own entry). Mesh geometry unchanged through the re-export
+(10,070 vertices, verified against `mannequin_f.glb`'s own pre-merge
+accessor count before overwriting it).
+
+Consumed the same way as every other animated catalog entry:
+`apps/editor/src/scene/modelCatalog.ts` id 132, now with nine clips
+(`idle`/`walk`/`run`/`sprint`/`talk`/`sit`/`flying`/`firing_rifle`/
+`punching`) on the one file.
+
+Hashes (SHA-256):
+
+- `assets/source/kit/people/mannequin_f.glb` (post-merge): `3c3b4533c5d85a604cd9562f4ee7821213b368309b3bc65b8e10c0334cd66c2e`

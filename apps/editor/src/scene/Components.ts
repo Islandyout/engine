@@ -120,7 +120,7 @@ export interface LightComponent {
   intensity: number;
   range: number;
   angle: number;
-  // Casts real-time shadows (0.50.0). Off by default: every shadow-casting
+  // Casts real-time shadows (0.52.0). Off by default: every shadow-casting
   // Point light renders the scene six more times.
   castShadows: boolean;
 }
@@ -145,7 +145,7 @@ export interface ParticlesComponent {
   lifetime: number;
   speed: number;
   size: number;
-  // 0.55.0 (older scenes get these defaults, which match the old look):
+  // 0.57.0 (older scenes get these defaults, which match the old look):
   endColor: Vec3; // color at the end of life (defaults to `color`)
   endSize: number; // size multiplier at the end of life
   gravityScale: number; // multiplies the preset's gravity
@@ -155,7 +155,7 @@ export interface ParticlesComponent {
   space: "Local" | "World"; // World: particles stay behind a moving emitter
   burst: number; // particles emitted at once when Play starts
 }
-// A ribbon following the entity's recent path during Play (0.55.0).
+// A ribbon following the entity's recent path during Play (0.57.0).
 export interface TrailComponent {
   color: Vec3;
   width: number; // world units at the head
@@ -205,7 +205,7 @@ export type UIAnchor =
   | "bottom-center"
   | "bottom-right";
 export type UIVisibility = "always" | "play" | "pause";
-// "script" (0.54.0): a click calls on_ui(name, "click") in every script.
+// "script" (0.56.0): a click calls on_ui(name, "click") in every script.
 export type UIAction = "restart" | "resume" | "pause" | "quit" | "script";
 export interface UIComponent {
   kind: UIKind;
@@ -213,7 +213,7 @@ export interface UIComponent {
   anchor: UIAnchor;
   visibleWhen: UIVisibility;
   action: UIAction;
-  // Layout and look (0.54.0; older scenes get these defaults). Offsets move
+  // Layout and look (0.56.0; older scenes get these defaults). Offsets move
   // the element from its anchor in screen pixels (+y down); a width/height
   // of 0 sizes it automatically (see uiLayout.ts).
   offsetX: number;
@@ -253,7 +253,7 @@ export interface EntityRef {
   generation: number;
 }
 
-// Scene-wide look (0.50.0): sky, sun, ambient light, fog, shadows and
+// Scene-wide look (0.52.0): sky, sun, ambient light, fog, shadows and
 // exposure. The first entity carrying one wins; without any, the scene keeps
 // the defaults below, which reproduce the editor's original fixed lighting.
 export type SkyMode = "Color" | "Gradient" | "Procedural";
@@ -279,7 +279,7 @@ export interface EnvironmentComponent {
   shadows: boolean;
   exposure: number;
 }
-// A game camera (0.50.0). During Play the highest-priority Camera entity
+// A game camera (0.52.0). During Play the highest-priority Camera entity
 // renders the game view from its own position and Rotation instead of the
 // editor's orbit camera.
 export type CameraProjection = "Perspective" | "Orthographic";
@@ -291,7 +291,7 @@ export interface CameraComponent {
   orthoSize: number; // half the view height, world units
   priority: number;
 }
-// Surface appearance override (0.50.0). On the placeholder box it replaces
+// Surface appearance override (0.52.0). On the placeholder box it replaces
 // the default material; on a catalog model it tints every mesh, keeping the
 // model's own textures when keepTextures is on.
 export interface MaterialComponent {
@@ -302,17 +302,17 @@ export interface MaterialComponent {
   emissiveIntensity: number;
   opacity: number;
   keepTextures: boolean;
-  // Color texture (0.56.0): a URL, or "asset:<file>" for an imported image.
+  // Color texture (0.58.0): a URL, or "asset:<file>" for an imported image.
   texture: string;
 }
 
-// Animation state machine (0.51.0), authored as text -- see
+// Animation state machine (0.53.0), authored as text -- see
 // src/editor/animator.ts for the syntax.
 export interface AnimatorComponent {
   graph: string;
 }
 
-// Camera rig (0.52.0), on the same entity as a Camera: during Play the
+// Camera rig (0.54.0), on the same entity as a Camera: during Play the
 // camera follows a target from `offset` (in the target's frame when
 // orbit is off: +z is behind), eases toward it over `smoothing` seconds,
 // looks at the target raised by `lookHeight`, pulls in front of anything
@@ -327,7 +327,7 @@ export interface CameraFollowComponent {
   orbit: boolean;
 }
 
-// Named input actions (0.53.0): one `action: source, source` per line (see
+// Named input actions (0.55.0): one `action: source, source` per line (see
 // apps/editor/runtime/bindings.hpp). The first entity with one sets the
 // scene's bindings; without one the defaults below apply.
 export interface InputActionsComponent {

@@ -1,4 +1,4 @@
-// CPU particle simulation (0.55.0), independent of three.js so it can be
+// CPU particle simulation (0.57.0), independent of three.js so it can be
 // unit tested. main.ts owns the GPU buffers and copies from this state.
 //
 // Each emitter spawns `rate` particles per second (plus bursts) from its

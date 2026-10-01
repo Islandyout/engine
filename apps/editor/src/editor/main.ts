@@ -178,7 +178,7 @@ type Runtime = {
   _editor_entity_count(): number;
   _editor_take_commands(): number;
   _editor_command_entity(index: number): number;
-  // Text-in/text-out calls added with the 0.49.0 script host (bridge.cpp):
+  // Text-in/text-out calls added with the 0.51.0 script host (bridge.cpp):
   // names, props, prefab templates, spawned-prefab lookup, command text.
   ccall(
     name: "editor_set_name" | "editor_set_script_props",
@@ -381,7 +381,7 @@ async function startEditor() {
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    // Real-time shadows (0.50.0): the sun, plus any Light with castShadows.
+    // Real-time shadows (0.52.0): the sun, plus any Light with castShadows.
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   } catch {
@@ -445,7 +445,7 @@ async function startEditor() {
   shadowGround.rotation.x = -Math.PI / 2;
   shadowGround.receiveShadow = true;
   scene.add(shadowGround);
-  // Environment (0.50.0): sky, sun, ambient, fog, exposure. Applied on every
+  // Environment (0.52.0): sky, sun, ambient, fog, exposure. Applied on every
   // rebuild(); the sky and its image-based lighting are only regenerated
   // when the Environment's values actually change.
   let environmentKey = "";
@@ -537,7 +537,7 @@ async function startEditor() {
     // tuned for; scaled down so image-based lighting adds fill, not glare.
     scene.environmentIntensity = 0.6;
   }
-  // Game cameras (0.50.0): during Play the highest-priority Camera entity
+  // Game cameras (0.52.0): during Play the highest-priority Camera entity
   // renders the view from its own position and rotation.
   const gamePerspective = new THREE.PerspectiveCamera();
   const shakeCamera = new THREE.PerspectiveCamera();
@@ -720,13 +720,22 @@ async function startEditor() {
     actions: Map<string, THREE.AnimationAction>;
     current?: string;
     prevPosition: THREE.Vector3;
-    // True while a script-triggered self.animate one-shot (see
-    // pollAnimationRequests below) is still playing -- cleared once the
-    // mixer reports that specific action finished. The ground-speed
-    // locomotion picker must skip an entity while this is true, the same
-    // "don't fight a clip that was just deliberately started" reasoning
-    // startDeath()'s own deathStates gate already established.
+    // True while a one-shot animation request (see pollAnimationRequests
+    // below) is still playing -- either a script's own self.animate, or one
+    // of editor.combat/editor.move/editor.ai_attack's own native F/G
+    // requests (bridge.cpp's engine::script::Runtime::request_animation).
+    // Cleared once the mixer reports that specific action finished. The
+    // ground-speed locomotion picker must skip an entity while this is
+    // true, the same "don't fight a clip that was just deliberately
+    // started" reasoning startDeath()'s own deathStates gate already
+    // established.
     oneShot?: boolean;
+    // The mixer "finished" listener for whichever one-shot is currently
+    // playing (see pollAnimationRequests below), so a second request
+    // arriving before the first one's own clip finishes (e.g. F then G in
+    // quick succession) can detach the first's now-stale handler before it
+    // has a chance to fire later and clobber state set by the second.
+    oneShotHandler?: (event: { action: THREE.AnimationAction }) => void;
   }
   // Parallel to `objects`; index i holds the animation state for objects[i], or
   // undefined for a non-animated (static) entity. Reset alongside objects on every rebuild().
@@ -841,7 +850,7 @@ async function startEditor() {
     attributes.color!.needsUpdate = true;
     attributes.size!.needsUpdate = true;
   }
-  // Trails (0.55.0): a camera-facing ribbon behind each Trail entity,
+  // Trails (0.57.0): a camera-facing ribbon behind each Trail entity,
   // recorded during Play (trail.ts builds the geometry).
   interface TrailState {
     component: TrailComponent;
@@ -1298,6 +1307,9 @@ async function startEditor() {
   // them back up even when no matching keyup DOM event arrives (alt-tab, a
   // window manager shortcut eating the key, etc.).
   const heldKeys = new Set<string>();
+  // C (crouch/sit) freezes Player WASD natively while held (see
+  // editor.move, bridge.cpp) and plays a sit clip (see the locomotion picker).
+  const crouchKeyCode = "KeyC";
   // Every physical key (not just the bound seven above) queued the same way,
   // for a Script's own input.down/input.pressed (engine::script::Runtime's
   // own doc comment, script.hpp, on why this is a separate, wider path from
@@ -1446,23 +1458,75 @@ async function startEditor() {
       }
     }
   }
-  // Polls whatever a script requested via self.animate this tick (see
-  // engine::script::Runtime's own doc comment, script.hpp, and
-  // editor_take_animation_request, bridge.cpp) and plays it as a one-shot,
-  // once per rendered frame like persistDirtySaves above, not per fixed
-  // tick. Silently ignored if the entity has no AnimState (a plain box has
-  // nothing to animate) or the requested name isn't one of this model's own
-  // clips -- the same "bonus when present, not a requirement" contract
-  // startDeath()'s own death-clip lookup already has, not an error.
+  // Synonyms for the three reserved action keys editor.combat/editor.move/
+  // editor.ai_attack (bridge.cpp) request natively -- "attack" on F, "blast"
+  // on G, "sit" while crouching -- tried in order, case-insensitively,
+  // against whatever clips a given model actually has. Different imported
+  // packs name the "same" action differently (the Aether animal kit's
+  // `Attack`, Mannequin F's own retargeted `punching`/`firing_rifle` vs its
+  // native `sit`; see assets/CREDITS.md), so a single literal-name lookup
+  // would silently no-op on most of the catalog. Not used for an ordinary
+  // Lua self.animate request -- resolveActionClip below only expands a name
+  // that's actually one of these three keys; anything else still resolves
+  // case-insensitively against its own exact name only, the same as before
+  // this list existed.
+  // A Map, not a plain object literal -- a script's self.animate can be any
+  // string a Lua author writes, including "constructor"/"toString"/
+  // "__proto__", which a plain-object lookup would resolve to an inherited
+  // Object.prototype value instead of undefined, crashing the render loop
+  // (that value isn't an iterable string array) the moment the code below
+  // tries to iterate it as one. A Map has no inherited keys to collide with.
+  // A Map, not a plain object literal -- a script's self.animate can be any
+  // string a Lua author writes, including "constructor"/"toString"/
+  // "__proto__", which a plain-object lookup would resolve to an inherited
+  // Object.prototype value instead of undefined, crashing the render loop
+  // (that value isn't an iterable string array) the moment the code below
+  // tries to iterate it as one. A Map has no inherited keys to collide with.
+  const actionClipSynonyms = new Map<string, string[]>([
+    ["attack", ["attack", "punch", "punching", "melee"]],
+    ["blast", ["blast", "shoot", "firing_rifle", "fire", "ranged"]],
+    ["sit", ["sit", "sitting", "crouch", "crouching"]],
+  ]);
+  function resolveActionClip(state: AnimState, requested: string): string | undefined {
+    const candidates = actionClipSynonyms.get(requested) ?? [requested];
+    for (const candidate of candidates) {
+      const lower = candidate.toLowerCase();
+      for (const name of state.actions.keys()) if (name.toLowerCase() === lower) return name;
+    }
+    return undefined;
+  }
+  // Polls whatever was requested via editor_take_animation_request this tick
+  // (bridge.cpp) and plays it as a one-shot, once per rendered frame like
+  // persistDirtySaves above, not per fixed tick. The request itself may come
+  // from a script's own self.animate (engine::script::Runtime's own doc
+  // comment, script.hpp) or natively from editor.combat/editor.move on a F/G
+  // press (see AnimState.oneShot's own doc comment above) -- both reach this
+  // same channel and are resolved identically via resolveActionClip.
+  // Silently ignored if the entity has no AnimState (a plain box has nothing
+  // to animate) or nothing resolves to one of this model's own clips -- the
+  // same "bonus when present, not a requirement" contract startDeath()'s own
+  // death-clip lookup already has, not an error.
   function pollAnimationRequests() {
     const entities = doc.scene.eachAlive();
     animStates.forEach((state, i) => {
       if (!state) return;
-      const clip = runtime.ccall("editor_take_animation_request", "string", ["number"], [i]);
+      const requested = runtime.ccall("editor_take_animation_request", "string", ["number"], [i]);
+      if (!requested) return;
+      const clip = resolveActionClip(state, requested);
       if (!clip) return;
-      const action = state.actions.get(clip);
-      if (!action) return;
+      const action = state.actions.get(clip)!;
       const previous = state.current ? state.actions.get(state.current) : undefined;
+      // A still-registered listener from an earlier one-shot that hasn't
+      // finished yet (e.g. F then G before punching's own clip ends) must be
+      // detached now, before it's replaced -- left in place, it fires later
+      // on the OLD action's own completion, still passes its own `event.action
+      // !== action` identity check (that guards against a *different* clip,
+      // not a *stale* one), and clobbers state.oneShot/state.current out from
+      // under whatever this newer one-shot is still doing.
+      if (state.oneShotHandler) {
+        state.mixer.removeEventListener("finished", state.oneShotHandler);
+        state.oneShotHandler = undefined;
+      }
       action.reset().setLoop(THREE.LoopOnce, 1);
       action.clampWhenFinished = true;
       action.fadeIn(0.15).play();
@@ -1478,6 +1542,7 @@ async function startEditor() {
         if (event.action !== action) return;
         state.oneShot = false;
         state.mixer.removeEventListener("finished", onFinished);
+        state.oneShotHandler = undefined;
         // An authored AnimationState.clip (see rebuild()) pins a specific
         // resting clip that the ground-speed picker deliberately never
         // fights (it treats `overridden` as "leave it alone"). Left
@@ -1510,6 +1575,7 @@ async function startEditor() {
           action.reset().play();
         }
       };
+      state.oneShotHandler = onFinished;
       state.mixer.addEventListener("finished", onFinished);
     });
   }
@@ -1651,7 +1717,7 @@ async function startEditor() {
     }
     runtime.ccall("editor_script_notify", null, ["number", "string", "string"], [i, "on_anim_state", result.entered.state.name]);
   }
-  // -- Mouse, touch and gamepad (0.53.0) ---------------------------------
+  // -- Mouse, touch and gamepad (0.55.0) ---------------------------------
   // Pointer events cover mouse, pen and touch alike (a tap is a left click).
   // Positions are viewport pixels; queued and applied once per frame with
   // the keys, so every tick of a frame sees the same edges.
@@ -2491,7 +2557,7 @@ async function startEditor() {
     while (projectileMeshes.length) scene.remove(projectileMeshes.pop()!);
     rebuild();
   };
-  // -- Imported assets (0.56.0; see userAssets.ts) ------------------------
+  // -- Imported assets (0.58.0; see userAssets.ts) ------------------------
   // Object URLs for imported images, by file name ("asset:<name>").
   const importedImages = new Map<string, string>();
   let storedAssets: StoredAsset[] = [];
@@ -2554,7 +2620,7 @@ async function startEditor() {
       }
     })
     .catch((error) => log(`Imported assets unavailable: ${String(error)}`));
-  // -- Stats overlay (0.56.0) --------------------------------------------
+  // -- Stats overlay (0.58.0) --------------------------------------------
   const statsPanel = document.createElement("pre");
   statsPanel.id = "stats-panel";
   statsPanel.hidden = true;
@@ -3006,23 +3072,58 @@ async function startEditor() {
         // must not fight it every tick.
         const override = doc.scene.resolve(entities[i]!, "AnimationState");
         const overridden = override?.clip && state.actions.has(override.clip);
-        const clipName = overridden
-          ? undefined
-          : pickClipName([...state.actions.keys()], speed);
+        // Crouching (C, key_for() code 7 -- see boundKeyCodes' own doc
+        // comment) takes priority over both the authored pin and ordinary
+        // ground-speed picking: it's an explicit, held player action, the
+        // same way a one-shot request already preempts this whole loop via
+        // the oneShot gate above, just sustained instead of one-shot.
+        // Native-frozen (editor.move's own crouch gate, bridge.cpp) so
+        // `speed` already reads ~0 here regardless; this only decides which
+        // clip plays at that speed. Player-only: heldKeys has no meaning for
+        // an AI/Pedestrian, which never receives editor_key edges at all.
+        const crouching = i === playerIndex && heldKeys.has(crouchKeyCode);
+        const sitClip = crouching ? resolveActionClip(state, "sit") : undefined;
+        // Once crouch releases, an authored pin must be explicitly
+        // re-asserted here, not merely left as undefined ("leave whatever's
+        // already playing alone") -- that fallback only ever worked because
+        // nothing before crouch existed could still be showing a *different*
+        // clip while `overridden` was true. Now that crouching can
+        // temporarily replace state.current with the sit clip, releasing it
+        // needs this loop to actively restore override.clip itself; the
+        // `clipName !== state.current` check below makes this a no-op once
+        // it's already showing, so it's harmless in the ordinary case too.
+        const restoringPin = !sitClip && overridden;
+        const clipName =
+          sitClip ?? (overridden ? override!.clip : pickClipName([...state.actions.keys()], speed));
         if (clipName && clipName !== state.current) {
           const next = state.actions.get(clipName);
           const previous = state.current
             ? state.actions.get(state.current)
             : undefined;
           if (next) {
-            // A script's self.animate (pollAnimationRequests above) may have
-            // left this exact action set to LoopOnce/clampWhenFinished from
-            // an earlier one-shot -- .reset() alone doesn't touch loop mode,
-            // so without this it would play once here and freeze instead of
-            // looping like ordinary locomotion.
-            next.setLoop(THREE.LoopRepeat, Infinity);
-            next.clampWhenFinished = false;
-            next.reset().fadeIn(0.2).play();
+            if (restoringPin) {
+              // Crouch just released (or an authored pin is regaining
+              // priority some other way) -- restore it with its own
+              // authored looping/time settings, the exact same three lines
+              // rebuild()'s initial apply and onFinished's one-shot restore
+              // already use, instead of the generic always-loop-from-zero
+              // locomotion configuration below. Skipping this would force a
+              // non-looping pinned clip into infinite looping from frame 0,
+              // silently discarding what the user authored.
+              next.setLoop(override!.looping ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+              next.clampWhenFinished = !override!.looping;
+              if (Number.isFinite(override!.time)) next.time = override!.time;
+              next.reset().fadeIn(0.2).play();
+            } else {
+              // A script's self.animate (pollAnimationRequests above) may have
+              // left this exact action set to LoopOnce/clampWhenFinished from
+              // an earlier one-shot -- .reset() alone doesn't touch loop mode,
+              // so without this it would play once here and freeze instead of
+              // looping like ordinary locomotion.
+              next.setLoop(THREE.LoopRepeat, Infinity);
+              next.clampWhenFinished = false;
+              next.reset().fadeIn(0.2).play();
+            }
             if (previous && previous !== next) previous.fadeOut(0.2);
             state.current = clipName;
           }

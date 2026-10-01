@@ -1,6 +1,6 @@
 #pragma once
 
-// Friendly action bindings for the editor runtime (0.53.0), parsed into the
+// Friendly action bindings for the editor runtime (0.55.0), parsed into the
 // engine's native InputMap so engine::ActionSystem evaluates them:
 //
 //   jump: space, pad_a

@@ -1134,7 +1134,7 @@ const { chromium } = require("playwright");
     });
     await page.click("#stop");
 
-    // F49: the Lua API reaches the editor. A prefab template spawned from a
+    // F51: the Lua API reaches the editor. A prefab template spawned from a
     // script's on_start gets its own render object (the "N spawned" status
     // readout), a declared @prop's value reaches the script, and
     // ui.set_text/log land in the HUD and the log panel.
@@ -1172,7 +1172,7 @@ const { chromium } = require("playwright");
     await page.waitForFunction(() => !document.querySelector("#status").textContent.includes("spawned"));
     assert.match(await page.locator("#hud-text").textContent(), /Score: 0/, "Stop restores the authored UI text");
 
-    // F50: Environment (procedural sky + fog), a Material override, and a
+    // F52: Environment (procedural sky + fog), a Material override, and a
     // game Camera that takes over the view during Play. Checked for page
     // errors (the `errors` assertion below) and captured as evidence.
     const env = await run({ command: "spawn_entity", name: "Environment" });
@@ -1204,7 +1204,7 @@ const { chromium } = require("playwright");
       value: { projection: "Perspective", fov: 60, near: 0.1, far: 500, orthoSize: 10, priority: 5 },
     });
     await run({ command: "set_component", entity: cam.entity, type: "RigidBody", value: { mass: 1, dynamic: false } });
-    // F52: the camera follows the Player through a CameraFollow rig, and a
+    // F54: the camera follows the Player through a CameraFollow rig, and a
     // script shakes it.
     await run({
       command: "set_component",
@@ -1218,7 +1218,7 @@ const { chromium } = require("playwright");
       type: "Script",
       value: { source: 'function on_start() camera.shake(0.3, 0.5) end', props: {} },
     });
-    // F51: an Animator state machine on a real animated model. A trigger
+    // F53: an Animator state machine on a real animated model. A trigger
     // set from on_start moves idle -> hop, the hop state's event reaches
     // on_anim_event, `end` returns to idle, and on_anim_state reports both.
     const cat = await run({ command: "spawn_entity", name: "Animated Cat", transform: [6, 0.5, 6] });
@@ -1244,7 +1244,7 @@ const { chromium } = require("playwright");
     await page.waitForFunction(() => document.querySelector("#log").textContent.includes("[script] animator hop>midway>idle>"), null, { timeout: 15000 });
     await page.click("#stop");
 
-    // F53: real keyboard and mouse events reach the native InputState and the
+    // F55: real keyboard and mouse events reach the native InputState and the
     // default actions: Space fires the "jump" action, a click on the viewport
     // is mouse button 0 at the clicked position (and the "fire" action).
     const reader = await run({ command: "spawn_entity", name: "Input Reader", transform: [-6, 0.5, -6] });
@@ -1268,7 +1268,7 @@ const { chromium } = require("playwright");
     await page.waitForFunction(() => document.querySelector("#log").textContent.includes("[script] click at 200,150"));
     await page.click("#stop");
 
-    // F54: interactive UI. A script-action Button, a Toggle and a Slider
+    // F56: interactive UI. A script-action Button, a Toggle and a Slider
     // report through on_ui; ui.set_value drives a Bar (read back through
     // the #hud-text mirror).
     const uiEntity = async (name, ui) => {
@@ -1313,7 +1313,7 @@ const { chromium } = require("playwright");
     await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("VolumeSlider=0.5"));
     await page.click("#stop");
 
-    // F55: a world-space cone emitter with color/size over lifetime, a
+    // F57: a world-space cone emitter with color/size over lifetime, a
     // burst on Play plus one from Lua, and a Trail on a moving body.
     const fountain = await run({ command: "spawn_entity", name: "Fountain", transform: [3, 0.5, -3] });
     await run({
@@ -1340,7 +1340,7 @@ const { chromium } = require("playwright");
     await page.screenshot({ path: "build/browser-evidence/f55-particles.png" });
     await page.click("#stop");
 
-    // F56: import a .glb, an image and a sound through the Project panel;
+    // F58: import a .glb, an image and a sound through the Project panel;
     // they persist in IndexedDB, the model joins an "Imported" catalog
     // category and can be placed, the image textures a Material through
     // asset:<name>, and the Stats overlay reports renderer and system stats.

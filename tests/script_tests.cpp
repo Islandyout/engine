@@ -85,7 +85,7 @@ int main() {
             check(world.get<Box>(entity)->center.x > 0.4F, "script-driven velocity moved the entity");
         }
         {
-            // Since 0.49.0 assigning self.x/y/z teleports the entity; an
+            // Since 0.51.0 assigning self.x/y/z teleports the entity; an
             // untouched coordinate keeps whatever physics gives it.
             World world;
             world.register_component<Box>("box");

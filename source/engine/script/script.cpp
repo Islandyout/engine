@@ -612,7 +612,7 @@ struct LuaApi final {
         return 0;
     }
 
-    // -- Native input (0.53.0) ------------------------------------------
+    // -- Native input (0.55.0) ------------------------------------------
     static const ActionState *action_state(lua_State *L) {
         auto &self = runtime(L);
         const char *name = luaL_checkstring(L, 1);
@@ -901,6 +901,8 @@ void Runtime::call(World &world, Entity entity, Instance &instance, const char *
     }
     lua_pop(L, 1);
 }
+
+void Runtime::request_animation(Entity entity, std::string clip) { animation_requests_[entity] = std::move(clip); }
 
 void Runtime::step(World &world, float dt) {
     world_ = &world;

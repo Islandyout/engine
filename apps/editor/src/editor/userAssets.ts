@@ -1,4 +1,4 @@
-// Imported assets (0.56.0): models (.glb), images and audio a user adds
+// Imported assets (0.58.0): models (.glb), images and audio a user adds
 // through the editor. The files are kept in the browser's IndexedDB so they
 // survive reloads, and are registered into the same catalogs the bundled
 // content uses -- models get catalog ids from 10000 up (category

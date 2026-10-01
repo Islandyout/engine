@@ -1,4 +1,4 @@
-// Animator (0.51.0): a small animation state machine, authored as text on
+// Animator (0.53.0): a small animation state machine, authored as text on
 // the Animator component and run once per fixed-tick batch during Play.
 //
 //   state idle clip=Idle                  -- clip defaults to the state name

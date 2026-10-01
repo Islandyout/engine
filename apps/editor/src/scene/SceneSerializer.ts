@@ -271,7 +271,7 @@ export function normalizeComponent(
           value.radius === undefined
             ? 0.5
             : number(value.radius, "Collider.radius"),
-        // Added in 0.48.0; scenes saved before default to a plain solid
+        // Added in 0.50.0; scenes saved before default to a plain solid
         // collider on layer 0 that collides with everything.
         isTrigger:
           value.isTrigger === undefined
@@ -353,7 +353,7 @@ export function normalizeComponent(
           value.angle === undefined
             ? Math.PI / 6
             : spotAngle(value.angle, "Light.angle"),
-        // Added in 0.50.0; older scenes' lights don't cast shadows.
+        // Added in 0.52.0; older scenes' lights don't cast shadows.
         castShadows:
           value.castShadows === undefined ? false : boolean(value.castShadows, "Light.castShadows"),
       };

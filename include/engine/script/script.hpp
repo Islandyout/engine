@@ -88,7 +88,7 @@ public:
 // code is the source it was authored with.
 //
 // Every entity's `self` table exposes self.id, self.name, self.grounded,
-// self.x/y/z and self.vx/vy/vz. Since 0.49.0 all six numbers are
+// self.x/y/z and self.vx/vy/vz. Since 0.51.0 all six numbers are
 // read-write: writing a velocity steers the body through physics, and
 // writing a position teleports it. Only fields a callback actually changes
 // are written back. `self` is rebuilt before every callback, so keep your
@@ -271,6 +271,14 @@ public:
     void broadcast(World &world, const std::string &function_name, const std::string &name, const std::string &value);
     // Seconds of simulated time this Runtime has stepped (`time.now`).
     [[nodiscard]] double now() const { return now_; }
+    // Queues a one-shot animation request for `entity`, exactly as if that
+    // entity's own script had just set self.animate = clip -- but callable
+    // directly by native code (e.g. the editor bridge's own combat/AI-attack
+    // systems) that has no Lua VM of its own to go through. Last write wins
+    // if called more than once for the same entity before the next
+    // take_animation_request drains it, the same not-sticky contract
+    // self.animate itself has.
+    void request_animation(Entity entity, std::string clip);
 
 private:
     friend struct LuaApi;

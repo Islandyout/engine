@@ -190,9 +190,10 @@ function retiredIds(catalogText) {
 
 // Inserted right after the LAST existing entry of the same category, not
 // resorted into alphabetical position -- entries in this file aren't
-// strictly contiguous per category already (e.g. "people" ids 132 and 137
-// are separated by "animals" entries added in between), so this matches the
-// file's own established, simpler convention rather than reordering it.
+// strictly contiguous per category already (ids of one category have been
+// separated by another category's entries added in between more than once
+// -- see this file's own git history), so this matches the file's own
+// established, simpler convention rather than reordering it.
 function insertCatalogEntry(catalogText, entry) {
   const line =
     `  { id: ${entry.id}, category: "${entry.category}", name: "${entry.name}", ` +

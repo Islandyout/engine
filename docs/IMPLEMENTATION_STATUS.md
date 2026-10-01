@@ -3656,7 +3656,264 @@ per-entity `self` table pattern `save`/`self.vx` already established.
   over this); the player death/game-over handling (still tracked
   separately, the last item on this gap audit).
 
-## F48 — Physics core: dynamic pairs, kinematic bodies, triggers, layers, bounciness, forces (0.48.0)
+## F48 — F/G play an animation natively, plus a crouch/sit key (0.48.0)
+
+A direct follow-up to F47: F (melee) and G (ranged blast) already dealt
+damage, but nothing ever played a matching animation unless the entity
+happened to carry a hand-authored Script doing `self.animate = "..."` --
+the user's own ask was for this to work with no scripting at all, and to
+extend the same idea to a real crouch/sit interaction. Landed as two
+pieces: a native animation-request channel any bridge system can use
+directly (no Lua involved), and a new bound key.
+
+### Design
+
+- `engine::script::Runtime::request_animation(Entity, clip)` — a new public
+  method that writes into the exact same `animation_requests_` map a
+  script's own `self.animate` already uses, just called directly from C++.
+  Native code has no Lua VM of its own to go through, so this is the
+  natural extension point rather than a second, parallel channel: the host
+  (`main.ts`'s `pollAnimationRequests`) can't tell a native request from a
+  scripted one, and doesn't need to.
+- `editor.combat` (F) and `editor.move`'s blast branch (G) call it with
+  `"attack"`/`"blast"` on every press, hit or miss — the animation is tied
+  to the action, matching how a real game plays its swing/fire animation
+  even on a whiff, not gated on `damage()` actually landing. `editor.ai_attack`
+  calls it with `"attack"` too, but only when a hostile `AIAgent` actually
+  lands a hit (its cooldown-gated overlap check *is* its own action, unlike
+  the Player's separate press/hit distinction).
+- A new key, C (`key_for()` code 7), makes the Player crouch/sit while
+  held: `editor.move`'s on-foot branch ignores WASD entirely for as long as
+  C is down (sitting-while-sliding-across-the-floor would look wrong), and
+  freeing this is a native gate rather than something `main.ts` has to
+  fight against every frame.
+- The gap this round actually had to close on the TS side: `"attack"`/
+  `"blast"`/`"sit"` are abstract keys, not real clip names — different
+  imported packs name the "same" action differently (the Aether animal
+  kit's `Attack`, Mannequin F (Mixamo)'s `punching`/`firing_rifle`,
+  Mannequin F's own `sit`; see `assets/CREDITS.md`), and
+  `pollAnimationRequests`'s existing exact-name lookup only ever worked for
+  a script naming its own model's clip literally. A new
+  `actionClipSynonyms`/`resolveActionClip` pair (`main.ts`) tries a short,
+  case-insensitive candidate list for exactly these three reserved keys —
+  `attack` → `punch`/`punching`/`melee` etc. — and falls back to a plain
+  case-insensitive exact-name match for anything else (an ordinary Lua
+  `self.animate` request), so nothing about F47's own contract changed for
+  a script author. The ground-speed locomotion picker gets the same
+  treatment for crouch: `sitClip` (resolved the same way, only while C is
+  held and only for the Player's own index) now takes priority over both
+  the automatic speed-based pick and an authored `AnimationState.clip` pin
+  — an explicit, held player action outranks both, the same way a one-shot
+  request already preempts the whole loop via the existing `oneShot` gate.
+
+### F48 verification
+
+- New native `engine_editor_bridge_tests` coverage: F queues `"attack"` on
+  both a miss (nothing to hit) and a hit, drained via
+  `editor_take_animation_request` and confirmed non-sticky; G queues
+  `"blast"` even with nothing to aim at (the shot itself no-ops, the
+  animation still fires); a Chasing `AIAgent` landing a hit queues its own
+  `"attack"` request (checked against its own index, never the Player's);
+  the same AI *not* landing a hit (still inside its cooldown) queues
+  nothing; C held zeroes the Player's own WASD input entirely (checked
+  against W specifically, then confirmed movement resumes once released).
+- Full `ctest` — 14/14 passing, including the new coverage above.
+- `npm run typecheck`/`npm test` — 37/37 passing.
+- Built the real Emscripten/WASM editor and verified all four pieces
+  against real running sessions, not by inspection: temporarily exposed
+  `{ animStates, heldKeys }` on `window` (removed before this was
+  committed — the shipped app has no such hook).
+  - Placed the bundled Mannequin F (Mixamo) catalog entry (real clips
+    `punching`/`firing_rifle`/`flying`) as the Player, pressed F and G with
+    real DOM keyboard events: `animStates[i].current` became `"punching"`
+    then, after it finished, `"firing_rifle"` — confirming the synonym-list
+    resolution actually reaches the right clip on a model whose clips don't
+    literally spell "attack"/"blast".
+  - Separately placed the plain Mannequin F (real clip `sit`) as the
+    Player, held C+W together: `animStates[i].current` became `"sit"` and
+    the status bar's own Player position readout stayed exactly fixed for
+    the whole hold (`(0, 0.5, 0)` throughout) — confirming both the clip
+    resolution and the native movement freeze. Released C, pressed W alone:
+    the Player moved normally again, confirming the freeze isn't sticky.
+  - Placed a Player overlapping a bundled Wolf (real clip `Attack`,
+    capitalized) with an `AIState` authored, entered Play: the Wolf's own
+    `animStates[i].current` became `"Attack"` the instant its first hit
+    landed — confirming the AI-attack path (a different bridge system, a
+    different entity's own index, no key press at all) reaches the exact
+    same resolution.
+- Full existing `tests/browser/editor.cjs` black-box suite re-run after the
+  change (and again after the temporary debug hook was removed) — zero
+  regression.
+- Not done here: a jump/fly gate while crouching (C only freezes
+  horizontal WASD; Shift still jumps/flies while held, a minor inconsistency
+  left as-is rather than widening this round's scope); a crouch/sit
+  interaction for any entity other than the Player (AI/Pedestrian never
+  receive key input at all, so this is Player-only by construction, matching
+  F/G's own Player-only reach); sprinting specifically was not touched at
+  all — it already plays automatically through the pre-existing ground-speed
+  tiers (`pickClipName`), which is why the user's own request to
+  "extrapolate this to every other animation like sitting and sprinting"
+  only actually needed new work for sitting.
+- Post-push fix: four Codex findings across this round's two PRs (three on
+  the original PR, merged before the fixes landed — see the "PR merged
+  before fix lands" note below — and a fourth caught on the follow-up PR
+  itself), all verified correct before fixing. (1) Pressing F then G before
+  F's one-shot clip finished left the old action's `finished` mixer listener
+  still attached; it fired later, when the punching clip's own duration
+  naturally elapsed, and stomped `state.current` even though the newer
+  `firing_rifle` one-shot was still actively playing. Fixed by tracking the
+  active listener in a new `state.oneShotHandler` field and explicitly
+  detaching the previous one before attaching a new one. (2)
+  `actionClipSynonyms[requested]` used a plain object literal as a lookup
+  table, so a script setting `self.animate = "constructor"` (or
+  `"toString"`/`"__proto__"`) resolved to an inherited `Object.prototype`
+  value instead of `undefined`, then crashed trying to iterate it as a
+  candidate list — an uncaught exception inside the render loop that hung
+  the whole app for the rest of the session. Fixed by switching to a
+  `Map<string, string[]>` (no inherited keys). (3) Releasing crouch while an
+  authored `AnimationState.clip` pin was active never restored the pin —
+  `sitClip` becomes `undefined` and `overridden` stays `true`, so the
+  original `sitClip ?? (overridden ? undefined : ...)` formula evaluated to
+  "leave whatever's currently playing alone," permanently. Fixed by
+  explicitly re-asserting `override!.clip`. (4) That fix from (3) was itself
+  incomplete: selecting `override!.clip` fed into the same generic
+  locomotion-apply block ordinary ground-speed picks use, which
+  unconditionally forces `LoopRepeat`/`clampWhenFinished = false`/time reset
+  to 0 — silently discarding an authored `looping: false` or a specific
+  `time`. Fixed by adding a `restoringPin` branch that instead applies the
+  same three-line restore already proven correct in `rebuild()`'s initial
+  pin apply and `onFinished`'s one-shot restore:
+  `setLoop(override.looping ? LoopRepeat : LoopOnce, Infinity)`,
+  `clampWhenFinished = !override.looping`, and
+  `if (Number.isFinite(override.time)) ...time = override.time`. Verified
+  (1) in a real browser: F then G in quick succession, confirmed
+  `firing_rifle` wins immediately and is never later reverted, checked well
+  past both clips' natural durations. Verified (2) two ways: with the fix,
+  `self.animate = "constructor"` on a real animated entity with a Script
+  produces zero page errors and the app keeps running; reverting the fix and
+  rebuilding reproduced the hang directly — the `#play` button's own
+  `dataset.mode === "play"` wait timed out at 30s, proof the render loop
+  genuinely dies on the unfixed code. Verified (3) in a real browser: pinned
+  a Mannequin F to its `talk` clip, crouched (confirmed switch to `sit`),
+  released crouch (confirmed restored to `talk`, not stuck on `sit`).
+  Verified (4) in a real browser: pinned a Mannequin F to `talk` with
+  `looping: false` and a specific `time` via the authoring console's
+  `set_component`, crouched, released — confirmed restored as
+  `LoopOnce`/`clampWhenFinished: true` rather than forced into infinite
+  `LoopRepeat`; reverting just this fix and rebuilding reproduced the bug
+  (`loop === LoopRepeat`) even before ever crouching, since the same generic
+  block is what applies an authored pin the first time too. Full `ctest`,
+  `npm run typecheck`/`npm test`, and the full `tests/browser/editor.cjs`
+  black-box suite re-run clean after each fix. PR merged before the first
+  three fixes landed (a background full-suite run finished just after the
+  merge notification arrived) — restarted the branch from `origin/main`,
+  confirmed the uncommitted diff still applied identically via `diff -q`
+  against a saved patch, and opened a new PR rather than reusing the merged
+  one, per this project's established recovery convention for that exact
+  race.
+
+## F49 — Merge Mannequin F (Mixamo) into Mannequin F via skeletal retarget (0.49.0)
+
+Requested: fold the "Mannequin F (Mixamo)" catalog entry (id 137, F37/F38,
+0.38.0) into "Mannequin F" (id 132) as a single model with all nine clips,
+rather than two separate entries for what's visually the same character.
+F37/F38's own history called a direct retarget "tried and abandoned" in
+favor of shipping id 137 as a second, independently-rigged entry (see
+`assets/CREDITS.md`'s "Mannequin F (Mixamo)" section) -- this round retried
+it with a different technique and got a visually correct result.
+
+### Design
+
+- The two rigs share a mesh (id 137's came from a mesh-only re-export of id
+  132's own glb) but not a skeleton at all: Quaternius's 65-joint, UE-style-
+  named rig (`pelvis`/`spine_01`/`clavicle_l`/...) versus Mixamo's 46-joint
+  `mixamorig*` auto-rig, no name or joint-count correspondence. A clip copy
+  (what worked for the three Mixamo FBX files onto each other, since they
+  share Mixamo's own skeleton) can't work here; this needed an actual
+  skeletal retarget: reinterpret the source's motion in terms of the
+  target's own bones.
+- 21 bones mapped by anatomical correspondence (hips/spine x3/neck/head/
+  shoulder/upper-arm/forearm/hand x2/upper-leg/lower-leg/foot/toe x2).
+  Fingers intentionally left unmapped -- none of the three clips'
+  silhouettes depend on finger curl, and mapping Quaternius's 4-finger
+  x4-joint x2-hand chains to Mixamo's simpler ones wasn't worth the extra
+  work for a cosmetic-only payoff.
+- Retarget method, per mapped bone per frame: compute the source bone's
+  world-space rotation delta from its own rest pose, then re-apply that
+  same world-space delta onto the target bone's own rest pose, then convert
+  back to a local quaternion using the target *parent's own animated* world
+  quat for that frame (bones processed strictly parent-before-child so this
+  is available). This is axis-convention-agnostic -- it never needs the two
+  rigs to agree on which local axis means "bone forward" -- as long as both
+  loaded scenes share one overall world orientation, which `FBXLoader`/
+  `GLTFLoader` both guarantee (Y-up, same Three.js scene graph).
+- Hips/pelvis root motion gets the same world-space-delta treatment, plus
+  the same horizontal-drift fix (straight-line X/Z subtraction, Y/vertical
+  bob untouched) id 137's own build already needed for its raw `Flying`
+  export, ported into the retarget script since it has to apply to the
+  *source* track before the delta is computed, not after.
+- `modelCatalog.ts`: id 137 removed and added to `retiredCatalogIds` (a
+  saved scene still referencing it falls back to the default box, not a
+  crash, same as every other retired id); id 132 unchanged (same id, same
+  path, same filename) but its `mannequin_f.glb` now carries all nine clips.
+  No TS runtime code changed -- `pollAnimationRequests`'s existing
+  `resolveActionClip`/`actionClipSynonyms` machinery (F48) already resolves
+  `attack`/`blast`/`sit` to whatever clips a model actually has by name, so
+  `punching`/`firing_rifle`/`sit` living on one model instead of two needed
+  no new wiring.
+
+### F49 verification
+
+- Two real bugs caught before landing, both by rendering actual frames (a
+  standalone Three.js viewer page + Playwright screenshot of the retargeted
+  model, not just reading track numbers) and comparing side-by-side against
+  the same clip fraction rendered on the untouched, pre-merge id-137 file:
+  1. First version used the target parent's *rest* world quat instead of
+     its *animated* one when converting a child's world quat back to
+     local -- silently assumes every ancestor stays frozen, and the error
+     compounds with chain depth. A shallow pose (`punching`'s wind-up)
+     looked plausible by coincidence; `firing_rifle`'s sustained two-handed
+     chest-level aim (5 animated ancestors deep through the whole spine and
+     a shoulder) came out clearly wrong -- hands bunched near one shoulder,
+     head hidden. Fixed by threading each bone's own freshly-computed
+     animated world quat top-down through the retarget pass instead of
+     reusing the constant rest value.
+  2. `flying`'s raw Hips track still carried the same ~21m horizontal drift
+     already known from id 137's own history (`assets/CREDITS.md`), but
+     unstripped this time. Retargeting routes it through the target's own
+     corrective root-bone rotation on the way from world back to local
+     space, so the same drift landed on a different local axis than
+     before -- pelvis's LOCAL Y instead of world Z -- which looked like the
+     character plummeting 21m instead of drifting forward, until the raw
+     track values were dumped and traced back to the same known cause.
+  3. (Not a retarget bug, but caught the same way, early:) `FBXLoader`
+     emits a redundant duplicate node sharing each real bone's own name,
+     self-parented -- an FBX limb/skeleton-attribute pairing artifact, not
+     a second joint. A naive parent-chain walk hit an undefined lookup on
+     the very first frame; fixed by keeping only the first-encountered
+     object per bone name.
+- After both fixes: `punching`'s jab/guard stance, `firing_rifle`'s
+  two-handed aim-down-sights, and `flying`'s arms-out horizontal glide all
+  visually match their id-137 source poses at the same clip fractions, no
+  skeleton distortion. `idle`/`walk`/`sit` (id 132's own original clips)
+  re-rendered from the merged file and confirmed unaffected, same session.
+- Mesh geometry unchanged through the re-export: 10,070 vertices, verified
+  against the pre-merge `mannequin_f.glb`'s own accessor count before
+  overwriting it.
+- `npm run typecheck`/`npm test` -- 37/37 passing, including "every catalog
+  path resolves to a real bundled asset" (confirms nothing still points at
+  the now-deleted `mannequin_f_mixamo.glb`) and the catalog id-uniqueness
+  checks (confirms 137 isn't both retired and live at once).
+- Full `ctest` unaffected (no native or TS runtime code changed, only the
+  catalog data, `assets/CREDITS.md`, and two doc-comment updates that named
+  the now-removed entry).
+- Not done here: a proper retarget for the unmapped finger bones (left at
+  rest pose, see Design); porting this retarget technique to a reusable
+  tool (`tools/import_model.mjs`'s own stated position -- a merge needing
+  this much source-specific judgment about which bones actually correspond
+  stays a bespoke one-off script, not committed, same as the Mixamo/
+  Quaternius merge tools that came before it).
+## F50 — Physics core: dynamic pairs, kinematic bodies, triggers, layers, bounciness, forces (0.50.0)
 
 This is the first item in the order of work from [the Unity gap analysis](unity/GAP_ANALYSIS.md). It also fixes an "authored but inert" field set: `RigidBody.mass`/`inverseMass`/`dynamic` have been authorable since early on, but `bridge.cpp` never read them.
 
@@ -3671,16 +3928,16 @@ This is the first item in the order of work from [the Unity gap analysis](unity/
 - **Layers**: `Collider.layer` (0–31) and `mask` (32-bit). A pair interacts only when each mask includes the other's layer. An entity with no Collider counts as layer 0 with every mask bit set.
 - **Bounciness** reflects the into-surface velocity component instead of zeroing it. That applies both on the original push-out path and on the pair impulse.
 - **Forces and impulses**: `add_force` accumulates a force that the next `step()` applies and clears. `add_impulse` changes velocity immediately. Both divide by mass, and mass 0 is treated as 1 here.
-- **Contact events**: `step()` takes an optional `physics::Events`. It remembers which (a, b, trigger) pairs touched last step and reports enter, stay and exit events, with a normal from `a` to `b` for solid contacts. The editor runtime keeps one `Events` per simulation, and F49 exposes these events to Lua.
+- **Contact events**: `step()` takes an optional `physics::Events`. It remembers which (a, b, trigger) pairs touched last step and reports enter, stay and exit events, with a normal from `a` to `b` for solid contacts. The editor runtime keeps one `Events` per simulation, and F51 exposes these events to Lua.
 - **Queries**: `raycast()` and the new `overlap_sphere()` take a `QueryFilter` (layer mask, include triggers, ignore one entity). By default, triggers are skipped.
 
 Two new bridge calls carry the new settings without widening `editor_add`'s 21-double ABI:
 - `editor_set_body(index, authored, mass, dynamic)`
 - `editor_set_collider(index, is_trigger, layer, mask, bounciness)`
 
-Out-of-range values fail the whole commit, the same as `editor_add`'s own validation. Scenes saved before 0.48.0 load with a solid, layer-0, all-layers, zero-bounce Collider.
+Out-of-range values fail the whole commit, the same as `editor_add`'s own validation. Scenes saved before 0.50.0 load with a solid, layer-0, all-layers, zero-bounce Collider.
 
-### F48 verification
+### F50 verification
 
 - `engine_physics_tests` adds coverage for:
   - a mass-weighted dynamic pair, including momentum conservation;
@@ -3694,7 +3951,7 @@ Out-of-range values fail the whole commit, the same as `editor_add`'s own valida
 - Editor unit test `tests/physics.test.ts` checks Collider defaults for old scenes, round-tripping and range checks.
 - The full browser suite (`tests/browser/editor.cjs`) still passes against a WASM build.
 
-## F49 — Lua API breadth: callbacks, world API, spawn, timers, props, sound and UI (0.49.0)
+## F51 — Lua API breadth: callbacks, world API, spawn, timers, props, sound and UI (0.51.0)
 
 This is item 2 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. Before this change a `Script` could only read its own position and write its own velocity. Now it can react to events, affect other entities, and create them.
 
@@ -3729,7 +3986,7 @@ This is item 2 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work.
 
 Writing `self.x/y/z` now teleports the entity. Before, those writes were silently ignored. `script_tests` was updated to match.
 
-### F49 verification
+### F51 verification
 
 - `engine_script_tests` covers:
   - on_start ordering, `after`/`every`/coroutine `wait`, `time.now`, number and text props;
@@ -3741,7 +3998,7 @@ Writing `self.x/y/z` now teleports the entity. Before, those writes were silentl
 - Editor unit tests (`scriptProps.test.ts`) cover declaration parsing, reconciliation, encoding and Script normalization.
 - The browser suite spawns a prefab from a script and checks the "1 spawned" readout, a prop value reaching `ui.set_text` (via `#hud-text`), the log line, and that Stop restores the authored UI text.
 
-## F50 — Rendering basics: shadows, Environment, Camera, Material (0.50.0)
+## F52 — Rendering basics: shadows, Environment, Camera, Material (0.52.0)
 
 This is item 3 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. Everything here is in the Three.js renderer (`main.ts`) and the component schema. There are no engine or bridge changes.
 
@@ -3770,12 +4027,12 @@ This is item 3 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work.
   - Opacity below 1 turns on transparency.
   - Materials created this way are disposed on the next `rebuild()`.
 
-### F50 verification
+### F52 verification
 
 - `tests/rendering.test.ts` checks that the defaults round-trip, covers range validation for all three components, and checks that `Light.castShadows` defaults to false for older scenes.
 - The browser suite adds a Procedural Environment with fog, a Material override and a priority-5 Camera, then plays the scene with no page errors. Screenshots are in `build/browser-evidence/f50-edit.png` and `f50-play.png`. The play view shows the sky gradient, shadows under every object and the red Material box, from the Camera entity's viewpoint.
 
-## F51 — Animator state machine: states, transitions, parameters, events (0.51.0)
+## F53 — Animator state machine: states, transitions, parameters, events (0.53.0)
 
 This is item 4 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. Before this, animation was either the automatic ground-speed picker, one pinned clip (`AnimationState`), or a script one-shot (`self.animate`). The `Animator` component adds Unity-style control: states, conditional transitions, parameters and events.
 
@@ -3791,13 +4048,13 @@ This is item 4 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work.
 - **Built-in parameters**: `speed` (ground speed), `vy` and `grounded` are set every step.
 - **Events**: looping states fire their events on every loop crossing.
 - **Script bridge**:
-  - `anim.set(name, value)` and `anim.trigger(name)` travel through the F49 command queue.
+  - `anim.set(name, value)` and `anim.trigger(name)` travel through the F51 command queue.
   - Animation events and state entries come back through the new `editor_script_notify`, which calls the script's `on_anim_event(name)` / `on_anim_state(state)`. Only those two function names are accepted.
 - **Edit mode** previews the start state's clip.
 - **Parse errors** are collected and logged once when Play starts. An Animator with errors falls back to the default behavior.
 - **Scope**: an Animator only affects entities with an animated model. A placeholder box has no clips to switch between.
 
-### F51 verification
+### F53 verification
 
 - `tests/animator.test.ts` covers parsing (defaults, fades, conditions), readable line-numbered errors, and a run that exercises:
   - a compare+flag transition with its fade;
@@ -3807,7 +4064,7 @@ This is item 4 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work.
 - `engine_editor_bridge_tests` checks that `anim.set`/`trigger` become commands with the right text, and that `editor_script_notify` delivers `on_anim_event`/`on_anim_state` but refuses other names.
 - The browser suite puts an Animator and a Script on the animated Cat: `trigger go` → hop (walk clip, once) → the `midway` event → `end` → idle, with the script logging `hop>midway>idle>`.
 
-## F52 — Navigation (grid A* pathfinding) and a camera rig (0.52.0)
+## F54 — Navigation (grid A* pathfinding) and a camera rig (0.54.0)
 
 This is item 5 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. Before it, AI steered straight at its target, and the only play camera was the editor's orbit camera re-targeted onto the Player.
 
@@ -3837,7 +4094,7 @@ This is item 5 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work.
 - **Placeholder**: the camera entity's own placeholder is hidden while it is the view.
 - **Shake**: `camera.shake(intensity, seconds)` in Lua queues a decaying random offset. It applies to the game camera, or during Play to a copy of the editor camera, so the orbit camera itself never drifts.
 
-### F52 verification
+### F54 verification
 
 - `engine_nav_tests` covers baking (wall, agent inflation, curb, trigger, dynamic crate), line of sight, a path around a wall (every segment walkable, a sensible detour length, at most four corners), a straight path on open ground, the same-cell and out-of-grid cases, and goal snapping.
 - `engine_editor_bridge_tests`: the old "a chasing AI stops at a wall" check became two:
@@ -3848,7 +4105,7 @@ This is item 5 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work.
 - `engine_script_tests` checks that `world.path` ends at the goal with corners around a wall.
 - The browser suite adds a `CameraFollow` rig (collision and orbit on) following the Player, and `camera.shake` from `on_start`, with no page errors.
 
-## F53 — Input parity: every key, mouse, touch, gamepad and native actions in the browser (0.53.0)
+## F55 — Input parity: every key, mouse, touch, gamepad and native actions in the browser (0.55.0)
 
 This is item 6 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. The native input layer already had contexts, bindings, dead zones, gamepad support and replay (F3/F4). The browser build used none of it: it passed seven hard-coded keys to the runtime, plus a string-key set for scripts.
 
@@ -3870,7 +4127,7 @@ This is item 6 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work.
   - `input.lock_mouse(bool)` requests or exits pointer lock through the command queue. Stop always exits it.
 - **Fix for dropped edges**: `editor_input_begin_frame()` used to run on every rendered frame. On a display faster than 60 Hz, a frame that ran no fixed tick then cleared a press or click before any tick saw it. It now runs only after a frame that consumed ticks.
 
-### F53 verification
+### F55 verification
 
 - `engine_editor_bridge_tests` covers:
   - W walking the Player and driving `move_y` through the new key path;
@@ -3880,7 +4137,7 @@ This is item 6 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work.
 - `tests/input.test.ts` checks that the TS and native default bindings are identical and that the component normalizes.
 - The browser suite presses a real Space key and clicks the real canvas. A script logs the `jump` action and the click at exactly (200, 150). The existing WASD, vehicle and combat checks all pass through the new key path.
 
-## F54 — UI expansion: panels, images, bars, sliders, toggles, script buttons, layout (0.54.0)
+## F56 — UI expansion: panels, images, bars, sliders, toggles, script buttons, layout (0.56.0)
 
 This is item 7 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. Before it, `UI` offered only anchored Text and a Button limited to four fixed actions.
 
@@ -3905,14 +4162,14 @@ This is item 7 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work.
 - **Accessibility**: `#hud-text` now also mirrors Bar/Slider/Toggle values (`Name=0.5`).
 - **Color fix**: authored 0–1 colors for Environment, Material and the sky are now sRGB, as in a color picker. `defaultEnvironment()`'s backdrop therefore renders as the original `#101a26` instead of a lighter blue.
 
-### F54 verification
+### F56 verification
 
 - `tests/uiLayout.test.ts` covers anchoring and offsets, auto sizes matching the old boxes, hit testing and slider values.
 - `engine_editor_bridge_tests` checks that `on_ui` reaches every script with numbers as numbers, and that `ui.set_value`/`set_visible` queue commands.
 - The document test and the browser suite's UI-kind dropdown check were updated for the new kinds and actions.
 - The browser suite covers: `ui.set_value` filling a Bar; a real click on a script Button → `on_ui GoButton click`; a click on a Toggle → 1; and a real drag across half a Slider → 0.5.
 
-## F55 — Particles: shapes, over-lifetime, world space, bursts, and trails (0.55.0)
+## F57 — Particles: shapes, over-lifetime, world space, bursts, and trails (0.57.0)
 
 This is item 8 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. The F40 `Particles` component had four presets and fixed-size points, emitted only at a constant rate.
 
@@ -3935,7 +4192,7 @@ This is item 8 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work.
   - During Play, `trail.ts` records the entity's world position every `minDistance` and drops points older than `lifetime`.
   - It builds a camera-facing ribbon that narrows and fades toward the tail. The ribbon is drawn additively and cleared in Edit mode.
 
-### F55 verification
+### F57 verification
 
 - `tests/particles.test.ts` covers:
   - rate/lifetime steady state, motion, and color and size at a known age;
@@ -3945,7 +4202,7 @@ This is item 8 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work.
 - The browser suite adds a World-space Cone emitter with a Play-start burst and a Lua burst plus `set_emitting(false)`, and a Trail on a launched body, with no page errors.
 - A clean-scene screenshot shows the fountain rising in a cone, with particles shrinking and reddening with age.
 
-## F56 — Asset import and a Stats overlay (0.56.0)
+## F58 — Asset import and a Stats overlay (0.58.0)
 
 This covers items 9 and 10 (the stats and profiler part) of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. Before it, the only way to add content was `tools/import_model.mjs` plus a rebuild, and there was no way to see what the engine was spending time on.
 
@@ -3963,7 +4220,7 @@ This covers items 9 and 10 (the stats and profiler part) of [the Unity gap analy
 - **Draw calls and triangles** are counted across every render pass, bloom included: `renderer.info.autoReset` is off and the counters are reset once per frame.
 - **Per-system timings**: each C++ system's time on the last tick. Every bridge system is now registered through `add_timed()`, which measures it with `steady_clock`, and `editor_profile_text()` reports the timings.
 
-### F56 verification
+### F58 verification
 
 - `tests/userAssets.test.ts` covers asset kinds by extension, id assignment (starting at 10000, re-imports keeping their id) and `asset:` resolution.
 - `engine_editor_bridge_tests` checks that physics, script, AI and nav all report timings.

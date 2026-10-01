@@ -1,4 +1,4 @@
-// Trail ribbons (0.55.0): an entity's recent path, drawn as a strip facing
+// Trail ribbons (0.57.0): an entity's recent path, drawn as a strip facing
 // the camera that narrows and fades toward its tail. Pure so the geometry
 // is unit testable; main.ts uploads the arrays.
 

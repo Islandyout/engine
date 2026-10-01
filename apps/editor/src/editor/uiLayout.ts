@@ -1,4 +1,4 @@
-// Screen-space layout for UI elements (0.54.0): where an element's box
+// Screen-space layout for UI elements (0.56.0): where an element's box
 // sits for its anchor, offset and size, plus slider hit math. Pure so it
 // can be unit tested; main.ts's drawHud() does the actual painting.
 import type { UIAnchor, UIKind } from "../scene/Components";

@@ -84,11 +84,14 @@ Engine version 0.46.0 replaces an instant "pop" on defeat with a real death sequ
 
 Engine version 0.47.0 answers the third gap-audit item — no way to tie a specific key to a specific animation. A new `input` table (`input.down(key)`/`input.pressed(key)`, level and edge respectively) and a write-only `self.animate` field extend the same sandboxed Lua `self`/`save` API already used elsewhere: `if input.pressed('f') then self.animate = 'Attack' end` in a Script component now actually plays that clip as a one-shot in Play mode, crossfading in and handing control back to normal locomotion once it finishes. Chosen over a new no-code bindings-list component per the user's own call, since scripting already generalizes to any key/clip pairing without new UI. The one real interaction bug — a freshly-triggered one-shot getting immediately overridden the same frame by the pre-existing ground-speed locomotion picker — is the same class of bug F46 already found and fixed for death clips, so it got the same fix: an explicit gate on the new one-shot state. Verified end-to-end against a real browser session using the bundled Wolf model's real `Attack` clip and a real DOM keypress, not just native tests. See [F47](docs/IMPLEMENTATION_STATUS.md#f47--a-keyanimation-lua-api-inputdowninputpressed-and-selfanimate-tier-3-gap-audit-item-3-0470).
 
-Engine version 0.48.0 rebuilds the physics core, starting the Unity gap analysis ([docs/unity/GAP_ANALYSIS.md](docs/unity/GAP_ANALYSIS.md)). Dynamic bodies now collide with each other: they share the separation by mass and exchange momentum, so a light crate barely moves a heavy one. The editor's `RigidBody.mass` and `dynamic` fields finally do something; they had been authorable but were never read. Unticking `dynamic` makes a body kinematic: no gravity, never pushed, but it still pushes. `Collider` gains `isTrigger` (overlap-only, reports enter/stay/exit), `layer`/`mask` (a per-collider layer collision matrix) and `bounciness`. The engine API also adds `add_force`/`add_impulse`, contact events, and raycast/`overlap_sphere` query filters. See [F48](docs/IMPLEMENTATION_STATUS.md#f48--physics-core-dynamic-pairs-kinematic-bodies-triggers-layers-bounciness-forces-0480).
+Engine version 0.48.0 makes F/G play an animation with no scripting required, plus a real crouch/sit key. A new `engine::script::Runtime::request_animation` lets native bridge code (not just Lua) queue a one-shot the same way a script's own `self.animate` already does: F and G now play an attack/blast animation on every press, hit or miss, and a hostile AI landing a hit on the Player animates too. A new C key makes the Player crouch/sit while held, natively freezing WASD input so sitting can't slide across the floor. Since different imported packs name the "same" action differently (`Attack` vs `punching`, `sit` vs nothing at all), a small `actionClipSynonyms` candidate list resolves each of the three reserved action keys case-insensitively against whatever clips a given model actually has, falling back to plain exact-name matching for an ordinary Lua `self.animate` request — F47's own contract stays unchanged for a script author. Verified against three real running sessions: Mannequin F (Mixamo)'s real `punching`/`firing_rifle` clips on F/G, the plain Mannequin F's real `sit` clip plus a frozen position readout while crouch-holding W, and a bundled Wolf's real `Attack` clip firing the instant its AI landed a hit on the Player. See [F48](docs/IMPLEMENTATION_STATUS.md#f48--fg-play-an-animation-natively-plus-a-crouchsit-key-0480).
 
-Engine version 0.49.0 widens the Lua `Script` API so most small games need no C++ changes. It adds:
+Engine version 0.49.0 merges "Mannequin F (Mixamo)" into "Mannequin F" — one catalog entry with all nine clips instead of two separate models for what's visually the same character. The two rigs share a mesh but not a skeleton (Quaternius's 65-joint UE-style names vs Mixamo's 46-joint `mixamorig*` auto-rig), which is why F37/F38 shipped them as separate entries in the first place after an earlier retarget attempt was abandoned; this round retried it with a world-space rotation-delta method — computed per bone from the source's own rest pose, re-applied onto the target's rest pose, converted back to local using the target parent's own *animated* world orientation for that frame, not its rest one (an early version's bug: using the parent's rest orientation silently assumes every ancestor stays frozen, invisible on a shallow pose but clearly wrong on `firing_rifle`'s sustained two-handed chest-level aim). Verified by rendering actual frames of all three retargeted clips (`punching`/`firing_rifle`/`flying`) and comparing side-by-side against the untouched pre-merge model at the same clip fractions — no skeleton distortion, poses match. See [F49](docs/IMPLEMENTATION_STATUS.md#f49--merge-mannequin-f-mixamo-into-mannequin-f-via-skeletal-retarget-0490).
+Engine version 0.50.0 rebuilds the physics core, starting the Unity gap analysis ([docs/unity/GAP_ANALYSIS.md](docs/unity/GAP_ANALYSIS.md)). Dynamic bodies now collide with each other: they share the separation by mass and exchange momentum, so a light crate barely moves a heavy one. The editor's `RigidBody.mass` and `dynamic` fields finally do something; they had been authorable but were never read. Unticking `dynamic` makes a body kinematic: no gravity, never pushed, but it still pushes. `Collider` gains `isTrigger` (overlap-only, reports enter/stay/exit), `layer`/`mask` (a per-collider layer collision matrix) and `bounciness`. The engine API also adds `add_force`/`add_impulse`, contact events, and raycast/`overlap_sphere` query filters. See [F50](docs/IMPLEMENTATION_STATUS.md#f50--physics-core-dynamic-pairs-kinematic-bodies-triggers-layers-bounciness-forces-0500).
 
-- **Callbacks**: `on_start`, `on_destroy`, `on_collision_enter/stay/exit(other)`, `on_trigger_enter/stay/exit(other)` (fed by 0.48.0's contact events) and `on_message`.
+Engine version 0.51.0 widens the Lua `Script` API so most small games need no C++ changes. It adds:
+
+- **Callbacks**: `on_start`, `on_destroy`, `on_collision_enter/stay/exit(other)`, `on_trigger_enter/stay/exit(other)` (fed by 0.50.0's contact events) and `on_message`.
 - **A `world` API**: `find`, `name`, `position`/`set_position`, `velocity`/`set_velocity`, `spawn` (any prefab, rendered live), `destroy`, `health`/`damage`, `raycast`, `overlap`, and `send` for messaging between scripts.
 - **Physics**: `physics.add_force`/`add_impulse`.
 - **Timers and coroutines**: `after`/`every`/`cancel` and `start`/`wait`.
@@ -96,18 +99,18 @@ Engine version 0.49.0 widens the Lua `Script` API so most small games need no C+
 - **Inspector-editable props**, declared in the source with `-- @prop speed 5`.
 - **Writable position**: `self.x/y/z` now teleport the entity when written.
 
-See [F49](docs/IMPLEMENTATION_STATUS.md#f49--lua-api-breadth-callbacks-world-api-spawn-timers-props-sound-and-ui-0490).
+See [F51](docs/IMPLEMENTATION_STATUS.md#f51--lua-api-breadth-callbacks-world-api-spawn-timers-props-sound-and-ui-0510).
 
-Engine version 0.50.0 covers the rendering basics from the gap analysis:
+Engine version 0.52.0 covers the rendering basics from the gap analysis:
 
 - **Real-time shadows**: the sun casts soft shadows onto everything and onto a shadow-only ground plane, and any `Light` can opt in with `castShadows`.
 - **`Environment`**: a scene-wide component with a Color, Gradient or Procedural sky, image-based lighting from that sky, sun direction/color/intensity, ambient level, Linear or Exponential fog, a shadows toggle and exposure.
 - **`Camera`**: during Play the highest-priority camera renders the game view from its entity, in perspective or orthographic.
 - **`Material`**: color, metalness, roughness, emissive and opacity, which replace the placeholder box's surface or tint a catalog model while keeping its textures.
 
-See [F50](docs/IMPLEMENTATION_STATUS.md#f50--rendering-basics-shadows-environment-camera-material-0500).
+See [F52](docs/IMPLEMENTATION_STATUS.md#f52--rendering-basics-shadows-environment-camera-material-0520).
 
-Engine version 0.51.0 adds an `Animator` component, which is an animation state machine written as short text:
+Engine version 0.53.0 adds an `Animator` component, which is an animation state machine written as short text:
 
 ```
 state idle
@@ -117,27 +120,27 @@ attack -> idle when end
 event attack 0.4 hit
 ```
 
-It supports states with a clip, loop/once and a speed; transitions with `and`-joined conditions (comparisons, booleans, triggers, `end`) and crossfade times; and animation events at a normalized clip time. Scripts drive it with `anim.set`/`anim.trigger` and hear back through `on_anim_event`/`on_anim_state`. The editor fills in `speed`, `grounded` and `vy` automatically. See [F51](docs/IMPLEMENTATION_STATUS.md#f51--animator-state-machine-states-transitions-parameters-events-0510).
+It supports states with a clip, loop/once and a speed; transitions with `and`-joined conditions (comparisons, booleans, triggers, `end`) and crossfade times; and animation events at a normalized clip time. Scripts drive it with `anim.set`/`anim.trigger` and hear back through `on_anim_event`/`on_anim_state`. The editor fills in `speed`, `grounded` and `vy` automatically. See [F53](docs/IMPLEMENTATION_STATUS.md#f53--animator-state-machine-states-transitions-parameters-events-0530).
 
-Engine version 0.52.0 adds navigation and a camera rig:
+Engine version 0.54.0 adds navigation and a camera rig:
 
 - **Navigation** (`engine::nav`): a new grid A* module, baked from solid colliders and inflated by the agent radius. It ignores low curbs, triggers and movable bodies, and smooths paths with line-of-sight checks.
 - **Chasing AI** now walks around walls instead of pressing into them. Scripts get the same paths through `world.path(...)`.
 - **`CameraFollow`**: on a `Camera` entity, a follow rig that tracks the Player or a named entity from an offset, eases toward it, pulls in front of obstacles, and can be orbited by dragging.
 - **`camera.shake(intensity, seconds)`** gives scripts screen shake.
 
-See [F52](docs/IMPLEMENTATION_STATUS.md#f52--navigation-grid-a-pathfinding-and-a-camera-rig-0520).
+See [F54](docs/IMPLEMENTATION_STATUS.md#f54--navigation-grid-a-pathfinding-and-a-camera-rig-0540).
 
-Engine version 0.53.0 brings the browser up to the engine's native input system:
+Engine version 0.55.0 brings the browser up to the engine's native input system:
 
 - **Devices**: every key, the mouse (position, buttons, deltas, wheel, pointer lock), touch (through pointer events) and the gamepad (standard mapping) now feed the native `InputState`.
 - **Actions**: the native `ActionSystem` evaluates named actions every tick. The defaults are `move_x`/`move_y`/`look_x`/`look_y`/`jump`/`fire`/`interact`/`sprint`, and a scene can rebind them with an `InputActions` component using lines like `jump: space, pad_a`.
 - **Lua**: scripts get `input.action/action_down/action_pressed/action_released`, `input.mouse()`, `mouse_down/mouse_pressed`, `wheel()`, `pad_down/pad_pressed/pad_axis/pad_connected` and `lock_mouse`.
 - **Fix**: presses and clicks no longer get lost on displays faster than 60 Hz.
 
-See [F53](docs/IMPLEMENTATION_STATUS.md#f53--input-parity-every-key-mouse-touch-gamepad-and-native-actions-in-the-browser-0530).
+See [F55](docs/IMPLEMENTATION_STATUS.md#f55--input-parity-every-key-mouse-touch-gamepad-and-native-actions-in-the-browser-0550).
 
-Engine version 0.54.0 expands the `UI` component:
+Engine version 0.56.0 expands the `UI` component:
 
 - **New kinds**: Panel, Image, Bar, Slider and Toggle, alongside Text and Button.
 - **Layout and look**: pixel offsets from the anchor, width/height (0 = automatic), font size, color, opacity, and an image URL.
@@ -145,18 +148,18 @@ Engine version 0.54.0 expands the `UI` component:
 - **Lua**: scripts drive elements with `ui.set_value` and `ui.set_visible`, next to `ui.set_text`.
 - **Fix**: authored 0–1 colors are now read as sRGB, so the default backdrop matches the original exactly.
 
-See [F54](docs/IMPLEMENTATION_STATUS.md#f54--ui-expansion-panels-images-bars-sliders-toggles-script-buttons-layout-0540).
+See [F56](docs/IMPLEMENTATION_STATUS.md#f56--ui-expansion-panels-images-bars-sliders-toggles-script-buttons-layout-0560).
 
-Engine version 0.55.0 expands `Particles`:
+Engine version 0.57.0 expands `Particles`:
 
 - **Emitters**: Point, Sphere, Box and Cone shapes; color and size over lifetime; a gravity scale; Local or World simulation space; a burst when Play starts.
 - **Rendering**: particles draw as soft round sprites with per-particle size.
 - **Lua**: `particles.burst(n)` and `particles.set_emitting(bool)`.
 - **`Trail`**: a new component that draws a camera-facing ribbon behind a moving entity.
 
-The simulation moved into a pure, unit-tested module. See [F55](docs/IMPLEMENTATION_STATUS.md#f55--particles-shapes-over-lifetime-world-space-bursts-and-trails-0550).
+The simulation moved into a pure, unit-tested module. See [F57](docs/IMPLEMENTATION_STATUS.md#f57--particles-shapes-over-lifetime-world-space-bursts-and-trails-0570).
 
-Engine version 0.56.0 adds two editor features:
+Engine version 0.58.0 adds two editor features:
 
 - **Import asset…** (Project panel): add your own `.glb` models, images and audio. The files are stored in this browser's IndexedDB and survive reloads.
   - Models appear under a new "Imported" catalog category.
@@ -164,7 +167,7 @@ Engine version 0.56.0 adds two editor features:
   - Images are referenced as `asset:<file>` from `UI.image` and from `Material.texture`, a new field that also accepts a URL.
 - **Stats** overlay: FPS, frame time, C++ tick time, draw calls, triangles, entity count and every C++ system's time on the last tick.
 
-See [F56](docs/IMPLEMENTATION_STATUS.md#f56--asset-import-and-a-stats-overlay-0560).
+See [F58](docs/IMPLEMENTATION_STATUS.md#f58--asset-import-and-a-stats-overlay-0580).
 
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
