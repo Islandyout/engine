@@ -391,6 +391,7 @@ public:
     void destroy(engine::World &world, engine::Entity entity) override { world.defer_destroy(entity); }
     bool health(const engine::World &world, engine::Entity entity, float &current, float &max) override;
     void damage(engine::World &world, engine::Entity entity, float amount) override;
+    void heal(engine::World &world, engine::Entity entity, float amount) override;
     void emit(engine::Entity source, const std::string &kind, const std::string &a, const std::string &b) override;
     bool weapon(engine::World &world, engine::Entity self, const std::string &op, const std::vector<double> &args,
                 std::vector<double> &out) override;
@@ -451,7 +452,9 @@ struct Runtime {
     engine::physics::Events physics_events;
     // Walkability grid for chasing AI and world.path(), rebaked from the
     // static colliders once a second (see the "editor.nav" system).
-    engine::nav::Grid nav_grid{engine::nav::Settings{}};
+    // Covers a 260 m square (0.66.0; was 120 m) so outdoor levels on a
+    // terrain get paths end to end.
+    engine::nav::Grid nav_grid{engine::nav::Settings{0.5F, 0.4F, 0.35F, 2.0F, 130.0F}};
     // Named actions from the scene's InputActions bindings (or the
     // defaults), evaluated from `input` every tick.
     engine::ActionSystem actions{default_input_map()};
@@ -1721,6 +1724,12 @@ bool BridgeHost::health(const engine::World &world, engine::Entity entity, float
     current = h->current;
     max = h->max;
     return true;
+}
+
+void BridgeHost::heal(engine::World &world, engine::Entity entity, float amount) {
+    auto *health = world.get<Health>(entity);
+    if (health && health->current > 0 && std::isfinite(amount) && amount > 0)
+        health->current = std::min(health->max, health->current + amount);
 }
 
 void BridgeHost::damage(engine::World &world, engine::Entity entity, float amount) {

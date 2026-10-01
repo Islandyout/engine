@@ -183,14 +183,31 @@ export interface ScatterRule {
   collide: boolean;
 }
 
-// "model density [minScale maxScale] [minNormalY] [collide]" per line.
-export function parseScatter(text: string): { rules: ScatterRule[]; errors: string[] } {
+// A rectangle (local x/z) no scatter is placed in: "exclude x0 z0 x1 z1".
+export interface ScatterExclusion {
+  x0: number;
+  z0: number;
+  x1: number;
+  z1: number;
+}
+
+// "model density [minScale maxScale] [minNormalY] [collide]" per line, plus
+// "exclude x0 z0 x1 z1" lines that keep scatter out of a rectangle.
+export function parseScatter(text: string): { rules: ScatterRule[]; errors: string[]; exclusions: ScatterExclusion[] } {
   const rules: ScatterRule[] = [];
   const errors: string[] = [];
+  const exclusions: ScatterExclusion[] = [];
   text.split("\n").forEach((raw, index) => {
     const line = raw.replace(/#.*$/, "").trim();
     if (!line) return;
     const words = line.split(/\s+/);
+    if (words[0] === "exclude") {
+      const [x0, z0, x1, z1] = words.slice(1).map(Number);
+      if (words.length !== 5 || [x0, z0, x1, z1].some((v) => !Number.isFinite(v)))
+        return void errors.push(`line ${index + 1}: expected "exclude x0 z0 x1 z1"`);
+      exclusions.push({ x0: Math.min(x0!, x1!), z0: Math.min(z0!, z1!), x1: Math.max(x0!, x1!), z1: Math.max(z0!, z1!) });
+      return;
+    }
     const collide = words[words.length - 1] === "collide";
     if (collide) words.pop();
     const [model, density, minScale = "1", maxScale = minScale, maxSlope = "0.8"] = words.map(String);
@@ -206,7 +223,7 @@ export function parseScatter(text: string): { rules: ScatterRule[]; errors: stri
       collide,
     });
   });
-  return { rules, errors };
+  return { rules, errors, exclusions };
 }
 
 export interface ScatterInstance {
@@ -220,7 +237,12 @@ export interface ScatterInstance {
 }
 
 // Deterministic placements for every rule, at most 4000 in total.
-export function scatterInstances(params: TerrainParams, heights: Float32Array, rules: ScatterRule[]): ScatterInstance[] {
+export function scatterInstances(
+  params: TerrainParams,
+  heights: Float32Array,
+  rules: ScatterRule[],
+  exclusions: ScatterExclusion[] = [],
+): ScatterInstance[] {
   const out: ScatterInstance[] = [];
   rules.forEach((rule, r) => {
     const count = Math.min(4000 - out.length, Math.round(rule.density * params.size * params.size));
@@ -229,6 +251,7 @@ export function scatterInstances(params: TerrainParams, heights: Float32Array, r
       const x = (hash(k, r, params.seed + 7) - 0.5) * params.size * 0.98;
       const z = (hash(k, r + 31, params.seed + 13) - 0.5) * params.size * 0.98;
       if (normalY(heights, params.resolution, params.size, x, z) < rule.maxSlope) continue;
+      if (exclusions.some((e) => x >= e.x0 && x <= e.x1 && z >= e.z0 && z <= e.z1)) continue;
       out.push({
         model: rule.model,
         x,

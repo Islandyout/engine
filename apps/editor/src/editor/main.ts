@@ -648,11 +648,33 @@ async function startEditor() {
     if (body) body.visible = false;
     return view;
   }
+  // A first-person player who died: the view stays where they fell,
+  // sinking toward the ground and rolling over (0.66.0).
+  let deathRoll = 0;
+  function deathView() {
+    return (
+      doc.mode !== "edit" &&
+      playerController()?.mode === "FirstPerson" &&
+      playerIndex >= 0 &&
+      runtime._editor_alive(playerIndex) === 0
+    );
+  }
+  function placeDeathView(dt: number): THREE.PerspectiveCamera {
+    const view = fps.camera;
+    deathRoll = Math.min(1, deathRoll + dt * 1.5);
+    const ease = 1 - (1 - deathRoll) * (1 - deathRoll);
+    view.position.set(fps.current.x, fps.current.y + 1.6 - ease * 1.3, fps.current.z);
+    view.rotation.set(fps.look.pitch * (1 - ease) - ease * 0.25, fps.look.yaw, ease * 0.9, "YXZ");
+    view.aspect = viewport.clientWidth / Math.max(viewport.clientHeight, 1);
+    view.updateProjectionMatrix();
+    return view;
+  }
   // Largest landing speed reported by this frame's ticks.
   let fpsLanding = 0;
   function gameCamera(): THREE.Camera | undefined {
     if (doc.mode === "edit") return undefined;
     if (firstPerson()) return placeFirstPerson(rig.frameDt);
+    if (deathView()) return placeDeathView(rig.frameDt);
     let best: { component: CameraComponent; index: number } | undefined;
     doc.scene.eachAlive().forEach((entity, index) => {
       const component = doc.scene.resolve(entity, "Camera");
@@ -1444,6 +1466,10 @@ async function startEditor() {
     // Scale matching the physics box would blow the mesh up by its own
     // native size on top (see rebuild()).
     nativeSize: THREE.Vector3;
+    // Center of the model's own bounds: catalog models are authored with
+    // their origin at their feet, so they're shifted by this to sit centered
+    // on the entity's collision box (0.66.0).
+    nativeCenter: THREE.Vector3;
   }
   const catalogCache = new Map<number, CachedModel>();
   const catalogPromises = new Map<number, Promise<CachedModel>>();
@@ -1474,8 +1500,10 @@ async function startEditor() {
     let promise = catalogPromises.get(meshId);
     if (!promise) {
       promise = gltfLoader.loadAsync(entry.path).then((gltf) => {
-        const nativeSize = new THREE.Box3().setFromObject(gltf.scene).getSize(new THREE.Vector3());
-        const cached = { scene: gltf.scene, clips: gltf.animations, nativeSize };
+        const bounds = new THREE.Box3().setFromObject(gltf.scene);
+        const nativeSize = bounds.getSize(new THREE.Vector3());
+        const nativeCenter = bounds.getCenter(new THREE.Vector3());
+        const cached = { scene: gltf.scene, clips: gltf.animations, nativeSize, nativeCenter };
         catalogCache.set(meshId, cached);
         return cached;
       });
@@ -2087,7 +2115,16 @@ async function startEditor() {
   }
   // Script-set UI text (ui.set_text), keyed by the UI entity's Name.
   // Play-session state only: cleared whenever the runtime is rebuilt.
+  // Play-session UI state from scripts and interaction, keyed by the UI
+  // entity's Name: values (Bar/Slider/Toggle) and visibility. Cleared
+  // whenever the runtime is rebuilt, like uiTextOverrides. Declared before
+  // the player-mode bootstrap starts Play, whose first scripts set them.
+  const uiValues = new Map<string, number>();
+  const uiVisibility = new Map<string, boolean>();
+  let draggingSlider: UIButtonHit | undefined;
   const uiTextOverrides = new Map<string, string>();
+  // Script waypoints (ui.marker), by name (0.66.0).
+  const uiMarkers = new Map<string, { position: THREE.Vector3; label: string }>();
   // Runtime-spawned prefab instances (world.spawn) get render objects at the
   // same index the bridge appended them at.
   function adoptSpawnedEntities() {
@@ -2244,6 +2281,13 @@ async function startEditor() {
         else if (state) state.emitter.emitting = a === "1";
       } else if (kind === "ui_value") uiValues.set(a, Math.min(1, Math.max(0, Number(b) || 0)));
       else if (kind === "ui_visible") uiVisibility.set(a, b === "1");
+      else if (kind === "ui_marker") {
+        const [x = 0, y = 0, z = 0] = b.split(",", 3).map(Number);
+        const label = b.split(",").slice(3).join(",");
+        uiMarkers.set(a, { position: new THREE.Vector3(x, y, z), label });
+      } else if (kind === "ui_marker_clear") uiMarkers.delete(a);
+      else if (kind === "game_pause") runUIAction("pause");
+      else if (kind === "game_resume") runUIAction("resume");
       else if (kind === "mouse_lock") {
         if (a === "1") void renderer.domElement.requestPointerLock?.();
         else if (document.pointerLockElement) document.exitPointerLock();
@@ -2264,6 +2308,7 @@ async function startEditor() {
   }
   function syncRuntime() {
     uiTextOverrides.clear();
+    uiMarkers.clear();
     uiValues.clear();
     uiVisibility.clear();
     draggingSlider = undefined;
@@ -2305,7 +2350,8 @@ async function startEditor() {
         ["number", "number", "number", "number", "number", "string"],
         [center.x, center.y, center.z, params.size, params.resolution, encodeHeights(heights)],
       );
-      for (const instance of scatterInstances(params, heights, parseScatter(terrain.scatter).rules)) {
+      const scatter = parseScatter(terrain.scatter);
+      for (const instance of scatterInstances(params, heights, scatter.rules, scatter.exclusions)) {
         if (!instance.collide) continue;
         const box = scatterObstacle(instance, catalogCache.get(instance.model)?.nativeSize);
         runtime._editor_add_obstacle(center.x + box.x, center.y + box.y, center.z + box.z, box.sx, box.sy, box.sz);
@@ -2455,7 +2501,7 @@ async function startEditor() {
     const group = new THREE.Group();
     const mesh = buildTerrainMesh(params, look, heights);
     group.add(mesh);
-    const { rules, errors } = parseScatter(t.scatter);
+    const { rules, errors, exclusions } = parseScatter(t.scatter);
     if (errors.length) log(`Terrain scatter: ${errors.join("; ")}`);
     if (rules.length) {
       const models = new Map<number, { scene: THREE.Object3D }>();
@@ -2473,7 +2519,7 @@ async function startEditor() {
             (error) => log(`Catalog model ${rule.model} failed to load: ${String(error)}`),
           );
       }
-      group.add(buildScatter(scatterInstances(params, heights, rules), models));
+      group.add(buildScatter(scatterInstances(params, heights, rules, exclusions), models));
     }
     terrainMeshes.set(index, { mesh, params, look, offsets });
     return group;
@@ -2581,12 +2627,21 @@ async function startEditor() {
       // the mesh's literal world-space size, matching the physics Box's
       // dimensions (same s.x/y/z) instead of stacking on top of it.
       const n = cached.nativeSize;
-      anchor.scale.set(
-        n.x > 1e-6 ? s.x / n.x : s.x,
-        n.y > 1e-6 ? s.y / n.y : s.y,
-        n.z > 1e-6 ? s.z / n.z : s.z,
-      );
+      // Characters (an animated model driven by AI or a controller) keep
+      // their proportions: one uniform scale from the box's height, since a
+      // rig's bind pose (arms out) says nothing about its collision width.
+      const character = catalog?.animated && (get("AICombat") || get("CharacterController"));
+      if (character && n.y > 1e-6) anchor.scale.setScalar(s.y / n.y);
+      else
+        anchor.scale.set(
+          n.x > 1e-6 ? s.x / n.x : s.x,
+          n.y > 1e-6 ? s.y / n.y : s.y,
+          n.z > 1e-6 ? s.z / n.z : s.z,
+        );
     } else if (s) anchor.scale.set(s.x, s.y, s.z);
+    // Center a catalog model on the box rather than standing its feet at
+    // the box's center.
+    if (cached && !terrainComponent) object.position.copy(cached.nativeCenter).negate();
     anchor.add(object);
     // A soldier with Weapons visibly holds its first weapon (0.62.0).
     const loadout = get("AICombat") ? get("Weapons")?.loadout : undefined;
@@ -3064,6 +3119,7 @@ async function startEditor() {
         fps.look.yaw = playerRotation?.euler.y ?? 0;
         fps.look.pitch = 0;
         fps.view.reset();
+        deathRoll = 0;
         weaponFx.reset();
         zoomBlend = 0;
         weaponFx.equip(playerWeaponModel());
@@ -3481,6 +3537,10 @@ async function startEditor() {
       for (const entity of doc.scene.eachAlive()) {
         const mesh = doc.scene.resolve(entity, "Renderable")?.mesh;
         if (mesh && mesh >= 1) meshIds.add(mesh);
+        // Terrain scatter models too: without them the first rebuild()
+        // would place no foliage, and Play never rebuilds again.
+        const terrain = doc.scene.resolve(entity, "Terrain");
+        if (terrain) for (const rule of parseScatter(terrain.scatter).rules) meshIds.add(rule.model);
       }
       await Promise.all(
         [...meshIds].map((id) =>
@@ -3541,6 +3601,9 @@ async function startEditor() {
     previous = now;
     let steps = 0;
     const player = playerIndex >= 0 ? objects[playerIndex] : undefined;
+    // UI clicks while paused (a script's on_ui) can still queue commands,
+    // e.g. game.resume() from a title screen's button.
+    if (doc.mode === "pause") runScriptCommands();
     if (doc.mode === "play") {
       // Once per rendered frame, before any of this frame's ticks — mirrors
       // the native platform's own begin_frame()-then-apply-events-then-step
@@ -3924,13 +3987,7 @@ async function startEditor() {
     action: UIAction;
     value: number;
   }
-  // Play-session UI state from scripts and interaction, keyed by the UI
-  // entity's Name: values (Bar/Slider/Toggle) and visibility. Cleared
-  // whenever the runtime is rebuilt, like uiTextOverrides.
-  const uiValues = new Map<string, number>();
-  const uiVisibility = new Map<string, boolean>();
   const uiImages = new Map<string, HTMLImageElement>();
-  let draggingSlider: UIButtonHit | undefined;
   const css = (c: Vec3, alpha: number) =>
     `rgba(${Math.round(c.x * 255)}, ${Math.round(c.y * 255)}, ${Math.round(c.z * 255)}, ${alpha})`;
   function uiImage(url: string) {
@@ -4030,6 +4087,49 @@ async function startEditor() {
   // incrementally, matching the Health bars' own established reasoning
   // (entities/UI state can change every tick; nothing here is worth diffing
   // against a held/released-style previous frame).
+  // Script waypoints: a diamond with a label and distance, pinned to the
+  // screen edge (pointing the way) when off screen or behind the view.
+  function drawWaypoints() {
+    if (!uiMarkers.size) return;
+    const from = viewCamera.getWorldPosition(new THREE.Vector3());
+    const margin = 36;
+    for (const { position, label } of uiMarkers.values()) {
+      hudScratch.copy(position).project(viewCamera);
+      const behind = hudScratch.z > 1;
+      let x = hudScratch.x,
+        y = hudScratch.y;
+      if (behind) {
+        x = -x;
+        y = -y;
+      }
+      const offscreen = behind || Math.abs(x) > 1 || Math.abs(y) > 1;
+      if (offscreen) {
+        const scale = 1 / Math.max(Math.abs(x), Math.abs(y), 1e-6);
+        x *= scale;
+        y *= scale;
+      }
+      const px = Math.min(hud.width - margin, Math.max(margin, ((x + 1) / 2) * hud.width));
+      const py = Math.min(hud.height - margin, Math.max(margin, ((1 - y) / 2) * hud.height));
+      hudCtx.save();
+      hudCtx.translate(px, py);
+      hudCtx.rotate(Math.PI / 4);
+      hudCtx.fillStyle = "rgba(255, 211, 106, 0.9)";
+      hudCtx.strokeStyle = "rgba(0, 0, 0, 0.6)";
+      hudCtx.lineWidth = 2;
+      hudCtx.fillRect(-6, -6, 12, 12);
+      hudCtx.strokeRect(-6, -6, 12, 12);
+      hudCtx.restore();
+      hudCtx.font = "700 12px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif";
+      hudCtx.textAlign = "center";
+      hudCtx.textBaseline = "top";
+      hudCtx.lineWidth = 3;
+      hudCtx.strokeStyle = "rgba(0, 0, 0, 0.6)";
+      hudCtx.fillStyle = "#ffd36a";
+      const text = `${label ? label + " " : ""}${Math.round(from.distanceTo(position))}m`;
+      hudCtx.strokeText(text, px, py + 10);
+      hudCtx.fillText(text, px, py + 10);
+    }
+  }
   // "!" over soldiers in combat, "?" over ones that heard or lost something.
   function drawSoldierMarkers() {
     objects.forEach((object, i) => {
@@ -4127,6 +4227,9 @@ async function startEditor() {
         if (!object) return;
         const ratio = runtime._editor_value(index, 3);
         if (ratio < 0) return;
+        // In first person a bar is feedback on your own hits, not a radar:
+        // only damaged targets within 40 m get one.
+        if (firstPerson() && (ratio >= 1 || object.position.distanceTo(viewCamera.position) > 40)) return;
         const scaleY = doc.scene.resolve(entity, "Scale")?.value.y ?? 1;
         hudScratch.copy(object.position);
         hudScratch.y += scaleY / 2 + 0.35;
@@ -4147,7 +4250,10 @@ async function startEditor() {
           barHeight,
         );
       });
-    if (doc.mode !== "edit") drawSoldierMarkers();
+    if (doc.mode !== "edit") {
+      drawSoldierMarkers();
+      drawWaypoints();
+    }
     if (firstPerson()) hudLines.push(...drawFirstPersonOverlay());
     for (const entity of doc.scene.eachAlive()) {
       const authoredUi = doc.scene.resolve(entity, "UI");

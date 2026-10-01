@@ -65,6 +65,13 @@ public:
     // A request for something outside the simulation: "sound" (a = clip),
     // "ui_text" (a = UI element name, b = text), "log" (a = message).
     virtual void emit(Entity source, const std::string &kind, const std::string &a, const std::string &b) = 0;
+    // Restores up to `amount` Health (never above its maximum). The default
+    // host has no Health.
+    virtual void heal(World &world, Entity entity, float amount) {
+        (void)world;
+        (void)entity;
+        (void)amount;
+    }
     // Weapons (0.61.0), for the Lua `weapon` table: `op` is "fire" (args:
     // optional aim direction x, y, z), "reload", "select" (args: 0-based
     // slot), "ammo" (out: magazine, reserve, slot, reloading 0/1),

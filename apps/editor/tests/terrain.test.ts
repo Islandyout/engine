@@ -79,6 +79,11 @@ test("scatter rules parse, place deterministically on gentle slopes, and heights
     assert.ok(Math.abs(instance.x) <= 50 && Math.abs(instance.z) <= 50);
     assert.ok(Math.abs(instance.y - sampleHeight(heights, 33, 100, instance.x, instance.z)) < 1e-6);
   }
+  const fenced = parseScatter("46 0.01\nexclude -50 -50 0 50\nexclude 1 2 3\n");
+  assert.deepEqual(fenced.exclusions, [{ x0: -50, z0: -50, x1: 0, z1: 50 }]);
+  assert.equal(fenced.errors.length, 1, "a malformed exclude is reported");
+  const kept = scatterInstances(base, heights, fenced.rules, fenced.exclusions);
+  assert.ok(kept.length > 0 && kept.every((i) => i.x > 0), "nothing is placed in the excluded half");
   const encoded = encodeHeights(new Float32Array([1.5, -2]));
   const bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
   assert.deepEqual(Array.from(new Float32Array(bytes.buffer)), [1.5, -2]);

@@ -1457,6 +1457,23 @@ int main() {
     }
 
     {
+        // A level-sized terrain (260 m, 131x131) under a player and a soldier.
+        editor_begin();
+        check(editor_add(0, 6, 100, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 0, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        std::vector<float> big(131 * 131);
+        for (std::size_t i = 0; i < big.size(); ++i)
+            big[i] = static_cast<float>((i * 7919) % 13) * 0.5F;
+        editor_set_terrain(0, 0, 0, 260, 131, base64_floats(big).c_str());
+        check(editor_commit() == 1);
+        for (int i = 0; i < 180; ++i)
+            editor_tick();
+        // Standing on the surface (heights reach 6 m), not fallen through it.
+        const double feet = editor_controller_value(0, 6);
+        check(std::isfinite(feet) && std::abs(feet - editor_terrain_height(0, editor_value(0, 2))) < 0.1);
+    }
+
+    {
         // Terrain: a 40x40 hill (3x3 heights, peak 4) under a first-person
         // player walking up its gentle side; the feet follow the surface. A
         // scripted raycast hits it; an obstacle blocks a body; bad heights
@@ -1499,6 +1516,32 @@ int main() {
         check(editor_commit() == 0);
     }
 
+    {
+        // Game-support Lua APIs (0.66.0): world.heal caps at max, world.give_ammo
+        // tops up another entity's reserve, ui.marker / game.pause queue commands.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 40, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_name(0, "Player");
+        editor_set_weapons(0, "rifle: model=rifle mag=30 reserve=10 equip=0");
+        check(editor_add(5, 0.9, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(1, 1, 1, 0);
+        editor_set_script_source(1, "function on_start() local p = world.find('Player') world.heal(p, 30) world.heal(p, 500) "
+                                    "world.give_ammo(p, 25) ui.marker('Goal', 1, 2, 3, 'Uplink') game.pause() end");
+        check(editor_commit() == 1);
+        editor_tick();
+        check(editor_value(0, 3) == 1.0); // healed to the maximum, not beyond
+        check(editor_weapon_value(0, 2) == 35);
+        bool marker = false, paused = false;
+        const int commands = editor_take_commands();
+        for (int c = 0; c < commands; ++c) {
+            const std::string kind = editor_command_text(c, 0);
+            marker = marker || (kind == "ui_marker" && std::string(editor_command_text(c, 1)) == "Goal" &&
+                                std::string(editor_command_text(c, 2)).find(",Uplink") != std::string::npos);
+            paused = paused || kind == "game_pause";
+        }
+        check(marker && paused);
+    }
+
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
                  "movement, jump/sustained-flight, Collider box and sphere obstacle blocking, "
@@ -1516,5 +1559,5 @@ int main() {
                  "(crouch/sit) freezing Player WASD input while held, authored "
                  "RigidBody mass/kinematic and Collider trigger/layer settings, the script host "
                  "(prefab templates for world.spawn, names, props, sound/ui/log commands), and native "
-                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill), and combat soldiers (sight, bursts, hearing, investigating around cover, reloading in cover, melee hunters, patrols), and terrain (walking up a hill, scripted raycasts, obstacles) passed.\n";
+                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill), and combat soldiers (sight, bursts, hearing, investigating around cover, reloading in cover, melee hunters, patrols), terrain (walking up a hill, scripted raycasts, obstacles), and game-support script APIs (heal, give_ammo, markers, pause) passed.\n";
 }

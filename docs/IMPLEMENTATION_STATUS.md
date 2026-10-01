@@ -4621,3 +4621,53 @@ Software rendering, as in CI's headless Chromium, is slow with AO on: about 3 fp
   - shadow quality ordering and the grading shader's uniforms;
   - the component attaches with the preset and rejects an out-of-range vignette or an unknown AA mode.
 - `tests/browser/fps.cjs`: SMAA, grading, vignette, grain and high-quality shadows render through Play without errors. Evidence screenshot `f65-post-processing.png`.
+
+## F66 — Game-flow script APIs (0.66.0)
+
+Small additions the first-person shooter needed to be written entirely in Lua.
+
+- **`world.heal(id, amount)`** goes through a new `Host::heal` hook, whose default does nothing. The bridge raises Health up to its maximum, and only for entities still alive.
+- **`world.give_ammo(id, rounds[, slot])`** uses the existing `Host::weapon("give_ammo")` path, but on any entity instead of the script's own.
+- **Waypoints**: `ui.marker` and `ui.clear_marker` emit `ui_marker` / `ui_marker_clear` commands.
+  - The editor keeps the markers until the runtime is rebuilt.
+  - Each frame it draws a diamond with the label and the distance from the view. A marker off screen or behind the camera is pinned to the screen edge in its direction.
+- **Pausing from scripts**: `game.pause()` and `game.resume()` emit commands that run the same code as the Pause and Resume buttons.
+  - `runScriptCommands()` now also runs in frames while paused.
+  - So a title or pause screen's buttons (`on_ui`, which runs immediately) can resume the game.
+- **Death view**: once a first-person player is destroyed, the view stays at their last position. It sinks about 1.3 m and rolls about 50°, easing out over roughly 0.7 s, instead of jumping to the editor camera.
+
+### F66 verification
+
+`engine_editor_bridge_tests` checks that:
+
+- a script's `world.heal` caps at the player's maximum;
+- `world.give_ammo` raises the player's reserve;
+- `ui.marker` and `game.pause` queue their commands.
+
+## F67 — LAST SIGNAL: the FPS, and the engine fixes it drove (0.67.0)
+
+A complete first-person shooter built only from engine data: `examples/fps/last-signal.json` and the Lua in `tools/fps/lua/`. The design, research basis and tuning tables are in [docs/fps/GAME_DESIGN.md](fps/GAME_DESIGN.md).
+
+- **Generator**: `tools/fps/build_last_signal.ts` (`npm run fps --prefix apps/editor`) builds the scene from one set of coordinates.
+  - It computes terrain sculpt offsets with the editor's own `generateHeights`, so the outpost pad, roads, checkpoint and LZ sit flat in the noise, with ridges at the edges.
+  - It places the outpost, cover, towers, objectives, enemies, UI and prefabs, and substitutes positions and spawn tables into `director.lua`.
+  - It validates the result with `validateSceneDocument`.
+- **Scripts**: `director.lua` (phases, intensity-based pacing, spawning out of sight, HUD, waypoints, stats, best times), `player.lua` (difficulty damage scaling, partial regeneration), `enemy.lua` (kill, headshot and drop reports), `pickup.lua` and `generator.lua`.
+- **Publishing**: `tools/export_build.mjs --page <file.html>` bakes a scene into a single page inside `build/site/`, reusing the editor's assets. `tools/build_editor.sh` publishes the game as `last-signal.html`.
+
+Engine fixes found by building and playing it:
+
+- **Player-build crash**: the player-mode bootstrap starts Play before `uiValues`, `uiVisibility` and `draggingSlider` were declared, so a script calling `ui.set_value` or `ui.set_visible` in `on_start` threw a TDZ `ReferenceError` and left the build in Edit mode. They're declared with the other UI state now.
+- **Wasm stack overflow**: `ccall` copies string arguments onto the wasm stack, and a 131² terrain's base64 heights (about 92 KB) overflowed the 64 KB default ("memory access out of bounds"). The runtime is linked with an 8 MB stack, enough for the 1025² limit.
+- **Missing foliage in player builds**: the bootstrap preloaded only `Renderable` models, so terrain scatter models weren't cached on the one rebuild before Play. It preloads scatter models too.
+- **Model placement**: catalog models are centered on their collider box (they floated by half their height), and animated characters driven by `AICombat` or a `CharacterController` scale uniformly by height.
+- **Prefab Scale**: `Scale` is prefabable, so `world.spawn` instances get the prefab's size; a placed instance's own Scale still wins.
+- **Scatter exclusions**: an `exclude x0 z0 x1 z1` line keeps scatter out of a rectangle.
+- **Nav extent**: the nav grid covers 260 m (was 120 m).
+- **Health bars**: in first person, bars only show over damaged targets within 40 m, not every enemy at any range.
+
+### F67 verification
+
+- `tests/browser/last_signal.cjs` (CI) serves the game as a player build and checks the title card, Deploy, the pause menu and Resume. On a trimmed copy of the level it plays the whole mission: generator destroyed by holding fire, uplink, upload, extraction and the win panel.
+- `apps/editor/tests/lastSignal.test.ts` regenerates the level and fails if the committed scene is stale.
+- `engine_editor_bridge_tests` runs a level-sized 131² terrain under a controller.
