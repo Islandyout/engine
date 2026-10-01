@@ -56,6 +56,7 @@ import { autoSize, contains, layoutRect, sliderValue, type UIRect } from "./uiLa
 import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGraph } from "./animator";
 import { applyMouseLook, applyStickLook, ViewEffects, type Look } from "./fpsView";
 import { Sfx } from "./sfx";
+import { AudioMixer, defaultMixerSettings, FootstepTracker, type Bus } from "./audioMixer";
 import { EventFlag, EventKind, WeaponFx } from "./weaponFx";
 import { buildViewmodel } from "./viewmodels";
 import {
@@ -228,6 +229,7 @@ type Runtime = {
   _editor_set_soldier(index: number, ...settings: number[]): void;
   _editor_add_obstacle(x: number, y: number, z: number, sx: number, sy: number, sz: number): void;
   _editor_terrain_height(x: number, z: number): number;
+  _editor_line_blocked(x1: number, y1: number, z1: number, x2: number, y2: number, z2: number): number;
   _editor_soldier_value(index: number, field: number): number;
   _editor_take_weapon_events(): number;
   _editor_weapon_event(index: number, field: number): number;
@@ -926,13 +928,59 @@ async function startEditor() {
   viewmodelPass.clearDepth = true;
   viewmodelPass.enabled = false;
   composer?.insertPass(viewmodelPass, 1);
+  // Audio (0.64.0): every sound goes through the mixer's buses; world
+  // sounds are positional and muffled behind solid geometry.
+  let mixer: AudioMixer | undefined;
+  function audioMixer(): AudioMixer {
+    mixer ??= new AudioMixer(getAudioContext());
+    return mixer;
+  }
   let sfx: Sfx | undefined;
   function sounds(): Sfx {
-    if (!sfx) {
-      const context = getAudioContext();
-      sfx = new Sfx(context, context.destination);
-    }
+    sfx ??= new Sfx(getAudioContext(), audioMixer().buses.sfx);
     return sfx;
+  }
+  const listenerPosition = new THREE.Vector3();
+  // A synthesized voice played at a world position.
+  function soundsAt(point: THREE.Vector3, volume = 1): Sfx {
+    const occluded =
+      audioMixer().occlusion &&
+      runtime._editor_line_blocked(listenerPosition.x, listenerPosition.y, listenerPosition.z, point.x, point.y + 0.3, point.z) === 1;
+    return sounds().at(audioMixer().source("sfx", point, { occluded, volume }).input);
+  }
+  const playerSteps = new FootstepTracker();
+  const soldierSteps = new Map<number, { tracker: FootstepTracker; previous: THREE.Vector3 }>();
+  function surfaceAt(x: number, feetY: number, z: number): "grass" | "hard" {
+    const ground = runtime._editor_terrain_height(x, z);
+    return Number.isFinite(ground) && Math.abs(feetY - ground) < 0.25 ? "grass" : "hard";
+  }
+  // Footsteps and landings for controller players and soldiers.
+  function playMovementSounds(dt: number) {
+    if (playerIndex >= 0 && playerController() && runtime._editor_alive(playerIndex)) {
+      const speed = runtime._editor_controller_value(playerIndex, 4);
+      const grounded = runtime._editor_controller_value(playerIndex, 2) === 1;
+      const crouched = runtime._editor_controller_value(playerIndex, 1) === 1;
+      const feet = runtime._editor_controller_value(playerIndex, 6);
+      const x = runtime._editor_value(playerIndex, 0),
+        z = runtime._editor_value(playerIndex, 2);
+      if (playerSteps.step(dt, speed, grounded)) {
+        const voice = firstPerson() ? sounds() : soundsAt(new THREE.Vector3(x, feet, z));
+        voice.footstep(surfaceAt(x, feet, z), (crouched ? 0.35 : 0.8) * Math.min(1.3, speed / 4.5));
+      }
+      if (fpsLanding > 4) (firstPerson() ? sounds() : soundsAt(new THREE.Vector3(x, feet, z))).land(Math.min(1, fpsLanding / 12));
+    }
+    objects.forEach((object, i) => {
+      if (runtime._editor_soldier_value(i, 0) < 0 || !runtime._editor_alive(i)) return;
+      let entry = soldierSteps.get(i);
+      if (!entry) soldierSteps.set(i, (entry = { tracker: new FootstepTracker(), previous: object.position.clone() }));
+      const speed = dt > 0 ? Math.hypot(object.position.x - entry.previous.x, object.position.z - entry.previous.z) / dt : 0;
+      entry.previous.copy(object.position);
+      if (entry.tracker.step(dt, speed, true)) {
+        const half = (doc.scene.resolve(doc.scene.eachAlive()[i] ?? { index: -1, generation: 0 }, "Scale")?.value.y ?? 1.8) / 2;
+        const feet = new THREE.Vector3(object.position.x, object.position.y - half, object.position.z);
+        soundsAt(feet, 0.9).footstep(surfaceAt(feet.x, feet.y, feet.z), 0.9);
+      }
+    });
   }
   // Ease in/out of the aim-down-sights zoom.
   let zoomBlend = 0;
@@ -982,7 +1030,7 @@ async function startEditor() {
             const aimed = runtime._editor_weapon_value(playerIndex, 7) === 1;
             fps.look.pitch = Math.min(1.55, fps.look.pitch + THREE.MathUtils.degToRad(value) * (aimed ? 0.4 : 0.7));
             fps.look.yaw += THREE.MathUtils.degToRad(value) * 0.3 * (Math.random() - 0.5);
-          } else sounds().gunshot(model, distanceVolume(point));
+          } else soundsAt(point).gunshot(model);
           weaponFx.muzzleFlashAt(muzzleOf(shooter, point, normal));
           break;
         }
@@ -993,7 +1041,7 @@ async function startEditor() {
             weaponFx.tracer(muzzleOf(shooter, pending.origin, pending.direction), point);
             pending.hits++;
           }
-          sounds().impact(flesh, 0.6 * distanceVolume(point));
+          soundsAt(point, 0.6).impact(flesh);
           break;
         }
         case EventKind.damaged: {
@@ -1029,7 +1077,7 @@ async function startEditor() {
         case EventKind.explode: {
           weaponFx.explosion(point, value);
           const volume = distanceVolume(point);
-          sounds().explosion(volume);
+          soundsAt(point).explosion();
           shake.intensity = Math.max(shake.intensity, 0.35 * volume);
           shake.duration = shake.remaining = 0.5;
           break;
@@ -1418,6 +1466,8 @@ async function startEditor() {
   // populated on Play start, torn down on Stop, so a sound never keeps
   // playing (or gets started twice) across a Stop/Play cycle.
   const activeSounds = new Map<number, AudioBufferSourceNode>();
+  // Positional Sound components, moved with their entity every frame.
+  const activePanners = new Map<number, PannerNode>();
   // Bumped on every fresh Play (edit -> play). A clip load kicked off by one
   // Play session can still be in flight (loadSoundBuffer's promise cache is
   // keyed by clip id, not by session) when Stop, then Play again, happens
@@ -1442,11 +1492,16 @@ async function startEditor() {
         const source = context.createBufferSource();
         source.buffer = buffer;
         source.loop = sound.loop;
-        const gain = context.createGain();
-        gain.gain.value = sound.volume;
-        source.connect(gain).connect(context.destination);
+        const position = sound.spatial ? objects[index]?.position : undefined;
+        const { input, panner } = audioMixer().source(sound.bus.toLowerCase() as Bus, position, {
+          volume: sound.volume,
+          refDistance: sound.minDistance,
+          maxDistance: sound.maxDistance,
+        });
+        source.connect(input);
         source.start();
         activeSounds.set(index, source);
+        if (panner) activePanners.set(index, panner);
       };
       const cached = soundBuffers.get(sound.clip);
       if (cached) play(cached);
@@ -1459,8 +1514,22 @@ async function startEditor() {
   // A one-shot from a script's sound.play(clip): `clip` is a catalog id
   // ("10") or name, matched case-insensitively, exactly or as a prefix
   // ("coin" plays "Coin Pickup").
-  function playOneShot(clip: string) {
+  function playOneShot(clip: string, position?: THREE.Vector3, volume = 1) {
     const wanted = clip.trim().toLowerCase();
+    // "sfx:<name>" plays a synthesized sound (0.64.0).
+    if (wanted.startsWith("sfx:")) {
+      const voice = position ? soundsAt(position, volume) : sounds();
+      const [name = "", detail = ""] = wanted.slice(4).split(":");
+      if (name === "gunshot") voice.gunshot(detail || "rifle", position ? 1 : volume);
+      else if (name === "explosion") voice.explosion(position ? 1 : volume);
+      else if (name === "impact") voice.impact(detail === "flesh", position ? 1 : volume);
+      else if (name === "footstep") voice.footstep(detail === "grass" ? "grass" : "hard", position ? 1 : volume);
+      else if (name === "reload") voice.reload(1.5, position ? 1 : volume);
+      else if (name === "click") voice.dryFire(position ? 1 : volume);
+      else if (name === "hit") voice.hitmarker(detail === "kill", position ? 1 : volume);
+      else log(`sound.play: no synthesized sound "${name}"`);
+      return;
+    }
     const entry =
       soundCatalog.find((s) => String(s.id) === wanted) ??
       soundCatalog.find((s) => s.name.toLowerCase() === wanted) ??
@@ -1475,7 +1544,7 @@ async function startEditor() {
       if (session !== playSession || doc.mode !== "play") return;
       const source = context.createBufferSource();
       source.buffer = buffer;
-      source.connect(context.destination);
+      source.connect(audioMixer().source("sfx", position, { volume }).input);
       source.start();
     };
     const cached = soundBuffers.get(entry.id);
@@ -1491,6 +1560,7 @@ async function startEditor() {
       }
     }
     activeSounds.clear();
+    activePanners.clear();
   }
   let runtime: Runtime;
   try {
@@ -2097,6 +2167,13 @@ async function startEditor() {
       const b = runtime.ccall("editor_command_text", "string", ["number", "number"], [i, 2]);
       if (kind === "log") log(`[script] ${a}`);
       else if (kind === "sound") playOneShot(a);
+      else if (kind === "sound_at") {
+        const [x = 0, y = 0, z = 0, volume = 1] = b.split(",").map(Number);
+        playOneShot(a, new THREE.Vector3(x, y, z), Number.isFinite(volume) ? volume : 1);
+      } else if (kind === "sound_volume") {
+        const bus = a.toLowerCase();
+        if (["master", "sfx", "music", "ambient", "ui"].includes(bus)) audioMixer().setBusVolume(bus as Bus | "master", Number(b) || 0);
+      }
       else if (kind === "ui_text") uiTextOverrides.set(a, b);
       else if (kind === "particles_burst" || kind === "particles_emitting") {
         const state = particleStates[runtime._editor_command_entity(i)];
@@ -2935,6 +3012,9 @@ async function startEditor() {
         // checking it while still "edit" would silence every already-cached
         // clip on the second and later Plays.
         doc.mode = "play";
+        const mixEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "AudioSettings"));
+        audioMixer().apply((mixEntity && doc.scene.resolve(mixEntity, "AudioSettings")) ?? defaultMixerSettings);
+        soldierSteps.clear();
         startSounds();
       } else {
         if (doc.mode === "pause" && audioContext) void audioContext.resume();
@@ -3439,6 +3519,7 @@ async function startEditor() {
       adoptSpawnedEntities();
       runScriptCommands();
       processCombatEvents();
+      if (steps > 0) playMovementSounds(steps / 60);
       objects.forEach((object, i) => {
         // Combat/AI can destroy an authored entity (Health reaching 0) mid-session;
         // its index stays in objects[] (entities can't be added/removed while
@@ -3685,6 +3766,17 @@ async function startEditor() {
       viewmodelStudio ??= pmrem?.fromScene(new RoomEnvironment(), 0.04).texture;
       weaponFx.viewScene.environment = scene.environment ?? viewmodelStudio ?? null;
       weaponFx.viewScene.environmentIntensity = scene.environment ? scene.environmentIntensity : 0.8;
+    }
+    // The listener follows the view; positional Sound components follow their entity.
+    if (mixer) {
+      viewCamera.getWorldPosition(listenerPosition);
+      const forward = viewCamera.getWorldDirection(new THREE.Vector3());
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(viewCamera.getWorldQuaternion(new THREE.Quaternion()));
+      mixer.updateListener(listenerPosition, forward, up);
+      for (const [index, panner] of activePanners) {
+        const object = objects[index];
+        if (object) mixer.place(panner, object.getWorldPosition(new THREE.Vector3()));
+      }
     }
     updateSunShadow();
     renderPass.camera = viewCamera;

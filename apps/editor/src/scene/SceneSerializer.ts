@@ -218,6 +218,7 @@ const componentNames = [
   "Weapons",
   "AICombat",
   "Terrain",
+  "AudioSettings",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -322,7 +323,32 @@ export function normalizeComponent(
         volume: unitInterval(value.volume, "Sound.volume", 1),
         loop: boolean(value.loop, "Sound.loop"),
         autoplay: boolean(value.autoplay, "Sound.autoplay"),
+        spatial: value.spatial === undefined ? false : boolean(value.spatial, "Sound.spatial"),
+        bus: (() => {
+          const bus = value.bus ?? "SFX";
+          if (bus !== "SFX" && bus !== "Music" && bus !== "Ambient" && bus !== "UI")
+            throw new Error("Sound.bus must be SFX, Music, Ambient, or UI.");
+          return bus;
+        })(),
+        minDistance: value.minDistance === undefined ? 2 : positiveNumber(value.minDistance, "Sound.minDistance"),
+        maxDistance: value.maxDistance === undefined ? 60 : positiveNumber(value.maxDistance, "Sound.maxDistance"),
       };
+    case "AudioSettings": {
+      const level = (v: unknown, label: string, max: number) => {
+        const n = number(v, label);
+        if (n < 0 || n > max) throw new Error(`${label} must be from 0 to ${max}.`);
+        return n;
+      };
+      return {
+        master: level(value.master, "AudioSettings.master", 2),
+        sfx: level(value.sfx, "AudioSettings.sfx", 2),
+        music: level(value.music, "AudioSettings.music", 2),
+        ambient: level(value.ambient, "AudioSettings.ambient", 2),
+        ui: level(value.ui, "AudioSettings.ui", 2),
+        reverb: level(value.reverb, "AudioSettings.reverb", 1),
+        occlusion: boolean(value.occlusion, "AudioSettings.occlusion"),
+      };
+    }
     case "Player":
       return {};
     case "Vehicle":

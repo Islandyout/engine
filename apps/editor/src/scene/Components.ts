@@ -94,11 +94,31 @@ export interface RenderableComponent {
 // actually fired, which this round doesn't add. loop keeps it playing for
 // the whole Play session (an engine hum, a force-field drone); without loop
 // it plays once at Play start and then stops on its own.
+export type SoundBus = "SFX" | "Music" | "Ambient" | "UI";
 export interface SoundComponent {
   clip: number;
   volume: number;
   loop: boolean;
   autoplay: boolean;
+  // 0.64.0 (older scenes get these defaults): positional playback from the
+  // entity (HRTF panning, full volume within minDistance, fading out toward
+  // maxDistance, following it as it moves), and which mixer bus it plays on.
+  spatial: boolean;
+  bus: SoundBus;
+  minDistance: number;
+  maxDistance: number;
+}
+// Scene audio mix (0.64.0): bus volumes (0-2), room reverb (0-1), and
+// whether sounds behind solid geometry are muffled. The first entity with
+// one sets the mix; scripts can change bus volumes with sound.volume().
+export interface AudioSettingsComponent {
+  master: number;
+  sfx: number;
+  music: number;
+  ambient: number;
+  ui: number;
+  reverb: number;
+  occlusion: boolean;
 }
 // A real light source, not just a static ambience/sun -- main.ts's rebuild()
 // spawns an actual THREE.PointLight/SpotLight/DirectionalLight as a child of

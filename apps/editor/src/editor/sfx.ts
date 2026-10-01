@@ -29,7 +29,12 @@ export class Sfx {
   constructor(
     private readonly context: BaseAudioContext,
     private readonly output: AudioNode,
+    noise?: AudioBuffer,
   ) {
+    if (noise) {
+      this.noise = noise;
+      return;
+    }
     const length = Math.floor(context.sampleRate * 1.5);
     this.noise = context.createBuffer(1, length, context.sampleRate);
     const data = this.noise.getChannelData(0);
@@ -82,6 +87,28 @@ export class Sfx {
 
   private get now() {
     return this.context.currentTime;
+  }
+
+  // The same voices, played into another node (a positional source).
+  at(output: AudioNode): Sfx {
+    return new Sfx(this.context, output, this.noise);
+  }
+
+  footstep(surface: "grass" | "hard", volume = 1) {
+    const t = this.now;
+    if (surface === "grass") {
+      this.burst(t, "bandpass", 1100 + Math.random() * 500, 0.22 * volume, 0.11, 0.8);
+      this.burst(t + 0.02, "highpass", 3500, 0.06 * volume, 0.08);
+    } else {
+      this.burst(t, "bandpass", 1700 + Math.random() * 600, 0.25 * volume, 0.05, 2);
+      this.tone(t, "sine", 140, 80, 0.12 * volume, 0.06);
+    }
+  }
+
+  land(volume = 1) {
+    const t = this.now;
+    this.burst(t, "lowpass", 500, 0.5 * volume, 0.18);
+    this.tone(t, "sine", 90, 50, 0.4 * volume, 0.15);
   }
 
   gunshot(model: string, volume = 1) {

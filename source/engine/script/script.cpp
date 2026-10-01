@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 
 extern "C" {
@@ -540,6 +541,19 @@ struct LuaApi final {
         emit(L, "sound", luaL_checkstring(L, 1), "");
         return 0;
     }
+    // sound.play_at(clip, x, y, z[, volume]): a positional one-shot.
+    static int play_sound_at(lua_State *L) {
+        char where[160];
+        std::snprintf(where, sizeof where, "%.3f,%.3f,%.3f,%.3f", number_arg(L, 2), number_arg(L, 3), number_arg(L, 4),
+                      number_arg(L, 5, 1.0F));
+        emit(L, "sound_at", luaL_checkstring(L, 1), where);
+        return 0;
+    }
+    // sound.volume(bus, 0..1): bus is master, sfx, music, ambient or ui.
+    static int sound_volume(lua_State *L) {
+        emit(L, "sound_volume", luaL_checkstring(L, 1), std::to_string(number_arg(L, 2, 1.0F)));
+        return 0;
+    }
     static int set_ui_text(lua_State *L) {
         size_t length = 0;
         const char *text = luaL_tolstring(L, 2, &length);
@@ -810,7 +824,7 @@ struct LuaApi final {
                {"send", send},
                {"path", path}});
         table(L, self, "physics", {{"add_force", add_force}, {"add_impulse", add_impulse}});
-        table(L, self, "sound", {{"play", play_sound}});
+        table(L, self, "sound", {{"play", play_sound}, {"play_at", play_sound_at}, {"volume", sound_volume}});
         table(L, self, "ui", {{"set_text", set_ui_text}, {"set_value", set_ui_value}, {"set_visible", set_ui_visible}});
         table(L, self, "anim", {{"set", anim_set}, {"trigger", anim_trigger}});
         table(L, self, "camera", {{"shake", camera_shake}});

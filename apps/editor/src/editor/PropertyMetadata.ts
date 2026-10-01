@@ -236,6 +236,17 @@ const metadata: Record<string, PropertyMetadata> = {
     },
   },
   "Sound.volume": { step: "0.05" },
+  "Sound.spatial": { label: "Positional (3D)" },
+  "Sound.bus": { label: "Mixer bus", options: choice(["SFX", "Music", "Ambient", "UI"]) },
+  "Sound.minDistance": { label: "Full volume within (3D)", step: "0.5" },
+  "Sound.maxDistance": { label: "Fades out by (3D)", step: "1" },
+  "AudioSettings.master": { label: "Master volume (0-2)", step: "0.05" },
+  "AudioSettings.sfx": { label: "SFX volume", step: "0.05" },
+  "AudioSettings.music": { label: "Music volume", step: "0.05" },
+  "AudioSettings.ambient": { label: "Ambient volume", step: "0.05" },
+  "AudioSettings.ui": { label: "UI volume", step: "0.05" },
+  "AudioSettings.reverb": { label: "Room reverb (0-1)", step: "0.02" },
+  "AudioSettings.occlusion": { label: "Muffle sounds behind walls" },
 };
 export function propertyMetadata(
   component: string,
@@ -287,7 +298,7 @@ export const componentGroups: readonly ComponentGroup[] = [
     label: "Appearance & Animation",
     types: ["Renderable", "Material", "Animator", "AnimationState", "Light", "Particles", "Trail"],
   },
-  { label: "Scripting & Audio", types: ["Script", "Sound"] },
+  { label: "Scripting & Audio", types: ["Script", "Sound", "AudioSettings"] },
   { label: "UI", types: ["UI"] },
   { label: "Scene & Camera", types: ["Environment", "Terrain", "Camera", "CameraFollow", "InputActions"] },
 ];

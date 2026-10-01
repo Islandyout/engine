@@ -2087,6 +2087,18 @@ EXPORT void editor_add_obstacle(double x, double y, double z, double sx, double 
     staging->world.set(e, engine::physics::Collider{});
     ++staging->obstacle_count;
 }
+// 1 when solid geometry (a Collider or the terrain/ground) lies between two
+// points, else 0 -- the editor muffles sounds behind walls with it.
+EXPORT int editor_line_blocked(double x1, double y1, double z1, double x2, double y2, double z2) {
+    const engine::Vec3 from{static_cast<float>(x1), static_cast<float>(y1), static_cast<float>(z1)};
+    const engine::Vec3 delta{static_cast<float>(x2 - x1), static_cast<float>(y2 - y1), static_cast<float>(z2 - z1)};
+    const float length = std::sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
+    if (!(length > 0.3F) || !std::isfinite(length))
+        return 0;
+    engine::physics::QueryFilter filter;
+    const auto hit = engine::physics::raycast(active->world, from, delta, length, active->physics_config, filter);
+    return hit && hit->distance < length - 0.3F ? 1 : 0;
+}
 // The terrain's world height at (x, z), or NaN outside it (for tests and tools).
 EXPORT double editor_terrain_height(double x, double z) {
     if (!active->terrain || !active->terrain->contains(static_cast<float>(x), static_cast<float>(z)))

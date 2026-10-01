@@ -33,6 +33,22 @@ const { chromium } = require("playwright");
     const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    // Counts positional sources and started buffer sources (synthesized
+    // voices use noise buffers) without changing the app.
+    await page.addInitScript(() => {
+      window.__panners = 0;
+      window.__sources = 0;
+      const createPanner = BaseAudioContext.prototype.createPanner;
+      BaseAudioContext.prototype.createPanner = function (...args) {
+        window.__panners++;
+        return createPanner.apply(this, args);
+      };
+      const start = AudioBufferSourceNode.prototype.start;
+      AudioBufferSourceNode.prototype.start = function (...args) {
+        window.__sources++;
+        return start.apply(this, args);
+      };
+    });
     await page.goto(`http://127.0.0.1:${server.address().port}/engine/`);
     await page.waitForFunction(() => document.querySelector("#runtime")?.textContent === "C++ runtime ready");
     await fs.mkdir("build/browser-evidence", { recursive: true });
@@ -243,9 +259,33 @@ const { chromium } = require("playwright");
     assert.equal(await page.locator('[aria-label="Terrain.sculpt"]').inputValue(), "", "undo removes the stroke");
     await page.locator("#sculpt").selectOption("off");
 
+    // F64: audio. A script's sound.play_at makes a positional (panned)
+    // source, the mix comes from AudioSettings, and walking plays footsteps.
+    const mix = await run({ command: "spawn_entity", name: "Mix", transform: [30, -40, 30] });
+    await run({ command: "attach_component", entity: mix.entity, type: "AudioSettings" });
+    await run({
+      command: "set_component",
+      entity: mix.entity,
+      type: "Script",
+      value: { source: "function on_start() sound.play_at('sfx:explosion', 5, 3, 5) sound.volume('music', 0.5) end", props: {} },
+    });
+    const pannersBefore = await page.evaluate(() => window.__panners);
+    await page.click("#play");
+    await page.waitForFunction((before) => window.__panners > before, pannersBefore);
+    await page.waitForTimeout(400);
+    const sourcesBefore = await page.evaluate(() => window.__sources);
+    await page.keyboard.down("KeyW");
+    await page.waitForTimeout(1500);
+    await page.keyboard.up("KeyW");
+    assert.ok(
+      (await page.evaluate(() => window.__sources)) >= sourcesBefore + 3,
+      "walking plays footsteps (each one starts noise sources)",
+    );
+    await page.click("#stop");
+
     assert.deepEqual(errors, []);
     console.log(
-      "FPS browser: first-person CharacterController (camera, look, walk, step climbing) and weapons (hold-to-fire kill with on_death, reload from reserve, switching, HUD) and combat AI (a soldier spots and shoots the player, dies to return fire, on_kill) and terrain (standing on it, sculpting with undo) passed.",
+      "FPS browser: first-person CharacterController (camera, look, walk, step climbing) and weapons (hold-to-fire kill with on_death, reload from reserve, switching, HUD) and combat AI (a soldier spots and shoots the player, dies to return fire, on_kill) and terrain (standing on it, sculpting with undo) and audio (positional play_at, mixer settings, footsteps) passed.",
     );
   } finally {
     if (browser) await browser.close();

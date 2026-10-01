@@ -18,6 +18,7 @@ import type {
   WeaponsComponent,
   AICombatComponent,
   TerrainComponent,
+  AudioSettingsComponent,
   InputActionsComponent,
   TrailComponent,
   PedestrianComponent,
@@ -70,6 +71,7 @@ export interface SceneComponents {
   Weapons: WeaponsComponent;
   AICombat: AICombatComponent;
   Terrain: TerrainComponent;
+  AudioSettings: AudioSettingsComponent;
   InputActions: InputActionsComponent;
   Trail: TrailComponent;
 }
@@ -169,6 +171,7 @@ export class Scene {
     Weapons: new Map(),
     AICombat: new Map(),
     Terrain: new Map(),
+    AudioSettings: new Map(),
     InputActions: new Map(),
     Trail: new Map(),
     UI: new Map(),

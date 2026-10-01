@@ -4537,3 +4537,42 @@ Before this, the world floor was an infinite flat plane at y = 0. There was no w
 - `tests/browser/fps.cjs`:
   - a flat terrain at y = 2 holds the player at 2.9;
   - the Sculpt tool's Raise stroke fills `Terrain.sculpt`, and undo clears it.
+
+## F64 — Spatial audio, mixer and footsteps (0.64.0)
+
+Before this, every sound was a flat stereo clip straight to the speakers: no position, no buses, no occlusion, and no footsteps.
+
+### Mixer (`src/editor/audioMixer.ts`)
+
+- **`AudioMixer`**:
+  - **Buses**: `sfx`, `music`, `ambient` and `ui` gains into a master, then a `DynamicsCompressor`, then the output.
+  - **Reverb**: a shared convolver fed by a generated decaying-noise impulse.
+  - **`source(bus, position?, options)`**: plain sounds connect to the bus. Positional ones go through an HRTF `PannerNode` (inverse distance, `refDistance`/`maxDistance`) and also send to the reverb. When occluded, a 900 Hz lowpass and −5 dB are added.
+  - **`updateListener`** and **`place`** use the AudioParam API, falling back to the legacy setters.
+- **`FootstepTracker`**: one step per stride (1.1 m + 0.12 × speed), and none while airborne or nearly still.
+
+### Editor
+
+- **`AudioSettings` component**: bus volumes (0–2), reverb (0–1) and occlusion. The first one in the scene is applied when Play starts.
+- **`Sound`** gains `spatial`, `bus`, `minDistance` and `maxDistance`; older scenes get 2D, SFX, 2 and 60. Positional Sound components follow their entity every frame.
+- **Listener**: follows the view camera.
+- **Routing**: every synthesized sound goes through the SFX bus.
+  - Other shooters' gunshots, impacts and explosions are positional at the event point.
+  - Occlusion is a native line test, **`editor_line_blocked`**, from the listener to the source (Colliders and terrain).
+  - The player's own weapon sounds stay 2D.
+- **Footsteps**:
+  - **Player**: a controller player gets footsteps (quieter crouched) and a landing thud for hard landings.
+  - **Soldiers**: footsteps from their measured speed, positional.
+  - **Surface**: "grass" when the feet are on the terrain, otherwise "hard".
+- **Lua**:
+  - **`sound.play_at(clip, x, y, z[, volume])`** sends a `sound_at` command.
+  - **`sound.volume(bus, v)`** sets master, sfx, music, ambient or ui.
+  - **Synthesized names**: `sound.play` and `play_at` accept `sfx:` names: `sfx:gunshot:<model>`, `sfx:explosion`, `sfx:impact[:flesh]`, `sfx:footstep[:grass]`, `sfx:reload`, `sfx:click`, `sfx:hit[:kill]`.
+
+### F64 verification
+
+- `tests/audioMixer.test.ts` checks footstep cadence at walk and sprint speed, and that there are none in the air or standing still.
+- `tests/browser/fps.cjs` uses an init script to count `createPanner` calls and `AudioBufferSourceNode.start` calls:
+  - a script's `sound.play_at` creates a positional source when Play starts with `AudioSettings` attached;
+  - walking for 1.5 s starts footstep voices.
+- The main browser suite's Sound start/stop pairing still holds with sounds routed through the mixer.

@@ -85,6 +85,7 @@ const componentNames = [
   "Weapons",
   "AICombat",
   "Terrain",
+  "AudioSettings",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -646,7 +647,18 @@ export function defaultComponent(
         props: { speed: 3 },
       };
     case "Sound":
-      return { clip: 1, volume: 1, loop: false, autoplay: true };
+      return {
+        clip: 1,
+        volume: 1,
+        loop: false,
+        autoplay: true,
+        spatial: false,
+        bus: "SFX",
+        minDistance: 2,
+        maxDistance: 60,
+      };
+    case "AudioSettings":
+      return { master: 1, sfx: 1, music: 0.7, ambient: 0.8, ui: 1, reverb: 0.18, occlusion: true };
     case "Environment":
       return defaultEnvironment();
     case "Camera":

@@ -220,6 +220,16 @@ Engine version 0.63.0 adds a `Terrain` component:
 
 See [F63](docs/IMPLEMENTATION_STATUS.md#f63--terrain-0630).
 
+Engine version 0.64.0 upgrades audio:
+
+- **Mixer**: buses for SFX, music, ambient and UI into a compressed master, plus a shared room reverb. A new `AudioSettings` component sets the mix.
+- **Positional sound**: world sounds (gunfire, impacts, explosions, footsteps) play from where they happen with HRTF panning and distance falloff, and are muffled behind walls and terrain.
+- **`Sound`** can be positional and follows its entity; it picks a bus.
+- **Lua**: `sound.play_at(clip, x, y, z[, volume])` and `sound.volume(bus, v)`. `sfx:` names (`sfx:explosion`, `sfx:gunshot:rifle`, …) play synthesized sounds.
+- **Footsteps and landings**: players and soldiers make them, with a softer grass sound on terrain.
+
+See [F64](docs/IMPLEMENTATION_STATUS.md#f64--spatial-audio-mixer-and-footsteps-0640).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 
