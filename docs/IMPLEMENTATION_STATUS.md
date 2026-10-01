@@ -4671,4 +4671,3 @@ Engine fixes found by building and playing it:
 - `tests/browser/last_signal.cjs` (CI) serves the game as a player build and checks the title card, Deploy, the pause menu and Resume. On a trimmed copy of the level it plays the whole mission: generator destroyed by holding fire, uplink, upload, extraction and the win panel.
 - `apps/editor/tests/lastSignal.test.ts` regenerates the level and fails if the committed scene is stale.
 - `engine_editor_bridge_tests` runs a level-sized 131² terrain under a controller.
-
