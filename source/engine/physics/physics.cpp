@@ -715,24 +715,32 @@ std::optional<RaycastHit> raycast(World &world, Vec3 origin, Vec3 direction, flo
             return terrain.contains(origin.x + direction.x * t, origin.z + direction.z * t);
         };
         float previous = 0;
-        bool previous_above = !inside(0) || above(0) > 0;
+        bool previous_inside = inside(0);
+        bool previous_above = !previous_inside || above(0) > 0;
         for (float t = std::min(step, max_distance); t <= max_distance; t = std::min(t + step, max_distance)) {
             const bool now_inside = inside(t);
             const bool now_above = !now_inside || above(t) > 0;
-            if (now_inside && previous_above && !now_above) {
+            // Downward crossings, entering from outside the square below
+            // the surface, and upward crossings from underneath all count.
+            const bool down = now_inside && previous_above && !now_above;
+            const bool up = now_inside && previous_inside && !previous_above && now_above;
+            if (down || up) {
                 float lo = previous, hi = t;
                 for (int i = 0; i < 12; ++i) {
                     const float mid = (lo + hi) / 2;
-                    if (inside(mid) && above(mid) <= 0)
-                        hi = mid;
-                    else
+                    const bool mid_above = !inside(mid) || above(mid) > 0;
+                    if (mid_above == previous_above)
                         lo = mid;
+                    else
+                        hi = mid;
                 }
                 const float x = origin.x + direction.x * hi, z = origin.z + direction.z * hi;
-                consider(hi, Entity{}, true, terrain.normal_at(x, z));
+                const Vec3 n = terrain.normal_at(x, z);
+                consider(hi, Entity{}, true, down ? n : Vec3{-n.x, -n.y, -n.z});
                 break;
             }
             previous = t;
+            previous_inside = now_inside;
             previous_above = now_above;
             if (t >= max_distance)
                 break;

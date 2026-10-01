@@ -93,6 +93,20 @@ int main() {
             check(!rotated_grid.walkable(22, 18), "cells along the diagonal are blocked");
             check(rotated_grid.walkable(23, 23), "a corner of the enclosing box off the wall stays open");
             check(rotated_grid.walkable(-20, -20), "a walkable ramp does not block");
+            // Combined rotation x=45, y=30, z=-45 degrees: the top normal's y is
+            // 0.75 (walkable), though cos(x)cos(z) alone would say 0.5.
+            World combined;
+            combined.register_component<Box>("box");
+            combined.register_component<physics::RigidBody>("rigidbody");
+            combined.register_component<physics::Collider>("collider");
+            const auto tilted_both = combined.create();
+            combined.set(tilted_both, Box{{0, 0.5F, 0}, {4, 1, 4}});
+            physics::Collider both{};
+            both.rotation = {0.7853982F, 0.5235988F, -0.7853982F};
+            combined.set(tilted_both, both);
+            nav::Grid combined_grid{nav::Settings{}};
+            combined_grid.bake(combined);
+            check(combined_grid.walkable(0, 0), "a combined-rotation walkable ramp does not block");
         }
         {
             // Terrain: steep cells block, gentle ones don't.

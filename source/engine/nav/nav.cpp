@@ -50,7 +50,9 @@ void Grid::bake(const World& world, const std::vector<Entity>& ignore, const phy
             // agents walk over it. Anything else blocks the cells its shape
             // actually covers between step_height and max_height.
             const bool tilted = collider.rotation.x != 0 || collider.rotation.z != 0;
-            const float up = std::cos(collider.rotation.x) * std::cos(collider.rotation.z);
+            // World y of the rotated top-face normal (three.js Euler XYZ).
+            const float up = std::cos(collider.rotation.x) * std::cos(collider.rotation.z) -
+                             std::sin(collider.rotation.x) * std::sin(collider.rotation.z) * std::sin(collider.rotation.y);
             if (tilted && std::abs(up) >= physics::walkable_normal_y)
                 continue;
             const auto [lo, hi] = physics::world_bounds(box, &collider);

@@ -604,6 +604,9 @@ int main() {
                   "a level ray hits the hillside where it rises above y = 2");
             const auto over = physics::raycast(world, {85, 6, 0}, {1, 0, 0}, 40.0F, config);
             check(!over, "a ray above the peak misses");
+            const auto under = physics::raycast(world, {105, 0, 0}, {0, 1, 0}, 20.0F, config);
+            check(under && under->hit_ground && std::abs(under->point.y - 3) < 0.01F && under->normal.y < 0,
+                  "a ray up from beneath the surface hits its underside");
         }
 
         std::cout << "Physics gravity, ground rest, box/sphere collider resolution, raycasting, "
