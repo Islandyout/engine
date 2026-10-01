@@ -1014,7 +1014,7 @@ const { chromium } = require("playwright");
     await page.locator(".entity").filter({ hasText: "Mannequin F" }).first().click();
     await page.getByLabel("Add component").selectOption("UI");
     const uiKind = page.locator('[aria-label="UI.kind"]');
-    assert.deepEqual(await uiKind.locator("option").allTextContents(), ["Text", "Button"]);
+    assert.deepEqual(await uiKind.locator("option").allTextContents(), ["Text", "Button", "Panel", "Image", "Bar", "Slider", "Toggle"]);
     assert.equal(await uiKind.inputValue(), "Text", "sensible default kind");
     await uiKind.selectOption("Button");
     await page.getByLabel("UI.text", { exact: true }).fill("Pause");
@@ -1134,6 +1134,268 @@ const { chromium } = require("playwright");
     });
     await page.click("#stop");
 
+    // F51: the Lua API reaches the editor. A prefab template spawned from a
+    // script's on_start gets its own render object (the "N spawned" status
+    // readout), a declared @prop's value reaches the script, and
+    // ui.set_text/log land in the HUD and the log panel.
+    const run = async (command) => {
+      await page.locator("#json").fill(JSON.stringify(command));
+      await page.locator("#command button").click();
+      return JSON.parse(await page.locator("#log").textContent());
+    };
+    const coin = await run({ command: "spawn_entity", name: "Coin", transform: [0, -40, 0] });
+    assert.equal(coin.ok, true);
+    assert.equal((await run({ command: "create_prefab", entity: coin.entity, name: "Coin" })).ok, true);
+    const label = await run({ command: "spawn_entity", name: "ScoreText" });
+    await run({
+      command: "set_component",
+      entity: label.entity,
+      type: "UI",
+      value: { kind: "Text", text: "Score: 0", anchor: "top-left", visibleWhen: "always", action: "pause" },
+    });
+    const spawner = await run({ command: "spawn_entity", name: "Spawner", transform: [0, 1, 0] });
+    await run({
+      command: "set_component",
+      entity: spawner.entity,
+      type: "Script",
+      value: {
+        source:
+          '-- @prop label "Coins"\nfunction on_start()\n  local c = world.spawn("Coin", 2, 3, 0)\n  ui.set_text("ScoreText", props.label .. ": " .. tostring(c ~= nil))\n  log("spawner ready")\nend',
+        props: { label: "Gold" },
+      },
+    });
+    await page.click("#play");
+    await page.waitForFunction(() => document.querySelector("#status").textContent.includes("1 spawned"));
+    await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("Gold: true"));
+    await page.waitForFunction(() => document.querySelector("#log").textContent.includes("[script] spawner ready"));
+    await page.click("#stop");
+    await page.waitForFunction(() => !document.querySelector("#status").textContent.includes("spawned"));
+    assert.match(await page.locator("#hud-text").textContent(), /Score: 0/, "Stop restores the authored UI text");
+
+    // F52: Environment (procedural sky + fog), a Material override, and a
+    // game Camera that takes over the view during Play. Checked for page
+    // errors (the `errors` assertion below) and captured as evidence.
+    const env = await run({ command: "spawn_entity", name: "Environment" });
+    await run({
+      command: "set_component",
+      entity: env.entity,
+      type: "Environment",
+      value: {
+        sky: "Procedural", skyColor: { x: 0.2, y: 0.4, z: 0.8 }, horizonColor: { x: 0.7, y: 0.8, z: 0.9 },
+        groundColor: { x: 0.3, y: 0.3, z: 0.25 }, sunElevation: 35, sunAzimuth: 120, sunIntensity: 3,
+        sunColor: { x: 1, y: 0.95, z: 0.9 }, ambientIntensity: 1.5, fog: "Linear",
+        fogColor: { x: 0.7, y: 0.8, z: 0.9 }, fogNear: 30, fogFar: 150, fogDensity: 0.01,
+        shadows: true, exposure: 0.8,
+      },
+    });
+    const painted = await run({ command: "spawn_entity", name: "Painted", transform: [-2, 1, 0] });
+    await run({
+      command: "set_component",
+      entity: painted.entity,
+      type: "Material",
+      value: { color: { x: 0.9, y: 0.2, z: 0.2 }, metalness: 0.6, roughness: 0.3,
+               emissive: { x: 0, y: 0, z: 0 }, emissiveIntensity: 1, opacity: 1, keepTextures: true },
+    });
+    const cam = await run({ command: "spawn_entity", name: "Game Camera", transform: [0, 4, 14] });
+    await run({
+      command: "set_component",
+      entity: cam.entity,
+      type: "Camera",
+      value: { projection: "Perspective", fov: 60, near: 0.1, far: 500, orthoSize: 10, priority: 5 },
+    });
+    await run({ command: "set_component", entity: cam.entity, type: "RigidBody", value: { mass: 1, dynamic: false } });
+    // F54: the camera follows the Player through a CameraFollow rig, and a
+    // script shakes it.
+    await run({
+      command: "set_component",
+      entity: cam.entity,
+      type: "CameraFollow",
+      value: { target: "", offset: { x: 0, y: 3, z: 7 }, smoothing: 0.15, lookHeight: 1, collision: true, orbit: true },
+    });
+    await run({
+      command: "set_component",
+      entity: painted.entity,
+      type: "Script",
+      value: { source: 'function on_start() camera.shake(0.3, 0.5) end', props: {} },
+    });
+    // F53: an Animator state machine on a real animated model. A trigger
+    // set from on_start moves idle -> hop, the hop state's event reaches
+    // on_anim_event, `end` returns to idle, and on_anim_state reports both.
+    const cat = await run({ command: "spawn_entity", name: "Animated Cat", transform: [6, 0.5, 6] });
+    await run({ command: "set_component", entity: cat.entity, type: "Renderable", value: { mesh: 105, material: 0, visible: true } });
+    await page.waitForTimeout(1500); // let the model load so its clips exist
+    await run({
+      command: "set_component",
+      entity: cat.entity,
+      type: "Animator",
+      value: { graph: "state idle clip=idle\nstate hop clip=walk once\nany -> hop when trigger go\nhop -> idle when end\nevent hop 0.5 midway" },
+    });
+    await run({
+      command: "set_component",
+      entity: cat.entity,
+      type: "Script",
+      value: {
+        source:
+          'seen = ""\nfunction on_start() anim.trigger("go") end\nfunction on_anim_state(s) seen = seen .. s .. ">" end\nfunction on_anim_event(e) seen = seen .. e .. ">" end\nfunction on_tick(dt) if seen == "hop>midway>idle>" then log("animator " .. seen); seen = "done" end end',
+        props: {},
+      },
+    });
+    await page.click("#play");
+    await page.waitForFunction(() => document.querySelector("#log").textContent.includes("[script] animator hop>midway>idle>"), null, { timeout: 15000 });
+    await page.click("#stop");
+
+    // F55: real keyboard and mouse events reach the native InputState and the
+    // default actions: Space fires the "jump" action, a click on the viewport
+    // is mouse button 0 at the clicked position (and the "fire" action).
+    const reader = await run({ command: "spawn_entity", name: "Input Reader", transform: [-6, 0.5, -6] });
+    await run({
+      command: "set_component",
+      entity: reader.entity,
+      type: "Script",
+      value: {
+        source:
+          'function on_tick(dt)\n  if input.action_pressed("jump") then log("jump action") end\n  if input.mouse_pressed(0) and input.action_pressed("fire") then local x, y = input.mouse(); log(string.format("click at %.0f,%.0f", x, y)) end\nend',
+        props: {},
+      },
+    });
+    await page.click("#play");
+    await page.waitForFunction(() => document.querySelector("#status").textContent.includes("C++ fixed ticks"));
+    await page.keyboard.down("Space");
+    await page.waitForFunction(() => document.querySelector("#log").textContent.includes("[script] jump action"));
+    await page.keyboard.up("Space");
+    const gameCanvas = await page.locator("#viewport canvas").first().boundingBox();
+    await page.mouse.click(gameCanvas.x + 200, gameCanvas.y + 150);
+    await page.waitForFunction(() => document.querySelector("#log").textContent.includes("[script] click at 200,150"));
+    await page.click("#stop");
+
+    // F56: interactive UI. A script-action Button, a Toggle and a Slider
+    // report through on_ui; ui.set_value drives a Bar (read back through
+    // the #hud-text mirror).
+    const uiEntity = async (name, ui) => {
+      const e = await run({ command: "spawn_entity", name });
+      await run({
+        command: "set_component",
+        entity: e.entity,
+        type: "UI",
+        value: { visibleWhen: "always", action: "restart", text: "", ...ui },
+      });
+    };
+    await uiEntity("GoButton", { kind: "Button", text: "Go!", anchor: "bottom-left", action: "script" });
+    await uiEntity("SoundToggle", { kind: "Toggle", text: "Sound", anchor: "bottom-left", offsetY: -60, value: 0 });
+    await uiEntity("VolumeSlider", { kind: "Slider", anchor: "bottom-left", offsetY: -110, width: 200, height: 20, value: 0 });
+    await uiEntity("EnergyBar", { kind: "Bar", anchor: "bottom-right", width: 150, value: 0 });
+    await uiEntity("UiResult", { kind: "Text", text: "none", anchor: "top-right" });
+    const uiScript = await run({ command: "spawn_entity", name: "UI Script", transform: [-8, 0.5, 8] });
+    await run({
+      command: "set_component",
+      entity: uiScript.entity,
+      type: "Script",
+      value: {
+        source:
+          'function on_start() ui.set_value("EnergyBar", 0.25) end\nfunction on_ui(name, value) ui.set_text("UiResult", "ui " .. name .. " " .. tostring(value)) end',
+        props: {},
+      },
+    });
+    await page.click("#play");
+    await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("EnergyBar=0.25"));
+    const hudBox = await page.locator("#viewport canvas").first().boundingBox();
+    // bottom-left anchor: 16 px inset from the left and bottom edges.
+    await page.mouse.click(hudBox.x + 30, hudBox.y + hudBox.height - 30);
+    await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("ui GoButton click"));
+    await page.mouse.click(hudBox.x + 26, hudBox.y + hudBox.height - 16 - 60 - 12);
+    await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("ui SoundToggle 1"));
+    // Press at the slider's left end and drag to its middle: value 0.5.
+    const sliderY = hudBox.y + hudBox.height - 16 - 110 - 10;
+    await page.mouse.move(hudBox.x + 16, sliderY);
+    await page.mouse.down();
+    await page.mouse.move(hudBox.x + 116, sliderY, { steps: 5 });
+    await page.mouse.up();
+    await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("VolumeSlider=0.5"));
+    await page.click("#stop");
+
+    // F57: a world-space cone emitter with color/size over lifetime, a
+    // burst on Play plus one from Lua, and a Trail on a moving body.
+    const fountain = await run({ command: "spawn_entity", name: "Fountain", transform: [3, 0.5, -3] });
+    await run({
+      command: "set_component",
+      entity: fountain.entity,
+      type: "Particles",
+      value: {
+        preset: "Fire", color: { x: 1, y: 0.8, z: 0.2 }, rate: 60, lifetime: 1.5, speed: 3, size: 0.25,
+        endColor: { x: 1, y: 0.1, z: 0 }, endSize: 0.2, gravityScale: 1, shape: "Cone", shapeSize: 0.3,
+        coneAngle: 20, space: "World", burst: 40,
+      },
+    });
+    await run({
+      command: "set_component",
+      entity: fountain.entity,
+      type: "Script",
+      value: { source: 'function on_start() particles.burst(30); after(0.5, function() particles.set_emitting(false) end) end', props: {} },
+    });
+    const comet = await run({ command: "spawn_entity", name: "Comet", transform: [-3, 3, -3] });
+    await run({ command: "set_component", entity: comet.entity, type: "Trail", value: { color: { x: 0.4, y: 0.9, z: 1 }, width: 0.4, lifetime: 1, minDistance: 0.05 } });
+    await run({ command: "set_component", entity: comet.entity, type: "Velocity", value: { value: { x: 4, y: 6, z: 0 } } });
+    await page.click("#play");
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: "build/browser-evidence/f55-particles.png" });
+    await page.click("#stop");
+
+    // F58: import a .glb, an image and a sound through the Project panel;
+    // they persist in IndexedDB, the model joins an "Imported" catalog
+    // category and can be placed, the image textures a Material through
+    // asset:<name>, and the Stats overlay reports renderer and system stats.
+    const glbPath = (await fs.readdir("assets/source/kit/nature")).find((f) => f.endsWith(".glb"));
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFklEQVQI12P4z8DwnwEJMDEwMDAwAAAqEwMAvXqKWAAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    await page.locator("#import-asset").setInputFiles([
+      { name: "My Tree.glb", mimeType: "model/gltf-binary", buffer: await fs.readFile(`assets/source/kit/nature/${glbPath}`) },
+      { name: "checker.png", mimeType: "image/png", buffer: png },
+      { name: "boop.ogg", mimeType: "audio/ogg", buffer: await fs.readFile("assets/source/audio/bell.ogg") },
+    ]);
+    await page.waitForFunction(() => document.querySelector("#log").textContent.includes("Imported My Tree.glb (model 10000)"));
+    assert.match(await page.locator("#log").textContent(), /checker\.png \(use asset:checker\.png\), boop\.ogg \(sound 10002\)/);
+    assert.equal(
+      await page.evaluate(
+        () =>
+          new Promise((resolve) => {
+            const request = indexedDB.open("game-engine-editor-assets", 1);
+            request.onsuccess = () => {
+              const count = request.result.transaction("assets").objectStore("assets").count();
+              count.onsuccess = () => resolve(count.result);
+            };
+          }),
+      ),
+      3,
+      "all three imports are stored in IndexedDB",
+    );
+    await page.locator("#catalog-category").selectOption("imported");
+    await page.locator("#catalog-add").click();
+    await page.waitForFunction(() => [...document.querySelectorAll(".entity")].some((e) => e.textContent.includes("My Tree")));
+    const textured = await run({ command: "spawn_entity", name: "Textured", transform: [0, 0.5, -8] });
+    await run({
+      command: "set_component",
+      entity: textured.entity,
+      type: "Material",
+      value: { color: { x: 1, y: 1, z: 1 }, metalness: 0, roughness: 1, emissive: { x: 0, y: 0, z: 0 },
+               emissiveIntensity: 1, opacity: 1, keepTextures: true, texture: "asset:checker.png" },
+    });
+    await page.click("#stats");
+    await page.waitForFunction(() => /Draw calls\s+\d+/.test(document.querySelector("#stats-panel").textContent));
+    await page.click("#play");
+    await page.waitForFunction(() => /physics\s+[\d.]+ ms/.test(document.querySelector("#stats-panel").textContent));
+    await page.click("#stop");
+    await page.click("#stats");
+
+    await fs.mkdir("build/browser-evidence", { recursive: true });
+    await page.screenshot({ path: "build/browser-evidence/f50-edit.png" });
+    await page.click("#play");
+    await page.waitForFunction(() => document.querySelector("#status").textContent.includes("C++ fixed ticks"));
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: "build/browser-evidence/f50-play.png" });
+    await page.click("#stop");
+
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -1143,7 +1405,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage) passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), a CameraFollow rig with shake, keyboard/mouse input through native actions, and interactive UI (script Button, Toggle, Slider, Bar), shaped/world-space particles with bursts plus a Trail, and asset import (model/image/sound, IndexedDB) with the Stats overlay passed.",
     );
   } finally {
     if (browser) await browser.close();

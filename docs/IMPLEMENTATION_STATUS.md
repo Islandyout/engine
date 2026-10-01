@@ -3913,3 +3913,319 @@ it with a different technique and got a visually correct result.
   this much source-specific judgment about which bones actually correspond
   stays a bespoke one-off script, not committed, same as the Mixamo/
   Quaternius merge tools that came before it).
+## F50 — Physics core: dynamic pairs, kinematic bodies, triggers, layers, bounciness, forces (0.50.0)
+
+This is the first item in the order of work from [the Unity gap analysis](unity/GAP_ANALYSIS.md). It also fixes an "authored but inert" field set: `RigidBody.mass`/`inverseMass`/`dynamic` have been authorable since early on, but `bridge.cpp` never read them.
+
+### Design
+
+`engine::physics` keeps its original contract for anything that doesn't opt in. The demo scene and every earlier test behave the same.
+
+- **Mass 0 means "unspecified"**, and is the default. A mass-0 body is pushed fully out of solid colliders, exactly as before, and acts as an immovable obstacle to finite-mass bodies. The editor sends a real mass only for entities that carry an authored `RigidBody`, so a Player without one still shoves physics crates aside instead of being stopped by them.
+- **Finite-mass dynamic pairs**: two bodies with mass > 0 that overlap through their colliders separate in inverse proportion to their masses. They exchange momentum along the contact normal with an impulse, with restitution taken from the larger `bounciness`. Box–box, sphere–box and sphere–sphere contacts are supported.
+- **Kinematic bodies** (`BodyType::Kinematic`, the editor's `dynamic: false`) move only by velocity. They have no gravity and no ground clamp, and are never pushed. They still push finite-mass bodies aside.
+- **Triggers** (`Collider.is_trigger`) are never solid. A moving body carrying a trigger collider passes through everything. Each trigger is checked against every moving body.
+- **Layers**: `Collider.layer` (0–31) and `mask` (32-bit). A pair interacts only when each mask includes the other's layer. An entity with no Collider counts as layer 0 with every mask bit set.
+- **Bounciness** reflects the into-surface velocity component instead of zeroing it. That applies both on the original push-out path and on the pair impulse.
+- **Forces and impulses**: `add_force` accumulates a force that the next `step()` applies and clears. `add_impulse` changes velocity immediately. Both divide by mass, and mass 0 is treated as 1 here.
+- **Contact events**: `step()` takes an optional `physics::Events`. It remembers which (a, b, trigger) pairs touched last step and reports enter, stay and exit events, with a normal from `a` to `b` for solid contacts. The editor runtime keeps one `Events` per simulation, and F51 exposes these events to Lua.
+- **Queries**: `raycast()` and the new `overlap_sphere()` take a `QueryFilter` (layer mask, include triggers, ignore one entity). By default, triggers are skipped.
+
+Two new bridge calls carry the new settings without widening `editor_add`'s 21-double ABI:
+- `editor_set_body(index, authored, mass, dynamic)`
+- `editor_set_collider(index, is_trigger, layer, mask, bounciness)`
+
+Out-of-range values fail the whole commit, the same as `editor_add`'s own validation. Scenes saved before 0.50.0 load with a solid, layer-0, all-layers, zero-bounce Collider.
+
+### F50 verification
+
+- `engine_physics_tests` adds coverage for:
+  - a mass-weighted dynamic pair, including momentum conservation;
+  - a mass-0 body shoving a finite-mass crate;
+  - a kinematic body ignoring gravity and walls;
+  - trigger enter/stay/exit counts;
+  - solid contact events and their normals;
+  - layer masking, bounciness, forces and impulses;
+  - raycast and overlap filters.
+- `engine_editor_bridge_tests` covers `editor_set_body` and `editor_set_collider`: a heavy crate is nudged and not pushed through, a kinematic body stays put, a trigger does not block, and out-of-range settings fail the commit.
+- Editor unit test `tests/physics.test.ts` checks Collider defaults for old scenes, round-tripping and range checks.
+- The full browser suite (`tests/browser/editor.cjs`) still passes against a WASM build.
+
+## F51 — Lua API breadth: callbacks, world API, spawn, timers, props, sound and UI (0.51.0)
+
+This is item 2 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. Before this change a `Script` could only read its own position and write its own velocity. Now it can react to events, affect other entities, and create them.
+
+### Design
+
+- **`engine::script::Host`** is the application side a script can reach: names, spawn, destroy, health/damage, and an `emit` for things outside the simulation (sound, UI text, log). The editor bridge implements it with `BridgeHost`. A Runtime without a host just returns nil for these calls.
+- **Callbacks** run through a single `Runtime::call()`:
+  - It rebuilds `self` before each call and writes back only the fields the script changed. Without that, `world.set_velocity(self.id, …)` or `physics.add_impulse` on self would be clobbered by the stale values `self` was created with.
+  - `on_start` runs once, before the first `on_tick`.
+  - `on_destroy` runs the tick after the entity is gone.
+  - `dispatch_contacts()` turns `physics::Events` into `on_collision_*`/`on_trigger_*` calls on both entities. The bridge runs it as system `editor.script_contacts`, at order 11 (right after physics).
+- **Entity ids**: `Entity` is opaque, so the Runtime hands scripts stable integer ids.
+- **Messaging**: `world.send(id, name, value)` calls the target's `on_message` immediately. Only scalars can cross between two entities' Lua VMs.
+- **Timers and coroutines** (`after`, `every`, `cancel`, `start`, `wait`) are a small Lua prelude run in every VM. It fires in handle order, so behavior is deterministic.
+- **`world.spawn(prefab, x, y, z[, vx, vy, vz])`** returns a real id right away:
+  - `syncRuntime()` now sends every prefab definition to the bridge as a *template* (`editor_template_begin` + the usual `editor_add`/setters on index -1). Templates live in a second `World` that is never simulated.
+  - `BridgeHost::spawn` copies a template with deferred create/set and appends it to the bridge's entity list.
+  - `frame()` gives each new index a render object built from the prefab definition. `rebuild()`'s per-entity code became `createEntityObject(get)` so both paths share it.
+- **Props**:
+  - A script declares props with `-- @prop name default` (number, `true`/`false`, a quoted or bare string).
+  - The Script component stores their values in `props`. `scriptProps.ts` reconciles stored values against the declarations on every load and edit: same-typed values are kept, others fall back to the default, and undeclared entries are dropped. The inspector therefore always shows exactly the declared props.
+  - Props reach the runtime through `editor_set_script_props`.
+- **Commands**:
+  - `sound.play(clip)` plays a catalog clip once. The clip is matched by id, by name, or by name prefix (`"coin"` matches "Coin Pickup").
+  - `ui.set_text(name, text)` overrides a named UI element's text for the rest of the Play session.
+  - `log(msg)` writes to the log panel.
+- **Other editor changes**:
+  - The HUD's text is mirrored into a visually hidden `aria-live` region, `#hud-text`, for screen readers and the browser test.
+  - While playing, the status bar reports how many entities have been spawned.
+
+### Behavior change
+
+Writing `self.x/y/z` now teleports the entity. Before, those writes were silently ignored. `script_tests` was updated to match.
+
+### F51 verification
+
+- `engine_script_tests` covers:
+  - on_start ordering, `after`/`every`/coroutine `wait`, `time.now`, number and text props;
+  - sound/ui/log emits;
+  - trigger enter/exit and collision callbacks with names;
+  - `health`/`damage`/`send`/`on_message`/`spawn`/`find`/`destroy`/`on_destroy`, in order;
+  - `raycast`/`overlap` and impulses on self.
+- `engine_editor_bridge_tests` covers a prefab template spawned from `on_start` at the right place, `find` by authored name, props parsing (malformed lines skipped), and the sound/ui/log command queue.
+- Editor unit tests (`scriptProps.test.ts`) cover declaration parsing, reconciliation, encoding and Script normalization.
+- The browser suite spawns a prefab from a script and checks the "1 spawned" readout, a prop value reaching `ui.set_text` (via `#hud-text`), the log line, and that Stop restores the authored UI text.
+
+## F52 — Rendering basics: shadows, Environment, Camera, Material (0.52.0)
+
+This is item 3 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. Everything here is in the Three.js renderer (`main.ts`) and the component schema. There are no engine or bridge changes.
+
+### Design
+
+- **Shadows**:
+  - `renderer.shadowMap` uses PCF soft shadows. The sun casts a 2048² shadow map over a 50 × 50 box that follows the camera's focus point each frame (`updateSunShadow`).
+  - Every mesh casts and receives shadows.
+  - A 400 × 400 `ShadowMaterial` plane at y = 0 (the physics ground) shows shadows without otherwise changing the look.
+  - `Light.castShadows` is new, default off: a shadow-casting point light renders the scene six more times.
+- **`Environment`** is scene-wide; the first entity carrying one wins. `defaultEnvironment()` reproduces the old fixed lighting exactly, so a scene without one looks the same as before, apart from the new shadows.
+  - Sky modes:
+    - **Color**: a flat background.
+    - **Gradient**: zenith → horizon → ground, as an equirectangular canvas texture.
+    - **Procedural**: a small custom sky shader with the same three colors plus a sun disc and glow.
+  - Image-based lighting: Gradient and Procedural skies are also PMREM-filtered into `scene.environment` at intensity 0.6, which gives PBR reflections and fill light.
+  - The sky is regenerated only when its inputs change. Sun, fog, ambient and exposure are applied on every `rebuild()`.
+  - Three's `Sky.js` was tried first and dropped. Its raw HDR output white-washed the whole view through the always-on bloom pass, and it rendered flat grey in headless WebGL.
+- **`Camera`**:
+  - Settings: `projection` (Perspective/Orthographic), `fov`, `near`/`far`, `orthoSize` and `priority`.
+  - During Play/Pause, `gameCamera()` picks the highest-priority living Camera entity and renders from its anchor's world position and rotation.
+  - The HUD projection and camera-relative WASD use the same view camera, so health bars and movement follow the game camera. Edit mode always uses the orbit camera.
+- **`Material`**:
+  - On the shared placeholder box, or with `keepTextures` off, a new `MeshStandardMaterial` replaces the mesh's own.
+  - On a catalog model with `keepTextures` on, each material is cloned and tinted, keeping its texture maps.
+  - Opacity below 1 turns on transparency.
+  - Materials created this way are disposed on the next `rebuild()`.
+
+### F52 verification
+
+- `tests/rendering.test.ts` checks that the defaults round-trip, covers range validation for all three components, and checks that `Light.castShadows` defaults to false for older scenes.
+- The browser suite adds a Procedural Environment with fog, a Material override and a priority-5 Camera, then plays the scene with no page errors. Screenshots are in `build/browser-evidence/f50-edit.png` and `f50-play.png`. The play view shows the sky gradient, shadows under every object and the red Material box, from the Camera entity's viewpoint.
+
+## F53 — Animator state machine: states, transitions, parameters, events (0.53.0)
+
+This is item 4 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. Before this, animation was either the automatic ground-speed picker, one pinned clip (`AnimationState`), or a script one-shot (`self.animate`). The `Animator` component adds Unity-style control: states, conditional transitions, parameters and events.
+
+### Design
+
+- **Authoring format**: the graph is plain text in `Animator.graph`, a multiline inspector field. The inspector only edits scalar fields, and a text form fits that, diffs cleanly in saved scenes, and is easy to write. Syntax and semantics are documented at the top of `src/editor/animator.ts`:
+  - `state name [clip=X] [once|loop] [speed=N]`
+  - `start name`
+  - `from -> to [when cond and cond …] [fade seconds]`, where `from` can be `any`
+  - `event state 0..1 name`
+- **Conditions**: `param OP number`, `param`, `not param`, `trigger name` (consumed when its transition fires) and `end` (a once-clip has finished).
+- **Where it runs**: the machine runs editor-side in TypeScript, in `AnimatorRuntime`, next to the `AnimationMixer` that owns the clip durations it needs for events and `end`. It steps once per fixed-tick batch during Play, in place of the ground-speed picker for entities that have an Animator.
+- **Built-in parameters**: `speed` (ground speed), `vy` and `grounded` are set every step.
+- **Events**: looping states fire their events on every loop crossing.
+- **Script bridge**:
+  - `anim.set(name, value)` and `anim.trigger(name)` travel through the F51 command queue.
+  - Animation events and state entries come back through the new `editor_script_notify`, which calls the script's `on_anim_event(name)` / `on_anim_state(state)`. Only those two function names are accepted.
+- **Edit mode** previews the start state's clip.
+- **Parse errors** are collected and logged once when Play starts. An Animator with errors falls back to the default behavior.
+- **Scope**: an Animator only affects entities with an animated model. A placeholder box has no clips to switch between.
+
+### F53 verification
+
+- `tests/animator.test.ts` covers parsing (defaults, fades, conditions), readable line-numbered errors, and a run that exercises:
+  - a compare+flag transition with its fade;
+  - looped event crossings (three in one long step);
+  - trigger consumption;
+  - a once-state event followed by `end`.
+- `engine_editor_bridge_tests` checks that `anim.set`/`trigger` become commands with the right text, and that `editor_script_notify` delivers `on_anim_event`/`on_anim_state` but refuses other names.
+- The browser suite puts an Animator and a Script on the animated Cat: `trigger go` → hop (walk clip, once) → the `midway` event → `end` → idle, with the script logging `hop>midway>idle>`.
+
+## F54 — Navigation (grid A* pathfinding) and a camera rig (0.54.0)
+
+This is item 5 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. Before it, AI steered straight at its target, and the only play camera was the editor's orbit camera re-targeted onto the Player.
+
+### Navigation (`engine::nav`, new `engine_nav` library)
+
+- **Grid**: `Grid` is a walkability grid on the XZ plane. Defaults: 0.5 m cells over ±60 m, agent radius 0.4, step height 0.35, max height 2.
+- **`bake()`** blocks every cell a solid collider overlaps, inflated by the agent radius. It skips:
+  - triggers;
+  - colliders entirely below `step_height` (curbs) or above `max_height`;
+  - finite-mass dynamic bodies, which move and get pushed aside;
+  - an `ignore` list.
+- **`find_path()`**:
+  - Runs 8-connected A* with an octile heuristic and no corner cutting.
+  - A blocked goal snaps to the nearest open cell. An unreachable goal returns the path to the closest reachable cell.
+  - The result is shortened by line-of-sight smoothing.
+- **Editor runtime**:
+  - Rebakes on the first tick and then once a second (system `editor.nav`, begin phase). Players and AI agents are never obstacles to themselves.
+  - A Chasing `AIAgent` repaths every 0.5 s and steers to its next waypoint. With no path it falls back to heading straight at the Player, so physics still stops it at a wall with no way around.
+- **Lua**: `world.path(x, y, z, tx, ty, tz)` returns `{x, y, z}` waypoints, `{}` when already there, or nil.
+
+### Camera rig (`CameraFollow`, editor-side)
+
+- **Placement**: on the active `Camera` entity, the rig places the view at `offset` from the target. The target is the Player, or the entity named in `target`. The offset is taken in the target's frame, so the camera swings behind it as it turns.
+- **Motion**: the view eases toward its goal over `smoothing` seconds and looks at the target raised by `lookHeight`.
+- **Collision**: with `collision` on, a raycast from the focus point pulls the camera in front of anything in between.
+- **Orbit**: with `orbit` on, dragging during Play turns the rig (yaw, plus pitch clamped to −0.2…1.4 rad).
+- **Placeholder**: the camera entity's own placeholder is hidden while it is the view.
+- **Shake**: `camera.shake(intensity, seconds)` in Lua queues a decaying random offset. It applies to the game camera, or during Play to a copy of the editor camera, so the orbit camera itself never drifts.
+
+### F54 verification
+
+- `engine_nav_tests` covers baking (wall, agent inflation, curb, trigger, dynamic crate), line of sight, a path around a wall (every segment walkable, a sensible detour length, at most four corners), a straight path on open ground, the same-cell and out-of-grid cases, and goal snapping.
+- `engine_editor_bridge_tests`: the old "a chasing AI stops at a wall" check became two:
+  - it now goes *around* a small wall to reach the Player;
+  - it still stops at the face of a wall spanning the whole grid.
+
+  The bridge test's `check()` now reports the failing line.
+- `engine_script_tests` checks that `world.path` ends at the goal with corners around a wall.
+- The browser suite adds a `CameraFollow` rig (collision and orbit on) following the Player, and `camera.shake` from `on_start`, with no page errors.
+
+## F55 — Input parity: every key, mouse, touch, gamepad and native actions in the browser (0.55.0)
+
+This is item 6 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. The native input layer already had contexts, bindings, dead zones, gamepad support and replay (F3/F4). The browser build used none of it: it passed seven hard-coded keys to the runtime, plus a string-key set for scripts.
+
+### Design
+
+- **Every device into the native `InputState`**:
+  - Keys go through `editor_input_key(code, down)`, keyed by `KeyboardEvent.code` (letters, digits, arrows, Space/Enter/Escape/Tab/Backspace, Shift/Ctrl/Alt, F1–F12). It also keeps setting the F/G melee and blast edges, so it replaces `editor_key` in the browser; `editor_key` stays exported for tests.
+  - Mouse position (viewport pixels), deltas, buttons and wheel come from pointer events, which also cover touch and pen.
+  - Gamepad state is polled each frame from the Gamepad API's standard mapping and sent only on change. Analog triggers become the `left_trigger`/`right_trigger` axes.
+- **Named actions**:
+  - The bridge runs `engine::ActionSystem` every tick (system `editor.actions`, begin phase).
+  - Its `InputMap` comes from a readable binding text parsed in `apps/editor/runtime/bindings.hpp`: `action: source, source`, with `-` to invert and `*N` to scale. Gamepad stick axes get a 0.15 dead zone.
+  - The defaults are `move_x`, `move_y`, `look_x`, `look_y`, `jump`, `fire`, `interact` and `sprint`. An `InputActions` component replaces them for a scene. Invalid text keeps the defaults and logs the line number.
+  - A unit test reads `bindings.hpp` to check that the TS component default matches the native default text.
+- **Lua API**:
+  - Actions: `input.action(name)` (value), `action_down`, `action_pressed`, `action_released`.
+  - Mouse: `input.mouse()` → x, y, dx, dy; `mouse_down`/`mouse_pressed(0|1|2)`; `wheel()`.
+  - Gamepad: `pad_down`/`pad_pressed(button)`, `pad_axis(axis)`, `pad_connected()`.
+  - `input.lock_mouse(bool)` requests or exits pointer lock through the command queue. Stop always exits it.
+- **Fix for dropped edges**: `editor_input_begin_frame()` used to run on every rendered frame. On a display faster than 60 Hz, a frame that ran no fixed tick then cleared a press or click before any tick saw it. It now runs only after a frame that consumed ticks.
+
+### F55 verification
+
+- `engine_editor_bridge_tests` covers:
+  - W walking the Player and driving `move_y` through the new key path;
+  - Space → `jump`, a click → `fire` plus the click position, and a gamepad button and stick (dead zone) reaching scripts;
+  - custom bindings replacing the defaults (`dash: q`, `zoom: wheel*2`);
+  - a malformed line keeping the defaults and reporting "line 1".
+- `tests/input.test.ts` checks that the TS and native default bindings are identical and that the component normalizes.
+- The browser suite presses a real Space key and clicks the real canvas. A script logs the `jump` action and the click at exactly (200, 150). The existing WASD, vehicle and combat checks all pass through the new key path.
+
+## F56 — UI expansion: panels, images, bars, sliders, toggles, script buttons, layout (0.56.0)
+
+This is item 7 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. Before it, `UI` offered only anchored Text and a Button limited to four fixed actions.
+
+### Design
+
+- **Kinds**:
+  - **Panel**: a background box with a title.
+  - **Image**: drawn from a URL, with a colored placeholder until it loads.
+  - **Bar**: a progress or health bar.
+  - **Slider**: dragged by the player.
+  - **Toggle**: a checkbox with a label.
+- **Layout** (`src/editor/uiLayout.ts`, pure and unit-tested):
+  - The box sits at its anchor, inset 16 px from the edges it's attached to, and is aligned so it stays on screen.
+  - It then moves by `offsetX`/`offsetY` in pixels, with +y down.
+  - Width/height of 0 size it automatically. The automatic Text/Button sizes reproduce the old boxes exactly, so existing scenes look the same.
+- **New fields**: `fontSize`, `color`, `opacity`, `image`, `value`. They are optional in saved scenes and default to the old look.
+- **Interaction**:
+  - A Button with the new action `script` calls `on_ui(name, "click")`.
+  - A Toggle flips its value and a Slider follows the drag; both call `on_ui(name, value)` with a number.
+  - All of these go through the new `editor_ui_event`, a bridge call that uses `Runtime::broadcast()` to reach every started script. Elements are identified by their entity's Name.
+- **Lua**: `ui.set_value(name, 0..1)` and `ui.set_visible(name, bool)` join `ui.set_text`. All of these are Play-session overrides, cleared when the runtime is rebuilt.
+- **Accessibility**: `#hud-text` now also mirrors Bar/Slider/Toggle values (`Name=0.5`).
+- **Color fix**: authored 0–1 colors for Environment, Material and the sky are now sRGB, as in a color picker. `defaultEnvironment()`'s backdrop therefore renders as the original `#101a26` instead of a lighter blue.
+
+### F56 verification
+
+- `tests/uiLayout.test.ts` covers anchoring and offsets, auto sizes matching the old boxes, hit testing and slider values.
+- `engine_editor_bridge_tests` checks that `on_ui` reaches every script with numbers as numbers, and that `ui.set_value`/`set_visible` queue commands.
+- The document test and the browser suite's UI-kind dropdown check were updated for the new kinds and actions.
+- The browser suite covers: `ui.set_value` filling a Bar; a real click on a script Button → `on_ui GoButton click`; a click on a Toggle → 1; and a real drag across half a Slider → 0.5.
+
+## F57 — Particles: shapes, over-lifetime, world space, bursts, and trails (0.57.0)
+
+This is item 8 of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. The F40 `Particles` component had four presets and fixed-size points, emitted only at a constant rate.
+
+### Design
+
+- **Simulation module**: the simulation moved out of `main.ts` into `src/editor/particles.ts`, which is pure, three.js-free and unit-tested. `main.ts` keeps only the GPU side.
+- **Emitter shapes**:
+  - **Point**.
+  - **Sphere**: uniform in the ball, launched outward.
+  - **Box**: launched outward.
+  - **Cone**: a base disc of `shapeSize`, with velocities within `coneAngle` of up.
+- **Over lifetime**: color lerps from `color` to `endColor` and size from `size` to `size × endSize`, while brightness fades to zero as before. `gravityScale` multiplies the preset's gravity.
+- **Simulation space**:
+  - **Local** particles are parented under the entity, as before.
+  - **World** particles live at the scene root and spawn from the entity's current world position, so they stay behind a moving emitter.
+- **Bursts**: `burst` spawns that many particles when Play starts. Scripts call `particles.burst(n)` and `particles.set_emitting(bool)` on their own entity through the command queue. Capacity grows with the burst size, up to 1000 particles.
+- **Rendering**: a small shader replaces `PointsMaterial`, so every particle has its own size and draws as a soft round sprite, additively blended.
+- **Defaults**: older scenes get `endColor = color`, `endSize = 1`, Point shape, Local space and no burst, which reproduces the old look. The presets' gravity sign is converted, so their motion is unchanged.
+- **`Trail`** (new component):
+  - During Play, `trail.ts` records the entity's world position every `minDistance` and drops points older than `lifetime`.
+  - It builds a camera-facing ribbon that narrows and fades toward the tail. The ribbon is drawn additively and cleared in Edit mode.
+
+### F57 verification
+
+- `tests/particles.test.ts` covers:
+  - rate/lifetime steady state, motion, and color and size at a known age;
+  - gravity, bursts and the emitting toggle;
+  - every spawned particle staying inside its Sphere, Box or Cone (and within the cone angle);
+  - trail recording by distance, expiry by age, and ribbon width and fade.
+- The browser suite adds a World-space Cone emitter with a Play-start burst and a Lua burst plus `set_emitting(false)`, and a Trail on a launched body, with no page errors.
+- A clean-scene screenshot shows the fountain rising in a cone, with particles shrinking and reddening with age.
+
+## F58 — Asset import and a Stats overlay (0.58.0)
+
+This covers items 9 and 10 (the stats and profiler part) of [the Unity gap analysis](unity/GAP_ANALYSIS.md) order of work. Before it, the only way to add content was `tools/import_model.mjs` plus a rebuild, and there was no way to see what the engine was spending time on.
+
+### Asset import (`src/editor/userAssets.ts`)
+
+- **Import**: the Project panel's **Import asset…** accepts `.glb` models, png/jpg/webp/gif images and ogg/mp3/wav/m4a audio. Each file is saved to IndexedDB (`game-engine-editor-assets`) and restored on every load.
+- **Models and sounds** get catalog ids from 10000 up and are added to `modelCatalog`/`soundCatalog`, so every existing path works on them unchanged: the Model and Clip dropdowns (now computed on access), "Add from catalog" under the new **Imported** category, autoplay Sound and `sound.play`.
+- **Re-imports**: importing a file with the same name keeps its id, so scenes referencing it keep working.
+- **Images** are referenced as `asset:<file name>` by `UI.image` and the new `Material.texture` field. `Material.texture` also takes any URL. Textures are cached per URL, sRGB and repeating.
+- **Limitation**: imports live in the importing browser only. Elsewhere a scene shows placeholders, and `tools/export_build.mjs` does not bundle them yet.
+
+### Stats overlay
+
+- **Toggle**: the viewport's **Stats** button toggles a panel showing FPS, average frame time, C++ tick time per frame, draw calls and triangles, and the entity count including spawned entities.
+- **Draw calls and triangles** are counted across every render pass, bloom included: `renderer.info.autoReset` is off and the counters are reset once per frame.
+- **Per-system timings**: each C++ system's time on the last tick. Every bridge system is now registered through `add_timed()`, which measures it with `steady_clock`, and `editor_profile_text()` reports the timings.
+
+### F58 verification
+
+- `tests/userAssets.test.ts` covers asset kinds by extension, id assignment (starting at 10000, re-imports keeping their id) and `asset:` resolution.
+- `engine_editor_bridge_tests` checks that physics, script, AI and nav all report timings.
+- The browser suite:
+  - imports a real kit `.glb`, a PNG and an OGG, and checks the log's ids and that all three are in IndexedDB;
+  - places the model from the Imported category;
+  - textures a Material with `asset:checker.png`;
+  - opens Stats and waits for a draw-call count, then for a physics timing during Play.

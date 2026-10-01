@@ -2,6 +2,7 @@
 #include <iostream>
 #include <limits>
 #include <stdexcept>
+#include <source_location>
 #include <string>
 extern "C" {
 void editor_begin();
@@ -22,6 +23,29 @@ int editor_projectile_count();
 double editor_projectile_value(int, int);
 void editor_script_key(const char *, int);
 const char *editor_take_animation_request(int);
+void editor_set_body(int, int, double, int);
+void editor_set_collider(int, int, double, double, double);
+void editor_set_script_props(int, const char *);
+void editor_set_name(int, const char *);
+void editor_template_begin(const char *);
+int editor_entity_count();
+const char *editor_spawned_prefab(int);
+int editor_take_commands();
+const char *editor_command_text(int, int);
+int editor_command_entity(int);
+void editor_script_notify(int, const char *, const char *);
+void editor_input_key(const char *, int);
+void editor_input_mouse_move(double, double, double, double);
+void editor_input_mouse_button(int, int, double, double);
+void editor_input_wheel(double, double);
+void editor_input_gamepad_connected(int);
+void editor_input_gamepad_button(int, int);
+void editor_input_gamepad_axis(int, double);
+void editor_set_input_bindings(const char *);
+const char *editor_bindings_error();
+double editor_action_value(const char *);
+void editor_ui_event(const char *, const char *);
+const char *editor_profile_text();
 }
 namespace {
 int add_unit(double x, double y, double z, double vx, double vy, double vz) {
@@ -34,9 +58,9 @@ constexpr int key_w = 0, key_a = 1, key_s = 2, key_d = 3, key_shift = 4, key_f =
               key_c = 7;
 } // namespace
 int main() {
-    const auto check = [](bool ok) {
+    const auto check = [](bool ok, std::source_location where = std::source_location::current()) {
         if (!ok)
-            throw std::runtime_error{"editor bridge test failed"};
+            throw std::runtime_error{"editor bridge test failed at line " + std::to_string(where.line())};
     };
     editor_begin();
     check(add_unit(0, 2, 3, 6, 0, 0) == 1);
@@ -710,17 +734,27 @@ int main() {
     check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0.5, 0, 3) == 0);
     check(editor_commit() == 0);
 
-    // A chasing AIAgent is still ordinary physics underneath — it stops at a Collider wall
-    // like anything else with a RigidBody, rather than the AI system's velocity write
-    // bypassing collision resolution. Same obstacle geometry as the Player-vs-Collider case
-    // above: unit box centered at x=3, near face at x=2.5.
+    // Since 0.54.0 a chasing AIAgent follows an A* path, so it walks around a
+    // wall between it and the Player instead of pressing against it.
     editor_begin();
     check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // wall, index 0
     check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.5, 0, 0) == 1); // AI, index 1
     check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // Player, index 2
     check(editor_commit() == 1);
     for (int i = 0; i < 300; ++i)
-        editor_tick(); // far more than enough time to cross the gap if the wall didn't stop it
+        editor_tick();
+    check(editor_value(1, 0) > 3.5); // went around the wall to the Player's side
+
+    // It is still ordinary physics underneath: with no way around (a wall
+    // spanning the whole navigation grid), it falls back to heading
+    // straight for the Player and stops at the wall's face.
+    editor_begin();
+    check(editor_add(3, 0.5, 0, 0, 0, 0, 1, 1, 200, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // wall, index 0
+    check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.5, 0, 0) == 1); // AI, index 1
+    check(editor_add(5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // Player, index 2
+    check(editor_commit() == 1);
+    for (int i = 0; i < 300; ++i)
+        editor_tick();
     check(editor_value(1, 0) < 2.0 + 1e-3); // stopped at the wall's face, not past it
     check(editor_value(1, 0) > 1.5);        // and did actually approach, not stall at the start
 
@@ -826,6 +860,191 @@ int main() {
         editor_tick();
     check(editor_value(0, 0) < 0); // released -- drifting negative again
 
+    {
+        // Authored RigidBody mass/dynamic reach the runtime: a moving mass-1
+        // crate hitting a resting mass-9 crate (both with colliders, ground
+        // at 0) nudges it instead of stopping dead against it.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 5, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(0, 1, 1, 1);
+        check(editor_add(1.2, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(1, 1, 9, 1);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 10; ++i)
+            editor_tick();
+        check(editor_value(1, 0) > 1.2); // the heavy crate moved
+        check(editor_value(0, 0) < editor_value(1, 0) - 0.99); // no interpenetration
+
+        // A kinematic authored body ignores gravity.
+        editor_begin();
+        check(editor_add(0, 5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(0, 1, 1, 0);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 30; ++i)
+            editor_tick();
+        check(std::abs(editor_value(0, 1) - 5) < 1e-6);
+
+        // A trigger Collider does not block a mover passing through it.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 5, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_add(1.5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_collider(1, 1, 0, 4294967295.0, 0);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(editor_value(0, 0) > 3);
+
+        // Out-of-range settings fail the whole commit, like editor_add's own validation.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_collider(0, 0, 32, 1, 0);
+        check(editor_commit() == 0);
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(0, 1, -1, 1);
+        check(editor_commit() == 0);
+    }
+    {
+        // Scripts reach the bridge host: world.spawn instantiates a prefab
+        // template (which is never simulated itself), world.find uses
+        // authored names, props arrive, and sound/ui/log queue as commands.
+        editor_begin();
+        editor_template_begin("Coin");
+        check(editor_add(0, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(-1, 1, 1, 0); // kinematic: stays where it spawns
+        editor_set_collider(-1, 1, 0, 4294967295.0, 0);
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_name(0, "Spawner");
+        editor_set_script_source(0, R"lua(
+            function on_start()
+              local coin = world.spawn("Coin", props.x, 2, 0)
+              log(tostring(coin ~= nil) .. " " .. tostring(world.find("Spawner") == self.id))
+              sound.play("coin")
+              ui.set_text("Score", props.label)
+            end
+        )lua");
+        editor_set_script_props(0, "x\tn\t4\nlabel\ts\tScore: 1\nbad line\nflag\tb\t1");
+        check(editor_commit() == 1);
+        check(editor_entity_count() == 1);
+        editor_tick();
+        check(editor_entity_count() == 2);
+        check(std::string(editor_spawned_prefab(1)) == "Coin");
+        check(std::string(editor_spawned_prefab(0)).empty());
+        check(editor_alive(1) == 1 && std::abs(editor_value(1, 0) - 4) < 1e-6 && std::abs(editor_value(1, 1) - 2) < 1e-6);
+        check(editor_take_commands() == 3);
+        check(std::string(editor_command_text(0, 0)) == "log" && std::string(editor_command_text(0, 1)) == "true true");
+        check(std::string(editor_command_text(1, 0)) == "sound" && std::string(editor_command_text(1, 1)) == "coin");
+        check(std::string(editor_command_text(2, 1)) == "Score" && std::string(editor_command_text(2, 2)) == "Score: 1");
+        check(editor_command_entity(2) == 0);
+        check(editor_take_commands() == 0);
+
+        // Animator plumbing: anim.set/trigger become commands, and the
+        // editor's on_anim_event/on_anim_state reach the script (others don't).
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_script_source(0, R"lua(
+            function on_start() anim.set("aiming", true); anim.set("speed", 2.5); anim.trigger("jump") end
+            function on_anim_event(name) log("event " .. name) end
+            function on_anim_state(name) log("state " .. name) end
+            function on_destroy() log("should not be callable") end
+        )lua");
+        check(editor_commit() == 1);
+        editor_tick();
+        check(editor_take_commands() == 3);
+        check(std::string(editor_command_text(0, 0)) == "anim_set" && std::string(editor_command_text(0, 2)) == "true");
+        check(std::string(editor_command_text(1, 2)) == "2.5");
+        check(std::string(editor_command_text(2, 0)) == "anim_trigger" && std::string(editor_command_text(2, 1)) == "jump");
+        editor_script_notify(0, "on_anim_event", "footstep");
+        editor_script_notify(0, "on_anim_state", "run");
+        editor_script_notify(0, "on_destroy", "");
+        check(editor_take_commands() == 2);
+        check(std::string(editor_command_text(0, 1)) == "event footstep");
+        check(std::string(editor_command_text(1, 1)) == "state run");
+    }
+    {
+        // Native input (0.55.0): any key by DOM code drives both the default
+        // actions and the bound movement; mouse and gamepad reach scripts.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // Player
+        editor_set_script_source(0, R"lua(
+            function on_tick(dt)
+              local x, y, dx, dy = input.mouse()
+              if input.action_pressed("jump") then log("jump " .. input.action("move_y")) end
+              if input.mouse_pressed(0) then log(string.format("click %.0f %.0f", x, y)) end
+              if input.pad_pressed("a") then log(string.format("pad %.2f %s", input.pad_axis("lx"), tostring(input.pad_connected()))) end
+              if input.action_pressed("fire") then log("fire") end
+            end
+        )lua");
+        check(editor_commit() == 1);
+        check(std::string(editor_bindings_error()).empty());
+        editor_input_begin_frame();
+        editor_input_key("KeyW", 1);
+        editor_input_key("Space", 1);
+        editor_tick();
+        check(editor_action_value("move_y") == 1.0);
+        check(editor_value(0, 2) < 0); // W still walks the Player (camera-relative -z)
+        editor_input_begin_frame();
+        editor_input_mouse_move(120, 80, 5, 0);
+        editor_input_mouse_button(0, 1, 120, 80);
+        editor_tick();
+        editor_input_begin_frame();
+        editor_input_gamepad_connected(1);
+        editor_input_gamepad_axis(0, 0.5);
+        editor_input_gamepad_button(0, 1);
+        editor_tick();
+        check(editor_take_commands() == 4);
+        check(std::string(editor_command_text(0, 1)) == "jump 1.0");
+        check(std::string(editor_command_text(1, 1)) == "click 120 80");
+        check(std::string(editor_command_text(2, 1)) == "fire"); // mouse_left is bound to fire
+        check(std::string(editor_command_text(3, 1)) == "pad 0.50 true");
+        check(editor_action_value("move_x") > 0.4); // left stick past the dead zone
+
+        // Custom bindings replace the defaults; bad text keeps them and reports.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_input_bindings("dash: q, pad_b\nzoom: wheel*2");
+        check(editor_commit() == 1);
+        editor_input_begin_frame();
+        editor_input_key("KeyQ", 1);
+        editor_input_wheel(0, 0.25);
+        editor_tick();
+        check(editor_action_value("dash") == 1.0 && editor_action_value("zoom") == 0.5);
+        check(editor_action_value("jump") == 0.0); // defaults are gone
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_input_bindings("jump space\n");
+        check(editor_commit() == 1);
+        check(std::string(editor_bindings_error()).find("line 1") != std::string::npos);
+        editor_input_begin_frame();
+        editor_input_key("Space", 1);
+        editor_tick();
+        check(editor_action_value("jump") == 1.0); // defaults kept
+
+        // UI events reach every script's on_ui (numbers as numbers), and
+        // ui.set_value/set_visible queue commands.
+        editor_begin();
+        for (int i = 0; i < 2; ++i) {
+            check(editor_add(i, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            editor_set_script_source(i, R"lua(
+                function on_ui(name, value) log(name .. " " .. type(value) .. " " .. tostring(value)) end
+                function on_start() ui.set_value("Health", 0.5); ui.set_visible("Menu", false) end
+            )lua");
+        }
+        check(editor_commit() == 1);
+        editor_tick();
+        check(editor_take_commands() == 4);
+        check(std::string(editor_command_text(0, 0)) == "ui_value" && std::string(editor_command_text(0, 2)) == "0.500000");
+        check(std::string(editor_command_text(1, 0)) == "ui_visible" && std::string(editor_command_text(1, 2)) == "0");
+        editor_ui_event("Volume", "0.75");
+        editor_ui_event("Start", "click");
+        check(editor_take_commands() == 4);
+        check(std::string(editor_command_text(0, 1)) == "Volume number 0.75");
+        check(std::string(editor_command_text(2, 1)) == "Start string click");
+        // Every system reports a timing after a tick.
+        const std::string profile = editor_profile_text();
+        for (const char *name : {"editor.physics=", "editor.script=", "editor.ai=", "editor.nav="})
+            check(profile.find(name) != std::string::npos);
+    }
     // F queues a native "attack" animation request for the Player on every press, whether or
     // not it actually connects with a Health entity -- the request reaches
     // editor_take_animation_request the same channel a script's own self.animate would use
@@ -911,6 +1130,9 @@ int main() {
                  "editor_script_key reaching a script's own input.down/input.pressed/self.animate "
                  "(separate from editor_key's own bound W/A/S/D/Shift/F/G set), F/G natively "
                  "queuing an attack/blast animation request on every press (hit or miss), a "
-                 "Chasing AIAgent's own landed hit queuing its own attack request, and C "
-                 "(crouch/sit) freezing Player WASD input while held passed.\n";
+                 "Chasing AIAgent's own landed hit queuing its own attack request, C "
+                 "(crouch/sit) freezing Player WASD input while held, authored "
+                 "RigidBody mass/kinematic and Collider trigger/layer settings, the script host "
+                 "(prefab templates for world.spawn, names, props, sound/ui/log commands), and native "
+                 "keyboard/mouse/gamepad input with default and custom action bindings passed.\n";
 }

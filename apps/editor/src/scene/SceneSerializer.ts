@@ -1,3 +1,4 @@
+import { reconcileProps } from "./scriptProps";
 import type { EntityRef } from "./Components";
 import {
   isPrefabableComponent,
@@ -5,7 +6,7 @@ import {
   type PrefabableComponent,
   type SceneComponents,
 } from "./Scene";
-import type { AIStateName, ParticlePreset, UIAnchor } from "./Components";
+import type { AIStateName, ParticlePreset, UIAction, UIAnchor, UIKind } from "./Components";
 
 const uiAnchors: readonly UIAnchor[] = [
   "top-left",
@@ -206,6 +207,13 @@ const componentNames = [
   "Script",
   "Sound",
   "PrefabInstance",
+  "Environment",
+  "Camera",
+  "Material",
+  "Animator",
+  "CameraFollow",
+  "InputActions",
+  "Trail",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -263,6 +271,15 @@ export function normalizeComponent(
           value.radius === undefined
             ? 0.5
             : number(value.radius, "Collider.radius"),
+        // Added in 0.50.0; scenes saved before default to a plain solid
+        // collider on layer 0 that collides with everything.
+        isTrigger:
+          value.isTrigger === undefined
+            ? false
+            : boolean(value.isTrigger, "Collider.isTrigger"),
+        layer: colliderLayer(value.layer),
+        mask: colliderMask(value.mask),
+        bounciness: colliderBounciness(value.bounciness),
       };
     }
     case "Health":
@@ -289,8 +306,12 @@ export function normalizeComponent(
       return {
         archetype: boundedIndex(value.archetype, "Pedestrian.archetype", 0, 3),
       };
-    case "Script":
-      return { source: string(value.source, "Script.source") };
+    case "Script": {
+      const source = string(value.source, "Script.source");
+      if (value.props !== undefined && (typeof value.props !== "object" || value.props === null || Array.isArray(value.props)))
+        throw new Error("Script.props must be an object.");
+      return { source, props: reconcileProps(source, value.props as Record<string, unknown> | undefined) };
+    }
     case "Sound":
       return {
         clip: unsigned(value.clip, "Sound.clip", 1),
@@ -332,6 +353,96 @@ export function normalizeComponent(
           value.angle === undefined
             ? Math.PI / 6
             : spotAngle(value.angle, "Light.angle"),
+        // Added in 0.52.0; older scenes' lights don't cast shadows.
+        castShadows:
+          value.castShadows === undefined ? false : boolean(value.castShadows, "Light.castShadows"),
+      };
+    }
+    case "Environment": {
+      const sky = value.sky;
+      if (sky !== "Color" && sky !== "Gradient" && sky !== "Procedural")
+        throw new Error("Environment.sky must be Color, Gradient, or Procedural.");
+      const fog = value.fog;
+      if (fog !== "None" && fog !== "Linear" && fog !== "Exponential")
+        throw new Error("Environment.fog must be None, Linear, or Exponential.");
+      const fogNear = nonNegativeNumber(value.fogNear, "Environment.fogNear");
+      const fogFar = positiveNumber(value.fogFar, "Environment.fogFar");
+      if (fogFar <= fogNear) throw new Error("Environment.fogFar must be greater than fogNear.");
+      const elevation = number(value.sunElevation, "Environment.sunElevation");
+      if (elevation < -90 || elevation > 90)
+        throw new Error("Environment.sunElevation must be from -90 to 90 degrees.");
+      return {
+        sky,
+        skyColor: unitVec3(value.skyColor, "Environment.skyColor"),
+        horizonColor: unitVec3(value.horizonColor, "Environment.horizonColor"),
+        groundColor: unitVec3(value.groundColor, "Environment.groundColor"),
+        sunElevation: elevation,
+        sunAzimuth: number(value.sunAzimuth, "Environment.sunAzimuth"),
+        sunIntensity: nonNegativeNumber(value.sunIntensity, "Environment.sunIntensity"),
+        sunColor: unitVec3(value.sunColor, "Environment.sunColor"),
+        ambientIntensity: nonNegativeNumber(value.ambientIntensity, "Environment.ambientIntensity"),
+        fog,
+        fogColor: unitVec3(value.fogColor, "Environment.fogColor"),
+        fogNear,
+        fogFar,
+        fogDensity: nonNegativeNumber(value.fogDensity, "Environment.fogDensity"),
+        shadows: boolean(value.shadows, "Environment.shadows"),
+        exposure: positiveNumber(value.exposure, "Environment.exposure"),
+      };
+    }
+    case "Camera": {
+      const projection = value.projection;
+      if (projection !== "Perspective" && projection !== "Orthographic")
+        throw new Error("Camera.projection must be Perspective or Orthographic.");
+      const fov = number(value.fov, "Camera.fov");
+      if (fov <= 0 || fov >= 180) throw new Error("Camera.fov must be between 0 and 180 degrees.");
+      const near = positiveNumber(value.near, "Camera.near");
+      const far = positiveNumber(value.far, "Camera.far");
+      if (far <= near) throw new Error("Camera.far must be greater than Camera.near.");
+      return {
+        projection,
+        fov,
+        near,
+        far,
+        orthoSize: positiveNumber(value.orthoSize, "Camera.orthoSize"),
+        priority: number(value.priority, "Camera.priority"),
+      };
+    }
+    case "Animator":
+      return { graph: string(value.graph, "Animator.graph") };
+    case "Trail":
+      return {
+        color: unitVec3(value.color, "Trail.color"),
+        width: positiveNumber(value.width, "Trail.width"),
+        lifetime: positiveNumber(value.lifetime, "Trail.lifetime"),
+        minDistance: positiveNumber(value.minDistance, "Trail.minDistance"),
+      };
+    case "InputActions":
+      return { bindings: string(value.bindings, "InputActions.bindings") };
+    case "CameraFollow":
+      return {
+        target: string(value.target, "CameraFollow.target"),
+        offset: requiredVec3(value.offset, "CameraFollow.offset"),
+        smoothing: nonNegativeNumber(value.smoothing, "CameraFollow.smoothing"),
+        lookHeight: number(value.lookHeight, "CameraFollow.lookHeight"),
+        collision: boolean(value.collision, "CameraFollow.collision"),
+        orbit: boolean(value.orbit, "CameraFollow.orbit"),
+      };
+    case "Material": {
+      const metalness = number(value.metalness, "Material.metalness");
+      const roughness = number(value.roughness, "Material.roughness");
+      const opacity = number(value.opacity, "Material.opacity");
+      for (const [label, v] of [["metalness", metalness], ["roughness", roughness], ["opacity", opacity]] as const)
+        if (v < 0 || v > 1) throw new Error(`Material.${label} must be from 0 to 1.`);
+      return {
+        color: unitVec3(value.color, "Material.color"),
+        metalness,
+        roughness,
+        emissive: unitVec3(value.emissive, "Material.emissive"),
+        emissiveIntensity: nonNegativeNumber(value.emissiveIntensity, "Material.emissiveIntensity"),
+        opacity,
+        keepTextures: boolean(value.keepTextures, "Material.keepTextures"),
+        texture: value.texture === undefined ? "" : string(value.texture, "Material.texture"),
       };
     }
     case "Particles": {
@@ -346,12 +457,22 @@ export function normalizeComponent(
         lifetime: positiveNumber(value.lifetime, "Particles.lifetime"),
         speed: nonNegativeNumber(value.speed, "Particles.speed"),
         size: positiveNumber(value.size, "Particles.size"),
+        endColor:
+          value.endColor === undefined ? unitVec3(value.color, "Particles.color") : unitVec3(value.endColor, "Particles.endColor"),
+        endSize: value.endSize === undefined ? 1 : nonNegativeNumber(value.endSize, "Particles.endSize"),
+        gravityScale: value.gravityScale === undefined ? 1 : number(value.gravityScale, "Particles.gravityScale"),
+        shape: particleShape(value.shape),
+        shapeSize: value.shapeSize === undefined ? 0.5 : nonNegativeNumber(value.shapeSize, "Particles.shapeSize"),
+        coneAngle: particleConeAngle(value.coneAngle),
+        space: value.space === undefined ? "Local" : particleSpace(value.space),
+        burst: value.burst === undefined ? 0 : particleBurst(value.burst),
       };
     }
     case "UI": {
       const kind = value.kind;
-      if (kind !== "Text" && kind !== "Button")
-        throw new Error("UI.kind must be Text or Button.");
+      const kinds: readonly UIKind[] = ["Text", "Button", "Panel", "Image", "Bar", "Slider", "Toggle"];
+      if (typeof kind !== "string" || !kinds.includes(kind as UIKind))
+        throw new Error(`UI.kind must be one of ${kinds.join(", ")}.`);
       const anchor = value.anchor;
       if (typeof anchor !== "string" || !uiAnchors.includes(anchor as UIAnchor))
         throw new Error(`UI.anchor must be one of ${uiAnchors.join(", ")}.`);
@@ -359,19 +480,35 @@ export function normalizeComponent(
       if (visibleWhen !== "always" && visibleWhen !== "play" && visibleWhen !== "pause")
         throw new Error("UI.visibleWhen must be always, play, or pause.");
       const action = value.action;
-      if (
-        action !== "restart" &&
-        action !== "resume" &&
-        action !== "pause" &&
-        action !== "quit"
-      )
-        throw new Error("UI.action must be restart, resume, pause, or quit.");
+      const actions: readonly UIAction[] = ["restart", "resume", "pause", "quit", "script"];
+      if (typeof action !== "string" || !actions.includes(action as UIAction))
+        throw new Error(`UI.action must be one of ${actions.join(", ")}.`);
+      const optional = (key: string, fallback: number) =>
+        value[key] === undefined ? fallback : number(value[key], `UI.${key}`);
+      const width = optional("width", 0);
+      const height = optional("height", 0);
+      const fontSize = optional("fontSize", 16);
+      const opacity = optional("opacity", 0.85);
+      const uiValue = optional("value", 0);
+      if (width < 0 || height < 0) throw new Error("UI.width/height must not be negative.");
+      if (fontSize <= 0) throw new Error("UI.fontSize must be positive.");
+      if (opacity < 0 || opacity > 1) throw new Error("UI.opacity must be from 0 to 1.");
+      if (uiValue < 0 || uiValue > 1) throw new Error("UI.value must be from 0 to 1.");
       return {
-        kind,
+        kind: kind as UIKind,
         text: string(value.text, "UI.text"),
         anchor: anchor as UIAnchor,
         visibleWhen,
-        action,
+        action: action as UIAction,
+        offsetX: optional("offsetX", 0),
+        offsetY: optional("offsetY", 0),
+        width,
+        height,
+        fontSize,
+        color: value.color === undefined ? { x: 0.118, y: 0.165, z: 0.22 } : unitVec3(value.color, "UI.color"),
+        opacity,
+        image: value.image === undefined ? "" : string(value.image, "UI.image"),
+        value: uiValue,
       };
     }
     case "Name":
@@ -519,4 +656,49 @@ export function validateSceneDocument(
       parent = document.entities[parent.index]!.parent;
     }
   }
+}
+
+function colliderLayer(value: unknown): number {
+  if (value === undefined) return 0;
+  const layer = number(value, "Collider.layer");
+  if (!Number.isInteger(layer) || layer < 0 || layer > 31)
+    throw new Error("Collider.layer must be an integer from 0 to 31.");
+  return layer;
+}
+function colliderMask(value: unknown): number {
+  if (value === undefined) return 4294967295;
+  const mask = number(value, "Collider.mask");
+  if (!Number.isInteger(mask) || mask < 0 || mask > 4294967295)
+    throw new Error("Collider.mask must be an integer from 0 to 4294967295.");
+  return mask;
+}
+function colliderBounciness(value: unknown): number {
+  if (value === undefined) return 0;
+  const bounciness = number(value, "Collider.bounciness");
+  if (bounciness < 0 || bounciness > 1)
+    throw new Error("Collider.bounciness must be from 0 to 1.");
+  return bounciness;
+}
+
+function particleShape(value: unknown): "Point" | "Sphere" | "Box" | "Cone" {
+  if (value === undefined) return "Point";
+  if (value !== "Point" && value !== "Sphere" && value !== "Box" && value !== "Cone")
+    throw new Error("Particles.shape must be Point, Sphere, Box, or Cone.");
+  return value;
+}
+function particleConeAngle(value: unknown): number {
+  if (value === undefined) return 25;
+  const angle = number(value, "Particles.coneAngle");
+  if (angle < 0 || angle > 90) throw new Error("Particles.coneAngle must be from 0 to 90 degrees.");
+  return angle;
+}
+function particleSpace(value: unknown): "Local" | "World" {
+  if (value !== "Local" && value !== "World") throw new Error("Particles.space must be Local or World.");
+  return value;
+}
+function particleBurst(value: unknown): number {
+  const count = number(value, "Particles.burst");
+  if (!Number.isInteger(count) || count < 0 || count > 1000)
+    throw new Error("Particles.burst must be a whole number from 0 to 1000.");
+  return count;
 }

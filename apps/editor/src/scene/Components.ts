@@ -30,6 +30,14 @@ export interface ColliderComponent {
   type: "AABB" | "Sphere";
   halfExtents: Vec3;
   radius: number;
+  // Non-solid: reports overlaps (Lua on_trigger_enter/exit) instead of blocking.
+  isTrigger: boolean;
+  // 0..31. Two colliders interact only when each one's mask has the other's layer bit.
+  layer: number;
+  // 32-bit layer bitmask; 4294967295 (every bit) collides with every layer.
+  mask: number;
+  // 0..1: fraction of into-surface speed reflected on contact.
+  bounciness: number;
 }
 export interface HealthComponent {
   current: number;
@@ -56,6 +64,9 @@ export interface PedestrianComponent {
 // VM with no io/os/package/debug and an instruction-count watchdog).
 export interface ScriptComponent {
   source: string;
+  // Values for the props the source declares with `-- @prop name default`
+  // (see scriptProps.ts); always reconciled against the source on load/edit.
+  props: Record<string, number | boolean | string>;
 }
 export interface VehicleComponent {
   archetype: number;
@@ -109,6 +120,9 @@ export interface LightComponent {
   intensity: number;
   range: number;
   angle: number;
+  // Casts real-time shadows (0.52.0). Off by default: every shadow-casting
+  // Point light renders the scene six more times.
+  castShadows: boolean;
 }
 // A lightweight, non-collidable particle emitter -- main.ts's rebuild()
 // spawns an actual THREE.Points system as a sibling of this entity's mesh and
@@ -123,6 +137,7 @@ export interface LightComponent {
 // darkening toward black as they age, so a fully-aged particle contributes
 // nothing rather than needing a separate alpha channel or a custom shader.
 export type ParticlePreset = "Sparkle" | "Smoke" | "Fire" | "Confetti";
+export type ParticleShape = "Point" | "Sphere" | "Box" | "Cone";
 export interface ParticlesComponent {
   preset: ParticlePreset;
   color: Vec3;
@@ -130,6 +145,22 @@ export interface ParticlesComponent {
   lifetime: number;
   speed: number;
   size: number;
+  // 0.57.0 (older scenes get these defaults, which match the old look):
+  endColor: Vec3; // color at the end of life (defaults to `color`)
+  endSize: number; // size multiplier at the end of life
+  gravityScale: number; // multiplies the preset's gravity
+  shape: ParticleShape;
+  shapeSize: number; // sphere radius / box half-extent / cone base radius
+  coneAngle: number; // degrees
+  space: "Local" | "World"; // World: particles stay behind a moving emitter
+  burst: number; // particles emitted at once when Play starts
+}
+// A ribbon following the entity's recent path during Play (0.57.0).
+export interface TrailComponent {
+  color: Vec3;
+  width: number; // world units at the head
+  lifetime: number; // seconds a point lasts
+  minDistance: number; // world units between recorded points
 }
 // Screen-space UI -- a HUD/menu element, not a 3D object: rendered on the
 // existing 2D HUD canvas (main.ts's drawHud(), previously Health bars only)
@@ -162,7 +193,7 @@ export interface ParticlesComponent {
 // element renders in: "always" (Edit included, so an author sees where it
 // lands without pressing Play), "play", or "pause" (e.g. a pause menu that
 // isn't there the rest of the time).
-export type UIKind = "Text" | "Button";
+export type UIKind = "Text" | "Button" | "Panel" | "Image" | "Bar" | "Slider" | "Toggle";
 export type UIAnchor =
   | "top-left"
   | "top-center"
@@ -174,13 +205,29 @@ export type UIAnchor =
   | "bottom-center"
   | "bottom-right";
 export type UIVisibility = "always" | "play" | "pause";
-export type UIAction = "restart" | "resume" | "pause" | "quit";
+// "script" (0.56.0): a click calls on_ui(name, "click") in every script.
+export type UIAction = "restart" | "resume" | "pause" | "quit" | "script";
 export interface UIComponent {
   kind: UIKind;
   text: string;
   anchor: UIAnchor;
   visibleWhen: UIVisibility;
   action: UIAction;
+  // Layout and look (0.56.0; older scenes get these defaults). Offsets move
+  // the element from its anchor in screen pixels (+y down); a width/height
+  // of 0 sizes it automatically (see uiLayout.ts).
+  offsetX: number;
+  offsetY: number;
+  width: number;
+  height: number;
+  fontSize: number;
+  // Background (Button/Panel/Toggle box) or fill (Bar/Slider) color.
+  color: Vec3;
+  opacity: number;
+  // Image: a picture URL, e.g. one imported into the project.
+  image: string;
+  // Bar/Slider: 0..1; Toggle: 0 or 1. Scripts change it with ui.set_value.
+  value: number;
 }
 export interface NameComponent {
   value: string;
@@ -204,4 +251,85 @@ export type PlayerComponent = Record<string, never>;
 export interface EntityRef {
   index: number;
   generation: number;
+}
+
+// Scene-wide look (0.52.0): sky, sun, ambient light, fog, shadows and
+// exposure. The first entity carrying one wins; without any, the scene keeps
+// the defaults below, which reproduce the editor's original fixed lighting.
+export type SkyMode = "Color" | "Gradient" | "Procedural";
+export type FogMode = "None" | "Linear" | "Exponential";
+export interface EnvironmentComponent {
+  sky: SkyMode;
+  // Color: the whole background. Gradient: zenith, horizon and below-horizon.
+  skyColor: Vec3;
+  horizonColor: Vec3;
+  groundColor: Vec3;
+  // Degrees. Elevation 90 is straight overhead; azimuth 0 points the sun
+  // from +Z, 90 from +X. Also positions the Procedural sky's sun disc.
+  sunElevation: number;
+  sunAzimuth: number;
+  sunIntensity: number;
+  sunColor: Vec3;
+  ambientIntensity: number;
+  fog: FogMode;
+  fogColor: Vec3;
+  fogNear: number;
+  fogFar: number;
+  fogDensity: number;
+  shadows: boolean;
+  exposure: number;
+}
+// A game camera (0.52.0). During Play the highest-priority Camera entity
+// renders the game view from its own position and Rotation instead of the
+// editor's orbit camera.
+export type CameraProjection = "Perspective" | "Orthographic";
+export interface CameraComponent {
+  projection: CameraProjection;
+  fov: number; // vertical, degrees
+  near: number;
+  far: number;
+  orthoSize: number; // half the view height, world units
+  priority: number;
+}
+// Surface appearance override (0.52.0). On the placeholder box it replaces
+// the default material; on a catalog model it tints every mesh, keeping the
+// model's own textures when keepTextures is on.
+export interface MaterialComponent {
+  color: Vec3;
+  metalness: number;
+  roughness: number;
+  emissive: Vec3;
+  emissiveIntensity: number;
+  opacity: number;
+  keepTextures: boolean;
+  // Color texture (0.58.0): a URL, or "asset:<file>" for an imported image.
+  texture: string;
+}
+
+// Animation state machine (0.53.0), authored as text -- see
+// src/editor/animator.ts for the syntax.
+export interface AnimatorComponent {
+  graph: string;
+}
+
+// Camera rig (0.54.0), on the same entity as a Camera: during Play the
+// camera follows a target from `offset` (in the target's frame when
+// orbit is off: +z is behind), eases toward it over `smoothing` seconds,
+// looks at the target raised by `lookHeight`, pulls in front of anything
+// between it and the target when `collision` is on, and can be orbited by
+// dragging when `orbit` is on.
+export interface CameraFollowComponent {
+  target: string; // entity Name; "" follows the Player
+  offset: Vec3;
+  smoothing: number;
+  lookHeight: number;
+  collision: boolean;
+  orbit: boolean;
+}
+
+// Named input actions (0.55.0): one `action: source, source` per line (see
+// apps/editor/runtime/bindings.hpp). The first entity with one sets the
+// scene's bindings; without one the defaults below apply.
+export interface InputActionsComponent {
+  bindings: string;
 }

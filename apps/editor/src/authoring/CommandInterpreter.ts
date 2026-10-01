@@ -1,3 +1,4 @@
+import type { EnvironmentComponent } from "../scene/Components";
 import {
   deserializeScene,
   normalizeComponent,
@@ -73,6 +74,13 @@ const componentNames = [
   "Parent",
   "Script",
   "Sound",
+  "Environment",
+  "Camera",
+  "Material",
+  "Animator",
+  "CameraFollow",
+  "InputActions",
+  "Trail",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -529,7 +537,15 @@ function readComponentName(value: unknown): ComponentName {
   return value as ComponentName;
 }
 function defaultCollider(): ColliderComponent {
-  return { type: "AABB", halfExtents: { x: 0.5, y: 0.5, z: 0.5 }, radius: 0.5 };
+  return {
+    type: "AABB",
+    halfExtents: { x: 0.5, y: 0.5, z: 0.5 },
+    radius: 0.5,
+    isTrigger: false,
+    layer: 0,
+    mask: 4294967295,
+    bounciness: 0,
+  };
 }
 export function defaultComponent(
   type: Exclude<ComponentName, "Parent">,
@@ -568,22 +584,111 @@ export function defaultComponent(
       // whatever it's placed near, and Point is the least surprising default
       // (an unaimed Spot would light nothing until its cone is pointed
       // somewhere; Directional ignores position entirely).
-      return { type: "Point", color: { x: 1, y: 0.95, z: 0.85 }, intensity: 2, range: 15, angle: Math.PI / 6 };
+      return {
+        type: "Point",
+        color: { x: 1, y: 0.95, z: 0.85 },
+        intensity: 2,
+        range: 15,
+        angle: Math.PI / 6,
+        castShadows: false,
+      };
     case "Particles":
       // A gentle sparkle -- visible immediately without tuning, and Sparkle's
       // omnidirectional burst doesn't need the gravity/rise tuning Smoke/
       // Fire/Confetti each want to read correctly (see main.ts's preset table).
-      return { preset: "Sparkle", color: { x: 1, y: 0.9, z: 0.6 }, rate: 20, lifetime: 1.2, speed: 1.5, size: 0.12 };
+      return {
+        preset: "Sparkle",
+        color: { x: 1, y: 0.9, z: 0.6 },
+        rate: 20,
+        lifetime: 1.2,
+        speed: 1.5,
+        size: 0.12,
+        endColor: { x: 1, y: 0.9, z: 0.6 },
+        endSize: 1,
+        gravityScale: 1,
+        shape: "Point",
+        shapeSize: 0.5,
+        coneAngle: 25,
+        space: "Local",
+        burst: 0,
+      };
     case "UI":
       // A visible-immediately Text label, not a Button -- reads as
       // placeholder content to edit, the more inviting default of the two.
-      return { kind: "Text", text: "Text", anchor: "top-left", visibleWhen: "always", action: "restart" };
+      return {
+        kind: "Text",
+        text: "Text",
+        anchor: "top-left",
+        visibleWhen: "always",
+        action: "restart",
+        offsetX: 0,
+        offsetY: 0,
+        width: 0,
+        height: 0,
+        fontSize: 16,
+        color: { x: 0.118, y: 0.165, z: 0.22 },
+        opacity: 0.85,
+        image: "",
+        value: 0,
+      };
     case "Name":
       return { value: "Entity" };
     case "Script":
-      return { source: "function on_tick(dt)\n  -- self.x/y/z (read-only), self.vx/vy/vz (read-write)\nend" };
+      return {
+        source:
+          "-- @prop speed 3\n" +
+          "function on_start()\n  -- runs once when Play starts\nend\n\n" +
+          "function on_tick(dt)\n  -- self.x/y/z and self.vx/vy/vz are read-write; props.speed is set in the inspector\nend\n",
+        props: { speed: 3 },
+      };
     case "Sound":
       return { clip: 1, volume: 1, loop: false, autoplay: true };
+    case "Environment":
+      return defaultEnvironment();
+    case "Camera":
+      return { projection: "Perspective", fov: 50, near: 0.1, far: 2000, orthoSize: 10, priority: 0 };
+    case "Trail":
+      return { color: { x: 0.5, y: 0.85, z: 1 }, width: 0.3, lifetime: 0.5, minDistance: 0.1 };
+    case "InputActions":
+      // Kept in sync with editor_bindings::default_text (bindings.hpp).
+      return {
+        bindings: [
+          "move_x: d, -a, right, -left, pad_lx",
+          "move_y: w, -s, up, -down, -pad_ly",
+          "look_x: mouse_dx*0.05, pad_rx",
+          "look_y: mouse_dy*0.05, pad_ry",
+          "jump: space, pad_a",
+          "fire: mouse_left, pad_rt, pad_x",
+          "interact: e, pad_y",
+          "sprint: shift, pad_lb",
+        ].join("\n") + "\n",
+      };
+    case "CameraFollow":
+      return { target: "", offset: { x: 0, y: 4, z: 8 }, smoothing: 0.15, lookHeight: 1, collision: true, orbit: false };
+    case "Animator":
+      return {
+        graph: [
+          "state idle clip=idle",
+          "state walk clip=walk",
+          "state run clip=run",
+          "start idle",
+          "idle -> walk when speed > 0.15",
+          "walk -> run when speed > 2.5",
+          "run -> walk when speed <= 2.5",
+          "walk -> idle when speed <= 0.15",
+        ].join("\n"),
+      };
+    case "Material":
+      return {
+        color: { x: 0.38, y: 0.68, z: 0.73 },
+        metalness: 0,
+        roughness: 1,
+        emissive: { x: 0, y: 0, z: 0 },
+        emissiveIntensity: 1,
+        opacity: 1,
+        keepTextures: true,
+        texture: "",
+      };
   }
 }
 
@@ -592,3 +697,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export type { SceneDocument };
+
+// Reproduces the editor's original fixed lighting (dark blue backdrop,
+// hemisphere ambient 3, sun at (4, 8, 5) with intensity 3), so adding an
+// Environment changes nothing until its values are edited.
+export function defaultEnvironment(): EnvironmentComponent {
+  return {
+    sky: "Color",
+    skyColor: { x: 0.063, y: 0.102, z: 0.149 },
+    horizonColor: { x: 0.55, y: 0.7, z: 0.85 },
+    groundColor: { x: 0.25, y: 0.31, z: 0.21 },
+    sunElevation: 51.3,
+    sunAzimuth: 38.7,
+    sunIntensity: 3,
+    sunColor: { x: 1, y: 1, z: 1 },
+    ambientIntensity: 3,
+    fog: "None",
+    fogColor: { x: 0.063, y: 0.102, z: 0.149 },
+    fogNear: 20,
+    fogFar: 120,
+    fogDensity: 0.015,
+    shadows: true,
+    exposure: 1,
+  };
+}

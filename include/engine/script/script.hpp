@@ -1,14 +1,20 @@
 #pragma once
 
+#include "engine/input/actions.hpp"
+#include "engine/nav/nav.hpp"
 #include "engine/physics/physics.hpp"
 #include "engine/world/world.hpp"
 #include <functional>
+#include <optional>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
+#include <cstdint>
 #include <utility>
 #include <vector>
+
+struct lua_State;
 
 namespace engine::script {
 
@@ -19,6 +25,46 @@ namespace engine::script {
 // Health rather than needing to manage a VM's lifetime itself.
 struct Script final {
     std::string source;
+    // Inspector-editable values the source reads through the `props` global
+    // (see Runtime's doc comment). Declared in the source with
+    // `-- @prop name default` lines; the editor keeps this list in sync.
+    struct Prop final {
+        enum class Kind { number, boolean, text };
+        std::string name;
+        Kind kind{Kind::number};
+        double number{};
+        bool boolean{};
+        std::string text;
+    };
+    std::vector<Prop> props;
+
+    Script() = default;
+    Script(std::string source_text, std::vector<Prop> prop_values = {}) // NOLINT: implicit on purpose
+        : source(std::move(source_text)), props(std::move(prop_values)) {}
+};
+
+// What a script can ask of the application embedding this Runtime, beyond
+// Box/RigidBody (which Runtime reads and writes itself). The editor bridge
+// implements it; a Runtime without a host simply makes these Lua calls
+// return nil / do nothing.
+class Host {
+public:
+    virtual ~Host() = default;
+    // First living entity whose name is exactly `name`.
+    virtual std::optional<Entity> find(const World &world, const std::string &name) = 0;
+    virtual std::string name_of(const World &world, Entity entity) = 0;
+    // Instantiate the prefab called `prefab`. Called mid-tick, so the host
+    // must use World's deferred create/set; the returned handle becomes
+    // alive when the current system finishes.
+    virtual std::optional<Entity> spawn(World &world, const std::string &prefab, Vec3 position,
+                                        Vec3 velocity) = 0;
+    // Deferred destroy, same timing as spawn.
+    virtual void destroy(World &world, Entity entity) = 0;
+    virtual bool health(const World &world, Entity entity, float &current, float &max) = 0;
+    virtual void damage(World &world, Entity entity, float amount) = 0;
+    // A request for something outside the simulation: "sound" (a = clip),
+    // "ui_text" (a = UI element name, b = text), "log" (a = message).
+    virtual void emit(Entity source, const std::string &kind, const std::string &a, const std::string &b) = 0;
 };
 
 // Owns one Lua VM per (Box, physics::RigidBody, Script) entity, created the
@@ -41,12 +87,29 @@ struct Script final {
 // opening the base library, for the same reason: a script's only way to run
 // code is the source it was authored with.
 //
-// Every entity's `self` table exposes self.x/y/z (this tick's Box.center,
-// read-only — overwriting them from a script has no effect, matching the
-// existing convention that nothing but physics::step ever repositions a
-// RigidBody entity directly) and self.vx/vy/vz (this tick's RigidBody
-// velocity, read *and* write — the one lever a script actually has, the
-// same lever editor.move/editor.ai use in the editor bridge).
+// Every entity's `self` table exposes self.id, self.name, self.grounded,
+// self.x/y/z and self.vx/vy/vz. Since 0.51.0 all six numbers are
+// read-write: writing a velocity steers the body through physics, and
+// writing a position teleports it. Only fields a callback actually changes
+// are written back. `self` is rebuilt before every callback, so keep your
+// own state in globals, not in `self`.
+//
+// Callbacks (all optional): on_start(), on_tick(dt), on_destroy(),
+// on_collision_enter/stay/exit(other), on_trigger_enter/stay/exit(other),
+// on_message(name, value, sender). Entities are integer ids.
+//
+// input also has action/action_down/action_pressed/action_released (named
+// actions), mouse() -> x, y, dx, dy, mouse_down/mouse_pressed(0|1|2),
+// wheel(), pad_down/pad_pressed(button), pad_axis(axis) and pad_connected().
+//
+// Globals: props (inspector values), time (dt, now, frame), world (find,
+// name, alive, position, set_position, velocity, set_velocity, spawn,
+// destroy, health, damage, raycast, overlap, send, path), physics (add_force,
+// add_impulse), sound.play, ui.set_text/set_value/set_visible (and the
+// on_ui(element, value) callback), anim.set/anim.trigger, camera.shake,
+// particles.burst/set_emitting, log, and after/every/cancel/
+// start/wait for timers and coroutines. world/sound/ui/log go through the
+// Host; without one they return nil or do nothing.
 //
 // A `save` global table is also exposed to every VM: `save.set(key, value)`
 // / `save.get(key)`, a small key-value store shared by every script on
@@ -183,6 +246,31 @@ public:
     // once.
     std::string take_animation_request(Entity entity);
 
+    void set_host(Host *host) { host_ = host; }
+    // The navigation grid world.path() searches; none means world.path()
+    // returns nil.
+    void set_nav(const nav::Grid *grid) { nav_ = grid; }
+    // Native input for the `input` table beyond input.down/pressed's string
+    // keys: raw mouse and gamepad state, and named actions (input.action*).
+    // Either may be null; the matching Lua calls then report nothing held.
+    void set_input(const InputState *state, const ActionSystem *actions) {
+        input_state_ = state;
+        actions_ = actions;
+    }
+    // Calls on_collision_enter/stay/exit(other) and on_trigger_enter/stay/
+    // exit(other) on both entities of every event, for entities whose
+    // script defines them. Call once after each physics::step().
+    void dispatch_contacts(World &world, const physics::Events &events);
+    // Calls `function_name(argument)` in an entity's script, if it has a
+    // started one that defines it. For host-side events such as the
+    // editor's on_anim_event / on_anim_state.
+    void notify(World &world, Entity entity, const std::string &function_name, const std::string &argument);
+    // Calls `function_name(name, value)` in every started script that
+    // defines it -- the editor's on_ui(element, value). `value` is passed as
+    // a number when it reads as one, otherwise as a string.
+    void broadcast(World &world, const std::string &function_name, const std::string &name, const std::string &value);
+    // Seconds of simulated time this Runtime has stepped (`time.now`).
+    [[nodiscard]] double now() const { return now_; }
     // Queues a one-shot animation request for `entity`, exactly as if that
     // entity's own script had just set self.animate = clip -- but callable
     // directly by native code (e.g. the editor bridge's own combat/AI-attack
@@ -193,7 +281,26 @@ public:
     void request_animation(Entity entity, std::string clip);
 
 private:
+    friend struct LuaApi;
     struct Instance;
+    // Stable Lua-side integer ids for entities (Entity itself is opaque).
+    std::int64_t id_of(Entity entity);
+    std::optional<Entity> entity_of(std::int64_t id) const;
+    // Runs `function_name` in an entity's VM with `self`/`time` refreshed
+    // before and self written back after. `push_args` pushes `nargs` values.
+    void call(World &world, Entity entity, Instance &instance, const char *function_name,
+              const std::function<void(lua_State *)> &push_args, int nargs);
+    Host *host_{};
+    const nav::Grid *nav_{};
+    const InputState *input_state_{};
+    const ActionSystem *actions_{};
+    World *world_{};
+    double now_{};
+    std::uint64_t frame_{};
+    float dt_{};
+    std::map<Entity, std::int64_t> ids_;
+    std::map<std::int64_t, Entity> entities_by_id_;
+    std::int64_t next_id_{1};
     // unique_ptr so Instance (which owns a raw lua_State* the public header
     // must not expose lua.h to obtain) can be forward-declared here; the
     // map itself still never relocates a live Instance on insert/erase of a

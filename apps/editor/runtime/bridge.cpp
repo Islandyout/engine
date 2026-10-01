@@ -1,7 +1,12 @@
+#include "bindings.hpp"
+#include "engine/nav/nav.hpp"
 #include "engine/physics/physics.hpp"
 #include "engine/script/script.hpp"
 #include "engine/world/fixed_systems.hpp"
 #include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
 #include <cmath>
 #include <iterator>
 #include <map>
@@ -81,6 +86,10 @@ struct AIAgent final {
     // Fleeing/wander detour rather than staying frozen and firing off
     // instantly the moment the agent re-enters Chasing.
     float attack_cooldown{0.0F};
+    // Chasing follows an A* path around obstacles (see the "editor.ai"
+    // system); recomputed every ai_repath_interval seconds.
+    std::vector<engine::Vec3> path;
+    float repath{0.0F};
 };
 // Which row of pedestrian_tuning (below) shapes a Pedestrian's own wander
 // pace — how long it lingers between phases and how briskly it moves once
@@ -183,6 +192,7 @@ constexpr float ai_sense_radius = 6.0F;       // units; distance at which an AIA
 constexpr float ai_flee_health_ratio = 0.3F;  // flee once current/max health drops to/below this
 constexpr float ai_wander_min_phase = 1.0F;   // seconds; shortest idle or walk/run phase
 constexpr float ai_wander_max_phase = 3.0F;   // seconds; longest idle or walk/run phase
+constexpr float ai_repath_interval = 0.5F;    // seconds between chase path recomputations
 // One row per PedestrianArchetype, in that enum's declared order. Casual
 // (index 0) reproduces ai_wander_min_phase/ai_wander_max_phase and an
 // unscaled walk/run speed exactly — this project's original, single-profile
@@ -255,8 +265,58 @@ void damage(engine::World &w, engine::Entity target, float amount) {
         w.defer_destroy(target);
 }
 
+// Authored Name, so scripts can world.find()/world.name() entities.
+struct EntityName final {
+    std::string value;
+};
+// Which prefab an entity was spawned from at runtime (world.spawn), so the
+// editor can build its render object. Absent on authored entities.
+struct SpawnedFrom final {
+    std::string prefab;
+};
+
+// Registers every component the editor runtime uses. Shared by the live
+// world and the prefab-template world so copy_entity() can move any of them.
+void register_components(engine::World &w);
+
+// A command a script sent to the editor (sound, UI text, log), drained by
+// editor_take_commands().
+struct OutboundCommand final {
+    std::string kind;
+    int entity_index{-1};
+    std::string a;
+    std::string b;
+};
+
+struct Runtime;
+class BridgeHost final : public engine::script::Host {
+public:
+    explicit BridgeHost(Runtime &runtime) : runtime_(runtime) {}
+    std::optional<engine::Entity> find(const engine::World &world, const std::string &name) override;
+    std::string name_of(const engine::World &world, engine::Entity entity) override;
+    std::optional<engine::Entity> spawn(engine::World &world, const std::string &prefab, engine::Vec3 position,
+                                        engine::Vec3 velocity) override;
+    void destroy(engine::World &world, engine::Entity entity) override { world.defer_destroy(entity); }
+    bool health(const engine::World &world, engine::Entity entity, float &current, float &max) override;
+    void damage(engine::World &world, engine::Entity entity, float amount) override;
+    void emit(engine::Entity source, const std::string &kind, const std::string &a, const std::string &b) override;
+
+private:
+    Runtime &runtime_;
+};
+
 struct Runtime {
     engine::World world;
+    // Prefab definitions, instantiated by world.spawn(): one entity per
+    // prefab name, never simulated (FixedSystems only ever runs `world`).
+    engine::World templates;
+    std::map<std::string, engine::Entity> template_by_name;
+    // Set by editor_template_begin(): the next editor_add goes into
+    // `templates` under this name instead of the live scene.
+    std::optional<std::string> adding_template;
+    std::optional<engine::Entity> last_template;
+    std::vector<OutboundCommand> commands;
+    BridgeHost host{*this};
     engine::FixedSystems systems;
     engine::InputState input;
     std::vector<engine::Entity> entities;
@@ -282,17 +342,58 @@ struct Runtime {
     float camera_forward_z{-1.0F};
     engine::script::Runtime script_runtime;
     std::map<engine::Entity, std::string> script_errors;
+    // Contact/trigger bookkeeping across physics steps (enter/stay/exit).
+    engine::physics::Events physics_events;
+    // Walkability grid for chasing AI and world.path(), rebaked from the
+    // static colliders once a second (see the "editor.nav" system).
+    engine::nav::Grid nav_grid{engine::nav::Settings{}};
+    // Named actions from the scene's InputActions bindings (or the
+    // defaults), evaluated from `input` every tick.
+    engine::ActionSystem actions{default_input_map()};
+    std::string bindings_error;
+    // Milliseconds each system took on the most recent tick, for the
+    // editor's Stats overlay (editor_profile_text).
+    std::map<std::string, double> profile;
+    void add_timed(std::string name, engine::FixedPhase phase, engine::i32 order,
+                   engine::FixedSystems::Function function) {
+        systems.add(name, phase, order,
+                    [this, name, function = std::move(function)](engine::World &w,
+                                                                  const engine::FixedUpdateContext &context) {
+                        const auto start = std::chrono::steady_clock::now();
+                        function(w, context);
+                        profile[name] = std::chrono::duration<double, std::milli>(
+                                            std::chrono::steady_clock::now() - start)
+                                            .count();
+                    });
+    }
+    static engine::InputMap default_input_map() {
+        std::string error;
+        return *editor_bindings::parse(editor_bindings::default_text, error);
+    }
     Runtime() {
-        world.register_component<engine::Box>("editor.box");
-        world.register_component<engine::physics::RigidBody>("editor.rigid_body");
-        world.register_component<engine::physics::Collider>("editor.collider");
-        world.register_component<PlayerMarker>("editor.player");
-        world.register_component<Health>("editor.health");
-        world.register_component<Projectile>("editor.projectile");
-        world.register_component<Heading>("editor.heading");
-        world.register_component<AIAgent>("editor.ai_agent");
-        world.register_component<Pedestrian>("editor.pedestrian");
-        world.register_component<engine::script::Script>("editor.script");
+        register_components(world);
+        register_components(templates);
+        script_runtime.set_host(&host);
+        script_runtime.set_nav(&nav_grid);
+        script_runtime.set_input(&input, &actions);
+        add_timed("editor.actions", engine::FixedPhase::begin, 1,
+                    [this](engine::World &, const engine::FixedUpdateContext &context) {
+                        actions.update(context.input);
+                    });
+        // First, before anything moves: rebakes the navigation grid on the
+        // first tick and then once a second. Movers (Player, AI) are never
+        // obstacles to themselves.
+        add_timed("editor.nav", engine::FixedPhase::begin, 0,
+                    [this](engine::World &w, const engine::FixedUpdateContext &context) {
+                        if (context.tick % 60 != 0)
+                            return;
+                        std::vector<engine::Entity> movers;
+                        for (const auto entity : w.query<PlayerMarker>())
+                            movers.push_back(entity);
+                        for (const auto entity : w.query<AIAgent>())
+                            movers.push_back(entity);
+                        nav_grid.bake(w, movers);
+                    });
         // Recorded once per entity, the first time its script fails to compile
         // or errors at runtime (engine::script::Runtime's own "reported once,
         // not retried every tick" contract) — editor_script_error() reads this
@@ -321,9 +422,9 @@ struct Runtime {
         // entity outright the tick it hits 0 (see damage()), so there's never
         // a tick where an AIAgent survives with 0 health for this system to
         // observe and label.
-        systems.add(
+        add_timed(
             "editor.ai", engine::FixedPhase::update, 1,
-            [](engine::World &w, const engine::FixedUpdateContext &) {
+            [&nav = nav_grid](engine::World &w, const engine::FixedUpdateContext &) {
                 constexpr float dt = 1.0F / 60.0F;
                 // Every AIAgent reacts to the same single point — the first
                 // Player found — matching the "one Player" authoring
@@ -366,8 +467,25 @@ struct Runtime {
                         }
                     } else if (!is_pedestrian && player_near) {
                         next_state = AIState::Chasing;
-                        const float dx = player_pos->x - box.center.x;
-                        const float dz = player_pos->z - box.center.z;
+                        // Follow an A* path around obstacles, refreshed every
+                        // ai_repath_interval; with no path (unreachable, or
+                        // nothing in the way) head straight for the Player.
+                        agent.repath -= dt;
+                        if (agent.repath <= 0.0F || agent.state != AIState::Chasing) {
+                            agent.repath = ai_repath_interval;
+                            const auto found = nav.find_path(box.center, *player_pos);
+                            agent.path = found ? *found : std::vector<engine::Vec3>{};
+                        }
+                        while (!agent.path.empty()) {
+                            const float wx = agent.path.front().x - box.center.x;
+                            const float wz = agent.path.front().z - box.center.z;
+                            if (wx * wx + wz * wz > 0.35F * 0.35F || agent.path.size() == 1)
+                                break;
+                            agent.path.erase(agent.path.begin());
+                        }
+                        const engine::Vec3 aim = agent.path.empty() ? *player_pos : agent.path.front();
+                        const float dx = aim.x - box.center.x;
+                        const float dz = aim.z - box.center.z;
                         const float len = std::sqrt(dx * dx + dz * dz);
                         if (len > 0.001F) {
                             target_x = dx / len;
@@ -460,14 +578,14 @@ struct Runtime {
         // gets both an AIAgent and a Script instance; whichever ran last (here,
         // this one) simply overwrites the other's velocity write that tick —
         // not a crash, just not a combination there's a reason to author.
-        systems.add("editor.script", engine::FixedPhase::update, 2,
+        add_timed("editor.script", engine::FixedPhase::update, 2,
                     [this](engine::World &w, const engine::FixedUpdateContext &) {
                         script_runtime.step(w, 1.0F / 60.0F);
                     });
         // Order 0: apply this tick's input to the player's velocity before
         // order 10 integrates it — matches the native playground's own
         // move-then-physics ordering.
-        systems.add(
+        add_timed(
             "editor.move", engine::FixedPhase::update, 0,
             [this](engine::World &w, const engine::FixedUpdateContext &context) {
                 for (const auto entity : w.query<engine::physics::RigidBody, PlayerMarker>()) {
@@ -605,14 +723,20 @@ struct Runtime {
                     }
                 }
             });
-        systems.add("editor.physics", engine::FixedPhase::update, 10,
-                    [](engine::World &w, const engine::FixedUpdateContext &) {
-                        engine::physics::step(w, 1.0F / 60.0F);
+        add_timed("editor.physics", engine::FixedPhase::update, 10,
+                    [this](engine::World &w, const engine::FixedUpdateContext &) {
+                        engine::physics::step(w, 1.0F / 60.0F, {}, &physics_events);
+                    });
+        // Right after physics, so scripts hear about this tick's contacts
+        // (on_collision_*/on_trigger_*) before anything else reacts.
+        add_timed("editor.script_contacts", engine::FixedPhase::update, 11,
+                    [this](engine::World &w, const engine::FixedUpdateContext &) {
+                        script_runtime.dispatch_contacts(w, physics_events);
                     });
         // Order 15: after physics moves everything (10) but before combat (20)
         // resolves melee for this same tick — matches the native playground's
         // own ordering.
-        systems.add(
+        add_timed(
             "editor.projectiles", engine::FixedPhase::update, 15,
             [](engine::World &w, const engine::FixedUpdateContext &) {
                 constexpr float dt = 1.0F / 60.0F;
@@ -641,7 +765,7 @@ struct Runtime {
         // entity's Box — the same overlap test the native playground's combat
         // and goal checks use. Order 20 matches the native playground's own
         // combat system order.
-        systems.add(
+        add_timed(
             "editor.combat", engine::FixedPhase::update, 20,
             [this](engine::World &w, const engine::FixedUpdateContext &) {
                 if (!pending_attack)
@@ -686,7 +810,7 @@ struct Runtime {
         // this one) has already run. The explicit health->current > 0 check
         // below is what actually makes a simultaneous kill favor the
         // Player, not the order number.
-        systems.add(
+        add_timed(
             "editor.ai_attack", engine::FixedPhase::update, 21,
             [this](engine::World &w, const engine::FixedUpdateContext &) {
                 constexpr float dt = 1.0F / 60.0F;
@@ -716,6 +840,92 @@ struct Runtime {
             });
     }
 };
+void register_components(engine::World &w) {
+    w.register_component<engine::Box>("editor.box");
+    w.register_component<engine::physics::RigidBody>("editor.rigid_body");
+    w.register_component<engine::physics::Collider>("editor.collider");
+    w.register_component<PlayerMarker>("editor.player");
+    w.register_component<Health>("editor.health");
+    w.register_component<Projectile>("editor.projectile");
+    w.register_component<Heading>("editor.heading");
+    w.register_component<AIAgent>("editor.ai_agent");
+    w.register_component<Pedestrian>("editor.pedestrian");
+    w.register_component<engine::script::Script>("editor.script");
+    w.register_component<EntityName>("editor.name");
+    w.register_component<SpawnedFrom>("editor.spawned_from");
+}
+
+template <typename T> void copy_component(const engine::World &from, engine::Entity source, engine::World &to,
+                                          engine::Entity target) {
+    if (const auto *value = from.get<T>(source))
+        to.defer_set(target, *value);
+}
+
+std::optional<engine::Entity> BridgeHost::find(const engine::World &world, const std::string &name) {
+    for (const auto entity : runtime_.entities)
+        if (const auto *n = world.get<EntityName>(entity); n && n->value == name)
+            return entity;
+    return std::nullopt;
+}
+
+std::string BridgeHost::name_of(const engine::World &world, engine::Entity entity) {
+    const auto *n = world.get<EntityName>(entity);
+    return n ? n->value : std::string{};
+}
+
+std::optional<engine::Entity> BridgeHost::spawn(engine::World &world, const std::string &prefab,
+                                                engine::Vec3 position, engine::Vec3 velocity) {
+    const auto found = runtime_.template_by_name.find(prefab);
+    if (found == runtime_.template_by_name.end() || runtime_.entities.size() >= 1024)
+        return std::nullopt;
+    const auto &from = runtime_.templates;
+    const auto source = found->second;
+    const auto entity = world.defer_create();
+    auto box = *from.get<engine::Box>(source);
+    box.center = position;
+    world.defer_set(entity, box);
+    if (const auto *body = from.get<engine::physics::RigidBody>(source)) {
+        auto copy = *body;
+        copy.velocity = velocity;
+        world.defer_set(entity, copy);
+    }
+    copy_component<engine::physics::Collider>(from, source, world, entity);
+    copy_component<PlayerMarker>(from, source, world, entity);
+    copy_component<Health>(from, source, world, entity);
+    copy_component<Heading>(from, source, world, entity);
+    copy_component<AIAgent>(from, source, world, entity);
+    copy_component<Pedestrian>(from, source, world, entity);
+    copy_component<engine::script::Script>(from, source, world, entity);
+    world.defer_set(entity, EntityName{prefab});
+    world.defer_set(entity, SpawnedFrom{prefab});
+    runtime_.entities.push_back(entity);
+    return entity;
+}
+
+bool BridgeHost::health(const engine::World &world, engine::Entity entity, float &current, float &max) {
+    const auto *h = world.get<Health>(entity);
+    if (!h)
+        return false;
+    current = h->current;
+    max = h->max;
+    return true;
+}
+
+void BridgeHost::damage(engine::World &world, engine::Entity entity, float amount) {
+    if (std::isfinite(amount) && amount > 0)
+        ::damage(world, entity, amount);
+}
+
+void BridgeHost::emit(engine::Entity source, const std::string &kind, const std::string &a, const std::string &b) {
+    if (runtime_.commands.size() >= 256)
+        return; // a runaway script can't flood the editor
+    int index = -1;
+    for (std::size_t i = 0; i < runtime_.entities.size(); ++i)
+        if (runtime_.entities[i] == source)
+            index = static_cast<int>(i);
+    runtime_.commands.push_back({kind, index, a, b});
+}
+
 std::unique_ptr<Runtime> active = std::make_unique<Runtime>();
 std::unique_ptr<Runtime> staging;
 bool failed{};
@@ -727,6 +937,18 @@ bool failed{};
 // whichever keys the first call already took, so JS must call the count
 // function exactly once per poll and then index into what it returned.
 std::vector<std::pair<std::string, std::string>> pending_dirty_saves;
+// The entity a post-editor_add setter refers to: index >= 0 is a scene
+// entity, -1 is the prefab template editor_add just created.
+std::optional<std::pair<engine::World *, engine::Entity>> staged(int index) {
+    if (!staging)
+        return std::nullopt;
+    if (index == -1)
+        return staging->last_template ? std::optional{std::pair{&staging->templates, *staging->last_template}}
+                                      : std::nullopt;
+    if (index < 0 || static_cast<std::size_t>(index) >= staging->entities.size())
+        return std::nullopt;
+    return std::pair{&staging->world, staging->entities[static_cast<std::size_t>(index)]};
+}
 } // namespace
 extern "C" {
 EXPORT void editor_begin() {
@@ -788,7 +1010,7 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
                        double hp_current, double hp_max, double is_vehicle, double is_ai,
                        double is_pedestrian, double collider_shape, double collider_radius,
                        double vehicle_archetype, double pedestrian_archetype) {
-    if (!staging || staging->entities.size() >= 1024) {
+    if (!staging || (!staging->adding_template && staging->entities.size() >= 1024)) {
         failed = true;
         return 0;
     }
@@ -820,29 +1042,30 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
         failed = true;
         return 0;
     }
-    const auto e = staging->world.create();
-    staging->world.set(
+    auto &target = staging->adding_template ? staging->templates : staging->world;
+    const auto e = target.create();
+    target.set(
         e, engine::Box{engine::Vec3{static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)},
                        engine::Vec3{static_cast<float>(sx), static_cast<float>(sy), static_cast<float>(sz)}});
     if (is_child == 0) {
-        staging->world.set(e, engine::physics::RigidBody{engine::Vec3{
+        target.set(e, engine::physics::RigidBody{engine::Vec3{
                                   static_cast<float>(vx), static_cast<float>(vy), static_cast<float>(vz)}});
         if (is_player != 0) {
-            staging->world.set(e, PlayerMarker{});
+            target.set(e, PlayerMarker{});
             if (is_vehicle != 0)
-                staging->world.set(
+                target.set(
                     e, Heading{0.0F, 0.0F, static_cast<float>(sx) / 2.0F, static_cast<float>(sz) / 2.0F,
                                static_cast<VehicleArchetype>(static_cast<int>(vehicle_archetype))});
         }
         if (is_collider != 0)
-            staging->world.set(
+            target.set(
                 e, engine::physics::Collider{
                        true,
                        collider_shape != 0 ? engine::physics::ColliderShape::Sphere
                                            : engine::physics::ColliderShape::Box,
                        static_cast<float>(collider_radius)});
         if (hp_max > 0)
-            staging->world.set(
+            target.set(
                 e, Health{std::clamp(static_cast<float>(hp_current), 0.0F, static_cast<float>(hp_max)),
                           static_cast<float>(hp_max)});
         if (is_ai != 0) {
@@ -851,15 +1074,21 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
             // never share a seed and the whole wander pattern is exactly
             // reproducible run to run — required for editor_bridge_tests.cpp
             // to assert on it at all.
-            staging->world.set(
+            target.set(
                 e, AIAgent{AIState::Idle, 0.0F, 0.0F, 1.0F,
-                           static_cast<std::uint32_t>(staging->entities.size()) + 1});
+                           static_cast<std::uint32_t>(staging->entities.size()) + 1, 0.0F, {}, 0.0F});
             if (is_pedestrian != 0)
-                staging->world.set(
+                target.set(
                     e, Pedestrian{static_cast<PedestrianArchetype>(static_cast<int>(pedestrian_archetype))});
         }
     }
-    staging->entities.push_back(e);
+    if (staging->adding_template) {
+        staging->template_by_name[*staging->adding_template] = e;
+        staging->last_template = e;
+        staging->adding_template.reset();
+    } else {
+        staging->entities.push_back(e);
+    }
     return 1;
 }
 // Sets (or replaces) an entity's Lua script source between editor_begin() and
@@ -873,11 +1102,110 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
 // (added unconditionally for every non-child entity, see editor_add's is_child
 // handling) but nothing else — a scripted entity is otherwise ordinary
 // authored data, not implicitly a Player or an AIAgent.
-EXPORT void editor_set_script_source(int index, const char *source) {
-    if (!staging || index < 0 || static_cast<std::size_t>(index) >= staging->entities.size())
+// Physics-body settings editor_add's fixed ABI has no room for, set after
+// it for the same index. `authored` is whether the entity carries an
+// authored RigidBody component at all: without one the body keeps mass 0
+// (the engine's original "immovable to finite-mass bodies" contract, see
+// physics::RigidBody). A non-dynamic authored body becomes kinematic.
+// Ignored for an entity editor_add gave no RigidBody (a child).
+EXPORT void editor_set_body(int index, int authored, double mass, int dynamic) {
+    const auto target = staged(index);
+    if (!target)
         return;
-    staging->world.set(staging->entities[static_cast<std::size_t>(index)],
-                        engine::script::Script{source != nullptr ? source : ""});
+    auto *body = target->first->get<engine::physics::RigidBody>(target->second);
+    if (!body || !authored)
+        return;
+    if (!std::isfinite(mass) || mass <= 0 || mass > 1000000) {
+        failed = true;
+        return;
+    }
+    body->mass = static_cast<float>(mass);
+    body->type = dynamic ? engine::physics::BodyType::Dynamic : engine::physics::BodyType::Kinematic;
+}
+// Collider settings beyond editor_add's shape/radius: trigger, layer (0..31),
+// mask (32-bit layer bitmask), bounciness (0..1). Ignored when the entity
+// has no Collider.
+EXPORT void editor_set_collider(int index, int is_trigger, double layer, double mask, double bounciness) {
+    const auto target = staged(index);
+    if (!target)
+        return;
+    auto *collider = target->first->get<engine::physics::Collider>(target->second);
+    if (!collider)
+        return;
+    if (!(layer >= 0 && layer <= 31 && layer == std::floor(layer)) ||
+        !(mask >= 0 && mask <= 4294967295.0 && mask == std::floor(mask)) ||
+        !(bounciness >= 0 && bounciness <= 1)) {
+        failed = true;
+        return;
+    }
+    collider->is_trigger = is_trigger != 0;
+    collider->layer = static_cast<std::uint8_t>(layer);
+    collider->mask = static_cast<std::uint32_t>(mask);
+    collider->bounciness = static_cast<float>(bounciness);
+}
+EXPORT void editor_set_script_source(int index, const char *source) {
+    const auto target = staged(index);
+    if (!target)
+        return;
+    target->first->set(target->second, engine::script::Script{source != nullptr ? source : ""});
+}
+// Script props, after editor_set_script_source for the same index: one prop
+// per line, "name\tkind\tvalue" with kind n (number), b (boolean, value
+// 1/0) or s (string, the rest of the line). Malformed lines are skipped.
+EXPORT void editor_set_script_props(int index, const char *text) {
+    const auto target = staged(index);
+    if (!target || !text)
+        return;
+    auto *script = target->first->get<engine::script::Script>(target->second);
+    if (!script)
+        return;
+    script->props.clear();
+    std::string all(text);
+    std::size_t start = 0;
+    while (start <= all.size()) {
+        auto end = all.find('\n', start);
+        if (end == std::string::npos)
+            end = all.size();
+        const std::string line = all.substr(start, end - start);
+        start = end + 1;
+        const auto t1 = line.find('\t');
+        const auto t2 = t1 == std::string::npos ? std::string::npos : line.find('\t', t1 + 1);
+        if (t2 == std::string::npos || t1 == 0)
+            continue;
+        engine::script::Script::Prop prop;
+        prop.name = line.substr(0, t1);
+        const std::string kind = line.substr(t1 + 1, t2 - t1 - 1);
+        const std::string value = line.substr(t2 + 1);
+        if (kind == "n") {
+            char *parsed_end = nullptr;
+            const double number = std::strtod(value.c_str(), &parsed_end);
+            if (parsed_end == value.c_str() || !std::isfinite(number))
+                continue;
+            prop.kind = engine::script::Script::Prop::Kind::number;
+            prop.number = number;
+        } else if (kind == "b") {
+            prop.kind = engine::script::Script::Prop::Kind::boolean;
+            prop.boolean = value == "1";
+        } else if (kind == "s") {
+            prop.kind = engine::script::Script::Prop::Kind::text;
+            prop.text = value;
+        } else {
+            continue;
+        }
+        script->props.push_back(std::move(prop));
+    }
+}
+// The entity's authored Name (index -1: the template just added).
+EXPORT void editor_set_name(int index, const char *name) {
+    const auto target = staged(index);
+    if (target && name)
+        target->first->set(target->second, EntityName{name});
+}
+// Makes the next editor_add a prefab template called `name` (see
+// Runtime::templates) instead of a scene entity.
+EXPORT void editor_template_begin(const char *name) {
+    if (staging && name)
+        staging->adding_template = std::string(name);
 }
 EXPORT int editor_commit() {
     if (!staging || failed) {
@@ -943,6 +1271,104 @@ EXPORT void editor_key(int code, int down) {
 // whatever string the game author picks). Call once per physical
 // keydown/keyup edge, same timing as editor_key -- before the editor_tick()
 // call(s) that edge should be visible to.
+// Browser KeyboardEvent.code -> engine::Key, for the native InputState that
+// actions and the bound movement keys read.
+engine::Key key_for_code(const std::string &code) {
+    using engine::Key;
+    if (code.size() == 4 && code.rfind("Key", 0) == 0 && code[3] >= 'A' && code[3] <= 'Z')
+        return static_cast<Key>(static_cast<int>(Key::a) + (code[3] - 'A'));
+    if (code.size() == 6 && code.rfind("Digit", 0) == 0 && code[5] >= '0' && code[5] <= '9')
+        return static_cast<Key>(static_cast<int>(Key::digit0) + (code[5] - '0'));
+    if (code.size() >= 2 && code[0] == 'F') {
+        const int n = std::atoi(code.c_str() + 1);
+        if (n >= 1 && n <= 12 && code == "F" + std::to_string(n))
+            return static_cast<Key>(static_cast<int>(Key::f1) + n - 1);
+    }
+    static const std::map<std::string, Key> named{
+        {"Space", Key::space},          {"Enter", Key::enter},           {"Escape", Key::escape},
+        {"Tab", Key::tab},              {"Backspace", Key::backspace},   {"ArrowUp", Key::up},
+        {"ArrowDown", Key::down},       {"ArrowLeft", Key::left},        {"ArrowRight", Key::right},
+        {"ShiftLeft", Key::left_shift}, {"ShiftRight", Key::right_shift}, {"ControlLeft", Key::left_control},
+        {"ControlRight", Key::right_control}, {"AltLeft", Key::left_alt}, {"AltRight", Key::right_alt}};
+    const auto found = named.find(code);
+    return found == named.end() ? Key::unknown : found->second;
+}
+// Any key by its KeyboardEvent.code (0.55.0). Replaces editor_key for the
+// browser: F and G still set the melee/blast edges.
+EXPORT void editor_input_key(const char *code, int down) {
+    if (!code)
+        return;
+    const auto key = key_for_code(code);
+    if (key == engine::Key::unknown)
+        return;
+    if (down && key == engine::Key::f)
+        active->pending_attack = true;
+    if (down && key == engine::Key::g)
+        active->pending_blast = true;
+    active->input.apply(engine::KeyEvent{
+        1, key, down ? engine::ButtonAction::pressed : engine::ButtonAction::released, false});
+}
+// Mouse position is in viewport pixels; deltas accumulate within a frame.
+EXPORT void editor_input_mouse_move(double x, double y, double dx, double dy) {
+    active->input.apply(engine::MouseMotionEvent{1, static_cast<float>(x), static_cast<float>(y),
+                                                 static_cast<float>(dx), static_cast<float>(dy)});
+}
+// button: 0 left, 1 middle, 2 right.
+EXPORT void editor_input_mouse_button(int button, int down, double x, double y) {
+    if (button < 0 || button > 2)
+        return;
+    const auto which = button == 0 ? engine::MouseButton::left
+                       : button == 1 ? engine::MouseButton::middle
+                                     : engine::MouseButton::right;
+    active->input.apply(engine::MouseButtonEvent{1, which,
+                                                 down ? engine::ButtonAction::pressed : engine::ButtonAction::released,
+                                                 1, static_cast<float>(x), static_cast<float>(y)});
+}
+EXPORT void editor_input_wheel(double dx, double dy) {
+    active->input.apply(engine::MouseWheelEvent{1, static_cast<float>(dx), static_cast<float>(dy)});
+}
+// Gamepad (device 2): connection, engine::GamepadButton index, and
+// engine::GamepadAxis index with a value in -1..1 (triggers 0..1).
+EXPORT void editor_input_gamepad_connected(int connected) {
+    active->input.apply(engine::GamepadConnectionEvent{
+        2, connected ? engine::GamepadConnection::connected : engine::GamepadConnection::disconnected});
+}
+EXPORT void editor_input_gamepad_button(int button, int down) {
+    if (button < 0 || button >= static_cast<int>(engine::GamepadButton::count))
+        return;
+    active->input.apply(engine::GamepadButtonEvent{
+        2, static_cast<engine::GamepadButton>(button), down ? engine::ButtonAction::pressed : engine::ButtonAction::released});
+}
+EXPORT void editor_input_gamepad_axis(int axis, double value) {
+    if (axis < 0 || axis >= static_cast<int>(engine::GamepadAxis::count) || !std::isfinite(value))
+        return;
+    active->input.apply(engine::GamepadAxisEvent{2, static_cast<engine::GamepadAxis>(axis),
+                                                 static_cast<float>(std::clamp(value, -1.0, 1.0))});
+}
+// Custom action bindings for the runtime being staged (see bindings.hpp).
+// Invalid text keeps the defaults; editor_bindings_error() says why.
+EXPORT void editor_set_input_bindings(const char *text) {
+    if (!staging || !text)
+        return;
+    std::string error;
+    if (auto map = editor_bindings::parse(text, error)) {
+        staging->actions = engine::ActionSystem{std::move(*map)};
+        staging->bindings_error.clear();
+    } else {
+        staging->bindings_error = error;
+    }
+}
+EXPORT const char *editor_bindings_error() { return active->bindings_error.c_str(); }
+// An action's current value, for the editor's own readouts and tests.
+EXPORT double editor_action_value(const char *name) {
+    if (!name)
+        return 0;
+    const auto &map = active->actions.map();
+    const engine::ActionId id{name};
+    if (std::find(map.actions.begin(), map.actions.end(), id) == map.actions.end())
+        return 0;
+    return active->actions.state(id).value;
+}
 EXPORT void editor_script_key(const char *key, int down) {
     active->script_runtime.set_key_down(key, down != 0);
 }
@@ -1057,6 +1483,67 @@ EXPORT const char *editor_dirty_save_value(int index) {
 // document — this pair lets JS enumerate and draw whichever ones currently exist instead.
 // Queried fresh each call rather than cached by identity: JS only ever calls these back to back
 // within one frame, with no editor_tick() in between to change which projectiles exist.
+// Every entity the editor tracks by index, spawned ones included (editor_count
+// counts only living world entities, projectiles too).
+EXPORT int editor_entity_count() { return static_cast<int>(active->entities.size()); }
+// The prefab a runtime-spawned entity came from; "" for authored entities.
+EXPORT const char *editor_spawned_prefab(int index) {
+    static std::string result;
+    result.clear();
+    if (index >= 0 && static_cast<std::size_t>(index) < active->entities.size())
+        if (const auto *from = active->world.get<SpawnedFrom>(active->entities[static_cast<std::size_t>(index)]))
+            result = from->prefab;
+    return result.c_str();
+}
+// Moves the script command queue into a read buffer; returns its size.
+std::vector<OutboundCommand> pending_commands;
+EXPORT int editor_take_commands() {
+    pending_commands = std::move(active->commands);
+    active->commands.clear();
+    return static_cast<int>(pending_commands.size());
+}
+// field 0 = kind, 1 = a, 2 = b.
+EXPORT const char *editor_command_text(int index, int field) {
+    static std::string result;
+    result.clear();
+    if (index >= 0 && static_cast<std::size_t>(index) < pending_commands.size()) {
+        const auto &c = pending_commands[static_cast<std::size_t>(index)];
+        result = field == 0 ? c.kind : field == 1 ? c.a : c.b;
+    }
+    return result.c_str();
+}
+// Delivers an editor-side event to an entity's script: only on_anim_event
+// and on_anim_state (the Animator's callbacks) are accepted.
+EXPORT void editor_script_notify(int index, const char *function_name, const char *argument) {
+    if (!function_name || !argument || index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
+        return;
+    const std::string name(function_name);
+    if (name != "on_anim_event" && name != "on_anim_state")
+        return;
+    active->script_runtime.notify(active->world, active->entities[static_cast<std::size_t>(index)], name, argument);
+}
+// A UI element changed (Button with action "script" clicked, Slider moved,
+// Toggle flipped): calls on_ui(name, value) in every script.
+EXPORT void editor_ui_event(const char *name, const char *value) {
+    if (name && value)
+        active->script_runtime.broadcast(active->world, "on_ui", name, value);
+}
+EXPORT int editor_command_entity(int index) {
+    return index >= 0 && static_cast<std::size_t>(index) < pending_commands.size()
+               ? pending_commands[static_cast<std::size_t>(index)].entity_index
+               : -1;
+}
+// "system=ms;system=ms" for the most recent tick (Stats overlay).
+EXPORT const char *editor_profile_text() {
+    static std::string result;
+    result.clear();
+    char buffer[64];
+    for (const auto &[name, ms] : active->profile) {
+        std::snprintf(buffer, sizeof buffer, "%.3f", ms);
+        result += name + "=" + buffer + ";";
+    }
+    return result.c_str();
+}
 EXPORT int editor_projectile_count() {
     return static_cast<int>(active->world.query<engine::Box, Projectile>().size());
 }

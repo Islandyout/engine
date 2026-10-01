@@ -5,7 +5,22 @@ import {
   type TransformMode,
   type TransformSnapshot,
 } from "./TransformEdit";
-import type { AIStateName, EntityRef, ParticlePreset, UIAction, UIAnchor, Vec3 } from "../scene/Components";
+import type {
+  AIStateName,
+  CameraComponent,
+  CameraFollowComponent,
+  EntityRef,
+  EnvironmentComponent,
+  MaterialComponent,
+  ParticlePreset,
+  ParticlesComponent,
+  TrailComponent,
+  UIAction,
+  UIAnchor,
+  UIComponent,
+  UIKind,
+  Vec3,
+} from "../scene/Components";
 import { propertyMetadata, componentLabel, componentGroups } from "./PropertyMetadata";
 import { defaultComponent } from "../authoring/CommandInterpreter";
 import { CanvasRenderer } from "./CanvasRenderer";
@@ -23,6 +38,21 @@ import { soundCatalog } from "../scene/soundCatalog";
 import { pickClipName, groundSpeed } from "./animationClips";
 import { loadOnce } from "./loadOnce";
 import type { SceneComponents } from "../scene/Scene";
+import { encodeProps, reconcileProps } from "../scene/scriptProps";
+import { burst, createEmitter, stepEmitter, type EmitterSettings, type EmitterState } from "./particles";
+import { buildRibbon, updateTrail, type TrailPoint } from "./trail";
+import {
+  assetKind,
+  assignId,
+  displayName,
+  loadStoredAssets,
+  resolveAssetUrl,
+  storeAsset,
+  type StoredAsset,
+} from "./userAssets";
+import { autoSize, contains, layoutRect, sliderValue, type UIRect } from "./uiLayout";
+import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGraph } from "./animator";
+import { defaultEnvironment } from "../authoring/CommandInterpreter";
 import "./style.css";
 
 // Each preset's emission shape/motion. `direction` is the base emit
@@ -42,10 +72,6 @@ const PARTICLE_PRESETS: Record<
   Fire: { direction: new THREE.Vector3(0, 1, 0), spread: 0.55, gravity: 1.1 },
   Confetti: { direction: new THREE.Vector3(0, 1, 0), spread: 0.85, gravity: -4 },
 };
-// Hard cap on one emitter's point-buffer size regardless of authored
-// rate/lifetime, so an unreasonable value (e.g. rate 5000) degrades to
-// dropped spawns past this cap instead of an unbounded GPU buffer.
-const MAX_PARTICLES = 400;
 
 // Small, hand-drawn, dependency-free icon set (no external icon font/CDN,
 // consistent with this project's zero-external-asset constraints for the
@@ -136,9 +162,53 @@ type Runtime = {
   _editor_input_begin_frame(): void;
   _editor_set_camera_forward(x: number, z: number): void;
   _editor_key(code: number, down: number): void;
+  _editor_input_mouse_move(x: number, y: number, dx: number, dy: number): void;
+  _editor_input_mouse_button(button: number, down: number, x: number, y: number): void;
+  _editor_input_wheel(dx: number, dy: number): void;
+  _editor_input_gamepad_connected(connected: number): void;
+  _editor_input_gamepad_button(button: number, down: number): void;
+  _editor_input_gamepad_axis(axis: number, value: number): void;
+  ccall(name: "editor_input_key", returnType: null, argTypes: ["string", "number"], args: [string, number]): void;
+  ccall(name: "editor_set_input_bindings", returnType: null, argTypes: ["string"], args: [string]): void;
+  ccall(name: "editor_bindings_error", returnType: "string", argTypes: [], args: []): string;
   _editor_projectile_count(): number;
   _editor_projectile_value(index: number, field: number): number;
   _editor_take_dirty_saves(): number;
+  _editor_set_body(index: number, authored: number, mass: number, dynamic: number): void;
+  _editor_entity_count(): number;
+  _editor_take_commands(): number;
+  _editor_command_entity(index: number): number;
+  // Text-in/text-out calls added with the 0.51.0 script host (bridge.cpp):
+  // names, props, prefab templates, spawned-prefab lookup, command text.
+  ccall(
+    name: "editor_set_name" | "editor_set_script_props",
+    returnType: null,
+    argTypes: ["number", "string"],
+    args: [number, string],
+  ): void;
+  ccall(name: "editor_template_begin", returnType: null, argTypes: ["string"], args: [string]): void;
+  ccall(name: "editor_profile_text", returnType: "string", argTypes: [], args: []): string;
+  ccall(name: "editor_ui_event", returnType: null, argTypes: ["string", "string"], args: [string, string]): void;
+  ccall(
+    name: "editor_script_notify",
+    returnType: null,
+    argTypes: ["number", "string", "string"],
+    args: [number, string, string],
+  ): void;
+  ccall(name: "editor_spawned_prefab", returnType: "string", argTypes: ["number"], args: [number]): string;
+  ccall(
+    name: "editor_command_text",
+    returnType: "string",
+    argTypes: ["number", "number"],
+    args: [number, number],
+  ): string;
+  _editor_set_collider(
+    index: number,
+    isTrigger: number,
+    layer: number,
+    mask: number,
+    bounciness: number,
+  ): void;
   // editor_set_script_source/editor_script_error/editor_seed_save/
   // editor_dirty_save_key/editor_dirty_save_value's own doc comments
   // (bridge.cpp) explain why these go through ccall instead of a direct
@@ -248,6 +318,7 @@ async function startEditor() {
       <select id="snap-size" class="select-sm" aria-label="Move snap distance"><option value="0.25">0.25 m</option><option value="0.5">0.5 m</option><option value="1" selected>1 m</option></select>
       <button id="frame" class="btn btn-sm btn-ghost">${iconHtml("target")}<span>Frame selected</span></button>
       <button id="grid" class="btn btn-sm btn-ghost">${iconHtml("grid")}<span>Grid</span></button>
+      <button id="stats" class="btn btn-sm btn-ghost" aria-pressed="false">${iconHtml("target")}<span>Stats</span></button>
       <span class="viewport-hint">Drag to orbit · right-drag to pan · scroll to zoom</span>
     </div>
     <div id="viewport"></div>
@@ -275,6 +346,11 @@ async function startEditor() {
       <button id="catalog-add" class="btn btn-sm">${iconHtml("cube")}<span>Add from catalog</span></button>
       <p class="hint">${modelCatalog.length} bundled CC0 models · Aether kit + Quaternius</p>
       <a class="link-external" href="./ASSET-CREDITS.txt">Asset credits</a>
+      <label class="btn btn-sm" id="import-label">${iconHtml("open")}<span>Import asset…</span>
+        <input id="import-asset" type="file" multiple hidden aria-label="Import asset"
+          accept=".glb,.png,.jpg,.jpeg,.webp,.gif,.ogg,.mp3,.wav,.m4a">
+      </label>
+      <p class="hint" id="import-hint">.glb models, images and audio · kept in this browser</p>
       <div class="field-row">
         <select id="prefab-select" aria-label="Prefab"></select>
       </div>
@@ -305,6 +381,9 @@ async function startEditor() {
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // Real-time shadows (0.52.0): the sun, plus any Light with castShadows.
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   } catch {
     renderer = new CanvasRenderer();
     backend = "Canvas compatibility";
@@ -323,6 +402,14 @@ async function startEditor() {
   hud.style.pointerEvents = "none";
   viewport.appendChild(hud);
   const hudCtx = hud.getContext("2d")!;
+  // The canvas HUD's text, mirrored into a visually hidden live region so
+  // screen readers (and the browser test) can read what UI elements say.
+  const hudText = document.createElement("div");
+  hudText.id = "hud-text";
+  hudText.setAttribute("aria-live", "polite");
+  hudText.style.cssText =
+    "position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap";
+  viewport.appendChild(hudText);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#101a26");
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2000);
@@ -330,10 +417,277 @@ async function startEditor() {
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(0, 1, 0);
   controls.update();
-  scene.add(new THREE.HemisphereLight(0xd8eeff, 0x405036, 3));
+  const hemisphere = new THREE.HemisphereLight(0xd8eeff, 0x405036, 3);
+  scene.add(hemisphere);
   const sun = new THREE.DirectionalLight(0xffffff, 3);
   sun.position.set(4, 8, 5);
   scene.add(sun);
+  scene.add(sun.target);
+  // The sun's shadow frustum is a 50 x 50 box that follows the camera's
+  // focus point every frame (see updateSunShadow), so shadows stay sharp
+  // near the action instead of stretching over the whole world.
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -25;
+  sun.shadow.camera.right = 25;
+  sun.shadow.camera.top = 25;
+  sun.shadow.camera.bottom = -25;
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 120;
+  sun.shadow.bias = -0.0005;
+  sun.shadow.normalBias = 0.02;
+  const sunDirection = new THREE.Vector3(4, 8, 5).normalize();
+  // The physics ground plane (y = 0) had no visible surface; this one only
+  // shows shadows, so the look is otherwise unchanged.
+  const shadowGround = new THREE.Mesh(
+    new THREE.PlaneGeometry(400, 400),
+    new THREE.ShadowMaterial({ opacity: 0.35 }),
+  );
+  shadowGround.rotation.x = -Math.PI / 2;
+  shadowGround.receiveShadow = true;
+  scene.add(shadowGround);
+  // Environment (0.52.0): sky, sun, ambient, fog, exposure. Applied on every
+  // rebuild(); the sky and its image-based lighting are only regenerated
+  // when the Environment's values actually change.
+  let environmentKey = "";
+  let skyMesh: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial> | undefined;
+  let environmentTexture: THREE.Texture | undefined;
+  const pmrem = renderer instanceof THREE.WebGLRenderer ? new THREE.PMREMGenerator(renderer) : undefined;
+  // Authored 0-1 colors (Environment, Material, sky) are sRGB, like any
+  // color picker -- so defaultEnvironment()'s backdrop matches the
+  // original "#101a26" exactly.
+  function colorOf(v: Vec3) {
+    return new THREE.Color().setRGB(v.x, v.y, v.z, THREE.SRGBColorSpace);
+  }
+  function gradientTexture(env: EnvironmentComponent) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 2;
+    canvas.height = 256;
+    const ctx = canvas.getContext("2d")!;
+    const fill = ctx.createLinearGradient(0, 0, 0, 256);
+    const css = (v: Vec3) => `#${colorOf(v).getHexString()}`;
+    fill.addColorStop(0, css(env.skyColor));
+    fill.addColorStop(0.5, css(env.horizonColor));
+    fill.addColorStop(1, css(env.groundColor));
+    ctx.fillStyle = fill;
+    ctx.fillRect(0, 0, 2, 256);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }
+  function applyEnvironment(env: EnvironmentComponent) {
+    const elevation = THREE.MathUtils.degToRad(env.sunElevation);
+    const azimuth = THREE.MathUtils.degToRad(env.sunAzimuth);
+    sunDirection.set(
+      Math.cos(elevation) * Math.sin(azimuth),
+      Math.sin(elevation),
+      Math.cos(elevation) * Math.cos(azimuth),
+    );
+    sun.color.copy(colorOf(env.sunColor));
+    sun.intensity = env.sunIntensity;
+    sun.castShadow = env.shadows;
+    shadowGround.visible = env.shadows;
+    hemisphere.intensity = env.ambientIntensity;
+    if (renderer instanceof THREE.WebGLRenderer) renderer.toneMappingExposure = env.exposure;
+    scene.fog =
+      env.fog === "Linear"
+        ? new THREE.Fog(colorOf(env.fogColor), env.fogNear, env.fogFar)
+        : env.fog === "Exponential"
+          ? new THREE.FogExp2(colorOf(env.fogColor), env.fogDensity)
+          : null;
+    const key = JSON.stringify([env.sky, env.skyColor, env.horizonColor, env.groundColor, env.sunElevation, env.sunAzimuth]);
+    if (key === environmentKey) return;
+    environmentKey = key;
+    if (skyMesh) {
+      scene.remove(skyMesh);
+      skyMesh.geometry.dispose();
+      (skyMesh.material as THREE.Material).dispose();
+      skyMesh = undefined;
+    }
+    environmentTexture?.dispose();
+    environmentTexture = undefined;
+    scene.environment = null;
+    if (env.sky === "Color") {
+      scene.background = colorOf(env.skyColor);
+      hemisphere.color.set(0xd8eeff);
+      hemisphere.groundColor.set(0x405036);
+      return;
+    }
+    hemisphere.color.copy(colorOf(env.sky === "Gradient" ? env.horizonColor : env.skyColor));
+    hemisphere.groundColor.copy(colorOf(env.groundColor));
+    if (env.sky === "Gradient") {
+      const texture = gradientTexture(env);
+      scene.background = texture;
+      if (pmrem) environmentTexture = pmrem.fromEquirectangular(texture).texture;
+    } else {
+      skyMesh = createSky(env);
+      scene.background = null;
+      if (pmrem) {
+        const skyScene = new THREE.Scene();
+        const probe = createSky(env);
+        skyScene.add(probe);
+        environmentTexture = pmrem.fromScene(skyScene).texture;
+        probe.geometry.dispose();
+        probe.material.dispose();
+      }
+      scene.add(skyMesh);
+    }
+    if (environmentTexture) scene.environment = environmentTexture;
+    // The sky's radiance is far brighter than the scene's own lights were
+    // tuned for; scaled down so image-based lighting adds fill, not glare.
+    scene.environmentIntensity = 0.6;
+  }
+  // Game cameras (0.52.0): during Play the highest-priority Camera entity
+  // renders the view from its own position and rotation.
+  const gamePerspective = new THREE.PerspectiveCamera();
+  const shakeCamera = new THREE.PerspectiveCamera();
+  const gameOrthographic = new THREE.OrthographicCamera();
+  function gameCamera(): THREE.Camera | undefined {
+    if (doc.mode === "edit") return undefined;
+    let best: { component: CameraComponent; index: number } | undefined;
+    doc.scene.eachAlive().forEach((entity, index) => {
+      const component = doc.scene.resolve(entity, "Camera");
+      if (!component || !objects[index] || !runtime._editor_alive(index)) return;
+      if (!best || component.priority > best.component.priority) best = { component, index };
+    });
+    if (!best) return undefined;
+    const { component, index } = best;
+    const aspect = viewport.clientWidth / Math.max(viewport.clientHeight, 1);
+    const view =
+      component.projection === "Perspective"
+        ? Object.assign(gamePerspective, { fov: component.fov, aspect })
+        : Object.assign(gameOrthographic, {
+            left: -component.orthoSize * aspect,
+            right: component.orthoSize * aspect,
+            top: component.orthoSize,
+            bottom: -component.orthoSize,
+          });
+    view.near = component.near;
+    view.far = component.far;
+    view.updateProjectionMatrix();
+    const anchor = objects[index]!;
+    // The camera entity's own placeholder would sit in (or block) the view;
+    // rebuild() on Stop restores its visibility.
+    anchor.visible = false;
+    const follow = doc.scene.resolve(doc.scene.eachAlive()[index]!, "CameraFollow");
+    const target = follow ? followTarget(follow.target) : undefined;
+    if (follow && target) placeRig(view, follow, target);
+    else {
+      anchor.updateWorldMatrix(true, false);
+      anchor.getWorldPosition(view.position);
+      anchor.getWorldQuaternion(view.quaternion);
+    }
+    return view;
+  }
+  // -- Camera rig (CameraFollow) and shake --------------------------------
+  const rig = { position: new THREE.Vector3(), yaw: 0, pitch: 0, placed: false, frameDt: 1 / 60 };
+  const shake = { intensity: 0, remaining: 0, duration: 1 };
+  const rigRaycaster = new THREE.Raycaster();
+  function followTarget(name: string): THREE.Object3D | undefined {
+    if (!name) return playerIndex >= 0 ? objects[playerIndex] : undefined;
+    const index = doc.scene.eachAlive().findIndex((e) => doc.scene.resolve(e, "Name")?.value === name);
+    return index >= 0 && runtime._editor_alive(index) ? objects[index] : undefined;
+  }
+  function placeRig(view: THREE.Camera, follow: CameraFollowComponent, target: THREE.Object3D) {
+    const focus = target.position.clone();
+    focus.y += follow.lookHeight;
+    const distance = Math.hypot(follow.offset.x, follow.offset.y, follow.offset.z);
+    if (!rig.placed) {
+      // Start from the authored offset, in the target's frame.
+      rig.yaw = Math.atan2(follow.offset.x, follow.offset.z) + target.rotation.y;
+      rig.pitch = Math.asin(THREE.MathUtils.clamp(follow.offset.y / Math.max(distance, 1e-6), -1, 1));
+    } else if (!follow.orbit) {
+      // Without orbit the rig swings behind the target as it turns.
+      rig.yaw = Math.atan2(follow.offset.x, follow.offset.z) + target.rotation.y;
+    }
+    const desired = new THREE.Vector3(
+      Math.sin(rig.yaw) * Math.cos(rig.pitch),
+      Math.sin(rig.pitch),
+      Math.cos(rig.yaw) * Math.cos(rig.pitch),
+    )
+      .multiplyScalar(distance)
+      .add(target.position);
+    if (follow.collision) {
+      const toCamera = desired.clone().sub(focus);
+      const length = toCamera.length();
+      rigRaycaster.set(focus, toCamera.normalize());
+      rigRaycaster.far = length;
+      const blockers = objects.filter((o) => o !== target && o.visible);
+      const hit = rigRaycaster.intersectObjects(blockers, true)[0];
+      if (hit) desired.copy(focus).addScaledVector(toCamera, Math.max(0.3, hit.distance - 0.3));
+    }
+    if (!rig.placed || follow.smoothing <= 0) rig.position.copy(desired);
+    else rig.position.lerp(desired, 1 - Math.exp(-rig.frameDt / follow.smoothing));
+    rig.placed = true;
+    view.position.copy(rig.position);
+    view.lookAt(focus);
+  }
+  // Orbit: dragging on the viewport during Play turns the rig.
+  let orbitDrag: { x: number; y: number } | undefined;
+  renderer.domElement.addEventListener("pointerdown", (event) => {
+    if (doc.mode === "play") orbitDrag = { x: event.clientX, y: event.clientY };
+  });
+  window.addEventListener("pointerup", () => (orbitDrag = undefined));
+  window.addEventListener("pointermove", (event) => {
+    if (!orbitDrag) return;
+    rig.yaw -= (event.clientX - orbitDrag.x) * 0.005;
+    rig.pitch = THREE.MathUtils.clamp(rig.pitch + (event.clientY - orbitDrag.y) * 0.005, -0.2, 1.4);
+    orbitDrag = { x: event.clientX, y: event.clientY };
+  });
+  function applyShake(view: THREE.Camera, dt: number) {
+    if (shake.remaining <= 0) return;
+    shake.remaining = Math.max(0, shake.remaining - dt);
+    const amount = shake.intensity * (shake.remaining / shake.duration);
+    view.position.x += (Math.random() * 2 - 1) * amount;
+    view.position.y += (Math.random() * 2 - 1) * amount;
+    view.position.z += (Math.random() * 2 - 1) * amount;
+  }
+  // Procedural sky: a large inside-out sphere shaded from the Environment's
+  // zenith/horizon/ground colors, with a sun disc and glow toward the sun.
+  // Hand-written rather than three's Sky.js, whose raw HDR output washes the
+  // scene out through bloom and rendered flat grey in headless WebGL.
+  function createSky(env: EnvironmentComponent) {
+    const material = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      depthWrite: false,
+      uniforms: {
+        zenith: { value: colorOf(env.skyColor) },
+        horizon: { value: colorOf(env.horizonColor) },
+        ground: { value: colorOf(env.groundColor) },
+        sunColor: { value: colorOf(env.sunColor) },
+        sunDirection: { value: sunDirection.clone() },
+      },
+      vertexShader: `
+        varying vec3 vDirection;
+        void main() {
+          vDirection = normalize(position);
+          vec4 clip = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          gl_Position = clip.xyww; // always at the far plane
+        }`,
+      fragmentShader: `
+        uniform vec3 zenith, horizon, ground, sunColor, sunDirection;
+        varying vec3 vDirection;
+        void main() {
+          vec3 d = normalize(vDirection);
+          float h = d.y;
+          vec3 color = h > 0.0 ? mix(horizon, zenith, pow(h, 0.45)) : mix(horizon, ground, pow(-h, 0.35));
+          float s = max(dot(d, normalize(sunDirection)), 0.0);
+          color += sunColor * (pow(s, 900.0) * 6.0 + pow(s, 12.0) * 0.18);
+          gl_FragColor = vec4(color, 1.0);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
+    });
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 32, 16), material);
+    sky.frustumCulled = false;
+    sky.renderOrder = -1;
+    return sky;
+  }
+  // Keeps the sun's shadow frustum centered on what the camera looks at.
+  function updateSunShadow() {
+    sun.target.position.copy(controls.target);
+    sun.position.copy(controls.target).addScaledVector(sunDirection, 50);
+  }
   const grid = new THREE.GridHelper(40, 40, 0x658ca8, 0x2b3c4c);
   scene.add(grid);
   // Post-processing: a subtle, always-on bloom so a bright authored Light (or
@@ -346,13 +700,21 @@ async function startEditor() {
   // for it, same as before this round.
   const composer =
     renderer instanceof THREE.WebGLRenderer ? new EffectComposer(renderer) : undefined;
+  const renderPass = new RenderPass(scene, camera);
+  // The camera the last frame rendered with: the editor camera, or a game
+  // Camera entity during Play. HUD projection and WASD use the same one.
+  let viewCamera: THREE.Camera = camera;
   if (composer) {
-    composer.addPass(new RenderPass(scene, camera));
+    composer.addPass(renderPass);
     const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.5, 0.85);
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
   }
   const objects: THREE.Object3D[] = [];
+  // Animator state machines, indexed like objects[]: the parsed graph plus a
+  // runtime that is recreated whenever Play starts.
+  const animators: ({ graph: AnimatorGraph; runtime: AnimatorRuntime } | undefined)[] = [];
+  const animatorErrors: string[] = [];
   interface AnimState {
     mixer: THREE.AnimationMixer;
     actions: Map<string, THREE.AnimationAction>;
@@ -379,21 +741,13 @@ async function startEditor() {
   // undefined for a non-animated (static) entity. Reset alongside objects on every rebuild().
   const animStates: (AnimState | undefined)[] = [];
   interface ParticleState {
-    points: THREE.Points;
-    positions: Float32Array;
-    colors: Float32Array;
-    velocities: Float32Array;
-    ages: Float32Array;
-    alive: Uint8Array;
-    capacity: number;
-    emitAccumulator: number;
-    rate: number;
-    lifetime: number;
-    baseColor: THREE.Color;
-    direction: THREE.Vector3;
-    spread: number;
-    gravity: number;
-    speed: number;
+    emitter: EmitterState;
+    points: THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>;
+    // World-space emitters live at the scene root and spawn from this
+    // anchor's world position; local ones are parented under it.
+    anchor: THREE.Object3D;
+    world: boolean;
+    burstOnPlay: number;
   }
   // Parallel to `objects`, same shape as animStates. Reset alongside objects
   // on every rebuild().
@@ -418,145 +772,129 @@ async function startEditor() {
   // gated to doc.mode === "edit"), so a fade in progress is never
   // interrupted by one.
   const deathStates: (DeathState | undefined)[] = [];
-  // A fresh THREE.Points system per rebuild(), same as every mesh/light here
-  // -- nothing caches or reuses one, so there's nothing extra to dispose when
-  // the entity's Particles is removed or edited. Capacity is sized from
-  // rate*lifetime (how many particles are alive at once in steady state)
-  // with a 1.5x safety margin, capped at MAX_PARTICLES. Positions/velocities
-  // live in entity-local space -- the system is parented under `anchor` in
-  // rebuild(), same as a Light, so particles inherit the entity's own
-  // position/rotation for free. Renders additively (depthWrite off) and
-  // fades a particle by darkening its own color toward black as it ages,
-  // rather than a separate per-vertex alpha channel or a custom shader --
-  // fully-aged black contributes nothing once additively blended.
-  function createParticles(particles: {
-    preset: ParticlePreset;
-    color: Vec3;
-    rate: number;
-    lifetime: number;
-    speed: number;
-    size: number;
-  }): ParticleState {
-    const capacity = Math.min(
-      MAX_PARTICLES,
-      Math.max(4, Math.ceil(particles.rate * particles.lifetime * 1.5)),
-    );
-    const positions = new Float32Array(capacity * 3);
-    // Every slot starts fully black (invisible once additively blended) until
-    // stepParticles() spawns into it -- no separate "is this slot in use for
-    // rendering" flag needed on the GPU side, just `alive` on the CPU side.
-    const colors = new Float32Array(capacity * 3);
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    const material = new THREE.PointsMaterial({
+  // A fresh emitter per rebuild(), same as every mesh/light here. The
+  // simulation lives in particles.ts; this owns the GPU side: a Points
+  // cloud whose shader reads per-particle color and size and draws each as
+  // a soft round sprite, blended additively (a fully faded particle is
+  // black, which adds nothing).
+  const particleVertexShader = `
+    attribute float size;
+    attribute vec3 color;
+    uniform float scale;
+    varying vec3 vColor;
+    void main() {
+      vColor = color;
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = size * scale / max(-mv.z, 0.001);
+      gl_Position = projectionMatrix * mv;
+    }`;
+  const particleFragmentShader = `
+    varying vec3 vColor;
+    void main() {
+      vec2 c = gl_PointCoord - 0.5;
+      float d = dot(c, c);
+      if (d > 0.25) discard;
+      gl_FragColor = vec4(vColor * (1.0 - d * 4.0), 1.0);
+    }`;
+  const particleScale = { value: 500 };
+  function createParticles(particles: ParticlesComponent, anchor: THREE.Object3D): ParticleState {
+    const preset = PARTICLE_PRESETS[particles.preset];
+    const settings: EmitterSettings = {
+      rate: particles.rate,
+      lifetime: particles.lifetime,
+      speed: particles.speed,
       size: particles.size,
-      vertexColors: true,
+      endSize: particles.endSize,
+      color: [particles.color.x, particles.color.y, particles.color.z],
+      endColor: [particles.endColor.x, particles.endColor.y, particles.endColor.z],
+      direction: [preset.direction.x, preset.direction.y, preset.direction.z],
+      spread: preset.spread,
+      // The presets store an upward pull as positive; the simulation's
+      // gravity pulls down.
+      gravity: -preset.gravity * particles.gravityScale,
+      shape: particles.shape,
+      shapeSize: particles.shapeSize,
+      coneAngle: particles.coneAngle,
+    };
+    const emitter = createEmitter(settings, particles.burst);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(emitter.positions, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(emitter.colors, 3));
+    geo.setAttribute("size", new THREE.BufferAttribute(emitter.sizes, 1));
+    const shader = new THREE.ShaderMaterial({
+      uniforms: { scale: particleScale },
+      vertexShader: particleVertexShader,
+      fragmentShader: particleFragmentShader,
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
-      sizeAttenuation: true,
     });
-    const preset = PARTICLE_PRESETS[particles.preset];
-    const points = new THREE.Points(geo, material);
-    // Positions start (and, for a slot awaiting its next spawn, stay) at the
-    // local origin, so the very first automatic frustum-cull check computes
-    // and caches a near-zero bounding sphere -- three.js never recomputes it
-    // as particles move, so a stale sphere would wrongly cull the whole
-    // system once particles spread beyond it while the entity itself is
-    // off-frustum. Disabling culling is the standard fix for a dynamic point
-    // cloud like this rather than recomputing bounds every frame.
+    const points = new THREE.Points(geo, shader);
+    // Particles move away from wherever the bounding sphere was first
+    // computed; culling would hide a system that is still on screen.
     points.frustumCulled = false;
-    return {
-      points,
-      positions,
-      colors,
-      velocities: new Float32Array(capacity * 3),
-      ages: new Float32Array(capacity),
-      alive: new Uint8Array(capacity),
-      capacity,
-      emitAccumulator: 0,
-      rate: particles.rate,
-      lifetime: particles.lifetime,
-      baseColor: new THREE.Color(particles.color.x, particles.color.y, particles.color.z),
-      direction: preset.direction,
-      spread: preset.spread,
-      gravity: preset.gravity,
-      speed: particles.speed,
-    };
+    const world = particles.space === "World";
+    if (world) scene.add(points);
+    else anchor.add(points);
+    return { emitter, points, anchor, world, burstOnPlay: particles.burst };
   }
-  const particleSpawnScratch = new THREE.Vector3();
-  // Advances one emitter by dt: accumulates fractional spawns from `rate`
-  // (so e.g. rate=0.5 spawns a particle every other call, not every call at
-  // half strength), ages and moves every alive particle, and reclaims a slot
-  // the instant it expires. A spawn with no free slot is silently dropped,
-  // not queued or forced -- a saturated pool caps at `capacity` particles on
-  // screen rather than bursting past it.
+  const particleOrigin = new THREE.Vector3();
   function stepParticles(state: ParticleState, dt: number) {
-    // Ages/moves particles that were already alive *before* this call, then
-    // spawns new ones after -- not the other way around. A particle spawned
-    // this frame gets age 0 and isn't touched again until the next call, so
-    // it always renders for at least one full frame before it can expire;
-    // aging-then-spawning in the same pass would otherwise immediately kill
-    // (and blacken) any particle whose authored lifetime is at or below one
-    // frame's dt, before the renderer ever draws it.
-    for (let i = 0; i < state.capacity; i++) {
-      if (!state.alive[i]) continue;
-      const age = state.ages[i]! + dt;
-      state.ages[i] = age;
-      if (age >= state.lifetime) {
-        state.alive[i] = 0;
-        state.colors[i * 3] = state.colors[i * 3 + 1] = state.colors[i * 3 + 2] = 0;
-        continue;
-      }
-      const vx = state.velocities[i * 3]!;
-      const vy = state.velocities[i * 3 + 1]! + state.gravity * dt;
-      const vz = state.velocities[i * 3 + 2]!;
-      state.velocities[i * 3 + 1] = vy;
-      state.positions[i * 3] = state.positions[i * 3]! + vx * dt;
-      state.positions[i * 3 + 1] = state.positions[i * 3 + 1]! + vy * dt;
-      state.positions[i * 3 + 2] = state.positions[i * 3 + 2]! + vz * dt;
-      const remaining = 1 - age / state.lifetime;
-      state.colors[i * 3] = state.baseColor.r * remaining;
-      state.colors[i * 3 + 1] = state.baseColor.g * remaining;
-      state.colors[i * 3 + 2] = state.baseColor.b * remaining;
+    if (state.world) {
+      state.anchor.getWorldPosition(particleOrigin);
+      state.emitter.origin = [particleOrigin.x, particleOrigin.y, particleOrigin.z];
     }
-    state.emitAccumulator += dt * state.rate;
-    while (state.emitAccumulator >= 1) {
-      state.emitAccumulator -= 1;
-      let slot = -1;
-      for (let i = 0; i < state.capacity; i++) {
-        if (!state.alive[i]) {
-          slot = i;
-          break;
-        }
+    stepEmitter(state.emitter, dt);
+    const attributes = state.points.geometry.attributes;
+    attributes.position!.needsUpdate = true;
+    attributes.color!.needsUpdate = true;
+    attributes.size!.needsUpdate = true;
+  }
+  // Trails (0.57.0): a camera-facing ribbon behind each Trail entity,
+  // recorded during Play (trail.ts builds the geometry).
+  interface TrailState {
+    component: TrailComponent;
+    anchor: THREE.Object3D;
+    points: TrailPoint[];
+    mesh: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
+  }
+  const trailStates: TrailState[] = [];
+  function createTrail(component: TrailComponent, anchor: THREE.Object3D): TrailState {
+    const geometry = new THREE.BufferGeometry();
+    const material = new THREE.ShaderMaterial({
+      uniforms: { color: { value: colorOf(component.color) } },
+      vertexShader: `
+        attribute float fade;
+        varying float vFade;
+        void main() { vFade = fade; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: `
+        uniform vec3 color;
+        varying float vFade;
+        void main() { gl_FragColor = vec4(color * vFade, 1.0); }`,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.frustumCulled = false;
+    scene.add(mesh);
+    return { component, anchor, points: [], mesh };
+  }
+  const trailScratch = new THREE.Vector3();
+  function stepTrails(dt: number) {
+    for (const trail of trailStates) {
+      if (doc.mode === "edit") trail.points.length = 0;
+      else if (doc.mode === "play") {
+        trail.anchor.getWorldPosition(trailScratch);
+        updateTrail(trail.points, trailScratch, dt, trail.component.lifetime, trail.component.minDistance);
       }
-      if (slot === -1) break;
-      state.alive[slot] = 1;
-      state.ages[slot] = 0;
-      particleSpawnScratch
-        .set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1)
-        .normalize()
-        .lerp(state.direction, 1 - state.spread)
-        .normalize()
-        .multiplyScalar(state.speed);
-      state.velocities[slot * 3] = particleSpawnScratch.x;
-      state.velocities[slot * 3 + 1] = particleSpawnScratch.y;
-      state.velocities[slot * 3 + 2] = particleSpawnScratch.z;
-      state.positions[slot * 3] = 0;
-      state.positions[slot * 3 + 1] = 0;
-      state.positions[slot * 3 + 2] = 0;
-      // Full brightness immediately, not left at whatever this reclaimed
-      // slot's color was (0, from the aging loop above zeroing a particle
-      // out the instant it dies) -- this spawn won't reach the aging loop
-      // until next call, so without this it would render invisible for its
-      // first frame instead of at age 0.
-      state.colors[slot * 3] = state.baseColor.r;
-      state.colors[slot * 3 + 1] = state.baseColor.g;
-      state.colors[slot * 3 + 2] = state.baseColor.b;
+      const ribbon = buildRibbon(trail.points, viewCamera.position, trail.component.width, trail.component.lifetime);
+      const geometry = trail.mesh.geometry;
+      geometry.setAttribute("position", new THREE.BufferAttribute(ribbon.positions, 3));
+      geometry.setAttribute("fade", new THREE.BufferAttribute(ribbon.fades, 1));
+      geometry.setIndex(new THREE.BufferAttribute(ribbon.indices, 1));
     }
-    state.points.geometry.attributes.position!.needsUpdate = true;
-    state.points.geometry.attributes.color!.needsUpdate = true;
   }
   const deathFadeDuration = 1.0; // seconds; how long a defeated entity lingers, fading out
   // Called once, the first frame editor_alive(i) reads false for an entity
@@ -877,6 +1215,32 @@ async function startEditor() {
         );
     });
   }
+  // A one-shot from a script's sound.play(clip): `clip` is a catalog id
+  // ("10") or name, matched case-insensitively, exactly or as a prefix
+  // ("coin" plays "Coin Pickup").
+  function playOneShot(clip: string) {
+    const wanted = clip.trim().toLowerCase();
+    const entry =
+      soundCatalog.find((s) => String(s.id) === wanted) ??
+      soundCatalog.find((s) => s.name.toLowerCase() === wanted) ??
+      soundCatalog.find((s) => s.name.toLowerCase().startsWith(wanted));
+    if (!entry) {
+      log(`sound.play: no clip called "${clip}"`);
+      return;
+    }
+    const session = playSession;
+    const context = getAudioContext();
+    const play = (buffer: AudioBuffer) => {
+      if (session !== playSession || doc.mode !== "play") return;
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(context.destination);
+      source.start();
+    };
+    const cached = soundBuffers.get(entry.id);
+    if (cached) play(cached);
+    else loadSoundBuffer(entry.id)?.then(play, () => undefined);
+  }
   function stopSounds() {
     for (const source of activeSounds.values()) {
       try {
@@ -895,6 +1259,8 @@ async function startEditor() {
     el("status").textContent = "Runtime failed to load. Reload or check build.";
     throw error;
   }
+  // Whether the last Play frame ran at least one fixed tick (see frame()).
+  let inputFrameConsumed = true;
   let accumulator = 0,
     previous = performance.now(),
     ticks = 0;
@@ -934,27 +1300,16 @@ async function startEditor() {
     "Chasing",
     "Dead",
   ];
-  const keyQueue: Array<[code: number, down: number]> = [];
-  // Bound codes currently held down, so a Pause or a lost window focus can
-  // force them back up even when no matching keyup DOM event arrives
-  // (alt-tab, a window manager shortcut eating the key, etc.).
-  const heldKeys = new Set<number>();
-  // key_for()'s own contract (apps/editor/runtime/bridge.cpp): 0=W, 1=A,
-  // 2=S, 3=D, 4=Shift, 5=F (melee attack), 6=G (ranged blast), 7=C
-  // (crouch/sit -- freezes Player WASD input natively while held; see
-  // editor.move's own doc comment, bridge.cpp).
-  const boundKeyCodes: Record<string, number> = {
-    KeyW: 0,
-    KeyA: 1,
-    KeyS: 2,
-    KeyD: 3,
-    ShiftLeft: 4,
-    ShiftRight: 4,
-    KeyF: 5,
-    KeyG: 6,
-    KeyC: 7,
-  };
-  const crouchKeyCode = 7;
+  // Every key by KeyboardEvent.code, for the native InputState (movement,
+  // F/G combat and named actions -- see editor_input_key, bridge.cpp).
+  const keyQueue: Array<[code: string, down: number]> = [];
+  // Codes currently held down, so a Pause or a lost window focus can force
+  // them back up even when no matching keyup DOM event arrives (alt-tab, a
+  // window manager shortcut eating the key, etc.).
+  const heldKeys = new Set<string>();
+  // C (crouch/sit) freezes Player WASD natively while held (see
+  // editor.move, bridge.cpp) and plays a sit clip (see the locomotion picker).
+  const crouchKeyCode = "KeyC";
   // Every physical key (not just the bound seven above) queued the same way,
   // for a Script's own input.down/input.pressed (engine::script::Runtime's
   // own doc comment, script.hpp, on why this is a separate, wider path from
@@ -987,11 +1342,12 @@ async function startEditor() {
   }
   window.addEventListener("keydown", (event) => {
     if (doc.mode !== "play" || event.repeat) return;
-    const code = boundKeyCodes[event.code];
-    if (code !== undefined) {
-      keyQueue.push([code, 1]);
-      heldKeys.add(code);
-    }
+    // Keep Space/arrows from scrolling the page while a game has the keys --
+    // unless the user is typing into a field.
+    const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+    if (!typing && (event.code === "Space" || event.code.startsWith("Arrow"))) event.preventDefault();
+    keyQueue.push([event.code, 1]);
+    heldKeys.add(event.code);
     const key = event.key.toLowerCase();
     scriptKeyByCode.set(event.code, key);
     scriptKeyQueue.push([key, 1]);
@@ -999,11 +1355,7 @@ async function startEditor() {
   });
   window.addEventListener("keyup", (event) => {
     if (doc.mode === "edit") return;
-    const code = boundKeyCodes[event.code];
-    if (code !== undefined) {
-      keyQueue.push([code, 0]);
-      heldKeys.delete(code);
-    }
+    if (heldKeys.delete(event.code)) keyQueue.push([event.code, 0]);
     const key = scriptKeyByCode.get(event.code) ?? event.key.toLowerCase();
     scriptKeyByCode.delete(event.code);
     scriptKeyQueue.push([key, 0]);
@@ -1227,75 +1579,287 @@ async function startEditor() {
       state.mixer.addEventListener("finished", onFinished);
     });
   }
+  // Sends one entity's components to the runtime being staged: a scene
+  // entity at `index`, or (index -1) the prefab template editor_template_begin
+  // just announced. `get` resolves a component the same way for both.
+  function addToRuntime(
+    get: <K extends keyof SceneComponents>(type: K) => SceneComponents[K] | undefined,
+    isChild: number,
+    index: number,
+    name: string | undefined,
+  ) {
+    const p = get("Transform")?.position ?? { x: 0, y: 0, z: 0 };
+    const v = get("Velocity")?.value ?? { x: 0, y: 0, z: 0 };
+    const s = get("Scale")?.value ?? { x: 1, y: 1, z: 1 };
+    const isPlayer = get("Player") ? 1 : 0;
+    const collider = get("Collider");
+    const isCollider = collider ? 1 : 0;
+    // "Sphere"/radius have been authorable here for a while (PropertyMetadata's
+    // Collider.type dropdown), previously discarded entirely -- editor_add
+    // now actually resolves the shape it's told, not always an AABB from Scale.
+    const colliderShape = collider?.type === "Sphere" ? 1 : 0;
+    const colliderRadius = collider?.radius ?? 0.5;
+    const isVehicle = get("Vehicle") ? 1 : 0;
+    const isAi = get("AIState") ? 1 : 0;
+    const isPedestrian = get("Pedestrian") ? 1 : 0;
+    // Vehicle.archetype/Pedestrian.archetype have been authorable for a
+    // while (their own PropertyMetadata dropdowns below) but previously
+    // discarded entirely -- editor_add now actually resolves the handling/
+    // wander profile it's told, not always the same one regardless.
+    const vehicleArchetype = get("Vehicle")?.archetype ?? 0;
+    const pedestrianArchetype = get("Pedestrian")?.archetype ?? 0;
+    const health = get("Health");
+    // hp_max <= 0 is the bridge's own "no Health" sentinel (see
+    // editor_add's doc comment) — a real Health always has a positive max.
+    const hpCurrent = health?.current ?? 0;
+    const hpMax = health?.maximum ?? 0;
+    if (
+      !runtime._editor_add(
+        p.x, p.y, p.z, v.x, v.y, v.z, s.x, s.y, s.z, isChild, isPlayer,
+        isCollider, hpCurrent, hpMax, isVehicle, isAi, isPedestrian,
+        colliderShape, colliderRadius, vehicleArchetype, pedestrianArchetype,
+      )
+    ) {
+      runtime._editor_commit();
+      throw new Error(
+        "Runtime rejects coordinates/velocity outside ±1,000,000",
+      );
+    }
+    // Mass/dynamic and trigger/layer/mask/bounciness: see editor_set_body
+    // and editor_set_collider (bridge.cpp) for what each one means.
+    const body = get("RigidBody");
+    runtime._editor_set_body(
+      index,
+      body ? 1 : 0,
+      body?.mass ?? 1,
+      body?.dynamic === false ? 0 : 1,
+    );
+    if (collider)
+      runtime._editor_set_collider(
+        index,
+        collider.isTrigger ? 1 : 0,
+        collider.layer,
+        collider.mask,
+        collider.bounciness,
+      );
+    if (name !== undefined)
+      runtime.ccall("editor_set_name", null, ["number", "string"], [index, name]);
+    // editor_add's own all-double ABI has no way to carry a Lua source
+    // string, so a scripted entity's source is set through this companion
+    // call instead (see editor_set_script_source's own doc comment,
+    // bridge.cpp) — same index editor_add just placed this entity at.
+    const script = get("Script");
+    if (script) {
+      runtime.ccall(
+        "editor_set_script_source",
+        null,
+        ["number", "string"],
+        [index, script.source],
+      );
+      runtime.ccall(
+        "editor_set_script_props",
+        null,
+        ["number", "string"],
+        [index, encodeProps(reconcileProps(script.source, script.props))],
+      );
+    }
+  }
+  // Script-set UI text (ui.set_text), keyed by the UI entity's Name.
+  // Play-session state only: cleared whenever the runtime is rebuilt.
+  const uiTextOverrides = new Map<string, string>();
+  // Runtime-spawned prefab instances (world.spawn) get render objects at the
+  // same index the bridge appended them at.
+  function adoptSpawnedEntities() {
+    const count = runtime._editor_entity_count();
+    while (objects.length < count) {
+      const index = objects.length;
+      const prefab = runtime.ccall("editor_spawned_prefab", "string", ["number"], [index]);
+      const components = (doc.scene.getPrefab(prefab)?.components ?? {}) as Partial<SceneComponents>;
+      const position = {
+        x: runtime._editor_value(index, 0),
+        y: runtime._editor_value(index, 1),
+        z: runtime._editor_value(index, 2),
+      };
+      createEntityObject((type) =>
+        type === "Transform"
+          ? ({ position } as SceneComponents[typeof type])
+          : components[type],
+      );
+    }
+  }
+  // One Animator step for entity i: built-in parameters, events to the
+  // entity's script, and a crossfade when the state changes.
+  function runAnimator(
+    i: number,
+    state: AnimState,
+    animator: AnimatorRuntime,
+    speed: number,
+    verticalSpeed: number,
+    dt: number,
+  ) {
+    animator.set("speed", speed);
+    animator.set("vy", verticalSpeed);
+    animator.set("grounded", Math.abs(verticalSpeed) < 0.2);
+    const clip = state.actions.get(animator.current.clip)?.getClip();
+    const result = animator.step(dt, clip?.duration);
+    for (const name of result.events)
+      runtime.ccall("editor_script_notify", null, ["number", "string", "string"], [i, "on_anim_event", name]);
+    if (!result.entered) return;
+    const next = state.actions.get(result.entered.state.clip);
+    if (next) {
+      const previous = state.current ? state.actions.get(state.current) : undefined;
+      next.setLoop(result.entered.state.loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+      next.clampWhenFinished = !result.entered.state.loop;
+      next.setEffectiveTimeScale(result.entered.state.speed);
+      next.reset().fadeIn(result.entered.fade).play();
+      if (previous && previous !== next) previous.fadeOut(result.entered.fade);
+      state.current = result.entered.state.clip;
+    }
+    runtime.ccall("editor_script_notify", null, ["number", "string", "string"], [i, "on_anim_state", result.entered.state.name]);
+  }
+  // -- Mouse, touch and gamepad (0.55.0) ---------------------------------
+  // Pointer events cover mouse, pen and touch alike (a tap is a left click).
+  // Positions are viewport pixels; queued and applied once per frame with
+  // the keys, so every tick of a frame sees the same edges.
+  const pointerQueue: Array<() => void> = [];
+  function viewportPoint(event: MouseEvent) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  }
+  renderer.domElement.addEventListener("pointermove", (event) => {
+    if (doc.mode !== "play") return;
+    const { x, y } = viewportPoint(event);
+    pointerQueue.push(() => runtime._editor_input_mouse_move(x, y, event.movementX, event.movementY));
+  });
+  renderer.domElement.addEventListener("pointerdown", (event) => {
+    if (doc.mode !== "play" || event.button > 2) return;
+    const { x, y } = viewportPoint(event);
+    pointerQueue.push(() => runtime._editor_input_mouse_button(event.button, 1, x, y));
+  });
+  window.addEventListener("pointerup", (event) => {
+    if (doc.mode === "edit" || event.button > 2) return;
+    const { x, y } = viewportPoint(event);
+    pointerQueue.push(() => runtime._editor_input_mouse_button(event.button, 0, x, y));
+  });
+  renderer.domElement.addEventListener(
+    "wheel",
+    (event) => {
+      if (doc.mode !== "play") return;
+      pointerQueue.push(() => runtime._editor_input_wheel(-event.deltaX / 100, -event.deltaY / 100));
+    },
+    { passive: true },
+  );
+  // While the pointer is locked (a script's input.lock_mouse(true)) there is
+  // no pointermove target position, only movement -- document-level events
+  // still carry it.
+  document.addEventListener("mousemove", (event) => {
+    if (doc.mode !== "play" || document.pointerLockElement !== renderer.domElement) return;
+    pointerQueue.push(() => runtime._editor_input_mouse_move(0, 0, event.movementX, event.movementY));
+  });
+  function flushPointerInput() {
+    for (const apply of pointerQueue) apply();
+    pointerQueue.length = 0;
+  }
+  // Standard-mapping gamepad button index -> engine::GamepadButton.
+  const gamepadButtonMap: Record<number, number> = {
+    0: 0, 1: 1, 2: 2, 3: 3, 4: 9, 5: 10, 8: 4, 9: 6, 10: 7, 11: 8, 12: 11, 13: 12, 14: 13, 15: 14, 16: 5,
+  };
+  let padSnapshot: { buttons: boolean[]; axes: number[] } | undefined;
+  function pollGamepad() {
+    const pad = navigator.getGamepads?.().find((p) => p && p.connected) ?? undefined;
+    if (!pad) {
+      if (padSnapshot) runtime._editor_input_gamepad_connected(0);
+      padSnapshot = undefined;
+      return;
+    }
+    if (!padSnapshot) {
+      runtime._editor_input_gamepad_connected(1);
+      padSnapshot = { buttons: [], axes: [] };
+    }
+    pad.buttons.forEach((button, index) => {
+      const mapped = gamepadButtonMap[index];
+      if (mapped === undefined || padSnapshot!.buttons[index] === button.pressed) return;
+      padSnapshot!.buttons[index] = button.pressed;
+      runtime._editor_input_gamepad_button(mapped, button.pressed ? 1 : 0);
+    });
+    // Sticks, then the analog triggers (standard buttons 6/7) as axes 4/5.
+    const axes = [...pad.axes.slice(0, 4), pad.buttons[6]?.value ?? 0, pad.buttons[7]?.value ?? 0];
+    axes.forEach((value, axis) => {
+      if (padSnapshot!.axes[axis] === value) return;
+      padSnapshot!.axes[axis] = value;
+      runtime._editor_input_gamepad_axis(axis, value);
+    });
+  }
+  function runScriptCommands() {
+    const count = runtime._editor_take_commands();
+    for (let i = 0; i < count; i++) {
+      const kind = runtime.ccall("editor_command_text", "string", ["number", "number"], [i, 0]);
+      const a = runtime.ccall("editor_command_text", "string", ["number", "number"], [i, 1]);
+      const b = runtime.ccall("editor_command_text", "string", ["number", "number"], [i, 2]);
+      if (kind === "log") log(`[script] ${a}`);
+      else if (kind === "sound") playOneShot(a);
+      else if (kind === "ui_text") uiTextOverrides.set(a, b);
+      else if (kind === "particles_burst" || kind === "particles_emitting") {
+        const state = particleStates[runtime._editor_command_entity(i)];
+        if (state && kind === "particles_burst") burst(state.emitter, Math.max(0, Math.min(1000, Number(a) || 0)));
+        else if (state) state.emitter.emitting = a === "1";
+      } else if (kind === "ui_value") uiValues.set(a, Math.min(1, Math.max(0, Number(b) || 0)));
+      else if (kind === "ui_visible") uiVisibility.set(a, b === "1");
+      else if (kind === "mouse_lock") {
+        if (a === "1") void renderer.domElement.requestPointerLock?.();
+        else if (document.pointerLockElement) document.exitPointerLock();
+      } else if (kind === "camera_shake") {
+        shake.intensity = Math.max(0, Number(a) || 0);
+        shake.duration = Math.max(0.01, Number(b) || 0.01);
+        shake.remaining = shake.duration;
+      }
+      else if (kind === "anim_set" || kind === "anim_trigger") {
+        const animator = animators[runtime._editor_command_entity(i)]?.runtime;
+        if (kind === "anim_trigger") animator?.trigger(a);
+        else {
+          const value = parseParamValue(b);
+          if (value !== undefined) animator?.set(a, value);
+        }
+      }
+    }
+  }
   function syncRuntime() {
+    uiTextOverrides.clear();
+    uiValues.clear();
+    uiVisibility.clear();
+    draggingSlider = undefined;
+    padSnapshot = undefined;
+    pointerQueue.length = 0;
     runtime._editor_begin();
     playerIndex = -1;
+    // Prefab templates first, so a script's world.spawn("Name") can
+    // instantiate any prefab (bridge.cpp's Runtime::templates).
+    for (const [name, definition] of doc.scene.prefabEntries()) {
+      runtime.ccall("editor_template_begin", null, ["string"], [name]);
+      const components = definition.components as Partial<SceneComponents>;
+      addToRuntime((type) => components[type], 0, -1, name);
+    }
     doc.scene.eachAlive().forEach((entity, index) => {
-      const p = doc.scene.resolve(entity, "Transform")?.position ?? {
-        x: 0,
-        y: 0,
-        z: 0,
-      };
-      const v = doc.scene.resolve(entity, "Velocity")?.value ?? {
-        x: 0,
-        y: 0,
-        z: 0,
-      };
-      const s = doc.scene.resolve(entity, "Scale")?.value ?? { x: 1, y: 1, z: 1 };
       const isChild = doc.scene.effectiveHas(entity, "Parent") ? 1 : 0;
-      const isPlayer = doc.scene.effectiveHas(entity, "Player") ? 1 : 0;
-      const collider = doc.scene.resolve(entity, "Collider");
-      const isCollider = collider ? 1 : 0;
-      // "Sphere"/radius have been authorable here for a while (PropertyMetadata's
-      // Collider.type dropdown), previously discarded entirely -- editor_add
-      // now actually resolves the shape it's told, not always an AABB from Scale.
-      const colliderShape = collider?.type === "Sphere" ? 1 : 0;
-      const colliderRadius = collider?.radius ?? 0.5;
-      const isVehicle = doc.scene.effectiveHas(entity, "Vehicle") ? 1 : 0;
-      const isAi = doc.scene.effectiveHas(entity, "AIState") ? 1 : 0;
-      const isPedestrian = doc.scene.effectiveHas(entity, "Pedestrian") ? 1 : 0;
-      // Vehicle.archetype/Pedestrian.archetype have been authorable for a
-      // while (their own PropertyMetadata dropdowns below) but previously
-      // discarded entirely -- editor_add now actually resolves the handling/
-      // wander profile it's told, not always the same one regardless.
-      const vehicleArchetype = doc.scene.resolve(entity, "Vehicle")?.archetype ?? 0;
-      const pedestrianArchetype = doc.scene.resolve(entity, "Pedestrian")?.archetype ?? 0;
-      const health = doc.scene.resolve(entity, "Health");
-      // hp_max <= 0 is the bridge's own "no Health" sentinel (see
-      // editor_add's doc comment) — a real Health always has a positive max.
-      const hpCurrent = health?.current ?? 0;
-      const hpMax = health?.maximum ?? 0;
       // First Player-tagged entity wins if more than one is authored — the
       // bridge itself would happily drive every one of them from the same
       // input, but only one can sensibly own the camera and status readout.
-      if (isPlayer && playerIndex < 0) playerIndex = index;
-      if (
-        !runtime._editor_add(
-          p.x, p.y, p.z, v.x, v.y, v.z, s.x, s.y, s.z, isChild, isPlayer,
-          isCollider, hpCurrent, hpMax, isVehicle, isAi, isPedestrian,
-          colliderShape, colliderRadius, vehicleArchetype, pedestrianArchetype,
-        )
-      ) {
-        runtime._editor_commit();
-        throw new Error(
-          "Runtime rejects coordinates/velocity outside ±1,000,000",
-        );
-      }
-      // editor_add's own all-double ABI has no way to carry a Lua source
-      // string, so a scripted entity's source is set through this companion
-      // call instead (see editor_set_script_source's own doc comment,
-      // bridge.cpp) — same index editor_add just placed this entity at.
-      const script = doc.scene.resolve(entity, "Script");
-      if (script)
-        runtime.ccall(
-          "editor_set_script_source",
-          null,
-          ["number", "string"],
-          [index, script.source],
-        );
+      if (doc.scene.effectiveHas(entity, "Player") && playerIndex < 0) playerIndex = index;
+      addToRuntime(
+        (type) => doc.scene.resolve(entity, type),
+        isChild,
+        index,
+        doc.scene.resolve(entity, "Name")?.value,
+      );
     });
+    // Custom action bindings: the first InputActions component in the scene.
+    const bindingsEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "InputActions"));
+    const bindings = bindingsEntity && doc.scene.resolve(bindingsEntity, "InputActions");
+    if (bindings) runtime.ccall("editor_set_input_bindings", null, ["string"], [bindings.bindings]);
     if (!runtime._editor_commit())
       throw new Error("Runtime scene commit failed");
+    const bindingsError = runtime.ccall("editor_bindings_error", "string", [], []);
+    if (bindingsError) log(`Input bindings: ${bindingsError} (using the defaults)`);
     seedSavedProgress();
     ticks = 0;
     accumulator = 0;
@@ -1314,36 +1878,230 @@ async function startEditor() {
   // Parenting `target` under the light itself, offset along local -Z, fixes
   // that: the target's world position then follows the light's own world
   // rotation, so aiming a Spot/Directional light is just rotating its entity.
+  // Material component: on the shared placeholder box (or with keepTextures
+  // off) a fresh MeshStandardMaterial replaces the mesh's own; otherwise
+  // each model material is cloned and tinted, keeping its texture maps.
+  // Always a new material, never an edit of the shared/cached one.
+  function applyMaterial(mesh: THREE.Mesh, m: MaterialComponent) {
+    const build = (base: THREE.Material): THREE.Material => {
+      const standard =
+        m.keepTextures && base !== material && base instanceof THREE.MeshStandardMaterial
+          ? base.clone()
+          : new THREE.MeshStandardMaterial();
+      standard.color.copy(colorOf(m.color));
+      standard.metalness = m.metalness;
+      standard.roughness = m.roughness;
+      standard.emissive.copy(colorOf(m.emissive));
+      standard.emissiveIntensity = m.emissiveIntensity;
+      standard.opacity = m.opacity;
+      standard.transparent = m.opacity < 1;
+      const textureUrl = resolveAssetUrl(m.texture, importedImages);
+      if (textureUrl) standard.map = loadTexture(textureUrl);
+      standard.depthWrite = m.opacity >= 1;
+      return standard;
+    };
+    mesh.material = Array.isArray(mesh.material) ? mesh.material.map(build) : build(mesh.material);
+    for (const created of Array.isArray(mesh.material) ? mesh.material : [mesh.material])
+      materialOverrides.push(created);
+  }
+  // Textures by URL, shared by every material that uses them.
+  const textureCache = new Map<string, THREE.Texture>();
+  const textureLoader = new THREE.TextureLoader();
+  function loadTexture(url: string) {
+    let texture = textureCache.get(url);
+    if (!texture) {
+      texture = textureLoader.load(url, () => {
+        if (doc.mode === "edit" && !gizmo.dragging) rebuild();
+      });
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      textureCache.set(url, texture);
+    }
+    return texture;
+  }
+  // Materials applyMaterial() created, disposed on the next rebuild() --
+  // rebuild runs after every edit, so they would otherwise leak GPU memory.
+  const materialOverrides: THREE.Material[] = [];
   function createLight(light: {
     type: "Point" | "Spot" | "Directional";
     color: Vec3;
     intensity: number;
     range: number;
     angle: number;
+    castShadows: boolean;
   }): THREE.Light {
     const color = new THREE.Color(light.color.x, light.color.y, light.color.z);
+    const withShadows = <L extends THREE.PointLight | THREE.SpotLight | THREE.DirectionalLight>(l: L): L => {
+      l.castShadow = light.castShadows;
+      l.shadow.mapSize.set(1024, 1024);
+      l.shadow.bias = -0.0005;
+      return l;
+    };
     switch (light.type) {
       case "Point":
-        return new THREE.PointLight(color, light.intensity, light.range);
+        return withShadows(new THREE.PointLight(color, light.intensity, light.range));
       case "Spot": {
         const l = new THREE.SpotLight(color, light.intensity, light.range, light.angle);
         l.target.position.set(0, 0, -1);
         l.add(l.target);
-        return l;
+        return withShadows(l);
       }
       case "Directional": {
         const l = new THREE.DirectionalLight(color, light.intensity);
         l.target.position.set(0, 0, -1);
         l.add(l.target);
-        return l;
+        return withShadows(l);
       }
     }
   }
+  // Builds one entity's render object (mesh or catalog model, Light,
+  // Particles, animation state) and appends it to objects[]/animStates[]/
+  // particleStates[]/deathStates[] at the next index. Used for every scene
+  // entity by rebuild() and for runtime-spawned prefab instances by frame().
+  function createEntityObject(
+    get: <K extends keyof SceneComponents>(type: K) => SceneComponents[K] | undefined,
+  ) {
+    const renderable = get("Renderable");
+    const meshId = renderable?.mesh ?? 0;
+    const catalog = meshId >= 1 ? catalogEntry(meshId) : undefined;
+    const cached = meshId >= 1 ? catalogCache.get(meshId) : undefined;
+    let object: THREE.Object3D;
+    let animState: AnimState | undefined;
+    if (cached) {
+      if (catalog?.animated) {
+        object = SkeletonUtils.clone(cached.scene);
+        const mixer = new THREE.AnimationMixer(object);
+        const actions = new Map(
+          cached.clips.map((clip) => [clip.name, mixer.clipAction(clip)]),
+        );
+        animState = { mixer, actions, prevPosition: new THREE.Vector3() };
+        // An authored AnimationState.clip picks and pins a specific clip --
+        // manually applied from the inspector's per-model dropdown, so it
+        // previews immediately in Edit mode too, not just Play -- instead
+        // of the automatic ground-speed-based pick below. "" (the default,
+        // and whatever pickClipName can't find on this model) falls
+        // through to that automatic behavior unchanged.
+        const override = get("AnimationState");
+        const overridden = override?.clip && actions.has(override.clip);
+        // Play the resting clip immediately: every frame's mixer.update() keeps
+        // it looping in both Edit and Play mode, so nothing here waits on the
+        // Play-mode-only, tick-aligned speed measurement below to pick a clip.
+        const resting = overridden ? override!.clip : pickClipName([...actions.keys()], 0);
+        if (resting) {
+          const action = actions.get(resting)!;
+          if (overridden) {
+            action.setLoop(
+              override!.looping ? THREE.LoopRepeat : THREE.LoopOnce,
+              Infinity,
+            );
+            action.clampWhenFinished = !override!.looping;
+            if (Number.isFinite(override!.time)) action.time = override!.time;
+          }
+          action.play();
+          animState.current = resting;
+        }
+      } else {
+        object = cached.scene.clone(true);
+      }
+    } else {
+      if (meshId >= 1)
+        loadOnce(
+          pendingCatalogRebuilds,
+          meshId,
+          () => loadCatalogModel(meshId),
+          () => {
+            if (doc.mode === "edit" && !gizmo.dragging) rebuild();
+          },
+          (error) => log(`Catalog model ${meshId} failed to load: ${String(error)}`),
+        );
+      object = new THREE.Mesh(geometry, material);
+    }
+    const animatorSource = get("Animator");
+    let animator: (typeof animators)[number];
+    if (animatorSource) {
+      const parsed = parseAnimatorGraph(animatorSource.graph);
+      if (parsed.graph) {
+        animator = { graph: parsed.graph, runtime: new AnimatorRuntime(parsed.graph) };
+        // Edit-mode preview: the start state's clip, like any resting clip.
+        const startClip = animState?.actions.get(parsed.graph.states.get(parsed.graph.start)!.clip);
+        if (animState && startClip) {
+          animState.mixer.stopAllAction();
+          startClip.play();
+          animState.current = parsed.graph.states.get(parsed.graph.start)!.clip;
+        }
+      } else animatorErrors.push(...parsed.errors);
+    }
+    animators.push(animator);
+    object.visible = renderable?.visible ?? true;
+    // `anchor` -- not `object` -- carries this entity's Transform/Rotation/
+    // Scale and is what's pushed into `objects` (gizmo attach, raycast
+    // picking, parent-child reattachment below, and every runtime-driven
+    // position/rotation write in frame()). It's always visible, so a Light
+    // childed onto it (see below) keeps rendering even when the mesh's own
+    // Renderable.visible is false -- three.js's render traversal skips an
+    // invisible object's entire subtree, including any lights within it,
+    // so the light must not live under `object` itself.
+    const anchor = new THREE.Group();
+    const p = get("Transform")?.position;
+    if (p) anchor.position.set(p.x, p.y, p.z);
+    if (animState) animState.prevPosition.copy(anchor.position);
+    const r = get("Rotation")?.euler;
+    if (r) anchor.rotation.set(r.x, r.y, r.z);
+    const s = get("Scale")?.value;
+    if (s && cached) {
+      // Normalize by the model's own native size so an authored Scale is
+      // the mesh's literal world-space size, matching the physics Box's
+      // dimensions (same s.x/y/z) instead of stacking on top of it.
+      const n = cached.nativeSize;
+      anchor.scale.set(
+        n.x > 1e-6 ? s.x / n.x : s.x,
+        n.y > 1e-6 ? s.y / n.y : s.y,
+        n.z > 1e-6 ? s.z / n.z : s.z,
+      );
+    } else if (s) anchor.scale.set(s.x, s.y, s.z);
+    anchor.add(object);
+    const light = get("Light");
+    // A sibling of `object`, not a child of it -- see the comment on
+    // `anchor` above for why. Not pushed into `objects` itself:
+    // objects/animStates are 1:1 with refs (the parenting loop and
+    // raycast-picking below both index by that), and a light has no
+    // geometry of its own to pick separately -- the entity's usual
+    // box/model placeholder still marks where it is and stays what gets
+    // selected, same as any other entity before a real Renderable.mesh is
+    // chosen. Being a child of `anchor` means it inherits this entity's
+    // own position/rotation for free, no separate transform tracking.
+    if (light) anchor.add(createLight(light));
+    // Every mesh casts and receives shadows; a Material component overrides
+    // the surface (see applyMaterial).
+    const materialOverride = get("Material");
+    object.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      child.castShadow = true;
+      child.receiveShadow = true;
+      if (materialOverride) applyMaterial(child, materialOverride);
+    });
+    const particles = get("Particles");
+    let particleState: ParticleState | undefined;
+    if (particles) particleState = createParticles(particles, anchor);
+    const trail = get("Trail");
+    if (trail) trailStates.push(createTrail(trail, anchor));
+    scene.add(anchor);
+    objects.push(anchor);
+    animStates.push(animState);
+    particleStates.push(particleState);
+    deathStates.push(undefined);
+  }
   function rebuild() {
     gizmo.detach();
+    const environmentEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "Environment"));
+    applyEnvironment(
+      (environmentEntity && doc.scene.resolve(environmentEntity, "Environment")) ?? defaultEnvironment(),
+    );
     for (const object of objects) object.removeFromParent();
     objects.length = 0;
     animStates.length = 0;
+    animators.length = 0;
+    animatorErrors.length = 0;
     // Unlike a mesh (which reuses catalogCache's shared geometry/material --
     // nothing new allocated per rebuild(), so nothing to dispose), every
     // Particles emitter allocates its own fresh BufferGeometry/PointsMaterial
@@ -1352,120 +2110,23 @@ async function startEditor() {
     // -- so without disposing here, an entity with Particles would leak a new
     // set of GPU buffers on essentially every editor interaction.
     for (const state of particleStates) {
+      state?.points.removeFromParent();
       state?.points.geometry.dispose();
-      (state?.points.material as THREE.Material | undefined)?.dispose();
+      state?.points.material.dispose();
     }
+    for (const trail of trailStates) {
+      trail.mesh.removeFromParent();
+      trail.mesh.geometry.dispose();
+      trail.mesh.material.dispose();
+    }
+    trailStates.length = 0;
     particleStates.length = 0;
     for (const state of deathStates) state?.materials.forEach(({ material }) => material.dispose());
+    for (const created of materialOverrides) created.dispose();
+    materialOverrides.length = 0;
     deathStates.length = 0;
     const refs = doc.scene.eachAlive();
-    for (const entity of refs) {
-      const renderable = doc.scene.resolve(entity, "Renderable");
-      const meshId = renderable?.mesh ?? 0;
-      const catalog = meshId >= 1 ? catalogEntry(meshId) : undefined;
-      const cached = meshId >= 1 ? catalogCache.get(meshId) : undefined;
-      let object: THREE.Object3D;
-      let animState: AnimState | undefined;
-      if (cached) {
-        if (catalog?.animated) {
-          object = SkeletonUtils.clone(cached.scene);
-          const mixer = new THREE.AnimationMixer(object);
-          const actions = new Map(
-            cached.clips.map((clip) => [clip.name, mixer.clipAction(clip)]),
-          );
-          animState = { mixer, actions, prevPosition: new THREE.Vector3() };
-          // An authored AnimationState.clip picks and pins a specific clip --
-          // manually applied from the inspector's per-model dropdown, so it
-          // previews immediately in Edit mode too, not just Play -- instead
-          // of the automatic ground-speed-based pick below. "" (the default,
-          // and whatever pickClipName can't find on this model) falls
-          // through to that automatic behavior unchanged.
-          const override = doc.scene.resolve(entity, "AnimationState");
-          const overridden = override?.clip && actions.has(override.clip);
-          // Play the resting clip immediately: every frame's mixer.update() keeps
-          // it looping in both Edit and Play mode, so nothing here waits on the
-          // Play-mode-only, tick-aligned speed measurement below to pick a clip.
-          const resting = overridden ? override!.clip : pickClipName([...actions.keys()], 0);
-          if (resting) {
-            const action = actions.get(resting)!;
-            if (overridden) {
-              action.setLoop(
-                override!.looping ? THREE.LoopRepeat : THREE.LoopOnce,
-                Infinity,
-              );
-              action.clampWhenFinished = !override!.looping;
-              if (Number.isFinite(override!.time)) action.time = override!.time;
-            }
-            action.play();
-            animState.current = resting;
-          }
-        } else {
-          object = cached.scene.clone(true);
-        }
-      } else {
-        if (meshId >= 1)
-          loadOnce(
-            pendingCatalogRebuilds,
-            meshId,
-            () => loadCatalogModel(meshId),
-            () => {
-              if (doc.mode === "edit" && !gizmo.dragging) rebuild();
-            },
-            (error) => log(`Catalog model ${meshId} failed to load: ${String(error)}`),
-          );
-        object = new THREE.Mesh(geometry, material);
-      }
-      object.visible = renderable?.visible ?? true;
-      // `anchor` -- not `object` -- carries this entity's Transform/Rotation/
-      // Scale and is what's pushed into `objects` (gizmo attach, raycast
-      // picking, parent-child reattachment below, and every runtime-driven
-      // position/rotation write in frame()). It's always visible, so a Light
-      // childed onto it (see below) keeps rendering even when the mesh's own
-      // Renderable.visible is false -- three.js's render traversal skips an
-      // invisible object's entire subtree, including any lights within it,
-      // so the light must not live under `object` itself.
-      const anchor = new THREE.Group();
-      const p = doc.scene.resolve(entity, "Transform")?.position;
-      if (p) anchor.position.set(p.x, p.y, p.z);
-      if (animState) animState.prevPosition.copy(anchor.position);
-      const r = doc.scene.resolve(entity, "Rotation")?.euler;
-      if (r) anchor.rotation.set(r.x, r.y, r.z);
-      const s = doc.scene.resolve(entity, "Scale")?.value;
-      if (s && cached) {
-        // Normalize by the model's own native size so an authored Scale is
-        // the mesh's literal world-space size, matching the physics Box's
-        // dimensions (same s.x/y/z) instead of stacking on top of it.
-        const n = cached.nativeSize;
-        anchor.scale.set(
-          n.x > 1e-6 ? s.x / n.x : s.x,
-          n.y > 1e-6 ? s.y / n.y : s.y,
-          n.z > 1e-6 ? s.z / n.z : s.z,
-        );
-      } else if (s) anchor.scale.set(s.x, s.y, s.z);
-      anchor.add(object);
-      const light = doc.scene.resolve(entity, "Light");
-      // A sibling of `object`, not a child of it -- see the comment on
-      // `anchor` above for why. Not pushed into `objects` itself:
-      // objects/animStates are 1:1 with refs (the parenting loop and
-      // raycast-picking below both index by that), and a light has no
-      // geometry of its own to pick separately -- the entity's usual
-      // box/model placeholder still marks where it is and stays what gets
-      // selected, same as any other entity before a real Renderable.mesh is
-      // chosen. Being a child of `anchor` means it inherits this entity's
-      // own position/rotation for free, no separate transform tracking.
-      if (light) anchor.add(createLight(light));
-      const particles = doc.scene.resolve(entity, "Particles");
-      let particleState: ParticleState | undefined;
-      if (particles) {
-        particleState = createParticles(particles);
-        anchor.add(particleState.points);
-      }
-      scene.add(anchor);
-      objects.push(anchor);
-      animStates.push(animState);
-      particleStates.push(particleState);
-      deathStates.push(undefined);
-    }
+    for (const entity of refs) createEntityObject((type) => doc.scene.resolve(entity, type));
     refs.forEach((entity, i) => {
       const parent = doc.scene.resolve(entity, "Parent")?.entity;
       if (parent && doc.scene.alive(parent)) {
@@ -1844,6 +2505,12 @@ async function startEditor() {
       if (doc.mode === "edit") {
         prePlayTarget = controls.target.clone();
         syncRuntime();
+        rig.placed = false;
+        shake.remaining = 0;
+        for (const animator of animators)
+          if (animator) animator.runtime = new AnimatorRuntime(animator.graph);
+        for (const state of particleStates) if (state?.burstOnPlay) burst(state.emitter, state.burstOnPlay);
+        if (animatorErrors.length) log(`Animator: ${animatorErrors.join("; ")}`);
         const playerObject = playerIndex >= 0 ? objects[playerIndex] : undefined;
         playerBaseScale = playerObject ? playerObject.scale.clone() : null;
         playerPrevY = playerObject?.position.y ?? 0;
@@ -1876,6 +2543,7 @@ async function startEditor() {
   };
   el("stop").onclick = () => {
     doc.mode = "edit";
+    if (document.pointerLockElement) document.exitPointerLock();
     accumulator = 0;
     releaseHeldKeys();
     stopSounds();
@@ -1889,6 +2557,112 @@ async function startEditor() {
     while (projectileMeshes.length) scene.remove(projectileMeshes.pop()!);
     rebuild();
   };
+  // -- Imported assets (0.58.0; see userAssets.ts) ------------------------
+  // Object URLs for imported images, by file name ("asset:<name>").
+  const importedImages = new Map<string, string>();
+  let storedAssets: StoredAsset[] = [];
+  function registerAsset(asset: StoredAsset) {
+    const url = URL.createObjectURL(asset.data);
+    if (asset.kind === "image") importedImages.set(asset.name, url);
+    else if (asset.kind === "model") {
+      const existing = modelCatalog.find((m) => m.id === asset.id);
+      if (existing) existing.path = url;
+      else modelCatalog.push({ id: asset.id, category: "imported", name: displayName(asset.name), path: url });
+      catalogPromises.delete(asset.id);
+      catalogCache.delete(asset.id);
+      const category = el<HTMLSelectElement>("catalog-category");
+      if (![...category.options].some((o) => o.value === "imported")) category.add(new Option("Imported", "imported"));
+    } else {
+      const existing = soundCatalog.find((s) => s.id === asset.id);
+      if (existing) existing.path = url;
+      else soundCatalog.push({ id: asset.id, category: "imported", name: displayName(asset.name), path: url });
+      soundBuffers.delete(asset.id);
+      soundBufferPromises.delete(asset.id);
+    }
+  }
+  async function importFiles(files: FileList | File[]) {
+    const imported: string[] = [];
+    for (const file of files) {
+      const kind = assetKind(file.name);
+      if (!kind) {
+        log(`Import: ${file.name} is not a .glb model, image or audio file`);
+        continue;
+      }
+      const asset: StoredAsset = { id: assignId(storedAssets, kind, file.name), kind, name: file.name, type: file.type, data: file };
+      storedAssets = [...storedAssets.filter((a) => a.id !== asset.id), asset];
+      try {
+        await storeAsset(asset);
+      } catch (error) {
+        log(`Import: ${file.name} could not be saved in this browser (${String(error)}); it lasts until reload`);
+      }
+      registerAsset(asset);
+      imported.push(
+        kind === "image" ? `${file.name} (use asset:${file.name})` : `${file.name} (${kind} ${asset.id})`,
+      );
+    }
+    if (imported.length) {
+      log(`Imported ${imported.join(", ")}`);
+      populateCatalogModels();
+      updatePanels();
+    }
+  }
+  el<HTMLInputElement>("import-asset").onchange = (event) => {
+    const input = event.target as HTMLInputElement;
+    if (input.files) void importFiles([...input.files]).finally(() => (input.value = ""));
+  };
+  void loadStoredAssets()
+    .then((assets) => {
+      storedAssets = assets;
+      assets.forEach(registerAsset);
+      if (assets.length) {
+        populateCatalogModels();
+        rebuild();
+      }
+    })
+    .catch((error) => log(`Imported assets unavailable: ${String(error)}`));
+  // -- Stats overlay (0.58.0) --------------------------------------------
+  const statsPanel = document.createElement("pre");
+  statsPanel.id = "stats-panel";
+  statsPanel.hidden = true;
+  statsPanel.style.cssText =
+    "position:absolute;top:8px;right:8px;margin:0;padding:8px 10px;background:rgba(8,12,18,0.82);" +
+    "color:#cfe8ff;font:12px/1.45 ui-monospace,monospace;border-radius:6px;pointer-events:none;z-index:5";
+  viewport.appendChild(statsPanel);
+  const stats = { frames: 0, frameMs: 0, tickMs: 0, since: performance.now() };
+  el("stats").onclick = () => {
+    statsPanel.hidden = !statsPanel.hidden;
+    el("stats").setAttribute("aria-pressed", String(!statsPanel.hidden));
+  };
+  function updateStats(frameMs: number, tickMs: number) {
+    stats.frames++;
+    stats.frameMs += frameMs;
+    stats.tickMs += tickMs;
+    const now = performance.now();
+    if (statsPanel.hidden || now - stats.since < 250) return;
+    const fps = (stats.frames * 1000) / (now - stats.since);
+    const info = renderer instanceof THREE.WebGLRenderer ? renderer.info : undefined;
+    const systems = runtime
+      .ccall("editor_profile_text", "string", [], [])
+      .split(";")
+      .filter(Boolean)
+      .map((entry) => {
+        const [name, ms] = entry.split("=");
+        return `  ${name!.replace("editor.", "").padEnd(16)}${Number(ms).toFixed(3)} ms`;
+      });
+    statsPanel.textContent = [
+      `FPS          ${fps.toFixed(0)}`,
+      `Frame        ${(stats.frameMs / stats.frames).toFixed(2)} ms`,
+      `C++ ticks    ${(stats.tickMs / stats.frames).toFixed(2)} ms/frame`,
+      `Draw calls   ${info?.render.calls ?? "-"}`,
+      `Triangles    ${info?.render.triangles ?? "-"}`,
+      `Entities     ${doc.scene.entityCount} (+${Math.max(0, objects.length - doc.scene.eachAlive().length)} spawned)`,
+      ...(systems.length ? ["Systems (last tick):", ...systems] : []),
+    ].join("\n");
+    stats.frames = 0;
+    stats.frameMs = 0;
+    stats.tickMs = 0;
+    stats.since = now;
+  }
   el("grid").onclick = () => {
     grid.visible = !grid.visible;
   };
@@ -1955,6 +2729,22 @@ async function startEditor() {
   // to its authored Transform/state) immediately followed by Play (re-syncs
   // and starts a fresh session) -- there's no single existing button for
   // that combination, so it's the one action that chains two clicks.
+  // A value change from interaction: stored for drawing and sent to every
+  // script's on_ui(name, value).
+  function setUIValue(name: string, value: number) {
+    uiValues.set(name, value);
+    uiEvent(name, String(value));
+  }
+  function uiEvent(name: string, value: string) {
+    runtime.ccall("editor_ui_event", null, ["string", "string"], [name, value]);
+  }
+  window.addEventListener("pointermove", (event) => {
+    if (!draggingSlider || doc.mode === "edit") return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    const next = sliderValue(draggingSlider, event.clientX - rect.left);
+    if (next !== uiValues.get(draggingSlider.name)) setUIValue(draggingSlider.name, next);
+  });
+  window.addEventListener("pointerup", () => (draggingSlider = undefined));
   function runUIAction(action: UIAction) {
     switch (action) {
       case "restart":
@@ -1988,16 +2778,15 @@ async function startEditor() {
     // later entity's on top, so a click there must hit the one the user
     // actually sees, not whichever happened to be pushed first.
     for (let i = uiButtonHits.length - 1; i >= 0; i--) {
-      const button = uiButtonHits[i]!;
-      if (
-        clickX >= button.x &&
-        clickX <= button.x + button.width &&
-        clickY >= button.y &&
-        clickY <= button.y + button.height
-      ) {
-        runUIAction(button.action);
-        return;
-      }
+      const hit = uiButtonHits[i]!;
+      if (!contains(hit, clickX, clickY)) continue;
+      if (hit.kind === "Toggle") setUIValue(hit.name, hit.value >= 0.5 ? 0 : 1);
+      else if (hit.kind === "Slider") {
+        draggingSlider = hit;
+        setUIValue(hit.name, sliderValue(hit, clickX));
+      } else if (hit.action === "script") uiEvent(hit.name, "click");
+      else runUIAction(hit.action);
+      return;
     }
     const pointer = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -2105,6 +2894,8 @@ async function startEditor() {
     window.addEventListener("keydown", resumeAudio);
   }
   function frame(now: number) {
+    const frameStart = performance.now();
+    let tickMs = 0;
     const dt = Math.min((now - previous) / 1000, 5 / 60);
     previous = now;
     let steps = 0;
@@ -2113,26 +2904,37 @@ async function startEditor() {
       // Once per rendered frame, before any of this frame's ticks — mirrors
       // the native platform's own begin_frame()-then-apply-events-then-step
       // loop, so key_pressed()/key_released() read as single-frame edges
-      // shared by every tick this frame runs, not per-tick.
-      runtime._editor_input_begin_frame();
+      // shared by every tick this frame runs, not per-tick. Skipped after a
+      // frame that ran no tick (a display faster than 60 Hz): otherwise a
+      // press or click landing in that frame would be cleared before any
+      // tick saw it, and mouse deltas would be dropped.
+      if (inputFrameConsumed) runtime._editor_input_begin_frame();
       // Once per rendered frame too, so this frame's on-foot movement (see
       // Runtime::camera_forward_x/z's own doc comment in bridge.cpp) reflects
       // wherever the camera is pointed right now, including mid-orbit.
-      camera.getWorldDirection(cameraForwardScratch);
+      viewCamera.getWorldDirection(cameraForwardScratch);
       runtime._editor_set_camera_forward(cameraForwardScratch.x, cameraForwardScratch.z);
-      for (const [code, down] of keyQueue) runtime._editor_key(code, down);
+      for (const [code, down] of keyQueue)
+        runtime.ccall("editor_input_key", null, ["string", "number"], [code, down]);
       keyQueue.length = 0;
+      flushPointerInput();
+      pollGamepad();
       for (const [key, down] of scriptKeyQueue)
         runtime.ccall("editor_script_key", null, ["string", "number"], [key, down]);
       scriptKeyQueue.length = 0;
       accumulator += dt;
+      const tickStart = performance.now();
       while (accumulator >= 1 / 60 && steps++ < 5) {
         runtime._editor_tick();
         ticks++;
         accumulator -= 1 / 60;
       }
+      tickMs = performance.now() - tickStart;
+      inputFrameConsumed = steps > 0;
       persistDirtySaves();
       pollAnimationRequests();
+      adoptSpawnedEntities();
+      runScriptCommands();
       objects.forEach((object, i) => {
         // Combat/AI can destroy an authored entity (Health reaching 0) mid-session;
         // its index stays in objects[] (entities can't be added/removed while
@@ -2219,7 +3021,9 @@ async function startEditor() {
     animStates.forEach((state) => state?.mixer.update(dt));
     // Same reasoning as mixers above -- a Particles emitter is as "always on"
     // as a Light, not gated to Play mode like Script/Sound.
+    particleScale.value = viewport.clientHeight / 2;
     particleStates.forEach((state) => state && stepParticles(state, dt));
+    stepTrails(dt);
     // Ground-speed clip selection runs on the fixed-step cadence (steps/60),
     // not every render frame — see groundSpeed()'s own comment for why.
     if (doc.mode === "play" && steps > 0) {
@@ -2241,6 +3045,7 @@ async function startEditor() {
         const dx = object.position.x - state.prevPosition.x;
         const dz = object.position.z - state.prevPosition.z;
         const speed = groundSpeed(object.position, state.prevPosition, tickDt);
+        const verticalSpeed = (object.position.y - state.prevPosition.y) / tickDt;
         state.prevPosition.copy(object.position);
         // Face the direction actually traveled — not for a Vehicle, whose
         // facing already comes from its own steered heading above, which is
@@ -2256,6 +3061,11 @@ async function startEditor() {
           );
           const maxTurn = 10 * tickDt; // rad; generous enough not to lag a sharp turn
           object.rotation.y += Math.max(-maxTurn, Math.min(maxTurn, diff));
+        }
+        const animator = animators[i];
+        if (animator) {
+          runAnimator(i, state, animator.runtime, speed, verticalSpeed, tickDt);
+          return;
         }
         // An authored AnimationState.clip (see rebuild()) pins the clip
         // rebuild() already applied -- Play mode's own ground-speed pick
@@ -2322,9 +3132,30 @@ async function startEditor() {
     }
     if (selection.visible) selection.update();
     controls.update();
+    rig.frameDt = dt;
+    const game = gameCamera();
+    viewCamera = game ?? camera;
+    // Shake the game camera, or during Play a copy of the editor camera, so
+    // the orbit camera itself never drifts.
+    if (doc.mode !== "edit" && shake.remaining > 0) {
+      if (!game) {
+        shakeCamera.copy(camera);
+        viewCamera = shakeCamera;
+      }
+      applyShake(viewCamera, dt);
+    }
+    updateSunShadow();
+    renderPass.camera = viewCamera;
+    // Counted over every pass of the frame (bloom included), not just the
+    // last one, for the Stats overlay's draw calls and triangles.
+    if (renderer instanceof THREE.WebGLRenderer) {
+      renderer.info.autoReset = false;
+      renderer.info.reset();
+    }
     if (composer) composer.render();
-    else renderer.render(scene, camera);
+    else renderer.render(scene, viewCamera);
     drawHud();
+    updateStats(performance.now() - frameStart, tickMs);
     const status = el("status");
     status.dataset.mode = doc.mode;
     const playerReadout =
@@ -2360,6 +3191,8 @@ async function startEditor() {
     // runtime error is otherwise a silently inert entity with no visible
     // cause (see editor_script_error's own doc comment, bridge.cpp, on why
     // that's the one thing surfaced here rather than every field of `self`).
+    const spawnedCount = objects.length - doc.scene.eachAlive().length;
+    const spawnedReadout = doc.mode !== "edit" && spawnedCount > 0 ? ` · ${spawnedCount} spawned` : "";
     const selectedScriptErrorReadout =
       doc.mode === "play" && selectedIndex >= 0 && doc.scene.effectiveHas(doc.selection!, "Script")
         ? (() => {
@@ -2367,7 +3200,7 @@ async function startEditor() {
             return error ? ` · Script error: ${error}` : "";
           })()
         : "";
-    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${playerReadout}${selectedHealthReadout}${selectedAiReadout}${selectedScriptErrorReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider box/sphere collision, Health-based combat (F melee, G blast), Vehicle driving (W/S/A/D), AIState/Pedestrian wander/chase/flee, Script (Lua on_tick), and Sound (Web Audio autoplay) are simulated`;
+    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${spawnedReadout}${playerReadout}${selectedHealthReadout}${selectedAiReadout}${selectedScriptErrorReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider box/sphere collision, Health-based combat (F melee, G blast), Vehicle driving (W/S/A/D), AIState/Pedestrian wander/chase/flee, Script (Lua callbacks and world API), and Sound (Web Audio) are simulated`;
     requestAnimationFrame(frame);
   }
   const cameraForwardScratch = new THREE.Vector3();
@@ -2376,24 +3209,113 @@ async function startEditor() {
   // -- a UI element's screen position, unlike a Health bar's, is never
   // projected from a world position; it's just one of nine fixed points on
   // the viewport, the same layout language any screen-anchored HUD/menu uses.
-  function uiAnchorLayout(anchor: UIAnchor) {
-    const xFrac = anchor.includes("left") ? 0 : anchor.includes("right") ? 1 : 0.5;
-    const yFrac = anchor.includes("top") ? 0 : anchor.includes("bottom") ? 1 : 0.5;
-    const align: CanvasTextAlign = xFrac === 0 ? "left" : xFrac === 1 ? "right" : "center";
-    const baseline: CanvasTextBaseline = yFrac === 0 ? "top" : yFrac === 1 ? "bottom" : "middle";
-    return { xFrac, yFrac, align, baseline };
-  }
   // Populated fresh by drawHud() every frame a Button is visible; consulted
   // by the pointerdown handler below to hit-test a click before it falls
   // through to normal 3D entity-selection raycasting. Screen-space rects,
   // not scene objects, so no relation to objects[]/animStates[]'s own
   // per-entity indexing.
-  interface UIButtonHit {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
+  interface UIButtonHit extends UIRect {
+    kind: UIKind;
+    name: string;
     action: UIAction;
+    value: number;
+  }
+  // Play-session UI state from scripts and interaction, keyed by the UI
+  // entity's Name: values (Bar/Slider/Toggle) and visibility. Cleared
+  // whenever the runtime is rebuilt, like uiTextOverrides.
+  const uiValues = new Map<string, number>();
+  const uiVisibility = new Map<string, boolean>();
+  const uiImages = new Map<string, HTMLImageElement>();
+  let draggingSlider: UIButtonHit | undefined;
+  const css = (c: Vec3, alpha: number) =>
+    `rgba(${Math.round(c.x * 255)}, ${Math.round(c.y * 255)}, ${Math.round(c.z * 255)}, ${alpha})`;
+  function uiImage(url: string) {
+    let image = uiImages.get(url);
+    if (!image) {
+      image = new Image();
+      image.src = url;
+      uiImages.set(url, image);
+    }
+    return image;
+  }
+  // Paints one UI element in its box. Text and Button look exactly as they
+  // did before layout options existed when those options are left default.
+  function drawUIElement(ui: UIComponent, rect: UIRect, value: number) {
+    const { left, top, width, height } = rect;
+    const label = (x: number, y: number, align: CanvasTextAlign) => {
+      hudCtx.textAlign = align;
+      hudCtx.textBaseline = "middle";
+      hudCtx.lineWidth = 3;
+      hudCtx.strokeStyle = "rgba(10, 16, 24, 0.85)";
+      hudCtx.strokeText(ui.text, x, y);
+      hudCtx.fillStyle = "#eaf6ff";
+      hudCtx.fillText(ui.text, x, y);
+    };
+    switch (ui.kind) {
+      case "Text":
+        // A stroke outline instead of a backdrop -- legible over any scene.
+        hudCtx.textAlign = "left";
+        hudCtx.textBaseline = "top";
+        hudCtx.lineWidth = 3;
+        hudCtx.strokeStyle = "rgba(10, 16, 24, 0.85)";
+        hudCtx.strokeText(ui.text, left, top);
+        hudCtx.fillStyle = "#eaf6ff";
+        hudCtx.fillText(ui.text, left, top);
+        return;
+      case "Button":
+      case "Panel":
+        hudCtx.fillStyle = css(ui.color, ui.opacity);
+        hudCtx.fillRect(left, top, width, height);
+        hudCtx.strokeStyle = "rgba(140, 190, 220, 0.6)";
+        hudCtx.strokeRect(left + 0.5, top + 0.5, width - 1, height - 1);
+        if (ui.text) {
+          // A Button's label is centered; a Panel's is its title.
+          hudCtx.fillStyle = "#eaf6ff";
+          hudCtx.textAlign = "center";
+          hudCtx.textBaseline = "middle";
+          hudCtx.fillText(ui.text, left + width / 2, ui.kind === "Button" ? top + height / 2 : top + 8 + ui.fontSize / 2);
+        }
+        return;
+      case "Image": {
+        const imageUrl = resolveAssetUrl(ui.image, importedImages);
+        const image = imageUrl ? uiImage(imageUrl) : undefined;
+        hudCtx.globalAlpha = ui.opacity;
+        if (image?.complete && image.naturalWidth > 0) hudCtx.drawImage(image, left, top, width, height);
+        else {
+          hudCtx.fillStyle = css(ui.color, 1);
+          hudCtx.fillRect(left, top, width, height);
+        }
+        hudCtx.globalAlpha = 1;
+        if (ui.text) label(left + width / 2, top + height / 2, "center");
+        return;
+      }
+      case "Bar":
+      case "Slider": {
+        hudCtx.fillStyle = "rgba(10, 16, 24, 0.75)";
+        hudCtx.fillRect(left, top, width, height);
+        hudCtx.fillStyle = css(ui.kind === "Bar" && ui.color.x === 0.118 ? { x: 0.3, y: 0.69, z: 0.31 } : ui.color, 1);
+        hudCtx.fillRect(left, top, width * value, height);
+        if (ui.kind === "Slider") {
+          hudCtx.fillStyle = "#eaf6ff";
+          hudCtx.fillRect(left + width * value - 3, top - 2, 6, height + 4);
+        }
+        if (ui.text) label(left + width / 2, top + height / 2, "center");
+        return;
+      }
+      case "Toggle": {
+        const box = Math.min(height, ui.fontSize + 8);
+        hudCtx.fillStyle = css(ui.color, ui.opacity);
+        hudCtx.fillRect(left, top, box, box);
+        hudCtx.strokeStyle = "rgba(140, 190, 220, 0.8)";
+        hudCtx.strokeRect(left + 0.5, top + 0.5, box - 1, box - 1);
+        if (value >= 0.5) {
+          hudCtx.fillStyle = "#7fd4ff";
+          hudCtx.fillRect(left + 4, top + 4, box - 8, box - 8);
+        }
+        if (ui.text) label(left + box + 8, top + box / 2, "left");
+        return;
+      }
+    }
   }
   const uiButtonHits: UIButtonHit[] = [];
   // Screen-space Health bars (Play mode only, matches the player readout's
@@ -2407,6 +3329,7 @@ async function startEditor() {
   function drawHud() {
     hudCtx.clearRect(0, 0, hud.width, hud.height);
     uiButtonHits.length = 0;
+    const hudLines: string[] = [];
     if (doc.mode === "play")
       doc.scene.eachAlive().forEach((entity, index) => {
         if (!doc.scene.effectiveHas(entity, "Health")) return;
@@ -2418,7 +3341,7 @@ async function startEditor() {
         const scaleY = doc.scene.resolve(entity, "Scale")?.value.y ?? 1;
         hudScratch.copy(object.position);
         hudScratch.y += scaleY / 2 + 0.35;
-        hudScratch.project(camera);
+        hudScratch.project(viewCamera);
         if (hudScratch.z > 1) return; // behind the camera
         const x = ((hudScratch.x + 1) / 2) * hud.width;
         const y = ((1 - hudScratch.y) / 2) * hud.height;
@@ -2436,55 +3359,39 @@ async function startEditor() {
         );
       });
     for (const entity of doc.scene.eachAlive()) {
-      const ui = doc.scene.resolve(entity, "UI");
-      if (!ui) continue;
+      const authoredUi = doc.scene.resolve(entity, "UI");
+      if (!authoredUi) continue;
+      const uiName = doc.scene.resolve(entity, "Name")?.value ?? "";
+      const playing = doc.mode !== "edit";
+      const override = playing ? uiTextOverrides.get(uiName) : undefined;
+      const ui = override === undefined ? authoredUi : { ...authoredUi, text: override };
       if (ui.visibleWhen === "play" && doc.mode !== "play") continue;
       if (ui.visibleWhen === "pause" && doc.mode !== "pause") continue;
-      const padding = 16;
-      const { xFrac, yFrac, align, baseline } = uiAnchorLayout(ui.anchor);
-      const x = xFrac * hud.width + (xFrac === 0 ? padding : xFrac === 1 ? -padding : 0);
-      const y = yFrac * hud.height + (yFrac === 0 ? padding : yFrac === 1 ? -padding : 0);
-      hudCtx.font = "600 16px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif";
-      hudCtx.textAlign = align;
-      hudCtx.textBaseline = baseline;
-      if (ui.kind === "Button") {
-        const metrics = hudCtx.measureText(ui.text);
-        const boxPadX = 14,
-          boxPadY = 9;
-        const width = metrics.width + boxPadX * 2;
-        const height = 16 + boxPadY * 2;
-        const left = x - (align === "left" ? 0 : align === "right" ? width : width / 2);
-        const top = y - (baseline === "top" ? 0 : baseline === "bottom" ? height : height / 2);
-        hudCtx.fillStyle = "rgba(30, 42, 56, 0.85)";
-        hudCtx.fillRect(left, top, width, height);
-        hudCtx.strokeStyle = "rgba(140, 190, 220, 0.6)";
-        hudCtx.strokeRect(left + 0.5, top + 0.5, width - 1, height - 1);
-        hudCtx.fillStyle = "#eaf6ff";
-        // Set before fillText, not after -- fillText reads textAlign/
-        // textBaseline at call time, and this draw point is already the
-        // box's own center, not the anchor-derived point every other
-        // anchor's align/baseline still describes at this point in the
-        // function; leaving them unchanged shifted the label toward
-        // bottom-right for every anchor except "center" itself.
-        hudCtx.textAlign = "center";
-        hudCtx.textBaseline = "middle";
-        hudCtx.fillText(ui.text, left + width / 2, top + height / 2);
-        // Clickable only outside Edit mode -- see UIComponent's own doc
-        // comment (Components.ts) for why authoring a scene must never be
-        // able to accidentally trigger a Button's command.
-        if (doc.mode === "play" || doc.mode === "pause")
-          uiButtonHits.push({ x: left, y: top, width, height, action: ui.action });
-      } else {
-        // Text gets a stroke outline instead of Button's background rect --
-        // legible over any 3D scene content behind it without needing its
-        // own backdrop.
-        hudCtx.lineWidth = 3;
-        hudCtx.strokeStyle = "rgba(10, 16, 24, 0.85)";
-        hudCtx.strokeText(ui.text, x, y);
-        hudCtx.fillStyle = "#eaf6ff";
-        hudCtx.fillText(ui.text, x, y);
-      }
+      if (playing && uiVisibility.get(uiName) === false) continue;
+      const value = playing ? (uiValues.get(uiName) ?? ui.value) : ui.value;
+      hudCtx.font = `600 ${ui.fontSize}px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif`;
+      const auto = autoSize(ui.kind, ui.text ? hudCtx.measureText(ui.text).width : 0, ui.fontSize);
+      const rect = layoutRect(
+        ui.anchor,
+        hud.width,
+        hud.height,
+        ui.width || auto.width,
+        ui.height || auto.height,
+        ui.offsetX,
+        ui.offsetY,
+      );
+      drawUIElement(ui, rect, value);
+      // Clickable only outside Edit mode -- see UIComponent's own doc
+      // comment (Components.ts) for why authoring a scene must never be
+      // able to accidentally trigger a Button's command.
+      if (playing && (ui.kind === "Button" || ui.kind === "Slider" || ui.kind === "Toggle"))
+        uiButtonHits.push({ ...rect, kind: ui.kind, name: uiName, action: ui.action, value });
+      if (ui.text) hudLines.push(ui.text);
+      if (ui.kind === "Bar" || ui.kind === "Slider" || ui.kind === "Toggle")
+        hudLines.push(`${uiName || ui.kind}=${Math.round(value * 100) / 100}`);
     }
+    const hudSummary = hudLines.join(" · ");
+    if (hudText.textContent !== hudSummary) hudText.textContent = hudSummary;
   }
   requestAnimationFrame(frame);
 }
