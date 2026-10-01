@@ -83,6 +83,7 @@ const componentNames = [
   "Trail",
   "CharacterController",
   "Weapons",
+  "AICombat",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -672,6 +673,24 @@ export function defaultComponent(
       };
     case "CharacterController":
       return defaultCharacterController();
+    case "AICombat":
+      return {
+        team: 1,
+        behavior: "Patrol",
+        patrol: "",
+        sightRange: 25,
+        fov: 110,
+        hearingRange: 30,
+        reactionTime: 0.45,
+        accuracy: 0.6,
+        preferredRange: 12,
+        moveSpeed: 3.6,
+        burst: 4,
+        burstPause: 0.7,
+        useCover: true,
+        fleeHealth: 0,
+        meleeDamage: 12,
+      };
     case "Weapons":
       // Kept in sync with engine::gameplay::default_weapons_text (weapons.cpp).
       return {

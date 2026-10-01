@@ -216,6 +216,7 @@ const componentNames = [
   "Trail",
   "CharacterController",
   "Weapons",
+  "AICombat",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -421,6 +422,37 @@ export function normalizeComponent(
       };
     case "InputActions":
       return { bindings: string(value.bindings, "InputActions.bindings") };
+    case "AICombat": {
+      const behavior = value.behavior;
+      if (behavior !== "Patrol" && behavior !== "Guard" && behavior !== "Hunt")
+        throw new Error("AICombat.behavior must be Patrol, Guard, or Hunt.");
+      const team = number(value.team, "AICombat.team");
+      if (!Number.isInteger(team) || team < 0 || team > 15) throw new Error("AICombat.team must be an integer from 0 to 15.");
+      const unit = (v: unknown, label: string) => {
+        const n = number(v, label);
+        if (n < 0 || n > 1) throw new Error(`${label} must be from 0 to 1.`);
+        return n;
+      };
+      const burst = positiveNumber(value.burst, "AICombat.burst");
+      if (!Number.isInteger(burst)) throw new Error("AICombat.burst must be a whole number.");
+      return {
+        team,
+        behavior,
+        patrol: string(value.patrol, "AICombat.patrol"),
+        sightRange: positiveNumber(value.sightRange, "AICombat.sightRange"),
+        fov: positiveNumber(value.fov, "AICombat.fov"),
+        hearingRange: nonNegativeNumber(value.hearingRange, "AICombat.hearingRange"),
+        reactionTime: nonNegativeNumber(value.reactionTime, "AICombat.reactionTime"),
+        accuracy: unit(value.accuracy, "AICombat.accuracy"),
+        preferredRange: positiveNumber(value.preferredRange, "AICombat.preferredRange"),
+        moveSpeed: positiveNumber(value.moveSpeed, "AICombat.moveSpeed"),
+        burst,
+        burstPause: nonNegativeNumber(value.burstPause, "AICombat.burstPause"),
+        useCover: boolean(value.useCover, "AICombat.useCover"),
+        fleeHealth: unit(value.fleeHealth, "AICombat.fleeHealth"),
+        meleeDamage: nonNegativeNumber(value.meleeDamage, "AICombat.meleeDamage"),
+      };
+    }
     case "Weapons":
       return { loadout: string(value.loadout, "Weapons.loadout") };
     case "CharacterController": {

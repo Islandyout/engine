@@ -4427,3 +4427,49 @@ Before this, the only combat was F melee and the G blast at the nearest Health e
   - R shows Reloading and refills from the reserve;
   - 2 switches to the pistol, all read from `#hud-text`;
   - evidence screenshot `f61-weapons.png`.
+
+## F62 — Combat AI (0.62.0)
+
+Before this, AI was `AIState`: wander, a straight chase inside 6 m, flee, and contact damage. It had no sight, hearing, shooting, cover or teams.
+
+### Native (`Soldier`, bridge.cpp)
+
+- **Setup**: `editor_set_soldier(index, team, behavior, sight, fov, hearing, reaction, accuracy, preferred range, speed, burst, burst pause, cover, flee health, melee)` adds a `Soldier` plus a `Controller` sized to the entity's own Box (no resize), so soldiers accelerate, climb steps and stick to stairs. It removes any `AIAgent`. Out-of-range values fail the commit.
+- **Waypoints**: `editor_set_soldier_patrol(index, "A, B")` sets the patrol route by entity Name; names are resolved on the soldier's first tick.
+- **Teams**: the Player is team 0, a soldier is its `team`, and anything else with Health is neutral.
+- **Perception** (`editor.soldiers`, order 3):
+  - **Sight**: within range and the view cone (always within 2.5 m), and a ray from the eye to the target's chest reaches it.
+  - **Hearing**: gunfire (`fire_weapon`) and explosions (1.5× range) from hostile teams within hearing range.
+  - **Being shot**: `apply_damage` alerts the soldier to the attacker's position.
+- **Modes**:
+  - **Patrol**: walks the waypoints with a pause at each; without waypoints, guards home and sweeps its view. Hunt behavior sends it toward the nearest hostile.
+  - **Investigate**: goes to the last known position, then **Search** (looks around for 4 s, then back to patrol).
+  - **Combat**:
+    - closes in when far, backs off when too close, otherwise strafes in random 0.8–2.2 s legs, flipping away from unwalkable cells;
+    - fires after the reaction delay once facing within about 14°, in bursts with randomized pauses;
+    - aims at the chest with spread (1 − accuracy) × 7°, through `weapon.fire`'s path;
+    - reloads on empty;
+    - without Weapons, melee within 1.7 m once a second.
+  - **Cover**: on an empty magazine, or below half health, it picks the nearest walkable spot within 2.5, 5 or 8 m that a solid collider hides from the last known threat (preferring spots away from it), waits out the reload, then peeks back into combat.
+  - **Flee**: below `flee_health`.
+- **Facing**: turns at 8 rad/s toward the target or the direction of travel.
+- **Movement**: goes through `engine::gameplay::begin_step`, with the existing `end_step` system afterwards. Paths come from the nav grid (refreshed every 0.5 s or when the goal moves), and soldiers are excluded from nav baking like other movers.
+- **`editor_soldier_value`** reports mode, yaw, awareness and team.
+
+### Editor
+
+- **`AICombat` component**: team, behavior, patrol, sight range, FOV, hearing range, reaction time, accuracy, preferred range, move speed, burst, burst pause, use cover, flee health and melee damage. Listed under Gameplay.
+- **Facing**: soldiers face their AI yaw instead of their movement direction.
+- **Held weapon**: a soldier with Weapons holds its first weapon's model, at real size despite the model scale.
+- **Markers**: "!" in combat or cover, "?" while investigating or searching.
+
+### F62 verification
+
+- `engine_editor_bridge_tests`:
+  - a guard spots the player and its bursts hurt them;
+  - behind a wall it stays unaware, hears the player's shot, investigates, walks around the wall and engages;
+  - with an empty magazine it reloads tucked behind a crate;
+  - a weaponless hunter paths over and lands melee hits;
+  - a patroller reaches waypoint A and then heads to B;
+  - invalid settings fail the commit.
+- `tests/browser/fps.cjs`: a guarding rifle soldier drops the player's HUD Health, then dies to return fire, and a scorekeeper script's `on_kill` reports "Soldier down by Hero". Evidence screenshot `f62-combat-ai.png`.

@@ -56,6 +56,7 @@ import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGrap
 import { applyMouseLook, applyStickLook, ViewEffects, type Look } from "./fpsView";
 import { Sfx } from "./sfx";
 import { EventFlag, EventKind, WeaponFx } from "./weaponFx";
+import { buildViewmodel } from "./viewmodels";
 import { defaultEnvironment } from "../authoring/CommandInterpreter";
 import "./style.css";
 
@@ -211,6 +212,8 @@ type Runtime = {
   _editor_set_look(yaw: number, pitch: number): void;
   _editor_controller_value(index: number, field: number): number;
   _editor_weapon_value(index: number, field: number): number;
+  _editor_set_soldier(index: number, ...settings: number[]): void;
+  _editor_soldier_value(index: number, field: number): number;
   _editor_take_weapon_events(): number;
   _editor_weapon_event(index: number, field: number): number;
   // Catch-all for text calls added from 0.59.0 on.
@@ -1877,6 +1880,28 @@ async function startEditor() {
     // Weapons (0.61.0): see editor_set_weapons (bridge.cpp).
     const weapons = get("Weapons");
     if (weapons && !isChild) runtime.ccall("editor_set_weapons", null, ["number", "string"], [index, weapons.loadout]);
+    // AICombat (0.62.0): see editor_set_soldier (bridge.cpp).
+    const combat = get("AICombat");
+    if (combat && !isChild) {
+      runtime._editor_set_soldier(
+        index,
+        combat.team,
+        { Patrol: 0, Guard: 1, Hunt: 2 }[combat.behavior],
+        combat.sightRange,
+        combat.fov,
+        combat.hearingRange,
+        combat.reactionTime,
+        combat.accuracy,
+        combat.preferredRange,
+        combat.moveSpeed,
+        combat.burst,
+        combat.burstPause,
+        combat.useCover ? 1 : 0,
+        combat.fleeHealth,
+        combat.meleeDamage,
+      );
+      if (combat.patrol) runtime.ccall("editor_set_soldier_patrol", null, ["number", "string"], [index, combat.patrol]);
+    }
     // A rotated Box collider collides as an oriented box (0.59.0).
     const rotation = get("Rotation")?.euler;
     if (collider && rotation && (rotation.x || rotation.y || rotation.z))
@@ -2312,6 +2337,19 @@ async function startEditor() {
       );
     } else if (s) anchor.scale.set(s.x, s.y, s.z);
     anchor.add(object);
+    // A soldier with Weapons visibly holds its first weapon (0.62.0).
+    const loadout = get("AICombat") ? get("Weapons")?.loadout : undefined;
+    if (loadout !== undefined) {
+      const model = /model=(\w+)/.exec(loadout.split("\n").find((line) => line.trim() && !line.trim().startsWith("#")) ?? "")?.[1] ?? "rifle";
+      const held = buildViewmodel(model).group;
+      // Undo the anchor's scale so the gun keeps its real size, and point
+      // it along the body's facing (+z) at chest height on the right.
+      const size = get("Scale")?.value ?? { x: 1, y: 1, z: 1 };
+      held.scale.set(held.scale.x / anchor.scale.x, held.scale.y / anchor.scale.y, held.scale.z / anchor.scale.z);
+      held.position.set((size.x * 0.35) / anchor.scale.x, (size.y * 0.12) / anchor.scale.y, (size.z * 0.3) / anchor.scale.z);
+      held.rotation.y = Math.PI;
+      anchor.add(held);
+    }
     const light = get("Light");
     // A sibling of `object`, not a child of it -- see the comment on
     // `anchor` above for why. Not pushed into `objects` itself:
@@ -3245,6 +3283,12 @@ async function startEditor() {
       // heading (bridge.cpp field 4), not inferred from position deltas like
       // the animated-entity facing below — that would lag and wobble
       // mid-turn, where a real heading is exact every tick.
+      // Soldiers face where their AI is looking (bridge.cpp's Soldier::yaw).
+      objects.forEach((object, i) => {
+        if (!runtime._editor_alive(i)) return;
+        const yaw = runtime._editor_soldier_value(i, 1);
+        if (runtime._editor_soldier_value(i, 0) >= 0) object.rotation.y = yaw;
+      });
       doc.scene.eachAlive().forEach((entity, i) => {
         if (!doc.scene.effectiveHas(entity, "Vehicle") || !doc.scene.effectiveHas(entity, "Player")) return;
         const object = objects[i];
@@ -3341,7 +3385,11 @@ async function startEditor() {
         // Without this, a walk/run clip plays while the mesh keeps whatever
         // fixed orientation it was authored with, sliding sideways or
         // backwards instead of visibly running toward where it's going.
-        if (speed > 0.15 && !doc.scene.effectiveHas(entities[i]!, "Vehicle")) {
+        if (
+          speed > 0.15 &&
+          !doc.scene.effectiveHas(entities[i]!, "Vehicle") &&
+          !doc.scene.effectiveHas(entities[i]!, "AICombat")
+        ) {
           const targetYaw = Math.atan2(dx, dz);
           const diff = Math.atan2(
             Math.sin(targetYaw - object.rotation.y),
@@ -3635,6 +3683,32 @@ async function startEditor() {
   // incrementally, matching the Health bars' own established reasoning
   // (entities/UI state can change every tick; nothing here is worth diffing
   // against a held/released-style previous frame).
+  // "!" over soldiers in combat, "?" over ones that heard or lost something.
+  function drawSoldierMarkers() {
+    objects.forEach((object, i) => {
+      if (!runtime._editor_alive(i)) return;
+      const mode = runtime._editor_soldier_value(i, 0);
+      if (mode < 0 || runtime._editor_soldier_value(i, 3) === 0) return;
+      const fighting = mode === 2 || mode === 4;
+      const curious = mode === 1 || mode === 3;
+      if (!fighting && !curious) return;
+      const scaleY = doc.scene.resolve(doc.scene.eachAlive()[i] ?? { index: -1, generation: 0 }, "Scale")?.value.y ?? 1.8;
+      hudScratch.copy(object.position);
+      hudScratch.y += scaleY / 2 + 0.75;
+      hudScratch.project(viewCamera);
+      if (hudScratch.z > 1) return;
+      const x = ((hudScratch.x + 1) / 2) * hud.width;
+      const y = ((1 - hudScratch.y) / 2) * hud.height;
+      hudCtx.font = "800 20px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif";
+      hudCtx.textAlign = "center";
+      hudCtx.textBaseline = "middle";
+      hudCtx.lineWidth = 3;
+      hudCtx.strokeStyle = "rgba(0,0,0,0.6)";
+      hudCtx.fillStyle = fighting ? "#ff4a3a" : "#ffd36a";
+      hudCtx.strokeText(fighting ? "!" : "?", x, y);
+      hudCtx.fillText(fighting ? "!" : "?", x, y);
+    });
+  }
   // Crosshair, and a hint while the mouse isn't captured.
   // Returns text for the HUD's screen-reader mirror.
   function drawFirstPersonOverlay(): string[] {
@@ -3726,6 +3800,7 @@ async function startEditor() {
           barHeight,
         );
       });
+    if (doc.mode !== "edit") drawSoldierMarkers();
     if (firstPerson()) hudLines.push(...drawFirstPersonOverlay());
     for (const entity of doc.scene.eachAlive()) {
       const authoredUi = doc.scene.resolve(entity, "UI");

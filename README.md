@@ -200,6 +200,17 @@ Engine version 0.61.0 adds weapons:
 
 See [F61](docs/IMPLEMENTATION_STATUS.md#f61--weapons-0610).
 
+Engine version 0.62.0 adds combat AI with the `AICombat` component:
+
+- **Teams**: soldiers belong to a team; the Player is team 0.
+- **Perception**: a sight cone with real line of sight, hearing gunfire and explosions, and noticing who shot them.
+- **Behaviors**: patrol named waypoints, guard their post, or hunt the nearest enemy.
+- **Fighting**: engage from a preferred range in bursts with their `Weapons` (or melee without), strafe, take cover to reload or when hurt, search where they lost you, and optionally flee.
+- **Movement**: through the character controller along nav paths.
+- **Visuals**: soldiers face where they look, carry their weapon, and show "!" or "?" markers.
+
+See [F62](docs/IMPLEMENTATION_STATUS.md#f62--combat-ai-0620).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

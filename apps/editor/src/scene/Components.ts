@@ -362,6 +362,32 @@ export interface WeaponsComponent {
   loadout: string;
 }
 
+// Combat AI (0.62.0): a soldier on `team` (the Player is team 0) that
+// perceives hostiles (a sight cone with line of sight, gunfire within
+// hearingRange, being shot), patrols its comma-separated `patrol` waypoint
+// Names / guards its spawn / hunts the nearest hostile, fights from
+// preferredRange in bursts with its Weapons (melee without them), strafes,
+// takes cover to reload or when hurt, and searches where it lost you.
+// Replaces AIState wander/chase on the same entity.
+export type AICombatBehavior = "Patrol" | "Guard" | "Hunt";
+export interface AICombatComponent {
+  team: number;
+  behavior: AICombatBehavior;
+  patrol: string;
+  sightRange: number;
+  fov: number; // degrees
+  hearingRange: number;
+  reactionTime: number; // seconds before the first shot after spotting you
+  accuracy: number; // 0..1
+  preferredRange: number;
+  moveSpeed: number;
+  burst: number; // shots per burst
+  burstPause: number; // seconds between bursts
+  useCover: boolean;
+  fleeHealth: number; // 0..1; flees below this health fraction (0 = never)
+  meleeDamage: number; // without Weapons
+}
+
 // Named input actions (0.55.0): one `action: source, source` per line (see
 // apps/editor/runtime/bindings.hpp). The first entity with one sets the
 // scene's bindings; without one the defaults below apply.

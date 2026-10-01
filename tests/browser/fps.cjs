@@ -112,7 +112,7 @@ const { chromium } = require("playwright");
       command: "set_component",
       entity: hero.entity,
       type: "Weapons",
-      value: { loadout: "rifle: model=rifle mode=auto rpm=600 damage=40 mag=30 reserve=60 reload=0.8 spread=0.5 equip=0\npistol: model=pistol\n" },
+      value: { loadout: "rifle: model=rifle mode=auto rpm=600 damage=40 mag=30 reserve=60 reload=0.8 spread=0.5 recoil=0 equip=0\npistol: model=pistol\n" },
     });
     await run({ command: "set_component", entity: hero.entity, type: "Health", value: { current: 100, maximum: 100 } });
     const target = await run({ command: "spawn_entity", name: "Target", transform: [0, 0.9, -4] });
@@ -157,9 +157,55 @@ const { chromium } = require("playwright");
     await page.evaluate(() => document.exitPointerLock());
     await page.click("#stop");
 
+    // F62: a guarding soldier with a rifle spots the player, shoots them
+    // (Health drops), and dies to return fire; on_kill reaches a
+    // scorekeeper script.
+    const soldier = await run({ command: "spawn_entity", name: "Soldier", transform: [0, 0.9, -12] });
+    await run({ command: "set_component", entity: soldier.entity, type: "Scale", value: { value: { x: 0.7, y: 1.8, z: 0.7 } } });
+    await run({ command: "set_component", entity: soldier.entity, type: "Health", value: { current: 60, maximum: 60 } });
+    await run({
+      command: "set_component",
+      entity: soldier.entity,
+      type: "Weapons",
+      value: { loadout: "rifle: model=rifle mode=auto rpm=400 damage=4 mag=30 reserve=90 equip=0\n" },
+    });
+    await run({
+      command: "set_component",
+      entity: soldier.entity,
+      type: "AICombat",
+      value: {
+        team: 1, behavior: "Guard", patrol: "", sightRange: 40, fov: 120, hearingRange: 30, reactionTime: 0.3,
+        accuracy: 0.9, preferredRange: 30, moveSpeed: 0.01, burst: 4, burstPause: 0.5, useCover: false, fleeHealth: 0,
+        meleeDamage: 12,
+      },
+    });
+    const keeper = await run({ command: "spawn_entity", name: "Scorekeeper", transform: [20, -40, 20] });
+    await run({
+      command: "set_component",
+      entity: keeper.entity,
+      type: "Script",
+      value: { source: "function on_kill(victim, attacker) ui.set_text('KillText', victim .. ' down by ' .. attacker) end", props: {} },
+    });
+    await page.click("#play");
+    await page.waitForFunction(() => /Health (\d+)/.test(document.querySelector("#hud-text").textContent));
+    await page.waitForFunction(
+      () => Number(document.querySelector("#hud-text").textContent.match(/Health (\d+)/)?.[1] ?? 100) < 100,
+      null,
+      { timeout: 20000 },
+    );
+    await page.screenshot({ path: "build/browser-evidence/f62-combat-ai.png" });
+    await page.mouse.move(cx, cy);
+    await page.mouse.down({ button: "left" });
+    await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("Soldier down by Hero"), null, {
+      timeout: 20000,
+    });
+    await page.mouse.up({ button: "left" });
+    await page.evaluate(() => document.exitPointerLock());
+    await page.click("#stop");
+
     assert.deepEqual(errors, []);
     console.log(
-      "FPS browser: first-person CharacterController (camera, look, walk, step climbing) and weapons (hold-to-fire kill with on_death, reload from reserve, switching, HUD) passed.",
+      "FPS browser: first-person CharacterController (camera, look, walk, step climbing) and weapons (hold-to-fire kill with on_death, reload from reserve, switching, HUD) and combat AI (a soldier spots and shoots the player, dies to return fire, on_kill) passed.",
     );
   } finally {
     if (browser) await browser.close();

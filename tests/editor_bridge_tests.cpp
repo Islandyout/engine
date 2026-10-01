@@ -56,6 +56,10 @@ double editor_weapon_value(int, int);
 const char *editor_weapon_text(int, int, int);
 int editor_take_weapon_events();
 double editor_weapon_event(int, int);
+void editor_set_soldier(int, double, double, double, double, double, double, double, double, double, double, double,
+                        int, double, double);
+void editor_set_soldier_patrol(int, const char *);
+double editor_soldier_value(int, int);
 }
 namespace {
 int add_unit(double x, double y, double z, double vx, double vy, double vz) {
@@ -1326,6 +1330,112 @@ int main() {
         check(count_events(6) == 1); // one explosion event
     }
 
+    {
+        // Combat AI. A guarding rifle soldier facing the player sees them,
+        // reacts, and shoots in bursts until the player is hurt.
+        const auto soldier = [&](int index, double behavior, double accuracy) {
+            editor_set_soldier(index, 1, behavior, 25, 110, 30, 0.3, accuracy, 10, 3.6, 3, 0.4, 1, 0, 12);
+        };
+        const auto add_player = [&] {
+            check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        };
+        editor_begin();
+        add_player();
+        check(editor_add(0, 0.9, -15, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        soldier(1, 1, 1.0);
+        editor_set_weapons(1, "rifle: model=rifle mode=auto rpm=600 damage=10 mag=30 reserve=90 equip=0 spread=0 aim_spread=0");
+        check(editor_commit() == 1);
+        check(editor_soldier_value(1, 3) == 1 && editor_soldier_value(0, 0) == -1);
+        for (int i = 0; i < 30; ++i)
+            editor_tick();
+        check(editor_soldier_value(1, 0) == 2); // combat
+        for (int i = 0; i < 150; ++i)
+            editor_tick();
+        check(editor_value(0, 3) < 0.9); // the player took hits
+
+        // Behind a wall it can't see the player; gunfire it hears sends it to
+        // investigate; on the way round the wall it engages.
+        editor_begin();
+        add_player();
+        check(editor_add(0, 0.9, -15, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        soldier(1, 1, 1.0);
+        editor_set_weapons(1, "rifle: model=rifle damage=1 equip=0");
+        check(editor_add(0, 1.5, -7, 0, 0, 0, 6, 3, 0.5, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 0, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        editor_set_weapons(0, "pistol: model=pistol damage=1 equip=0");
+        check(editor_commit() == 1);
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(editor_soldier_value(1, 0) == 0); // still on guard, unaware
+        editor_input_begin_frame();
+        editor_set_look(3.14159, 0); // shoot away from it
+        editor_input_mouse_button(0, 1, 0, 0);
+        editor_tick();
+        editor_input_begin_frame();
+        editor_input_mouse_button(0, 0, 0, 0);
+        editor_tick();
+        check(editor_soldier_value(1, 0) == 1 && editor_soldier_value(1, 2) > 0.5); // heard it: investigating
+        bool engaged = false;
+        for (int i = 0; i < 600 && !engaged; ++i) {
+            editor_tick();
+            engaged = editor_soldier_value(1, 0) == 2;
+        }
+        check(engaged);
+        check(std::abs(editor_value(1, 0)) > 2.5); // it walked around the 6-wide wall
+
+        // A weaponless hunter knows where the player is, paths over and hits in melee.
+        editor_begin();
+        add_player();
+        check(editor_add(10, 0.9, 10, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 50, 50, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        soldier(1, 2, 0.5);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 600; ++i)
+            editor_tick();
+        check(editor_value(0, 3) < 1.0);
+
+        // A patroller walks to its first named waypoint.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        soldier(0, 0, 0.5);
+        editor_set_soldier_patrol(0, " A , B");
+        check(editor_add(8, 0.5, 0, 0, 0, 0, 0.3, 0.3, 0.3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_name(1, "A");
+        check(editor_add(8, 0.5, 8, 0, 0, 0, 0.3, 0.3, 0.3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_name(2, "B");
+        check(editor_commit() == 1);
+        for (int i = 0; i < 300; ++i)
+            editor_tick();
+        check(editor_value(0, 0) > 6); // reached A
+        for (int i = 0; i < 400; ++i)
+            editor_tick();
+        check(editor_value(0, 2) > 5); // then headed to B
+
+        // With an empty magazine it reloads from behind cover: a crate beside
+        // it that blocks the player's line of sight.
+        editor_begin();
+        add_player();
+        check(editor_add(0, 0.9, -12, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        soldier(1, 1, 1.0);
+        editor_set_weapons(1, "rifle: model=rifle damage=1 mag=2 reserve=30 reload=3 equip=0");
+        check(editor_add(3, 1, -14, 0, 0, 0, 2, 2, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_commit() == 1);
+        bool took_cover = false;
+        for (int i = 0; i < 240 && !took_cover; ++i) {
+            editor_tick();
+            took_cover = editor_soldier_value(1, 0) == 4;
+        }
+        check(took_cover);
+        for (int i = 0; i < 90; ++i)
+            editor_tick();
+        check(editor_value(1, 2) < -14.2); // tucked in behind the crate (away from the player)
+
+        // Out-of-range settings fail the commit.
+        editor_begin();
+        add_player();
+        editor_set_soldier(0, 1, 7, 25, 110, 30, 0.3, 0.5, 10, 3.6, 3, 0.4, 1, 0, 12);
+        check(editor_commit() == 0);
+    }
+
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
                  "movement, jump/sustained-flight, Collider box and sphere obstacle blocking, "
@@ -1343,5 +1453,5 @@ int main() {
                  "(crouch/sit) freezing Player WASD input while held, authored "
                  "RigidBody mass/kinematic and Collider trigger/layer settings, the script host "
                  "(prefab templates for world.spawn, names, props, sound/ui/log commands), and native "
-                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill) passed.\n";
+                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill), and combat soldiers (sight, bursts, hearing, investigating around cover, reloading in cover, melee hunters, patrols) passed.\n";
 }

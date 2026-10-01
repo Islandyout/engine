@@ -284,6 +284,64 @@ struct Arsenal final {
     std::optional<engine::Vec3> script_aim;
 };
 
+// Combat AI (0.62.0): a soldier that perceives hostiles (sight cone with
+// line of sight, gunfire and explosions it can hear, being shot), patrols or
+// guards, fights at a preferred range in bursts with its Weapons (or melee
+// without them), strafes, takes cover to reload or when hurt, searches where
+// it last saw a target, and moves through an engine::gameplay controller
+// (acceleration, steps) along nav-grid paths. Teams: the Player is team 0.
+enum class SoldierMode : int { patrol, investigate, combat, search, cover, flee };
+enum class SoldierBehavior : int { patrol, guard, hunt };
+struct Soldier final {
+    // Authored (editor_set_soldier).
+    int team{1};
+    SoldierBehavior behavior{SoldierBehavior::patrol};
+    float sight_range{25.0F};
+    float fov_cos{0.57F}; // cosine of half the field of view
+    float hearing{30.0F};
+    float reaction{0.45F};
+    float accuracy{0.6F};
+    float preferred_range{12.0F};
+    float move_speed{3.6F};
+    int burst{4};
+    float burst_pause{0.7F};
+    bool use_cover{true};
+    float flee_health{0.0F};
+    float melee_damage{12.0F};
+    std::vector<std::string> patrol_names;
+    // Runtime state.
+    bool initialized{false};
+    engine::Vec3 home{};
+    std::vector<engine::Vec3> patrol_points;
+    std::size_t waypoint{0};
+    float wait{0};
+    SoldierMode mode{SoldierMode::patrol};
+    std::optional<engine::Entity> target;
+    engine::Vec3 last_known{};
+    float since_seen{99.0F};
+    float reaction_left{0};
+    float awareness{0}; // 0..1, how close it is to noticing (drives the editor's "?" marker)
+    int burst_left{0};
+    float burst_cooldown{0};
+    float strafe_timer{0};
+    float strafe_dir{1};
+    float search_timer{0};
+    float melee_cooldown{0};
+    std::optional<engine::Vec3> cover;
+    float cover_timer{0};
+    std::vector<engine::Vec3> path;
+    engine::Vec3 path_goal{};
+    float repath{0};
+    float yaw{0}; // facing (sin yaw, 0, cos yaw)
+    std::uint32_t rng{1};
+};
+// A sound soldiers can hear this tick: gunfire or an explosion.
+struct Noise final {
+    engine::Vec3 at{};
+    int team{-1};
+    float radius_scale{1.0F};
+};
+
 // What the editor hears about combat each frame (editor_take_weapon_events).
 enum class WeaponEventKind : int { fire, impact, reload, reloaded, empty, switched, explode, damaged };
 struct WeaponEvent final {
@@ -395,6 +453,14 @@ struct Runtime {
     std::string bindings_error;
     std::vector<WeaponEvent> weapon_events;
     std::string weapons_error;
+    std::vector<Noise> noises;
+    int team_of(const engine::World &w, engine::Entity entity) const {
+        if (w.get<PlayerMarker>(entity))
+            return 0;
+        if (const auto *soldier = w.get<Soldier>(entity))
+            return soldier->team;
+        return -1;
+    }
     int index_of(engine::Entity entity) const {
         for (std::size_t i = 0; i < entities.size(); ++i)
             if (entities[i] == entity)
@@ -429,6 +495,13 @@ struct Runtime {
             return n ? n->value : std::string{};
         };
         script_runtime.notify_damage(w, target, amount, attacker, headshot, killed, name(target), name(attacker));
+        if (auto *soldier = w.get<Soldier>(target); soldier && attacker && source &&
+                                                    team_of(w, *attacker) != soldier->team) {
+            soldier->last_known = source->center;
+            soldier->awareness = 1;
+            if (soldier->mode != SoldierMode::combat && soldier->mode != SoldierMode::cover)
+                soldier->mode = SoldierMode::investigate;
+        }
     }
     // The nearest thing a ray hits: a Collider (or the ground) through
     // physics::raycast, or any Box with Health that has no Collider.
@@ -494,6 +567,7 @@ struct Runtime {
         WeaponEvent fired{WeaponEventKind::fire, index_of(shooter), -1, origin, direction, weapon.recoil,
                           static_cast<int>(slot)};
         push_event(fired);
+        noises.push_back({origin, team_of(w, shooter), 1.0F});
         if (weapon.projectile) {
             const auto aim = engine::gameplay::spread_direction(direction, spread, arsenal.state.rng);
             const auto projectile = w.defer_create();
@@ -533,6 +607,7 @@ struct Runtime {
     // finite-mass bodies are pushed away.
     void explode(engine::World &w, engine::Entity owner, engine::Vec3 at, float radius, float damage_amount) {
         push_event({WeaponEventKind::explode, index_of(owner), -1, at, {0, 1, 0}, radius, 0});
+        noises.push_back({at, team_of(w, owner), 1.5F});
         for (const auto entity : w.query<engine::Box>()) {
             const auto &box = *w.get<engine::Box>(entity);
             const engine::Vec3 delta{box.center.x - at.x, box.center.y - at.y, box.center.z - at.z};
@@ -550,6 +625,359 @@ struct Runtime {
             }
         }
     }
+    // -- Combat AI (Soldier) ---------------------------------------------
+    static float random01(std::uint32_t &state) {
+        if (state == 0)
+            state = 1;
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        return static_cast<float>(state & 0xFFFFFFU) / 16777216.0F;
+    }
+    // Sight: inside range and the view cone (or very close), with nothing
+    // solid in between.
+    bool soldier_sees(engine::World &w, engine::Entity self, const Soldier &soldier, const engine::Box &box,
+                      engine::Entity target) {
+        const auto &target_box = *w.get<engine::Box>(target);
+        const engine::Vec3 eye{box.center.x, box.center.y + box.size.y * 0.4F, box.center.z};
+        const engine::Vec3 aim{target_box.center.x, target_box.center.y + target_box.size.y * 0.25F,
+                               target_box.center.z};
+        const engine::Vec3 delta{aim.x - eye.x, aim.y - eye.y, aim.z - eye.z};
+        const float distance = std::sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
+        if (distance > soldier.sight_range || distance < 1e-3F)
+            return false;
+        const float flat = std::sqrt(delta.x * delta.x + delta.z * delta.z);
+        const float facing = flat > 1e-3F ? (std::sin(soldier.yaw) * delta.x + std::cos(soldier.yaw) * delta.z) / flat
+                                          : 1.0F;
+        if (facing < soldier.fov_cos && distance > 2.5F)
+            return false;
+        engine::physics::QueryFilter filter;
+        filter.ignore = self;
+        const auto hit = engine::physics::raycast(w, eye, delta, distance, physics_config, filter);
+        return !hit || hit->distance >= distance - 0.3F || (!hit->hit_ground && hit->entity == target);
+    }
+    // A unit horizontal direction along a nav path toward `goal` (zero when
+    // there). Paths are refreshed twice a second or when the goal moves.
+    engine::Vec3 soldier_steer(Soldier &soldier, const engine::Vec3 &from, const engine::Vec3 &goal, float dt) {
+        const float gx = goal.x - soldier.path_goal.x, gz = goal.z - soldier.path_goal.z;
+        soldier.repath -= dt;
+        if (soldier.repath <= 0 || gx * gx + gz * gz > 1.0F) {
+            soldier.repath = 0.5F;
+            soldier.path_goal = goal;
+            const auto found = nav_grid.find_path(from, goal);
+            soldier.path = found ? *found : std::vector<engine::Vec3>{};
+        }
+        while (soldier.path.size() > 1) {
+            const float wx = soldier.path.front().x - from.x, wz = soldier.path.front().z - from.z;
+            if (wx * wx + wz * wz > 0.4F * 0.4F)
+                break;
+            soldier.path.erase(soldier.path.begin());
+        }
+        const engine::Vec3 aim = soldier.path.empty() ? goal : soldier.path.front();
+        const float dx = aim.x - from.x, dz = aim.z - from.z;
+        const float length = std::sqrt(dx * dx + dz * dz);
+        const float remaining_x = goal.x - from.x, remaining_z = goal.z - from.z;
+        if (length < 1e-3F || remaining_x * remaining_x + remaining_z * remaining_z < 0.35F * 0.35F)
+            return {};
+        return {dx / length, 0, dz / length};
+    }
+    // The nearest walkable spot within 9 m that something at `threat` can't
+    // see (a solid collider blocks the line to chest height).
+    std::optional<engine::Vec3> find_cover(engine::World &w, engine::Entity self, const engine::Vec3 &from,
+                                           const engine::Vec3 &threat) {
+        engine::physics::QueryFilter filter;
+        filter.ignore = self;
+        for (const float radius : {2.5F, 5.0F, 8.0F}) {
+            std::optional<engine::Vec3> best;
+            float best_distance = 0;
+            for (int i = 0; i < 16; ++i) {
+                const float angle = static_cast<float>(i) * 0.39269908F;
+                const engine::Vec3 spot{from.x + std::cos(angle) * radius, from.y, from.z + std::sin(angle) * radius};
+                if (!nav_grid.walkable(spot.x, spot.z))
+                    continue;
+                const engine::Vec3 chest{spot.x, from.y + 0.3F, spot.z};
+                const engine::Vec3 delta{chest.x - threat.x, chest.y - threat.y, chest.z - threat.z};
+                const float distance = std::sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
+                const auto hit = engine::physics::raycast(w, threat, delta, distance, physics_config, filter);
+                if (!hit || hit->hit_ground || hit->distance >= distance - 0.4F)
+                    continue;
+                const float dx = spot.x - from.x, dz = spot.z - from.z;
+                const float to_threat = (spot.x - threat.x) * (spot.x - threat.x) + (spot.z - threat.z) * (spot.z - threat.z);
+                // Prefer close spots that don't walk toward the threat.
+                const float score = std::sqrt(dx * dx + dz * dz) - 0.2F * std::sqrt(to_threat);
+                if (!best || score < best_distance) {
+                    best = spot;
+                    best_distance = score;
+                }
+            }
+            if (best)
+                return best;
+        }
+        return std::nullopt;
+    }
+    void step_soldiers(engine::World &w) {
+        constexpr float dt = 1.0F / 60.0F;
+        const auto heard = std::move(noises);
+        noises.clear();
+        // Every living hostile candidate: Players (team 0) and soldiers.
+        std::vector<engine::Entity> fighters;
+        for (const auto entity : w.query<engine::Box, Health>())
+            if (w.get<Health>(entity)->current > 0 && team_of(w, entity) >= 0)
+                fighters.push_back(entity);
+        for (const auto self : w.query<engine::Box, Soldier, Controller>()) {
+            auto &soldier = *w.get<Soldier>(self);
+            auto &controller = *w.get<Controller>(self);
+            const auto &box = *w.get<engine::Box>(self);
+            const auto *health = w.get<Health>(self);
+            if (health && health->current <= 0)
+                continue;
+            if (!soldier.initialized) {
+                soldier.initialized = true;
+                soldier.home = box.center;
+                soldier.rng = 0x2545F491U ^ static_cast<std::uint32_t>(index_of(self) * 7919 + 1);
+                for (const auto &name : soldier.patrol_names)
+                    if (const auto found = host.find(w, name))
+                        soldier.patrol_points.push_back(w.get<engine::Box>(*found)->center);
+            }
+            // Perception: keep a visible target, else pick the nearest visible hostile.
+            std::optional<engine::Entity> seen;
+            if (soldier.target && w.alive(*soldier.target) && w.get<Health>(*soldier.target) &&
+                w.get<Health>(*soldier.target)->current > 0 && soldier_sees(w, self, soldier, box, *soldier.target))
+                seen = soldier.target;
+            if (!seen) {
+                float nearest = 0;
+                for (const auto other : fighters) {
+                    if (other == self || team_of(w, other) == soldier.team)
+                        continue;
+                    const auto &other_box = *w.get<engine::Box>(other);
+                    const float dx = other_box.center.x - box.center.x, dz = other_box.center.z - box.center.z;
+                    const float distance = dx * dx + dz * dz;
+                    if ((!seen || distance < nearest) && soldier_sees(w, self, soldier, box, other)) {
+                        seen = other;
+                        nearest = distance;
+                    }
+                }
+            }
+            if (!seen && soldier.mode != SoldierMode::combat && soldier.mode != SoldierMode::cover)
+                for (const auto &noise : heard) {
+                    if (noise.team == soldier.team)
+                        continue;
+                    const float dx = noise.at.x - box.center.x, dz = noise.at.z - box.center.z;
+                    if (dx * dx + dz * dz <= soldier.hearing * soldier.hearing * noise.radius_scale * noise.radius_scale) {
+                        soldier.last_known = noise.at;
+                        soldier.awareness = std::max(soldier.awareness, 0.6F);
+                        soldier.mode = SoldierMode::investigate;
+                    }
+                }
+            if (soldier.behavior == SoldierBehavior::hunt && !seen && soldier.mode == SoldierMode::patrol) {
+                // A hunter always knows roughly where the nearest hostile is.
+                for (const auto other : fighters)
+                    if (team_of(w, other) != soldier.team && other != self) {
+                        soldier.last_known = w.get<engine::Box>(other)->center;
+                        soldier.mode = SoldierMode::investigate;
+                        break;
+                    }
+            }
+
+            engine::Vec3 move{};
+            float pace = 0;
+            std::optional<engine::Vec3> face;
+            auto *arsenal = w.get<Arsenal>(self);
+            const bool reloading = arsenal && arsenal->state.reload_left > 0;
+            const float health_ratio = health && health->max > 0 ? health->current / health->max : 1.0F;
+            soldier.melee_cooldown = std::max(0.0F, soldier.melee_cooldown - dt);
+            if (seen) {
+                soldier.target = seen;
+                soldier.since_seen = 0;
+                soldier.last_known = w.get<engine::Box>(*seen)->center;
+                if (soldier.mode != SoldierMode::combat && soldier.mode != SoldierMode::cover &&
+                    soldier.mode != SoldierMode::flee) {
+                    soldier.mode = SoldierMode::combat;
+                    soldier.reaction_left = soldier.reaction;
+                    soldier.burst_left = soldier.burst;
+                }
+                soldier.awareness = 1;
+            } else {
+                soldier.since_seen += dt;
+                soldier.awareness = std::max(0.0F, soldier.awareness - dt * 0.15F);
+            }
+            if (soldier.flee_health > 0 && health_ratio <= soldier.flee_health && soldier.since_seen < 5)
+                soldier.mode = SoldierMode::flee;
+
+            switch (soldier.mode) {
+            case SoldierMode::patrol: {
+                if (soldier.behavior == SoldierBehavior::patrol && !soldier.patrol_points.empty()) {
+                    const auto &point = soldier.patrol_points[soldier.waypoint % soldier.patrol_points.size()];
+                    if (soldier.wait > 0) {
+                        soldier.wait -= dt;
+                    } else {
+                        move = soldier_steer(soldier, box.center, point, dt);
+                        pace = 0.45F;
+                        if (move.x == 0 && move.z == 0) {
+                            soldier.waypoint++;
+                            soldier.wait = 1.2F;
+                        }
+                    }
+                } else {
+                    const float dx = soldier.home.x - box.center.x, dz = soldier.home.z - box.center.z;
+                    if (dx * dx + dz * dz > 1.5F * 1.5F) {
+                        move = soldier_steer(soldier, box.center, soldier.home, dt);
+                        pace = 0.45F;
+                    } else {
+                        // Guarding: slowly look left and right.
+                        soldier.yaw += std::sin(time_now * 0.4F + static_cast<float>(index_of(self))) * 0.35F * dt;
+                    }
+                }
+                break;
+            }
+            case SoldierMode::investigate: {
+                move = soldier_steer(soldier, box.center, soldier.last_known, dt);
+                pace = 1.0F;
+                if (move.x == 0 && move.z == 0) {
+                    soldier.mode = SoldierMode::search;
+                    soldier.search_timer = 4.0F;
+                }
+                break;
+            }
+            case SoldierMode::search: {
+                soldier.yaw += 1.4F * dt;
+                soldier.search_timer -= dt;
+                if (soldier.search_timer <= 0) {
+                    soldier.mode = SoldierMode::patrol;
+                    soldier.target.reset();
+                }
+                break;
+            }
+            case SoldierMode::flee: {
+                const float dx = box.center.x - soldier.last_known.x, dz = box.center.z - soldier.last_known.z;
+                const float length = std::sqrt(dx * dx + dz * dz);
+                if (length > 1e-3F)
+                    move = {dx / length, 0, dz / length};
+                pace = 1.0F;
+                if (soldier.since_seen > 5) {
+                    soldier.mode = SoldierMode::search;
+                    soldier.search_timer = 3.0F;
+                }
+                break;
+            }
+            case SoldierMode::cover: {
+                if (!soldier.cover)
+                    soldier.cover = find_cover(w, self, box.center,
+                                               {soldier.last_known.x, soldier.last_known.y + 0.6F, soldier.last_known.z});
+                if (!soldier.cover) {
+                    soldier.mode = SoldierMode::combat;
+                    break;
+                }
+                move = soldier_steer(soldier, box.center, *soldier.cover, dt);
+                pace = 1.0F;
+                if (move.x == 0 && move.z == 0) {
+                    soldier.cover_timer -= dt;
+                    if (soldier.cover_timer <= 0 && !reloading) {
+                        soldier.mode = SoldierMode::combat; // peek back out
+                        soldier.reaction_left = soldier.reaction * 0.5F;
+                    }
+                }
+                if (seen)
+                    face = soldier.last_known;
+                break;
+            }
+            case SoldierMode::combat: {
+                if (!seen) {
+                    move = soldier_steer(soldier, box.center, soldier.last_known, dt);
+                    pace = 0.9F;
+                    if (soldier.since_seen > 1.5F) {
+                        soldier.mode = SoldierMode::investigate;
+                    }
+                    break;
+                }
+                const auto &target_box = *w.get<engine::Box>(*seen);
+                face = target_box.center;
+                const float dx = target_box.center.x - box.center.x, dz = target_box.center.z - box.center.z;
+                const float distance = std::sqrt(dx * dx + dz * dz);
+                const float preferred = arsenal ? soldier.preferred_range : 1.2F;
+                if (distance > preferred * 1.25F) {
+                    move = soldier_steer(soldier, box.center, target_box.center, dt);
+                    pace = 0.9F;
+                } else if (distance < preferred * 0.6F && arsenal) {
+                    move = {-dx / distance, 0, -dz / distance};
+                    pace = 0.6F;
+                } else if (arsenal) {
+                    soldier.strafe_timer -= dt;
+                    if (soldier.strafe_timer <= 0) {
+                        soldier.strafe_timer = 0.8F + random01(soldier.rng) * 1.4F;
+                        soldier.strafe_dir = random01(soldier.rng) < 0.5F ? -1.0F : 1.0F;
+                    }
+                    const engine::Vec3 side{-dz / distance * soldier.strafe_dir, 0, dx / distance * soldier.strafe_dir};
+                    if (!nav_grid.walkable(box.center.x + side.x * 1.2F, box.center.z + side.z * 1.2F))
+                        soldier.strafe_dir = -soldier.strafe_dir;
+                    move = {-dz / distance * soldier.strafe_dir, 0, dx / distance * soldier.strafe_dir};
+                    pace = 0.45F;
+                }
+                soldier.reaction_left -= dt;
+                const float facing = (std::sin(soldier.yaw) * dx + std::cos(soldier.yaw) * dz) / std::max(distance, 1e-3F);
+                if (arsenal && !arsenal->weapons.empty()) {
+                    const auto slot = static_cast<std::size_t>(arsenal->state.current);
+                    if (arsenal->state.magazine[slot] == 0 && !reloading) {
+                        arsenal->script_reload = true;
+                        if (soldier.use_cover) {
+                            soldier.mode = SoldierMode::cover;
+                            soldier.cover.reset();
+                            soldier.cover_timer = 0.5F;
+                        }
+                    } else if (soldier.reaction_left <= 0 && facing > 0.97F && !reloading) {
+                        if (soldier.burst_cooldown > 0) {
+                            soldier.burst_cooldown -= dt;
+                        } else if (arsenal->state.cooldown <= 0 && arsenal->state.equip_left <= 0) {
+                            const engine::Vec3 eye{box.center.x, box.center.y + box.size.y * 0.4F, box.center.z};
+                            const engine::Vec3 aim{target_box.center.x - eye.x,
+                                                   target_box.center.y + target_box.size.y * 0.1F - eye.y,
+                                                   target_box.center.z - eye.z};
+                            const auto direction = engine::gameplay::spread_direction(
+                                aim, (1.0F - std::clamp(soldier.accuracy, 0.0F, 1.0F)) * 7.0F, soldier.rng);
+                            arsenal->script_fire = true;
+                            arsenal->script_aim = direction;
+                            if (--soldier.burst_left <= 0) {
+                                soldier.burst_left = soldier.burst;
+                                soldier.burst_cooldown = soldier.burst_pause * (0.7F + 0.6F * random01(soldier.rng));
+                            }
+                        }
+                    }
+                    if (soldier.use_cover && health_ratio < 0.5F && !soldier.cover && soldier.mode == SoldierMode::combat) {
+                        soldier.mode = SoldierMode::cover;
+                        soldier.cover_timer = 2.0F;
+                    }
+                } else if (distance < 1.7F && soldier.melee_cooldown <= 0 && soldier.reaction_left <= 0) {
+                    apply_damage(w, *seen, soldier.melee_damage, self);
+                    soldier.melee_cooldown = 1.0F;
+                    script_runtime.request_animation(self, "attack");
+                }
+                break;
+            }
+            }
+            if (soldier.mode != SoldierMode::cover && soldier.mode != SoldierMode::combat)
+                soldier.cover.reset();
+
+            // Turn toward the target, or along the way we're going.
+            float want = soldier.yaw;
+            if (face) {
+                want = std::atan2(face->x - box.center.x, face->z - box.center.z);
+            } else if (move.x != 0 || move.z != 0) {
+                want = std::atan2(move.x, move.z);
+            }
+            const float diff = std::remainder(want - soldier.yaw, 6.2831853F);
+            soldier.yaw += std::clamp(diff, -8.0F * dt, 8.0F * dt);
+            soldier.yaw = std::remainder(soldier.yaw, 6.2831853F);
+
+            engine::gameplay::ControllerInput intent;
+            intent.move_x = move.x * pace;
+            intent.move_y = -move.z * pace;
+            intent.yaw = 0;
+            const auto *body = w.get<engine::physics::RigidBody>(self);
+            engine::gameplay::begin_step(w, self, controller.state, controller.settings, intent,
+                                         physics_config.gravity * (body ? body->gravity_scale : 1.0F), dt);
+        }
+    }
+    float time_now{0};
     // Milliseconds each system took on the most recent tick, for the
     // editor's Stats overlay (editor_profile_text).
     std::map<std::string, double> profile;
@@ -590,6 +1018,8 @@ struct Runtime {
                         for (const auto entity : w.query<PlayerMarker>())
                             movers.push_back(entity);
                         for (const auto entity : w.query<AIAgent>())
+                            movers.push_back(entity);
+                        for (const auto entity : w.query<Soldier>())
                             movers.push_back(entity);
                         nav_grid.bake(w, movers);
                     });
@@ -777,6 +1207,11 @@ struct Runtime {
         // gets both an AIAgent and a Script instance; whichever ran last (here,
         // this one) simply overwrites the other's velocity write that tick —
         // not a crash, just not a combination there's a reason to author.
+        add_timed("editor.soldiers", engine::FixedPhase::update, 3,
+                  [this](engine::World &w, const engine::FixedUpdateContext &) {
+                      time_now += 1.0F / 60.0F;
+                      step_soldiers(w);
+                  });
         add_timed("editor.script", engine::FixedPhase::update, 2,
                     [this](engine::World &w, const engine::FixedUpdateContext &) {
                         script_runtime.step(w, 1.0F / 60.0F);
@@ -1189,6 +1624,7 @@ void register_components(engine::World &w) {
     w.register_component<SpawnedFrom>("editor.spawned_from");
     w.register_component<Controller>("editor.controller");
     w.register_component<Arsenal>("editor.arsenal");
+    w.register_component<Soldier>("editor.soldier");
 }
 
 template <typename T> void copy_component(const engine::World &from, engine::Entity source, engine::World &to,
@@ -1234,6 +1670,7 @@ std::optional<engine::Entity> BridgeHost::spawn(engine::World &world, const std:
     copy_component<engine::script::Script>(from, source, world, entity);
     copy_component<Controller>(from, source, world, entity);
     copy_component<Arsenal>(from, source, world, entity);
+    copy_component<Soldier>(from, source, world, entity);
     world.defer_set(entity, EntityName{prefab});
     world.defer_set(entity, SpawnedFrom{prefab});
     runtime_.entities.push_back(entity);
@@ -1566,6 +2003,106 @@ EXPORT void editor_set_controller(int index, int mode, double walk, double sprin
     settings.air_accel = static_cast<float>(air);
     engine::gameplay::configure_body(*box, settings);
     world.set(target->second, controller);
+}
+// Makes the entity a combat soldier (0.62.0), after editor_add for the same
+// index: team (0 = the Player's), behavior (0 patrol, 1 guard, 2 hunt), sight
+// range, field of view in degrees, hearing range, reaction time, accuracy
+// 0..1, preferred fighting range, move speed, burst length, burst pause,
+// use_cover, flee_health 0..1 (0 = never) and melee damage. It moves through
+// a CharacterController sized to its own Box, and replaces any AIState
+// wander/chase behavior.
+EXPORT void editor_set_soldier(int index, double team, double behavior, double sight, double fov, double hearing,
+                               double reaction, double accuracy, double preferred, double speed, double burst,
+                               double burst_pause, int use_cover, double flee_health, double melee) {
+    const auto target = staged(index);
+    if (!target)
+        return;
+    auto &world = *target->first;
+    auto *box = world.get<engine::Box>(target->second);
+    if (!box || !world.get<engine::physics::RigidBody>(target->second))
+        return;
+    const bool valid = team >= 0 && team <= 15 && team == std::floor(team) && (behavior == 0 || behavior == 1 ||
+                                                                                 behavior == 2) &&
+                       sight > 0 && sight <= 1000 && fov > 0 && fov <= 360 && hearing >= 0 && hearing <= 1000 &&
+                       reaction >= 0 && reaction <= 10 && accuracy >= 0 && accuracy <= 1 && preferred > 0 &&
+                       preferred <= 500 && speed > 0 && speed <= 100 && burst >= 1 && burst <= 100 &&
+                       burst == std::floor(burst) && burst_pause >= 0 && burst_pause <= 10 && flee_health >= 0 &&
+                       flee_health <= 1 && melee >= 0 && melee <= 100000;
+    if (!valid) {
+        failed = true;
+        return;
+    }
+    Soldier soldier;
+    soldier.team = static_cast<int>(team);
+    soldier.behavior = static_cast<SoldierBehavior>(static_cast<int>(behavior));
+    soldier.sight_range = static_cast<float>(sight);
+    soldier.fov_cos = static_cast<float>(std::cos(std::min(fov, 359.0) * 3.14159265358979 / 360.0));
+    soldier.hearing = static_cast<float>(hearing);
+    soldier.reaction = static_cast<float>(reaction);
+    soldier.accuracy = static_cast<float>(accuracy);
+    soldier.preferred_range = static_cast<float>(preferred);
+    soldier.move_speed = static_cast<float>(speed);
+    soldier.burst = static_cast<int>(burst);
+    soldier.burst_pause = static_cast<float>(burst_pause);
+    soldier.use_cover = use_cover != 0;
+    soldier.flee_health = static_cast<float>(flee_health);
+    soldier.melee_damage = static_cast<float>(melee);
+    world.set(target->second, soldier);
+    Controller controller;
+    controller.first_person = false;
+    controller.settings.walk_speed = controller.settings.sprint_speed = static_cast<float>(speed);
+    controller.settings.stand_height = controller.settings.crouch_height = box->size.y;
+    controller.settings.radius = std::max(box->size.x, box->size.z) / 2;
+    controller.settings.step_height = 0.35F;
+    controller.settings.ground_accel = 30.0F;
+    controller.settings.ground_decel = 30.0F;
+    world.set(target->second, controller);
+    if (world.get<AIAgent>(target->second))
+        world.remove<AIAgent>(target->second);
+}
+// Waypoint entity Names (comma-separated) a patrolling soldier walks in order.
+EXPORT void editor_set_soldier_patrol(int index, const char *names) {
+    const auto target = staged(index);
+    if (!target || !names)
+        return;
+    auto *soldier = target->first->get<Soldier>(target->second);
+    if (!soldier)
+        return;
+    soldier->patrol_names.clear();
+    std::string all(names);
+    std::size_t start = 0;
+    while (start <= all.size()) {
+        auto end = all.find(',', start);
+        if (end == std::string::npos)
+            end = all.size();
+        auto name = editor_bindings::trim(std::string_view(all).substr(start, end - start));
+        if (!name.empty())
+            soldier->patrol_names.push_back(std::move(name));
+        start = end + 1;
+    }
+}
+// Soldier state for the editor: field 0 = mode (0 patrol, 1 investigate, 2
+// combat, 3 search, 4 cover, 5 flee), 1 = facing yaw (radians; the facing is
+// (sin, 0, cos)), 2 = awareness 0..1, 3 = team. -1 without a soldier.
+EXPORT double editor_soldier_value(int index, int field) {
+    if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
+        return -1;
+    const auto entity = active->entities[static_cast<std::size_t>(index)];
+    const auto *soldier = active->world.alive(entity) ? active->world.get<Soldier>(entity) : nullptr;
+    if (!soldier)
+        return -1;
+    switch (field) {
+    case 0:
+        return static_cast<int>(soldier->mode);
+    case 1:
+        return soldier->yaw;
+    case 2:
+        return soldier->awareness;
+    case 3:
+        return soldier->team;
+    default:
+        return -1;
+    }
 }
 // Gives the entity Weapons (0.61.0) from loadout text (see
 // engine::gameplay::parse_weapons), after editor_add for the same index.
