@@ -67,6 +67,13 @@ constexpr std::uint32_t all_layers = 0xFFFFFFFFU;
 //
 // bounciness is 0..1: the fraction of into-surface speed reflected back out
 // on contact instead of zeroed. Two colliders use the larger value.
+//
+// rotation (Euler XYZ radians, three.js's default order) turns a Box
+// collider into an oriented box: Box.size is then its local size and the
+// shape is rotated about Box.center. A rotated wall blocks along its real
+// faces and a tilted box is a ramp a body can stand on. Movers (entities
+// with a RigidBody) always collide as their axis-aligned Box. Sphere
+// colliders ignore rotation.
 struct Collider final {
     bool is_static{true};
     ColliderShape shape{ColliderShape::Box};
@@ -76,11 +83,47 @@ struct Collider final {
     std::uint8_t layer{0};
     std::uint32_t mask{all_layers};
     float bounciness{0.0F};
+    Vec3 rotation{};
+};
+
+// True when the collider is an oriented (rotated) box.
+[[nodiscard]] bool is_oriented(const Collider& collider);
+
+// The world-space axis-aligned bounds (min, max) of an entity's collision
+// shape: a sphere's cube, a rotated box's enclosing box, or the Box itself.
+[[nodiscard]] std::pair<Vec3, Vec3> world_bounds(const Box& box, const Collider* collider);
+
+// True if an axis-aligned probe box overlaps an entity's collision shape
+// (Box with its Collider: sphere, axis-aligned or oriented box).
+[[nodiscard]] bool probe_overlaps(const Box& probe, const Box& box, const Collider& collider);
+
+// A surface counts as walkable ground (sets RigidBody::grounded, and a
+// body resting on it is held in place instead of sliding) when its normal's
+// y component is at least this (about 50 degrees).
+constexpr float walkable_normal_y = 0.64F;
+
+// A terrain heightfield (0.63.0): resolution x resolution heights over a
+// square of side `size` centered on `center` (x, z), row-major with x
+// varying fastest (row 0 is the -z edge, column 0 the -x edge). Heights are
+// relative to center.y. Inside its square it replaces the flat ground plane
+// for bodies and raycasts; outside, the plane still applies.
+struct Heightfield final {
+    Vec3 center{};
+    float size{1.0F};
+    int resolution{2};
+    std::vector<float> heights;
+    [[nodiscard]] bool contains(float x, float z) const;
+    // World-space surface height (bilinear); clamps at the edges.
+    [[nodiscard]] float height_at(float x, float z) const;
+    // Unit surface normal from the height gradient.
+    [[nodiscard]] Vec3 normal_at(float x, float z) const;
 };
 
 struct Config final {
     float gravity{-18.0F};
     float ground_y{0.0F};
+    // Optional terrain; not owned.
+    const Heightfield* terrain{nullptr};
 };
 
 enum class ContactPhase { enter, stay, exit };
@@ -132,10 +175,20 @@ public:
 //   (box) or separation vector (sphere) of least penetration, and the
 //   velocity component that push was dominantly along is zeroed (or
 //   reflected, with bounciness). This is the engine's original behavior.
+// - a rotated box collider: separating-axis test against the body's box.
+//   The body is pushed out along the contact normal and only the
+//   into-surface part of its velocity is removed, so it slides along walls.
+//   On walkable ground (normal y >= walkable_normal_y) the push is straight
+//   up instead, so a body stands still on a ramp rather than creeping down.
 // - the collider's entity is a finite-mass dynamic body: if the body is
 //   kinematic or has mass 0 it pushes the other one fully aside; otherwise
 //   the two separate in inverse proportion to their masses and exchange
 //   momentum along the contact normal.
+//
+// Terrain: a body below the surface at its center is lifted onto it when the
+// slope there is walkable (and grounded); on steeper ground it is pushed out
+// along the surface normal and loses its into-slope velocity, so it slides
+// down rather than climbing.
 //
 // A body is marked grounded only when resolved upward (resting on the ground
 // plane or on top of a collider or another body). Entities with only one of
@@ -152,6 +205,8 @@ struct RaycastHit final {
     bool hit_ground{false};
     float distance{};
     Vec3 point{};
+    // Unit surface normal at `point`, facing back toward the ray.
+    Vec3 normal{};
 };
 
 struct QueryFilter final {

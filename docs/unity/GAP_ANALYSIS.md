@@ -9,9 +9,9 @@ This compares engine **0.47.0** (commit `f29a081`) against the [Unity feature re
 
 The coverage percentages are rough estimates of the Unity feature surface in each area. They are not measurements.
 
-## Progress since this analysis (0.50.0–0.58.0)
+## Progress since this analysis (0.50.0–0.65.0)
 
-The suggested order below was worked through in nine features. Each has a README note and an `IMPLEMENTATION_STATUS.md` section.
+The suggested order below was worked through in nine features (F50–F58), then seven more (F59–F65) aimed at building a first-person shooter. Each has a README note and an `IMPLEMENTATION_STATUS.md` section.
 
 | Version | Feature | Closes |
 |---|---|---|
@@ -24,9 +24,16 @@ The suggested order below was worked through in nine features. Each has a README
 | 0.56.0 | F56 UI | Panel/Image/Bar/Slider/Toggle, layout, `on_ui`, `ui.set_value/visible` |
 | 0.57.0 | F57 Particles + trails | Shapes, over-lifetime, world space, bursts, `Trail` |
 | 0.58.0 | F58 Assets + stats | In-editor import (IndexedDB), `Material.texture`, Stats overlay with per-system timings |
+| 0.59.0 | F59 Oriented colliders | Rotated box colliders (SAT), ramps, sliding, raycast hit normals |
+| 0.60.0 | F60 Character controller | First-person/third-person controller: acceleration, sprint/crouch, coyote time, jump buffer, step climbing, ground snapping; first-person camera with mouse look and view effects |
+| 0.61.0 | F61 Weapons | Text loadouts (hitscan, pellets, projectiles with splash), ammo/reloads, spread/recoil/ADS, headshots, viewmodels, tracers/decals/explosions, synthesized gunfire, combat HUD, damage callbacks |
+| 0.62.0 | F62 Combat AI | Teams, sight cones with line of sight, hearing, patrol/guard/hunt, burst fire, strafing, cover, search/flee |
+| 0.63.0 | F63 Terrain | Noise + sculpted heightfield, splat colors, instanced scatter, heightfield collision/raycasts/nav |
+| 0.64.0 | F64 Audio | Mixer buses, reverb, HRTF positional sound, occlusion, footsteps |
+| 0.65.0 | F65 Post-processing | SMAA/FXAA, ambient occlusion (GTAO), bloom controls, color grading, vignette, grain, shadow quality |
 
 The biggest areas still open:
-- **P2**: multi-select and prefab overrides, a native GPU renderer, LOD/instancing, rotational physics and joints, blend trees and IK, audio mixer and 3D sound, terrain, splines.
+- **P2**: multi-select and prefab overrides, a native GPU renderer, LOD and automatic instancing of repeated props, rotational physics and joints, blend trees, animation layers and IK, splines.
 - **P3**: 2D, networking, an ECS job system, AI/ML.
 
 ## Scorecard

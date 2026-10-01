@@ -214,6 +214,12 @@ const componentNames = [
   "CameraFollow",
   "InputActions",
   "Trail",
+  "CharacterController",
+  "Weapons",
+  "AICombat",
+  "Terrain",
+  "AudioSettings",
+  "PostProcessing",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -318,7 +324,61 @@ export function normalizeComponent(
         volume: unitInterval(value.volume, "Sound.volume", 1),
         loop: boolean(value.loop, "Sound.loop"),
         autoplay: boolean(value.autoplay, "Sound.autoplay"),
+        spatial: value.spatial === undefined ? false : boolean(value.spatial, "Sound.spatial"),
+        bus: (() => {
+          const bus = value.bus ?? "SFX";
+          if (bus !== "SFX" && bus !== "Music" && bus !== "Ambient" && bus !== "UI")
+            throw new Error("Sound.bus must be SFX, Music, Ambient, or UI.");
+          return bus;
+        })(),
+        minDistance: value.minDistance === undefined ? 2 : positiveNumber(value.minDistance, "Sound.minDistance"),
+        maxDistance: value.maxDistance === undefined ? 60 : positiveNumber(value.maxDistance, "Sound.maxDistance"),
       };
+    case "PostProcessing": {
+      const within = (v: unknown, label: string, min: number, max: number) => {
+        const n = number(v, label);
+        if (n < min || n > max) throw new Error(`${label} must be from ${min} to ${max}.`);
+        return n;
+      };
+      const antialias = value.antialias;
+      if (antialias !== "None" && antialias !== "FXAA" && antialias !== "SMAA")
+        throw new Error("PostProcessing.antialias must be None, FXAA, or SMAA.");
+      const shadowQuality = value.shadowQuality;
+      if (shadowQuality !== "Low" && shadowQuality !== "Medium" && shadowQuality !== "High")
+        throw new Error("PostProcessing.shadowQuality must be Low, Medium, or High.");
+      return {
+        antialias,
+        ambientOcclusion: boolean(value.ambientOcclusion, "PostProcessing.ambientOcclusion"),
+        aoRadius: within(value.aoRadius, "PostProcessing.aoRadius", 0.05, 5),
+        aoIntensity: within(value.aoIntensity, "PostProcessing.aoIntensity", 0, 2),
+        bloom: within(value.bloom, "PostProcessing.bloom", 0, 5),
+        bloomRadius: within(value.bloomRadius, "PostProcessing.bloomRadius", 0, 1),
+        bloomThreshold: within(value.bloomThreshold, "PostProcessing.bloomThreshold", 0, 1),
+        exposure: within(value.exposure, "PostProcessing.exposure", 0.05, 8),
+        contrast: within(value.contrast, "PostProcessing.contrast", -1, 1),
+        saturation: within(value.saturation, "PostProcessing.saturation", -1, 1),
+        temperature: within(value.temperature, "PostProcessing.temperature", -1, 1),
+        vignette: within(value.vignette, "PostProcessing.vignette", 0, 1),
+        grain: within(value.grain, "PostProcessing.grain", 0, 1),
+        shadowQuality,
+      };
+    }
+    case "AudioSettings": {
+      const level = (v: unknown, label: string, max: number) => {
+        const n = number(v, label);
+        if (n < 0 || n > max) throw new Error(`${label} must be from 0 to ${max}.`);
+        return n;
+      };
+      return {
+        master: level(value.master, "AudioSettings.master", 2),
+        sfx: level(value.sfx, "AudioSettings.sfx", 2),
+        music: level(value.music, "AudioSettings.music", 2),
+        ambient: level(value.ambient, "AudioSettings.ambient", 2),
+        ui: level(value.ui, "AudioSettings.ui", 2),
+        reverb: level(value.reverb, "AudioSettings.reverb", 1),
+        occlusion: boolean(value.occlusion, "AudioSettings.occlusion"),
+      };
+    }
     case "Player":
       return {};
     case "Vehicle":
@@ -419,6 +479,92 @@ export function normalizeComponent(
       };
     case "InputActions":
       return { bindings: string(value.bindings, "InputActions.bindings") };
+    case "Terrain": {
+      const integer = (v: unknown, label: string, min: number, max: number) => {
+        const n = number(v, label);
+        if (!Number.isInteger(n) || n < min || n > max) throw new Error(`${label} must be a whole number from ${min} to ${max}.`);
+        return n;
+      };
+      const size = positiveNumber(value.size, "Terrain.size");
+      if (size > 4000) throw new Error("Terrain.size must be at most 4000.");
+      return {
+        size,
+        resolution: integer(value.resolution, "Terrain.resolution", 9, 257),
+        height: nonNegativeNumber(value.height, "Terrain.height"),
+        seed: integer(value.seed, "Terrain.seed", -1000000, 1000000),
+        frequency: nonNegativeNumber(value.frequency, "Terrain.frequency"),
+        octaves: integer(value.octaves, "Terrain.octaves", 1, 8),
+        sculpt: string(value.sculpt, "Terrain.sculpt"),
+        grassColor: unitVec3(value.grassColor, "Terrain.grassColor"),
+        rockColor: unitVec3(value.rockColor, "Terrain.rockColor"),
+        sandColor: unitVec3(value.sandColor, "Terrain.sandColor"),
+        snowColor: unitVec3(value.snowColor, "Terrain.snowColor"),
+        sandHeight: number(value.sandHeight, "Terrain.sandHeight"),
+        snowHeight: number(value.snowHeight, "Terrain.snowHeight"),
+        rockSlope: number(value.rockSlope, "Terrain.rockSlope"),
+        scatter: string(value.scatter, "Terrain.scatter"),
+      };
+    }
+    case "AICombat": {
+      const behavior = value.behavior;
+      if (behavior !== "Patrol" && behavior !== "Guard" && behavior !== "Hunt")
+        throw new Error("AICombat.behavior must be Patrol, Guard, or Hunt.");
+      const team = number(value.team, "AICombat.team");
+      if (!Number.isInteger(team) || team < 0 || team > 15) throw new Error("AICombat.team must be an integer from 0 to 15.");
+      const unit = (v: unknown, label: string) => {
+        const n = number(v, label);
+        if (n < 0 || n > 1) throw new Error(`${label} must be from 0 to 1.`);
+        return n;
+      };
+      const burst = positiveNumber(value.burst, "AICombat.burst");
+      if (!Number.isInteger(burst)) throw new Error("AICombat.burst must be a whole number.");
+      return {
+        team,
+        behavior,
+        patrol: string(value.patrol, "AICombat.patrol"),
+        sightRange: positiveNumber(value.sightRange, "AICombat.sightRange"),
+        fov: positiveNumber(value.fov, "AICombat.fov"),
+        hearingRange: nonNegativeNumber(value.hearingRange, "AICombat.hearingRange"),
+        reactionTime: nonNegativeNumber(value.reactionTime, "AICombat.reactionTime"),
+        accuracy: unit(value.accuracy, "AICombat.accuracy"),
+        preferredRange: positiveNumber(value.preferredRange, "AICombat.preferredRange"),
+        moveSpeed: positiveNumber(value.moveSpeed, "AICombat.moveSpeed"),
+        burst,
+        burstPause: nonNegativeNumber(value.burstPause, "AICombat.burstPause"),
+        useCover: boolean(value.useCover, "AICombat.useCover"),
+        fleeHealth: unit(value.fleeHealth, "AICombat.fleeHealth"),
+        meleeDamage: nonNegativeNumber(value.meleeDamage, "AICombat.meleeDamage"),
+      };
+    }
+    case "Weapons":
+      return { loadout: string(value.loadout, "Weapons.loadout") };
+    case "CharacterController": {
+      const mode = value.mode;
+      if (mode !== "FirstPerson" && mode !== "ThirdPerson")
+        throw new Error("CharacterController.mode must be FirstPerson or ThirdPerson.");
+      const standHeight = positiveNumber(value.standHeight, "CharacterController.standHeight");
+      const crouchHeight = positiveNumber(value.crouchHeight, "CharacterController.crouchHeight");
+      if (crouchHeight > standHeight)
+        throw new Error("CharacterController.crouchHeight must not exceed standHeight.");
+      const fov = positiveNumber(value.fov, "CharacterController.fov");
+      if (fov >= 180) throw new Error("CharacterController.fov must be below 180.");
+      return {
+        mode,
+        walkSpeed: positiveNumber(value.walkSpeed, "CharacterController.walkSpeed"),
+        sprintSpeed: positiveNumber(value.sprintSpeed, "CharacterController.sprintSpeed"),
+        crouchSpeed: positiveNumber(value.crouchSpeed, "CharacterController.crouchSpeed"),
+        jumpHeight: positiveNumber(value.jumpHeight, "CharacterController.jumpHeight"),
+        standHeight,
+        crouchHeight,
+        stepHeight: nonNegativeNumber(value.stepHeight, "CharacterController.stepHeight"),
+        acceleration: positiveNumber(value.acceleration, "CharacterController.acceleration"),
+        airControl: positiveNumber(value.airControl, "CharacterController.airControl"),
+        lookSensitivity: positiveNumber(value.lookSensitivity, "CharacterController.lookSensitivity"),
+        invertY: boolean(value.invertY, "CharacterController.invertY"),
+        fov,
+        headBob: nonNegativeNumber(value.headBob, "CharacterController.headBob"),
+      };
+    }
     case "CameraFollow":
       return {
         target: string(value.target, "CameraFollow.target"),

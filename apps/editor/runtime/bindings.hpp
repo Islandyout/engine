@@ -35,7 +35,12 @@ inline constexpr const char *default_text = "move_x: d, -a, right, -left, pad_lx
                                             "jump: space, pad_a\n"
                                             "fire: mouse_left, pad_rt, pad_x\n"
                                             "interact: e, pad_y\n"
-                                            "sprint: shift, pad_lb\n";
+                                            "sprint: shift, pad_lb\n"
+                                            "crouch: c, ctrl, pad_b\n"
+                                            "aim: mouse_right, pad_lt\n"
+                                            "reload: r, pad_rb\n"
+                                            "next_weapon: q, pad_up\n"
+                                            "weapon_scroll: wheel\n";
 
 inline std::optional<engine::BindingSource> source_named(std::string_view name) {
     using engine::GamepadAxis;

@@ -70,7 +70,63 @@ int main() {
         check(snapped && !snapped->empty() && grid.walkable(snapped->back().x, snapped->back().z),
               "a blocked goal snaps to reachable ground");
 
-        std::cout << "Nav grid baking (walls, agent inflation, curbs, triggers, dynamic bodies), line of "
+        {
+            // A diagonal (yaw-rotated) wall blocks the cells along its real
+            // footprint, not its enclosing box; a tilted ramp blocks nothing.
+            World rotated;
+            rotated.register_component<Box>("box");
+            rotated.register_component<physics::RigidBody>("rigidbody");
+            rotated.register_component<physics::Collider>("collider");
+            const auto diagonal = rotated.create();
+            rotated.set(diagonal, Box{{20, 1, 20}, {10, 2, 0.5F}});
+            physics::Collider spun{};
+            spun.rotation = {0, 0.7853982F, 0};
+            rotated.set(diagonal, spun);
+            const auto slope = rotated.create();
+            rotated.set(slope, Box{{-20, 0.5F, -20}, {4, 1, 8}});
+            physics::Collider tilted{};
+            tilted.rotation = {-0.3F, 0, 0};
+            rotated.set(slope, tilted);
+            nav::Grid rotated_grid{nav::Settings{}};
+            rotated_grid.bake(rotated);
+            check(!rotated_grid.walkable(20, 20), "the diagonal wall's center is blocked");
+            check(!rotated_grid.walkable(22, 18), "cells along the diagonal are blocked");
+            check(rotated_grid.walkable(23, 23), "a corner of the enclosing box off the wall stays open");
+            check(rotated_grid.walkable(-20, -20), "a walkable ramp does not block");
+            // Combined rotation x=45, y=30, z=-45 degrees: the top normal's y is
+            // 0.75 (walkable), though cos(x)cos(z) alone would say 0.5.
+            World combined;
+            combined.register_component<Box>("box");
+            combined.register_component<physics::RigidBody>("rigidbody");
+            combined.register_component<physics::Collider>("collider");
+            const auto tilted_both = combined.create();
+            combined.set(tilted_both, Box{{0, 0.5F, 0}, {4, 1, 4}});
+            physics::Collider both{};
+            both.rotation = {0.7853982F, 0.5235988F, -0.7853982F};
+            combined.set(tilted_both, both);
+            nav::Grid combined_grid{nav::Settings{}};
+            combined_grid.bake(combined);
+            check(combined_grid.walkable(0, 0), "a combined-rotation walkable ramp does not block");
+        }
+        {
+            // Terrain: steep cells block, gentle ones don't.
+            World empty;
+            empty.register_component<Box>("box");
+            empty.register_component<physics::RigidBody>("rigidbody");
+            empty.register_component<physics::Collider>("collider");
+            physics::Heightfield terrain;
+            terrain.center = {-30, 0, 30};
+            terrain.size = 20;
+            terrain.resolution = 3;
+            terrain.heights = {0, 0, 0, 0, 30, 0, 0, 0, 0}; // a sharp 30-unit spike
+            nav::Grid terrain_grid{nav::Settings{}};
+            terrain_grid.bake(empty, {}, &terrain);
+            check(!terrain_grid.walkable(-33, 30), "the spike's steep sides block");
+            terrain.heights = {0, 0, 0, 0, 1, 0, 0, 0, 0}; // a gentle 1-unit bump
+            terrain_grid.bake(empty, {}, &terrain);
+            check(terrain_grid.walkable(-33, 30) && terrain_grid.blocked_count() == 0, "a gentle bump doesn't");
+        }
+        std::cout << "Nav grid baking (walls, rotated walls, ramps, steep terrain, agent inflation, curbs, triggers, dynamic bodies), line of "
                      "sight, A* around obstacles with smoothing, and goal snapping passed.\n";
     } catch (const std::exception &e) {
         std::cerr << "nav test failed: " << e.what() << "\n";

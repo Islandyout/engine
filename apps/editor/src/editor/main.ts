@@ -20,6 +20,7 @@ import type {
   UIComponent,
   UIKind,
   Vec3,
+  TerrainComponent,
 } from "../scene/Components";
 import { propertyMetadata, componentLabel, componentGroups } from "./PropertyMetadata";
 import { defaultComponent } from "../authoring/CommandInterpreter";
@@ -28,6 +29,11 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
+import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
+import { FXAAShader } from "three/examples/jsm/shaders/FXAAShader.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
@@ -52,6 +58,24 @@ import {
 } from "./userAssets";
 import { autoSize, contains, layoutRect, sliderValue, type UIRect } from "./uiLayout";
 import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGraph } from "./animator";
+import { applyMouseLook, applyStickLook, ViewEffects, type Look } from "./fpsView";
+import { Sfx } from "./sfx";
+import { AudioMixer, defaultMixerSettings, FootstepTracker, type Bus } from "./audioMixer";
+import { defaultPostSettings, gradingActive, gradingShader, shadowQualities, type PostSettings } from "./postFx";
+import { EventFlag, EventKind, WeaponFx } from "./weaponFx";
+import { buildViewmodel } from "./viewmodels";
+import {
+  applyBrush,
+  decodeSculpt,
+  encodeHeights,
+  encodeSculpt,
+  generateHeights,
+  parseScatter,
+  scatterInstances,
+  type BrushMode,
+  type TerrainParams,
+} from "./terrain";
+import { buildScatter, buildTerrainMesh, scatterObstacle, shapeTerrain, type TerrainLook } from "./terrainMesh";
 import { defaultEnvironment } from "../authoring/CommandInterpreter";
 import "./style.css";
 
@@ -202,6 +226,25 @@ type Runtime = {
     argTypes: ["number", "number"],
     args: [number, number],
   ): string;
+  _editor_set_rotation(index: number, x: number, y: number, z: number): void;
+  _editor_set_controller(index: number, mode: number, ...settings: number[]): void;
+  _editor_set_look(yaw: number, pitch: number): void;
+  _editor_controller_value(index: number, field: number): number;
+  _editor_weapon_value(index: number, field: number): number;
+  _editor_set_soldier(index: number, ...settings: number[]): void;
+  _editor_add_obstacle(x: number, y: number, z: number, sx: number, sy: number, sz: number): void;
+  _editor_terrain_height(x: number, z: number): number;
+  _editor_line_blocked(x1: number, y1: number, z1: number, x2: number, y2: number, z2: number): number;
+  _editor_soldier_value(index: number, field: number): number;
+  _editor_take_weapon_events(): number;
+  _editor_weapon_event(index: number, field: number): number;
+  // Catch-all for text calls added from 0.59.0 on.
+  ccall(
+    name: string,
+    returnType: "string" | "number" | null,
+    argTypes: Array<"string" | "number">,
+    args: Array<string | number>,
+  ): any;
   _editor_set_collider(
     index: number,
     isTrigger: number,
@@ -319,6 +362,13 @@ async function startEditor() {
       <button id="frame" class="btn btn-sm btn-ghost">${iconHtml("target")}<span>Frame selected</span></button>
       <button id="grid" class="btn btn-sm btn-ghost">${iconHtml("grid")}<span>Grid</span></button>
       <button id="stats" class="btn btn-sm btn-ghost" aria-pressed="false">${iconHtml("target")}<span>Stats</span></button>
+      <span id="sculpt-bar" class="sculpt-bar" hidden>
+        <select id="sculpt" class="select-sm" aria-label="Terrain sculpt tool">
+          <option value="off">Sculpt: off</option><option value="raise">Raise</option><option value="lower">Lower</option><option value="smooth">Smooth</option><option value="flatten">Flatten</option>
+        </select>
+        <label class="sculpt-slider">Radius <input id="sculpt-radius" type="range" min="1" max="30" step="0.5" value="6" aria-label="Brush radius"></label>
+        <label class="sculpt-slider">Strength <input id="sculpt-strength" type="range" min="0.05" max="2" step="0.05" value="0.5" aria-label="Brush strength"></label>
+      </span>
       <span class="viewport-hint">Drag to orbit · right-drag to pan · scroll to zoom</span>
     </div>
     <div id="viewport"></div>
@@ -542,8 +592,67 @@ async function startEditor() {
   const gamePerspective = new THREE.PerspectiveCamera();
   const shakeCamera = new THREE.PerspectiveCamera();
   const gameOrthographic = new THREE.OrthographicCamera();
+  // -- First-person view (0.60.0) ----------------------------------------
+  // The editor owns look (mouse, right-drag, right stick) so it stays smooth
+  // at any display rate, and sends it to the runtime every frame
+  // (editor_set_look). The camera sits at the player's feet, interpolated
+  // between the last two fixed ticks, plus the eased eye height and the
+  // view effects in fpsView.ts.
+  const fps = {
+    look: { yaw: 0, pitch: 0 } as Look,
+    view: new ViewEffects(),
+    camera: new THREE.PerspectiveCamera(75, 1, 0.05, 2000),
+    previous: new THREE.Vector3(),
+    current: new THREE.Vector3(),
+  };
+  function playerController() {
+    if (playerIndex < 0) return undefined;
+    const entity = doc.scene.eachAlive()[playerIndex];
+    return entity ? doc.scene.resolve(entity, "CharacterController") : undefined;
+  }
+  function firstPerson() {
+    return doc.mode !== "edit" && playerController()?.mode === "FirstPerson" && runtime._editor_alive(playerIndex) === 1;
+  }
+  function playerFeet(target: THREE.Vector3) {
+    return target.set(
+      runtime._editor_value(playerIndex, 0),
+      runtime._editor_controller_value(playerIndex, 6),
+      runtime._editor_value(playerIndex, 2),
+    );
+  }
+  function placeFirstPerson(dt: number): THREE.PerspectiveCamera {
+    const settings = playerController()!;
+    const alpha = Math.min(1, accumulator * 60);
+    const feet = fps.previous.clone().lerp(fps.current, alpha);
+    const offsets = fps.view.step(dt, {
+      speed: runtime._editor_controller_value(playerIndex, 4),
+      grounded: runtime._editor_controller_value(playerIndex, 2) === 1,
+      landingSpeed: fpsLanding,
+      eyeHeight: runtime._editor_controller_value(playerIndex, 0),
+      sprinting: runtime._editor_controller_value(playerIndex, 5) === 1,
+      headBob: settings.headBob,
+    });
+    fpsLanding = 0;
+    const view = fps.camera;
+    view.aspect = viewport.clientWidth / Math.max(viewport.clientHeight, 1);
+    const aiming = runtime._editor_weapon_value(playerIndex, 7) === 1;
+    zoomBlend += ((aiming ? 1 : 0) - zoomBlend) * (1 - Math.exp(-dt * 14));
+    const zoom = runtime._editor_weapon_value(playerIndex, 5) > 0 ? runtime._editor_weapon_value(playerIndex, 9) : 1;
+    view.fov = (settings.fov + offsets.fovAdd * (1 - zoomBlend)) * (1 + (zoom - 1) * zoomBlend);
+    view.updateProjectionMatrix();
+    view.rotation.set(fps.look.pitch + weaponFx.punch, fps.look.yaw, offsets.roll, "YXZ");
+    view.position.set(feet.x, feet.y + offsets.eyeHeight + offsets.y, feet.z);
+    view.position.addScaledVector(new THREE.Vector3(1, 0, 0).applyQuaternion(view.quaternion), offsets.x);
+    // The player's own body would fill the view.
+    const body = objects[playerIndex];
+    if (body) body.visible = false;
+    return view;
+  }
+  // Largest landing speed reported by this frame's ticks.
+  let fpsLanding = 0;
   function gameCamera(): THREE.Camera | undefined {
     if (doc.mode === "edit") return undefined;
+    if (firstPerson()) return placeFirstPerson(rig.frameDt);
     let best: { component: CameraComponent; index: number } | undefined;
     doc.scene.eachAlive().forEach((entity, index) => {
       const component = doc.scene.resolve(entity, "Camera");
@@ -704,10 +813,11 @@ async function startEditor() {
   // The camera the last frame rendered with: the editor camera, or a game
   // Camera entity during Play. HUD projection and WASD use the same one.
   let viewCamera: THREE.Camera = camera;
+  let bloomPass: UnrealBloomPass | undefined;
   if (composer) {
     composer.addPass(renderPass);
-    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.5, 0.85);
-    composer.addPass(bloom);
+    bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.5, 0.85);
+    composer.addPass(bloomPass);
     composer.addPass(new OutputPass());
   }
   const objects: THREE.Object3D[] = [];
@@ -797,6 +907,248 @@ async function startEditor() {
       gl_FragColor = vec4(vColor * (1.0 - d * 4.0), 1.0);
     }`;
   const particleScale = { value: 500 };
+  // Weapons (0.61.0): viewmodel, effects and combat HUD (weaponFx.ts), and
+  // the viewmodel's own render pass after the world (depth cleared, so the
+  // gun never clips into walls).
+  const weaponFx = new WeaponFx(scene, (emitter) => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(emitter.positions, 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(emitter.colors, 3));
+    geometry.setAttribute("size", new THREE.BufferAttribute(emitter.sizes, 1));
+    const points = new THREE.Points(
+      geometry,
+      new THREE.ShaderMaterial({
+        uniforms: { scale: particleScale },
+        vertexShader: particleVertexShader,
+        fragmentShader: particleFragmentShader,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    points.frustumCulled = false;
+    return points;
+  });
+  const viewmodelPass = new RenderPass(weaponFx.viewScene, weaponFx.viewCamera);
+  viewmodelPass.clear = false;
+  viewmodelPass.clearDepth = true;
+  viewmodelPass.enabled = false;
+  composer?.insertPass(viewmodelPass, 1);
+  // Post-processing (0.65.0; postFx.ts): grading and anti-aliasing after
+  // tone mapping, ambient occlusion on the world before the viewmodel.
+  const gradingPass = new ShaderPass(gradingShader);
+  gradingPass.enabled = false;
+  const fxaaPass = new ShaderPass(FXAAShader);
+  fxaaPass.enabled = false;
+  const smaaPass = new SMAAPass(1, 1);
+  smaaPass.enabled = false;
+  composer?.addPass(gradingPass);
+  composer?.addPass(fxaaPass);
+  composer?.addPass(smaaPass);
+  let gtaoPass: GTAOPass | undefined;
+  let postSettings: PostSettings = defaultPostSettings;
+  function applyPostProcessing(settings: PostSettings) {
+    postSettings = settings;
+    if (bloomPass) {
+      bloomPass.strength = settings.bloom;
+      bloomPass.radius = settings.bloomRadius;
+      bloomPass.threshold = settings.bloomThreshold;
+    }
+    if (renderer instanceof THREE.WebGLRenderer) renderer.toneMappingExposure *= settings.exposure;
+    gradingPass.enabled = !!composer && gradingActive(settings);
+    const uniforms = gradingPass.uniforms as Record<string, { value: number }>;
+    uniforms.contrast!.value = settings.contrast;
+    uniforms.saturation!.value = settings.saturation;
+    uniforms.temperature!.value = settings.temperature;
+    uniforms.vignette!.value = settings.vignette;
+    uniforms.grain!.value = settings.grain;
+    fxaaPass.enabled = !!composer && settings.antialias === "FXAA";
+    smaaPass.enabled = !!composer && settings.antialias === "SMAA";
+    if (composer && settings.ambientOcclusion && !gtaoPass) {
+      // Created on first use: it allocates its own normal and AO targets.
+      gtaoPass = new GTAOPass(scene, camera, viewport.clientWidth || 1, viewport.clientHeight || 1);
+      composer.insertPass(gtaoPass, 1);
+    }
+    if (gtaoPass) {
+      gtaoPass.enabled = settings.ambientOcclusion;
+      gtaoPass.blendIntensity = settings.aoIntensity;
+      gtaoPass.updateGtaoMaterial({ radius: settings.aoRadius });
+    }
+    const quality = shadowQualities[settings.shadowQuality];
+    if (sun.shadow.mapSize.x !== quality.mapSize) {
+      sun.shadow.mapSize.set(quality.mapSize, quality.mapSize);
+      sun.shadow.map?.dispose();
+      sun.shadow.map = null;
+    }
+    sun.shadow.camera.left = sun.shadow.camera.bottom = -quality.extent;
+    sun.shadow.camera.right = sun.shadow.camera.top = quality.extent;
+    sun.shadow.camera.updateProjectionMatrix();
+    resizeAntialias();
+  }
+  function resizeAntialias() {
+    const ratio = renderer instanceof THREE.WebGLRenderer ? renderer.getPixelRatio() : 1;
+    const w = Math.max(1, viewport.clientWidth),
+      h = Math.max(1, viewport.clientHeight);
+    (fxaaPass.material.uniforms.resolution!.value as THREE.Vector2).set(1 / (w * ratio), 1 / (h * ratio));
+  }
+  // Audio (0.64.0): every sound goes through the mixer's buses; world
+  // sounds are positional and muffled behind solid geometry.
+  let mixer: AudioMixer | undefined;
+  function audioMixer(): AudioMixer {
+    mixer ??= new AudioMixer(getAudioContext());
+    return mixer;
+  }
+  let sfx: Sfx | undefined;
+  function sounds(): Sfx {
+    sfx ??= new Sfx(getAudioContext(), audioMixer().buses.sfx);
+    return sfx;
+  }
+  const listenerPosition = new THREE.Vector3();
+  // A synthesized voice played at a world position.
+  function soundsAt(point: THREE.Vector3, volume = 1): Sfx {
+    const occluded =
+      audioMixer().occlusion &&
+      runtime._editor_line_blocked(listenerPosition.x, listenerPosition.y, listenerPosition.z, point.x, point.y + 0.3, point.z) === 1;
+    return sounds().at(audioMixer().source("sfx", point, { occluded, volume }).input);
+  }
+  const playerSteps = new FootstepTracker();
+  const soldierSteps = new Map<number, { tracker: FootstepTracker; previous: THREE.Vector3 }>();
+  function surfaceAt(x: number, feetY: number, z: number): "grass" | "hard" {
+    const ground = runtime._editor_terrain_height(x, z);
+    return Number.isFinite(ground) && Math.abs(feetY - ground) < 0.25 ? "grass" : "hard";
+  }
+  // Footsteps and landings for controller players and soldiers.
+  function playMovementSounds(dt: number) {
+    if (playerIndex >= 0 && playerController() && runtime._editor_alive(playerIndex)) {
+      const speed = runtime._editor_controller_value(playerIndex, 4);
+      const grounded = runtime._editor_controller_value(playerIndex, 2) === 1;
+      const crouched = runtime._editor_controller_value(playerIndex, 1) === 1;
+      const feet = runtime._editor_controller_value(playerIndex, 6);
+      const x = runtime._editor_value(playerIndex, 0),
+        z = runtime._editor_value(playerIndex, 2);
+      if (playerSteps.step(dt, speed, grounded)) {
+        const voice = firstPerson() ? sounds() : soundsAt(new THREE.Vector3(x, feet, z));
+        voice.footstep(surfaceAt(x, feet, z), (crouched ? 0.35 : 0.8) * Math.min(1.3, speed / 4.5));
+      }
+      if (fpsLanding > 4) (firstPerson() ? sounds() : soundsAt(new THREE.Vector3(x, feet, z))).land(Math.min(1, fpsLanding / 12));
+    }
+    objects.forEach((object, i) => {
+      if (runtime._editor_soldier_value(i, 0) < 0 || !runtime._editor_alive(i)) return;
+      let entry = soldierSteps.get(i);
+      if (!entry) soldierSteps.set(i, (entry = { tracker: new FootstepTracker(), previous: object.position.clone() }));
+      const speed = dt > 0 ? Math.hypot(object.position.x - entry.previous.x, object.position.z - entry.previous.z) / dt : 0;
+      entry.previous.copy(object.position);
+      if (entry.tracker.step(dt, speed, true)) {
+        const half = (doc.scene.resolve(doc.scene.eachAlive()[i] ?? { index: -1, generation: 0 }, "Scale")?.value.y ?? 1.8) / 2;
+        const feet = new THREE.Vector3(object.position.x, object.position.y - half, object.position.z);
+        soundsAt(feet, 0.9).footstep(surfaceAt(feet.x, feet.y, feet.z), 0.9);
+      }
+    });
+  }
+  // Ease in/out of the aim-down-sights zoom.
+  let zoomBlend = 0;
+  let viewmodelStudio: THREE.Texture | undefined;
+  function playerWeaponModel(slot?: number): string {
+    if (playerIndex < 0 || runtime._editor_weapon_value(playerIndex, 5) <= 0) return "";
+    const current = slot ?? runtime._editor_weapon_value(playerIndex, 0);
+    return runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [playerIndex, current, 1]);
+  }
+  // Drains this frame's weapon events into effects, sounds, recoil and HUD.
+  function processCombatEvents() {
+    const count = runtime._editor_take_weapon_events();
+    const at = (i: number, field: number) => runtime._editor_weapon_event(i, field);
+    let pending: { shooter: number; origin: THREE.Vector3; direction: THREE.Vector3; hits: number } | undefined;
+    const listener = viewCamera.getWorldPosition(new THREE.Vector3());
+    const distanceVolume = (point: THREE.Vector3) => 1 / (1 + point.distanceTo(listener) / 10);
+    const muzzleOf = (shooter: number, origin: THREE.Vector3, direction: THREE.Vector3) =>
+      shooter === playerIndex && firstPerson()
+        ? weaponFx.muzzleWorld(fps.camera, new THREE.Vector3())
+        : origin.clone().addScaledVector(direction, 0.5);
+    const finishShot = () => {
+      if (pending && pending.hits === 0)
+        weaponFx.tracer(
+          muzzleOf(pending.shooter, pending.origin, pending.direction),
+          pending.origin.clone().addScaledVector(pending.direction, 80),
+        );
+      pending = undefined;
+    };
+    for (let i = 0; i < count; i++) {
+      const kind = at(i, 0),
+        shooter = at(i, 1),
+        target = at(i, 2),
+        value = at(i, 9),
+        flags = at(i, 10);
+      const point = new THREE.Vector3(at(i, 3), at(i, 4), at(i, 5));
+      const normal = new THREE.Vector3(at(i, 6), at(i, 7), at(i, 8));
+      const mine = shooter === playerIndex;
+      switch (kind) {
+        case EventKind.fire: {
+          finishShot();
+          pending = { shooter, origin: point, direction: normal, hits: 0 };
+          const model = runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [shooter, flags, 1]);
+          if (mine) {
+            weaponFx.fire(value);
+            sounds().gunshot(model);
+            // Recoil climbs the aim; aiming halves it.
+            const aimed = runtime._editor_weapon_value(playerIndex, 7) === 1;
+            fps.look.pitch = Math.min(1.55, fps.look.pitch + THREE.MathUtils.degToRad(value) * (aimed ? 0.4 : 0.7));
+            fps.look.yaw += THREE.MathUtils.degToRad(value) * 0.3 * (Math.random() - 0.5);
+          } else soundsAt(point).gunshot(model);
+          weaponFx.muzzleFlashAt(muzzleOf(shooter, point, normal));
+          break;
+        }
+        case EventKind.impact: {
+          const flesh = (flags & EventFlag.flesh) !== 0;
+          weaponFx.impact(point, normal, flesh);
+          if (pending && pending.shooter === shooter) {
+            weaponFx.tracer(muzzleOf(shooter, pending.origin, pending.direction), point);
+            pending.hits++;
+          }
+          soundsAt(point, 0.6).impact(flesh);
+          break;
+        }
+        case EventKind.damaged: {
+          const killed = (flags & EventFlag.killed) !== 0;
+          if (mine && target !== playerIndex) {
+            weaponFx.hit(killed, (flags & EventFlag.headshot) !== 0);
+            sounds().hitmarker(killed);
+          }
+          if (target === playerIndex && playerIndex >= 0) {
+            const body = objects[playerIndex];
+            if (body) weaponFx.hurt(point, body.position, fps.look.yaw, value);
+            sounds().hurt();
+            shake.intensity = Math.max(shake.intensity, 0.04);
+            shake.duration = shake.remaining = 0.2;
+          }
+          break;
+        }
+        case EventKind.reload:
+          if (mine) {
+            if (playerWeaponModel(flags) === "shotgun") sounds().shell();
+            else sounds().reload(value);
+          }
+          break;
+        case EventKind.empty:
+          if (mine) sounds().dryFire();
+          break;
+        case EventKind.switched:
+          if (mine) {
+            weaponFx.equip(playerWeaponModel(flags));
+            sounds().equip();
+          }
+          break;
+        case EventKind.explode: {
+          weaponFx.explosion(point, value);
+          const volume = distanceVolume(point);
+          soundsAt(point).explosion();
+          shake.intensity = Math.max(shake.intensity, 0.35 * volume);
+          shake.duration = shake.remaining = 0.5;
+          break;
+        }
+      }
+    }
+    finishShot();
+  }
   function createParticles(particles: ParticlesComponent, anchor: THREE.Object3D): ParticleState {
     const preset = PARTICLE_PRESETS[particles.preset];
     const settings: EmitterSettings = {
@@ -1177,6 +1529,8 @@ async function startEditor() {
   // populated on Play start, torn down on Stop, so a sound never keeps
   // playing (or gets started twice) across a Stop/Play cycle.
   const activeSounds = new Map<number, AudioBufferSourceNode>();
+  // Positional Sound components, moved with their entity every frame.
+  const activePanners = new Map<number, PannerNode>();
   // Bumped on every fresh Play (edit -> play). A clip load kicked off by one
   // Play session can still be in flight (loadSoundBuffer's promise cache is
   // keyed by clip id, not by session) when Stop, then Play again, happens
@@ -1201,11 +1555,16 @@ async function startEditor() {
         const source = context.createBufferSource();
         source.buffer = buffer;
         source.loop = sound.loop;
-        const gain = context.createGain();
-        gain.gain.value = sound.volume;
-        source.connect(gain).connect(context.destination);
+        const position = sound.spatial ? objects[index]?.position : undefined;
+        const { input, panner } = audioMixer().source(sound.bus.toLowerCase() as Bus, position, {
+          volume: sound.volume,
+          refDistance: sound.minDistance,
+          maxDistance: sound.maxDistance,
+        });
+        source.connect(input);
         source.start();
         activeSounds.set(index, source);
+        if (panner) activePanners.set(index, panner);
       };
       const cached = soundBuffers.get(sound.clip);
       if (cached) play(cached);
@@ -1218,8 +1577,22 @@ async function startEditor() {
   // A one-shot from a script's sound.play(clip): `clip` is a catalog id
   // ("10") or name, matched case-insensitively, exactly or as a prefix
   // ("coin" plays "Coin Pickup").
-  function playOneShot(clip: string) {
+  function playOneShot(clip: string, position?: THREE.Vector3, volume = 1) {
     const wanted = clip.trim().toLowerCase();
+    // "sfx:<name>" plays a synthesized sound (0.64.0).
+    if (wanted.startsWith("sfx:")) {
+      const voice = position ? soundsAt(position, volume) : sounds();
+      const [name = "", detail = ""] = wanted.slice(4).split(":");
+      if (name === "gunshot") voice.gunshot(detail || "rifle", position ? 1 : volume);
+      else if (name === "explosion") voice.explosion(position ? 1 : volume);
+      else if (name === "impact") voice.impact(detail === "flesh", position ? 1 : volume);
+      else if (name === "footstep") voice.footstep(detail === "grass" ? "grass" : "hard", position ? 1 : volume);
+      else if (name === "reload") voice.reload(1.5, position ? 1 : volume);
+      else if (name === "click") voice.dryFire(position ? 1 : volume);
+      else if (name === "hit") voice.hitmarker(detail === "kill", position ? 1 : volume);
+      else log(`sound.play: no synthesized sound "${name}"`);
+      return;
+    }
     const entry =
       soundCatalog.find((s) => String(s.id) === wanted) ??
       soundCatalog.find((s) => s.name.toLowerCase() === wanted) ??
@@ -1234,7 +1607,7 @@ async function startEditor() {
       if (session !== playSession || doc.mode !== "play") return;
       const source = context.createBufferSource();
       source.buffer = buffer;
-      source.connect(context.destination);
+      source.connect(audioMixer().source("sfx", position, { volume }).input);
       source.start();
     };
     const cached = soundBuffers.get(entry.id);
@@ -1250,6 +1623,7 @@ async function startEditor() {
       }
     }
     activeSounds.clear();
+    activePanners.clear();
   }
   let runtime: Runtime;
   try {
@@ -1642,6 +2016,53 @@ async function startEditor() {
         collider.mask,
         collider.bounciness,
       );
+    // CharacterController (0.60.0): see editor_set_controller (bridge.cpp).
+    const controller = get("CharacterController");
+    if (controller && !isChild)
+      runtime._editor_set_controller(
+        index,
+        controller.mode === "FirstPerson" ? 0 : 1,
+        controller.walkSpeed,
+        controller.sprintSpeed,
+        controller.crouchSpeed,
+        controller.jumpHeight,
+        controller.standHeight,
+        controller.crouchHeight,
+        controller.stepHeight,
+        controller.acceleration,
+        controller.airControl,
+      );
+    // Weapons (0.61.0): see editor_set_weapons (bridge.cpp).
+    const weapons = get("Weapons");
+    if (weapons && !isChild) runtime.ccall("editor_set_weapons", null, ["number", "string"], [index, weapons.loadout]);
+    // A Terrain entity's own body must never fall or move.
+    if (get("Terrain")) runtime._editor_set_body(index, 1, 1, 0);
+    // AICombat (0.62.0): see editor_set_soldier (bridge.cpp).
+    const combat = get("AICombat");
+    if (combat && !isChild) {
+      runtime._editor_set_soldier(
+        index,
+        combat.team,
+        { Patrol: 0, Guard: 1, Hunt: 2 }[combat.behavior],
+        combat.sightRange,
+        combat.fov,
+        combat.hearingRange,
+        combat.reactionTime,
+        combat.accuracy,
+        combat.preferredRange,
+        combat.moveSpeed,
+        combat.burst,
+        combat.burstPause,
+        combat.useCover ? 1 : 0,
+        combat.fleeHealth,
+        combat.meleeDamage,
+      );
+      if (combat.patrol) runtime.ccall("editor_set_soldier_patrol", null, ["number", "string"], [index, combat.patrol]);
+    }
+    // A rotated Box collider collides as an oriented box (0.59.0).
+    const rotation = get("Rotation")?.euler;
+    if (collider && rotation && (rotation.x || rotation.y || rotation.z))
+      runtime._editor_set_rotation(index, rotation.x, rotation.y, rotation.z);
     if (name !== undefined)
       runtime.ccall("editor_set_name", null, ["number", "string"], [index, name]);
     // editor_add's own all-double ABI has no way to carry a Lua source
@@ -1726,8 +2147,16 @@ async function startEditor() {
     const rect = renderer.domElement.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
+  // Right-drag look shouldn't open the browser menu during Play.
+  renderer.domElement.addEventListener("contextmenu", (event) => {
+    if (doc.mode !== "edit") event.preventDefault();
+  });
   renderer.domElement.addEventListener("pointermove", (event) => {
     if (doc.mode !== "play") return;
+    // Right-drag looks around in first person without capturing the mouse.
+    const controller = playerController();
+    if (controller?.mode === "FirstPerson" && event.buttons & 2 && document.pointerLockElement !== renderer.domElement)
+      applyMouseLook(fps.look, event.movementX, event.movementY, controller.lookSensitivity, controller.invertY);
     const { x, y } = viewportPoint(event);
     pointerQueue.push(() => runtime._editor_input_mouse_move(x, y, event.movementX, event.movementY));
   });
@@ -1754,6 +2183,9 @@ async function startEditor() {
   // still carry it.
   document.addEventListener("mousemove", (event) => {
     if (doc.mode !== "play" || document.pointerLockElement !== renderer.domElement) return;
+    const controller = playerController();
+    if (controller?.mode === "FirstPerson")
+      applyMouseLook(fps.look, event.movementX, event.movementY, controller.lookSensitivity, controller.invertY);
     pointerQueue.push(() => runtime._editor_input_mouse_move(0, 0, event.movementX, event.movementY));
   });
   function flushPointerInput() {
@@ -1798,6 +2230,13 @@ async function startEditor() {
       const b = runtime.ccall("editor_command_text", "string", ["number", "number"], [i, 2]);
       if (kind === "log") log(`[script] ${a}`);
       else if (kind === "sound") playOneShot(a);
+      else if (kind === "sound_at") {
+        const [x = 0, y = 0, z = 0, volume = 1] = b.split(",").map(Number);
+        playOneShot(a, new THREE.Vector3(x, y, z), Number.isFinite(volume) ? volume : 1);
+      } else if (kind === "sound_volume") {
+        const bus = a.toLowerCase();
+        if (["master", "sfx", "music", "ambient", "ui"].includes(bus)) audioMixer().setBusVolume(bus as Bus | "master", Number(b) || 0);
+      }
       else if (kind === "ui_text") uiTextOverrides.set(a, b);
       else if (kind === "particles_burst" || kind === "particles_emitting") {
         const state = particleStates[runtime._editor_command_entity(i)];
@@ -1852,6 +2291,26 @@ async function startEditor() {
         doc.scene.resolve(entity, "Name")?.value,
       );
     });
+    // The first Terrain is the simulated one (editor_set_terrain), plus its
+    // colliding scatter as static obstacles.
+    const terrainEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "Terrain"));
+    const terrain = terrainEntity && doc.scene.resolve(terrainEntity, "Terrain");
+    if (terrainEntity && terrain) {
+      const center = doc.scene.resolve(terrainEntity, "Transform")?.position ?? { x: 0, y: 0, z: 0 };
+      const params = terrainParams(terrain);
+      const heights = generateHeights(params);
+      runtime.ccall(
+        "editor_set_terrain",
+        null,
+        ["number", "number", "number", "number", "number", "string"],
+        [center.x, center.y, center.z, params.size, params.resolution, encodeHeights(heights)],
+      );
+      for (const instance of scatterInstances(params, heights, parseScatter(terrain.scatter).rules)) {
+        if (!instance.collide) continue;
+        const box = scatterObstacle(instance, catalogCache.get(instance.model)?.nativeSize);
+        runtime._editor_add_obstacle(center.x + box.x, center.y + box.y, center.z + box.z, box.sx, box.sy, box.sz);
+      }
+    }
     // Custom action bindings: the first InputActions component in the scene.
     const bindingsEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "InputActions"));
     const bindings = bindingsEntity && doc.scene.resolve(bindingsEntity, "InputActions");
@@ -1860,6 +2319,8 @@ async function startEditor() {
       throw new Error("Runtime scene commit failed");
     const bindingsError = runtime.ccall("editor_bindings_error", "string", [], []);
     if (bindingsError) log(`Input bindings: ${bindingsError} (using the defaults)`);
+    const weaponsError = runtime.ccall("editor_weapons_error", "string", [], []);
+    if (weaponsError) log(`Weapons: ${weaponsError} (using the default loadout)`);
     seedSavedProgress();
     ticks = 0;
     accumulator = 0;
@@ -1958,6 +2419,65 @@ async function startEditor() {
   // Particles, animation state) and appends it to objects[]/animStates[]/
   // particleStates[]/deathStates[] at the next index. Used for every scene
   // entity by rebuild() and for runtime-spawned prefab instances by frame().
+  // -- Terrain (0.63.0) ---------------------------------------------------
+  function terrainParams(t: TerrainComponent): TerrainParams {
+    return {
+      size: t.size,
+      resolution: t.resolution,
+      height: t.height,
+      seed: t.seed,
+      frequency: t.frequency,
+      octaves: t.octaves,
+      sculpt: t.sculpt,
+    };
+  }
+  function terrainLook(t: TerrainComponent): TerrainLook {
+    return {
+      grassColor: t.grassColor,
+      rockColor: t.rockColor,
+      sandColor: t.sandColor,
+      snowColor: t.snowColor,
+      sandHeight: t.sandHeight,
+      snowHeight: t.snowHeight,
+      rockSlope: t.rockSlope,
+    };
+  }
+  // Live terrain meshes by objects[] index, for sculpting.
+  const terrainMeshes = new Map<
+    number,
+    { mesh: THREE.Mesh; params: TerrainParams; look: TerrainLook; offsets: Int16Array }
+  >();
+  function buildTerrainObject(t: TerrainComponent, index: number): THREE.Object3D {
+    const params = terrainParams(t);
+    const look = terrainLook(t);
+    const offsets = decodeSculpt(t.sculpt, params.resolution * params.resolution);
+    const heights = generateHeights(params, offsets);
+    const group = new THREE.Group();
+    const mesh = buildTerrainMesh(params, look, heights);
+    group.add(mesh);
+    const { rules, errors } = parseScatter(t.scatter);
+    if (errors.length) log(`Terrain scatter: ${errors.join("; ")}`);
+    if (rules.length) {
+      const models = new Map<number, { scene: THREE.Object3D }>();
+      for (const rule of rules) {
+        const cached = catalogCache.get(rule.model);
+        if (cached) models.set(rule.model, cached);
+        else if (catalogEntry(rule.model))
+          loadOnce(
+            pendingCatalogRebuilds,
+            rule.model,
+            () => loadCatalogModel(rule.model),
+            () => {
+              if (doc.mode === "edit" && !gizmo.dragging) rebuild();
+            },
+            (error) => log(`Catalog model ${rule.model} failed to load: ${String(error)}`),
+          );
+      }
+      group.add(buildScatter(scatterInstances(params, heights, rules), models));
+    }
+    terrainMeshes.set(index, { mesh, params, look, offsets });
+    return group;
+  }
   function createEntityObject(
     get: <K extends keyof SceneComponents>(type: K) => SceneComponents[K] | undefined,
   ) {
@@ -2016,6 +2536,12 @@ async function startEditor() {
         );
       object = new THREE.Mesh(geometry, material);
     }
+    // Terrain (0.63.0) replaces the placeholder with its own mesh and scatter.
+    const terrainComponent = get("Terrain");
+    if (terrainComponent) {
+      object = buildTerrainObject(terrainComponent, objects.length);
+      animState = undefined;
+    }
     const animatorSource = get("Animator");
     let animator: (typeof animators)[number];
     if (animatorSource) {
@@ -2046,9 +2572,11 @@ async function startEditor() {
     if (p) anchor.position.set(p.x, p.y, p.z);
     if (animState) animState.prevPosition.copy(anchor.position);
     const r = get("Rotation")?.euler;
-    if (r) anchor.rotation.set(r.x, r.y, r.z);
+    if (r && !terrainComponent) anchor.rotation.set(r.x, r.y, r.z);
     const s = get("Scale")?.value;
-    if (s && cached) {
+    if (terrainComponent) {
+      // A terrain's size comes from the component, not Scale.
+    } else if (s && cached) {
       // Normalize by the model's own native size so an authored Scale is
       // the mesh's literal world-space size, matching the physics Box's
       // dimensions (same s.x/y/z) instead of stacking on top of it.
@@ -2060,6 +2588,19 @@ async function startEditor() {
       );
     } else if (s) anchor.scale.set(s.x, s.y, s.z);
     anchor.add(object);
+    // A soldier with Weapons visibly holds its first weapon (0.62.0).
+    const loadout = get("AICombat") ? get("Weapons")?.loadout : undefined;
+    if (loadout !== undefined) {
+      const model = /model=(\w+)/.exec(loadout.split("\n").find((line) => line.trim() && !line.trim().startsWith("#")) ?? "")?.[1] ?? "rifle";
+      const held = buildViewmodel(model).group;
+      // Undo the anchor's scale so the gun keeps its real size, and point
+      // it along the body's facing (+z) at chest height on the right.
+      const size = get("Scale")?.value ?? { x: 1, y: 1, z: 1 };
+      held.scale.set(held.scale.x / anchor.scale.x, held.scale.y / anchor.scale.y, held.scale.z / anchor.scale.z);
+      held.position.set((size.x * 0.35) / anchor.scale.x, (size.y * 0.12) / anchor.scale.y, (size.z * 0.3) / anchor.scale.z);
+      held.rotation.y = Math.PI;
+      anchor.add(held);
+    }
     const light = get("Light");
     // A sibling of `object`, not a child of it -- see the comment on
     // `anchor` above for why. Not pushed into `objects` itself:
@@ -2097,8 +2638,13 @@ async function startEditor() {
     applyEnvironment(
       (environmentEntity && doc.scene.resolve(environmentEntity, "Environment")) ?? defaultEnvironment(),
     );
+    // The flat shadow catcher at y = 0 would cut through a terrain's valleys.
+    if (doc.scene.eachAlive().some((e) => doc.scene.effectiveHas(e, "Terrain"))) shadowGround.visible = false;
+    const postEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "PostProcessing"));
+    applyPostProcessing((postEntity && doc.scene.resolve(postEntity, "PostProcessing")) ?? defaultPostSettings);
     for (const object of objects) object.removeFromParent();
     objects.length = 0;
+    terrainMeshes.clear();
     animStates.length = 0;
     animators.length = 0;
     animatorErrors.length = 0;
@@ -2152,6 +2698,7 @@ async function startEditor() {
     el("prefab-hint").hidden = hasPrefabs;
   }
   function updatePanels() {
+    updateSculptBar();
     gizmo.detach();
     populatePrefabSelect();
     for (const id of [
@@ -2512,6 +3059,18 @@ async function startEditor() {
         for (const state of particleStates) if (state?.burstOnPlay) burst(state.emitter, state.burstOnPlay);
         if (animatorErrors.length) log(`Animator: ${animatorErrors.join("; ")}`);
         const playerObject = playerIndex >= 0 ? objects[playerIndex] : undefined;
+        // First person starts looking the way the player entity faces.
+        const playerRotation = playerIndex >= 0 ? doc.scene.resolve(doc.scene.eachAlive()[playerIndex]!, "Rotation") : undefined;
+        fps.look.yaw = playerRotation?.euler.y ?? 0;
+        fps.look.pitch = 0;
+        fps.view.reset();
+        weaponFx.reset();
+        zoomBlend = 0;
+        weaponFx.equip(playerWeaponModel());
+        if (playerIndex >= 0 && playerController()) {
+          playerFeet(fps.previous);
+          fps.current.copy(fps.previous);
+        }
         playerBaseScale = playerObject ? playerObject.scale.clone() : null;
         playerPrevY = playerObject?.position.y ?? 0;
         // Set before startSounds(), not after: a clip already decoded from
@@ -2520,6 +3079,9 @@ async function startEditor() {
         // checking it while still "edit" would silence every already-cached
         // clip on the second and later Plays.
         doc.mode = "play";
+        const mixEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "AudioSettings"));
+        audioMixer().apply((mixEntity && doc.scene.resolve(mixEntity, "AudioSettings")) ?? defaultMixerSettings);
+        soldierSteps.clear();
         startSounds();
       } else {
         if (doc.mode === "pause" && audioContext) void audioContext.resume();
@@ -2555,8 +3117,80 @@ async function startEditor() {
     // The runtime that owned them is discarded on Stop; drop the pool too,
     // rather than leaving stale blast meshes on screen in Edit mode.
     while (projectileMeshes.length) scene.remove(projectileMeshes.pop()!);
+    weaponFx.reset();
     rebuild();
   };
+  // -- Terrain sculpting (0.63.0) -------------------------------------------
+  // Looked up on use: updatePanels() can run before this section has.
+  const sculptElement = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
+  const sculptMode = () => sculptElement<HTMLSelectElement>("sculpt")?.value ?? "off";
+  function selectedTerrainIndex(): number {
+    if (doc.mode !== "edit" || !doc.selection || !doc.scene.effectiveHas(doc.selection, "Terrain")) return -1;
+    const index = doc.scene.eachAlive().findIndex((e) => e.index === doc.selection!.index);
+    return terrainMeshes.has(index) ? index : -1;
+  }
+  function sculpting(): boolean {
+    return sculptMode() !== "off" && selectedTerrainIndex() >= 0;
+  }
+  // Left-drag sculpts instead of orbiting while a brush is active.
+  function updateSculptBar() {
+    const bar = sculptElement("sculpt-bar");
+    if (!bar) return;
+    bar.hidden = doc.mode !== "edit" || !doc.selection || !doc.scene.effectiveHas(doc.selection, "Terrain");
+    const active = sculpting();
+    controls.mouseButtons.LEFT = (active ? null : THREE.MOUSE.ROTATE) as THREE.MOUSE;
+    gizmo.enabled = !active;
+  }
+  const sculptTool = el<HTMLSelectElement>("sculpt");
+  const sculptRadius = el<HTMLInputElement>("sculpt-radius");
+  const sculptStrength = el<HTMLInputElement>("sculpt-strength");
+  sculptTool.onchange = updateSculptBar;
+  const sculptRay = new THREE.Raycaster();
+  function terrainPoint(event: PointerEvent, index: number): THREE.Vector3 | undefined {
+    const rect = renderer.domElement.getBoundingClientRect();
+    sculptRay.setFromCamera(
+      new THREE.Vector2(((event.clientX - rect.left) / rect.width) * 2 - 1, (-(event.clientY - rect.top) / rect.height) * 2 + 1),
+      camera,
+    );
+    const hit = sculptRay.intersectObject(terrainMeshes.get(index)!.mesh, false)[0];
+    return hit ? objects[index]!.worldToLocal(hit.point.clone()) : undefined;
+  }
+  let sculptStroke: { index: number; entity: EntityRef } | undefined;
+  function sculptDab(event: PointerEvent) {
+    if (!sculptStroke) return;
+    const point = terrainPoint(event, sculptStroke.index);
+    const live = terrainMeshes.get(sculptStroke.index);
+    if (!point || !live) return;
+    applyBrush(
+      live.params,
+      live.offsets,
+      sculptTool.value as BrushMode,
+      point.x,
+      point.z,
+      Number(sculptRadius.value),
+      Number(sculptStrength.value) * 0.2,
+    );
+    shapeTerrain(live.mesh.geometry, generateHeights(live.params, live.offsets), live.look, live.params.seed);
+  }
+  renderer.domElement.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || !sculpting()) return;
+    const index = selectedTerrainIndex();
+    sculptStroke = { index, entity: doc.selection! };
+    sculptDab(event);
+  });
+  window.addEventListener("pointermove", (event) => {
+    if (sculptStroke && event.buttons & 1) sculptDab(event);
+  });
+  window.addEventListener("pointerup", () => {
+    if (!sculptStroke) return;
+    const { index, entity } = sculptStroke;
+    sculptStroke = undefined;
+    const live = terrainMeshes.get(index);
+    const current = doc.scene.resolve(entity, "Terrain");
+    if (!live || !current) return;
+    // One undoable edit per stroke.
+    execute({ command: "set_component", entity, type: "Terrain", value: { ...current, sculpt: encodeSculpt(live.offsets) } });
+  });
   // -- Imported assets (0.58.0; see userAssets.ts) ------------------------
   // Object URLs for imported images, by file name ("asset:<name>").
   const importedImages = new Map<string, string>();
@@ -2764,6 +3398,7 @@ async function startEditor() {
   }
   renderer.domElement.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || gizmo.dragging || gizmo.axis !== null) return;
+    if (sculpting()) return; // the sculpt brush owns left clicks
     const rect = renderer.domElement.getBoundingClientRect();
     // A UI Button's hit-test comes first, in the same CSS-pixel coordinate
     // space drawHud() laid it out in (hud's own width/height are unscaled
@@ -2788,6 +3423,11 @@ async function startEditor() {
       else runUIAction(hit.action);
       return;
     }
+    // First person: a click in the viewport captures the mouse for look.
+    if (doc.mode === "play" && firstPerson()) {
+      if (document.pointerLockElement !== renderer.domElement) void renderer.domElement.requestPointerLock?.();
+      return;
+    }
     const pointer = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
       (-(e.clientY - rect.top) / rect.height) * 2 + 1,
@@ -2807,6 +3447,7 @@ async function startEditor() {
       h = viewport.clientHeight;
     renderer.setSize(w, h);
     composer?.setSize(w, h);
+    resizeAntialias();
     camera.aspect = w / Math.max(h, 1);
     camera.updateProjectionMatrix();
     hud.width = w;
@@ -2919,13 +3560,23 @@ async function startEditor() {
       keyQueue.length = 0;
       flushPointerInput();
       pollGamepad();
+      const controller = playerController();
+      if (controller?.mode === "FirstPerson" && padSnapshot)
+        applyStickLook(fps.look, padSnapshot.axes[2] ?? 0, padSnapshot.axes[3] ?? 0, dt, controller.lookSensitivity, controller.invertY);
       for (const [key, down] of scriptKeyQueue)
         runtime.ccall("editor_script_key", null, ["string", "number"], [key, down]);
       scriptKeyQueue.length = 0;
       accumulator += dt;
       const tickStart = performance.now();
+      const firstPersonTicks = firstPerson();
+      if (firstPersonTicks) runtime._editor_set_look(fps.look.yaw, fps.look.pitch);
       while (accumulator >= 1 / 60 && steps++ < 5) {
+        if (firstPersonTicks) playerFeet(fps.previous);
         runtime._editor_tick();
+        if (firstPersonTicks) {
+          playerFeet(fps.current);
+          fpsLanding = Math.max(fpsLanding, runtime._editor_controller_value(playerIndex, 3));
+        }
         ticks++;
         accumulator -= 1 / 60;
       }
@@ -2935,6 +3586,8 @@ async function startEditor() {
       pollAnimationRequests();
       adoptSpawnedEntities();
       runScriptCommands();
+      processCombatEvents();
+      if (steps > 0) playMovementSounds(steps / 60);
       objects.forEach((object, i) => {
         // Combat/AI can destroy an authored entity (Health reaching 0) mid-session;
         // its index stays in objects[] (entities can't be added/removed while
@@ -2964,6 +3617,12 @@ async function startEditor() {
       // heading (bridge.cpp field 4), not inferred from position deltas like
       // the animated-entity facing below — that would lag and wobble
       // mid-turn, where a real heading is exact every tick.
+      // Soldiers face where their AI is looking (bridge.cpp's Soldier::yaw).
+      objects.forEach((object, i) => {
+        if (!runtime._editor_alive(i)) return;
+        const yaw = runtime._editor_soldier_value(i, 1);
+        if (runtime._editor_soldier_value(i, 0) >= 0) object.rotation.y = yaw;
+      });
       doc.scene.eachAlive().forEach((entity, i) => {
         if (!doc.scene.effectiveHas(entity, "Vehicle") || !doc.scene.effectiveHas(entity, "Player")) return;
         const object = objects[i];
@@ -2987,7 +3646,14 @@ async function startEditor() {
       // tick-frame, flickering every render frame at 120/144 Hz instead of
       // reading as one continuous effect.
       const playerEntity = playerIndex >= 0 ? doc.scene.eachAlive()[playerIndex] : undefined;
-      if (steps > 0 && player && playerBaseScale && playerEntity && !doc.scene.effectiveHas(playerEntity, "Vehicle")) {
+      if (
+        steps > 0 &&
+        player &&
+        playerBaseScale &&
+        playerEntity &&
+        !doc.scene.effectiveHas(playerEntity, "Vehicle") &&
+        !doc.scene.effectiveHas(playerEntity, "CharacterController")
+      ) {
         const verticalDelta = player.position.y - playerPrevY;
         const stretch = Math.max(-0.18, Math.min(0.18, verticalDelta * 6));
         player.scale.set(
@@ -3053,7 +3719,11 @@ async function startEditor() {
         // Without this, a walk/run clip plays while the mesh keeps whatever
         // fixed orientation it was authored with, sliding sideways or
         // backwards instead of visibly running toward where it's going.
-        if (speed > 0.15 && !doc.scene.effectiveHas(entities[i]!, "Vehicle")) {
+        if (
+          speed > 0.15 &&
+          !doc.scene.effectiveHas(entities[i]!, "Vehicle") &&
+          !doc.scene.effectiveHas(entities[i]!, "AICombat")
+        ) {
           const targetYaw = Math.atan2(dx, dz);
           const diff = Math.atan2(
             Math.sin(targetYaw - object.rotation.y),
@@ -3144,8 +3814,42 @@ async function startEditor() {
       }
       applyShake(viewCamera, dt);
     }
+    const viewmodelInput =
+      firstPerson() && runtime._editor_weapon_value(playerIndex, 5) > 0
+        ? {
+            look: fps.look,
+            aiming: runtime._editor_weapon_value(playerIndex, 7) === 1,
+            reloadProgress: runtime._editor_weapon_value(playerIndex, 3),
+            equipProgress: runtime._editor_weapon_value(playerIndex, 6),
+            speed: runtime._editor_controller_value(playerIndex, 4),
+            grounded: runtime._editor_controller_value(playerIndex, 2) === 1,
+            sprinting: runtime._editor_controller_value(playerIndex, 5) === 1,
+          }
+        : undefined;
+    weaponFx.update(dt, viewmodelInput, viewport.clientWidth / Math.max(viewport.clientHeight, 1));
+    viewmodelPass.enabled = !!viewmodelInput;
+    // The viewmodel reflects the same sky light as the world, or a neutral
+    // studio environment when the scene has none (metal would read black).
+    if (viewmodelInput) {
+      viewmodelStudio ??= pmrem?.fromScene(new RoomEnvironment(), 0.04).texture;
+      weaponFx.viewScene.environment = scene.environment ?? viewmodelStudio ?? null;
+      weaponFx.viewScene.environmentIntensity = scene.environment ? scene.environmentIntensity : 0.8;
+    }
+    // The listener follows the view; positional Sound components follow their entity.
+    if (mixer) {
+      viewCamera.getWorldPosition(listenerPosition);
+      const forward = viewCamera.getWorldDirection(new THREE.Vector3());
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(viewCamera.getWorldQuaternion(new THREE.Quaternion()));
+      mixer.updateListener(listenerPosition, forward, up);
+      for (const [index, panner] of activePanners) {
+        const object = objects[index];
+        if (object) mixer.place(panner, object.getWorldPosition(new THREE.Vector3()));
+      }
+    }
     updateSunShadow();
     renderPass.camera = viewCamera;
+    if (gtaoPass) gtaoPass.camera = viewCamera;
+    if (gradingPass.enabled) (gradingPass.uniforms as Record<string, { value: number }>).time!.value = (now / 1000) % 100;
     // Counted over every pass of the frame (bloom included), not just the
     // last one, for the Stats overlay's draw calls and triangles.
     if (renderer instanceof THREE.WebGLRenderer) {
@@ -3326,6 +4030,90 @@ async function startEditor() {
   // incrementally, matching the Health bars' own established reasoning
   // (entities/UI state can change every tick; nothing here is worth diffing
   // against a held/released-style previous frame).
+  // "!" over soldiers in combat, "?" over ones that heard or lost something.
+  function drawSoldierMarkers() {
+    objects.forEach((object, i) => {
+      if (!runtime._editor_alive(i)) return;
+      const mode = runtime._editor_soldier_value(i, 0);
+      if (mode < 0 || runtime._editor_soldier_value(i, 3) === 0) return;
+      const fighting = mode === 2 || mode === 4;
+      const curious = mode === 1 || mode === 3;
+      if (!fighting && !curious) return;
+      const scaleY = doc.scene.resolve(doc.scene.eachAlive()[i] ?? { index: -1, generation: 0 }, "Scale")?.value.y ?? 1.8;
+      hudScratch.copy(object.position);
+      hudScratch.y += scaleY / 2 + 0.75;
+      hudScratch.project(viewCamera);
+      if (hudScratch.z > 1) return;
+      const x = ((hudScratch.x + 1) / 2) * hud.width;
+      const y = ((1 - hudScratch.y) / 2) * hud.height;
+      hudCtx.font = "800 20px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif";
+      hudCtx.textAlign = "center";
+      hudCtx.textBaseline = "middle";
+      hudCtx.lineWidth = 3;
+      hudCtx.strokeStyle = "rgba(0,0,0,0.6)";
+      hudCtx.fillStyle = fighting ? "#ff4a3a" : "#ffd36a";
+      hudCtx.strokeText(fighting ? "!" : "?", x, y);
+      hudCtx.fillText(fighting ? "!" : "?", x, y);
+    });
+  }
+  // Crosshair, and a hint while the mouse isn't captured.
+  // Returns text for the HUD's screen-reader mirror.
+  function drawFirstPersonOverlay(): string[] {
+    const cx = hud.width / 2,
+      cy = hud.height / 2;
+    const weaponCount = runtime._editor_weapon_value(playerIndex, 5);
+    if (weaponCount > 0 || runtime._editor_value(playerIndex, 3) >= 0) {
+      const names: string[] = [];
+      for (let slot = 0; slot < weaponCount; slot++)
+        names.push(runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [playerIndex, slot, 0]));
+      const slot = runtime._editor_weapon_value(playerIndex, 0);
+      weaponFx.drawHud(hudCtx, hud.width, hud.height, {
+        weaponName: names[slot] ?? "",
+        magazine: runtime._editor_weapon_value(playerIndex, 1),
+        reserve: runtime._editor_weapon_value(playerIndex, 2),
+        reloadProgress: runtime._editor_weapon_value(playerIndex, 3),
+        spread: runtime._editor_weapon_value(playerIndex, 4),
+        aiming: runtime._editor_weapon_value(playerIndex, 7) === 1,
+        fov: fps.camera.fov,
+        health: runtime._editor_value(playerIndex, 3),
+        slot,
+        weaponNames: names,
+      });
+      drawCaptureHint(cx, cy);
+      const lines: string[] = [];
+      if (weaponCount > 0) {
+        const reserve = runtime._editor_weapon_value(playerIndex, 2);
+        lines.push(`${names[slot]} ${runtime._editor_weapon_value(playerIndex, 1)}/${reserve < 0 ? "∞" : reserve}`);
+        if (runtime._editor_weapon_value(playerIndex, 3) >= 0) lines.push("Reloading");
+      }
+      const health = runtime._editor_value(playerIndex, 3);
+      if (health >= 0) lines.push(`Health ${Math.round(health * 100)}`);
+      return lines;
+    }
+    hudCtx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+    hudCtx.lineWidth = 2;
+    hudCtx.beginPath();
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      hudCtx.moveTo(cx + dx * 4, cy + dy * 4);
+      hudCtx.lineTo(cx + dx * 11, cy + dy * 11);
+    }
+    hudCtx.stroke();
+    drawCaptureHint(cx, cy);
+    return [];
+  }
+  function drawCaptureHint(cx: number, cy: number) {
+    if (doc.mode === "play" && document.pointerLockElement !== renderer.domElement) {
+      hudCtx.font = "600 14px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif";
+      hudCtx.textAlign = "center";
+      hudCtx.textBaseline = "top";
+      hudCtx.fillStyle = "rgba(10, 16, 24, 0.7)";
+      const text = "Click to look around (Esc releases) · right-drag also looks";
+      const width = hudCtx.measureText(text).width + 20;
+      hudCtx.fillRect(cx - width / 2, cy + 110, width, 26);
+      hudCtx.fillStyle = "#fff";
+      hudCtx.fillText(text, cx, cy + 116);
+    }
+  }
   function drawHud() {
     hudCtx.clearRect(0, 0, hud.width, hud.height);
     uiButtonHits.length = 0;
@@ -3334,6 +4122,7 @@ async function startEditor() {
       doc.scene.eachAlive().forEach((entity, index) => {
         if (!doc.scene.effectiveHas(entity, "Health")) return;
         if (!runtime._editor_alive(index)) return;
+        if (index === playerIndex && firstPerson()) return; // no bar over your own head
         const object = objects[index];
         if (!object) return;
         const ratio = runtime._editor_value(index, 3);
@@ -3358,6 +4147,8 @@ async function startEditor() {
           barHeight,
         );
       });
+    if (doc.mode !== "edit") drawSoldierMarkers();
+    if (firstPerson()) hudLines.push(...drawFirstPersonOverlay());
     for (const entity of doc.scene.eachAlive()) {
       const authoredUi = doc.scene.resolve(entity, "UI");
       if (!authoredUi) continue;

@@ -4229,3 +4229,395 @@ This covers items 9 and 10 (the stats and profiler part) of [the Unity gap analy
   - places the model from the Imported category;
   - textures a Material with `asset:checker.png`;
   - opens Stats and waits for a draw-call count, then for a physics timing during Play.
+
+## F59 — Oriented box colliders, ramps and hit normals (0.59.0)
+
+This starts the FPS-readiness round. Before it, collision ignored `Rotation`: every Box collider was the axis-aligned box of its Scale, so a diagonal wall blocked a square region and there was no way to build a ramp.
+
+### Physics (`engine::physics`)
+
+- **`Collider::rotation`**: Euler XYZ radians, the same order three.js uses. A non-zero rotation on a Box collider makes it an oriented box: `Box.size` is its local size, rotated about `Box.center`. Sphere colliders ignore it.
+- **Contacts**: a separating-axis test (3 + 3 face axes and 9 edge axes) between the mover's box and the oriented box. The normal is the least-overlap axis, with a 5% bias toward face axes so resting contacts stay stable. Sphere-vs-oriented-box contacts are solved in the box's own frame.
+- **Response**: the body is pushed out along the normal, and only the into-surface part of its velocity is removed (with bounciness), so it slides along walls.
+- **Walkable ground**: when the normal's y is at least `walkable_normal_y` (0.64, about 50°), the body is lifted straight up instead and becomes grounded. A body standing on a ramp therefore stays put.
+- **Unchanged**: unrotated colliders keep the original resolution code exactly.
+- **Raycasts**: `RaycastHit::normal` is new.
+  - The ground normal is up, and a box's normal is the face the ray entered through.
+  - A sphere's normal is radial.
+  - An oriented box is intersected in its own frame, and its normal is rotated back to world space.
+- **Helpers**: `is_oriented`, `world_bounds` (the enclosing box) and `probe_overlaps`.
+
+### Navigation
+
+`nav::Grid::bake` handles oriented colliders:
+
+- A tilted box whose top is walkable is a ramp and blocks nothing.
+- Any other oriented box blocks a cell only when a probe column over that cell (inflated by the agent radius, from step height to max height) actually overlaps it.
+
+### Bridge, Lua and editor
+
+- **`editor_set_rotation(index, x, y, z)`**: called by `addToRuntime` for every entity that has both a Collider and a non-zero Rotation.
+- **`world.raycast`** returns `hit, distance, x, y, z, nx, ny, nz`.
+
+### F59 verification
+
+- `engine_physics_tests`:
+  - a body driven into a 45° wall stays on its side and slides along it;
+  - a body dropped on a ramp rests above the untilted top, grounded, and doesn't move over another 2 s;
+  - rays down the ramp show its surface rising, with a tilted normal;
+  - normals for a box face, a sphere and the ground are correct;
+  - rotated world bounds enclose the box.
+- `engine_nav_tests`: a diagonal wall blocks the cells along it but not the empty corner of its enclosing box, and a ramp blocks nothing.
+- `engine_editor_bridge_tests`: a body rests on a rotated ramp through the bridge, and a NaN rotation fails the commit.
+
+## F60 — First-person character controller (0.60.0)
+
+Before this, the Player moved at a fixed speed on raw WASD and jumped and flew with Shift, with no first-person view. That isn't enough for an FPS.
+
+### Native controller (`engine::gameplay`, `include/engine/gameplay/character.hpp`)
+
+There is a new `engine_gameplay` library. It is also compiled into the WASM bridge.
+
+- **`ControllerSettings`**: walk, sprint and crouch speeds; ground acceleration and deceleration; air acceleration; jump height; stand and crouch heights; radius; step height; coyote time; jump buffer.
+- **`configure_body`** sizes the Box to the footprint and standing height, keeping the feet in place.
+- **`begin_step`** (before `physics::step`):
+  - **Crouch** keeps the feet planted. Standing back up needs headroom, checked with `probe_overlaps` against solid colliders.
+  - **Acceleration**: the horizontal velocity accelerates as a vector toward `wish direction × speed`, relative to `yaw`. Ground uses accel/decel; air accelerates only with input, otherwise it keeps momentum.
+  - **Sprint** applies only while moving forward.
+  - **Jump**: launches at `sqrt(2·g·h)`, so the apex is the configured height. It fires when the buffered press and the coyote window overlap, and can't double-jump.
+- **`end_step`** (after physics):
+  - **Step up**: when the body was blocked while walking on ground, it retries the move `step_height` higher. If that's clear and walkable ground is found under the footprint (five rays), the body is placed on it with its horizontal velocity restored.
+  - **Ground snap**: when the body walks off a step or down a slope without jumping, it snaps onto walkable ground up to `step_height` below, so it stays grounded down stairs.
+  - **Landing speed**: recorded on the landing tick.
+
+### Bridge
+
+- **`editor_set_controller(index, mode, …)`** adds the controller; out-of-range values fail the commit.
+- **`editor.move`**: for a Player with a controller, builds the input from the `move_x`, `move_y`, `jump` (pressed edge), `sprint` and `crouch` actions.
+  - First person uses the look yaw from **`editor_set_look(yaw, pitch)`**.
+  - Third person uses the yaw of the camera's horizontal facing.
+- **`editor.controller`**, a new system at order 11 right after physics, runs `end_step`. `editor.script_contacts` moved to order 12.
+- **`editor_controller_value`** reports eye height, crouched, grounded, landing speed, speed, sprinting and feet height.
+- **Physics config**: `Runtime::physics_config` now holds the physics settings.
+- **Bindings**: `crouch: c, ctrl, pad_b` was added to the defaults in both `bindings.hpp` and `CommandInterpreter`.
+
+### Editor (`CharacterController` component, `src/editor/fpsView.ts`)
+
+- **Fields**: mode, the movement settings above, look sensitivity, invert Y, FOV and head bob. The component is listed under Gameplay.
+- **Look is owned by the editor**, so it stays smooth on displays faster than the 60 Hz simulation.
+  - Mouse movement while the pointer is locked (a viewport click locks it), right-drag, and the right stick (with a dead zone) all turn the view. Pitch is clamped at ±1.55 rad.
+  - The look is sent to the runtime before each frame's ticks.
+- **Camera**: placed at the player's feet, interpolated between the last two fixed ticks, plus `ViewEffects`:
+  - crouch and stand ease over about 0.1 s;
+  - head bob is speed-scaled, fades in and out, and is off with `headBob = 0`;
+  - a landing dip is a damped spring kicked by the landing speed;
+  - a +6° FOV kick while sprinting.
+- **HUD**: the player's own body is hidden in first person, and a crosshair and a "click to look around" hint are drawn. The player's own health bar is suppressed.
+- **Squash-and-stretch** is skipped for controller players.
+
+### F60 verification
+
+- `engine_character_tests`:
+  - body sizing;
+  - reaching walk and sprint speed, and stopping;
+  - yaw-relative forward and strafe;
+  - jump apex ≈ `jump_height` and no repeat jump;
+  - coyote jump just after a ledge, but not long after;
+  - a buffered jump on landing;
+  - crouch size, speed and headroom under a ceiling;
+  - climbing a 0.3 step while a 1.0 ledge blocks;
+  - staying grounded every tick down three stairs;
+  - landing speed reported once.
+- `engine_editor_bridge_tests`:
+  - first-person resizing and eye height;
+  - W at look yaw 90° walks −x;
+  - Shift sprints;
+  - Space jumps and lands;
+  - third person follows the camera's facing;
+  - invalid settings fail the commit.
+- `tests/fpsView.test.ts` covers mouse and stick look (dead zone, pitch clamp, invert), and bob, landing dip, crouch easing and sprint FOV.
+- The browser suite, in a fresh page:
+  - a first-person player starts 1.8 tall;
+  - walks onto and climbs a 0.3 step with W;
+  - turns about 90° with right-drag;
+  - then walks toward −x.
+
+## F61 — Weapons (0.61.0)
+
+Before this, the only combat was F melee and the G blast at the nearest Health entity. There were no guns, ammo, aiming or hit feedback.
+
+### Native (`engine::gameplay`, `include/engine/gameplay/weapons.hpp`)
+
+- **`parse_weapons`** reads `name: key=value …` lines, validates every key with a "line N" error, and allows at most 9 weapons. `default_weapons_text` is a rifle, a pistol and a shotgun.
+- **`damage_at`**: linear falloff from `falloff` to `range`, down to `min_damage`.
+- **`current_spread`** combines:
+  - hip or aim spread;
+  - movement spread at hip only, scaled by speed relative to walk speed;
+  - ×2 while airborne;
+  - bloom, which builds with sustained fire and decays.
+- **`spread_direction`**: deterministic xorshift sampling, uniform over the cone.
+- **`update_weapon`** is the per-entity state machine:
+  - equip delay, switching by slot or cycle (wrapping);
+  - auto, semi and burst firing at `rpm`;
+  - an empty pull clicks and starts a reload;
+  - magazine reloads from the reserve (`-1` is unlimited);
+  - per-shell reloads that the trigger interrupts;
+  - `give_ammo`.
+
+### Bridge
+
+- **Arsenal** per entity, from **`editor_set_weapons(index, text)`**. Invalid text falls back to the defaults, and `editor_weapons_error()` says why.
+- **`editor.weapons`** runs at order 13, after the controller.
+  - **The Player** reads the `fire`, `aim`, `reload`, `next_weapon` and `weapon_scroll` actions plus digits 1–9, and fires from the eye along the look direction.
+  - **Other entities** fire when their script calls `weapon.fire()`.
+  - **Movement**: aiming slows the controller to 55%, and aiming or firing stops a sprint.
+- **Hitscan**: each pellet traces against Colliders and the ground (`physics::raycast`), and against Health boxes without a Collider. Damage per target is summed per shot. A hit in the top 22% of a target at least 1.2 tall is a headshot, scaled by `headshot`.
+- **Projectiles**: projectile weapons spawn a `Projectile` with gravity, damage and splash. Projectiles now stop at solid geometry. A splash explosion damages everything with Health inside the radius, with linear falloff, and pushes finite-mass bodies.
+- **One damage path**: `Runtime::apply_damage` handles weapons, melee, the blast, AI attacks and `world.damage`. It lowers Health, records a `damaged` event, calls the target's `on_damaged` and `on_death`, broadcasts `on_kill(victim, attacker)` by name, and destroys the target at 0.
+- **Events**: `editor_take_weapon_events` / `editor_weapon_event` report fire, impact (with flesh/headshot/killed flags), reload, reloaded, empty, switched, explode and damaged.
+- **State and text**: `editor_weapon_value` reports slot, magazine, reserve, reload and equip progress, spread, count, aiming, magazine size and zoom. `editor_weapon_text` gives each weapon's name and model.
+- **Bindings**: `aim`, `reload`, `next_weapon` and `weapon_scroll` were added to the default action bindings.
+
+### Lua
+
+- **`weapon` table**: `fire([dx, dy, dz])`, `reload()`, `select(slot)` (1-based), `ammo()` (returns magazine, reserve, slot, reloading) and `give_ammo(n[, slot])`. It goes through a new `Host::weapon` hook whose default implementation does nothing.
+- **Callbacks**: `Runtime::notify_damage` calls `on_damaged(amount, attacker, headshot)` and `on_death(attacker)`, and broadcasts `on_kill(victim_name, attacker_name)`.
+
+### Editor
+
+- **`Weapons` component** (`loadout`, multiline; listed under Gameplay).
+- **`viewmodels.ts`**: six procedural guns (rifle, pistol, shotgun, SMG, sniper, launcher), built at real size and drawn at 0.85 scale. Each has a muzzle point and a sight height.
+- **`weaponFx.ts`**:
+  - **Viewmodel**: drawn in its own scene by a second `RenderPass` with the depth buffer cleared, so it never clips. It uses the world's environment light, or a `RoomEnvironment` when the scene has none.
+  - **Animation**: spring recoil, sway, bob, aim-down-sights centered on the sight, sprint tuck, reload dip and equip raise.
+  - **Pooled effects**: muzzle and explosion lights (kept in the scene so no shader recompiles), 24 tracers, 96 bullet-hole decals, spark and blood particles, and explosion fireballs.
+  - **HUD**: low-health and hurt vignette, a spread-accurate crosshair (a dot while aiming), hit, headshot and kill markers, damage-direction arcs, reload progress, ammo and weapon slots, and a health bar.
+- **`sfx.ts`**: gunshots per model, dry fire, reloads, shells, equip, impacts, explosions, hit markers and hurt, all synthesized with Web Audio.
+- **Wiring**:
+  - Player shots add recoil to the look (halved-ish while aiming).
+  - Aiming eases the FOV toward the weapon's `zoom`.
+  - Combat lines are mirrored into `#hud-text`.
+
+### F61 verification
+
+- `engine_weapon_tests`:
+  - parsing, every validation error, and comments and flags;
+  - falloff;
+  - spread terms;
+  - cone sampling bounds;
+  - equip, auto fire rate and bloom;
+  - empty-click reload from reserve;
+  - semi-auto press-per-shot;
+  - unlimited reserve;
+  - cycling wrap both ways;
+  - per-shell reload and its interruption;
+  - give_ammo;
+  - burst.
+- `engine_editor_bridge_tests`:
+  - an aimed headshot (48 damage) with fire, flesh-impact and damaged events;
+  - auto fire killing a 200 HP target;
+  - R reload;
+  - digit switching;
+  - a wall absorbing the shot;
+  - a scripted turret's splash rocket killing one target and wounding another by distance, with `on_damaged`, `on_death`, `on_kill` and the explosion event.
+- `tests/viewmodels.test.ts`: every model builds with a forward muzzle and a sight.
+- `tests/browser/fps.cjs`:
+  - holding fire kills a target, whose `on_death` updates a UI text;
+  - rounds were spent;
+  - R shows Reloading and refills from the reserve;
+  - 2 switches to the pistol, all read from `#hud-text`;
+  - evidence screenshot `f61-weapons.png`.
+
+## F62 — Combat AI (0.62.0)
+
+Before this, AI was `AIState`: wander, a straight chase inside 6 m, flee, and contact damage. It had no sight, hearing, shooting, cover or teams.
+
+### Native (`Soldier`, bridge.cpp)
+
+- **Setup**: `editor_set_soldier(index, team, behavior, sight, fov, hearing, reaction, accuracy, preferred range, speed, burst, burst pause, cover, flee health, melee)` adds a `Soldier` plus a `Controller` sized to the entity's own Box (no resize), so soldiers accelerate, climb steps and stick to stairs. It removes any `AIAgent`. Out-of-range values fail the commit.
+- **Waypoints**: `editor_set_soldier_patrol(index, "A, B")` sets the patrol route by entity Name; names are resolved on the soldier's first tick.
+- **Teams**: the Player is team 0, a soldier is its `team`, and anything else with Health is neutral.
+- **Perception** (`editor.soldiers`, order 3):
+  - **Sight**: within range and the view cone (always within 2.5 m), and a ray from the eye to the target's chest reaches it.
+  - **Hearing**: gunfire (`fire_weapon`) and explosions (1.5× range) from hostile teams within hearing range.
+  - **Being shot**: `apply_damage` alerts the soldier to the attacker's position.
+- **Modes**:
+  - **Patrol**: walks the waypoints with a pause at each; without waypoints, guards home and sweeps its view. Hunt behavior sends it toward the nearest hostile.
+  - **Investigate**: goes to the last known position, then **Search** (looks around for 4 s, then back to patrol).
+  - **Combat**:
+    - closes in when far, backs off when too close, otherwise strafes in random 0.8–2.2 s legs, flipping away from unwalkable cells;
+    - fires after the reaction delay once facing within about 14°, in bursts with randomized pauses;
+    - aims at the chest with spread (1 − accuracy) × 7°, through `weapon.fire`'s path;
+    - reloads on empty;
+    - without Weapons, melee within 1.7 m once a second.
+  - **Cover**: on an empty magazine, or below half health, it picks the nearest walkable spot within 2.5, 5 or 8 m that a solid collider hides from the last known threat (preferring spots away from it), waits out the reload, then peeks back into combat.
+  - **Flee**: below `flee_health`.
+- **Facing**: turns at 8 rad/s toward the target or the direction of travel.
+- **Movement**: goes through `engine::gameplay::begin_step`, with the existing `end_step` system afterwards. Paths come from the nav grid (refreshed every 0.5 s or when the goal moves), and soldiers are excluded from nav baking like other movers.
+- **`editor_soldier_value`** reports mode, yaw, awareness and team.
+
+### Editor
+
+- **`AICombat` component**: team, behavior, patrol, sight range, FOV, hearing range, reaction time, accuracy, preferred range, move speed, burst, burst pause, use cover, flee health and melee damage. Listed under Gameplay.
+- **Facing**: soldiers face their AI yaw instead of their movement direction.
+- **Held weapon**: a soldier with Weapons holds its first weapon's model, at real size despite the model scale.
+- **Markers**: "!" in combat or cover, "?" while investigating or searching.
+
+### F62 verification
+
+- `engine_editor_bridge_tests`:
+  - a guard spots the player and its bursts hurt them;
+  - behind a wall it stays unaware, hears the player's shot, investigates, walks around the wall and engages;
+  - with an empty magazine it reloads tucked behind a crate;
+  - a weaponless hunter paths over and lands melee hits;
+  - a patroller reaches waypoint A and then heads to B;
+  - invalid settings fail the commit.
+- `tests/browser/fps.cjs`: a guarding rifle soldier drops the player's HUD Health, then dies to return fire, and a scorekeeper script's `on_kill` reports "Soldier down by Hero". Evidence screenshot `f62-combat-ai.png`.
+
+## F63 — Terrain (0.63.0)
+
+Before this, the world floor was an infinite flat plane at y = 0. There was no way to build hills, valleys or natural outdoor levels.
+
+### Generation and editing (`src/editor/terrain.ts`, `terrainMesh.ts`)
+
+- **Heights**: `generateHeights` = seeded value-noise fBm × `height` + sculpt offsets.
+  - Noise frequency is in features per 100 units, with 1–8 octaves.
+  - Sculpt offsets are Int16 centimeters, stored as base64 in `Terrain.sculpt`, and empty while untouched.
+- **Sampling**: `sampleHeight` (bilinear, clamped) and `normalY`.
+- **`applyBrush`**: raise and lower by up to the strength at the center, with smoothstep falloff to the radius. Flatten pulls toward the height under the brush center; smooth pulls toward the 3×3 neighborhood average.
+- **Scatter**: `parseScatter` reads `model density [minScale maxScale] [minNormalY] [collide]` lines. `scatterInstances` places deterministically from the seed, skips slopes steeper than the rule allows, and caps at 4000 instances.
+- **Mesh**: a `PlaneGeometry` shaped by `shapeTerrain`.
+  - Vertex colors: sand below `sandHeight`, snow above `snowHeight`, grass between, with soft bands; rock blends in where the normal's y drops below `rockSlope`; plus noise variation.
+  - A tiling procedural detail texture; the mesh casts and receives shadows.
+- **Scatter rendering**: `buildScatter` makes one `InstancedMesh` per mesh of each catalog model, standing each instance on the ground.
+- **Sculpt tool**: shown in the viewport toolbar while a Terrain is selected in Edit mode.
+  - While a brush is active, left-drag paints (orbit moves to right-drag/scroll, and the gizmo is disabled), updating the mesh live.
+  - Releasing commits one `set_component`, so each stroke is one undo step.
+
+### Native
+
+- **`physics::Heightfield`**: center, size, resolution and heights, with `contains`, `height_at` (bilinear) and `normal_at`.
+- **`Config::terrain`**, inside the terrain's square:
+  - **Bodies**: lifted onto the surface and grounded on walkable slopes. On steeper ground they are pushed out along the normal and lose their into-slope velocity, so they slide down instead of climbing.
+  - **Raycasts**: march half a cell at a time, bisect the first crossing, and return the terrain normal. The flat plane is ignored under the terrain but still applies outside it.
+- **Navigation**: `nav::Grid::bake(..., terrain)` blocks cells steeper than `walkable_normal_y`.
+- **Lua**: `script::Runtime::set_physics_config`, so `world.raycast` sees terrain.
+- **Bridge**:
+  - **`editor_set_terrain`** takes base64 float32 heights and validates them.
+  - **`editor_add_obstacle`** adds static colliders for scatter marked `collide`, as trunk-sized boxes; they block movement, shots, sight and paths.
+  - **`editor_terrain_height`** reports the terrain height at a point.
+  - The terrain entity's own body is kinematic.
+
+### Editor
+
+- **`Terrain` component** (listed under Scene & Camera): size, resolution, noise height, seed, frequency, octaves, sculpt, four layer colors, sand and snow heights, rock slope, and scatter rules.
+- **Placement**: the terrain is centered on the entity's Transform; Rotation and Scale are ignored. The first Terrain in a scene is the simulated one.
+
+### F63 verification
+
+- `tests/terrain.test.ts`:
+  - noise is deterministic, seeded and bounded;
+  - sampling and normals;
+  - sculpt encoding round-trips;
+  - raise, lower, flatten and smooth;
+  - scatter parsing and deterministic placement on the surface;
+  - height encoding.
+- `engine_physics_tests`:
+  - heightfield sampling and normals;
+  - resting on a gentle slope;
+  - the plane still holds outside the terrain;
+  - sliding down a steep spike;
+  - raycasts down onto the slope (with its normal) and level into the hillside, and missing above the peak.
+- `engine_nav_tests`: a steep spike blocks, a gentle bump doesn't.
+- `engine_editor_bridge_tests`:
+  - a first-person player walks up a hill with its feet on the surface;
+  - a Lua raycast reads the terrain height;
+  - an obstacle stops a body;
+  - malformed heights fail the commit.
+- `tests/browser/fps.cjs`:
+  - a flat terrain at y = 2 holds the player at 2.9;
+  - the Sculpt tool's Raise stroke fills `Terrain.sculpt`, and undo clears it.
+
+## F64 — Spatial audio, mixer and footsteps (0.64.0)
+
+Before this, every sound was a flat stereo clip straight to the speakers: no position, no buses, no occlusion, and no footsteps.
+
+### Mixer (`src/editor/audioMixer.ts`)
+
+- **`AudioMixer`**:
+  - **Buses**: `sfx`, `music`, `ambient` and `ui` gains into a master, then a `DynamicsCompressor`, then the output.
+  - **Reverb**: a shared convolver fed by a generated decaying-noise impulse.
+  - **`source(bus, position?, options)`**: plain sounds connect to the bus. Positional ones go through an HRTF `PannerNode` (inverse distance, `refDistance`/`maxDistance`) and also send to the reverb. When occluded, a 900 Hz lowpass and −5 dB are added.
+  - **`updateListener`** and **`place`** use the AudioParam API, falling back to the legacy setters.
+- **`FootstepTracker`**: one step per stride (1.1 m + 0.12 × speed), and none while airborne or nearly still.
+
+### Editor
+
+- **`AudioSettings` component**: bus volumes (0–2), reverb (0–1) and occlusion. The first one in the scene is applied when Play starts.
+- **`Sound`** gains `spatial`, `bus`, `minDistance` and `maxDistance`; older scenes get 2D, SFX, 2 and 60. Positional Sound components follow their entity every frame.
+- **Listener**: follows the view camera.
+- **Routing**: every synthesized sound goes through the SFX bus.
+  - Other shooters' gunshots, impacts and explosions are positional at the event point.
+  - Occlusion is a native line test, **`editor_line_blocked`**, from the listener to the source (Colliders and terrain).
+  - The player's own weapon sounds stay 2D.
+- **Footsteps**:
+  - **Player**: a controller player gets footsteps (quieter crouched) and a landing thud for hard landings.
+  - **Soldiers**: footsteps from their measured speed, positional.
+  - **Surface**: "grass" when the feet are on the terrain, otherwise "hard".
+- **Lua**:
+  - **`sound.play_at(clip, x, y, z[, volume])`** sends a `sound_at` command.
+  - **`sound.volume(bus, v)`** sets master, sfx, music, ambient or ui.
+  - **Synthesized names**: `sound.play` and `play_at` accept `sfx:` names: `sfx:gunshot:<model>`, `sfx:explosion`, `sfx:impact[:flesh]`, `sfx:footstep[:grass]`, `sfx:reload`, `sfx:click`, `sfx:hit[:kill]`.
+
+### F64 verification
+
+- `tests/audioMixer.test.ts` checks footstep cadence at walk and sprint speed, and that there are none in the air or standing still.
+- `tests/browser/fps.cjs` uses an init script to count `createPanner` calls and `AudioBufferSourceNode.start` calls:
+  - a script's `sound.play_at` creates a positional source when Play starts with `AudioSettings` attached;
+  - walking for 1.5 s starts footstep voices.
+- The main browser suite's Sound start/stop pairing still holds with sounds routed through the mixer.
+
+## F65 — Post-processing (0.65.0)
+
+Before this, the image pipeline was fixed: a render pass, a subtle bloom and tone mapping. There was no anti-aliasing (`EffectComposer` targets don't use the canvas's MSAA), no ambient occlusion and no grading.
+
+### Pipeline
+
+```
+world RenderPass → GTAO (when on) → viewmodel RenderPass → bloom → OutputPass (tone mapping, sRGB)
+  → grading (when it changes anything) → FXAA or SMAA
+```
+
+- **GTAO** is created on first use. Each frame it renders with the current view camera, so it works with first-person and game cameras.
+- **Grading** (`postFx.ts`) runs in display space:
+  - temperature (warm or cool shift);
+  - saturation around luma;
+  - contrast around mid-grey;
+  - a smoothstep vignette;
+  - animated hash grain.
+- **FXAA's** resolution follows the viewport size and pixel ratio. SMAA resizes with the composer.
+- **Shadow quality** sets the sun's shadow map size and the half-extent of its shadow box: Low 1024/25, Medium 2048/30, High 4096/45. The shadow map is reallocated when the size changes.
+- **Exposure** multiplies `Environment.exposure`.
+- **Terrain**: a scene with a Terrain now hides the flat y = 0 shadow catcher, which would otherwise cut through valleys.
+
+### Editor
+
+The `PostProcessing` component is listed under Scene & Camera.
+
+- **Fields**: antialias (None, FXAA, SMAA), ambientOcclusion, aoRadius, aoIntensity, bloom, bloomRadius, bloomThreshold, exposure, contrast, saturation, temperature, vignette, grain and shadowQuality. Ranges are validated.
+- **Scope**: the first one in the scene applies. With none, the defaults reproduce the original bloom-only look, so existing scenes don't change.
+
+### Notes
+
+The rest of the gap analysis's "rendering for an FPS" list landed in earlier features: bullet decals, muzzle and explosion lights, and tracers in F61; instanced foliage in F63.
+
+Software rendering, as in CI's headless Chromium, is slow with AO on: about 3 fps against an 11 fps baseline. On real GPUs these passes are cheap, but the browser test leaves AO off.
+
+### F65 verification
+
+- `tests/postFx.test.ts`:
+  - the defaults keep the original look;
+  - grading only runs when it changes something;
+  - shadow quality ordering and the grading shader's uniforms;
+  - the component attaches with the preset and rejects an out-of-range vignette or an unknown AA mode.
+- `tests/browser/fps.cjs`: SMAA, grading, vignette, grain and high-quality shadows render through Play without errors. Evidence screenshot `f65-post-processing.png`.

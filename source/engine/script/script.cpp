@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 
 extern "C" {
@@ -417,7 +418,8 @@ struct LuaApi final {
         return 0;
     }
     // world.raycast(ox, oy, oz, dx, dy, dz, max[, layer_mask]) ->
-    //   hit (entity id, or "ground"), distance, x, y, z   -- or nil
+    //   hit (entity id, or "ground"), distance, x, y, z, nx, ny, nz -- or nil
+    //   (n is the unit surface normal at the hit point)
     static int raycast(lua_State *L) {
         auto &self = runtime(L);
         if (!self.world_)
@@ -426,7 +428,8 @@ struct LuaApi final {
         filter.layer_mask = static_cast<std::uint32_t>(luaL_optinteger(L, 8, physics::all_layers));
         const auto hit = physics::raycast(*self.world_, {number_arg(L, 1), number_arg(L, 2), number_arg(L, 3)},
                                           {number_arg(L, 4), number_arg(L, 5), number_arg(L, 6)},
-                                          number_arg(L, 7, 100.0F), {}, filter);
+                                          number_arg(L, 7, 100.0F),
+                                          self.physics_config_ ? *self.physics_config_ : physics::Config{}, filter);
         if (!hit)
             return lua_pushnil(L), 1;
         if (hit->hit_ground)
@@ -437,7 +440,10 @@ struct LuaApi final {
         lua_pushnumber(L, hit->point.x);
         lua_pushnumber(L, hit->point.y);
         lua_pushnumber(L, hit->point.z);
-        return 5;
+        lua_pushnumber(L, hit->normal.x);
+        lua_pushnumber(L, hit->normal.y);
+        lua_pushnumber(L, hit->normal.z);
+        return 8;
     }
     // world.overlap(x, y, z, radius[, layer_mask]) -> array of entity ids
     static int overlap(lua_State *L) {
@@ -535,6 +541,19 @@ struct LuaApi final {
         emit(L, "sound", luaL_checkstring(L, 1), "");
         return 0;
     }
+    // sound.play_at(clip, x, y, z[, volume]): a positional one-shot.
+    static int play_sound_at(lua_State *L) {
+        char where[160];
+        std::snprintf(where, sizeof where, "%.3f,%.3f,%.3f,%.3f", number_arg(L, 2), number_arg(L, 3), number_arg(L, 4),
+                      number_arg(L, 5, 1.0F));
+        emit(L, "sound_at", luaL_checkstring(L, 1), where);
+        return 0;
+    }
+    // sound.volume(bus, 0..1): bus is master, sfx, music, ambient or ui.
+    static int sound_volume(lua_State *L) {
+        emit(L, "sound_volume", luaL_checkstring(L, 1), std::to_string(number_arg(L, 2, 1.0F)));
+        return 0;
+    }
     static int set_ui_text(lua_State *L) {
         size_t length = 0;
         const char *text = luaL_tolstring(L, 2, &length);
@@ -566,6 +585,42 @@ struct LuaApi final {
     }
     // particles.burst(count) / particles.set_emitting(bool) on this entity's
     // Particles emitter (simulated editor-side).
+    // weapon.fire([dx, dy, dz]) / weapon.reload() / weapon.select(slot) /
+    // weapon.ammo() -> magazine, reserve, slot, reloading / weapon.give_ammo(n[, slot])
+    // Slots are 1-based in Lua. Each returns nothing (or nil from ammo) when
+    // the entity has no Weapons.
+    static int weapon_call(lua_State *L, const char *op, std::vector<double> args) {
+        auto &self = runtime(L);
+        std::vector<double> out;
+        if (!self.host_ || !self.world_ || !self.host_->weapon(*self.world_, self_entity(L), op, args, out))
+            return 0;
+        for (const double value : out)
+            lua_pushnumber(L, value);
+        return static_cast<int>(out.size());
+    }
+    static int weapon_fire(lua_State *L) {
+        if (lua_isnoneornil(L, 1))
+            return weapon_call(L, "fire", {});
+        return weapon_call(L, "fire", {number_arg(L, 1), number_arg(L, 2), number_arg(L, 3)});
+    }
+    static int weapon_reload(lua_State *L) { return weapon_call(L, "reload", {}); }
+    static int weapon_select(lua_State *L) {
+        return weapon_call(L, "select", {static_cast<double>(luaL_checkinteger(L, 1) - 1)});
+    }
+    static int weapon_ammo(lua_State *L) {
+        const int count = weapon_call(L, "ammo", {});
+        if (count == 4) {
+            // Report the slot 1-based.
+            const double slot = lua_tonumber(L, -2);
+            lua_pushnumber(L, slot + 1);
+            lua_replace(L, -3);
+        }
+        return count;
+    }
+    static int weapon_give_ammo(lua_State *L) {
+        return weapon_call(L, "give_ammo",
+                           {static_cast<double>(luaL_checkinteger(L, 1)), static_cast<double>(luaL_optinteger(L, 2, 0) - 1)});
+    }
     static int particles_burst(lua_State *L) {
         emit(L, "particles_burst", std::to_string(luaL_optinteger(L, 1, 10)), "");
         return 0;
@@ -769,11 +824,17 @@ struct LuaApi final {
                {"send", send},
                {"path", path}});
         table(L, self, "physics", {{"add_force", add_force}, {"add_impulse", add_impulse}});
-        table(L, self, "sound", {{"play", play_sound}});
+        table(L, self, "sound", {{"play", play_sound}, {"play_at", play_sound_at}, {"volume", sound_volume}});
         table(L, self, "ui", {{"set_text", set_ui_text}, {"set_value", set_ui_value}, {"set_visible", set_ui_visible}});
         table(L, self, "anim", {{"set", anim_set}, {"trigger", anim_trigger}});
         table(L, self, "camera", {{"shake", camera_shake}});
         table(L, self, "particles", {{"burst", particles_burst}, {"set_emitting", particles_emitting}});
+        table(L, self, "weapon",
+              {{"fire", weapon_fire},
+               {"reload", weapon_reload},
+               {"select", weapon_select},
+               {"ammo", weapon_ammo},
+               {"give_ammo", weapon_give_ammo}});
         extend_input(L, self);
         lua_pushlightuserdata(L, self);
         lua_pushcclosure(L, log, 1);
@@ -968,6 +1029,37 @@ void Runtime::notify(World &world, Entity entity, const std::string &function_na
         return;
     call(world, entity, *found->second, function_name.c_str(),
          [&argument](lua_State *L) { lua_pushlstring(L, argument.data(), argument.size()); }, 1);
+}
+
+void Runtime::notify_damage(World &world, Entity entity, float amount, std::optional<Entity> attacker, bool headshot,
+                            bool killed, const std::string &victim_name, const std::string &attacker_name) {
+    world_ = &world;
+    const auto found = instances_.find(entity);
+    if (found != instances_.end() && found->second && found->second->started) {
+        const auto attacker_id = attacker ? std::optional<std::int64_t>{id_of(*attacker)} : std::nullopt;
+        call(world, entity, *found->second, "on_damaged",
+             [&](lua_State *L) {
+                 lua_pushnumber(L, amount);
+                 if (attacker_id)
+                     lua_pushinteger(L, *attacker_id);
+                 else
+                     lua_pushnil(L);
+                 lua_pushboolean(L, headshot ? 1 : 0);
+             },
+             3);
+        const auto again = instances_.find(entity);
+        if (killed && again != instances_.end() && again->second)
+            call(world, entity, *again->second, "on_death",
+                 [&](lua_State *L) {
+                     if (attacker_id)
+                         lua_pushinteger(L, *attacker_id);
+                     else
+                         lua_pushnil(L);
+                 },
+                 1);
+    }
+    if (killed)
+        broadcast(world, "on_kill", victim_name, attacker_name);
 }
 
 void Runtime::broadcast(World &world, const std::string &function_name, const std::string &name,

@@ -169,6 +169,79 @@ Engine version 0.58.0 adds two editor features:
 
 See [F58](docs/IMPLEMENTATION_STATUS.md#f58--asset-import-and-a-stats-overlay-0580).
 
+Engine version 0.59.0 makes rotated colliders real:
+
+- **Oriented boxes**: a Box `Collider` on an entity with a `Rotation` now collides as that rotated box (separating-axis test). Diagonal walls block along their faces, and a tilted box is a ramp you can stand on without sliding down.
+- **Sliding**: bodies hitting a rotated wall slide along it instead of stopping dead.
+- **Hit normals**: `world.raycast` also returns the surface normal (`nx, ny, nz`).
+- **Navigation**: rotated walls block only the cells they cover, and walkable ramps don't block.
+
+See [F59](docs/IMPLEMENTATION_STATUS.md#f59--oriented-box-colliders-ramps-and-hit-normals-0590).
+
+Engine version 0.60.0 adds a `CharacterController` component for the Player:
+
+- **Movement**: from the named actions (`move_x`/`move_y`, `jump`, `sprint`, and a new default `crouch` on C, Ctrl or pad B). Ground speed accelerates and decelerates, and there is air control.
+- **Jumping**: coyote time and jump buffering.
+- **Crouching**: lowers the body. You only stand back up where there's headroom.
+- **Steps and slopes**: steps up to 0.4 m are climbed automatically, and the character sticks to stairs and slopes when walking down.
+- **FirstPerson mode**: Play puts the camera at the player's eyes with mouse look. Click the viewport to capture the mouse; right-drag and the right stick also look. The view has head bob, a landing dip, crouch easing, a sprint FOV kick and a crosshair.
+- **ThirdPerson mode**: movement is relative to the camera instead.
+
+See [F60](docs/IMPLEMENTATION_STATUS.md#f60--first-person-character-controller-0600).
+
+Engine version 0.61.0 adds weapons:
+
+- **`Weapons` component**: a text loadout, one weapon per line (`rifle: mode=auto rpm=620 damage=24 mag=30 reserve=180 reload=2.1 …`). It covers fire modes (semi, auto, burst), pellets, magazines and reserves, reloads (including shotgun-style per-shell reloads), spread (hip, aim, movement, airborne, bloom), recoil, damage falloff, headshots, aim zoom, and projectile weapons with gravity and splash damage.
+- **Player controls**: click to fire, right mouse to aim down sights, R to reload, 1–9, Q or the wheel to switch weapons. Gamepad: RT, LT, RB and d-pad up.
+- **First-person presentation**: procedural gun models (rifle, pistol, shotgun, SMG, sniper, launcher) drawn in their own pass, so they never clip into walls. They sway and bob, and animate recoil, reload, equip, aim and sprint. There are muzzle flashes, tracers, sparks and bullet-hole decals, and explosions.
+- **Sound**: synthesized gunshots and other combat sounds.
+- **HUD**: ammo, a crosshair that reflects real spread, hit and kill markers, damage-direction indicators, and health.
+- **Lua**: `weapon.fire([dx, dy, dz])`, `weapon.reload()`, `weapon.select(n)`, `weapon.ammo()` and `weapon.give_ammo(n)`. New callbacks are `on_damaged(amount, attacker, headshot)`, `on_death(attacker)` and `on_kill(victim, attacker)`.
+
+See [F61](docs/IMPLEMENTATION_STATUS.md#f61--weapons-0610).
+
+Engine version 0.62.0 adds combat AI with the `AICombat` component:
+
+- **Teams**: soldiers belong to a team; the Player is team 0.
+- **Perception**: a sight cone with real line of sight, hearing gunfire and explosions, and noticing who shot them.
+- **Behaviors**: patrol named waypoints, guard their post, or hunt the nearest enemy.
+- **Fighting**: engage from a preferred range in bursts with their `Weapons` (or melee without), strafe, take cover to reload or when hurt, search where they lost you, and optionally flee.
+- **Movement**: through the character controller along nav paths.
+- **Visuals**: soldiers face where they look, carry their weapon, and show "!" or "?" markers.
+
+See [F62](docs/IMPLEMENTATION_STATUS.md#f62--combat-ai-0620).
+
+Engine version 0.63.0 adds a `Terrain` component:
+
+- **Shape**: a heightfield from seeded fractal noise, plus offsets you paint with the viewport's **Sculpt** tool (raise, lower, smooth, flatten; radius and strength; one undo per stroke).
+- **Look**: colored sand, grass, rock (by slope) and snow (by height) over a detail texture.
+- **Scatter**: catalog models (trees, rocks, bushes) placed by density rules, drawn instanced, optionally with trunk colliders.
+- **Simulation**: bodies and the character controller stand on it, steep slopes can't be climbed, bullets and raycasts (including Lua's) hit it, and AI paths avoid cliffs.
+
+See [F63](docs/IMPLEMENTATION_STATUS.md#f63--terrain-0630).
+
+Engine version 0.64.0 upgrades audio:
+
+- **Mixer**: buses for SFX, music, ambient and UI into a compressed master, plus a shared room reverb. A new `AudioSettings` component sets the mix.
+- **Positional sound**: world sounds (gunfire, impacts, explosions, footsteps) play from where they happen with HRTF panning and distance falloff, and are muffled behind walls and terrain.
+- **`Sound`** can be positional and follows its entity; it picks a bus.
+- **Lua**: `sound.play_at(clip, x, y, z[, volume])` and `sound.volume(bus, v)`. `sfx:` names (`sfx:explosion`, `sfx:gunshot:rifle`, …) play synthesized sounds.
+- **Footsteps and landings**: players and soldiers make them, with a softer grass sound on terrain.
+
+See [F64](docs/IMPLEMENTATION_STATUS.md#f64--spatial-audio-mixer-and-footsteps-0640).
+
+Engine version 0.65.0 adds a `PostProcessing` component:
+
+- **Anti-aliasing**: SMAA or FXAA.
+- **Ambient occlusion**: GTAO, with radius and intensity.
+- **Bloom**: strength, radius and threshold.
+- **Exposure**: a multiplier on the environment's exposure.
+- **Color grading**: contrast, saturation and temperature, plus vignette, film grain and sun shadow quality.
+
+Without the component the original look is unchanged. Adding one starts from a polished preset (SMAA, AO, a little contrast and vignette, high-quality shadows).
+
+See [F65](docs/IMPLEMENTATION_STATUS.md#f65--post-processing-0650).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

@@ -65,6 +65,20 @@ public:
     // A request for something outside the simulation: "sound" (a = clip),
     // "ui_text" (a = UI element name, b = text), "log" (a = message).
     virtual void emit(Entity source, const std::string &kind, const std::string &a, const std::string &b) = 0;
+    // Weapons (0.61.0), for the Lua `weapon` table: `op` is "fire" (args:
+    // optional aim direction x, y, z), "reload", "select" (args: 0-based
+    // slot), "ammo" (out: magazine, reserve, slot, reloading 0/1),
+    // "give_ammo" (args: rounds, 0-based slot). Returns false when `self`
+    // has no weapons. The default host has none.
+    virtual bool weapon(World &world, Entity self, const std::string &op, const std::vector<double> &args,
+                        std::vector<double> &out) {
+        (void)world;
+        (void)self;
+        (void)op;
+        (void)args;
+        (void)out;
+        return false;
+    }
 };
 
 // Owns one Lua VM per (Box, physics::RigidBody, Script) entity, created the
@@ -252,6 +266,9 @@ public:
     void set_nav(const nav::Grid *grid) { nav_ = grid; }
     // Native input for the `input` table beyond input.down/pressed's string
     // keys: raw mouse and gamepad state, and named actions (input.action*).
+    // The physics settings world.raycast uses (ground plane, terrain); not
+    // owned. Without one, the defaults.
+    void set_physics_config(const physics::Config *config) { physics_config_ = config; }
     // Either may be null; the matching Lua calls then report nothing held.
     void set_input(const InputState *state, const ActionSystem *actions) {
         input_state_ = state;
@@ -269,6 +286,12 @@ public:
     // defines it -- the editor's on_ui(element, value). `value` is passed as
     // a number when it reads as one, otherwise as a string.
     void broadcast(World &world, const std::string &function_name, const std::string &name, const std::string &value);
+    // Calls on_damaged(amount, attacker, headshot) in the entity's script
+    // (attacker is an entity id or nil), then on_death(attacker) when this
+    // damage killed it, then on_kill(victim_name, attacker_name) in every
+    // script.
+    void notify_damage(World &world, Entity entity, float amount, std::optional<Entity> attacker, bool headshot,
+                       bool killed, const std::string &victim_name, const std::string &attacker_name);
     // Seconds of simulated time this Runtime has stepped (`time.now`).
     [[nodiscard]] double now() const { return now_; }
     // Queues a one-shot animation request for `entity`, exactly as if that
@@ -292,6 +315,7 @@ private:
               const std::function<void(lua_State *)> &push_args, int nargs);
     Host *host_{};
     const nav::Grid *nav_{};
+    const physics::Config *physics_config_{};
     const InputState *input_state_{};
     const ActionSystem *actions_{};
     World *world_{};

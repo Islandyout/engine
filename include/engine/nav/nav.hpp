@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/graphics/box_view.hpp"
+#include "engine/physics/physics.hpp"
 #include "engine/world/world.hpp"
 
 #include <cstdint>
@@ -32,7 +33,10 @@ public:
     // Rebuilds every cell from the world's (Box, physics::Collider) entities.
     // Entities in `ignore` (e.g. the agents themselves) are skipped, and so
     // are finite-mass dynamic bodies, which move and get pushed aside.
-    void bake(const World& world, const std::vector<Entity>& ignore = {});
+    // A terrain, when given, also blocks cells whose slope is steeper than
+    // physics::walkable_normal_y.
+    void bake(const World& world, const std::vector<Entity>& ignore = {},
+              const physics::Heightfield* terrain = nullptr);
 
     [[nodiscard]] bool walkable(float x, float z) const;
     [[nodiscard]] const Settings& settings() const { return settings_; }

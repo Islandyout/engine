@@ -455,10 +455,163 @@ int main() {
             const auto found = physics::overlap_sphere(world, {5.8F, 0, 0}, 0.5F);
             check(found.size() == 1 && found[0] == wall, "overlap_sphere finds the wall only");
         }
+        {
+            // A wall rotated 45 degrees about y blocks along its own face and the
+            // body slides along it instead of stopping dead.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            const auto wall = world.create();
+            world.set(wall, Box{{0, 1, 0}, {6, 2, 0.4F}});
+            Collider rotated{};
+            rotated.rotation = {0, 0.7853982F, 0};
+            world.set(wall, rotated);
+            check(physics::is_oriented(rotated), "a rotated box collider is oriented");
+            const auto body = world.create();
+            world.set(body, Box{{0, 0.5F, 1.5F}, {0.6F, 1, 0.6F}});
+            world.set(body, RigidBody{{-4, 0, 0}});
+            for (int i = 0; i < 90; ++i) {
+                world.get<RigidBody>(body)->velocity.x = -4;
+                physics::step(world, 1.0F / 60);
+            }
+            const auto &box = *world.get<Box>(body);
+            // The wall's face plane: local z axis is (sin45, 0, cos45).
+            const float side = box.center.x * 0.7071068F + box.center.z * 0.7071068F;
+            check(side > 0.2F + 0.29F, "body stays on its side of the rotated wall");
+            check(box.center.z > 3.5F, "body slid along the diagonal wall");
+        }
+        {
+            // A ramp (box tilted about x) can be stood on: the body comes to rest
+            // on its sloped surface, grounded, and does not creep downhill.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            const auto ramp = world.create();
+            world.set(ramp, Box{{0, 0, 0}, {4, 1, 8}});
+            Collider tilted{};
+            tilted.rotation = {-0.35F, 0, 0};
+            world.set(ramp, tilted);
+            const auto body = world.create();
+            world.set(body, Box{{0, 4, 1}, {0.6F, 1, 0.6F}});
+            world.set(body, RigidBody{});
+            for (int i = 0; i < 120; ++i)
+                physics::step(world, 1.0F / 60);
+            const float z_rest = world.get<Box>(body)->center.z;
+            const float y_rest = world.get<Box>(body)->center.y;
+            for (int i = 0; i < 120; ++i)
+                physics::step(world, 1.0F / 60);
+            const auto &box = *world.get<Box>(body);
+            check(world.get<RigidBody>(body)->grounded, "body on the ramp is grounded");
+            check(y_rest > 1.0F, "body rests above the ramp's untilted top");
+            check(std::abs(box.center.z - z_rest) < 0.01F && std::abs(box.center.y - y_rest) < 0.01F,
+                  "body does not creep down the ramp");
+            // rotation.x < 0 tilts the top face to rise toward +z.
+            const auto low = physics::raycast(world, {0, 10, -3}, {0, -1, 0}, 20.0F, {.gravity = -18.0F, .ground_y = -100.0F});
+            const auto high = physics::raycast(world, {0, 10, 3}, {0, -1, 0}, 20.0F, {.gravity = -18.0F, .ground_y = -100.0F});
+            check(low && high && low->entity == ramp && high->entity == ramp, "rays hit the ramp");
+            check(high->point.y > low->point.y + 1.5F, "the ramp surface rises along its slope");
+            check(low->normal.y > 0.9F && low->normal.z < -0.2F, "ramp hit normal tilts with the surface");
+        }
+        {
+            // Raycast normals for an axis-aligned box face, a sphere and the ground.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<Collider>("collider");
+            const auto crate = world.create();
+            world.set(crate, Box{{5, 1, 0}, {2, 2, 2}});
+            world.set(crate, Collider{});
+            const auto ball = world.create();
+            world.set(ball, Box{{0, 1, 5}, {1, 1, 1}});
+            Collider sphere{};
+            sphere.shape = physics::ColliderShape::Sphere;
+            sphere.radius = 1;
+            world.set(ball, sphere);
+            const auto face = physics::raycast(world, {0, 1, 0}, {1, 0, 0}, 50.0F);
+            check(face && face->entity == crate && face->normal.x == -1 && face->normal.y == 0,
+                  "box face normal faces the ray");
+            const auto round = physics::raycast(world, {0, 1, 0}, {0, 0, 1}, 50.0F);
+            check(round && round->entity == ball && std::abs(round->normal.z + 1) < 0.001F,
+                  "sphere normal points out of the sphere");
+            const auto ground = physics::raycast(world, {0, 5, -5}, {0, -1, 0}, 50.0F);
+            check(ground && ground->hit_ground && ground->normal.y == 1, "ground normal is up");
+            // A rotated box's world bounds enclose it.
+            Collider spun{};
+            spun.rotation = {0, 0.7853982F, 0};
+            const auto [lo, hi] = physics::world_bounds(Box{{0, 0, 0}, {2, 2, 2}}, &spun);
+            check(std::abs(hi.x - 1.4142135F) < 0.001F && std::abs(lo.z + 1.4142135F) < 0.001F,
+                  "rotated bounds enclose the rotated box");
+        }
+        {
+            // Terrain: a 3x3 heightfield over a 20x20 square with a 4-unit
+            // peak in the middle, centered at (100, 1, 0).
+            physics::Heightfield terrain;
+            terrain.center = {100, 1, 0};
+            terrain.size = 20;
+            terrain.resolution = 3;
+            terrain.heights = {0, 0, 0, 0, 4, 0, 0, 0, 0};
+            check(terrain.contains(109, 9) && !terrain.contains(111, 0), "terrain bounds");
+            check(std::abs(terrain.height_at(100, 0) - 5) < 1e-5F, "peak height (center.y + 4)");
+            check(std::abs(terrain.height_at(105, 0) - 3) < 1e-5F, "bilinear halfway down");
+            const auto n = terrain.normal_at(105, 0);
+            check(n.x > 0.3F && n.y > 0.5F && std::abs(n.z) < 1e-4F, "normal tilts away from the peak");
+            const Config config{.gravity = -18.0F, .ground_y = 0.0F, .terrain = &terrain};
+
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            // A gentle spot: settles on the surface, grounded.
+            const auto rests = world.create();
+            world.set(rests, Box{{108, 10, 8}, {1, 1, 1}});
+            world.set(rests, RigidBody{});
+            // Outside the square the flat ground plane still applies.
+            const auto outside = world.create();
+            world.set(outside, Box{{130, 5, 0}, {1, 1, 1}});
+            world.set(outside, RigidBody{});
+            for (int i = 0; i < 180; ++i)
+                physics::step(world, 1.0F / 60, config);
+            const float ground = terrain.height_at(108, 8);
+            check(world.get<RigidBody>(rests)->grounded, "resting on terrain is grounded");
+            check(std::abs(world.get<Box>(rests)->center.y - 0.5F - ground) < 0.02F, "rests on the terrain surface");
+            check(std::abs(world.get<Box>(outside)->center.y - 0.5F) < 1e-4F, "the plane holds outside the terrain");
+
+            // A steep slope can't be stood on: the body slides away from the peak.
+            physics::Heightfield cliff = terrain;
+            cliff.heights = {0, 0, 0, 0, 40, 0, 0, 0, 0};
+            const Config steep{.gravity = -18.0F, .ground_y = -100.0F, .terrain = &cliff};
+            World slide;
+            slide.register_component<Box>("box");
+            slide.register_component<RigidBody>("rigidbody");
+            slide.register_component<Collider>("collider");
+            const auto slider = slide.create();
+            slide.set(slider, Box{{103, cliff.height_at(103, 0) + 0.6F, 0}, {1, 1, 1}});
+            slide.set(slider, RigidBody{});
+            for (int i = 0; i < 60; ++i)
+                physics::step(slide, 1.0F / 60, steep);
+            check(slide.get<Box>(slider)->center.x > 104, "slides down a steep slope");
+            check(!slide.get<RigidBody>(slider)->grounded || slide.get<Box>(slider)->center.x > 109,
+                  "not grounded on the steep part");
+
+            // Raycasts hit the terrain surface with its normal; the plane under
+            // the terrain is ignored.
+            const auto down = physics::raycast(world, {105, 50, 0}, {0, -1, 0}, 100.0F, config);
+            check(down && down->hit_ground && std::abs(down->point.y - 3) < 0.01F, "ray down hits the slope");
+            check(down->normal.x > 0.3F, "with the slope's normal");
+            const auto across = physics::raycast(world, {85, 2, 0}, {1, 0, 0}, 40.0F, config);
+            check(across && across->hit_ground && std::abs(across->point.x - 92.5F) < 0.05F,
+                  "a level ray hits the hillside where it rises above y = 2");
+            const auto over = physics::raycast(world, {85, 6, 0}, {1, 0, 0}, 40.0F, config);
+            check(!over, "a ray above the peak misses");
+            const auto under = physics::raycast(world, {105, 0, 0}, {0, 1, 0}, 20.0F, config);
+            check(under && under->hit_ground && std::abs(under->point.y - 3) < 0.01F && under->normal.y < 0,
+                  "a ray up from beneath the surface hits its underside");
+        }
 
         std::cout << "Physics gravity, ground rest, box/sphere collider resolution, raycasting, "
                      "no-op dt, dynamic pairs, kinematic bodies, triggers, contact events, layers, "
-                     "bounciness, forces/impulses and query filters passed.\n";
+                     "bounciness, forces/impulses, query filters, oriented boxes, ramps, hit normals and terrain heightfields passed.\n";
     } catch (const std::exception &e) {
         std::cerr << e.what() << '\n';
         return 1;

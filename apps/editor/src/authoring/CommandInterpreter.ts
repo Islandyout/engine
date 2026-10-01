@@ -1,4 +1,4 @@
-import type { EnvironmentComponent } from "../scene/Components";
+import type { CharacterControllerComponent, EnvironmentComponent } from "../scene/Components";
 import {
   deserializeScene,
   normalizeComponent,
@@ -81,6 +81,12 @@ const componentNames = [
   "CameraFollow",
   "InputActions",
   "Trail",
+  "CharacterController",
+  "Weapons",
+  "AICombat",
+  "Terrain",
+  "AudioSettings",
+  "PostProcessing",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -642,7 +648,37 @@ export function defaultComponent(
         props: { speed: 3 },
       };
     case "Sound":
-      return { clip: 1, volume: 1, loop: false, autoplay: true };
+      return {
+        clip: 1,
+        volume: 1,
+        loop: false,
+        autoplay: true,
+        spatial: false,
+        bus: "SFX",
+        minDistance: 2,
+        maxDistance: 60,
+      };
+    case "PostProcessing":
+      // A good-looking starting point rather than "no change": SMAA, AO, a
+      // touch of contrast and vignette.
+      return {
+        antialias: "SMAA",
+        ambientOcclusion: true,
+        aoRadius: 0.5,
+        aoIntensity: 1,
+        bloom: 0.35,
+        bloomRadius: 0.5,
+        bloomThreshold: 0.85,
+        exposure: 1,
+        contrast: 0.08,
+        saturation: 0.05,
+        temperature: 0,
+        vignette: 0.3,
+        grain: 0,
+        shadowQuality: "High",
+      };
+    case "AudioSettings":
+      return { master: 1, sfx: 1, music: 0.7, ambient: 0.8, ui: 1, reverb: 0.18, occlusion: true };
     case "Environment":
       return defaultEnvironment();
     case "Camera":
@@ -661,6 +697,58 @@ export function defaultComponent(
           "fire: mouse_left, pad_rt, pad_x",
           "interact: e, pad_y",
           "sprint: shift, pad_lb",
+          "crouch: c, ctrl, pad_b",
+          "aim: mouse_right, pad_lt",
+          "reload: r, pad_rb",
+          "next_weapon: q, pad_up",
+          "weapon_scroll: wheel",
+        ].join("\n") + "\n",
+      };
+    case "CharacterController":
+      return defaultCharacterController();
+    case "Terrain":
+      return {
+        size: 120,
+        resolution: 97,
+        height: 6,
+        seed: 1,
+        frequency: 1.5,
+        octaves: 4,
+        sculpt: "",
+        grassColor: { x: 0.33, y: 0.48, z: 0.2 },
+        rockColor: { x: 0.42, y: 0.4, z: 0.38 },
+        sandColor: { x: 0.76, y: 0.7, z: 0.5 },
+        snowColor: { x: 0.95, y: 0.96, z: 1 },
+        sandHeight: -2.5,
+        snowHeight: 9,
+        rockSlope: 0.82,
+        scatter: "",
+      };
+    case "AICombat":
+      return {
+        team: 1,
+        behavior: "Patrol",
+        patrol: "",
+        sightRange: 25,
+        fov: 110,
+        hearingRange: 30,
+        reactionTime: 0.45,
+        accuracy: 0.6,
+        preferredRange: 12,
+        moveSpeed: 3.6,
+        burst: 4,
+        burstPause: 0.7,
+        useCover: true,
+        fleeHealth: 0,
+        meleeDamage: 12,
+      };
+    case "Weapons":
+      // Kept in sync with engine::gameplay::default_weapons_text (weapons.cpp).
+      return {
+        loadout: [
+          "rifle: model=rifle mode=auto rpm=620 damage=24 mag=30 reserve=180 reload=2.1 spread=2.2 aim_spread=0.35 recoil=0.9 range=200 falloff=45 zoom=0.75",
+          "pistol: model=pistol mode=semi rpm=380 damage=34 mag=12 reserve=-1 reload=1.3 spread=1.6 aim_spread=0.3 recoil=1.8 range=120 falloff=30 zoom=0.85 equip=0.3",
+          "shotgun: model=shotgun mode=semi rpm=80 pellets=9 damage=12 mag=6 reserve=36 reload=0.5 per_shell spread=6 aim_spread=4.5 recoil=4.5 range=45 falloff=10 min_damage=0.2 zoom=0.9 equip=0.5",
         ].join("\n") + "\n",
       };
     case "CameraFollow":
@@ -701,6 +789,26 @@ export type { SceneDocument };
 // Reproduces the editor's original fixed lighting (dark blue backdrop,
 // hemisphere ambient 3, sun at (4, 8, 5) with intensity 3), so adding an
 // Environment changes nothing until its values are edited.
+// Mirrors engine::gameplay::ControllerSettings' own defaults.
+export function defaultCharacterController(): CharacterControllerComponent {
+  return {
+    mode: "FirstPerson",
+    walkSpeed: 4.5,
+    sprintSpeed: 7.5,
+    crouchSpeed: 2.2,
+    jumpHeight: 1.1,
+    standHeight: 1.8,
+    crouchHeight: 1.1,
+    stepHeight: 0.4,
+    acceleration: 45,
+    airControl: 12,
+    lookSensitivity: 1,
+    invertY: false,
+    fov: 75,
+    headBob: 1,
+  };
+}
+
 export function defaultEnvironment(): EnvironmentComponent {
   return {
     sky: "Color",

@@ -1,4 +1,6 @@
 #include "bindings.hpp"
+#include "engine/gameplay/character.hpp"
+#include "engine/gameplay/weapons.hpp"
 #include "engine/nav/nav.hpp"
 #include "engine/physics/physics.hpp"
 #include "engine/script/script.hpp"
@@ -6,6 +8,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <cstdlib>
 #include <cmath>
 #include <iterator>
@@ -150,6 +153,11 @@ struct Projectile final {
     // default (must stay before `lifetime` for that to work).
     engine::Entity owner{};
     float lifetime{1.5F}; // seconds remaining; destroyed at/below 0
+    // Weapon projectiles (0.61.0) carry their own damage, gravity scale and
+    // explosion radius; the G blast keeps these defaults.
+    float damage{15.0F};
+    float gravity{0.0F};
+    float splash{0.0F};
 };
 
 constexpr float move_speed = 4.8F; // units/s; matches the native playground's tuned feel
@@ -250,20 +258,104 @@ engine::Key key_for(int code) {
     }
 }
 
-// Shared by melee ("attack") and blast hits: applies damage to a Health
-// entity and destroys it on defeat. Mirrors the native playground's own
-// damage_enemy, generalized to whichever Health entity was actually hit
-// instead of one hardcoded enemy. A no-op if target has no Health (already
-// destroyed between the caller's query and this call, e.g. two projectiles
-// landing the same tick).
-void damage(engine::World &w, engine::Entity target, float amount) {
-    auto *health = w.get<Health>(target);
-    if (!health)
-        return;
-    health->current = std::max(0.0F, health->current - amount);
-    if (health->current <= 0)
-        w.defer_destroy(target);
-}
+// A CharacterController (0.60.0): the entity moves through
+// engine::gameplay's controller (acceleration, sprint/crouch, coyote time,
+// jump buffering, step climbing) from the named input actions instead of the
+// fixed WASD model. first_person: movement is relative to the look yaw the
+// editor sends each frame (editor_set_look); otherwise to the camera's
+// horizontal facing (editor_set_camera_forward).
+struct Controller final {
+    engine::gameplay::ControllerSettings settings;
+    engine::gameplay::ControllerState state;
+    bool first_person{true};
+};
+
+// Weapons (0.61.0): the entity's loadout and its engine::gameplay
+// state. A Player fires from the named actions (fire, aim, reload,
+// next_weapon, weapon_scroll, digit keys) along the look direction; any other
+// entity fires when its script calls weapon.fire().
+struct Arsenal final {
+    std::vector<engine::gameplay::WeaponDef> weapons;
+    engine::gameplay::WeaponState state;
+    bool aiming{false};
+    // Script-driven trigger for the next tick (weapon.fire / reload / select).
+    bool script_fire{false};
+    bool script_reload{false};
+    int script_select{-1};
+    std::optional<engine::Vec3> script_aim;
+};
+
+// Combat AI (0.62.0): a soldier that perceives hostiles (sight cone with
+// line of sight, gunfire and explosions it can hear, being shot), patrols or
+// guards, fights at a preferred range in bursts with its Weapons (or melee
+// without them), strafes, takes cover to reload or when hurt, searches where
+// it last saw a target, and moves through an engine::gameplay controller
+// (acceleration, steps) along nav-grid paths. Teams: the Player is team 0.
+enum class SoldierMode : int { patrol, investigate, combat, search, cover, flee };
+enum class SoldierBehavior : int { patrol, guard, hunt };
+struct Soldier final {
+    // Authored (editor_set_soldier).
+    int team{1};
+    SoldierBehavior behavior{SoldierBehavior::patrol};
+    float sight_range{25.0F};
+    float fov_cos{0.57F}; // cosine of half the field of view
+    float hearing{30.0F};
+    float reaction{0.45F};
+    float accuracy{0.6F};
+    float preferred_range{12.0F};
+    float move_speed{3.6F};
+    int burst{4};
+    float burst_pause{0.7F};
+    bool use_cover{true};
+    float flee_health{0.0F};
+    float melee_damage{12.0F};
+    std::vector<std::string> patrol_names;
+    // Runtime state.
+    bool initialized{false};
+    engine::Vec3 home{};
+    std::vector<engine::Vec3> patrol_points;
+    std::size_t waypoint{0};
+    float wait{0};
+    SoldierMode mode{SoldierMode::patrol};
+    std::optional<engine::Entity> target;
+    engine::Vec3 last_known{};
+    float since_seen{99.0F};
+    float reaction_left{0};
+    float awareness{0}; // 0..1, how close it is to noticing (drives the editor's "?" marker)
+    int burst_left{0};
+    float burst_cooldown{0};
+    float strafe_timer{0};
+    float strafe_dir{1};
+    float search_timer{0};
+    float melee_cooldown{0};
+    std::optional<engine::Vec3> cover;
+    float cover_timer{0};
+    std::vector<engine::Vec3> path;
+    engine::Vec3 path_goal{};
+    float repath{0};
+    float yaw{0}; // facing (sin yaw, 0, cos yaw)
+    std::uint32_t rng{1};
+};
+// A sound soldiers can hear this tick: gunfire or an explosion.
+struct Noise final {
+    engine::Vec3 at{};
+    int team{-1};
+    float radius_scale{1.0F};
+};
+
+// What the editor hears about combat each frame (editor_take_weapon_events).
+enum class WeaponEventKind : int { fire, impact, reload, reloaded, empty, switched, explode, damaged };
+struct WeaponEvent final {
+    WeaponEventKind kind{};
+    int shooter{-1};
+    int target{-1};
+    engine::Vec3 point{};
+    engine::Vec3 normal{};
+    float value{};
+    int flags{};
+};
+// WeaponEvent::flags bits.
+constexpr int event_headshot = 1, event_killed = 2, event_flesh = 4;
 
 // Authored Name, so scripts can world.find()/world.name() entities.
 struct EntityName final {
@@ -300,6 +392,8 @@ public:
     bool health(const engine::World &world, engine::Entity entity, float &current, float &max) override;
     void damage(engine::World &world, engine::Entity entity, float amount) override;
     void emit(engine::Entity source, const std::string &kind, const std::string &a, const std::string &b) override;
+    bool weapon(engine::World &world, engine::Entity self, const std::string &op, const std::vector<double> &args,
+                std::vector<double> &out) override;
 
 private:
     Runtime &runtime_;
@@ -340,6 +434,17 @@ struct Runtime {
     // down -z, which this default simply assumes until told otherwise.
     float camera_forward_x{0.0F};
     float camera_forward_z{-1.0F};
+    // First-person look direction in radians, set by editor_set_look() once
+    // per rendered frame (the editor owns mouse look so it stays smooth at
+    // any display rate). yaw 0 looks down -z; pitch > 0 looks up.
+    float look_yaw{0.0F};
+    float look_pitch{0.0F};
+    // Physics settings shared by every system that steps or queries it.
+    engine::physics::Config physics_config{};
+    // The scene's terrain (editor_set_terrain), if any; physics_config and
+    // the nav grid point at it.
+    std::optional<engine::physics::Heightfield> terrain;
+    int obstacle_count{0};
     engine::script::Runtime script_runtime;
     std::map<engine::Entity, std::string> script_errors;
     // Contact/trigger bookkeeping across physics steps (enter/stay/exit).
@@ -351,6 +456,533 @@ struct Runtime {
     // defaults), evaluated from `input` every tick.
     engine::ActionSystem actions{default_input_map()};
     std::string bindings_error;
+    std::vector<WeaponEvent> weapon_events;
+    std::string weapons_error;
+    std::vector<Noise> noises;
+    int team_of(const engine::World &w, engine::Entity entity) const {
+        if (w.get<PlayerMarker>(entity))
+            return 0;
+        if (const auto *soldier = w.get<Soldier>(entity))
+            return soldier->team;
+        return -1;
+    }
+    int index_of(engine::Entity entity) const {
+        for (std::size_t i = 0; i < entities.size(); ++i)
+            if (entities[i] == entity)
+                return static_cast<int>(i);
+        return -1;
+    }
+    void push_event(WeaponEvent event) {
+        if (weapon_events.size() < 1024)
+            weapon_events.push_back(event);
+    }
+    // Every damage path (weapons, melee, blast, AI attacks, scripts) lands
+    // here: Health goes down, the editor gets a "damaged" event, the target's
+    // script hears on_damaged/on_death, and a defeated entity is destroyed.
+    // A no-op without Health or once already at 0.
+    void apply_damage(engine::World &w, engine::Entity target, float amount, std::optional<engine::Entity> attacker,
+                      bool headshot = false) {
+        auto *health = w.get<Health>(target);
+        if (!health || health->current <= 0 || !(amount > 0))
+            return;
+        health->current = std::max(0.0F, health->current - amount);
+        const bool killed = health->current <= 0;
+        if (killed)
+            w.defer_destroy(target);
+        WeaponEvent event{WeaponEventKind::damaged, attacker ? index_of(*attacker) : -1, index_of(target)};
+        const auto *source = attacker ? w.get<engine::Box>(*attacker) : nullptr;
+        event.point = source ? source->center : w.get<engine::Box>(target)->center;
+        event.value = amount;
+        event.flags = (headshot ? event_headshot : 0) | (killed ? event_killed : 0);
+        push_event(event);
+        const auto name = [&w](std::optional<engine::Entity> entity) {
+            const auto *n = entity ? w.get<EntityName>(*entity) : nullptr;
+            return n ? n->value : std::string{};
+        };
+        script_runtime.notify_damage(w, target, amount, attacker, headshot, killed, name(target), name(attacker));
+        if (auto *soldier = w.get<Soldier>(target); soldier && attacker && source &&
+                                                    team_of(w, *attacker) != soldier->team) {
+            soldier->last_known = source->center;
+            soldier->awareness = 1;
+            if (soldier->mode != SoldierMode::combat && soldier->mode != SoldierMode::cover)
+                soldier->mode = SoldierMode::investigate;
+        }
+    }
+    // The nearest thing a ray hits: a Collider (or the ground) through
+    // physics::raycast, or any Box with Health that has no Collider.
+    struct Trace final {
+        std::optional<engine::Entity> entity;
+        engine::Vec3 point{};
+        engine::Vec3 normal{};
+        float distance{};
+    };
+    std::optional<Trace> trace(engine::World &w, engine::Vec3 origin, engine::Vec3 direction, float range,
+                               engine::Entity ignore) {
+        engine::physics::QueryFilter filter;
+        filter.ignore = ignore;
+        std::optional<Trace> best;
+        if (const auto hit = engine::physics::raycast(w, origin, direction, range, physics_config, filter))
+            best = Trace{hit->hit_ground ? std::nullopt : std::optional{hit->entity}, hit->point, hit->normal,
+                         hit->distance};
+        for (const auto entity : w.query<engine::Box, Health>()) {
+            if (entity == ignore || w.get<engine::physics::Collider>(entity))
+                continue;
+            const auto &box = *w.get<engine::Box>(entity);
+            // Slab test against the target's box.
+            float t_min = 0, t_max = best ? best->distance : range;
+            int axis_hit = -1;
+            const float o[3]{origin.x, origin.y, origin.z}, d[3]{direction.x, direction.y, direction.z};
+            const float c[3]{box.center.x, box.center.y, box.center.z}, h[3]{box.size.x / 2, box.size.y / 2,
+                                                                            box.size.z / 2};
+            bool miss = false;
+            for (int a = 0; a < 3 && !miss; ++a) {
+                if (std::abs(d[a]) < 1e-9F) {
+                    miss = o[a] < c[a] - h[a] || o[a] > c[a] + h[a];
+                    continue;
+                }
+                float t1 = (c[a] - h[a] - o[a]) / d[a], t2 = (c[a] + h[a] - o[a]) / d[a];
+                if (t1 > t2)
+                    std::swap(t1, t2);
+                if (t1 > t_min) {
+                    t_min = t1;
+                    axis_hit = a;
+                }
+                t_max = std::min(t_max, t2);
+                miss = t_min > t_max;
+            }
+            if (miss || (best && t_min >= best->distance))
+                continue;
+            float n[3]{0, 0, 0};
+            if (axis_hit >= 0)
+                n[axis_hit] = d[axis_hit] > 0 ? -1.0F : 1.0F;
+            best = Trace{entity,
+                         {origin.x + direction.x * t_min, origin.y + direction.y * t_min,
+                          origin.z + direction.z * t_min},
+                         {n[0], n[1], n[2]},
+                         t_min};
+        }
+        return best;
+    }
+    // Fires one round of `arsenal`'s current weapon from `origin` along
+    // `direction` (unit): hitscan pellets, or a projectile.
+    void fire_weapon(engine::World &w, engine::Entity shooter, Arsenal &arsenal, engine::Vec3 origin,
+                     engine::Vec3 direction, float spread) {
+        const auto slot = static_cast<std::size_t>(arsenal.state.current);
+        const auto &weapon = arsenal.weapons[slot];
+        WeaponEvent fired{WeaponEventKind::fire, index_of(shooter), -1, origin, direction, weapon.recoil,
+                          static_cast<int>(slot)};
+        push_event(fired);
+        noises.push_back({origin, team_of(w, shooter), 1.0F});
+        if (weapon.projectile) {
+            const auto aim = engine::gameplay::spread_direction(direction, spread, arsenal.state.rng);
+            const auto projectile = w.defer_create();
+            w.defer_set(projectile, engine::Box{{origin.x + aim.x * 0.6F, origin.y + aim.y * 0.6F,
+                                                 origin.z + aim.z * 0.6F},
+                                                {0.25F, 0.25F, 0.25F}});
+            Projectile p{{aim.x * weapon.speed, aim.y * weapon.speed, aim.z * weapon.speed}, shooter};
+            p.lifetime = weapon.range / weapon.speed + 1.0F;
+            p.damage = weapon.damage;
+            p.gravity = weapon.gravity;
+            p.splash = weapon.splash;
+            w.defer_set(projectile, p);
+            return;
+        }
+        std::map<engine::Entity, std::pair<float, bool>> damage_by_target;
+        for (int pellet = 0; pellet < weapon.pellets; ++pellet) {
+            const auto aim = engine::gameplay::spread_direction(direction, spread, arsenal.state.rng);
+            const auto hit = trace(w, origin, aim, weapon.range, shooter);
+            if (!hit)
+                continue;
+            const bool flesh = hit->entity && w.get<Health>(*hit->entity);
+            push_event({WeaponEventKind::impact, index_of(shooter), hit->entity ? index_of(*hit->entity) : -1,
+                        hit->point, hit->normal, 0, flesh ? event_flesh : 0});
+            if (!flesh)
+                continue;
+            const auto &box = *w.get<engine::Box>(*hit->entity);
+            const bool headshot =
+                box.size.y >= 1.2F && hit->point.y >= box.center.y + box.size.y / 2 - box.size.y * 0.22F;
+            auto &entry = damage_by_target[*hit->entity];
+            entry.first += engine::gameplay::damage_at(weapon, hit->distance) * (headshot ? weapon.headshot : 1.0F);
+            entry.second = entry.second || headshot;
+        }
+        for (const auto &[target, entry] : damage_by_target)
+            apply_damage(w, target, entry.first, shooter, entry.second);
+    }
+    // An explosion: damage falls off linearly to 0 at the radius, and
+    // finite-mass bodies are pushed away.
+    void explode(engine::World &w, engine::Entity owner, engine::Vec3 at, float radius, float damage_amount) {
+        push_event({WeaponEventKind::explode, index_of(owner), -1, at, {0, 1, 0}, radius, 0});
+        noises.push_back({at, team_of(w, owner), 1.5F});
+        for (const auto entity : w.query<engine::Box>()) {
+            const auto &box = *w.get<engine::Box>(entity);
+            const engine::Vec3 delta{box.center.x - at.x, box.center.y - at.y, box.center.z - at.z};
+            const float distance = std::sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
+            if (distance >= radius)
+                continue;
+            const float scale = 1.0F - distance / radius;
+            if (w.get<Health>(entity))
+                apply_damage(w, entity, damage_amount * scale, owner);
+            if (auto *body = w.get<engine::physics::RigidBody>(entity);
+                body && body->mass > 0 && body->type == engine::physics::BodyType::Dynamic && distance > 1e-3F) {
+                const float push = 12.0F * scale * body->mass;
+                engine::physics::add_impulse(*body, {delta.x / distance * push, delta.y / distance * push + push * 0.3F,
+                                                     delta.z / distance * push});
+            }
+        }
+    }
+    // -- Combat AI (Soldier) ---------------------------------------------
+    static float random01(std::uint32_t &state) {
+        if (state == 0)
+            state = 1;
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        return static_cast<float>(state & 0xFFFFFFU) / 16777216.0F;
+    }
+    // Sight: inside range and the view cone (or very close), with nothing
+    // solid in between.
+    bool soldier_sees(engine::World &w, engine::Entity self, const Soldier &soldier, const engine::Box &box,
+                      engine::Entity target) {
+        const auto &target_box = *w.get<engine::Box>(target);
+        const engine::Vec3 eye{box.center.x, box.center.y + box.size.y * 0.4F, box.center.z};
+        const engine::Vec3 aim{target_box.center.x, target_box.center.y + target_box.size.y * 0.25F,
+                               target_box.center.z};
+        const engine::Vec3 delta{aim.x - eye.x, aim.y - eye.y, aim.z - eye.z};
+        const float distance = std::sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
+        if (distance > soldier.sight_range || distance < 1e-3F)
+            return false;
+        const float flat = std::sqrt(delta.x * delta.x + delta.z * delta.z);
+        const float facing = flat > 1e-3F ? (std::sin(soldier.yaw) * delta.x + std::cos(soldier.yaw) * delta.z) / flat
+                                          : 1.0F;
+        if (facing < soldier.fov_cos && distance > 2.5F)
+            return false;
+        engine::physics::QueryFilter filter;
+        filter.ignore = self;
+        const auto hit = engine::physics::raycast(w, eye, delta, distance, physics_config, filter);
+        return !hit || hit->distance >= distance - 0.3F || (!hit->hit_ground && hit->entity == target);
+    }
+    // A unit horizontal direction along a nav path toward `goal` (zero when
+    // there). Paths are refreshed twice a second or when the goal moves.
+    engine::Vec3 soldier_steer(Soldier &soldier, const engine::Vec3 &from, const engine::Vec3 &goal, float dt) {
+        const float gx = goal.x - soldier.path_goal.x, gz = goal.z - soldier.path_goal.z;
+        soldier.repath -= dt;
+        if (soldier.repath <= 0 || gx * gx + gz * gz > 1.0F) {
+            soldier.repath = 0.5F;
+            soldier.path_goal = goal;
+            const auto found = nav_grid.find_path(from, goal);
+            soldier.path = found ? *found : std::vector<engine::Vec3>{};
+        }
+        while (soldier.path.size() > 1) {
+            const float wx = soldier.path.front().x - from.x, wz = soldier.path.front().z - from.z;
+            if (wx * wx + wz * wz > 0.4F * 0.4F)
+                break;
+            soldier.path.erase(soldier.path.begin());
+        }
+        const engine::Vec3 aim = soldier.path.empty() ? goal : soldier.path.front();
+        const float dx = aim.x - from.x, dz = aim.z - from.z;
+        const float length = std::sqrt(dx * dx + dz * dz);
+        const float remaining_x = goal.x - from.x, remaining_z = goal.z - from.z;
+        if (length < 1e-3F || remaining_x * remaining_x + remaining_z * remaining_z < 0.35F * 0.35F)
+            return {};
+        return {dx / length, 0, dz / length};
+    }
+    // The nearest walkable spot within 9 m that something at `threat` can't
+    // see (a solid collider blocks the line to chest height).
+    std::optional<engine::Vec3> find_cover(engine::World &w, engine::Entity self, const engine::Vec3 &from,
+                                           const engine::Vec3 &threat) {
+        engine::physics::QueryFilter filter;
+        filter.ignore = self;
+        for (const float radius : {2.5F, 5.0F, 8.0F}) {
+            std::optional<engine::Vec3> best;
+            float best_distance = 0;
+            for (int i = 0; i < 16; ++i) {
+                const float angle = static_cast<float>(i) * 0.39269908F;
+                const engine::Vec3 spot{from.x + std::cos(angle) * radius, from.y, from.z + std::sin(angle) * radius};
+                if (!nav_grid.walkable(spot.x, spot.z))
+                    continue;
+                const engine::Vec3 chest{spot.x, from.y + 0.3F, spot.z};
+                const engine::Vec3 delta{chest.x - threat.x, chest.y - threat.y, chest.z - threat.z};
+                const float distance = std::sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
+                const auto hit = engine::physics::raycast(w, threat, delta, distance, physics_config, filter);
+                if (!hit || hit->hit_ground || hit->distance >= distance - 0.4F)
+                    continue;
+                const float dx = spot.x - from.x, dz = spot.z - from.z;
+                const float to_threat = (spot.x - threat.x) * (spot.x - threat.x) + (spot.z - threat.z) * (spot.z - threat.z);
+                // Prefer close spots that don't walk toward the threat.
+                const float score = std::sqrt(dx * dx + dz * dz) - 0.2F * std::sqrt(to_threat);
+                if (!best || score < best_distance) {
+                    best = spot;
+                    best_distance = score;
+                }
+            }
+            if (best)
+                return best;
+        }
+        return std::nullopt;
+    }
+    void step_soldiers(engine::World &w) {
+        constexpr float dt = 1.0F / 60.0F;
+        const auto heard = std::move(noises);
+        noises.clear();
+        // Every living hostile candidate: Players (team 0) and soldiers.
+        std::vector<engine::Entity> fighters;
+        for (const auto entity : w.query<engine::Box, Health>())
+            if (w.get<Health>(entity)->current > 0 && team_of(w, entity) >= 0)
+                fighters.push_back(entity);
+        for (const auto self : w.query<engine::Box, Soldier, Controller>()) {
+            auto &soldier = *w.get<Soldier>(self);
+            auto &controller = *w.get<Controller>(self);
+            const auto &box = *w.get<engine::Box>(self);
+            const auto *health = w.get<Health>(self);
+            if (health && health->current <= 0)
+                continue;
+            if (!soldier.initialized) {
+                soldier.initialized = true;
+                soldier.home = box.center;
+                soldier.rng = 0x2545F491U ^ static_cast<std::uint32_t>(index_of(self) * 7919 + 1);
+                for (const auto &name : soldier.patrol_names)
+                    if (const auto found = host.find(w, name))
+                        soldier.patrol_points.push_back(w.get<engine::Box>(*found)->center);
+            }
+            // Perception: keep a visible target, else pick the nearest visible hostile.
+            std::optional<engine::Entity> seen;
+            if (soldier.target && w.alive(*soldier.target) && w.get<Health>(*soldier.target) &&
+                w.get<Health>(*soldier.target)->current > 0 && soldier_sees(w, self, soldier, box, *soldier.target))
+                seen = soldier.target;
+            if (!seen) {
+                float nearest = 0;
+                for (const auto other : fighters) {
+                    if (other == self || team_of(w, other) == soldier.team)
+                        continue;
+                    const auto &other_box = *w.get<engine::Box>(other);
+                    const float dx = other_box.center.x - box.center.x, dz = other_box.center.z - box.center.z;
+                    const float distance = dx * dx + dz * dz;
+                    if ((!seen || distance < nearest) && soldier_sees(w, self, soldier, box, other)) {
+                        seen = other;
+                        nearest = distance;
+                    }
+                }
+            }
+            if (!seen && soldier.mode != SoldierMode::combat && soldier.mode != SoldierMode::cover)
+                for (const auto &noise : heard) {
+                    if (noise.team == soldier.team)
+                        continue;
+                    const float dx = noise.at.x - box.center.x, dz = noise.at.z - box.center.z;
+                    if (dx * dx + dz * dz <= soldier.hearing * soldier.hearing * noise.radius_scale * noise.radius_scale) {
+                        soldier.last_known = noise.at;
+                        soldier.awareness = std::max(soldier.awareness, 0.6F);
+                        soldier.mode = SoldierMode::investigate;
+                    }
+                }
+            if (soldier.behavior == SoldierBehavior::hunt && !seen && soldier.mode == SoldierMode::patrol) {
+                // A hunter always knows roughly where the nearest hostile is.
+                for (const auto other : fighters)
+                    if (team_of(w, other) != soldier.team && other != self) {
+                        soldier.last_known = w.get<engine::Box>(other)->center;
+                        soldier.mode = SoldierMode::investigate;
+                        break;
+                    }
+            }
+
+            engine::Vec3 move{};
+            float pace = 0;
+            std::optional<engine::Vec3> face;
+            auto *arsenal = w.get<Arsenal>(self);
+            const bool reloading = arsenal && arsenal->state.reload_left > 0;
+            const float health_ratio = health && health->max > 0 ? health->current / health->max : 1.0F;
+            soldier.melee_cooldown = std::max(0.0F, soldier.melee_cooldown - dt);
+            if (seen) {
+                soldier.target = seen;
+                soldier.since_seen = 0;
+                soldier.last_known = w.get<engine::Box>(*seen)->center;
+                if (soldier.mode != SoldierMode::combat && soldier.mode != SoldierMode::cover &&
+                    soldier.mode != SoldierMode::flee) {
+                    soldier.mode = SoldierMode::combat;
+                    soldier.reaction_left = soldier.reaction;
+                    soldier.burst_left = soldier.burst;
+                }
+                soldier.awareness = 1;
+            } else {
+                soldier.since_seen += dt;
+                soldier.awareness = std::max(0.0F, soldier.awareness - dt * 0.15F);
+            }
+            if (soldier.flee_health > 0 && health_ratio <= soldier.flee_health && soldier.since_seen < 5)
+                soldier.mode = SoldierMode::flee;
+
+            switch (soldier.mode) {
+            case SoldierMode::patrol: {
+                if (soldier.behavior == SoldierBehavior::patrol && !soldier.patrol_points.empty()) {
+                    const auto &point = soldier.patrol_points[soldier.waypoint % soldier.patrol_points.size()];
+                    if (soldier.wait > 0) {
+                        soldier.wait -= dt;
+                    } else {
+                        move = soldier_steer(soldier, box.center, point, dt);
+                        pace = 0.45F;
+                        if (move.x == 0 && move.z == 0) {
+                            soldier.waypoint++;
+                            soldier.wait = 1.2F;
+                        }
+                    }
+                } else {
+                    const float dx = soldier.home.x - box.center.x, dz = soldier.home.z - box.center.z;
+                    if (dx * dx + dz * dz > 1.5F * 1.5F) {
+                        move = soldier_steer(soldier, box.center, soldier.home, dt);
+                        pace = 0.45F;
+                    } else {
+                        // Guarding: slowly look left and right.
+                        soldier.yaw += std::sin(time_now * 0.4F + static_cast<float>(index_of(self))) * 0.35F * dt;
+                    }
+                }
+                break;
+            }
+            case SoldierMode::investigate: {
+                move = soldier_steer(soldier, box.center, soldier.last_known, dt);
+                pace = 1.0F;
+                if (move.x == 0 && move.z == 0) {
+                    soldier.mode = SoldierMode::search;
+                    soldier.search_timer = 4.0F;
+                }
+                break;
+            }
+            case SoldierMode::search: {
+                soldier.yaw += 1.4F * dt;
+                soldier.search_timer -= dt;
+                if (soldier.search_timer <= 0) {
+                    soldier.mode = SoldierMode::patrol;
+                    soldier.target.reset();
+                }
+                break;
+            }
+            case SoldierMode::flee: {
+                const float dx = box.center.x - soldier.last_known.x, dz = box.center.z - soldier.last_known.z;
+                const float length = std::sqrt(dx * dx + dz * dz);
+                if (length > 1e-3F)
+                    move = {dx / length, 0, dz / length};
+                pace = 1.0F;
+                if (soldier.since_seen > 5) {
+                    soldier.mode = SoldierMode::search;
+                    soldier.search_timer = 3.0F;
+                }
+                break;
+            }
+            case SoldierMode::cover: {
+                if (!soldier.cover)
+                    soldier.cover = find_cover(w, self, box.center,
+                                               {soldier.last_known.x, soldier.last_known.y + 0.6F, soldier.last_known.z});
+                if (!soldier.cover) {
+                    soldier.mode = SoldierMode::combat;
+                    break;
+                }
+                move = soldier_steer(soldier, box.center, *soldier.cover, dt);
+                pace = 1.0F;
+                if (move.x == 0 && move.z == 0) {
+                    soldier.cover_timer -= dt;
+                    if (soldier.cover_timer <= 0 && !reloading) {
+                        soldier.mode = SoldierMode::combat; // peek back out
+                        soldier.reaction_left = soldier.reaction * 0.5F;
+                    }
+                }
+                if (seen)
+                    face = soldier.last_known;
+                break;
+            }
+            case SoldierMode::combat: {
+                if (!seen) {
+                    move = soldier_steer(soldier, box.center, soldier.last_known, dt);
+                    pace = 0.9F;
+                    if (soldier.since_seen > 1.5F) {
+                        soldier.mode = SoldierMode::investigate;
+                    }
+                    break;
+                }
+                const auto &target_box = *w.get<engine::Box>(*seen);
+                face = target_box.center;
+                const float dx = target_box.center.x - box.center.x, dz = target_box.center.z - box.center.z;
+                const float distance = std::sqrt(dx * dx + dz * dz);
+                const float preferred = arsenal ? soldier.preferred_range : 1.2F;
+                if (distance > preferred * 1.25F) {
+                    move = soldier_steer(soldier, box.center, target_box.center, dt);
+                    pace = 0.9F;
+                } else if (distance < preferred * 0.6F && arsenal) {
+                    move = {-dx / distance, 0, -dz / distance};
+                    pace = 0.6F;
+                } else if (arsenal) {
+                    soldier.strafe_timer -= dt;
+                    if (soldier.strafe_timer <= 0) {
+                        soldier.strafe_timer = 0.8F + random01(soldier.rng) * 1.4F;
+                        soldier.strafe_dir = random01(soldier.rng) < 0.5F ? -1.0F : 1.0F;
+                    }
+                    const engine::Vec3 side{-dz / distance * soldier.strafe_dir, 0, dx / distance * soldier.strafe_dir};
+                    if (!nav_grid.walkable(box.center.x + side.x * 1.2F, box.center.z + side.z * 1.2F))
+                        soldier.strafe_dir = -soldier.strafe_dir;
+                    move = {-dz / distance * soldier.strafe_dir, 0, dx / distance * soldier.strafe_dir};
+                    pace = 0.45F;
+                }
+                soldier.reaction_left -= dt;
+                const float facing = (std::sin(soldier.yaw) * dx + std::cos(soldier.yaw) * dz) / std::max(distance, 1e-3F);
+                if (arsenal && !arsenal->weapons.empty()) {
+                    const auto slot = static_cast<std::size_t>(arsenal->state.current);
+                    if (arsenal->state.magazine[slot] == 0 && !reloading) {
+                        arsenal->script_reload = true;
+                        if (soldier.use_cover) {
+                            soldier.mode = SoldierMode::cover;
+                            soldier.cover.reset();
+                            soldier.cover_timer = 0.5F;
+                        }
+                    } else if (soldier.reaction_left <= 0 && facing > 0.97F && !reloading) {
+                        if (soldier.burst_cooldown > 0) {
+                            soldier.burst_cooldown -= dt;
+                        } else if (arsenal->state.cooldown <= 0 && arsenal->state.equip_left <= 0) {
+                            const engine::Vec3 eye{box.center.x, box.center.y + box.size.y * 0.4F, box.center.z};
+                            const engine::Vec3 aim{target_box.center.x - eye.x,
+                                                   target_box.center.y + target_box.size.y * 0.1F - eye.y,
+                                                   target_box.center.z - eye.z};
+                            const auto direction = engine::gameplay::spread_direction(
+                                aim, (1.0F - std::clamp(soldier.accuracy, 0.0F, 1.0F)) * 7.0F, soldier.rng);
+                            arsenal->script_fire = true;
+                            arsenal->script_aim = direction;
+                            if (--soldier.burst_left <= 0) {
+                                soldier.burst_left = soldier.burst;
+                                soldier.burst_cooldown = soldier.burst_pause * (0.7F + 0.6F * random01(soldier.rng));
+                            }
+                        }
+                    }
+                    if (soldier.use_cover && health_ratio < 0.5F && !soldier.cover && soldier.mode == SoldierMode::combat) {
+                        soldier.mode = SoldierMode::cover;
+                        soldier.cover_timer = 2.0F;
+                    }
+                } else if (distance < 1.7F && soldier.melee_cooldown <= 0 && soldier.reaction_left <= 0) {
+                    apply_damage(w, *seen, soldier.melee_damage, self);
+                    soldier.melee_cooldown = 1.0F;
+                    script_runtime.request_animation(self, "attack");
+                }
+                break;
+            }
+            }
+            if (soldier.mode != SoldierMode::cover && soldier.mode != SoldierMode::combat)
+                soldier.cover.reset();
+
+            // Turn toward the target, or along the way we're going.
+            float want = soldier.yaw;
+            if (face) {
+                want = std::atan2(face->x - box.center.x, face->z - box.center.z);
+            } else if (move.x != 0 || move.z != 0) {
+                want = std::atan2(move.x, move.z);
+            }
+            const float diff = std::remainder(want - soldier.yaw, 6.2831853F);
+            soldier.yaw += std::clamp(diff, -8.0F * dt, 8.0F * dt);
+            soldier.yaw = std::remainder(soldier.yaw, 6.2831853F);
+
+            engine::gameplay::ControllerInput intent;
+            intent.move_x = move.x * pace;
+            intent.move_y = -move.z * pace;
+            intent.yaw = 0;
+            const auto *body = w.get<engine::physics::RigidBody>(self);
+            engine::gameplay::begin_step(w, self, controller.state, controller.settings, intent,
+                                         physics_config.gravity * (body ? body->gravity_scale : 1.0F), dt);
+        }
+    }
+    float time_now{0};
     // Milliseconds each system took on the most recent tick, for the
     // editor's Stats overlay (editor_profile_text).
     std::map<std::string, double> profile;
@@ -376,6 +1008,7 @@ struct Runtime {
         script_runtime.set_host(&host);
         script_runtime.set_nav(&nav_grid);
         script_runtime.set_input(&input, &actions);
+        script_runtime.set_physics_config(&physics_config);
         add_timed("editor.actions", engine::FixedPhase::begin, 1,
                     [this](engine::World &, const engine::FixedUpdateContext &context) {
                         actions.update(context.input);
@@ -392,7 +1025,9 @@ struct Runtime {
                             movers.push_back(entity);
                         for (const auto entity : w.query<AIAgent>())
                             movers.push_back(entity);
-                        nav_grid.bake(w, movers);
+                        for (const auto entity : w.query<Soldier>())
+                            movers.push_back(entity);
+                        nav_grid.bake(w, movers, terrain ? &*terrain : nullptr);
                     });
         // Recorded once per entity, the first time its script fails to compile
         // or errors at runtime (engine::script::Runtime's own "reported once,
@@ -578,6 +1213,11 @@ struct Runtime {
         // gets both an AIAgent and a Script instance; whichever ran last (here,
         // this one) simply overwrites the other's velocity write that tick —
         // not a crash, just not a combination there's a reason to author.
+        add_timed("editor.soldiers", engine::FixedPhase::update, 3,
+                  [this](engine::World &w, const engine::FixedUpdateContext &) {
+                      time_now += 1.0F / 60.0F;
+                      step_soldiers(w);
+                  });
         add_timed("editor.script", engine::FixedPhase::update, 2,
                     [this](engine::World &w, const engine::FixedUpdateContext &) {
                         script_runtime.step(w, 1.0F / 60.0F);
@@ -591,7 +1231,31 @@ struct Runtime {
                 for (const auto entity : w.query<engine::physics::RigidBody, PlayerMarker>()) {
                     auto &body = *w.get<engine::physics::RigidBody>(entity);
                     auto *heading = w.get<Heading>(entity);
-                    if (heading) {
+                    auto *controller = w.get<Controller>(entity);
+                    if (controller) {
+                        const auto value = [this](const char *name) {
+                            return actions.state(engine::ActionId{name}).value;
+                        };
+                        engine::gameplay::ControllerInput intent;
+                        intent.move_x = value("move_x");
+                        intent.move_y = value("move_y");
+                        intent.jump_pressed = actions.state(engine::ActionId{"jump"}).pressed;
+                        intent.sprint = actions.state(engine::ActionId{"sprint"}).down();
+                        intent.crouch = actions.state(engine::ActionId{"crouch"}).down();
+                        if (const auto *arsenal = w.get<Arsenal>(entity)) {
+                            // Aiming down sights slows you and, like firing, stops a sprint.
+                            if (arsenal->aiming) {
+                                intent.move_x *= 0.55F;
+                                intent.move_y *= 0.55F;
+                            }
+                            if (arsenal->aiming || actions.state(engine::ActionId{"fire"}).down())
+                                intent.sprint = false;
+                        }
+                        intent.yaw = controller->first_person ? look_yaw
+                                                             : std::atan2(-camera_forward_x, -camera_forward_z);
+                        engine::gameplay::begin_step(w, entity, controller->state, controller->settings, intent,
+                                                     physics_config.gravity * body.gravity_scale, 1.0F / 60.0F);
+                    } else if (heading) {
                         // Vehicle model: W/S accelerate/reverse along the vehicle's own
                         // heading (momentum, not instant velocity), A/D steer that heading
                         // — "driving," not strafing. Self-relative by construction, so
@@ -665,8 +1329,10 @@ struct Runtime {
                     }
                     // Press jump while grounded to launch; keep holding it
                     // while airborne to fly (a steady climb, not a single
-                    // decaying arc) — same as the native playground.
-                    if (context.input.key_pressed(engine::Key::left_shift) && body.grounded)
+                    // decaying arc) — same as the native playground. A
+                    // CharacterController jumps through its own actions.
+                    if (controller) {
+                    } else if (context.input.key_pressed(engine::Key::left_shift) && body.grounded)
                         body.velocity.y = jump_speed;
                     else if (context.input.key_down(engine::Key::left_shift) && !body.grounded)
                         body.velocity.y = fly_speed;
@@ -713,11 +1379,12 @@ struct Runtime {
                                 const auto projectile = w.defer_create();
                                 w.defer_set(projectile,
                                             engine::Box{box.center, engine::Vec3{0.3F, 0.3F, 0.3F}});
-                                w.defer_set(projectile,
-                                            Projectile{engine::Vec3{direction.x * blast_speed,
-                                                                     direction.y * blast_speed,
-                                                                     direction.z * blast_speed},
-                                                       entity});
+                                Projectile blast{engine::Vec3{direction.x * blast_speed,
+                                                              direction.y * blast_speed,
+                                                              direction.z * blast_speed},
+                                                 entity};
+                                blast.damage = blast_damage;
+                                w.defer_set(projectile, blast);
                             }
                         }
                     }
@@ -725,11 +1392,101 @@ struct Runtime {
             });
         add_timed("editor.physics", engine::FixedPhase::update, 10,
                     [this](engine::World &w, const engine::FixedUpdateContext &) {
-                        engine::physics::step(w, 1.0F / 60.0F, {}, &physics_events);
+                        engine::physics::step(w, 1.0F / 60.0F, physics_config, &physics_events);
                     });
+        // Right after physics: controllers climb steps and stick to the
+        // ground (engine::gameplay::end_step).
+        add_timed("editor.controller", engine::FixedPhase::update, 11,
+                  [this](engine::World &w, const engine::FixedUpdateContext &) {
+                      for (const auto entity : w.query<engine::physics::RigidBody, Controller>()) {
+                          auto &controller = *w.get<Controller>(entity);
+                          engine::gameplay::end_step(w, entity, controller.state, controller.settings,
+                                                     physics_config, 1.0F / 60.0F);
+                      }
+                  });
+        // After movement, physics and the controller, so shots leave from
+        // where the shooter actually is this tick.
+        add_timed("editor.weapons", engine::FixedPhase::update, 13,
+                  [this](engine::World &w, const engine::FixedUpdateContext &context) {
+                      constexpr float dt = 1.0F / 60.0F;
+                      for (const auto entity : w.query<engine::Box, Arsenal>()) {
+                          auto &arsenal = *w.get<Arsenal>(entity);
+                          if (arsenal.weapons.empty())
+                              continue;
+                          const auto &box = *w.get<engine::Box>(entity);
+                          const auto *controller = w.get<Controller>(entity);
+                          const bool player = w.get<PlayerMarker>(entity) != nullptr;
+                          engine::Vec3 origin = box.center;
+                          origin.y = controller ? box.center.y - box.size.y / 2 + engine::gameplay::eye_offset(box)
+                                                : box.center.y + box.size.y * 0.35F;
+                          engine::Vec3 direction{0, 0, -1};
+                          engine::gameplay::TriggerInput trigger;
+                          bool aim = false;
+                          if (player) {
+                              const auto &fire = actions.state(engine::ActionId{"fire"});
+                              trigger.fire_down = fire.down();
+                              trigger.fire_pressed = fire.pressed;
+                              trigger.reload = actions.state(engine::ActionId{"reload"}).pressed;
+                              aim = actions.state(engine::ActionId{"aim"}).down();
+                              if (actions.state(engine::ActionId{"next_weapon"}).pressed)
+                                  trigger.cycle = 1;
+                              const auto &scroll = actions.state(engine::ActionId{"weapon_scroll"});
+                              if (scroll.pressed)
+                                  trigger.cycle = scroll.value > 0 ? -1 : 1;
+                              for (int n = 0; n < 9; ++n)
+                                  if (context.input.key_pressed(
+                                          static_cast<engine::Key>(static_cast<int>(engine::Key::digit1) + n)))
+                                      trigger.select = n;
+                              const float cos_pitch = std::cos(look_pitch);
+                              direction = {-std::sin(look_yaw) * cos_pitch, std::sin(look_pitch),
+                                           -std::cos(look_yaw) * cos_pitch};
+                          }
+                          if (arsenal.script_fire)
+                              trigger.fire_down = trigger.fire_pressed = true;
+                          if (arsenal.script_reload)
+                              trigger.reload = true;
+                          if (arsenal.script_select >= 0)
+                              trigger.select = arsenal.script_select;
+                          if (arsenal.script_aim) {
+                              const auto a = *arsenal.script_aim;
+                              const float length = std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+                              if (length > 1e-6F)
+                                  direction = {a.x / length, a.y / length, a.z / length};
+                          }
+                          arsenal.script_fire = arsenal.script_reload = false;
+                          arsenal.script_select = -1;
+                          arsenal.script_aim.reset();
+                          arsenal.aiming =
+                              aim && arsenal.state.reload_left <= 0 && arsenal.state.equip_left <= 0;
+                          const float bloom = arsenal.state.bloom;
+                          const auto tick = engine::gameplay::update_weapon(arsenal.state, arsenal.weapons, trigger, dt);
+                          const int shooter = index_of(entity);
+                          const int slot = arsenal.state.current;
+                          const auto &weapon = arsenal.weapons[static_cast<std::size_t>(slot)];
+                          if (tick.switched)
+                              push_event({WeaponEventKind::switched, shooter, -1, origin, {}, weapon.equip_time, slot});
+                          if (tick.reload_started)
+                              push_event({WeaponEventKind::reload, shooter, -1, origin, {}, weapon.reload_time, slot});
+                          if (tick.reload_finished)
+                              push_event({WeaponEventKind::reloaded, shooter, -1, origin, {}, 0, slot});
+                          if (tick.empty)
+                              push_event({WeaponEventKind::empty, shooter, -1, origin, {}, 0, slot});
+                          if (tick.fired) {
+                              float speed_ratio = 0;
+                              bool airborne = false;
+                              if (controller) {
+                                  speed_ratio = controller->state.speed / controller->settings.walk_speed;
+                                  airborne = !controller->state.grounded;
+                              }
+                              fire_weapon(w, entity, arsenal, origin, direction,
+                                          engine::gameplay::current_spread(weapon, arsenal.aiming, speed_ratio,
+                                                                           airborne, bloom));
+                          }
+                      }
+                  });
         // Right after physics, so scripts hear about this tick's contacts
         // (on_collision_*/on_trigger_*) before anything else reacts.
-        add_timed("editor.script_contacts", engine::FixedPhase::update, 11,
+        add_timed("editor.script_contacts", engine::FixedPhase::update, 12,
                     [this](engine::World &w, const engine::FixedUpdateContext &) {
                         script_runtime.dispatch_contacts(w, physics_events);
                     });
@@ -738,27 +1495,45 @@ struct Runtime {
         // own ordering.
         add_timed(
             "editor.projectiles", engine::FixedPhase::update, 15,
-            [](engine::World &w, const engine::FixedUpdateContext &) {
+            [this](engine::World &w, const engine::FixedUpdateContext &) {
                 constexpr float dt = 1.0F / 60.0F;
                 for (const auto entity : w.query<engine::Box, Projectile>()) {
                     auto &box = *w.get<engine::Box>(entity);
                     auto &projectile = *w.get<Projectile>(entity);
-                    box.center.x += projectile.velocity.x * dt;
-                    box.center.y += projectile.velocity.y * dt;
-                    box.center.z += projectile.velocity.z * dt;
+                    projectile.velocity.y += physics_config.gravity * projectile.gravity * dt;
+                    const engine::Vec3 step{projectile.velocity.x * dt, projectile.velocity.y * dt,
+                                            projectile.velocity.z * dt};
+                    const float length = std::sqrt(step.x * step.x + step.y * step.y + step.z * step.z);
+                    // Stops at solid geometry (and the ground) along this tick's path.
+                    engine::physics::QueryFilter filter;
+                    filter.ignore = projectile.owner;
+                    const auto wall = length > 0 ? engine::physics::raycast(w, box.center, step, length,
+                                                                            physics_config, filter)
+                                                 : std::nullopt;
+                    if (wall)
+                        box.center = wall->point;
+                    else
+                        box.center = {box.center.x + step.x, box.center.y + step.y, box.center.z + step.z};
                     projectile.lifetime -= dt;
-                    bool hit = false;
-                    for (const auto target : w.query<engine::Box, Health>()) {
-                        if (target == projectile.owner)
+                    std::optional<engine::Entity> target;
+                    if (wall && !wall->hit_ground && w.get<Health>(wall->entity))
+                        target = wall->entity;
+                    for (const auto candidate : w.query<engine::Box, Health>()) {
+                        if (target || candidate == projectile.owner)
                             continue;
-                        if (engine::physics::overlaps(box, *w.get<engine::Box>(target))) {
-                            damage(w, target, blast_damage);
-                            hit = true;
-                            break;
-                        }
+                        if (engine::physics::overlaps(box, *w.get<engine::Box>(candidate)))
+                            target = candidate;
                     }
-                    if (hit || projectile.lifetime <= 0)
-                        w.defer_destroy(entity);
+                    if (!target && !wall && projectile.lifetime > 0)
+                        continue;
+                    if (projectile.splash > 0 && (target || wall))
+                        explode(w, projectile.owner, box.center, projectile.splash, projectile.damage);
+                    else if (target)
+                        apply_damage(w, *target, projectile.damage, projectile.owner);
+                    else if (wall)
+                        push_event({WeaponEventKind::impact, index_of(projectile.owner),
+                                    wall->hit_ground ? -1 : index_of(wall->entity), wall->point, wall->normal, 0, 0});
+                    w.defer_destroy(entity);
                 }
             });
         // Melee: press "attack" (F) while a Player's Box overlaps a Health
@@ -785,7 +1560,7 @@ struct Runtime {
                         if (target == entity)
                             continue;
                         if (engine::physics::overlaps(box, *w.get<engine::Box>(target)))
-                            damage(w, target, attack_damage);
+                            apply_damage(w, target, attack_damage, entity);
                     }
                 }
             });
@@ -826,7 +1601,7 @@ struct Runtime {
                     const auto &box = *w.get<engine::Box>(entity);
                     for (const auto target : w.query<engine::Box, PlayerMarker, Health>()) {
                         if (engine::physics::overlaps(box, *w.get<engine::Box>(target))) {
-                            damage(w, target, ai_attack_damage);
+                            apply_damage(w, target, ai_attack_damage, entity);
                             agent.attack_cooldown = ai_attack_interval;
                             // Unlike the Player's own F/G (which animate on every press,
                             // hit or miss), an AIAgent's only "action" here is landing a
@@ -853,6 +1628,9 @@ void register_components(engine::World &w) {
     w.register_component<engine::script::Script>("editor.script");
     w.register_component<EntityName>("editor.name");
     w.register_component<SpawnedFrom>("editor.spawned_from");
+    w.register_component<Controller>("editor.controller");
+    w.register_component<Arsenal>("editor.arsenal");
+    w.register_component<Soldier>("editor.soldier");
 }
 
 template <typename T> void copy_component(const engine::World &from, engine::Entity source, engine::World &to,
@@ -896,10 +1674,44 @@ std::optional<engine::Entity> BridgeHost::spawn(engine::World &world, const std:
     copy_component<AIAgent>(from, source, world, entity);
     copy_component<Pedestrian>(from, source, world, entity);
     copy_component<engine::script::Script>(from, source, world, entity);
+    copy_component<Controller>(from, source, world, entity);
+    copy_component<Arsenal>(from, source, world, entity);
+    copy_component<Soldier>(from, source, world, entity);
     world.defer_set(entity, EntityName{prefab});
     world.defer_set(entity, SpawnedFrom{prefab});
     runtime_.entities.push_back(entity);
     return entity;
+}
+
+bool BridgeHost::weapon(engine::World &world, engine::Entity self, const std::string &op,
+                        const std::vector<double> &args, std::vector<double> &out) {
+    auto *arsenal = world.get<Arsenal>(self);
+    if (!arsenal || arsenal->weapons.empty())
+        return false;
+    auto &state = arsenal->state;
+    const int count = static_cast<int>(arsenal->weapons.size());
+    if (op == "fire") {
+        arsenal->script_fire = true;
+        if (args.size() == 3 && std::isfinite(args[0]) && std::isfinite(args[1]) && std::isfinite(args[2]))
+            arsenal->script_aim = engine::Vec3{static_cast<float>(args[0]), static_cast<float>(args[1]),
+                                               static_cast<float>(args[2])};
+    } else if (op == "reload") {
+        arsenal->script_reload = true;
+    } else if (op == "select") {
+        if (!args.empty() && args[0] >= 0 && args[0] < count)
+            arsenal->script_select = static_cast<int>(args[0]);
+    } else if (op == "ammo") {
+        const auto slot = static_cast<std::size_t>(state.current);
+        out = {static_cast<double>(state.magazine[slot]), static_cast<double>(state.reserve[slot]),
+               static_cast<double>(slot), state.reload_left > 0 ? 1.0 : 0.0};
+    } else if (op == "give_ammo") {
+        if (args.size() == 2 && std::isfinite(args[0]) && std::isfinite(args[1]))
+            engine::gameplay::give_ammo(state, args[1] < 0 ? state.current : static_cast<int>(args[1]),
+                                        static_cast<int>(std::clamp(args[0], 0.0, 100000.0)));
+    } else {
+        return false;
+    }
+    return true;
 }
 
 bool BridgeHost::health(const engine::World &world, engine::Entity entity, float &current, float &max) {
@@ -913,7 +1725,7 @@ bool BridgeHost::health(const engine::World &world, engine::Entity entity, float
 
 void BridgeHost::damage(engine::World &world, engine::Entity entity, float amount) {
     if (std::isfinite(amount) && amount > 0)
-        ::damage(world, entity, amount);
+        runtime_.apply_damage(world, entity, amount, std::nullopt);
 }
 
 void BridgeHost::emit(engine::Entity source, const std::string &kind, const std::string &a, const std::string &b) {
@@ -1143,6 +1955,378 @@ EXPORT void editor_set_collider(int index, int is_trigger, double layer, double 
     collider->mask = static_cast<std::uint32_t>(mask);
     collider->bounciness = static_cast<float>(bounciness);
 }
+// The entity's authored Rotation (Euler XYZ radians), after editor_add for
+// the same index. Only a Box-shaped Collider reads it: the collider becomes
+// an oriented box (see physics::Collider::rotation).
+EXPORT void editor_set_rotation(int index, double x, double y, double z) {
+    const auto target = staged(index);
+    if (!target)
+        return;
+    auto *collider = target->first->get<engine::physics::Collider>(target->second);
+    if (!collider)
+        return;
+    for (const double v : {x, y, z})
+        if (!std::isfinite(v) || std::abs(v) > 1000) {
+            failed = true;
+            return;
+        }
+    collider->rotation = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)};
+}
+// Makes the entity a CharacterController (0.60.0), after editor_add for the
+// same index. mode 0 = first person, 1 = third person. Resizes its Box to the
+// controller's footprint and standing height, keeping its feet in place.
+// Ignored for an entity without a RigidBody (a child).
+EXPORT void editor_set_controller(int index, int mode, double walk, double sprint, double crouch, double jump,
+                                  double stand, double crouched, double step, double accel, double air) {
+    const auto target = staged(index);
+    if (!target)
+        return;
+    auto &world = *target->first;
+    auto *box = world.get<engine::Box>(target->second);
+    if (!box || !world.get<engine::physics::RigidBody>(target->second))
+        return;
+    for (const double v : {walk, sprint, crouch, jump, stand, crouched, accel, air})
+        if (!std::isfinite(v) || v <= 0 || v > 1000) {
+            failed = true;
+            return;
+        }
+    if (!std::isfinite(step) || step < 0 || step > 10 || crouched > stand) {
+        failed = true;
+        return;
+    }
+    Controller controller;
+    controller.first_person = mode == 0;
+    auto &settings = controller.settings;
+    settings.walk_speed = static_cast<float>(walk);
+    settings.sprint_speed = static_cast<float>(sprint);
+    settings.crouch_speed = static_cast<float>(crouch);
+    settings.jump_height = static_cast<float>(jump);
+    settings.stand_height = static_cast<float>(stand);
+    settings.crouch_height = static_cast<float>(crouched);
+    settings.step_height = static_cast<float>(step);
+    settings.ground_accel = static_cast<float>(accel);
+    settings.ground_decel = static_cast<float>(accel) * 0.8F;
+    settings.air_accel = static_cast<float>(air);
+    engine::gameplay::configure_body(*box, settings);
+    world.set(target->second, controller);
+}
+namespace {
+// Standard base64 (RFC 4648) to bytes; returns false on malformed input.
+bool decode_base64(const char *text, std::vector<unsigned char> &out) {
+    out.clear();
+    unsigned value = 0;
+    int bits = 0;
+    for (const char *c = text; *c; ++c) {
+        int digit;
+        if (*c >= 'A' && *c <= 'Z')
+            digit = *c - 'A';
+        else if (*c >= 'a' && *c <= 'z')
+            digit = *c - 'a' + 26;
+        else if (*c >= '0' && *c <= '9')
+            digit = *c - '0' + 52;
+        else if (*c == '+')
+            digit = 62;
+        else if (*c == '/')
+            digit = 63;
+        else if (*c == '=')
+            break;
+        else
+            return false;
+        value = (value << 6) | static_cast<unsigned>(digit);
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            out.push_back(static_cast<unsigned char>((value >> bits) & 0xFF));
+        }
+    }
+    return true;
+}
+} // namespace
+// The scene's terrain (0.63.0), between editor_begin() and editor_commit():
+// a resolution x resolution heightfield over a `size` square centered on
+// (x, z), heights relative to y, as base64 little-endian float32 (row-major,
+// x fastest). Replaces any earlier terrain. Bad input fails the commit.
+EXPORT void editor_set_terrain(double x, double y, double z, double size, int resolution, const char *heights) {
+    if (!staging || !heights)
+        return;
+    std::vector<unsigned char> bytes;
+    const auto count = static_cast<std::size_t>(resolution) * static_cast<std::size_t>(std::max(resolution, 0));
+    if (resolution < 2 || resolution > 1025 || !std::isfinite(size) || size <= 0 || size > 100000 ||
+        !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) || !decode_base64(heights, bytes) ||
+        bytes.size() != count * 4) {
+        failed = true;
+        return;
+    }
+    engine::physics::Heightfield field;
+    field.center = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)};
+    field.size = static_cast<float>(size);
+    field.resolution = resolution;
+    field.heights.resize(count);
+    std::memcpy(field.heights.data(), bytes.data(), bytes.size());
+    for (const float h : field.heights)
+        if (!std::isfinite(h) || std::abs(h) > 100000) {
+            failed = true;
+            return;
+        }
+    staging->terrain = std::move(field);
+    staging->physics_config.terrain = &*staging->terrain;
+}
+// A static box obstacle (e.g. a scattered tree trunk) that isn't one of the
+// editor's entities: it blocks movement, bullets, sight and paths.
+EXPORT void editor_add_obstacle(double x, double y, double z, double sx, double sy, double sz) {
+    if (!staging || staging->obstacle_count >= 4000)
+        return;
+    for (const double v : {x, y, z, sx, sy, sz})
+        if (!std::isfinite(v) || std::abs(v) > 1000000)
+            return;
+    if (sx <= 0 || sy <= 0 || sz <= 0)
+        return;
+    const auto e = staging->world.create();
+    staging->world.set(e, engine::Box{{static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)},
+                                      {static_cast<float>(sx), static_cast<float>(sy), static_cast<float>(sz)}});
+    staging->world.set(e, engine::physics::Collider{});
+    ++staging->obstacle_count;
+}
+// 1 when solid geometry (a Collider or the terrain/ground) lies between two
+// points, else 0 -- the editor muffles sounds behind walls with it.
+EXPORT int editor_line_blocked(double x1, double y1, double z1, double x2, double y2, double z2) {
+    const engine::Vec3 from{static_cast<float>(x1), static_cast<float>(y1), static_cast<float>(z1)};
+    const engine::Vec3 delta{static_cast<float>(x2 - x1), static_cast<float>(y2 - y1), static_cast<float>(z2 - z1)};
+    const float length = std::sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
+    if (!(length > 0.3F) || !std::isfinite(length))
+        return 0;
+    engine::physics::QueryFilter filter;
+    const auto hit = engine::physics::raycast(active->world, from, delta, length, active->physics_config, filter);
+    return hit && hit->distance < length - 0.3F ? 1 : 0;
+}
+// The terrain's world height at (x, z), or NaN outside it (for tests and tools).
+EXPORT double editor_terrain_height(double x, double z) {
+    if (!active->terrain || !active->terrain->contains(static_cast<float>(x), static_cast<float>(z)))
+        return std::nan("");
+    return active->terrain->height_at(static_cast<float>(x), static_cast<float>(z));
+}
+// Makes the entity a combat soldier (0.62.0), after editor_add for the same
+// index: team (0 = the Player's), behavior (0 patrol, 1 guard, 2 hunt), sight
+// range, field of view in degrees, hearing range, reaction time, accuracy
+// 0..1, preferred fighting range, move speed, burst length, burst pause,
+// use_cover, flee_health 0..1 (0 = never) and melee damage. It moves through
+// a CharacterController sized to its own Box, and replaces any AIState
+// wander/chase behavior.
+EXPORT void editor_set_soldier(int index, double team, double behavior, double sight, double fov, double hearing,
+                               double reaction, double accuracy, double preferred, double speed, double burst,
+                               double burst_pause, int use_cover, double flee_health, double melee) {
+    const auto target = staged(index);
+    if (!target)
+        return;
+    auto &world = *target->first;
+    auto *box = world.get<engine::Box>(target->second);
+    if (!box || !world.get<engine::physics::RigidBody>(target->second))
+        return;
+    const bool valid = team >= 0 && team <= 15 && team == std::floor(team) && (behavior == 0 || behavior == 1 ||
+                                                                                 behavior == 2) &&
+                       sight > 0 && sight <= 1000 && fov > 0 && fov <= 360 && hearing >= 0 && hearing <= 1000 &&
+                       reaction >= 0 && reaction <= 10 && accuracy >= 0 && accuracy <= 1 && preferred > 0 &&
+                       preferred <= 500 && speed > 0 && speed <= 100 && burst >= 1 && burst <= 100 &&
+                       burst == std::floor(burst) && burst_pause >= 0 && burst_pause <= 10 && flee_health >= 0 &&
+                       flee_health <= 1 && melee >= 0 && melee <= 100000;
+    if (!valid) {
+        failed = true;
+        return;
+    }
+    Soldier soldier;
+    soldier.team = static_cast<int>(team);
+    soldier.behavior = static_cast<SoldierBehavior>(static_cast<int>(behavior));
+    soldier.sight_range = static_cast<float>(sight);
+    soldier.fov_cos = static_cast<float>(std::cos(std::min(fov, 359.0) * 3.14159265358979 / 360.0));
+    soldier.hearing = static_cast<float>(hearing);
+    soldier.reaction = static_cast<float>(reaction);
+    soldier.accuracy = static_cast<float>(accuracy);
+    soldier.preferred_range = static_cast<float>(preferred);
+    soldier.move_speed = static_cast<float>(speed);
+    soldier.burst = static_cast<int>(burst);
+    soldier.burst_pause = static_cast<float>(burst_pause);
+    soldier.use_cover = use_cover != 0;
+    soldier.flee_health = static_cast<float>(flee_health);
+    soldier.melee_damage = static_cast<float>(melee);
+    world.set(target->second, soldier);
+    Controller controller;
+    controller.first_person = false;
+    controller.settings.walk_speed = controller.settings.sprint_speed = static_cast<float>(speed);
+    controller.settings.stand_height = controller.settings.crouch_height = box->size.y;
+    controller.settings.radius = std::max(box->size.x, box->size.z) / 2;
+    controller.settings.step_height = 0.35F;
+    controller.settings.ground_accel = 30.0F;
+    controller.settings.ground_decel = 30.0F;
+    world.set(target->second, controller);
+    if (world.get<AIAgent>(target->second))
+        world.remove<AIAgent>(target->second);
+}
+// Waypoint entity Names (comma-separated) a patrolling soldier walks in order.
+EXPORT void editor_set_soldier_patrol(int index, const char *names) {
+    const auto target = staged(index);
+    if (!target || !names)
+        return;
+    auto *soldier = target->first->get<Soldier>(target->second);
+    if (!soldier)
+        return;
+    soldier->patrol_names.clear();
+    std::string all(names);
+    std::size_t start = 0;
+    while (start <= all.size()) {
+        auto end = all.find(',', start);
+        if (end == std::string::npos)
+            end = all.size();
+        auto name = editor_bindings::trim(std::string_view(all).substr(start, end - start));
+        if (!name.empty())
+            soldier->patrol_names.push_back(std::move(name));
+        start = end + 1;
+    }
+}
+// Soldier state for the editor: field 0 = mode (0 patrol, 1 investigate, 2
+// combat, 3 search, 4 cover, 5 flee), 1 = facing yaw (radians; the facing is
+// (sin, 0, cos)), 2 = awareness 0..1, 3 = team. -1 without a soldier.
+EXPORT double editor_soldier_value(int index, int field) {
+    if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
+        return -1;
+    const auto entity = active->entities[static_cast<std::size_t>(index)];
+    const auto *soldier = active->world.alive(entity) ? active->world.get<Soldier>(entity) : nullptr;
+    if (!soldier)
+        return -1;
+    switch (field) {
+    case 0:
+        return static_cast<int>(soldier->mode);
+    case 1:
+        return soldier->yaw;
+    case 2:
+        return soldier->awareness;
+    case 3:
+        return soldier->team;
+    default:
+        return -1;
+    }
+}
+// Gives the entity Weapons (0.61.0) from loadout text (see
+// engine::gameplay::parse_weapons), after editor_add for the same index.
+// Invalid text falls back to the default loadout and editor_weapons_error()
+// says why.
+EXPORT void editor_set_weapons(int index, const char *text) {
+    const auto target = staged(index);
+    if (!target || !text)
+        return;
+    auto parsed = engine::gameplay::parse_weapons(text);
+    if (!parsed.error.empty()) {
+        staging->weapons_error = parsed.error;
+        parsed = engine::gameplay::parse_weapons(engine::gameplay::default_weapons_text);
+    }
+    Arsenal arsenal;
+    arsenal.weapons = std::move(parsed.weapons);
+    arsenal.state = engine::gameplay::make_weapon_state(arsenal.weapons);
+    arsenal.state.rng = 0x9E3779B9U + static_cast<std::uint32_t>(index + 2) * 2654435761U;
+    target->first->set(target->second, arsenal);
+}
+EXPORT const char *editor_weapons_error() { return active->weapons_error.c_str(); }
+// Weapon HUD state: field 0 = current slot, 1 = rounds loaded, 2 = reserve
+// (-1 unlimited), 3 = reload progress 0..1 (-1 when not reloading), 4 =
+// current spread in degrees, 5 = weapon count, 6 = equip progress 0..1 (-1
+// when ready), 7 = aiming, 8 = magazine size, 9 = aim zoom. 0 (and -1 for
+// 3/6) without Weapons.
+EXPORT double editor_weapon_value(int index, int field) {
+    const bool progress_field = field == 3 || field == 6;
+    if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
+        return progress_field ? -1 : 0;
+    const auto entity = active->entities[static_cast<std::size_t>(index)];
+    const auto *arsenal = active->world.alive(entity) ? active->world.get<Arsenal>(entity) : nullptr;
+    if (!arsenal || arsenal->weapons.empty())
+        return progress_field ? -1 : 0;
+    const auto &state = arsenal->state;
+    const auto slot = static_cast<std::size_t>(state.current);
+    const auto &weapon = arsenal->weapons[slot];
+    switch (field) {
+    case 0:
+        return static_cast<double>(slot);
+    case 1:
+        return state.magazine[slot];
+    case 2:
+        return state.reserve[slot];
+    case 3:
+        return state.reload_left > 0 ? 1.0 - state.reload_left / weapon.reload_time : -1;
+    case 4: {
+        const auto *controller = active->world.get<Controller>(entity);
+        const float ratio = controller ? controller->state.speed / controller->settings.walk_speed : 0.0F;
+        const bool airborne = controller && !controller->state.grounded;
+        return engine::gameplay::current_spread(weapon, arsenal->aiming, ratio, airborne, state.bloom);
+    }
+    case 5:
+        return static_cast<double>(arsenal->weapons.size());
+    case 6:
+        return state.equip_left > 0 && weapon.equip_time > 0 ? 1.0 - state.equip_left / weapon.equip_time : -1;
+    case 7:
+        return arsenal->aiming ? 1 : 0;
+    case 8:
+        return weapon.magazine;
+    case 9:
+        return weapon.zoom;
+    default:
+        return 0;
+    }
+}
+// A weapon's name (field 0) or first-person model (field 1).
+EXPORT const char *editor_weapon_text(int index, int slot, int field) {
+    static std::string result;
+    result.clear();
+    if (index >= 0 && static_cast<std::size_t>(index) < active->entities.size()) {
+        const auto entity = active->entities[static_cast<std::size_t>(index)];
+        const auto *arsenal = active->world.alive(entity) ? active->world.get<Arsenal>(entity) : nullptr;
+        if (arsenal && slot >= 0 && static_cast<std::size_t>(slot) < arsenal->weapons.size())
+            result = field == 0 ? arsenal->weapons[static_cast<std::size_t>(slot)].name
+                                : arsenal->weapons[static_cast<std::size_t>(slot)].model;
+    }
+    return result.c_str();
+}
+// Moves the combat event queue into a read buffer; returns its size.
+std::vector<WeaponEvent> pending_weapon_events;
+EXPORT int editor_take_weapon_events() {
+    pending_weapon_events = std::move(active->weapon_events);
+    active->weapon_events.clear();
+    return static_cast<int>(pending_weapon_events.size());
+}
+// field 0 = kind (0 fire, 1 impact, 2 reload, 3 reloaded, 4 empty, 5
+// switched, 6 explode, 7 damaged), 1 = shooter index, 2 = target index (-1
+// none), 3-5 = point (fire: muzzle origin; damaged: attacker position), 6-8 =
+// normal (fire: direction), 9 = value (fire: recoil degrees; reload: seconds;
+// explode: radius; damaged: amount), 10 = flags (fire/switch/reload: slot;
+// impact/damaged: 1 headshot, 2 killed, 4 flesh).
+EXPORT double editor_weapon_event(int index, int field) {
+    if (index < 0 || static_cast<std::size_t>(index) >= pending_weapon_events.size())
+        return 0;
+    const auto &e = pending_weapon_events[static_cast<std::size_t>(index)];
+    switch (field) {
+    case 0:
+        return static_cast<int>(e.kind);
+    case 1:
+        return e.shooter;
+    case 2:
+        return e.target;
+    case 3:
+        return e.point.x;
+    case 4:
+        return e.point.y;
+    case 5:
+        return e.point.z;
+    case 6:
+        return e.normal.x;
+    case 7:
+        return e.normal.y;
+    case 8:
+        return e.normal.z;
+    case 9:
+        return e.value;
+    case 10:
+        return e.flags;
+    default:
+        return 0;
+    }
+}
 EXPORT void editor_set_script_source(int index, const char *source) {
     const auto target = staged(index);
     if (!target)
@@ -1240,6 +2424,48 @@ EXPORT void editor_set_camera_forward(double x, double z) {
     if (length > 0.0001) {
         active->camera_forward_x = static_cast<float>(x / length);
         active->camera_forward_z = static_cast<float>(z / length);
+    }
+}
+// The first-person look direction (radians), once per rendered frame before
+// that frame's ticks. Pitch is clamped to just short of straight up/down.
+EXPORT void editor_set_look(double yaw, double pitch) {
+    if (!std::isfinite(yaw) || !std::isfinite(pitch))
+        return;
+    active->look_yaw = static_cast<float>(std::remainder(yaw, 2 * 3.14159265358979));
+    active->look_pitch = static_cast<float>(std::clamp(pitch, -1.55, 1.55));
+}
+// CharacterController state for the editor's camera and HUD. field 0 = eye
+// height above the feet, 1 = crouched, 2 = grounded, 3 = landing speed this
+// tick, 4 = horizontal speed, 5 = sprinting, 6 = feet (box bottom) world y.
+// 0 without a controller.
+EXPORT double editor_controller_value(int index, int field) {
+    if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
+        return 0;
+    const auto entity = active->entities[static_cast<std::size_t>(index)];
+    if (!active->world.alive(entity))
+        return 0;
+    const auto *controller = active->world.get<Controller>(entity);
+    const auto *box = active->world.get<engine::Box>(entity);
+    if (!controller || !box)
+        return 0;
+    const auto &state = controller->state;
+    switch (field) {
+    case 0:
+        return engine::gameplay::eye_offset(*box);
+    case 1:
+        return state.crouched ? 1 : 0;
+    case 2:
+        return state.grounded ? 1 : 0;
+    case 3:
+        return state.landing_speed;
+    case 4:
+        return state.speed;
+    case 5:
+        return state.sprinting ? 1 : 0;
+    case 6:
+        return box->center.y - box->size.y / 2;
+    default:
+        return 0;
     }
 }
 // code is one of the small set key_for() understands
