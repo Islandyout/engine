@@ -46,6 +46,7 @@ const char *editor_bindings_error();
 double editor_action_value(const char *);
 void editor_ui_event(const char *, const char *);
 const char *editor_profile_text();
+void editor_set_rotation(int, double, double, double);
 }
 namespace {
 int add_unit(double x, double y, double z, double vx, double vy, double vz) {
@@ -1117,6 +1118,24 @@ int main() {
     check(editor_value(0, 2) < -0.1); // crouch released: W moves normally again (-z)
     editor_key(key_w, 0);
 
+    {
+        // A rotated Collider (editor_set_rotation) is an oriented box: a body
+        // dropped on the high end of a ramp rests well above the ramp's
+        // untilted 1-unit-tall top, and a non-finite rotation fails the commit.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 4, 1, 8, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_rotation(0, -0.35, 0, 0);
+        check(editor_add(0, 6, 3, 0, 0, 0, 0.6, 1, 0.6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 120; ++i)
+            editor_tick();
+        check(editor_value(1, 1) > 2.0);
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_rotation(0, std::numeric_limits<double>::quiet_NaN(), 0, 0);
+        check(editor_commit() == 0);
+    }
+
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
                  "movement, jump/sustained-flight, Collider box and sphere obstacle blocking, "
@@ -1134,5 +1153,5 @@ int main() {
                  "(crouch/sit) freezing Player WASD input while held, authored "
                  "RigidBody mass/kinematic and Collider trigger/layer settings, the script host "
                  "(prefab templates for world.spawn, names, props, sound/ui/log commands), and native "
-                 "keyboard/mouse/gamepad input with default and custom action bindings passed.\n";
+                 "keyboard/mouse/gamepad input with default and custom action bindings, and rotated (oriented) colliders passed.\n";
 }

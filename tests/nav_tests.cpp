@@ -70,7 +70,31 @@ int main() {
         check(snapped && !snapped->empty() && grid.walkable(snapped->back().x, snapped->back().z),
               "a blocked goal snaps to reachable ground");
 
-        std::cout << "Nav grid baking (walls, agent inflation, curbs, triggers, dynamic bodies), line of "
+        {
+            // A diagonal (yaw-rotated) wall blocks the cells along its real
+            // footprint, not its enclosing box; a tilted ramp blocks nothing.
+            World rotated;
+            rotated.register_component<Box>("box");
+            rotated.register_component<physics::RigidBody>("rigidbody");
+            rotated.register_component<physics::Collider>("collider");
+            const auto diagonal = rotated.create();
+            rotated.set(diagonal, Box{{20, 1, 20}, {10, 2, 0.5F}});
+            physics::Collider spun{};
+            spun.rotation = {0, 0.7853982F, 0};
+            rotated.set(diagonal, spun);
+            const auto slope = rotated.create();
+            rotated.set(slope, Box{{-20, 0.5F, -20}, {4, 1, 8}});
+            physics::Collider tilted{};
+            tilted.rotation = {-0.3F, 0, 0};
+            rotated.set(slope, tilted);
+            nav::Grid rotated_grid{nav::Settings{}};
+            rotated_grid.bake(rotated);
+            check(!rotated_grid.walkable(20, 20), "the diagonal wall's center is blocked");
+            check(!rotated_grid.walkable(22, 18), "cells along the diagonal are blocked");
+            check(rotated_grid.walkable(23, 23), "a corner of the enclosing box off the wall stays open");
+            check(rotated_grid.walkable(-20, -20), "a walkable ramp does not block");
+        }
+        std::cout << "Nav grid baking (walls, rotated walls, ramps, agent inflation, curbs, triggers, dynamic bodies), line of "
                      "sight, A* around obstacles with smoothing, and goal snapping passed.\n";
     } catch (const std::exception &e) {
         std::cerr << "nav test failed: " << e.what() << "\n";

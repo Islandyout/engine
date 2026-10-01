@@ -37,6 +37,34 @@ void Grid::bake(const World& world, const std::vector<Entity>& ignore) {
             body && body->type == physics::BodyType::Dynamic && body->mass > 0)
             continue;
         const auto& box = *world.get<Box>(entity);
+        if (physics::is_oriented(collider)) {
+            // A tilted box whose top faces up enough to stand on is a ramp:
+            // agents walk over it. Anything else blocks the cells its shape
+            // actually covers between step_height and max_height.
+            const bool tilted = collider.rotation.x != 0 || collider.rotation.z != 0;
+            const float up = std::cos(collider.rotation.x) * std::cos(collider.rotation.z);
+            if (tilted && std::abs(up) >= physics::walkable_normal_y)
+                continue;
+            const auto [lo, hi] = physics::world_bounds(box, &collider);
+            if (hi.y <= settings_.step_height || lo.y >= settings_.max_height)
+                continue;
+            const float r = settings_.agent_radius;
+            const int x0 = std::max(0, cell_x(lo.x - r));
+            const int x1 = std::min(size_ - 1, cell_x(hi.x + r));
+            const int z0 = std::max(0, cell_z(lo.z - r));
+            const int z1 = std::min(size_ - 1, cell_z(hi.z + r));
+            const float probe_bottom = settings_.step_height, probe_top = settings_.max_height;
+            for (int cz = z0; cz <= z1; ++cz)
+                for (int cx = x0; cx <= x1; ++cx) {
+                    const auto c = center(cx, cz, (probe_bottom + probe_top) / 2);
+                    const Box probe{c, {settings_.cell_size + 2 * r, probe_top - probe_bottom,
+                                        settings_.cell_size + 2 * r}};
+                    if (physics::probe_overlaps(probe, box, collider))
+                        blocked_[static_cast<std::size_t>(cz) * static_cast<std::size_t>(size_) +
+                                 static_cast<std::size_t>(cx)] = 1;
+                }
+            continue;
+        }
         const bool sphere = collider.shape == physics::ColliderShape::Sphere;
         const float hx = sphere ? collider.radius : box.size.x / 2;
         const float hy = sphere ? collider.radius : box.size.y / 2;

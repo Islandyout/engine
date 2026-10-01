@@ -169,6 +169,15 @@ Engine version 0.58.0 adds two editor features:
 
 See [F58](docs/IMPLEMENTATION_STATUS.md#f58--asset-import-and-a-stats-overlay-0580).
 
+Engine version 0.59.0 makes rotated colliders real:
+
+- **Oriented boxes**: a Box `Collider` on an entity with a `Rotation` now collides as that rotated box (separating-axis test). Diagonal walls block along their faces, and a tilted box is a ramp you can stand on without sliding down.
+- **Sliding**: bodies hitting a rotated wall slide along it instead of stopping dead.
+- **Hit normals**: `world.raycast` also returns the surface normal (`nx, ny, nz`).
+- **Navigation**: rotated walls block only the cells they cover, and walkable ramps don't block.
+
+See [F59](docs/IMPLEMENTATION_STATUS.md#f59--oriented-box-colliders-ramps-and-hit-normals-0590).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

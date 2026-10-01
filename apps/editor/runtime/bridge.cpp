@@ -1143,6 +1143,23 @@ EXPORT void editor_set_collider(int index, int is_trigger, double layer, double 
     collider->mask = static_cast<std::uint32_t>(mask);
     collider->bounciness = static_cast<float>(bounciness);
 }
+// The entity's authored Rotation (Euler XYZ radians), after editor_add for
+// the same index. Only a Box-shaped Collider reads it: the collider becomes
+// an oriented box (see physics::Collider::rotation).
+EXPORT void editor_set_rotation(int index, double x, double y, double z) {
+    const auto target = staged(index);
+    if (!target)
+        return;
+    auto *collider = target->first->get<engine::physics::Collider>(target->second);
+    if (!collider)
+        return;
+    for (const double v : {x, y, z})
+        if (!std::isfinite(v) || std::abs(v) > 1000) {
+            failed = true;
+            return;
+        }
+    collider->rotation = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)};
+}
 EXPORT void editor_set_script_source(int index, const char *source) {
     const auto target = staged(index);
     if (!target)

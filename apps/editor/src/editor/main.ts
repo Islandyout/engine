@@ -202,6 +202,14 @@ type Runtime = {
     argTypes: ["number", "number"],
     args: [number, number],
   ): string;
+  _editor_set_rotation(index: number, x: number, y: number, z: number): void;
+  // Catch-all for text calls added from 0.59.0 on.
+  ccall(
+    name: string,
+    returnType: "string" | "number" | null,
+    argTypes: Array<"string" | "number">,
+    args: Array<string | number>,
+  ): any;
   _editor_set_collider(
     index: number,
     isTrigger: number,
@@ -1642,6 +1650,10 @@ async function startEditor() {
         collider.mask,
         collider.bounciness,
       );
+    // A rotated Box collider collides as an oriented box (0.59.0).
+    const rotation = get("Rotation")?.euler;
+    if (collider && rotation && (rotation.x || rotation.y || rotation.z))
+      runtime._editor_set_rotation(index, rotation.x, rotation.y, rotation.z);
     if (name !== undefined)
       runtime.ccall("editor_set_name", null, ["number", "string"], [index, name]);
     // editor_add's own all-double ABI has no way to carry a Lua source

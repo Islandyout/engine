@@ -417,7 +417,8 @@ struct LuaApi final {
         return 0;
     }
     // world.raycast(ox, oy, oz, dx, dy, dz, max[, layer_mask]) ->
-    //   hit (entity id, or "ground"), distance, x, y, z   -- or nil
+    //   hit (entity id, or "ground"), distance, x, y, z, nx, ny, nz -- or nil
+    //   (n is the unit surface normal at the hit point)
     static int raycast(lua_State *L) {
         auto &self = runtime(L);
         if (!self.world_)
@@ -437,7 +438,10 @@ struct LuaApi final {
         lua_pushnumber(L, hit->point.x);
         lua_pushnumber(L, hit->point.y);
         lua_pushnumber(L, hit->point.z);
-        return 5;
+        lua_pushnumber(L, hit->normal.x);
+        lua_pushnumber(L, hit->normal.y);
+        lua_pushnumber(L, hit->normal.z);
+        return 8;
     }
     // world.overlap(x, y, z, radius[, layer_mask]) -> array of entity ids
     static int overlap(lua_State *L) {

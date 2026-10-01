@@ -112,48 +112,40 @@ bool resolve_sphere(Box &box, const Vec3 &center, float radius, Vec3 &velocity, 
 // [0, max_distance]. `direction` must already be normalized (raycast()'s own
 // caller-facing contract normalizes once; this internal helper trusts it).
 bool ray_intersects_bounds(const Bounds &bounds, const Vec3 &origin, const Vec3 &direction,
-                             float max_distance, float &t_out) {
+                             float max_distance, float &t_out, Vec3 *normal_out = nullptr) {
     float t_min = 0.0F, t_max = max_distance;
-    if (std::abs(direction.x) < 1e-9F) {
-        if (origin.x < bounds.min.x || origin.x > bounds.max.x)
-            return false;
-    } else {
-        float t1 = (bounds.min.x - origin.x) / direction.x;
-        float t2 = (bounds.max.x - origin.x) / direction.x;
+    int entry_axis = -1;
+    const float o[3]{origin.x, origin.y, origin.z};
+    const float d[3]{direction.x, direction.y, direction.z};
+    const float lo[3]{bounds.min.x, bounds.min.y, bounds.min.z};
+    const float hi[3]{bounds.max.x, bounds.max.y, bounds.max.z};
+    for (int axis = 0; axis < 3; ++axis) {
+        if (std::abs(d[axis]) < 1e-9F) {
+            if (o[axis] < lo[axis] || o[axis] > hi[axis])
+                return false;
+            continue;
+        }
+        float t1 = (lo[axis] - o[axis]) / d[axis];
+        float t2 = (hi[axis] - o[axis]) / d[axis];
         if (t1 > t2)
             std::swap(t1, t2);
-        t_min = std::max(t_min, t1);
-        t_max = std::min(t_max, t2);
-        if (t_min > t_max)
-            return false;
-    }
-    if (std::abs(direction.y) < 1e-9F) {
-        if (origin.y < bounds.min.y || origin.y > bounds.max.y)
-            return false;
-    } else {
-        float t1 = (bounds.min.y - origin.y) / direction.y;
-        float t2 = (bounds.max.y - origin.y) / direction.y;
-        if (t1 > t2)
-            std::swap(t1, t2);
-        t_min = std::max(t_min, t1);
-        t_max = std::min(t_max, t2);
-        if (t_min > t_max)
-            return false;
-    }
-    if (std::abs(direction.z) < 1e-9F) {
-        if (origin.z < bounds.min.z || origin.z > bounds.max.z)
-            return false;
-    } else {
-        float t1 = (bounds.min.z - origin.z) / direction.z;
-        float t2 = (bounds.max.z - origin.z) / direction.z;
-        if (t1 > t2)
-            std::swap(t1, t2);
-        t_min = std::max(t_min, t1);
+        if (t1 > t_min) {
+            t_min = t1;
+            entry_axis = axis;
+        }
         t_max = std::min(t_max, t2);
         if (t_min > t_max)
             return false;
     }
     t_out = t_min;
+    if (normal_out) {
+        // Entered through a face: that face's outward normal. Started
+        // inside: straight back along the ray.
+        float n[3]{0, 0, 0};
+        if (entry_axis >= 0)
+            n[entry_axis] = d[entry_axis] > 0 ? -1.0F : 1.0F;
+        *normal_out = entry_axis >= 0 ? Vec3{n[0], n[1], n[2]} : Vec3{-direction.x, -direction.y, -direction.z};
+    }
     return true;
 }
 
@@ -188,11 +180,43 @@ struct Shape final {
     Vec3 center{};
     float radius{};
     Bounds bounds{};
+    // An oriented box: local axes in world space and half sizes along them.
+    bool oriented{false};
+    Vec3 axes[3]{};
+    float half[3]{};
 };
+
+// The columns of three.js's Euler XYZ rotation matrix: the local x, y and z
+// axes in world space.
+void rotation_axes(const Vec3 &euler, Vec3 (&axes)[3]) {
+    const float a = std::cos(euler.x), b = std::sin(euler.x);
+    const float c = std::cos(euler.y), d = std::sin(euler.y);
+    const float e = std::cos(euler.z), f = std::sin(euler.z);
+    const float ae = a * e, af = a * f, be = b * e, bf = b * f;
+    axes[0] = {c * e, af + be * d, bf - ae * d};
+    axes[1] = {-c * f, ae - bf * d, be + af * d};
+    axes[2] = {d, -b * c, a * c};
+}
 
 Shape shape_of(const Box &box, const Collider *collider) {
     Shape shape;
     shape.center = box.center;
+    if (collider && collider->shape == ColliderShape::Box && is_oriented(*collider)) {
+        shape.oriented = true;
+        rotation_axes(collider->rotation, shape.axes);
+        shape.half[0] = box.size.x / 2;
+        shape.half[1] = box.size.y / 2;
+        shape.half[2] = box.size.z / 2;
+        Vec3 extent{};
+        for (int i = 0; i < 3; ++i) {
+            extent.x += std::abs(shape.axes[i].x) * shape.half[i];
+            extent.y += std::abs(shape.axes[i].y) * shape.half[i];
+            extent.z += std::abs(shape.axes[i].z) * shape.half[i];
+        }
+        shape.bounds = {{box.center.x - extent.x, box.center.y - extent.y, box.center.z - extent.z},
+                        {box.center.x + extent.x, box.center.y + extent.y, box.center.z + extent.z}};
+        return shape;
+    }
     if (collider && collider->shape == ColliderShape::Sphere) {
         shape.sphere = true;
         shape.radius = collider->radius;
@@ -245,7 +269,102 @@ std::optional<Contact> sphere_box(const Vec3 &center, float radius, const Bounds
                    box);
 }
 
+Vec3 cross(const Vec3 &a, const Vec3 &b) {
+    return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
+}
+
+// A box shape as center + axes + half sizes (an axis-aligned one gets the
+// world axes).
+void as_oriented(const Shape &shape, Vec3 &center, Vec3 (&axes)[3], float (&half)[3]) {
+    if (shape.oriented) {
+        center = shape.center;
+        for (int i = 0; i < 3; ++i) {
+            axes[i] = shape.axes[i];
+            half[i] = shape.half[i];
+        }
+        return;
+    }
+    center = {(shape.bounds.min.x + shape.bounds.max.x) / 2, (shape.bounds.min.y + shape.bounds.max.y) / 2,
+              (shape.bounds.min.z + shape.bounds.max.z) / 2};
+    axes[0] = {1, 0, 0};
+    axes[1] = {0, 1, 0};
+    axes[2] = {0, 0, 1};
+    half[0] = (shape.bounds.max.x - shape.bounds.min.x) / 2;
+    half[1] = (shape.bounds.max.y - shape.bounds.min.y) / 2;
+    half[2] = (shape.bounds.max.z - shape.bounds.min.z) / 2;
+}
+
+// Separating-axis test between two boxes, either of them oriented: the
+// 3 + 3 face axes and 9 edge cross products. The contact normal is the axis
+// of least overlap (face axes preferred over near-equal edge axes, which
+// keeps resting contacts stable), pointing from a toward b.
+std::optional<Contact> box_box_oriented(const Shape &a, const Shape &b) {
+    Vec3 ca{}, cb{};
+    Vec3 au[3], bu[3];
+    float ah[3], bh[3];
+    as_oriented(a, ca, au, ah);
+    as_oriented(b, cb, bu, bh);
+    const Vec3 between{cb.x - ca.x, cb.y - ca.y, cb.z - ca.z};
+    std::optional<Contact> best;
+    const auto test = [&](Vec3 axis, float bias) {
+        const float length = std::sqrt(dot(axis, axis));
+        if (length < 1e-5F)
+            return true; // parallel edges: covered by the face axes
+        axis = {axis.x / length, axis.y / length, axis.z / length};
+        float ra = 0, rb = 0;
+        for (int i = 0; i < 3; ++i) {
+            ra += ah[i] * std::abs(dot(au[i], axis));
+            rb += bh[i] * std::abs(dot(bu[i], axis));
+        }
+        const float distance = dot(between, axis);
+        const float overlap = ra + rb - std::abs(distance);
+        if (overlap <= 0)
+            return false;
+        if (!best || overlap * bias < best->depth) {
+            const float sign = distance >= 0 ? 1.0F : -1.0F;
+            best = Contact{{axis.x * sign, axis.y * sign, axis.z * sign}, overlap};
+        }
+        return true;
+    };
+    for (int i = 0; i < 3; ++i)
+        if (!test(au[i], 1.0F) || !test(bu[i], 1.0F))
+            return std::nullopt;
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j)
+            if (!test(cross(au[i], bu[j]), 1.05F))
+                return std::nullopt;
+    return best;
+}
+
+// Sphere (first) against an oriented box (second), solved in the box's frame.
+std::optional<Contact> sphere_oriented(const Vec3 &center, float radius, const Shape &box) {
+    const Vec3 offset{center.x - box.center.x, center.y - box.center.y, center.z - box.center.z};
+    const Vec3 local{dot(offset, box.axes[0]), dot(offset, box.axes[1]), dot(offset, box.axes[2])};
+    const Bounds local_bounds{{-box.half[0], -box.half[1], -box.half[2]}, {box.half[0], box.half[1], box.half[2]}};
+    auto contact = sphere_box(local, radius, local_bounds);
+    if (contact) {
+        const Vec3 n = contact->normal;
+        contact->normal = {box.axes[0].x * n.x + box.axes[1].x * n.y + box.axes[2].x * n.z,
+                           box.axes[0].y * n.x + box.axes[1].y * n.y + box.axes[2].y * n.z,
+                           box.axes[0].z * n.x + box.axes[1].z * n.y + box.axes[2].z * n.z};
+    }
+    return contact;
+}
+
 std::optional<Contact> contact_between(const Shape &a, const Shape &b) {
+    if (a.oriented || b.oriented) {
+        if (!bounds_overlap(a.bounds, b.bounds))
+            return std::nullopt;
+        if (a.sphere)
+            return sphere_oriented(a.center, a.radius, b);
+        if (b.sphere) {
+            auto contact = sphere_oriented(b.center, b.radius, a);
+            if (contact)
+                contact->normal = {-contact->normal.x, -contact->normal.y, -contact->normal.z};
+            return contact;
+        }
+        return box_box_oriented(a, b);
+    }
     if (a.sphere && b.sphere) {
         const Vec3 delta{b.center.x - a.center.x, b.center.y - a.center.y, b.center.z - a.center.z};
         const float dist = std::sqrt(dot(delta, delta));
@@ -303,6 +422,20 @@ bool layers_interact(std::uint8_t layer_a, std::uint32_t mask_a, std::uint8_t la
                      std::uint32_t mask_b) {
     const auto bit = [](std::uint8_t layer) { return std::uint32_t{1} << (layer & 31U); };
     return (mask_a & bit(layer_b)) != 0 && (mask_b & bit(layer_a)) != 0;
+}
+
+bool is_oriented(const Collider &collider) {
+    return collider.shape == ColliderShape::Box &&
+           (collider.rotation.x != 0 || collider.rotation.y != 0 || collider.rotation.z != 0);
+}
+
+std::pair<Vec3, Vec3> world_bounds(const Box &box, const Collider *collider) {
+    const auto shape = shape_of(box, collider);
+    return {shape.bounds.min, shape.bounds.max};
+}
+
+bool probe_overlaps(const Box &probe, const Box &box, const Collider &collider) {
+    return shapes_overlap(shape_of(probe, nullptr), shape_of(box, &collider));
 }
 
 void step(World &world, float dt, const Config &config, Events *events) {
@@ -410,6 +543,33 @@ void step(World &world, float dt, const Config &config, Events *events) {
 
             if (kinematic)
                 continue; // kinematic bodies are never pushed by obstacles
+            if (is_oriented(collider)) {
+                const auto contact = contact_between(shape_of(box, nullptr), shape_of(obstacle, &collider));
+                if (!contact)
+                    continue;
+                // n points from the body into the obstacle.
+                const Vec3 n = contact->normal;
+                if (-n.y >= walkable_normal_y) {
+                    // Standing on walkable ground: lift straight up by the
+                    // vertical distance that clears the surface, so gravity
+                    // can't make the body creep down a ramp.
+                    box.center.y += contact->depth / -n.y;
+                    if (body.velocity.y < 0)
+                        body.velocity.y = 0;
+                    body.grounded = true;
+                } else {
+                    box.center = {box.center.x - n.x * contact->depth, box.center.y - n.y * contact->depth,
+                                  box.center.z - n.z * contact->depth};
+                    const float into = dot(body.velocity, n);
+                    if (into > 0) {
+                        const float remove = into * (1.0F + bounce);
+                        body.velocity = {body.velocity.x - n.x * remove, body.velocity.y - n.y * remove,
+                                         body.velocity.z - n.z * remove};
+                    }
+                }
+                record(entity, other, false, n);
+                continue;
+            }
             if (collider.shape == ColliderShape::Sphere) {
                 if (!sphere_overlaps_bounds(bounds_of(box), obstacle.center, collider.radius))
                     continue;
@@ -477,19 +637,20 @@ std::optional<RaycastHit> raycast(World &world, Vec3 origin, Vec3 direction, flo
     direction = {direction.x / len, direction.y / len, direction.z / len};
 
     std::optional<RaycastHit> best;
-    auto consider = [&](float t, Entity entity, bool hit_ground) {
+    auto consider = [&](float t, Entity entity, bool hit_ground, Vec3 normal) {
         if (t < 0 || t > max_distance)
             return;
         if (best && t >= best->distance)
             return;
         best = RaycastHit{entity, hit_ground, t,
                           {origin.x + direction.x * t, origin.y + direction.y * t,
-                           origin.z + direction.z * t}};
+                           origin.z + direction.z * t},
+                          normal};
     };
 
     if (std::abs(direction.y) > 1e-9F) {
         const float t = (config.ground_y - origin.y) / direction.y;
-        consider(t, Entity{}, true);
+        consider(t, Entity{}, true, {0, direction.y < 0 ? 1.0F : -1.0F, 0});
     }
 
     for (const auto entity : world.query<Box, Collider>()) {
@@ -503,11 +664,33 @@ std::optional<RaycastHit> raycast(World &world, Vec3 origin, Vec3 direction, flo
             continue;
         float t{};
         if (collider.shape == ColliderShape::Sphere) {
-            if (ray_intersects_sphere(box.center, collider.radius, origin, direction, t))
-                consider(t, entity, false);
+            if (ray_intersects_sphere(box.center, collider.radius, origin, direction, t)) {
+                const Vec3 point{origin.x + direction.x * t - box.center.x, origin.y + direction.y * t - box.center.y,
+                                 origin.z + direction.z * t - box.center.z};
+                const float r = std::sqrt(dot(point, point));
+                consider(t, entity, false,
+                         r > 1e-6F ? Vec3{point.x / r, point.y / r, point.z / r}
+                                   : Vec3{-direction.x, -direction.y, -direction.z});
+            }
+        } else if (is_oriented(collider)) {
+            // In the box's own frame the box is axis-aligned.
+            const auto shape = shape_of(box, &collider);
+            const Vec3 offset{origin.x - box.center.x, origin.y - box.center.y, origin.z - box.center.z};
+            const Vec3 local_origin{dot(offset, shape.axes[0]), dot(offset, shape.axes[1]), dot(offset, shape.axes[2])};
+            const Vec3 local_direction{dot(direction, shape.axes[0]), dot(direction, shape.axes[1]),
+                                       dot(direction, shape.axes[2])};
+            const Bounds local{{-shape.half[0], -shape.half[1], -shape.half[2]},
+                               {shape.half[0], shape.half[1], shape.half[2]}};
+            Vec3 n{};
+            if (ray_intersects_bounds(local, local_origin, local_direction, max_distance, t, &n))
+                consider(t, entity, false,
+                         {shape.axes[0].x * n.x + shape.axes[1].x * n.y + shape.axes[2].x * n.z,
+                          shape.axes[0].y * n.x + shape.axes[1].y * n.y + shape.axes[2].y * n.z,
+                          shape.axes[0].z * n.x + shape.axes[1].z * n.y + shape.axes[2].z * n.z});
         } else {
-            if (ray_intersects_bounds(bounds_of(box), origin, direction, max_distance, t))
-                consider(t, entity, false);
+            Vec3 n{};
+            if (ray_intersects_bounds(bounds_of(box), origin, direction, max_distance, t, &n))
+                consider(t, entity, false, n);
         }
     }
     return best;
