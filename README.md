@@ -263,6 +263,16 @@ Engine version 0.67.0 ships **LAST SIGNAL**, a mission-based FPS made only from 
 
 It also adds prefab default Scale, scatter `exclude` rectangles, a 260 m nav grid, and first-person health bars only over damaged nearby targets. See [F67](docs/IMPLEMENTATION_STATUS.md#f67--last-signal-the-fps-and-the-engine-fixes-it-drove-0670).
 
+Engine version 0.68.0 makes LAST SIGNAL smooth and fixes the floating gun:
+
+- **Physics**: a body tests obstacles' cached bounds first instead of building every shape, so a terrain level's hundreds of scattered trunks no longer dominate the tick (about 14× less physics time).
+- **Foliage**: terrain scatter is instanced in 64 m chunks, so off-screen trees are frustum culled; bushes and small rocks no longer cast shadows.
+- **First-person arms**: every weapon is held by gloved hands with sleeved forearms, part of the weapon model so they move with it exactly.
+- **Recoil**: the recoil spring is substepped; a slow or hitching frame used to make it unstable and fling the weapon away.
+- LAST SIGNAL drops ambient occlusion and uses a 2048 shadow map.
+
+See [F68](docs/IMPLEMENTATION_STATUS.md#f68--frame-rate-and-first-person-arms-0680).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

@@ -17,3 +17,13 @@ test("every viewmodel builds with a muzzle in front of the grip and a sight abov
   }
   assert.equal(buildViewmodel("unknown").group.name, "viewmodel:unknown", "unknown names fall back to the rifle");
 });
+
+test("every viewmodel is held by two gloved arms that run off the bottom of the view", () => {
+  for (const name of viewmodelNames) {
+    const model = buildViewmodel(name);
+    const bounds = new THREE.Box3().setFromObject(model.group);
+    // Camera space: the model sits at its hip pose.
+    assert.ok(bounds.min.y + model.hip.y < -0.3, `${name} forearms reach below the screen`);
+    assert.ok(model.group.getObjectByName("glove:right") && model.group.getObjectByName("glove:left"), `${name} has both gloves`);
+  }
+});

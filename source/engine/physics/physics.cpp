@@ -489,6 +489,29 @@ void step(World &world, float dt, const Config &config, Events *events) {
     // no Collider exists at all.
     const auto colliders = world.query<Box, Collider>();
     const auto bodies = world.query<Box, RigidBody>();
+    // Solid obstacles with their components and world bounds, gathered once
+    // per step: a body then rejects most of them with one bounds test
+    // instead of three component lookups and a shape build each (a terrain
+    // level has hundreds of scattered trunks; this was most of a tick).
+    // Dynamic obstacles can be pushed during the step, so their bounds are
+    // recomputed when tested.
+    struct Obstacle final {
+        Entity entity;
+        const Collider *collider;
+        Box *box;
+        RigidBody *body;
+        Bounds bounds;
+    };
+    std::vector<Obstacle> obstacles;
+    obstacles.reserve(colliders.size());
+    for (const auto other : colliders) {
+        const auto &collider = *world.get<Collider>(other);
+        if (!collider.is_static || collider.is_trigger)
+            continue;
+        auto *obstacle_box = world.get<Box>(other);
+        obstacles.push_back({other, &collider, obstacle_box, world.get<RigidBody>(other),
+                             shape_of(*obstacle_box, &collider).bounds});
+    }
     for (const auto entity : bodies) {
         auto &box = *world.get<Box>(entity);
         auto &body = *world.get<RigidBody>(entity);
@@ -543,16 +566,33 @@ void step(World &world, float dt, const Config &config, Events *events) {
         const float own_bounce = own_collider ? own_collider->bounciness : 0.0F;
         const float own_inv = kinematic || body.mass <= 0 ? 0.0F : 1.0F / body.mass;
 
-        for (const auto other : colliders) {
+        for (const auto &candidate : obstacles) {
+            const auto other = candidate.entity;
             if (other == entity)
                 continue;
-            const auto &collider = *world.get<Collider>(other);
-            if (!collider.is_static || collider.is_trigger)
-                continue;
+            const auto &collider = *candidate.collider;
             if (!layers_interact(own_layer, own_mask, collider.layer, collider.mask))
                 continue;
-            auto &obstacle = *world.get<Box>(other);
-            auto *other_body = world.get<RigidBody>(other);
+            auto &obstacle = *candidate.box;
+            auto *other_body = candidate.body;
+            {
+                // The body's extent under either shape it can be tested as
+                // (its own collider's, or its plain box for oriented and box
+                // obstacles), padded so a touching contact still passes.
+                const auto own_bounds = shape_of(box, own_collider).bounds;
+                const auto plain = bounds_of(box);
+                constexpr float pad = 1e-3F;
+                const Bounds reach{{std::min(own_bounds.min.x, plain.min.x) - pad,
+                                    std::min(own_bounds.min.y, plain.min.y) - pad,
+                                    std::min(own_bounds.min.z, plain.min.z) - pad},
+                                   {std::max(own_bounds.max.x, plain.max.x) + pad,
+                                    std::max(own_bounds.max.y, plain.max.y) + pad,
+                                    std::max(own_bounds.max.z, plain.max.z) + pad}};
+                const auto &bounds =
+                    finite_dynamic(other_body) ? shape_of(obstacle, &collider).bounds : candidate.bounds;
+                if (!bounds_overlap(reach, bounds))
+                    continue;
+            }
             const float bounce = std::max(own_bounce, collider.bounciness);
 
             if (finite_dynamic(other_body)) {

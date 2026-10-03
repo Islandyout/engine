@@ -166,7 +166,11 @@ add("Environment", [0, -40, 0], {
     shadows: true,
     exposure: 1,
   }),
+  // Tuned for frame rate: no ambient occlusion (a second full scene pass)
+  // and a 2048 shadow map.
   PostProcessing: component("PostProcessing", {
+    ambientOcclusion: false,
+    shadowQuality: "Medium",
     bloom: 0.4,
     bloomThreshold: 0.82,
     contrast: 0.12,

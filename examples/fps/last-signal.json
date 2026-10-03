@@ -484,7 +484,7 @@
     },
     "PostProcessing": {
      "antialias": "SMAA",
-     "ambientOcclusion": true,
+     "ambientOcclusion": false,
      "aoRadius": 0.5,
      "aoIntensity": 1,
      "bloom": 0.4,
@@ -496,7 +496,7 @@
      "temperature": 0.12,
      "vignette": 0.35,
      "grain": 0.06,
-     "shadowQuality": "High"
+     "shadowQuality": "Medium"
     },
     "AudioSettings": {
      "master": 1,

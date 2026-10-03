@@ -365,9 +365,15 @@ export class WeaponFx {
     this.rig.visible = !!input && !!this.current;
     if (!input || !this.current) return;
     const model = this.current;
-    // Recoil: a spring kicked by fire().
-    this.kickVelocity += (-160 * this.kick - 18 * this.kickVelocity) * dt;
-    this.kick += this.kickVelocity * dt;
+    // Recoil: a spring kicked by fire(), stepped at 240 Hz or finer. One
+    // explicit step per frame goes unstable above about 1/20 s (a slow or
+    // hitching frame), which flung the weapon away from the view.
+    const substeps = Math.max(1, Math.ceil(dt * 240));
+    const h = dt / substeps;
+    for (let i = 0; i < substeps; i++) {
+      this.kickVelocity += (-160 * this.kick - 18 * this.kickVelocity) * h;
+      this.kick += this.kickVelocity * h;
+    }
     this.aimBlend += ((input.aiming ? 1 : 0) - this.aimBlend) * (1 - Math.exp(-dt * 14));
     this.sprintBlend += ((input.sprinting && !input.aiming ? 1 : 0) - this.sprintBlend) * (1 - Math.exp(-dt * 8));
     // Sway lags behind look changes.
