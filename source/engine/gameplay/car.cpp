@@ -36,7 +36,7 @@ void step_car(CarState &state, const CarSpec &spec, const CarInput &input, float
 
     // Steering eases toward the input's angle.
     const float target_steer = steer_input * lock_at(spec, forward, input.handbrake || state.drifting);
-    state.steer += (target_steer - state.steer) * (1.0F - std::exp(-12.0F * dt));
+    state.steer += (target_steer - state.steer) * (1.0F - std::exp(-20.0F * dt));
 
     // Longitudinal: throttle (power fades toward top speed), brakes, then
     // reverse once stopped; coasting slows the car; nitro adds a push.
@@ -83,7 +83,7 @@ void step_car(CarState &state, const CarSpec &spec, const CarInput &input, float
         target_rate *= 1.3F;
     else if (state.drifting)
         target_rate *= 1.15F;
-    state.yaw_rate += (target_rate - state.yaw_rate) * (1.0F - std::exp(-(loose ? 5.0F : 9.0F) * dt));
+    state.yaw_rate += (target_rate - state.yaw_rate) * (1.0F - std::exp(-(loose ? 7.0F : 15.0F) * dt));
     state.yaw += state.yaw_rate * dt;
 
     // Lateral: tyres pull the sideways part of the velocity back toward the

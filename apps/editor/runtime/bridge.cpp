@@ -595,7 +595,8 @@ struct Runtime {
         return control;
     }
     // An AI driver's control for this tick (see Driver).
-    engine::gameplay::CarInput drive_ai(engine::World &w, engine::Entity entity, Heading &heading, Driver &driver) {
+    engine::gameplay::CarInput drive_ai(engine::World &w, engine::Entity entity, Heading &heading, Driver &driver,
+                                        const engine::physics::RaycastTargets &targets) {
         using engine::Vec3;
         constexpr float dt = 1.0F / 60.0F;
         engine::gameplay::CarInput control;
@@ -616,7 +617,7 @@ struct Runtime {
             const Vec3 origin{position.x - fz * side, position.y + 0.3F, position.z + fx * side};
             engine::physics::QueryFilter filter;
             filter.ignore = entity;
-            const auto hit = engine::physics::raycast(w, origin, Vec3{fx, 0, fz}, range, physics_config, filter);
+            const auto hit = engine::physics::raycast(targets, origin, Vec3{fx, 0, fz}, range, physics_config, filter);
             if (!hit || hit->hit_ground)
                 return std::nullopt;
             return std::pair{hit->distance, w.get<Heading>(hit->entity) != nullptr};
@@ -652,7 +653,7 @@ struct Runtime {
                 const float distance = std::max(std::hypot(to.x, to.z), 0.01F);
                 engine::physics::QueryFilter filter;
                 filter.ignore = entity;
-                const auto hit = engine::physics::raycast(w, {position.x, position.y + 0.3F, position.z},
+                const auto hit = engine::physics::raycast(targets, {position.x, position.y + 0.3F, position.z},
                                                           {to.x, 0, to.z}, distance, physics_config, filter);
                 chase_direct = !hit || hit->hit_ground || hit->entity == *driver.target ||
                                w.get<Heading>(hit->entity) != nullptr || driver.route.empty();
@@ -1519,11 +1520,16 @@ struct Runtime {
         // AI drivers (0.70.0): every arcade car with a Driver, before physics.
         add_timed("editor.drivers", engine::FixedPhase::update, 4,
                   [this](engine::World &w, const engine::FixedUpdateContext &) {
+                      // One collider scan shared by every driver's probes:
+                      // a per-ray scan was most of this system's time.
+                      std::optional<engine::physics::RaycastTargets> targets;
                       for (const auto entity : w.query<Heading, Driver, engine::physics::RigidBody>()) {
                           auto &heading = *w.get<Heading>(entity);
                           if (!heading.arcade || w.get<PlayerMarker>(entity))
                               continue;
-                          const auto control = drive_ai(w, entity, heading, *w.get<Driver>(entity));
+                          if (!targets)
+                              targets = engine::physics::raycast_targets(w);
+                          const auto control = drive_ai(w, entity, heading, *w.get<Driver>(entity), *targets);
                           drive_car(w, entity, heading, *w.get<engine::physics::RigidBody>(entity), control);
                       }
                   });

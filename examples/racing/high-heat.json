@@ -3315,7 +3315,7 @@
       "y": 2.6,
       "z": -7.2
      },
-     "smoothing": 0.06,
+     "smoothing": 0.02,
      "lookHeight": 1.3,
      "collision": true,
      "orbit": false

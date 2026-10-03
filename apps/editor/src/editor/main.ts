@@ -753,7 +753,7 @@ async function startEditor() {
       const behind = Math.atan2(follow.offset.x, follow.offset.z) + target.rotation.y;
       if (car) {
         const turn = Math.atan2(Math.sin(behind - rig.yaw), Math.cos(behind - rig.yaw));
-        rig.yaw += turn * (1 - Math.exp(-rig.frameDt * 4.5));
+        rig.yaw += turn * (1 - Math.exp(-rig.frameDt * 7));
       } else rig.yaw = behind;
     }
     const desired = new THREE.Vector3(
@@ -3875,10 +3875,48 @@ async function startEditor() {
       }
     carFx.update(dt);
   }
+  // Dynamic resolution: while playing, a GPU that can't hold
+  // ~55 fps renders fewer pixels (down to half the display's ratio) instead
+  // of dropping frames, and climbs back once frames are fast again -- what
+  // console and PC games do so input stays responsive on weaker hardware.
+  const fullPixelRatio = renderer instanceof THREE.WebGLRenderer ? renderer.getPixelRatio() : 1;
+  const resolution = { scale: 1, frames: 0, total: 0, fastSeconds: 0 };
+  function adaptResolution(intervalMs: number) {
+    if (!(renderer instanceof THREE.WebGLRenderer)) return;
+    if (doc.mode === "edit" && resolution.scale < 1) {
+      resolution.scale = 1;
+      renderer.setPixelRatio(fullPixelRatio);
+      composer?.setPixelRatio(fullPixelRatio);
+      resizeAntialias();
+    }
+    if (doc.mode !== "play") return;
+    if (!(intervalMs > 0 && intervalMs < 250)) return;
+    resolution.frames++;
+    resolution.total += intervalMs;
+    if (resolution.total < 500) return;
+    const average = resolution.total / resolution.frames;
+    resolution.frames = 0;
+    resolution.total = 0;
+    let scale = resolution.scale;
+    if (average > 18.5) {
+      scale = Math.max(0.5, scale * Math.sqrt(16.7 / average));
+      resolution.fastSeconds = 0;
+    } else if (average < 17.5 && scale < 1) {
+      resolution.fastSeconds += 0.5;
+      if (resolution.fastSeconds >= 2) scale = Math.min(1, scale + 0.1);
+    }
+    if (Math.abs(scale - resolution.scale) < 0.02) return;
+    resolution.scale = scale;
+    resolution.fastSeconds = 0;
+    renderer.setPixelRatio(fullPixelRatio * scale);
+    composer?.setPixelRatio(fullPixelRatio * scale);
+    resizeAntialias();
+  }
   function frame(now: number) {
     const frameStart = performance.now();
     let tickMs = 0;
     const dt = Math.min((now - previous) / 1000, 5 / 60);
+    adaptResolution(now - previous);
     previous = now;
     let steps = 0;
     const player = playerIndex >= 0 ? objects[playerIndex] : undefined;
