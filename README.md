@@ -273,6 +273,14 @@ Engine version 0.68.0 makes LAST SIGNAL smooth and fixes the floating gun:
 
 See [F68](docs/IMPLEMENTATION_STATUS.md#f68--frame-rate-and-first-person-arms-0680).
 
+Engine version 0.69.0 makes characters hold their weapons with their own arms, and smooths motion:
+
+- **Soldiers**: an armed character plays walk/run on its legs and its weapon-holding clip (the Mannequin's `firing_rifle`) on its upper body at the same time, its gun rides the right hand bone, and the model is turned so the gun, not the hips, points where it aims.
+- **First person**: the procedural gloves and sleeves are gone; the player's character model (its own Renderable, which can be invisible, or the Mannequin) holds the weapon, tinted by the player's Material. Aiming lines the gun's sight up with the view.
+- **Interpolation**: every object is drawn between its last two 60 Hz simulation ticks, so enemies, pickups and projectiles move smoothly on any display rate instead of stepping.
+
+See [F69](docs/IMPLEMENTATION_STATUS.md#f69--characters-hold-their-weapons-and-interpolated-motion-0690).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

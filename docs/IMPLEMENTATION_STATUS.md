@@ -4690,3 +4690,22 @@ Together: frame time in the same software-rendered run went from about 263 ms to
 - `tests/terrainMesh.test.ts`: each scatter InstancedMesh holds the instances of one chunk, every instance is placed once, and only tall models cast shadows.
 - `tests/viewmodels.test.ts`: every weapon has both gloves, and its forearms reach below the screen.
 - The existing physics and bridge suites pass unchanged with the broadphase.
+
+## F69 — Characters hold their weapons, and interpolated motion (0.69.0)
+
+Playtest feedback on 0.68.0: smoother but still laggy, the animations didn't match, and procedural hands had been added even though the characters already have arms that can hold guns.
+
+- **Upper/lower body layering** (`characterRig.ts`): `splitForWeapon` splits a rig's clips at `spine_02`. Every clip loses its upper-body tracks, and the first weapon-holding clip (`firing_rifle`, `aim`, `rifle_aim` or `shoot`) keeps only them. An armed `AICombat` character plays both: legs follow ground speed as before, and the arms hold the weapon.
+- **Weapon in hand**: `attachToHand` parents the weapon to `hand_r`, with its grip in the palm, its barrel toward `hand_l`, its top up and its own scale. Before this, soldiers' guns hung at a fixed point by the chest while the arms played walk cycles.
+- **Facing**: holding poses are bladed (the Mannequin's rifle points about 50° off its hips), so `faceWeaponForward` turns the model until the gun points along the character's facing, which is where the AI aims.
+- **First-person arms**: `buildViewmodel` no longer adds gloves and sleeves; soldiers' guns had been getting them too. `WeaponFx.setBody` takes the player's own animated Renderable, or the Mannequin when there is none. It poses one still frame of the holding clip, turns it so the gun points down the view, puts its eyes at the view camera, and collapses the head and legs. Each weapon then rides that body's right hand. The hip offset raises the chest-height hold into view. The aim offset and turn put the weapon's sight line on the view axis and move the body back, so the shoulders stay behind the camera. A player Renderable can be invisible: LAST SIGNAL's player has an invisible, tinted Mannequin.
+- **Render interpolation**: the simulation steps at 60 Hz, but every object except the first-person camera was drawn at its raw tick position, so motion stepped on displays not exactly in step. `frame()` now samples each object's position and soldier yaw after every tick and draws them between the last two, by the fraction of a tick left in the accumulator. Clip selection still measures speed from the simulated positions.
+- The tick-state and UI-state declarations sit before the player-mode bootstrap, which starts Play.
+
+### F69 verification
+
+- `tests/characterRig.test.ts` covers three cases:
+  - the clip split (legs-only locomotion, arms-only holding clip, nothing without a holding clip);
+  - hand attachment (parent, barrel direction, world scale, palm position);
+  - turning a bladed hold to face forward.
+- Screenshots: soldiers aim with both hands, along their facing. In first person the Mannequin's tinted hands hold every weapon, and aiming down sights centers the sight with the shoulders out of view.

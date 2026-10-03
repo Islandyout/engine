@@ -509,6 +509,9 @@ const [testX, testZ] = (process.env.LS_START ?? "").split(",").map(Number);
 const spawn: V3 = process.env.LS_START ? [testX!, ground(testX!, testZ!) + 1, testZ!] : [START[0], START[1] + 1, START[2]];
 add("Player", spawn, {
   Player: {},
+  // Not drawn in first person; its arms hold the weapons (tinted fatigues).
+  Renderable: { mesh: 132, material: 0, visible: false },
+  Material: material("#5d6648", { roughness: 0.8 }),
   CharacterController: component("CharacterController", {
     mode: "FirstPerson",
     walkSpeed: 4.6,

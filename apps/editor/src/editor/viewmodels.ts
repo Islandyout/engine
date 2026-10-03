@@ -1,6 +1,6 @@
 // First-person weapon models (0.61.0), built from primitives so the engine
-// ships usable guns without external assets, held by gloved first-person
-// arms (0.68.0). Each model is in camera space:
+// ships usable guns without external assets. In first person the player's
+// character model holds them (weaponFx.ts, characterRig.ts). Each model is in camera space:
 // -z forward (the barrel), +y up, origin at the grip. `muzzle` marks where
 // the flash and tracers start; `sightHeight` is how far the sight line sits
 // above the origin, so aiming down sights can center it on the screen.
@@ -26,54 +26,7 @@ const materials = {
   tan: new THREE.MeshStandardMaterial({ color: 0x8c7a5a, metalness: 0.05, roughness: 0.75 }),
   glass: new THREE.MeshStandardMaterial({ color: 0x223344, metalness: 0.2, roughness: 0.1, emissive: 0x0a1a2a }),
   sight: new THREE.MeshStandardMaterial({ color: 0xff5a2a, emissive: 0xff3300, emissiveIntensity: 2 }),
-  glove: new THREE.MeshStandardMaterial({ color: 0x6e5c45, metalness: 0.0, roughness: 0.8 }),
-  sleeve: new THREE.MeshStandardMaterial({ color: 0x4a5236, metalness: 0.0, roughness: 0.95 }),
-  cuff: new THREE.MeshStandardMaterial({ color: 0x3a4029, metalness: 0.0, roughness: 0.95 }),
 };
-
-// Where the shooter's elbows sit, in camera space: below and outside the
-// view, so the forearms run from the hands off the bottom of the screen.
-const rightElbow = new THREE.Vector3(0.26, -0.4, -0.16);
-const leftElbow = new THREE.Vector3(0.0, -0.34, -0.42);
-
-// A tapered cylinder from `from` to `to` (model space).
-function limb(parent: THREE.Object3D, material: THREE.Material, from: THREE.Vector3, to: THREE.Vector3, r0: number, r1: number) {
-  const length = from.distanceTo(to);
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, length, 12), material);
-  mesh.position.copy(from).add(to).multiplyScalar(0.5);
-  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize());
-  parent.add(mesh);
-  return mesh;
-}
-
-// First-person arms holding the weapon: gloved hands at the grip and the
-// support point, forearms in sleeves running back to elbows off screen.
-// Built into the weapon's own group, so they move with it exactly.
-function addArms(group: THREE.Group, hip: THREE.Vector3, rightHand: THREE.Vector3, leftHand: THREE.Vector3) {
-  const toModel = (camera: THREE.Vector3) => camera.clone().sub(hip).divideScalar(viewmodelScale);
-  for (const [hand, elbowCamera, side] of [
-    [rightHand, rightElbow, 1],
-    [leftHand, leftElbow, -1],
-  ] as const) {
-    const elbow = toModel(elbowCamera);
-    const direction = elbow.clone().sub(hand).normalize();
-    const wrist = hand.clone().addScaledVector(direction, 0.06);
-    const cuff = hand.clone().addScaledVector(direction, 0.11);
-    // Glove: a palm wrapped around the grip, knuckles on the outside, a thumb.
-    const glove = new THREE.Group();
-    glove.name = side === 1 ? "glove:right" : "glove:left";
-    glove.position.copy(hand);
-    group.add(glove);
-    const grip = side === 1;
-    box(glove, materials.glove, grip ? [0.05, 0.08, 0.06] : [0.06, 0.035, 0.095], [0.004 * side, 0, 0]);
-    box(glove, materials.glove, grip ? [0.012, 0.075, 0.05] : [0.012, 0.03, 0.085], [0.03 * side, grip ? 0 : 0.012, -0.004]);
-    box(glove, materials.glove, [0.016, 0.018, 0.045], [-0.026 * side, grip ? 0.03 : 0.018, grip ? -0.02 : 0.01]);
-    // Wrist, cuff and sleeve.
-    limb(group, materials.glove, hand, wrist, 0.03, 0.028);
-    limb(group, materials.cuff, wrist, cuff, 0.034, 0.036);
-    limb(group, materials.sleeve, cuff, elbow, 0.036, 0.044);
-  }
-}
 
 function box(
   parent: THREE.Object3D,
@@ -109,9 +62,6 @@ export function buildViewmodel(name: string): Viewmodel {
   const muzzle = new THREE.Object3D();
   let sightHeight = 0.06;
   const hip = new THREE.Vector3(0.17, -0.16, -0.36);
-  // Where the gloves hold it (model space): the grip and the support point.
-  const rightHand = new THREE.Vector3(0, -0.045, 0.065);
-  const leftHand = new THREE.Vector3(0, -0.013, -0.3);
   switch (name as ViewmodelName) {
     case "pistol": {
       box(group, materials.metal, [0.032, 0.036, 0.19], [0, 0.045, -0.06]); // slide
@@ -124,8 +74,6 @@ export function buildViewmodel(name: string): Viewmodel {
       muzzle.position.set(0, 0.05, -0.175);
       sightHeight = 0.074;
       hip.set(0.12, -0.115, -0.36);
-      rightHand.set(0, -0.04, 0.022);
-      leftHand.set(-0.006, -0.065, 0.012);
       break;
     }
     case "shotgun": {
@@ -139,8 +87,6 @@ export function buildViewmodel(name: string): Viewmodel {
       muzzle.position.set(0, 0.05, -0.63);
       sightHeight = 0.086;
       hip.set(0.16, -0.15, -0.42);
-      rightHand.set(0, -0.05, 0.045);
-      leftHand.set(-0.012, -0.03, -0.33);
       break;
     }
     case "smg": {
@@ -155,8 +101,6 @@ export function buildViewmodel(name: string): Viewmodel {
       muzzle.position.set(0, 0.045, -0.34);
       sightHeight = 0.105;
       hip.set(0.14, -0.14, -0.38);
-      rightHand.set(0, -0.05, 0.05);
-      leftHand.set(-0.012, -0.03, -0.14);
       break;
     }
     case "sniper": {
@@ -173,8 +117,6 @@ export function buildViewmodel(name: string): Viewmodel {
       muzzle.position.set(0, 0.045, -0.87);
       sightHeight = 0.11;
       hip.set(0.16, -0.155, -0.44);
-      rightHand.set(0, -0.05, 0.06);
-      leftHand.set(-0.015, -0.06, -0.28);
       break;
     }
     case "launcher": {
@@ -187,8 +129,6 @@ export function buildViewmodel(name: string): Viewmodel {
       muzzle.position.set(0, 0.04, -0.57);
       sightHeight = 0.04;
       hip.set(0.18, -0.17, -0.48);
-      rightHand.set(0, -0.06, 0.0);
-      leftHand.set(0, -0.05, -0.25);
       break;
     }
     case "rifle":
@@ -208,13 +148,10 @@ export function buildViewmodel(name: string): Viewmodel {
       muzzle.position.set(0, 0.04, -0.63);
       sightHeight = 0.103;
       hip.set(0.15, -0.145, -0.4);
-      rightHand.set(0, -0.045, 0.065);
-      leftHand.set(-0.015, -0.025, -0.28);
       break;
     }
   }
   group.add(muzzle);
-  addArms(group, hip, rightHand, leftHand);
   // Built at real-world size; drawn a little smaller so it doesn't crowd the view.
   group.scale.setScalar(viewmodelScale);
   sightHeight *= viewmodelScale;
