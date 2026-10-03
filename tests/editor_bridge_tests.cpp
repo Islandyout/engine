@@ -64,6 +64,10 @@ double editor_soldier_value(int, int);
 void editor_set_terrain(double, double, double, double, int, const char *);
 void editor_add_obstacle(double, double, double, double, double, double);
 double editor_terrain_height(double, double);
+void editor_set_car(int, double, double, double, double, double, double, double, double, double, double);
+void editor_set_driver(int, int, int, double, double, double);
+void editor_set_driver_text(int, int, const char *);
+double editor_vehicle_value(int, int);
 }
 namespace {
 std::string base64_floats(const std::vector<float> &values) {
@@ -1457,6 +1461,77 @@ int main() {
     }
 
     {
+        // Arcade cars (0.70.0): the player's car accelerates on W and turns
+        // right on D; an AI racer follows its route around a square; a police
+        // car chases the player; scripts read state and reset/freeze cars.
+        editor_begin();
+        // 0: player car at the origin facing +z.
+        check(editor_add(0, 0.8, 0, 0, 0, 0, 2, 1.4, 4.4, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_car(0, 0, 60, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6);
+        // 1: racer on a 60 m square route, 100 m away.
+        check(editor_add(100, 0.8, 0, 0, 0, 0, 2, 1.4, 4.4, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_car(1, 0, 40, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6);
+        editor_set_driver(1, 1, 1, 0.8, 0.5, 1);
+        editor_set_driver_text(1, 0, "100,30 160,30 160,-30 100,-30");
+        // 2: police car 40 m behind the player, chasing it.
+        check(editor_add(0, 0.8, -40, 0, 0, 0, 2, 1.4, 4.4, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_car(2, 0, 50, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6);
+        editor_set_driver(2, 2, 0, 0.8, 0.2, 1);
+        // 3: a script reading the player's car.
+        check(editor_add(0, 30, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_name(0, "Car");
+        editor_set_script_source(3, "local ticks = 0 function on_tick(dt) ticks = ticks + 1 "
+                                    "local car = world.find('Car') "
+                                    "if ticks == 120 then local s, f, gear, rpm, n, drifting = vehicle.state(car) "
+                                    "log(string.format('%.1f %d %s', s, gear, tostring(drifting))) end "
+                                    "if ticks == 121 then vehicle.reset(car, 0, 0.8, 0, 0) vehicle.freeze(car, true) end end");
+        check(editor_commit() == 1);
+        check(editor_vehicle_value(0, 11) == 1 && editor_vehicle_value(3, 11) == 0); // arcade flag
+        editor_input_begin_frame();
+        editor_input_key("KeyW", 1);
+        for (int i = 0; i < 90; ++i)
+            editor_tick();
+        const double speed = editor_vehicle_value(0, 0);
+        check(speed > 15 && speed < 40 && editor_value(0, 2) > 8); // W accelerates the car down +z
+        editor_input_begin_frame();
+        editor_input_key("KeyD", 1);
+        for (int i = 0; i < 20; ++i)
+            editor_tick();
+        check(editor_value(0, 4) < -0.1 && editor_value(0, 0) < 0); // D turns right (toward -x)
+        editor_input_begin_frame();
+        editor_input_key("KeyD", 0);
+        for (int i = 0; i < 10; ++i)
+            editor_tick();
+        bool logged = false;
+        const int commands = editor_take_commands();
+        for (int c = 0; c < commands; ++c) {
+            const std::string text = editor_command_text(c, 1);
+            logged = logged || (text.size() > 4 && text.find("false") != std::string::npos);
+        }
+        check(logged); // vehicle.state reports speed, gear, drifting
+        for (int i = 0; i < 30; ++i)
+            editor_tick();
+        check(std::abs(editor_value(0, 0)) < 0.01 && std::abs(editor_value(0, 2)) < 0.01 &&
+                  editor_vehicle_value(0, 0) < 0.01); // vehicle.reset + freeze hold the car at the origin
+        // The police car closed in on the (now parked) player.
+        for (int i = 0; i < 240; ++i)
+            editor_tick();
+        const double gap = std::hypot(editor_value(2, 0) - editor_value(0, 0), editor_value(2, 2) - editor_value(0, 2));
+        check(gap < 15); // pursuit closes on its target
+        // The racer has been lapping its square route, staying near it.
+        double far = 0;
+        for (int i = 0; i < 600; ++i) {
+            editor_tick();
+            const double x = editor_value(1, 0), z = editor_value(1, 2);
+            const double inside = std::max(std::max(100 - x, x - 160), std::max(-30 - z, z - 30));
+            far = std::max(far, inside);
+        }
+        check(far < 15 && editor_vehicle_value(1, 0) > 5); // the racer laps its route
+        editor_input_begin_frame();
+        editor_input_key("KeyW", 0);
+    }
+
+    {
         // A level-sized terrain (260 m, 131x131) under a player and a soldier.
         editor_begin();
         check(editor_add(0, 6, 100, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -1559,5 +1634,5 @@ int main() {
                  "(crouch/sit) freezing Player WASD input while held, authored "
                  "RigidBody mass/kinematic and Collider trigger/layer settings, the script host "
                  "(prefab templates for world.spawn, names, props, sound/ui/log commands), and native "
-                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill), and combat soldiers (sight, bursts, hearing, investigating around cover, reloading in cover, melee hunters, patrols), terrain (walking up a hill, scripted raycasts, obstacles), and game-support script APIs (heal, give_ammo, markers, pause) passed.\n";
+                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill), and combat soldiers (sight, bursts, hearing, investigating around cover, reloading in cover, melee hunters, patrols), terrain (walking up a hill, scripted raycasts, obstacles), and game-support script APIs (heal, give_ammo, markers, pause), and arcade cars (driving, AI racing, pursuit, vehicle.* API) passed.\n";
 }

@@ -68,8 +68,43 @@ export interface ScriptComponent {
   // (see scriptProps.ts); always reconciled against the source on load/edit.
   props: Record<string, number | boolean | string>;
 }
+// model "Classic" is the original constant-turn-rate drive on a Player
+// (archetype picks its tuning); "Arcade" (0.70.0) is engine::gameplay car
+// dynamics -- grip, drifting, handbrake, nitro, gears -- driven by the
+// Player or by a Driver. Speeds m/s, accelerations m/s^2, grip in g.
+export type VehicleModel = "Classic" | "Arcade";
 export interface VehicleComponent {
   archetype: number;
+  model: VehicleModel;
+  topSpeed: number;
+  acceleration: number;
+  braking: number;
+  grip: number;
+  driftGrip: number; // 0..1: grip kept while drifting / on the handbrake
+  steering: number; // full-lock wheel angle, degrees
+  nitroBoost: number;
+  nitroSeconds: number;
+  gears: number;
+}
+// An AI driver for an Arcade Vehicle (0.70.0): races along `route`
+// ("x,z x,z ..."), chases `target` (an entity Name; "" = the Player) in
+// Pursuit, or cruises the route as Traffic, braking for cars ahead.
+export type DriverMode = "Off" | "Race" | "Pursuit" | "Traffic";
+export interface DriverComponent {
+  mode: DriverMode;
+  route: string;
+  loop: boolean;
+  target: string;
+  skill: number; // 0..1
+  aggression: number; // 0..1
+  speedScale: number;
+}
+// Many copies of catalog models from one entity (0.70.0): one per line,
+// "model x z [yaw degrees] [scale] [solid]", positions relative to the
+// entity. Drawn instanced in chunks; "solid" ones collide with their full
+// footprint. For cities: road tiles, buildings, street furniture.
+export interface ModelInstancesComponent {
+  instances: string;
 }
 // clip names a clip on the entity's own animated Renderable model (e.g.
 // "idle"/"walk"/"wave") -- "" means no authored override, so main.ts's

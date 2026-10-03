@@ -197,9 +197,27 @@ const metadata: Record<string, PropertyMetadata> = {
     options: indexedChoice(["Casual", "Brisk", "Lingering"]),
   },
   "Vehicle.archetype": {
-    label: "Archetype",
+    label: "Archetype (Classic model)",
     options: indexedChoice(["Car", "Sports", "Truck", "Bus"]),
   },
+  "Vehicle.model": { label: "Driving model", options: choice(["Arcade", "Classic"]) },
+  "Vehicle.topSpeed": { label: "Top speed (m/s)", step: "1" },
+  "Vehicle.acceleration": { label: "Acceleration (m/s²)", step: "0.5" },
+  "Vehicle.braking": { label: "Braking (m/s²)", step: "1" },
+  "Vehicle.grip": { label: "Grip (g)", step: "0.05" },
+  "Vehicle.driftGrip": { label: "Drift grip (0-1)", step: "0.05" },
+  "Vehicle.steering": { label: "Steering lock (degrees)", step: "1" },
+  "Vehicle.nitroBoost": { label: "Nitro boost (m/s²)", step: "0.5" },
+  "Vehicle.nitroSeconds": { label: "Nitro tank (s)", step: "0.5" },
+  "Vehicle.gears": { label: "Gears", step: "1" },
+  "Driver.mode": { options: choice(["Race", "Pursuit", "Traffic", "Off"]) },
+  "Driver.route": { label: "Route (x,z x,z ...)", multiline: true },
+  "Driver.loop": { label: "Loop the route" },
+  "Driver.target": { label: "Pursuit target (entity name, blank = Player)" },
+  "Driver.skill": { label: "Skill (0-1)", step: "0.05" },
+  "Driver.aggression": { label: "Aggression (0-1)", step: "0.05" },
+  "Driver.speedScale": { label: "Speed scale", step: "0.05" },
+  "ModelInstances.instances": { label: "Instances (model x z [yaw] [scale] [solid], one per line)", multiline: true },
   "Renderable.mesh": {
     label: "Model",
     // Id 0 (the default box) isn't a modelCatalog entry — it's the fallback a
@@ -306,7 +324,7 @@ export const componentGroups: readonly ComponentGroup[] = [
   },
   {
     label: "Gameplay",
-    types: ["Health", "AIState", "AICombat", "Pedestrian", "Player", "CharacterController", "Weapons", "Vehicle"],
+    types: ["Health", "AIState", "AICombat", "Pedestrian", "Player", "CharacterController", "Weapons", "Vehicle", "Driver"],
   },
   {
     label: "Appearance & Animation",
@@ -314,5 +332,5 @@ export const componentGroups: readonly ComponentGroup[] = [
   },
   { label: "Scripting & Audio", types: ["Script", "Sound", "AudioSettings"] },
   { label: "UI", types: ["UI"] },
-  { label: "Scene & Camera", types: ["Environment", "PostProcessing", "Terrain", "Camera", "CameraFollow", "InputActions"] },
+  { label: "Scene & Camera", types: ["Environment", "PostProcessing", "Terrain", "ModelInstances", "Camera", "CameraFollow", "InputActions"] },
 ];
