@@ -3879,8 +3879,11 @@ async function startEditor() {
         // backwards instead of visibly running toward where it's going.
         if (
           speed > 0.15 &&
-          !doc.scene.effectiveHas(entities[i]!, "Vehicle") &&
-          !doc.scene.effectiveHas(entities[i]!, "AICombat")
+          // Runtime-spawned objects (world.spawn) have no authored entity:
+          // a spawned soldier faces where its AI looks, like authored ones.
+          (entities[i]
+            ? !doc.scene.effectiveHas(entities[i]!, "Vehicle") && !doc.scene.effectiveHas(entities[i]!, "AICombat")
+            : runtime._editor_soldier_value(i, 0) < 0)
         ) {
           const targetYaw = Math.atan2(dx, dz);
           const diff = Math.atan2(
@@ -3898,7 +3901,7 @@ async function startEditor() {
         // An authored AnimationState.clip (see rebuild()) pins the clip
         // rebuild() already applied -- Play mode's own ground-speed pick
         // must not fight it every tick.
-        const override = doc.scene.resolve(entities[i]!, "AnimationState");
+        const override = entities[i] ? doc.scene.resolve(entities[i]!, "AnimationState") : undefined;
         const overridden = override?.clip && state.actions.has(override.clip);
         // Crouching (C, key_for() code 7 -- see boundKeyCodes' own doc
         // comment) takes priority over both the authored pin and ordinary
