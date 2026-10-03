@@ -87,6 +87,8 @@ const componentNames = [
   "Terrain",
   "AudioSettings",
   "PostProcessing",
+  "Driver",
+  "ModelInstances",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -580,7 +582,23 @@ export function defaultComponent(
     case "Player":
       return {};
     case "Vehicle":
-      return { archetype: 0 };
+      return {
+        archetype: 0,
+        model: "Arcade",
+        topSpeed: 60,
+        acceleration: 11,
+        braking: 26,
+        grip: 1.25,
+        driftGrip: 0.45,
+        steering: 32,
+        nitroBoost: 9,
+        nitroSeconds: 4,
+        gears: 6,
+      };
+    case "Driver":
+      return { mode: "Race", route: "", loop: true, target: "", skill: 0.8, aggression: 0.5, speedScale: 1 };
+    case "ModelInstances":
+      return { instances: "" };
     case "AnimationState":
       return { clip: "", time: 0, looping: true };
     case "Renderable":

@@ -65,6 +65,9 @@ import { defaultPostSettings, gradingActive, gradingShader, shadowQualities, typ
 import { EventFlag, EventKind, WeaponFx } from "./weaponFx";
 import { buildViewmodel } from "./viewmodels";
 import { attachToHand, faceWeaponForward, splitForWeapon } from "./characterRig";
+import { instanceBox, parseModelInstances } from "./modelInstances";
+import { CarFx, type CarView, type MinimapBlip, type MinimapRoad } from "./carFx";
+import { EngineVoice, SirenVoice, TireVoice } from "./carAudio";
 import {
   applyBrush,
   decodeSculpt,
@@ -237,6 +240,10 @@ type Runtime = {
   _editor_terrain_height(x: number, z: number): number;
   _editor_line_blocked(x1: number, y1: number, z1: number, x2: number, y2: number, z2: number): number;
   _editor_soldier_value(index: number, field: number): number;
+  // Arcade cars and AI drivers (0.70.0): see editor_set_car/editor_set_driver/editor_vehicle_value.
+  _editor_set_car(index: number, yaw: number, ...spec: number[]): void;
+  _editor_set_driver(index: number, mode: number, loop: number, skill: number, aggression: number, speedScale: number): void;
+  _editor_vehicle_value(index: number, field: number): number;
   _editor_take_weapon_events(): number;
   _editor_weapon_event(index: number, field: number): number;
   // Catch-all for text calls added from 0.59.0 on.
@@ -485,7 +492,8 @@ async function startEditor() {
   sun.shadow.camera.near = 0.5;
   sun.shadow.camera.far = 120;
   sun.shadow.bias = -0.0005;
-  sun.shadow.normalBias = 0.02;
+  // Enough normal bias that low suns don't stripe thin flat boxes with acne.
+  sun.shadow.normalBias = 0.05;
   const sunDirection = new THREE.Vector3(4, 8, 5).normalize();
   // The physics ground plane (y = 0) had no visible surface; this one only
   // shows shadows, so the look is otherwise unchanged.
@@ -712,7 +720,7 @@ async function startEditor() {
     return view;
   }
   // -- Camera rig (CameraFollow) and shake --------------------------------
-  const rig = { position: new THREE.Vector3(), yaw: 0, pitch: 0, placed: false, frameDt: 1 / 60 };
+  const rig = { position: new THREE.Vector3(), yaw: 0, pitch: 0, placed: false, frameDt: 1 / 60, fovExtra: 0 };
   const shake = { intensity: 0, remaining: 0, duration: 1 };
   const rigRaycaster = new THREE.Raycaster();
   function followTarget(name: string): THREE.Object3D | undefined {
@@ -723,14 +731,30 @@ async function startEditor() {
   function placeRig(view: THREE.Camera, follow: CameraFollowComponent, target: THREE.Object3D) {
     const focus = target.position.clone();
     focus.y += follow.lookHeight;
-    const distance = Math.hypot(follow.offset.x, follow.offset.y, follow.offset.z);
+    let distance = Math.hypot(follow.offset.x, follow.offset.y, follow.offset.z);
+    // Following an arcade car (0.70.0): the rig trails its heading with a
+    // little lag (a drift shows the car's flank), pulls back with speed,
+    // and the field of view opens up with speed and nitro.
+    const carIndex = objects.indexOf(target);
+    const car = carIndex >= 0 && runtime._editor_vehicle_value(carIndex, 11) ? carView(carIndex) : undefined;
+    if (car) distance *= 1 + 0.22 * Math.min(1, car.speed / 50);
+    if (view instanceof THREE.PerspectiveCamera) {
+      const wanted = car ? 16 * Math.min(1, car.speed / 60) + (car.boosting ? 8 : 0) : 0;
+      rig.fovExtra += (wanted - rig.fovExtra) * (1 - Math.exp(-rig.frameDt * 3));
+      view.fov += rig.fovExtra;
+      view.updateProjectionMatrix();
+    }
     if (!rig.placed) {
       // Start from the authored offset, in the target's frame.
       rig.yaw = Math.atan2(follow.offset.x, follow.offset.z) + target.rotation.y;
       rig.pitch = Math.asin(THREE.MathUtils.clamp(follow.offset.y / Math.max(distance, 1e-6), -1, 1));
     } else if (!follow.orbit) {
       // Without orbit the rig swings behind the target as it turns.
-      rig.yaw = Math.atan2(follow.offset.x, follow.offset.z) + target.rotation.y;
+      const behind = Math.atan2(follow.offset.x, follow.offset.z) + target.rotation.y;
+      if (car) {
+        const turn = Math.atan2(Math.sin(behind - rig.yaw), Math.cos(behind - rig.yaw));
+        rig.yaw += turn * (1 - Math.exp(-rig.frameDt * 4.5));
+      } else rig.yaw = behind;
     }
     const desired = new THREE.Vector3(
       Math.sin(rig.yaw) * Math.cos(rig.pitch),
@@ -744,6 +768,8 @@ async function startEditor() {
       const length = toCamera.length();
       rigRaycaster.set(focus, toCamera.normalize());
       rigRaycaster.far = length;
+      // Sprites (car light glows) need a camera to be raycast.
+      rigRaycaster.camera = view;
       const blockers = objects.filter((o) => o !== target && o.visible);
       const hit = rigRaycaster.intersectObjects(blockers, true)[0];
       if (hit) desired.copy(focus).addScaledVector(toCamera, Math.max(0.3, hit.distance - 0.3));
@@ -935,7 +961,12 @@ async function startEditor() {
   // Weapons (0.61.0): viewmodel, effects and combat HUD (weaponFx.ts), and
   // the viewmodel's own render pass after the world (depth cleared, so the
   // gun never clips into walls).
-  const weaponFx = new WeaponFx(scene, (emitter) => {
+  const weaponFx = new WeaponFx(scene, makeEffectPoints);
+  // Arcade cars' presentation and HUD (0.70.0).
+  const carFx = new CarFx(scene, makeEffectPoints);
+  // Each car's box size (width, height, length), recorded when built.
+  const carSizes = new WeakMap<THREE.Object3D, THREE.Vector3>();
+  function makeEffectPoints(emitter: EmitterState) {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(emitter.positions, 3));
     geometry.setAttribute("color", new THREE.BufferAttribute(emitter.colors, 3));
@@ -953,7 +984,7 @@ async function startEditor() {
     );
     points.frustumCulled = false;
     return points;
-  });
+  }
   const viewmodelPass = new RenderPass(weaponFx.viewScene, weaponFx.viewCamera);
   viewmodelPass.clear = false;
   viewmodelPass.clearDepth = true;
@@ -1682,6 +1713,7 @@ async function startEditor() {
     }
     activeSounds.clear();
     activePanners.clear();
+    stopCarSounds();
   }
   let runtime: Runtime;
   try {
@@ -2090,6 +2122,37 @@ async function startEditor() {
         controller.acceleration,
         controller.airControl,
       );
+    // Arcade Vehicle and Driver (0.70.0): see editor_set_car and
+    // editor_set_driver (bridge.cpp). Steering is authored in degrees.
+    const vehicle = get("Vehicle");
+    if (vehicle?.model === "Arcade" && !isChild) {
+      runtime._editor_set_car(
+        index,
+        get("Rotation")?.euler.y ?? 0,
+        vehicle.topSpeed,
+        vehicle.acceleration,
+        vehicle.braking,
+        vehicle.grip,
+        vehicle.driftGrip,
+        (vehicle.steering * Math.PI) / 180,
+        vehicle.nitroBoost,
+        vehicle.nitroSeconds,
+        vehicle.gears,
+      );
+      const driver = get("Driver");
+      if (driver) {
+        runtime._editor_set_driver(
+          index,
+          { Off: 0, Race: 1, Pursuit: 2, Traffic: 3 }[driver.mode],
+          driver.loop ? 1 : 0,
+          driver.skill,
+          driver.aggression,
+          driver.speedScale,
+        );
+        if (driver.route) runtime.ccall("editor_set_driver_text", null, ["number", "number", "string"], [index, 0, driver.route]);
+        if (driver.target) runtime.ccall("editor_set_driver_text", null, ["number", "number", "string"], [index, 1, driver.target]);
+      }
+    }
     // Weapons (0.61.0): see editor_set_weapons (bridge.cpp).
     const weapons = get("Weapons");
     if (weapons && !isChild) runtime.ccall("editor_set_weapons", null, ["number", "string"], [index, weapons.loadout]);
@@ -2156,6 +2219,14 @@ async function startEditor() {
   }
   const tickStates: TickState[] = [];
   let tickAlpha = 1;
+  // Arcade car sounds and HUD state (0.70.0; see updateCars), declared
+  // before the player-mode bootstrap, which rebuilds and starts Play.
+  let engineVoice: EngineVoice | undefined;
+  let tireVoice: TireVoice | undefined;
+  const sirens = new Map<number, { voice: SirenVoice; panner?: PannerNode }>();
+  let playerCarSpeed = 0;
+  // Roads for the minimap: road-category ModelInstances, gathered by rebuild().
+  let minimapRoads: MinimapRoad[] = [];
   // Play-session UI state from scripts and interaction, keyed by the UI
   // entity's Name: values (Bar/Slider/Toggle) and visibility. Cleared
   // whenever the runtime is rebuilt, like uiTextOverrides. Declared before
@@ -2398,6 +2469,18 @@ async function startEditor() {
         runtime._editor_add_obstacle(center.x + box.x, center.y + box.y, center.z + box.z, box.sx, box.sy, box.sz);
       }
     }
+    // Solid ModelInstances (0.70.0) as static obstacles, footprint and all.
+    for (const entity of doc.scene.eachAlive()) {
+      const mi = doc.scene.resolve(entity, "ModelInstances");
+      if (!mi) continue;
+      const at = doc.scene.resolve(entity, "Transform")?.position ?? { x: 0, y: 0, z: 0 };
+      for (const instance of parseModelInstances(mi.instances).instances) {
+        const size = instance.solid ? catalogCache.get(instance.model)?.nativeSize : undefined;
+        if (!size) continue;
+        const box = instanceBox(instance, size);
+        runtime._editor_add_obstacle(at.x + box.x, at.y + box.y, at.z + box.z, box.sx, box.sy, box.sz);
+      }
+    }
     // Custom action bindings: the first InputActions component in the scene.
     const bindingsEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "InputActions"));
     const bindings = bindingsEntity && doc.scene.resolve(bindingsEntity, "InputActions");
@@ -2534,6 +2617,28 @@ async function startEditor() {
     number,
     { mesh: THREE.Mesh; params: TerrainParams; look: TerrainLook; offsets: Int16Array }
   >();
+  function buildInstancesObject(text: string): THREE.Object3D {
+    const { instances, errors } = parseModelInstances(text);
+    if (errors.length) log(`ModelInstances: ${errors.slice(0, 3).join("; ")}`);
+    const models = new Map<number, { scene: THREE.Object3D }>();
+    for (const id of new Set(instances.map((i) => i.model))) {
+      const cached = catalogCache.get(id);
+      if (cached) models.set(id, cached);
+      else if (catalogEntry(id))
+        loadOnce(
+          pendingCatalogRebuilds,
+          id,
+          () => loadCatalogModel(id),
+          () => {
+            if (doc.mode === "edit" && !gizmo.dragging) rebuild();
+          },
+          (error) => log(`Catalog model ${id} failed to load: ${String(error)}`),
+        );
+    }
+    const group = buildScatter(instances, models);
+    group.name = "model-instances";
+    return group;
+  }
   function buildTerrainObject(t: TerrainComponent, index: number): THREE.Object3D {
     const params = terrainParams(t);
     const look = terrainLook(t);
@@ -2630,10 +2735,16 @@ async function startEditor() {
         );
       object = new THREE.Mesh(geometry, material);
     }
-    // Terrain (0.63.0) replaces the placeholder with its own mesh and scatter.
+    // Terrain (0.63.0) replaces the placeholder with its own mesh and scatter;
+    // ModelInstances (0.70.0) with its instanced models. Neither takes the
+    // entity's Rotation or Scale.
     const terrainComponent = get("Terrain");
+    const instancesComponent = get("ModelInstances");
     if (terrainComponent) {
       object = buildTerrainObject(terrainComponent, objects.length);
+      animState = undefined;
+    } else if (instancesComponent) {
+      object = buildInstancesObject(instancesComponent.instances);
       animState = undefined;
     }
     const animatorSource = get("Animator");
@@ -2666,9 +2777,9 @@ async function startEditor() {
     if (p) anchor.position.set(p.x, p.y, p.z);
     if (animState) animState.prevPosition.copy(anchor.position);
     const r = get("Rotation")?.euler;
-    if (r && !terrainComponent) anchor.rotation.set(r.x, r.y, r.z);
+    if (r && !terrainComponent && !instancesComponent) anchor.rotation.set(r.x, r.y, r.z);
     const s = get("Scale")?.value;
-    if (terrainComponent) {
+    if (terrainComponent || instancesComponent) {
       // A terrain's size comes from the component, not Scale.
     } else if (s && cached) {
       // Normalize by the model's own native size so an authored Scale is
@@ -2691,6 +2802,7 @@ async function startEditor() {
     // the box's center.
     if (cached && !terrainComponent) object.position.copy(cached.nativeCenter).negate();
     anchor.add(object);
+    if (get("Vehicle")) carSizes.set(anchor, new THREE.Vector3(s?.x ?? 1, s?.y ?? 1, s?.z ?? 1));
     // A soldier with Weapons visibly holds its first weapon (0.62.0).
     const loadout = get("AICombat") ? get("Weapons")?.loadout : undefined;
     if (loadout !== undefined) {
@@ -2758,6 +2870,16 @@ async function startEditor() {
     if (doc.scene.eachAlive().some((e) => doc.scene.effectiveHas(e, "Terrain"))) shadowGround.visible = false;
     const postEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "PostProcessing"));
     applyPostProcessing((postEntity && doc.scene.resolve(postEntity, "PostProcessing")) ?? defaultPostSettings);
+    // Road tiles placed by ModelInstances, for the driving minimap.
+    minimapRoads = [];
+    for (const entity of doc.scene.eachAlive()) {
+      const mi = doc.scene.resolve(entity, "ModelInstances");
+      if (!mi) continue;
+      const at = doc.scene.resolve(entity, "Transform")?.position ?? { x: 0, y: 0, z: 0 };
+      for (const instance of parseModelInstances(mi.instances).instances)
+        if (catalogEntry(instance.model)?.category === "roads")
+          minimapRoads.push({ x: at.x + instance.x, z: at.z + instance.z, size: 16 * instance.scale });
+    }
     for (const object of objects) object.removeFromParent();
     objects.length = 0;
     terrainMeshes.clear();
@@ -3182,6 +3304,8 @@ async function startEditor() {
         fps.view.reset();
         deathRoll = 0;
         weaponFx.reset();
+        carFx.reset();
+        playerCarSpeed = 0;
         tickStates.length = 0;
         tickAlpha = 1;
         zoomBlend = 0;
@@ -3605,6 +3729,9 @@ async function startEditor() {
         // would place no foliage, and Play never rebuilds again.
         const terrain = doc.scene.resolve(entity, "Terrain");
         if (terrain) for (const rule of parseScatter(terrain.scatter).rules) meshIds.add(rule.model);
+        // ModelInstances models (0.70.0).
+        const mi = doc.scene.resolve(entity, "ModelInstances");
+        if (mi) for (const instance of parseModelInstances(mi.instances).instances) meshIds.add(instance.model);
         // The first-person arms' fallback character (holdFirstPersonWeapons).
         if (doc.scene.effectiveHas(entity, "Player") && doc.scene.effectiveHas(entity, "Weapons"))
           meshIds.add(firstPersonBodyFallback);
@@ -3669,7 +3796,9 @@ async function startEditor() {
       currentYaw: 0,
     });
     state.current.set(runtime._editor_value(i, 0), runtime._editor_value(i, 1), runtime._editor_value(i, 2));
-    state.currentYaw = runtime._editor_soldier_value(i, 1);
+    // Soldiers face where they look; cars along their heading.
+    state.currentYaw =
+      runtime._editor_soldier_value(i, 0) >= 0 ? runtime._editor_soldier_value(i, 1) : runtime._editor_value(i, 4);
     if (!state.previous.lengthSq() && !state.previousYaw) {
       state.previous.copy(state.current);
       state.previousYaw = state.currentYaw;
@@ -3678,6 +3807,73 @@ async function startEditor() {
   }
   function sampleTickStates() {
     for (let i = 0; i < objects.length; i++) if (runtime._editor_alive(i)) sampleTickState(i);
+  }
+  // -- Arcade cars (0.70.0): effects, sounds and the HUD's car ------------
+  function stopCarSounds() {
+    engineVoice?.stop();
+    tireVoice?.stop();
+    engineVoice = tireVoice = undefined;
+    for (const { voice } of sirens.values()) voice.stop();
+    sirens.clear();
+  }
+  function carView(i: number): CarView {
+    const v = (field: number) => runtime._editor_vehicle_value(i, field);
+    return {
+      speed: v(0),
+      forward: v(1),
+      gear: v(2),
+      rpm: v(3),
+      nitro: v(4),
+      drifting: v(5) === 1,
+      boosting: v(6) === 1,
+      slip: v(7),
+      yawRate: v(12),
+      brake: v(10),
+      handbrake: v(9) === 1,
+      throttle: v(13),
+      pursuit: v(14) === 2,
+    };
+  }
+  function updateCars(dt: number) {
+    const live = new Set<number>();
+    objects.forEach((anchor, i) => {
+      if (!runtime._editor_alive(i) || !runtime._editor_vehicle_value(i, 11)) return;
+      const car = carView(i);
+      carFx.updateCar(anchor, carSizes.get(anchor) ?? new THREE.Vector3(2, 1.5, 4.6), car, dt);
+      if (car.pursuit && audioContext) {
+        live.add(i);
+        let siren = sirens.get(i);
+        if (!siren) {
+          const source = audioMixer().source("sfx", anchor.position, { refDistance: 8, maxDistance: 400 });
+          siren = { voice: new SirenVoice(getAudioContext(), source.input), panner: source.panner };
+          sirens.set(i, siren);
+        }
+        siren.voice.update(dt);
+        if (siren.panner) audioMixer().place(siren.panner, anchor.position);
+      }
+      if (i !== playerIndex) return;
+      if (audioContext) {
+        engineVoice ??= new EngineVoice(getAudioContext(), audioMixer().buses.sfx);
+        tireVoice ??= new TireVoice(getAudioContext(), audioMixer().buses.sfx);
+        engineVoice.update(car.rpm, car.gear, car.throttle, car.boosting);
+        tireVoice.update(car.speed > 4 ? Math.min(1, Math.abs(car.slip) * 2.5 + (car.handbrake ? 0.4 : 0)) : 0);
+      }
+      // A sudden loss of speed is a crash.
+      const lost = playerCarSpeed - car.speed;
+      if (lost > 7) {
+        shake.intensity = Math.min(0.5, lost * 0.025);
+        shake.duration = shake.remaining = 0.35;
+        playOneShot("sfx:impact", anchor.position, Math.min(1, lost / 20));
+        playOneShot("sfx:explosion", anchor.position, Math.min(0.5, lost / 50));
+      }
+      playerCarSpeed = car.speed;
+    });
+    for (const [i, siren] of sirens)
+      if (!live.has(i)) {
+        siren.voice.stop();
+        sirens.delete(i);
+      }
+    carFx.update(dt);
   }
   function frame(now: number) {
     const frameStart = performance.now();
@@ -3779,10 +3975,18 @@ async function startEditor() {
         const turn = Math.atan2(Math.sin(state.currentYaw - state.previousYaw), Math.cos(state.currentYaw - state.previousYaw));
         object.rotation.y = state.previousYaw + turn * tickAlpha;
       });
-      doc.scene.eachAlive().forEach((entity, i) => {
-        if (!doc.scene.effectiveHas(entity, "Vehicle") || !doc.scene.effectiveHas(entity, "Player")) return;
-        const object = objects[i];
-        if (object && runtime._editor_alive(i)) object.rotation.y = runtime._editor_value(i, 4);
+      const authored = doc.scene.eachAlive();
+      objects.forEach((object, i) => {
+        if (!runtime._editor_alive(i)) return;
+        const entity = authored[i];
+        // Arcade cars (any driver, spawned ones too), drawn between ticks
+        // like positions.
+        const state = tickStates[i];
+        if (runtime._editor_vehicle_value(i, 11) && state) {
+          const turn = Math.atan2(Math.sin(state.currentYaw - state.previousYaw), Math.cos(state.currentYaw - state.previousYaw));
+          object.rotation.y = state.previousYaw + turn * tickAlpha;
+        } else if (entity && doc.scene.effectiveHas(entity, "Vehicle") && doc.scene.effectiveHas(entity, "Player"))
+          object.rotation.y = runtime._editor_value(i, 4);
       });
       // Jump/flight squash-and-stretch: a cheap "weight" cue so a jump doesn't
       // read as a flat vertical translation — stretches tall while rising,
@@ -3836,6 +4040,7 @@ async function startEditor() {
           runtime._editor_projectile_value(i, 2),
         ),
       );
+      updateCars(dt);
       if (player) controls.target.copy(player.position);
     }
     // Always advance mixers, even in edit mode: a rigged model sitting
@@ -4354,6 +4559,23 @@ async function startEditor() {
       drawWaypoints();
     }
     if (firstPerson()) hudLines.push(...drawFirstPersonOverlay());
+    // Driving HUD (0.70.0): when the player is an arcade car.
+    if (doc.mode !== "edit" && playerIndex >= 0 && runtime._editor_alive(playerIndex) && runtime._editor_vehicle_value(playerIndex, 11)) {
+      const car = carView(playerIndex);
+      const playerEntity = doc.scene.eachAlive()[playerIndex];
+      const topSpeed = (playerEntity && doc.scene.resolve(playerEntity, "Vehicle")?.topSpeed) || 60;
+      carFx.drawSpeedometer(hudCtx, hud.width, hud.height, car, topSpeed);
+      const me = objects[playerIndex]!;
+      const blips: MinimapBlip[] = [];
+      objects.forEach((anchor, i) => {
+        if (i === playerIndex || !runtime._editor_alive(i) || !runtime._editor_vehicle_value(i, 11)) return;
+        const mode = runtime._editor_vehicle_value(i, 14);
+        blips.push({ x: anchor.position.x, z: anchor.position.z, kind: mode === 2 ? "police" : mode === 1 ? "racer" : "traffic" });
+      });
+      for (const marker of uiMarkers.values()) blips.push({ x: marker.position.x, z: marker.position.z, kind: "marker" });
+      carFx.drawMinimap(hudCtx, hud.height, { x: me.position.x, z: me.position.z, yaw: me.rotation.y }, minimapRoads, blips);
+      hudLines.push(`${Math.round(car.speed * 3.6)} km/h`, `gear ${car.gear < 0 ? "R" : car.gear}`, `nitro ${Math.round(car.nitro * 100)}%`);
+    }
     for (const entity of doc.scene.eachAlive()) {
       const authoredUi = doc.scene.resolve(entity, "UI");
       if (!authoredUi) continue;

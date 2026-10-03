@@ -485,6 +485,9 @@ const { chromium } = require("playwright");
       .filter({ hasText: "Entity 7" })
       .first()
       .click();
+    // Archetypes tune the Classic driving model; a newly added Vehicle
+    // defaults to Arcade (0.70.0, engine::gameplay car dynamics).
+    await page.locator('[aria-label="Vehicle.model"]').selectOption("Classic");
     const archetypeSelect = page.locator('[aria-label="Vehicle.archetype"]');
     const archetypeOptions = await archetypeSelect.locator("option").allTextContents();
     assert.deepEqual(archetypeOptions, ["Car", "Sports", "Truck", "Bus"]);

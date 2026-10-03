@@ -17,6 +17,8 @@ import type {
   CharacterControllerComponent,
   WeaponsComponent,
   AICombatComponent,
+  DriverComponent,
+  ModelInstancesComponent,
   TerrainComponent,
   AudioSettingsComponent,
   PostProcessingComponent,
@@ -71,6 +73,8 @@ export interface SceneComponents {
   CharacterController: CharacterControllerComponent;
   Weapons: WeaponsComponent;
   AICombat: AICombatComponent;
+  Driver: DriverComponent;
+  ModelInstances: ModelInstancesComponent;
   Terrain: TerrainComponent;
   AudioSettings: AudioSettingsComponent;
   PostProcessing: PostProcessingComponent;
@@ -114,6 +118,8 @@ export const prefabableComponentNames = [
   "Weapons",
   "AICombat",
   "Terrain",
+  "Driver",
+  "ModelInstances",
 ] as const satisfies readonly (keyof SceneComponents)[];
 export type PrefabableComponent = (typeof prefabableComponentNames)[number];
 const prefabableComponentSet: ReadonlySet<string> = new Set(
@@ -176,6 +182,8 @@ export class Scene {
     CharacterController: new Map(),
     Weapons: new Map(),
     AICombat: new Map(),
+    Driver: new Map(),
+    ModelInstances: new Map(),
     Terrain: new Map(),
     AudioSettings: new Map(),
     PostProcessing: new Map(),

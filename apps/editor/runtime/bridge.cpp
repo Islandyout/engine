@@ -1,5 +1,6 @@
 #include "bindings.hpp"
 #include "engine/gameplay/character.hpp"
+#include "engine/gameplay/car.hpp"
 #include "engine/gameplay/weapons.hpp"
 #include "engine/nav/nav.hpp"
 #include "engine/physics/physics.hpp"
@@ -60,7 +61,79 @@ struct Heading final {
     float half_x{};
     float half_z{};
     VehicleArchetype archetype{VehicleArchetype::Car};
+    // Arcade cars (0.70.0, editor_set_car): engine::gameplay car dynamics
+    // instead of the constant-turn-rate model above, on the player or on an
+    // AI Driver. frozen holds the car still (race countdowns).
+    bool arcade{false};
+    bool frozen{false};
+    engine::gameplay::CarSpec spec{};
+    engine::gameplay::CarState car{};
+    engine::gameplay::CarInput input{};
 };
+
+// An AI driver for an arcade car (0.70.0): follows a route of points (race
+// lines, traffic loops), or chases a target entity (police), steering with
+// engine::gameplay::steer_toward and braking for the corners ahead.
+enum class DriveMode : int { Off, Race, Pursuit, Traffic };
+struct Driver final {
+    DriveMode mode{DriveMode::Race};
+    std::vector<engine::Vec3> route;
+    bool loop{true};
+    std::size_t next{0};
+    // Pursuit: the entity named target_name (resolved lazily; "" = the Player).
+    std::string target_name;
+    std::optional<engine::Entity> target;
+    float skill{0.8F};      // 0..1: pace and racing-line commitment
+    float aggression{0.5F}; // 0..1: rams in pursuit, pushes through traffic
+    float speed_scale{1.0F};
+    // Stuck recovery: backing out with the opposite lock.
+    float stuck{0.0F};
+    float reversing{0.0F};
+    float reverse_steer{1.0F};
+};
+
+// "x,z x,z ..." (or ";" separated) route points on the ground.
+std::vector<engine::Vec3> parse_route(std::string_view text) {
+    std::vector<engine::Vec3> points;
+    std::string token;
+    const auto flush = [&] {
+        const auto comma = token.find(',');
+        if (comma != std::string::npos) {
+            char *end = nullptr;
+            const float x = std::strtof(token.c_str(), &end);
+            const float z = std::strtof(token.c_str() + comma + 1, nullptr);
+            if (std::isfinite(x) && std::isfinite(z) && end != token.c_str())
+                points.push_back({x, 0, z});
+        }
+        token.clear();
+    };
+    for (const char c : text) {
+        if (c == ' ' || c == ';' || c == '\n' || c == '\t')
+            flush();
+        else
+            token += c;
+    }
+    flush();
+    return points;
+}
+// The route point to aim for first: the nearest one, or the one after it
+// when the car is already past it.
+std::size_t route_start(const std::vector<engine::Vec3> &route, engine::Vec3 position, float yaw) {
+    if (route.empty())
+        return 0;
+    std::size_t best = 0;
+    float best_d = 1e30F;
+    for (std::size_t i = 0; i < route.size(); ++i) {
+        const float d = std::hypot(route[i].x - position.x, route[i].z - position.z);
+        if (d < best_d) {
+            best_d = d;
+            best = i;
+        }
+    }
+    const float ahead = (route[best].x - position.x) * std::sin(yaw) + (route[best].z - position.z) * std::cos(yaw);
+    return ahead < 0 && best + 1 < route.size() ? best + 1 : best;
+}
+
 
 // Mirrors AIStateName's own order in apps/editor/src/scene/Components.ts —
 // editor_value's field 5 returns this as a plain int, and main.ts would need
@@ -395,6 +468,8 @@ public:
     void emit(engine::Entity source, const std::string &kind, const std::string &a, const std::string &b) override;
     bool weapon(engine::World &world, engine::Entity self, const std::string &op, const std::vector<double> &args,
                 std::vector<double> &out) override;
+    bool vehicle(engine::World &world, engine::Entity entity, const std::string &op, const std::vector<double> &args,
+                 const std::string &text, std::optional<engine::Entity> other, std::vector<double> &out) override;
 
 private:
     Runtime &runtime_;
@@ -478,6 +553,231 @@ struct Runtime {
     void push_event(WeaponEvent event) {
         if (weapon_events.size() < 1024)
             weapon_events.push_back(event);
+    }
+    // One tick of an arcade car (0.70.0): picks up the velocity physics
+    // resolved last tick (walls and other cars), steps the car model, and
+    // hands the result back to the body, turning its footprint with it.
+    void drive_car(engine::World &w, engine::Entity entity, Heading &heading, engine::physics::RigidBody &body,
+                   engine::gameplay::CarInput control) {
+        constexpr float dt = 1.0F / 60.0F;
+        auto &car = heading.car;
+        car.velocity = {body.velocity.x, 0, body.velocity.z};
+        if (heading.frozen) {
+            control = {};
+            car.velocity = {};
+            car.yaw_rate = 0;
+        }
+        heading.input = control;
+        engine::gameplay::step_car(car, heading.spec, control, dt);
+        if (heading.frozen)
+            car.velocity = {};
+        body.velocity.x = car.velocity.x;
+        body.velocity.z = car.velocity.z;
+        heading.yaw = car.yaw;
+        heading.speed = car.forward_speed;
+        auto &box = *w.get<engine::Box>(entity);
+        const float cos_yaw = std::cos(heading.yaw), sin_yaw = std::sin(heading.yaw);
+        box.size.x = 2.0F * (std::abs(heading.half_x * cos_yaw) + std::abs(heading.half_z * sin_yaw));
+        box.size.z = 2.0F * (std::abs(heading.half_x * sin_yaw) + std::abs(heading.half_z * cos_yaw));
+    }
+    // The player's car controls from the named actions: move_y throttle
+    // (forward) / brake and reverse (back), move_x steering, jump the
+    // handbrake, sprint nitro.
+    engine::gameplay::CarInput player_car_input() const {
+        const auto value = [this](const char *name) { return actions.state(engine::ActionId{name}).value; };
+        engine::gameplay::CarInput control;
+        const float y = value("move_y");
+        control.throttle = std::max(0.0F, y);
+        control.brake = std::max(0.0F, -y);
+        control.steer = std::clamp(value("move_x"), -1.0F, 1.0F);
+        control.handbrake = value("jump") > 0.5F;
+        control.nitro = value("sprint") > 0.5F;
+        return control;
+    }
+    // An AI driver's control for this tick (see Driver).
+    engine::gameplay::CarInput drive_ai(engine::World &w, engine::Entity entity, Heading &heading, Driver &driver) {
+        using engine::Vec3;
+        constexpr float dt = 1.0F / 60.0F;
+        engine::gameplay::CarInput control;
+        const auto &spec = heading.spec;
+        const auto &car = heading.car;
+        const Vec3 position = w.get<engine::Box>(entity)->center;
+        const float speed = car.forward_speed;
+        const float fx = std::sin(car.yaw), fz = std::cos(car.yaw);
+        if (driver.reversing > 0) {
+            driver.reversing -= dt;
+            control.brake = 1;
+            control.steer = driver.reverse_steer;
+            return control;
+        }
+        const auto flat = [](Vec3 a, Vec3 b) { return std::hypot(a.x - b.x, a.z - b.z); };
+        // Something solid straight ahead within `range`: distance, and whether it's another car.
+        const auto probe = [&](float side, float range) -> std::optional<std::pair<float, bool>> {
+            const Vec3 origin{position.x - fz * side, position.y + 0.3F, position.z + fx * side};
+            engine::physics::QueryFilter filter;
+            filter.ignore = entity;
+            const auto hit = engine::physics::raycast(w, origin, Vec3{fx, 0, fz}, range, physics_config, filter);
+            if (!hit || hit->hit_ground)
+                return std::nullopt;
+            return std::pair{hit->distance, w.get<Heading>(hit->entity) != nullptr};
+        };
+        Vec3 target = position;
+        float target_speed = 0;
+        bool chase_direct = false;
+        if (driver.mode == DriveMode::Pursuit) {
+            if (driver.target && !w.alive(*driver.target))
+                driver.target.reset();
+            if (!driver.target) {
+                if (driver.target_name.empty()) {
+                    for (const auto player : w.query<engine::Box, PlayerMarker>()) {
+                        driver.target = player;
+                        break;
+                    }
+                } else {
+                    for (const auto other : w.query<EntityName>())
+                        if (w.get<EntityName>(other)->value == driver.target_name) {
+                            driver.target = other;
+                            break;
+                        }
+                }
+            }
+            if (driver.target) {
+                const Vec3 goal = w.get<engine::Box>(*driver.target)->center;
+                const auto *goal_body = w.get<engine::physics::RigidBody>(*driver.target);
+                const Vec3 lead = goal_body ? Vec3{goal_body->velocity.x * 0.5F, 0, goal_body->velocity.z * 0.5F} : Vec3{};
+                target = {goal.x + lead.x, goal.y, goal.z + lead.z};
+                // Straight at it when nothing solid is in between; otherwise
+                // the route (if the script gave one) leads around the block.
+                const Vec3 to{target.x - position.x, 0, target.z - position.z};
+                const float distance = std::max(std::hypot(to.x, to.z), 0.01F);
+                engine::physics::QueryFilter filter;
+                filter.ignore = entity;
+                const auto hit = engine::physics::raycast(w, {position.x, position.y + 0.3F, position.z},
+                                                          {to.x, 0, to.z}, distance, physics_config, filter);
+                chase_direct = !hit || hit->hit_ground || hit->entity == *driver.target ||
+                               w.get<Heading>(hit->entity) != nullptr || driver.route.empty();
+                if (chase_direct) {
+                    target_speed = spec.top_speed * driver.speed_scale;
+                    // Close in and aggressive: aim at the target's flank to ram it.
+                    if (distance < 14.0F && driver.aggression > 0.5F && goal_body) {
+                        const float gyaw = w.get<Heading>(*driver.target) ? w.get<Heading>(*driver.target)->yaw : 0.0F;
+                        const float side = (std::sin(driver.reverse_steer * 7.0F) > 0 ? 1.0F : -1.0F) * 1.5F;
+                        target.x += -std::cos(gyaw) * side;
+                        target.z += std::sin(gyaw) * side;
+                    }
+                    if (distance < 6.0F && driver.aggression <= 0.5F)
+                        target_speed = std::hypot(goal_body ? goal_body->velocity.x : 0, goal_body ? goal_body->velocity.z : 0);
+                    control.nitro = distance > 50.0F && driver.skill > 0.5F && car.nitro > 0.3F;
+                }
+            }
+        }
+        if (driver.mode == DriveMode::Off || (driver.mode == DriveMode::Pursuit && !driver.target)) {
+            control.brake = 1;
+            return control;
+        }
+        if (!chase_direct) {
+            if (driver.route.empty()) {
+                control.brake = 1;
+                return control;
+            }
+            const std::size_t count = driver.route.size();
+            const auto at = [&](std::size_t i) -> const Vec3 & { return driver.route[i % count]; };
+            // Advance past points reached, or passed: beyond the point along
+            // the leg leading into it (a car that runs wide must not circle
+            // back for a point it already went by).
+            const float reach = std::max(6.0F, std::abs(speed) * 0.35F);
+            for (int guard = 0; guard < static_cast<int>(count); ++guard) {
+                if (!driver.loop && driver.next >= count)
+                    break;
+                const Vec3 &point = at(driver.next);
+                const Vec3 &before = driver.next > 0 || driver.loop ? at(driver.next + count - 1) : position;
+                const float lx = point.x - before.x, lz = point.z - before.z;
+                const bool passed = (position.x - point.x) * lx + (position.z - point.z) * lz > 0;
+                if (flat(position, point) > reach && !passed)
+                    break;
+                driver.next = driver.loop ? (driver.next + 1) % count : driver.next + 1;
+            }
+            if (!driver.loop && driver.next >= count) {
+                control.brake = 1;
+                return control;
+            }
+            // Look ahead along the route by a speed-dependent distance.
+            float lookahead = std::clamp(std::abs(speed) * 0.7F, 7.0F, 35.0F);
+            Vec3 from = position;
+            target = at(driver.next);
+            for (std::size_t i = driver.next, steps = 0; steps < count; ++i, ++steps) {
+                if (!driver.loop && i >= count)
+                    break;
+                const Vec3 &point = at(i);
+                const float segment = flat(from, point);
+                if (segment >= lookahead) {
+                    const float t = lookahead / std::max(segment, 0.001F);
+                    target = {from.x + (point.x - from.x) * t, point.y, from.z + (point.z - from.z) * t};
+                    break;
+                }
+                lookahead -= segment;
+                from = point;
+                target = point;
+            }
+            // Corner speeds ahead: brake in time for each upcoming turn.
+            const float pace = driver.mode == DriveMode::Traffic
+                                   ? 13.0F * driver.speed_scale
+                                   : spec.top_speed * driver.speed_scale * (0.82F + 0.18F * driver.skill);
+            target_speed = pace;
+            float travelled = flat(position, at(driver.next));
+            for (std::size_t k = 0; k < std::min<std::size_t>(count, 8); ++k) {
+                const std::size_t i = driver.next + k;
+                if (!driver.loop && i + 1 >= count)
+                    break;
+                const Vec3 &a = k == 0 ? position : at(i - 1);
+                const Vec3 &b = at(i);
+                const Vec3 &c = at(i + 1);
+                const float ax = b.x - a.x, az = b.z - a.z, bx = c.x - b.x, bz = c.z - b.z;
+                const float la = std::hypot(ax, az), lb = std::hypot(bx, bz);
+                if (la > 0.01F && lb > 0.01F) {
+                    const float turn = std::acos(std::clamp((ax * bx + az * bz) / (la * lb), -1.0F, 1.0F));
+                    if (turn > 0.08F) {
+                        const float radius = std::min(la, lb) / std::max(turn, 0.01F);
+                        const float corner = engine::gameplay::corner_speed(spec, radius) * (0.85F + 0.15F * driver.skill);
+                        const float allowed = std::sqrt(corner * corner + 2.0F * spec.braking * 0.7F * travelled);
+                        target_speed = std::min(target_speed, allowed);
+                    }
+                }
+                travelled += lb;
+                if (travelled > 160.0F)
+                    break;
+            }
+            if (driver.mode == DriveMode::Race)
+                control.nitro = driver.skill > 0.6F && target_speed > speed + 12.0F && car.nitro > 0.2F;
+        }
+        control = [&] {
+            auto steered = engine::gameplay::steer_toward(car, spec, position, target, target_speed);
+            steered.nitro = control.nitro;
+            return steered;
+        }();
+        // Traffic ahead: traffic brakes for it; racers and police go around.
+        const float look = std::max(10.0F, std::abs(speed) * 1.1F);
+        if (const auto ahead = probe(0, look)) {
+            if (driver.mode == DriveMode::Traffic && ahead->second) {
+                control.throttle = 0;
+                control.brake = std::max(control.brake, 1.0F - ahead->first / look);
+            } else if (ahead->second || ahead->first < look * 0.6F) {
+                const auto left = probe(1.6F, look), right = probe(-1.6F, look);
+                const float l = left ? left->first : look, r = right ? right->first : look;
+                control.steer = std::clamp(control.steer + (r >= l ? 0.6F : -0.6F), -1.0F, 1.0F);
+            }
+        }
+        // Stuck against something: back out with the opposite lock.
+        if (control.throttle > 0.3F && std::abs(speed) < 1.0F)
+            driver.stuck += dt;
+        else
+            driver.stuck = std::max(0.0F, driver.stuck - dt);
+        if (driver.stuck > 1.5F) {
+            driver.stuck = 0;
+            driver.reversing = 1.1F;
+            driver.reverse_steer = control.steer >= 0 ? -1.0F : 1.0F;
+        }
+        return control;
     }
     // Every damage path (weapons, melee, blast, AI attacks, scripts) lands
     // here: Health goes down, the editor gets a "damaged" event, the target's
@@ -1216,6 +1516,17 @@ struct Runtime {
         // gets both an AIAgent and a Script instance; whichever ran last (here,
         // this one) simply overwrites the other's velocity write that tick —
         // not a crash, just not a combination there's a reason to author.
+        // AI drivers (0.70.0): every arcade car with a Driver, before physics.
+        add_timed("editor.drivers", engine::FixedPhase::update, 4,
+                  [this](engine::World &w, const engine::FixedUpdateContext &) {
+                      for (const auto entity : w.query<Heading, Driver, engine::physics::RigidBody>()) {
+                          auto &heading = *w.get<Heading>(entity);
+                          if (!heading.arcade || w.get<PlayerMarker>(entity))
+                              continue;
+                          const auto control = drive_ai(w, entity, heading, *w.get<Driver>(entity));
+                          drive_car(w, entity, heading, *w.get<engine::physics::RigidBody>(entity), control);
+                      }
+                  });
         add_timed("editor.soldiers", engine::FixedPhase::update, 3,
                   [this](engine::World &w, const engine::FixedUpdateContext &) {
                       time_now += 1.0F / 60.0F;
@@ -1258,6 +1569,8 @@ struct Runtime {
                                                              : std::atan2(-camera_forward_x, -camera_forward_z);
                         engine::gameplay::begin_step(w, entity, controller->state, controller->settings, intent,
                                                      physics_config.gravity * body.gravity_scale, 1.0F / 60.0F);
+                    } else if (heading && heading->arcade) {
+                        drive_car(w, entity, *heading, body, player_car_input());
                     } else if (heading) {
                         // Vehicle model: W/S accelerate/reverse along the vehicle's own
                         // heading (momentum, not instant velocity), A/D steer that heading
@@ -1626,6 +1939,7 @@ void register_components(engine::World &w) {
     w.register_component<Health>("editor.health");
     w.register_component<Projectile>("editor.projectile");
     w.register_component<Heading>("editor.heading");
+    w.register_component<Driver>("editor.driver");
     w.register_component<AIAgent>("editor.ai_agent");
     w.register_component<Pedestrian>("editor.pedestrian");
     w.register_component<engine::script::Script>("editor.script");
@@ -1680,10 +1994,78 @@ std::optional<engine::Entity> BridgeHost::spawn(engine::World &world, const std:
     copy_component<Controller>(from, source, world, entity);
     copy_component<Arsenal>(from, source, world, entity);
     copy_component<Soldier>(from, source, world, entity);
+    copy_component<Driver>(from, source, world, entity);
     world.defer_set(entity, EntityName{prefab});
     world.defer_set(entity, SpawnedFrom{prefab});
     runtime_.entities.push_back(entity);
     return entity;
+}
+
+bool BridgeHost::vehicle(engine::World &world, engine::Entity entity, const std::string &op,
+                         const std::vector<double> &args, const std::string &text, std::optional<engine::Entity> other,
+                         std::vector<double> &out) {
+    auto *heading = world.get<Heading>(entity);
+    if (!heading || !heading->arcade)
+        return false;
+    auto &car = heading->car;
+    const auto arg = [&](std::size_t i) { return i < args.size() && std::isfinite(args[i]) ? static_cast<float>(args[i]) : 0.0F; };
+    if (op == "state") {
+        out = {std::hypot(car.velocity.x, car.velocity.z), car.forward_speed, static_cast<double>(car.gear), car.rpm,
+               car.nitro, car.drifting ? 1.0 : 0.0, car.boosting ? 1.0 : 0.0, car.yaw, car.slip};
+        return true;
+    }
+    if (op == "set_nitro") {
+        car.nitro = std::clamp(arg(0), 0.0F, 1.0F);
+        return true;
+    }
+    if (op == "reset") {
+        auto &box = *world.get<engine::Box>(entity);
+        box.center = {arg(0), arg(1), arg(2)};
+        const float nitro = car.nitro;
+        car = {};
+        car.nitro = nitro;
+        car.yaw = heading->yaw = arg(3);
+        heading->speed = 0;
+        if (auto *body = world.get<engine::physics::RigidBody>(entity))
+            body->velocity = {};
+        if (auto *driver = world.get<Driver>(entity)) {
+            driver->next = route_start(driver->route, box.center, car.yaw);
+            driver->stuck = driver->reversing = 0;
+        }
+        return true;
+    }
+    if (op == "freeze") {
+        heading->frozen = arg(0) != 0;
+        return true;
+    }
+    auto *driver = world.get<Driver>(entity);
+    if (!driver) {
+        world.set(entity, Driver{});
+        driver = world.get<Driver>(entity);
+    }
+    if (op == "route") {
+        driver->route = parse_route(text);
+        driver->loop = arg(0) != 0;
+        driver->next = route_start(driver->route, world.get<engine::Box>(entity)->center, car.yaw);
+        return true;
+    }
+    if (op == "target") {
+        driver->target = other;
+        driver->target_name.clear();
+        return true;
+    }
+    if (op == "mode") {
+        driver->mode = text == "race" ? DriveMode::Race
+                       : text == "pursuit" ? DriveMode::Pursuit
+                       : text == "traffic" ? DriveMode::Traffic
+                                           : DriveMode::Off;
+        return true;
+    }
+    if (op == "speed_scale") {
+        driver->speed_scale = std::max(0.05F, arg(0));
+        return true;
+    }
+    return false;
 }
 
 bool BridgeHost::weapon(engine::World &world, engine::Entity self, const std::string &op,
@@ -2189,6 +2571,119 @@ EXPORT void editor_set_soldier_patrol(int index, const char *names) {
         if (!name.empty())
             soldier->patrol_names.push_back(std::move(name));
         start = end + 1;
+    }
+}
+// Arcade car (0.70.0): makes the staged entity an engine::gameplay car
+// facing `yaw` (radians; it faces (sin, 0, cos)) with these handling numbers
+// (see CarSpec), adding its Heading (footprint from its Box) if needed.
+// Non-finite or non-positive numbers fail the commit.
+EXPORT void editor_set_car(int index, double yaw, double top_speed, double acceleration, double braking, double grip,
+                           double drift_grip, double steering, double nitro_boost, double nitro_seconds, double gears) {
+    const auto target = staged(index);
+    if (!target)
+        return;
+    for (const double v : {top_speed, acceleration, braking, grip, drift_grip, steering, nitro_seconds, gears})
+        if (!(std::isfinite(v) && v > 0)) {
+            failed = true;
+            return;
+        }
+    if (!std::isfinite(yaw) || !(std::isfinite(nitro_boost) && nitro_boost >= 0)) {
+        failed = true;
+        return;
+    }
+    auto &world = *target->first;
+    const auto e = target->second;
+    if (!world.get<Heading>(e)) {
+        const auto &box = *world.get<engine::Box>(e);
+        world.set(e, Heading{0.0F, 0.0F, box.size.x / 2.0F, box.size.z / 2.0F});
+    }
+    auto &heading = *world.get<Heading>(e);
+    heading.arcade = true;
+    heading.spec.top_speed = static_cast<float>(top_speed);
+    heading.spec.acceleration = static_cast<float>(acceleration);
+    heading.spec.braking = static_cast<float>(braking);
+    heading.spec.grip = static_cast<float>(grip);
+    heading.spec.drift_grip = std::min(1.0F, static_cast<float>(drift_grip));
+    heading.spec.steering = static_cast<float>(steering);
+    heading.spec.nitro_boost = static_cast<float>(nitro_boost);
+    heading.spec.nitro_seconds = static_cast<float>(nitro_seconds);
+    heading.spec.gears = std::clamp(static_cast<int>(gears), 1, 9);
+    heading.car = {};
+    heading.car.yaw = heading.yaw = static_cast<float>(yaw);
+}
+// An AI driver on the staged arcade car (0.70.0): mode 0 off, 1 race, 2
+// pursuit, 3 traffic; loop repeats the route; skill/aggression 0..1.
+EXPORT void editor_set_driver(int index, int mode, int loop, double skill, double aggression, double speed_scale) {
+    const auto target = staged(index);
+    if (!target)
+        return;
+    if (mode < 0 || mode > 3 || !std::isfinite(skill) || !std::isfinite(aggression) ||
+        !(std::isfinite(speed_scale) && speed_scale > 0)) {
+        failed = true;
+        return;
+    }
+    Driver driver;
+    if (const auto *existing = target->first->get<Driver>(target->second))
+        driver = *existing;
+    driver.mode = static_cast<DriveMode>(mode);
+    driver.loop = loop != 0;
+    driver.skill = std::clamp(static_cast<float>(skill), 0.0F, 1.0F);
+    driver.aggression = std::clamp(static_cast<float>(aggression), 0.0F, 1.0F);
+    driver.speed_scale = static_cast<float>(speed_scale);
+    target->first->set(target->second, driver);
+}
+// Driver text: field 0 = route ("x,z x,z ..."), 1 = pursuit target name.
+EXPORT void editor_set_driver_text(int index, int field, const char *text) {
+    const auto target = staged(index);
+    if (!target || !text)
+        return;
+    auto *driver = target->first->get<Driver>(target->second);
+    if (!driver)
+        return;
+    if (field == 0) {
+        driver->route = parse_route(text);
+        const auto &box = *target->first->get<engine::Box>(target->second);
+        const auto *heading = target->first->get<Heading>(target->second);
+        driver->next = route_start(driver->route, box.center, heading ? heading->yaw : 0.0F);
+    } else if (field == 1) {
+        driver->target_name = text;
+    }
+}
+// Arcade car state for the editor (0.70.0): 0 speed, 1 forward speed, 2 gear
+// (-1 reverse), 3 rpm 0..1, 4 nitro 0..1, 5 drifting, 6 boosting, 7 slip
+// (radians), 8 front wheel angle, 9 handbrake input, 10 brake input, 11 is
+// an arcade car, 12 yaw rate, 13 throttle input, 14 driver mode (-1 none, 0
+// off, 1 race, 2 pursuit, 3 traffic). 0 without one.
+EXPORT double editor_vehicle_value(int index, int field) {
+    if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
+        return 0;
+    const auto entity = active->entities[static_cast<std::size_t>(index)];
+    if (!active->world.alive(entity))
+        return 0;
+    const auto *heading = active->world.get<Heading>(entity);
+    if (!heading || !heading->arcade)
+        return 0;
+    const auto &car = heading->car;
+    switch (field) {
+    case 0: return std::hypot(car.velocity.x, car.velocity.z);
+    case 1: return car.forward_speed;
+    case 2: return car.gear;
+    case 3: return car.rpm;
+    case 4: return car.nitro;
+    case 5: return car.drifting ? 1 : 0;
+    case 6: return car.boosting ? 1 : 0;
+    case 7: return car.slip;
+    case 8: return car.steer;
+    case 9: return heading->input.handbrake ? 1 : 0;
+    case 10: return heading->input.brake;
+    case 11: return 1;
+    case 12: return car.yaw_rate;
+    case 13: return heading->input.throttle;
+    case 14: {
+        const auto *driver = active->world.get<Driver>(entity);
+        return driver ? static_cast<double>(static_cast<int>(driver->mode)) : -1;
+    }
+    default: return 0;
     }
 }
 // Soldier state for the editor: field 0 = mode (0 patrol, 1 investigate, 2

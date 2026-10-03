@@ -1,0 +1,5656 @@
+{
+ "format": 1,
+ "name": "HIGH HEAT",
+ "prefabs": {
+  "Cruiser": {
+   "components": {
+    "Scale": {
+     "value": {
+      "x": 2.25,
+      "y": 1.9,
+      "z": 4.8
+     }
+    },
+    "Renderable": {
+     "mesh": 97,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 52,
+     "acceleration": 10,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Pursuit",
+     "route": "",
+     "loop": false,
+     "target": "",
+     "skill": 0.75,
+     "aggression": 0.45,
+     "speedScale": 1
+    }
+   }
+  },
+  "Interceptor": {
+   "components": {
+    "Scale": {
+     "value": {
+      "x": 2.25,
+      "y": 1.9,
+      "z": 4.8
+     }
+    },
+    "Renderable": {
+     "mesh": 97,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.12549019607843137,
+      "y": 0.1411764705882353,
+      "z": 0.1568627450980392
+     },
+     "metalness": 0.5,
+     "roughness": 0.4,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": true,
+     "texture": ""
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 64,
+     "acceleration": 12.5,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 8,
+     "nitroSeconds": 3,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Pursuit",
+     "route": "",
+     "loop": false,
+     "target": "",
+     "skill": 0.9,
+     "aggression": 0.85,
+     "speedScale": 1
+    }
+   }
+  }
+ },
+ "entities": [
+  {
+   "name": "Environment",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -30,
+      "z": 0
+     }
+    },
+    "Environment": {
+     "sky": "Procedural",
+     "skyColor": {
+      "x": 0.3568627450980392,
+      "y": 0.5254901960784314,
+      "z": 0.7686274509803922
+     },
+     "horizonColor": {
+      "x": 0.9490196078431372,
+      "y": 0.788235294117647,
+      "z": 0.5568627450980392
+     },
+     "groundColor": {
+      "x": 0.23137254901960785,
+      "y": 0.22745098039215686,
+      "z": 0.2
+     },
+     "sunElevation": 21,
+     "sunAzimuth": 250,
+     "sunIntensity": 3.6,
+     "sunColor": {
+      "x": 1,
+      "y": 0.8117647058823529,
+      "z": 0.5411764705882353
+     },
+     "ambientIntensity": 1.2,
+     "fog": "Exponential",
+     "fogColor": {
+      "x": 0.8509803921568627,
+      "y": 0.7843137254901961,
+      "z": 0.6352941176470588
+     },
+     "fogNear": 60,
+     "fogFar": 500,
+     "fogDensity": 0.0032,
+     "shadows": true,
+     "exposure": 1.05
+    },
+    "PostProcessing": {
+     "antialias": "SMAA",
+     "ambientOcclusion": false,
+     "aoRadius": 0.5,
+     "aoIntensity": 1,
+     "bloom": 0.45,
+     "bloomRadius": 0.5,
+     "bloomThreshold": 0.78,
+     "exposure": 1,
+     "contrast": 0.18,
+     "saturation": -0.08,
+     "temperature": 0.35,
+     "vignette": 0.42,
+     "grain": 0.05,
+     "shadowQuality": "Medium"
+    },
+    "AudioSettings": {
+     "master": 1,
+     "sfx": 1,
+     "music": 0.7,
+     "ambient": 0.8,
+     "ui": 1,
+     "reverb": 0.1,
+     "occlusion": true
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Ground",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -0.08,
+      "z": 0
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 888,
+      "y": 0.1,
+      "z": 888
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.3333333333333333,
+      "y": 0.3411764705882353,
+      "z": 0.30980392156862746
+     },
+     "metalness": 0,
+     "roughness": 0.95,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -336,
+      "y": -0.03,
+      "z": -336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -336,
+      "y": -0.03,
+      "z": -240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -336,
+      "y": -0.03,
+      "z": -144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -336,
+      "y": -0.03,
+      "z": -48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -336,
+      "y": -0.03,
+      "z": 48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -336,
+      "y": -0.03,
+      "z": 144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -336,
+      "y": -0.03,
+      "z": 240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -336,
+      "y": -0.03,
+      "z": 336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -240,
+      "y": -0.03,
+      "z": -336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -240,
+      "y": -0.03,
+      "z": -240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -240,
+      "y": -0.03,
+      "z": -144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -240,
+      "y": -0.03,
+      "z": -48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -240,
+      "y": -0.03,
+      "z": 48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -240,
+      "y": -0.03,
+      "z": 144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -240,
+      "y": -0.03,
+      "z": 240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -240,
+      "y": -0.03,
+      "z": 336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -144,
+      "y": -0.03,
+      "z": -336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -144,
+      "y": -0.03,
+      "z": -240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -144,
+      "y": -0.03,
+      "z": -144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -144,
+      "y": -0.03,
+      "z": -48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -144,
+      "y": -0.03,
+      "z": 48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -144,
+      "y": -0.03,
+      "z": 144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -144,
+      "y": -0.03,
+      "z": 240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -144,
+      "y": -0.03,
+      "z": 336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -48,
+      "y": -0.03,
+      "z": -336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -48,
+      "y": -0.03,
+      "z": -240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -48,
+      "y": -0.03,
+      "z": -144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -48,
+      "y": -0.03,
+      "z": -48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -48,
+      "y": -0.03,
+      "z": 48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -48,
+      "y": -0.03,
+      "z": 144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -48,
+      "y": -0.03,
+      "z": 240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -48,
+      "y": -0.03,
+      "z": 336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 48,
+      "y": -0.03,
+      "z": -336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 48,
+      "y": -0.03,
+      "z": -240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 48,
+      "y": -0.03,
+      "z": -144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 48,
+      "y": -0.03,
+      "z": -48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 48,
+      "y": -0.03,
+      "z": 48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 48,
+      "y": -0.03,
+      "z": 144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 48,
+      "y": -0.03,
+      "z": 240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 48,
+      "y": -0.03,
+      "z": 336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 144,
+      "y": -0.03,
+      "z": -336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 144,
+      "y": -0.03,
+      "z": -240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 144,
+      "y": -0.03,
+      "z": -144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 144,
+      "y": -0.03,
+      "z": -48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 144,
+      "y": -0.03,
+      "z": 48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 144,
+      "y": -0.03,
+      "z": 144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 144,
+      "y": -0.03,
+      "z": 240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 144,
+      "y": -0.03,
+      "z": 336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 240,
+      "y": -0.03,
+      "z": -336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 240,
+      "y": -0.03,
+      "z": -240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 240,
+      "y": -0.03,
+      "z": -144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 240,
+      "y": -0.03,
+      "z": -48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 240,
+      "y": -0.03,
+      "z": 48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 240,
+      "y": -0.03,
+      "z": 144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 240,
+      "y": -0.03,
+      "z": 240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 240,
+      "y": -0.03,
+      "z": 336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 336,
+      "y": -0.03,
+      "z": -336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 336,
+      "y": -0.03,
+      "z": -240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 336,
+      "y": -0.03,
+      "z": -144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 336,
+      "y": -0.03,
+      "z": -48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 336,
+      "y": -0.03,
+      "z": 48
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 336,
+      "y": -0.03,
+      "z": 144
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 336,
+      "y": -0.03,
+      "z": 240
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Block",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 336,
+      "y": -0.03,
+      "z": 336
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5490196078431373,
+      "y": 0.5372549019607843,
+      "z": 0.49411764705882355
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Roads",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -0.13,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "54 -384 -384 0\n64 -384 -368 0\n64 -384 -352 0\n64 -384 -336 0\n64 -384 -320 0\n64 -384 -304 0\n66 -384 -288 270\n64 -384 -272 0\n64 -384 -256 0\n64 -384 -240 0\n64 -384 -224 0\n64 -384 -208 0\n66 -384 -192 270\n64 -384 -176 0\n64 -384 -160 0\n64 -384 -144 0\n64 -384 -128 0\n64 -384 -112 0\n66 -384 -96 270\n64 -384 -80 0\n64 -384 -64 0\n64 -384 -48 0\n64 -384 -32 0\n64 -384 -16 0\n66 -384 0 270\n64 -384 16 0\n64 -384 32 0\n64 -384 48 0\n64 -384 64 0\n64 -384 80 0\n66 -384 96 270\n64 -384 112 0\n64 -384 128 0\n64 -384 144 0\n64 -384 160 0\n64 -384 176 0\n66 -384 192 270\n64 -384 208 0\n64 -384 224 0\n64 -384 240 0\n64 -384 256 0\n64 -384 272 0\n66 -384 288 270\n64 -384 304 0\n64 -384 320 0\n64 -384 336 0\n64 -384 352 0\n64 -384 368 0\n54 -384 384 90\n64 -368 -384 90\n64 -368 -288 90\n64 -368 -192 90\n64 -368 -96 90\n64 -368 0 90\n64 -368 96 90\n64 -368 192 90\n64 -368 288 90\n64 -368 384 90\n64 -352 -384 90\n64 -352 -288 90\n64 -352 -192 90\n64 -352 -96 90\n64 -352 0 90\n64 -352 96 90\n64 -352 192 90\n64 -352 288 90\n64 -352 384 90\n64 -336 -384 90\n64 -336 -288 90\n64 -336 -192 90\n64 -336 -96 90\n64 -336 0 90\n64 -336 96 90\n64 -336 192 90\n64 -336 288 90\n64 -336 384 90\n64 -320 -384 90\n64 -320 -288 90\n64 -320 -192 90\n64 -320 -96 90\n64 -320 0 90\n64 -320 96 90\n64 -320 192 90\n64 -320 288 90\n64 -320 384 90\n64 -304 -384 90\n64 -304 -288 90\n64 -304 -192 90\n64 -304 -96 90\n64 -304 0 90\n64 -304 96 90\n64 -304 192 90\n64 -304 288 90\n64 -304 384 90\n66 -288 -384 180\n64 -288 -368 0\n64 -288 -352 0\n64 -288 -336 0\n64 -288 -320 0\n64 -288 -304 0\n56 -288 -288 0\n64 -288 -272 0\n64 -288 -256 0\n64 -288 -240 0\n64 -288 -224 0\n64 -288 -208 0\n56 -288 -192 0\n64 -288 -176 0\n64 -288 -160 0\n64 -288 -144 0\n64 -288 -128 0\n64 -288 -112 0\n56 -288 -96 0\n64 -288 -80 0\n64 -288 -64 0\n64 -288 -48 0\n64 -288 -32 0\n64 -288 -16 0\n56 -288 0 0\n64 -288 16 0\n64 -288 32 0\n64 -288 48 0\n64 -288 64 0\n64 -288 80 0\n56 -288 96 0\n64 -288 112 0\n64 -288 128 0\n64 -288 144 0\n64 -288 160 0\n64 -288 176 0\n56 -288 192 0\n64 -288 208 0\n64 -288 224 0\n64 -288 240 0\n64 -288 256 0\n64 -288 272 0\n56 -288 288 0\n64 -288 304 0\n64 -288 320 0\n64 -288 336 0\n64 -288 352 0\n64 -288 368 0\n66 -288 384 0\n64 -272 -384 90\n64 -272 -288 90\n64 -272 -192 90\n64 -272 -96 90\n64 -272 0 90\n64 -272 96 90\n64 -272 192 90\n64 -272 288 90\n64 -272 384 90\n64 -256 -384 90\n64 -256 -288 90\n64 -256 -192 90\n64 -256 -96 90\n64 -256 0 90\n64 -256 96 90\n64 -256 192 90\n64 -256 288 90\n64 -256 384 90\n64 -240 -384 90\n64 -240 -288 90\n64 -240 -192 90\n64 -240 -96 90\n64 -240 0 90\n64 -240 96 90\n64 -240 192 90\n64 -240 288 90\n64 -240 384 90\n64 -224 -384 90\n64 -224 -288 90\n64 -224 -192 90\n64 -224 -96 90\n64 -224 0 90\n64 -224 96 90\n64 -224 192 90\n64 -224 288 90\n64 -224 384 90\n64 -208 -384 90\n64 -208 -288 90\n64 -208 -192 90\n64 -208 -96 90\n64 -208 0 90\n64 -208 96 90\n64 -208 192 90\n64 -208 288 90\n64 -208 384 90\n66 -192 -384 180\n64 -192 -368 0\n64 -192 -352 0\n64 -192 -336 0\n64 -192 -320 0\n64 -192 -304 0\n56 -192 -288 0\n64 -192 -272 0\n64 -192 -256 0\n64 -192 -240 0\n64 -192 -224 0\n64 -192 -208 0\n56 -192 -192 0\n64 -192 -176 0\n64 -192 -160 0\n64 -192 -144 0\n64 -192 -128 0\n64 -192 -112 0\n56 -192 -96 0\n64 -192 -80 0\n64 -192 -64 0\n64 -192 -48 0\n64 -192 -32 0\n64 -192 -16 0\n56 -192 0 0\n64 -192 16 0\n64 -192 32 0\n64 -192 48 0\n64 -192 64 0\n64 -192 80 0\n56 -192 96 0\n64 -192 112 0\n64 -192 128 0\n64 -192 144 0\n64 -192 160 0\n64 -192 176 0\n56 -192 192 0\n64 -192 208 0\n64 -192 224 0\n64 -192 240 0\n64 -192 256 0\n64 -192 272 0\n56 -192 288 0\n64 -192 304 0\n64 -192 320 0\n64 -192 336 0\n64 -192 352 0\n64 -192 368 0\n66 -192 384 0\n64 -176 -384 90\n64 -176 -288 90\n64 -176 -192 90\n64 -176 -96 90\n64 -176 0 90\n64 -176 96 90\n64 -176 192 90\n64 -176 288 90\n64 -176 384 90\n64 -160 -384 90\n64 -160 -288 90\n64 -160 -192 90\n64 -160 -96 90\n64 -160 0 90\n64 -160 96 90\n64 -160 192 90\n64 -160 288 90\n64 -160 384 90\n64 -144 -384 90\n64 -144 -288 90\n64 -144 -192 90\n64 -144 -96 90\n64 -144 0 90\n64 -144 96 90\n64 -144 192 90\n64 -144 288 90\n64 -144 384 90\n64 -128 -384 90\n64 -128 -288 90\n64 -128 -192 90\n64 -128 -96 90\n64 -128 0 90\n64 -128 96 90\n64 -128 192 90\n64 -128 288 90\n64 -128 384 90\n64 -112 -384 90\n64 -112 -288 90\n64 -112 -192 90\n64 -112 -96 90\n64 -112 0 90\n64 -112 96 90\n64 -112 192 90\n64 -112 288 90\n64 -112 384 90\n66 -96 -384 180\n64 -96 -368 0\n64 -96 -352 0\n64 -96 -336 0\n64 -96 -320 0\n64 -96 -304 0\n56 -96 -288 0\n64 -96 -272 0\n64 -96 -256 0\n64 -96 -240 0\n64 -96 -224 0\n64 -96 -208 0\n56 -96 -192 0\n64 -96 -176 0\n64 -96 -160 0\n64 -96 -144 0\n64 -96 -128 0\n64 -96 -112 0\n56 -96 -96 0\n64 -96 -80 0\n64 -96 -64 0\n64 -96 -48 0\n64 -96 -32 0\n64 -96 -16 0\n56 -96 0 0\n64 -96 16 0\n64 -96 32 0\n64 -96 48 0\n64 -96 64 0\n64 -96 80 0\n56 -96 96 0\n64 -96 112 0\n64 -96 128 0\n64 -96 144 0\n64 -96 160 0\n64 -96 176 0\n56 -96 192 0\n64 -96 208 0\n64 -96 224 0\n64 -96 240 0\n64 -96 256 0\n64 -96 272 0\n56 -96 288 0\n64 -96 304 0\n64 -96 320 0\n64 -96 336 0\n64 -96 352 0\n64 -96 368 0\n66 -96 384 0\n64 -80 -384 90\n64 -80 -288 90\n64 -80 -192 90\n64 -80 -96 90\n64 -80 0 90\n64 -80 96 90\n64 -80 192 90\n64 -80 288 90\n64 -80 384 90\n64 -64 -384 90\n64 -64 -288 90\n64 -64 -192 90\n64 -64 -96 90\n64 -64 0 90\n64 -64 96 90\n64 -64 192 90\n64 -64 288 90\n64 -64 384 90\n64 -48 -384 90\n64 -48 -288 90\n64 -48 -192 90\n64 -48 -96 90\n64 -48 0 90\n64 -48 96 90\n64 -48 192 90\n64 -48 288 90\n64 -48 384 90\n64 -32 -384 90\n64 -32 -288 90\n64 -32 -192 90\n64 -32 -96 90\n64 -32 0 90\n64 -32 96 90\n64 -32 192 90\n64 -32 288 90\n64 -32 384 90\n64 -16 -384 90\n64 -16 -288 90\n64 -16 -192 90\n64 -16 -96 90\n64 -16 0 90\n64 -16 96 90\n64 -16 192 90\n64 -16 288 90\n64 -16 384 90\n66 0 -384 180\n64 0 -368 0\n64 0 -352 0\n64 0 -336 0\n64 0 -320 0\n64 0 -304 0\n56 0 -288 0\n64 0 -272 0\n64 0 -256 0\n64 0 -240 0\n64 0 -224 0\n64 0 -208 0\n56 0 -192 0\n64 0 -176 0\n64 0 -160 0\n64 0 -144 0\n64 0 -128 0\n64 0 -112 0\n56 0 -96 0\n64 0 -80 0\n64 0 -64 0\n64 0 -48 0\n64 0 -32 0\n64 0 -16 0\n56 0 0 0\n64 0 16 0\n64 0 32 0\n64 0 48 0\n64 0 64 0\n64 0 80 0\n56 0 96 0\n64 0 112 0\n64 0 128 0\n64 0 144 0\n64 0 160 0\n64 0 176 0\n56 0 192 0\n64 0 208 0\n64 0 224 0\n64 0 240 0\n64 0 256 0\n64 0 272 0\n56 0 288 0\n64 0 304 0\n64 0 320 0\n64 0 336 0\n64 0 352 0\n64 0 368 0\n66 0 384 0\n64 16 -384 90\n64 16 -288 90\n64 16 -192 90\n64 16 -96 90\n64 16 0 90\n64 16 96 90\n64 16 192 90\n64 16 288 90\n64 16 384 90\n64 32 -384 90\n64 32 -288 90\n64 32 -192 90\n64 32 -96 90\n64 32 0 90\n64 32 96 90\n64 32 192 90\n64 32 288 90\n64 32 384 90\n64 48 -384 90\n64 48 -288 90\n64 48 -192 90\n64 48 -96 90\n64 48 0 90\n64 48 96 90\n64 48 192 90\n64 48 288 90\n64 48 384 90\n64 64 -384 90\n64 64 -288 90\n64 64 -192 90\n64 64 -96 90\n64 64 0 90\n64 64 96 90\n64 64 192 90\n64 64 288 90\n64 64 384 90\n64 80 -384 90\n64 80 -288 90\n64 80 -192 90\n64 80 -96 90\n64 80 0 90\n64 80 96 90\n64 80 192 90\n64 80 288 90\n64 80 384 90\n66 96 -384 180\n64 96 -368 0\n64 96 -352 0\n64 96 -336 0\n64 96 -320 0\n64 96 -304 0\n56 96 -288 0\n64 96 -272 0\n64 96 -256 0\n64 96 -240 0\n64 96 -224 0\n64 96 -208 0\n56 96 -192 0\n64 96 -176 0\n64 96 -160 0\n64 96 -144 0\n64 96 -128 0\n64 96 -112 0\n56 96 -96 0\n64 96 -80 0\n64 96 -64 0\n64 96 -48 0\n64 96 -32 0\n64 96 -16 0\n56 96 0 0\n64 96 16 0\n64 96 32 0\n64 96 48 0\n64 96 64 0\n64 96 80 0\n56 96 96 0\n64 96 112 0\n64 96 128 0\n64 96 144 0\n64 96 160 0\n64 96 176 0\n56 96 192 0\n64 96 208 0\n64 96 224 0\n64 96 240 0\n64 96 256 0\n64 96 272 0\n56 96 288 0\n64 96 304 0\n64 96 320 0\n64 96 336 0\n64 96 352 0\n64 96 368 0\n66 96 384 0\n64 112 -384 90\n64 112 -288 90\n64 112 -192 90\n64 112 -96 90\n64 112 0 90\n64 112 96 90\n64 112 192 90\n64 112 288 90\n64 112 384 90\n64 128 -384 90\n64 128 -288 90\n64 128 -192 90\n64 128 -96 90\n64 128 0 90\n64 128 96 90\n64 128 192 90\n64 128 288 90\n64 128 384 90\n64 144 -384 90\n64 144 -288 90\n64 144 -192 90\n64 144 -96 90\n64 144 0 90\n64 144 96 90\n64 144 192 90\n64 144 288 90\n64 144 384 90\n64 160 -384 90\n64 160 -288 90\n64 160 -192 90\n64 160 -96 90\n64 160 0 90\n64 160 96 90\n64 160 192 90\n64 160 288 90\n64 160 384 90\n64 176 -384 90\n64 176 -288 90\n64 176 -192 90\n64 176 -96 90\n64 176 0 90\n64 176 96 90\n64 176 192 90\n64 176 288 90\n64 176 384 90\n66 192 -384 180\n64 192 -368 0\n64 192 -352 0\n64 192 -336 0\n64 192 -320 0\n64 192 -304 0\n56 192 -288 0\n64 192 -272 0\n64 192 -256 0\n64 192 -240 0\n64 192 -224 0\n64 192 -208 0\n56 192 -192 0\n64 192 -176 0\n64 192 -160 0\n64 192 -144 0\n64 192 -128 0\n64 192 -112 0\n56 192 -96 0\n64 192 -80 0\n64 192 -64 0\n64 192 -48 0\n64 192 -32 0\n64 192 -16 0\n56 192 0 0\n64 192 16 0\n64 192 32 0\n64 192 48 0\n64 192 64 0\n64 192 80 0\n56 192 96 0\n64 192 112 0\n64 192 128 0\n64 192 144 0\n64 192 160 0\n64 192 176 0\n56 192 192 0\n64 192 208 0\n64 192 224 0\n64 192 240 0\n64 192 256 0\n64 192 272 0\n56 192 288 0\n64 192 304 0\n64 192 320 0\n64 192 336 0\n64 192 352 0\n64 192 368 0\n66 192 384 0\n64 208 -384 90\n64 208 -288 90\n64 208 -192 90\n64 208 -96 90\n64 208 0 90\n64 208 96 90\n64 208 192 90\n64 208 288 90\n64 208 384 90\n64 224 -384 90\n64 224 -288 90\n64 224 -192 90\n64 224 -96 90\n64 224 0 90\n64 224 96 90\n64 224 192 90\n64 224 288 90\n64 224 384 90\n64 240 -384 90\n64 240 -288 90\n64 240 -192 90\n64 240 -96 90\n64 240 0 90\n64 240 96 90\n64 240 192 90\n64 240 288 90\n64 240 384 90\n64 256 -384 90\n64 256 -288 90\n64 256 -192 90\n64 256 -96 90\n64 256 0 90\n64 256 96 90\n64 256 192 90\n64 256 288 90\n64 256 384 90\n64 272 -384 90\n64 272 -288 90\n64 272 -192 90\n64 272 -96 90\n64 272 0 90\n64 272 96 90\n64 272 192 90\n64 272 288 90\n64 272 384 90\n66 288 -384 180\n64 288 -368 0\n64 288 -352 0\n64 288 -336 0\n64 288 -320 0\n64 288 -304 0\n56 288 -288 0\n64 288 -272 0\n64 288 -256 0\n64 288 -240 0\n64 288 -224 0\n64 288 -208 0\n56 288 -192 0\n64 288 -176 0\n64 288 -160 0\n64 288 -144 0\n64 288 -128 0\n64 288 -112 0\n56 288 -96 0\n64 288 -80 0\n64 288 -64 0\n64 288 -48 0\n64 288 -32 0\n64 288 -16 0\n56 288 0 0\n64 288 16 0\n64 288 32 0\n64 288 48 0\n64 288 64 0\n64 288 80 0\n56 288 96 0\n64 288 112 0\n64 288 128 0\n64 288 144 0\n64 288 160 0\n64 288 176 0\n56 288 192 0\n64 288 208 0\n64 288 224 0\n64 288 240 0\n64 288 256 0\n64 288 272 0\n56 288 288 0\n64 288 304 0\n64 288 320 0\n64 288 336 0\n64 288 352 0\n64 288 368 0\n66 288 384 0\n64 304 -384 90\n64 304 -288 90\n64 304 -192 90\n64 304 -96 90\n64 304 0 90\n64 304 96 90\n64 304 192 90\n64 304 288 90\n64 304 384 90\n64 320 -384 90\n64 320 -288 90\n64 320 -192 90\n64 320 -96 90\n64 320 0 90\n64 320 96 90\n64 320 192 90\n64 320 288 90\n64 320 384 90\n64 336 -384 90\n64 336 -288 90\n64 336 -192 90\n64 336 -96 90\n64 336 0 90\n64 336 96 90\n64 336 192 90\n64 336 288 90\n64 336 384 90\n64 352 -384 90\n64 352 -288 90\n64 352 -192 90\n64 352 -96 90\n64 352 0 90\n64 352 96 90\n64 352 192 90\n64 352 288 90\n64 352 384 90\n64 368 -384 90\n64 368 -288 90\n64 368 -192 90\n64 368 -96 90\n64 368 0 90\n64 368 96 90\n64 368 192 90\n64 368 288 90\n64 368 384 90\n54 384 -384 270\n64 384 -368 0\n64 384 -352 0\n64 384 -336 0\n64 384 -320 0\n64 384 -304 0\n66 384 -288 90\n64 384 -272 0\n64 384 -256 0\n64 384 -240 0\n64 384 -224 0\n64 384 -208 0\n66 384 -192 90\n64 384 -176 0\n64 384 -160 0\n64 384 -144 0\n64 384 -128 0\n64 384 -112 0\n66 384 -96 90\n64 384 -80 0\n64 384 -64 0\n64 384 -48 0\n64 384 -32 0\n64 384 -16 0\n66 384 0 90\n64 384 16 0\n64 384 32 0\n64 384 48 0\n64 384 64 0\n64 384 80 0\n66 384 96 90\n64 384 112 0\n64 384 128 0\n64 384 144 0\n64 384 160 0\n64 384 176 0\n66 384 192 90\n64 384 208 0\n64 384 224 0\n64 384 240 0\n64 384 256 0\n64 384 272 0\n66 384 288 90\n64 384 304 0\n64 384 320 0\n64 384 336 0\n64 384 352 0\n64 384 368 0\n54 384 384 180"
+    }
+   }
+  },
+  {
+   "name": "Buildings",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "14 -355 -355 180 0.909 solid\n2 -317 -355 90 0.962 solid\n2 -355 -317 180 0.899 solid\n17 -317 -317 90 0.901 solid\n17 -355 -259 90 0.861 solid\n17 -317 -259 180 0.859 solid\n10 -355 -221 270 0.995 solid\n10 -317 -221 90 0.865 solid\n2 -355 -163 270 0.897 solid\n17 -317 -163 90 0.912 solid\n10 -355 -125 90 0.862 solid\n10 -317 -125 0 0.882 solid\n10 -355 -67 270 0.874 solid\n14 -317 -67 90 0.897 solid\n2 -355 -29 180 0.862 solid\n10 -317 -29 90 0.866 solid\n10 -355 29 90 0.926 solid\n2 -317 29 180 0.904 solid\n17 -355 67 0 0.985 solid\n10 -317 67 270 0.963 solid\n17 -355 125 90 0.998 solid\n10 -317 125 180 0.892 solid\n17 -355 163 180 0.975 solid\n2 -317 163 270 0.966 solid\n10 -355 221 0 0.923 solid\n17 -317 221 0 0.942 solid\n10 -355 259 180 0.920 solid\n14 -317 259 90 0.853 solid\n2 -355 317 180 0.886 solid\n2 -317 317 90 0.917 solid\n10 -355 355 180 0.902 solid\n17 -317 355 270 0.908 solid\n17 -259 -355 180 0.998 solid\n17 -221 -355 90 0.959 solid\n2 -259 -317 270 0.940 solid\n17 -221 -317 180 0.871 solid\n10 -259 -259 0 0.967 solid\n10 -221 -259 180 0.994 solid\n17 -259 -221 180 0.874 solid\n17 -221 -221 90 0.991 solid\n10 -259 -163 180 0.971 solid\n14 -221 -163 0 0.888 solid\n2 -259 -125 0 0.921 solid\n10 -221 -125 270 0.904 solid\n10 -259 -67 180 0.949 solid\n17 -221 -67 270 0.910 solid\n2 -259 -29 270 0.957 solid\n10 -221 -29 180 0.987 solid\n14 -259 29 0 0.961 solid\n10 -221 29 270 0.969 solid\n10 -259 67 0 0.854 solid\n17 -221 67 0 0.890 solid\n10 -259 125 90 0.889 solid\n17 -221 125 90 0.949 solid\n14 -259 163 270 0.931 solid\n17 -221 163 90 0.935 solid\n14 -259 221 180 0.851 solid\n10 -221 221 0 0.877 solid\n14 -259 259 0 0.972 solid\n17 -221 259 180 0.878 solid\n2 -259 317 270 0.855 solid\n17 -221 317 90 0.935 solid\n17 -259 355 180 0.918 solid\n14 -221 355 0 0.891 solid\n2 -163 -355 180 0.928 solid\n17 -125 -355 180 0.956 solid\n14 -163 -317 270 0.976 solid\n17 -125 -317 0 0.995 solid\n10 -163 -259 90 0.863 solid\n2 -125 -259 0 0.980 solid\n14 -163 -221 90 0.961 solid\n10 -125 -221 0 0.890 solid\n10 -163 -163 0 0.856 solid\n2 -125 -163 90 0.926 solid\n2 -163 -125 270 0.851 solid\n2 -125 -125 270 0.990 solid\n14 -163 -67 180 0.952 solid\n10 -125 -67 270 0.959 solid\n17 -163 -29 270 0.898 solid\n17 -125 -29 270 0.917 solid\n10 -163 29 180 0.956 solid\n14 -125 29 0 0.955 solid\n14 -163 67 180 0.928 solid\n14 -125 67 0 0.954 solid\n14 -163 125 0 0.967 solid\n2 -125 125 180 0.979 solid\n10 -163 163 0 0.971 solid\n10 -125 163 90 0.862 solid\n14 -163 221 90 0.936 solid\n14 -125 221 180 0.978 solid\n10 -163 259 180 0.856 solid\n2 -125 259 90 0.898 solid\n2 -163 317 180 0.935 solid\n17 -125 317 90 0.974 solid\n17 -163 355 270 0.995 solid\n17 -125 355 270 0.863 solid\n2 -67 -355 0 0.924 solid\n2 -29 -355 90 0.881 solid\n14 -67 -317 0 0.853 solid\n17 -29 -317 270 0.873 solid\n17 -67 -259 0 0.976 solid\n17 -29 -259 180 0.976 solid\n10 -67 -221 90 0.978 solid\n14 -29 -221 270 0.943 solid\n10 -67 -163 90 0.916 solid\n14 -29 -163 0 0.852 solid\n17 -67 -125 0 0.874 solid\n17 -29 -125 180 0.970 solid\n14 -67 -67 180 0.904 solid\n21 -29 -67 90 0.899 solid\n8 -67 -29 270 0.904 solid\n22 -29 -29 0 0.934 solid\n8 -67 29 180 0.863 solid\n22 -29 29 180 0.979 solid\n10 -67 67 90 0.875 solid\n8 -29 67 90 0.953 solid\n17 -67 125 0 0.931 solid\n14 -29 125 180 0.852 solid\n14 -67 163 0 0.954 solid\n14 -29 163 180 0.967 solid\n10 -67 221 0 0.867 solid\n10 -29 221 270 0.993 solid\n14 -67 259 180 0.921 solid\n10 -29 259 90 0.896 solid\n14 -67 317 90 0.863 solid\n2 -29 317 90 0.979 solid\n17 -67 355 270 0.995 solid\n10 -29 355 180 0.856 solid\n14 29 -355 0 0.914 solid\n17 67 -355 0 0.943 solid\n2 29 -317 270 0.933 solid\n14 67 -317 270 0.937 solid\n14 29 -259 90 0.998 solid\n17 67 -259 180 0.962 solid\n17 29 -221 270 0.935 solid\n17 67 -221 180 0.919 solid\n14 29 -163 180 0.894 solid\n17 67 -163 90 0.892 solid\n14 29 -125 0 0.949 solid\n14 67 -125 270 0.958 solid\n21 29 -67 270 0.947 solid\n8 67 -67 90 0.855 solid\n21 29 -29 270 0.846 solid\n22 67 -29 270 0.929 solid\n8 29 29 90 0.891 solid\n22 67 29 90 0.942 solid\n22 29 67 270 0.892 solid\n20 67 67 270 0.857 solid\n10 29 125 90 0.937 solid\n14 67 125 180 0.911 solid\n10 29 163 0 0.879 solid\n17 67 163 270 0.945 solid\n2 29 221 270 0.872 solid\n2 67 221 90 0.903 solid\n17 29 259 180 0.875 solid\n14 67 259 270 0.946 solid\n10 29 317 180 0.864 solid\n10 67 317 90 0.937 solid\n14 29 355 270 0.956 solid\n14 67 355 180 0.980 solid\n17 125 -355 90 0.866 solid\n17 163 -355 180 0.904 solid\n10 125 -317 90 0.855 solid\n2 163 -317 180 0.916 solid\n2 125 -259 270 0.932 solid\n14 163 -259 90 0.876 solid\n2 125 -221 0 0.882 solid\n17 163 -221 90 0.971 solid\n2 125 -163 180 0.980 solid\n2 163 -163 0 0.907 solid\n17 125 -125 180 0.993 solid\n2 163 -125 270 0.999 solid\n14 125 -67 90 0.864 solid\n2 163 -67 90 0.979 solid\n2 125 -29 180 0.888 solid\n17 163 -29 90 0.864 solid\n2 125 29 0 0.990 solid\n2 163 29 0 0.886 solid\n17 125 67 270 0.953 solid\n2 163 67 180 0.997 solid\n2 125 125 270 0.852 solid\n2 163 125 270 0.968 solid\n10 125 163 270 0.858 solid\n10 163 163 0 0.974 solid\n14 125 221 0 0.946 solid\n10 163 221 270 0.925 solid\n14 125 259 90 0.944 solid\n17 163 259 0 0.863 solid\n2 125 317 0 0.913 solid\n2 163 317 180 0.990 solid\n10 125 355 180 0.858 solid\n2 163 355 0 0.854 solid\n10 221 -355 90 0.990 solid\n2 259 -355 0 0.909 solid\n17 221 -317 90 0.909 solid\n14 259 -317 0 0.869 solid\n14 221 -259 90 0.973 solid\n10 259 -259 0 0.886 solid\n2 221 -221 0 0.956 solid\n17 259 -221 180 0.916 solid\n10 221 -163 0 0.983 solid\n10 259 -163 270 0.976 solid\n2 221 -125 180 0.988 solid\n2 259 -125 270 0.969 solid\n17 221 -67 180 0.864 solid\n2 259 -67 90 0.933 solid\n14 221 -29 270 0.978 solid\n14 259 -29 90 0.886 solid\n14 221 29 0 0.918 solid\n14 259 29 270 0.874 solid\n2 221 67 90 0.960 solid\n14 259 67 0 0.968 solid\n17 221 125 270 0.905 solid\n10 259 125 90 0.864 solid\n2 221 163 180 0.952 solid\n17 259 163 180 0.946 solid\n14 221 221 0 0.998 solid\n2 259 221 0 0.979 solid\n17 221 259 90 0.959 solid\n10 259 259 90 0.938 solid\n2 221 317 0 0.919 solid\n14 259 317 0 0.895 solid\n14 221 355 180 0.910 solid\n2 259 355 90 0.981 solid\n14 317 -355 180 0.857 solid\n17 355 -355 270 0.969 solid\n2 317 -317 270 0.934 solid\n10 355 -317 180 0.863 solid\n14 317 -259 90 0.933 solid\n14 355 -259 270 0.884 solid\n10 317 -221 180 0.912 solid\n17 355 -221 270 0.903 solid\n10 317 -163 0 0.900 solid\n2 355 -163 270 0.953 solid\n17 317 -125 270 0.968 solid\n14 355 -125 90 0.921 solid\n17 317 -67 180 0.941 solid\n14 355 -67 180 0.874 solid\n10 317 -29 270 0.912 solid\n2 355 -29 270 0.962 solid\n14 317 29 180 0.875 solid\n2 355 29 0 0.915 solid\n2 317 67 180 0.942 solid\n14 355 67 0 0.885 solid\n10 317 125 180 0.912 solid\n14 355 125 270 0.986 solid\n14 317 163 270 0.899 solid\n17 355 163 90 0.857 solid\n10 317 221 270 0.981 solid\n10 355 221 270 0.936 solid\n2 317 259 270 0.863 solid\n2 355 259 90 0.877 solid\n17 317 317 0 0.856 solid\n14 355 317 180 0.901 solid\n2 317 355 180 0.903 solid\n17 355 355 0 0.966 solid"
+    }
+   }
+  },
+  {
+   "name": "Streetlamps",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "35 -374.5 -360 270\n35 -360 -393.5 0\n35 -374.5 -312 270\n35 -312 -393.5 0\n35 -374.5 -264 270\n35 -264 -393.5 0\n35 -374.5 -216 270\n35 -216 -393.5 0\n35 -374.5 -168 270\n35 -168 -393.5 0\n35 -374.5 -120 270\n35 -120 -393.5 0\n35 -374.5 -72 270\n35 -72 -393.5 0\n35 -374.5 -24 270\n35 -24 -393.5 0\n35 -374.5 24 270\n35 24 -393.5 0\n35 -374.5 72 270\n35 72 -393.5 0\n35 -374.5 120 270\n35 120 -393.5 0\n35 -374.5 168 270\n35 168 -393.5 0\n35 -374.5 216 270\n35 216 -393.5 0\n35 -374.5 264 270\n35 264 -393.5 0\n35 -374.5 312 270\n35 312 -393.5 0\n35 -374.5 360 270\n35 360 -393.5 0\n35 -278.5 -360 270\n35 -360 -297.5 0\n35 -278.5 -312 270\n35 -312 -297.5 0\n35 -278.5 -264 270\n35 -264 -297.5 0\n35 -278.5 -216 270\n35 -216 -297.5 0\n35 -278.5 -168 270\n35 -168 -297.5 0\n35 -278.5 -120 270\n35 -120 -297.5 0\n35 -278.5 -72 270\n35 -72 -297.5 0\n35 -278.5 -24 270\n35 -24 -297.5 0\n35 -278.5 24 270\n35 24 -297.5 0\n35 -278.5 72 270\n35 72 -297.5 0\n35 -278.5 120 270\n35 120 -297.5 0\n35 -278.5 168 270\n35 168 -297.5 0\n35 -278.5 216 270\n35 216 -297.5 0\n35 -278.5 264 270\n35 264 -297.5 0\n35 -278.5 312 270\n35 312 -297.5 0\n35 -278.5 360 270\n35 360 -297.5 0\n35 -182.5 -360 270\n35 -360 -201.5 0\n35 -182.5 -312 270\n35 -312 -201.5 0\n35 -182.5 -264 270\n35 -264 -201.5 0\n35 -182.5 -216 270\n35 -216 -201.5 0\n35 -182.5 -168 270\n35 -168 -201.5 0\n35 -182.5 -120 270\n35 -120 -201.5 0\n35 -182.5 -72 270\n35 -72 -201.5 0\n35 -182.5 -24 270\n35 -24 -201.5 0\n35 -182.5 24 270\n35 24 -201.5 0\n35 -182.5 72 270\n35 72 -201.5 0\n35 -182.5 120 270\n35 120 -201.5 0\n35 -182.5 168 270\n35 168 -201.5 0\n35 -182.5 216 270\n35 216 -201.5 0\n35 -182.5 264 270\n35 264 -201.5 0\n35 -182.5 312 270\n35 312 -201.5 0\n35 -182.5 360 270\n35 360 -201.5 0\n35 -86.5 -360 270\n35 -360 -105.5 0\n35 -86.5 -312 270\n35 -312 -105.5 0\n35 -86.5 -264 270\n35 -264 -105.5 0\n35 -86.5 -216 270\n35 -216 -105.5 0\n35 -86.5 -168 270\n35 -168 -105.5 0\n35 -86.5 -120 270\n35 -120 -105.5 0\n35 -86.5 -72 270\n35 -72 -105.5 0\n35 -86.5 -24 270\n35 -24 -105.5 0\n35 -86.5 24 270\n35 24 -105.5 0\n35 -86.5 72 270\n35 72 -105.5 0\n35 -86.5 120 270\n35 120 -105.5 0\n35 -86.5 168 270\n35 168 -105.5 0\n35 -86.5 216 270\n35 216 -105.5 0\n35 -86.5 264 270\n35 264 -105.5 0\n35 -86.5 312 270\n35 312 -105.5 0\n35 -86.5 360 270\n35 360 -105.5 0\n35 9.5 -360 270\n35 -360 -9.5 0\n35 9.5 -312 270\n35 -312 -9.5 0\n35 9.5 -264 270\n35 -264 -9.5 0\n35 9.5 -216 270\n35 -216 -9.5 0\n35 9.5 -168 270\n35 -168 -9.5 0\n35 9.5 -120 270\n35 -120 -9.5 0\n35 9.5 -72 270\n35 -72 -9.5 0\n35 9.5 -24 270\n35 -24 -9.5 0\n35 9.5 24 270\n35 24 -9.5 0\n35 9.5 72 270\n35 72 -9.5 0\n35 9.5 120 270\n35 120 -9.5 0\n35 9.5 168 270\n35 168 -9.5 0\n35 9.5 216 270\n35 216 -9.5 0\n35 9.5 264 270\n35 264 -9.5 0\n35 9.5 312 270\n35 312 -9.5 0\n35 9.5 360 270\n35 360 -9.5 0\n35 105.5 -360 270\n35 -360 86.5 0\n35 105.5 -312 270\n35 -312 86.5 0\n35 105.5 -264 270\n35 -264 86.5 0\n35 105.5 -216 270\n35 -216 86.5 0\n35 105.5 -168 270\n35 -168 86.5 0\n35 105.5 -120 270\n35 -120 86.5 0\n35 105.5 -72 270\n35 -72 86.5 0\n35 105.5 -24 270\n35 -24 86.5 0\n35 105.5 24 270\n35 24 86.5 0\n35 105.5 72 270\n35 72 86.5 0\n35 105.5 120 270\n35 120 86.5 0\n35 105.5 168 270\n35 168 86.5 0\n35 105.5 216 270\n35 216 86.5 0\n35 105.5 264 270\n35 264 86.5 0\n35 105.5 312 270\n35 312 86.5 0\n35 105.5 360 270\n35 360 86.5 0\n35 201.5 -360 270\n35 -360 182.5 0\n35 201.5 -312 270\n35 -312 182.5 0\n35 201.5 -264 270\n35 -264 182.5 0\n35 201.5 -216 270\n35 -216 182.5 0\n35 201.5 -168 270\n35 -168 182.5 0\n35 201.5 -120 270\n35 -120 182.5 0\n35 201.5 -72 270\n35 -72 182.5 0\n35 201.5 -24 270\n35 -24 182.5 0\n35 201.5 24 270\n35 24 182.5 0\n35 201.5 72 270\n35 72 182.5 0\n35 201.5 120 270\n35 120 182.5 0\n35 201.5 168 270\n35 168 182.5 0\n35 201.5 216 270\n35 216 182.5 0\n35 201.5 264 270\n35 264 182.5 0\n35 201.5 312 270\n35 312 182.5 0\n35 201.5 360 270\n35 360 182.5 0\n35 297.5 -360 270\n35 -360 278.5 0\n35 297.5 -312 270\n35 -312 278.5 0\n35 297.5 -264 270\n35 -264 278.5 0\n35 297.5 -216 270\n35 -216 278.5 0\n35 297.5 -168 270\n35 -168 278.5 0\n35 297.5 -120 270\n35 -120 278.5 0\n35 297.5 -72 270\n35 -72 278.5 0\n35 297.5 -24 270\n35 -24 278.5 0\n35 297.5 24 270\n35 24 278.5 0\n35 297.5 72 270\n35 72 278.5 0\n35 297.5 120 270\n35 120 278.5 0\n35 297.5 168 270\n35 168 278.5 0\n35 297.5 216 270\n35 216 278.5 0\n35 297.5 264 270\n35 264 278.5 0\n35 297.5 312 270\n35 312 278.5 0\n35 297.5 360 270\n35 360 278.5 0\n35 393.5 -360 270\n35 -360 374.5 0\n35 393.5 -312 270\n35 -312 374.5 0\n35 393.5 -264 270\n35 -264 374.5 0\n35 393.5 -216 270\n35 -216 374.5 0\n35 393.5 -168 270\n35 -168 374.5 0\n35 393.5 -120 270\n35 -120 374.5 0\n35 393.5 -72 270\n35 -72 374.5 0\n35 393.5 -24 270\n35 -24 374.5 0\n35 393.5 24 270\n35 24 374.5 0\n35 393.5 72 270\n35 72 374.5 0\n35 393.5 120 270\n35 120 374.5 0\n35 393.5 168 270\n35 168 374.5 0\n35 393.5 216 270\n35 216 374.5 0\n35 393.5 264 270\n35 264 374.5 0\n35 393.5 312 270\n35 312 374.5 0\n35 393.5 360 270\n35 360 374.5 0"
+    }
+   }
+  },
+  {
+   "name": "City Wall",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 1,
+      "z": -396
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 808,
+      "y": 2,
+      "z": 1
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6588235294117647,
+      "y": 0.6470588235294118,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "City Wall",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 1,
+      "z": 396
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 808,
+      "y": 2,
+      "z": 1
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6588235294117647,
+      "y": 0.6470588235294118,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "City Wall",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -396,
+      "y": 1,
+      "z": 0
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1,
+      "y": 2,
+      "z": 808
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6588235294117647,
+      "y": 0.6470588235294118,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "City Wall",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 396,
+      "y": 1,
+      "z": 0
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1,
+      "y": 2,
+      "z": 808
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6588235294117647,
+      "y": 0.6470588235294118,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Player",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -92.5,
+      "y": 0.9,
+      "z": -152
+     }
+    },
+    "Player": {},
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 3.141592653589793,
+      "z": 0
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.2,
+      "y": 1.5,
+      "z": 4.5
+     }
+    },
+    "Renderable": {
+     "mesh": 101,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.9098039215686274,
+      "y": 0.7137254901960784,
+      "z": 0.16470588235294117
+     },
+     "metalness": 0.5,
+     "roughness": 0.4,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": true,
+     "texture": ""
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 62,
+     "acceleration": 11.5,
+     "braking": 28,
+     "grip": 1.3,
+     "driftGrip": 0.45,
+     "steering": 32,
+     "nitroBoost": 10,
+     "nitroSeconds": 4,
+     "gears": 6
+    }
+   }
+  },
+  {
+   "name": "Chase Camera",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 5,
+      "z": 0
+     }
+    },
+    "Camera": {
+     "projection": "Perspective",
+     "fov": 62,
+     "near": 0.2,
+     "far": 900,
+     "orthoSize": 10,
+     "priority": 1
+    },
+    "CameraFollow": {
+     "target": "",
+     "offset": {
+      "x": 0,
+      "y": 2.6,
+      "z": -7.2
+     },
+     "smoothing": 0.06,
+     "lookHeight": 1.3,
+     "collision": true,
+     "orbit": false
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Rival Kaze",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -60,
+      "y": 0.9,
+      "z": 424
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.2,
+      "y": 1.5,
+      "z": 4.5
+     }
+    },
+    "Renderable": {
+     "mesh": 101,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.7529411764705882,
+      "y": 0.2235294117647059,
+      "z": 0.16862745098039217
+     },
+     "metalness": 0.5,
+     "roughness": 0.4,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": true,
+     "texture": ""
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 58,
+     "acceleration": 11.5,
+     "braking": 28,
+     "grip": 1.3,
+     "driftGrip": 0.45,
+     "steering": 32,
+     "nitroBoost": 10,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Off",
+     "route": "",
+     "loop": false,
+     "target": "",
+     "skill": 0.8,
+     "aggression": 0.4,
+     "speedScale": 1
+    }
+   }
+  },
+  {
+   "name": "Rival Vex",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -48,
+      "y": 0.9,
+      "z": 424
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.2,
+      "y": 1.5,
+      "z": 4.5
+     }
+    },
+    "Renderable": {
+     "mesh": 101,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.15294117647058825,
+      "y": 0.6823529411764706,
+      "z": 0.3764705882352941
+     },
+     "metalness": 0.5,
+     "roughness": 0.4,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": true,
+     "texture": ""
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 59,
+     "acceleration": 11.5,
+     "braking": 28,
+     "grip": 1.3,
+     "driftGrip": 0.45,
+     "steering": 32,
+     "nitroBoost": 10,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Off",
+     "route": "",
+     "loop": false,
+     "target": "",
+     "skill": 0.85,
+     "aggression": 0.4,
+     "speedScale": 1
+    }
+   }
+  },
+  {
+   "name": "Rival Nori",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -36,
+      "y": 0.9,
+      "z": 424
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.2,
+      "y": 1.5,
+      "z": 4.5
+     }
+    },
+    "Renderable": {
+     "mesh": 101,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5568627450980392,
+      "y": 0.26666666666666666,
+      "z": 0.6784313725490196
+     },
+     "metalness": 0.5,
+     "roughness": 0.4,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": true,
+     "texture": ""
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 57,
+     "acceleration": 11.5,
+     "braking": 28,
+     "grip": 1.3,
+     "driftGrip": 0.45,
+     "steering": 32,
+     "nitroBoost": 10,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Off",
+     "route": "",
+     "loop": false,
+     "target": "",
+     "skill": 0.75,
+     "aggression": 0.4,
+     "speedScale": 1
+    }
+   }
+  },
+  {
+   "name": "Blacklist Razor",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -24,
+      "y": 0.9,
+      "z": 424
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.2,
+      "y": 1.5,
+      "z": 4.5
+     }
+    },
+    "Renderable": {
+     "mesh": 101,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.10980392156862745,
+      "y": 0.10980392156862745,
+      "z": 0.10980392156862745
+     },
+     "metalness": 0.5,
+     "roughness": 0.4,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": true,
+     "texture": ""
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 64,
+     "acceleration": 12,
+     "braking": 28,
+     "grip": 1.32,
+     "driftGrip": 0.45,
+     "steering": 32,
+     "nitroBoost": 10,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Off",
+     "route": "",
+     "loop": false,
+     "target": "",
+     "skill": 0.95,
+     "aggression": 0.4,
+     "speedScale": 1
+    }
+   }
+  },
+  {
+   "name": "Patrol 1",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -284,
+      "y": 0.95,
+      "z": -278
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.25,
+      "y": 1.9,
+      "z": 4.8
+     }
+    },
+    "Renderable": {
+     "mesh": 97,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 52,
+     "acceleration": 10,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "-284.0,-278.0 -278.0,-284.0 -10.0,-284.0 -4.0,-278.0 -4.0,-10.0 -10.0,-4.0 -278.0,-4.0 -284.0,-10.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.8,
+     "aggression": 0.4,
+     "speedScale": 0.85
+    }
+   }
+  },
+  {
+   "name": "Patrol 2",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -4,
+      "y": 0.95,
+      "z": 278
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.25,
+      "y": 1.9,
+      "z": 4.8
+     }
+    },
+    "Renderable": {
+     "mesh": 97,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 52,
+     "acceleration": 10,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "-4.0,278.0 10.0,292.0 278.0,292.0 292.0,278.0 292.0,10.0 278.0,-4.0 10.0,-4.0 -4.0,10.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.8,
+     "aggression": 0.4,
+     "speedScale": 0.85
+    }
+   }
+  },
+  {
+   "name": "Patrol 3",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -380,
+      "y": 0.95,
+      "z": 106
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.25,
+      "y": 1.9,
+      "z": 4.8
+     }
+    },
+    "Renderable": {
+     "mesh": 97,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 52,
+     "acceleration": 10,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "-380.0,106.0 -374.0,100.0 -106.0,100.0 -100.0,106.0 -100.0,374.0 -106.0,380.0 -374.0,380.0 -380.0,374.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.8,
+     "aggression": 0.4,
+     "speedScale": 0.85
+    }
+   }
+  },
+  {
+   "name": "Traffic 1",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -380,
+      "y": 0.9,
+      "z": -374
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.15,
+      "y": 1.7,
+      "z": 4.7
+     }
+    },
+    "Renderable": {
+     "mesh": 98,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 30,
+     "acceleration": 6,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "-380.0,-374.0 -374.0,-380.0 -202.0,-380.0 -196.0,-374.0 -196.0,-202.0 -202.0,-196.0 -374.0,-196.0 -380.0,-202.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.8
+    }
+   }
+  },
+  {
+   "name": "Traffic 2",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 100,
+      "y": 0.9,
+      "z": -202
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.1,
+      "y": 1.7,
+      "z": 4
+     }
+    },
+    "Renderable": {
+     "mesh": 94,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 30,
+     "acceleration": 6,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "-196.0,-202.0 -182.0,-188.0 86.0,-188.0 100.0,-202.0 100.0,-374.0 86.0,-388.0 -182.0,-388.0 -196.0,-374.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.9
+    }
+   }
+  },
+  {
+   "name": "Traffic 3",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 10,
+      "y": 1,
+      "z": -196
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.15,
+      "y": 1.9,
+      "z": 4.7
+     }
+    },
+    "Renderable": {
+     "mesh": 103,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 30,
+     "acceleration": 6,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "4.0,-374.0 10.0,-380.0 182.0,-380.0 188.0,-374.0 188.0,-202.0 182.0,-196.0 10.0,-196.0 4.0,-202.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 1
+    }
+   }
+  },
+  {
+   "name": "Traffic 4",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 202,
+      "y": 1.35,
+      "z": -188
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.35,
+      "y": 2.6,
+      "z": 5.3
+     }
+    },
+    "Renderable": {
+     "mesh": 104,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 30,
+     "acceleration": 6,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "188.0,-202.0 202.0,-188.0 374.0,-188.0 388.0,-202.0 388.0,-374.0 374.0,-388.0 202.0,-388.0 188.0,-374.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.8
+    }
+   }
+  },
+  {
+   "name": "Traffic 5",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -196,
+      "y": 1.1,
+      "z": -10
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.3,
+      "y": 2.1,
+      "z": 4.8
+     }
+    },
+    "Renderable": {
+     "mesh": 102,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 30,
+     "acceleration": 6,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "-380.0,-182.0 -374.0,-188.0 -202.0,-188.0 -196.0,-182.0 -196.0,-10.0 -202.0,-4.0 -374.0,-4.0 -380.0,-10.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.9
+    }
+   }
+  },
+  {
+   "name": "Traffic 6",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -196,
+      "y": 0.9,
+      "z": -182
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.15,
+      "y": 1.7,
+      "z": 4.7
+     }
+    },
+    "Renderable": {
+     "mesh": 98,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 30,
+     "acceleration": 6,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "-196.0,-10.0 -182.0,4.0 86.0,4.0 100.0,-10.0 100.0,-182.0 86.0,-196.0 -182.0,-196.0 -196.0,-182.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 1
+    }
+   }
+  },
+  {
+   "name": "Traffic 7",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 182,
+      "y": 0.9,
+      "z": -188
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.1,
+      "y": 1.7,
+      "z": 4
+     }
+    },
+    "Renderable": {
+     "mesh": 94,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 30,
+     "acceleration": 6,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "4.0,-182.0 10.0,-188.0 182.0,-188.0 188.0,-182.0 188.0,-10.0 182.0,-4.0 10.0,-4.0 4.0,-10.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.8
+    }
+   }
+  },
+  {
+   "name": "Traffic 8",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 374,
+      "y": 1,
+      "z": -196
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.15,
+      "y": 1.9,
+      "z": 4.7
+     }
+    },
+    "Renderable": {
+     "mesh": 103,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 30,
+     "acceleration": 6,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "188.0,-10.0 202.0,4.0 374.0,4.0 388.0,-10.0 388.0,-182.0 374.0,-196.0 202.0,-196.0 188.0,-182.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.9
+    }
+   }
+  },
+  {
+   "name": "Traffic 9",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -380,
+      "y": 1.8,
+      "z": 10
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.8,
+      "y": 3.5,
+      "z": 11.5
+     }
+    },
+    "Renderable": {
+     "mesh": 93,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 30,
+     "acceleration": 6,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "-380.0,10.0 -374.0,4.0 -202.0,4.0 -196.0,10.0 -196.0,182.0 -202.0,188.0 -374.0,188.0 -380.0,182.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 1
+    }
+   }
+  },
+  {
+   "name": "Traffic 10",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 100,
+      "y": 0.9,
+      "z": 182
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.15,
+      "y": 1.7,
+      "z": 4.7
+     }
+    },
+    "Renderable": {
+     "mesh": 98,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 30,
+     "acceleration": 6,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "-196.0,182.0 -182.0,196.0 86.0,196.0 100.0,182.0 100.0,10.0 86.0,-4.0 -182.0,-4.0 -196.0,10.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.8
+    }
+   }
+  },
+  {
+   "name": "Traffic 11",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 10,
+      "y": 1.1,
+      "z": 188
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.3,
+      "y": 2.1,
+      "z": 4.8
+     }
+    },
+    "Renderable": {
+     "mesh": 102,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 30,
+     "acceleration": 6,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "4.0,10.0 10.0,4.0 182.0,4.0 188.0,10.0 188.0,182.0 182.0,188.0 10.0,188.0 4.0,182.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.9
+    }
+   }
+  },
+  {
+   "name": "Traffic 12",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 202,
+      "y": 0.9,
+      "z": 196
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.1,
+      "y": 1.7,
+      "z": 4
+     }
+    },
+    "Renderable": {
+     "mesh": 94,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 30,
+     "acceleration": 6,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "188.0,182.0 202.0,196.0 374.0,196.0 388.0,182.0 388.0,10.0 374.0,-4.0 202.0,-4.0 188.0,10.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 1
+    }
+   }
+  },
+  {
+   "name": "Traffic 13",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -196,
+      "y": 1,
+      "z": 374
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.15,
+      "y": 1.9,
+      "z": 4.7
+     }
+    },
+    "Renderable": {
+     "mesh": 103,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 30,
+     "acceleration": 6,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "-380.0,202.0 -374.0,196.0 -202.0,196.0 -196.0,202.0 -196.0,374.0 -202.0,380.0 -374.0,380.0 -380.0,374.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.8
+    }
+   }
+  },
+  {
+   "name": "Traffic 14",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -196,
+      "y": 0.9,
+      "z": 202
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.15,
+      "y": 1.7,
+      "z": 4.7
+     }
+    },
+    "Renderable": {
+     "mesh": 98,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 30,
+     "acceleration": 6,
+     "braking": 26,
+     "grip": 1.2,
+     "driftGrip": 0.5,
+     "steering": 34,
+     "nitroBoost": 0,
+     "nitroSeconds": 1,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "-196.0,374.0 -182.0,388.0 86.0,388.0 100.0,374.0 100.0,202.0 86.0,188.0 -182.0,188.0 -196.0,202.0",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.9
+    }
+   }
+  },
+  {
+   "name": "Director",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 60,
+      "z": 0
+     }
+    },
+    "Script": {
+     "source": "-- HIGH HEAT director: events (circuit and sprints), race positions and\n-- catch-up, the police pursuit system (heat, bust, evade), the HUD text,\n-- and the title and results screens. See docs/racing/GAME_DESIGN.md.\n-- The placeholder line below is replaced by the level generator with the city\n-- grid, event routes and spawn points.\nlocal GRID = 96\nlocal GRID_HALF = 4\nlocal CHECKPOINT_RADIUS = 26\nlocal EVENTS = { { name = \"Downtown Circuit\", laps = 2, route = \"-96.0,-82.0 -82.0,-96.0 82.0,-96.0 96.0,-82.0 96.0,-14.0 110.0,0.0 178.0,0.0 192.0,14.0 192.0,82.0 178.0,96.0 -82.0,96.0 -96.0,82.0\", checkpoints = { { 0, -96 }, { 96, -96 }, { 96, 0 }, { 192, 0 }, { 192, 96 }, { 96, 96 }, { 0, 96 }, { -96, 96 }, { -96, 0 }, { -96, -96 } }, grid = { { -66, -92.8, 1.57 }, { -78, -99.2, 1.57 }, { -90, -92.8, 1.57 }, { -102, -99.2, 1.57 } }, marker = { -66, -92.8 }, rivals = { \"Rival Kaze\", \"Rival Vex\", \"Rival Nori\" }, police = false, escape = false }, { name = \"Harbor Sprint\", laps = 1, route = \"-384.0,384.0 -384.0,110.0 -370.0,96.0 -110.0,96.0 -96.0,82.0 -96.0,-178.0 -82.0,-192.0 178.0,-192.0 192.0,-206.0 192.0,-370.0 206.0,-384.0 384.0,-384.0\", checkpoints = { { -384, 288 }, { -384, 192 }, { -384, 96 }, { -288, 96 }, { -192, 96 }, { -96, 96 }, { -96, 0 }, { -96, -96 }, { -96, -192 }, { 0, -192 }, { 96, -192 }, { 192, -192 }, { 192, -288 }, { 192, -384 }, { 288, -384 }, { 384, -384 } }, grid = { { -380.8, 354, 3.14 }, { -387.2, 366, 3.14 }, { -380.8, 378, 3.14 }, { -387.2, 390, 3.14 } }, marker = { -380.8, 354 }, rivals = { \"Rival Kaze\", \"Rival Vex\", \"Rival Nori\" }, police = true, escape = false }, { name = \"Most Wanted Showdown\", laps = 1, route = \"384.0,384.0 384.0,14.0 370.0,0.0 14.0,0.0 0.0,-14.0 0.0,-274.0 -14.0,-288.0 -274.0,-288.0 -288.0,-274.0 -288.0,274.0 -274.0,288.0 -96.0,288.0\", checkpoints = { { 384, 288 }, { 384, 192 }, { 384, 96 }, { 384, 0 }, { 288, 0 }, { 192, 0 }, { 96, 0 }, { 0, 0 }, { 0, -96 }, { 0, -192 }, { 0, -288 }, { -96, -288 }, { -192, -288 }, { -288, -288 }, { -288, -192 }, { -288, -96 }, { -288, 0 }, { -288, 96 }, { -288, 192 }, { -288, 288 }, { -192, 288 }, { -96, 288 } }, grid = { { 387.2, 354, 3.14 }, { 380.8, 366, 3.14 }, { 387.2, 378, 3.14 }, { 380.8, 390, 3.14 } }, marker = { 387.2, 354 }, rivals = { \"Blacklist Razor\" }, police = true, pursuit_at = 8, pursuit_heat = 3, escape = true } }\nlocal PATROLS = { \"Patrol 1\", \"Patrol 2\", \"Patrol 3\" }\nlocal PATROL_ROUTES = { [\"Patrol 1\"] = \"-284.0,-278.0 -278.0,-284.0 -10.0,-284.0 -4.0,-278.0 -4.0,-10.0 -10.0,-4.0 -278.0,-4.0 -284.0,-10.0\", [\"Patrol 2\"] = \"-4.0,278.0 10.0,292.0 278.0,292.0 292.0,278.0 292.0,10.0 278.0,-4.0 10.0,-4.0 -4.0,10.0\", [\"Patrol 3\"] = \"-380.0,106.0 -374.0,100.0 -106.0,100.0 -100.0,106.0 -100.0,374.0 -106.0,380.0 -374.0,380.0 -380.0,374.0\" }\nlocal ALL_RIVALS = { \"Rival Kaze\", \"Rival Vex\", \"Rival Nori\", \"Blacklist Razor\" }\nlocal PARKING = { { -60, 424 }, { -48, 424 }, { -36, 424 }, { -24, 424 } }\n\nlocal phase = \"title\"\nlocal event_index = 1\nlocal event\nlocal racers = {} -- { id, name, lap, cp, finished, place }\nlocal race_start = 0\nlocal finish_order = 0\nlocal countdown_until = 0\nlocal last_shown = \"\"\nlocal banner_until = 0\nlocal hint_until = 0\nlocal results_won = false\nlocal escape_time = 0\n\n-- Pursuit state.\nlocal heat = 0\nlocal pursuing = false\nlocal units = {} -- { id, spawned }\nlocal bust = 0\nlocal evade = 0\nlocal pursuit_since = 0\nlocal next_route = 0\nlocal next_spot = 0\nlocal next_heat = 0\nlocal patrol_routes = {}\n\nlocal player\n\nlocal function car_position(id)\n  local x, y, z = world.position(id)\n  return x, y, z\nend\n\nlocal function speed_of(id)\n  local s = vehicle.state(id)\n  return s or 0\nend\n\nlocal function dist(ax, az, bx, bz)\n  return math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2)\nend\n\nlocal function banner(text, seconds)\n  ui.set_text(\"Banner\", text)\n  ui.set_visible(\"Banner\", true)\n  banner_until = time.now + (seconds or 2.5)\nend\n\nlocal function hint(text, seconds)\n  ui.set_text(\"Hint\", text)\n  ui.set_visible(\"Hint\", true)\n  hint_until = time.now + (seconds or 4)\nend\n\nlocal function snap(v)\n  local i = math.floor(v / GRID + 0.5)\n  if i > GRID_HALF then i = GRID_HALF elseif i < -GRID_HALF then i = -GRID_HALF end\n  return i * GRID\nend\n\nlocal function yaw_toward(ax, az, bx, bz)\n  return math.atan(bx - ax, bz - az)\nend\n\n-- Something solid (a building) between two points?\nlocal function blocked(ax, az, bx, bz)\n  local dx, dz = bx - ax, bz - az\n  local length = math.sqrt(dx * dx + dz * dz)\n  if length < 1 then return false end\n  local hit, d = world.raycast(ax, 1.0, az, dx, 0, dz, length)\n  return hit ~= nil and hit ~= \"ground\" and d < length - 6\nend\n\n-- ---------------------------------------------------------------- pursuit --\nlocal function heat_text()\n  if heat <= 0 then return \"\" end\n  return \"HEAT \" .. string.rep(\"*\", heat) .. string.rep(\"-\", 5 - heat)\nend\n\nlocal function cooldown()\n  return 7 + heat * 3\nend\n\nlocal function far_spawn(px, pz)\n  -- An intersection 150-320 m away the player can't see.\n  local best\n  for _ = 1, 24 do\n    local x = (math.random(0, GRID_HALF * 2) - GRID_HALF) * GRID\n    local z = (math.random(0, GRID_HALF * 2) - GRID_HALF) * GRID\n    local d = dist(x, z, px, pz)\n    if d > 150 and d < 320 and blocked(x, z, px, pz) then return x, z end\n    if d > 150 and not best then best = { x, z } end\n  end\n  if best then return best[1], best[2] end\n  return snap(px + 200), snap(pz)\nend\n\nlocal function grid_route(cx, cz, px, pz)\n  local ax, az = snap(cx), snap(cz)\n  local bx, bz = snap(px), snap(pz)\n  local on_avenue = math.abs(cx - ax) < math.abs(cz - az)\n  local corner = on_avenue and { ax, bz } or { bx, az }\n  local start = on_avenue and { ax, az } or { ax, az }\n  return string.format(\"%d,%d %d,%d %d,%d %.1f,%.1f\", start[1], start[2], corner[1], corner[2], bx, bz, px, pz)\nend\n\nlocal function add_unit(prefab)\n  local px, _, pz = car_position(player)\n  local x, z = far_spawn(px, pz)\n  local id = world.spawn(prefab, x, 0.9, z)\n  if not id then return end\n  vehicle.reset(id, x, 0.9, z, yaw_toward(x, z, px, pz))\n  vehicle.set_mode(id, \"pursuit\")\n  vehicle.set_target(id, player)\n  table.insert(units, { id = id, spawned = true })\nend\n\nlocal function unit_count()\n  local n = 0\n  for i = #units, 1, -1 do\n    if world.alive(units[i].id) then n = n + 1 else table.remove(units, i) end\n  end\n  return n\nend\n\nlocal function reinforce()\n  local wanted = math.min(6, heat + 1)\n  local guard = 0\n  while unit_count() < wanted and guard < 6 do\n    add_unit(heat >= 3 and \"Interceptor\" or \"Cruiser\")\n    guard = guard + 1\n  end\nend\n\nlocal function start_pursuit(level, reason)\n  local was = pursuing\n  heat = math.max(heat, level)\n  pursuing = true\n  evade, bust = 0, 0\n  if not was then\n    pursuit_since = time.now\n    next_heat = time.now + 45\n    banner(\"PURSUIT\", 2.5)\n    if reason then hint(reason, 3) end\n    sound.play(\"sfx:hit\")\n  end\n  -- Patrols nearby join in.\n  for _, name in ipairs(PATROLS) do\n    local id = world.find(name)\n    if id and world.alive(id) then\n      local px, _, pz = car_position(player)\n      local x, _, z = car_position(id)\n      if dist(x, z, px, pz) < 260 then\n        local known = false\n        for _, u in ipairs(units) do if u.id == id then known = true end end\n        if not known then\n          vehicle.set_mode(id, \"pursuit\")\n          vehicle.set_target(id, player)\n          table.insert(units, { id = id, spawned = false })\n        end\n      end\n    end\n  end\n  reinforce()\nend\n\nlocal function end_pursuit(message)\n  pursuing = false\n  heat = 0\n  bust, evade = 0, 0\n  for _, u in ipairs(units) do\n    if world.alive(u.id) then\n      if u.spawned then\n        world.destroy(u.id)\n      else\n        vehicle.set_mode(u.id, \"traffic\")\n        vehicle.set_target(u.id, nil)\n        if patrol_routes[u.id] then vehicle.set_route(u.id, patrol_routes[u.id], true) end\n      end\n    end\n  end\n  units = {}\n  ui.set_visible(\"PursuitBar\", false)\n  ui.set_text(\"Heat\", \"\")\n  if message then banner(message, 3) end\nend\n\nlocal function spot_check()\n  if pursuing or phase == \"title\" or phase == \"countdown\" then return end\n  if event and not event.police and (phase == \"race\") then return end\n  local px, _, pz = car_position(player)\n  local fast = speed_of(player) > 30.5\n  for _, name in ipairs(PATROLS) do\n    local id = world.find(name)\n    if id and world.alive(id) then\n      local x, _, z = car_position(id)\n      local d = dist(x, z, px, pz)\n      if d < 9 and speed_of(player) > 8 then\n        start_pursuit(1, \"You hit a police car\")\n        return\n      end\n      if fast and d < 45 and not blocked(x, z, px, pz) then\n        start_pursuit(1, \"Spotted speeding\")\n        return\n      end\n    end\n  end\nend\n\nlocal function update_pursuit(dt)\n  if not pursuing then return end\n  local px, _, pz = car_position(player)\n  local seen, close = false, false\n  for _, u in ipairs(units) do\n    if world.alive(u.id) then\n      local x, _, z = car_position(u.id)\n      local d = dist(x, z, px, pz)\n      if d < 110 and not blocked(x, z, px, pz) then seen = true end\n      if d < 9 then close = true end\n      if time.now >= next_route and d > 60 then vehicle.set_route(u.id, grid_route(x, z, px, pz), false) end\n    end\n  end\n  if time.now >= next_route then next_route = time.now + 1.5 end\n  if unit_count() == 0 then seen = false end\n  -- Bust: stopped and boxed in.\n  if close and speed_of(player) < 3 then bust = bust + dt / 3 else bust = math.max(0, bust - dt / 2) end\n  -- Evade: out of sight long enough.\n  if seen then evade = 0 else evade = evade + dt end\n  if bust > 0.02 then\n    ui.set_text(\"PursuitLabel\", \"BUST\")\n    ui.set_value(\"PursuitBar\", bust)\n  else\n    ui.set_text(\"PursuitLabel\", seen and \"PURSUIT\" or \"COOLDOWN\")\n    ui.set_value(\"PursuitBar\", evade / cooldown())\n  end\n  ui.set_visible(\"PursuitBar\", true)\n  ui.set_text(\"Heat\", heat_text())\n  if seen and time.now >= next_heat and heat < 5 then\n    heat = heat + 1\n    next_heat = time.now + 45\n    banner(\"HEAT LEVEL \" .. heat, 2)\n    reinforce()\n  end\n  if bust >= 1 then\n    return \"busted\"\n  elseif evade >= cooldown() then\n    return \"evaded\"\n  end\nend\n\n-- ------------------------------------------------------------------ races --\nlocal function set_hud_visible(on)\n  for _, name in ipairs({ \"Pos\", \"Lap\", \"Time\" }) do ui.set_visible(name, on) end\nend\n\nlocal function place_car(id, slot)\n  vehicle.reset(id, slot[1], 0.9, slot[2], slot[3])\nend\n\nlocal function park_rivals()\n  for i, name in ipairs(ALL_RIVALS) do\n    local id = world.find(name)\n    if id then\n      local spot = PARKING[i]\n      vehicle.set_mode(id, \"off\")\n      vehicle.reset(id, spot[1], 0.9, spot[2], 0)\n      vehicle.freeze(id, true)\n    end\n  end\nend\n\nlocal function show_marker()\n  local e = EVENTS[event_index]\n  if e then ui.marker(\"event\", e.marker[1], 2, e.marker[2], e.name) end\nend\n\nlocal function enter_roam(message)\n  phase = \"roam\"\n  event = nil\n  racers = {}\n  set_hud_visible(false)\n  ui.set_visible(\"Countdown\", false)\n  park_rivals()\n  vehicle.freeze(player, false)\n  show_marker()\n  local e = EVENTS[event_index]\n  ui.set_text(\"Objective\", e and (\"Drive to the marker: \" .. e.name) or \"Free roam\")\n  if message then banner(message, 3) end\nend\n\nlocal function start_event(index)\n  event = EVENTS[index]\n  phase = \"countdown\"\n  ui.clear_marker(\"event\")\n  ui.set_visible(\"Hint\", false)\n  hint_until = 0\n  if pursuing then end_pursuit() end\n  racers = { { id = player, name = \"You\", lap = 1, cp = 1, finished = false } }\n  place_car(player, event.grid[1])\n  vehicle.freeze(player, true)\n  for i, name in ipairs(event.rivals) do\n    local id = world.find(name)\n    if id then\n      place_car(id, event.grid[i + 1])\n      vehicle.set_route(id, event.route, event.laps > 1)\n      vehicle.set_mode(id, \"race\")\n      vehicle.set_speed_scale(id, 1)\n      vehicle.set_nitro(id, 1)\n      vehicle.freeze(id, true)\n      table.insert(racers, { id = id, name = name, lap = 1, cp = 1, finished = false })\n    end\n  end\n  vehicle.set_nitro(player, 1)\n  finish_order = 0\n  countdown_until = time.now + 3.2\n  last_shown = \"\"\n  ui.set_visible(\"Countdown\", true)\n  ui.set_text(\"Objective\", event.name .. (event.laps > 1 and (\"  -  \" .. event.laps .. \" laps\") or \"  -  sprint\"))\n  banner(string.upper(event.name), 3)\n  set_hud_visible(true)\n  ui.marker(\"cp\", event.checkpoints[1][1], 2, event.checkpoints[1][2], \"\")\nend\n\nlocal function progress(r)\n  local cps = event.checkpoints\n  local nx, nz = cps[math.min(r.cp, #cps)][1], cps[math.min(r.cp, #cps)][2]\n  local x, _, z = car_position(r.id)\n  return (r.lap - 1) * #cps * 1000 + r.cp * 1000 - dist(x, z, nx, nz)\nend\n\nlocal function ordinal(n)\n  return n .. (n == 1 and \"st\" or n == 2 and \"nd\" or n == 3 and \"rd\" or \"th\")\nend\n\nlocal function clock(t)\n  return string.format(\"%d:%05.2f\", math.floor(t / 60), t % 60)\nend\n\nlocal function show_results(won, title, text)\n  phase = \"results\"\n  set_hud_visible(false)\n  ui.clear_marker(\"cp\")\n  for _, r in ipairs(racers) do if r.id ~= player then vehicle.set_mode(r.id, \"off\") end end\n  ui.set_text(\"ResultTitle\", title)\n  ui.set_text(\"ResultText\", text)\n  ui.set_text(\"Continue\", won and \"CONTINUE\" or \"RETRY\")\n  for _, n in ipairs({ \"ResultPanel\", \"ResultTitle\", \"ResultText\", \"Continue\" }) do ui.set_visible(n, true) end\n  input.lock_mouse(false)\n  results_won = won\nend\n\nlocal function finish_event(place, elapsed)\n  local won = place == 1\n  if won and event.escape and pursuing then\n    phase = \"escape\"\n    set_hud_visible(false)\n    ui.clear_marker(\"cp\")\n    ui.set_text(\"Objective\", \"You won the race. Now lose the cops!\")\n    banner(\"LOSE THE COPS\", 3)\n    escape_time = elapsed\n    return\n  end\n  if won then\n    local key = \"best_\" .. event_index\n    local best = tonumber(save.get(key) or \"\")\n    if not best or elapsed < best then save.set(key, string.format(\"%.2f\", elapsed)) end\n  end\n  show_results(won, won and \"1ST PLACE\" or (string.upper(ordinal(place)) .. \" PLACE\"),\n    \"Time \" .. clock(elapsed) .. (won and \"\" or \"   -   win to move on\"))\nend\n\nlocal function update_race(dt)\n  local cps = event.checkpoints\n  for _, r in ipairs(racers) do\n    if not r.finished and world.alive(r.id) then\n      local x, _, z = car_position(r.id)\n      local c = cps[r.cp]\n      if dist(x, z, c[1], c[2]) < CHECKPOINT_RADIUS then\n        r.cp = r.cp + 1\n        if r.cp > #cps then\n          if r.lap < event.laps then\n            r.lap = r.lap + 1\n            r.cp = 1\n            if r.id == player then banner(r.lap == event.laps and \"FINAL LAP\" or (\"LAP \" .. r.lap), 2) end\n          else\n            r.finished = true\n            finish_order = finish_order + 1\n            r.place = finish_order\n          end\n        end\n        if r.id == player and not r.finished then\n          local n = cps[r.cp]\n          ui.marker(\"cp\", n[1], 2, n[2], \"\")\n          if event.pursuit_at and r.cp == event.pursuit_at and r.lap == event.laps then\n            start_pursuit(event.pursuit_heat or 3, \"The police were waiting for you\")\n          end\n        end\n      end\n    end\n  end\n  -- Positions and subtle catch-up.\n  local me\n  for _, r in ipairs(racers) do r.score = r.finished and (1e9 - r.place) or progress(r) end\n  table.sort(racers, function(a, b) return a.score > b.score end)\n  for i, r in ipairs(racers) do\n    if r.id == player then me = i end\n  end\n  local player_score\n  for _, r in ipairs(racers) do if r.id == player then player_score = r.score end end\n  for _, r in ipairs(racers) do\n    if r.id ~= player and not r.finished then\n      local gap = r.score - player_score\n      local scale = gap > 2500 and 0.94 or (gap < -2500 and 1.06 or 1.0)\n      vehicle.set_speed_scale(r.id, scale)\n    end\n  end\n  local elapsed = time.now - race_start\n  ui.set_text(\"Pos\", \"POS \" .. me .. \"/\" .. #racers)\n  local mine\n  for _, r in ipairs(racers) do if r.id == player then mine = r end end\n  ui.set_text(\"Lap\", event.laps > 1 and (\"LAP \" .. math.min(mine.lap, event.laps) .. \"/\" .. event.laps) or (\"CHECKPOINT \" .. math.min(mine.cp, #cps) .. \"/\" .. #cps))\n  ui.set_text(\"Time\", clock(elapsed))\n  if mine.finished then finish_event(mine.place, elapsed) end\nend\n\nlocal function reset_player()\n  if phase == \"race\" and event then\n    local mine\n    for _, r in ipairs(racers) do if r.id == player then mine = r end end\n    local cps = event.checkpoints\n    local prev = cps[math.max(1, mine.cp - 1)]\n    local next_cp = cps[math.min(mine.cp, #cps)]\n    if mine.cp == 1 then prev = event.grid[1] end\n    vehicle.reset(player, prev[1], 0.9, prev[2], yaw_toward(prev[1], prev[2], next_cp[1], next_cp[2]))\n  else\n    local x, _, z = car_position(player)\n    local sx, sz = snap(x), snap(z)\n    vehicle.reset(player, sx, 0.9, sz, 0)\n  end\nend\n\n-- --------------------------------------------------------------- callbacks --\nfunction on_start()\n  player = world.find(\"Player\")\n  for _, name in ipairs(PATROLS) do\n    local id = world.find(name)\n    if id then patrol_routes[id] = PATROL_ROUTES[name] end\n  end\n  -- The title is itself a pause, so the pause menu stays hidden until DRIVE.\n  for _, n in ipairs({ \"ResultPanel\", \"ResultTitle\", \"ResultText\", \"Continue\", \"Banner\", \"Countdown\", \"PursuitBar\", \"Hint\", \"Pos\", \"Lap\", \"Time\", \"PausePanel\", \"Resume\", \"Restart\" }) do\n    ui.set_visible(n, false)\n  end\n  ui.set_text(\"Heat\", \"\")\n  ui.set_text(\"Objective\", \"\")\n  local bests = {}\n  for i, e in ipairs(EVENTS) do\n    local b = tonumber(save.get(\"best_\" .. i) or \"\")\n    if b then table.insert(bests, e.name .. \" \" .. clock(b)) end\n  end\n  ui.set_text(\"TitleBest\", #bests > 0 and table.concat(bests, \"   \") or \"\")\n  park_rivals()\n  vehicle.freeze(player, true)\n  game.pause()\nend\n\nfunction on_ui(name)\n  if name == \"Start\" and phase == \"title\" then\n    for _, n in ipairs({ \"TitlePanel\", \"Title\", \"TitleSub\", \"Start\", \"Controls\", \"Controls2\", \"TitleBest\" }) do ui.set_visible(n, false) end\n    for _, n in ipairs({ \"PausePanel\", \"Resume\", \"Restart\" }) do ui.set_visible(n, true) end\n    game.resume()\n    input.lock_mouse(true)\n    enter_roam(\"WELCOME TO BAYVIEW\")\n    hint(\"Follow the marker on the minimap to your first race\", 5)\n  elseif name == \"Continue\" and phase == \"results\" then\n    for _, n in ipairs({ \"ResultPanel\", \"ResultTitle\", \"ResultText\", \"Continue\" }) do ui.set_visible(n, false) end\n    if results_won then\n      event_index = event_index + 1\n      if event_index > #EVENTS then\n        phase = \"complete\"\n        ui.set_text(\"Objective\", \"You are the most wanted. Free roam.\")\n        banner(\"BAYVIEW IS YOURS\", 4)\n        event_index = #EVENTS + 1\n        phase = \"roam\"\n        set_hud_visible(false)\n        park_rivals()\n        vehicle.freeze(player, false)\n        return\n      end\n      enter_roam(\"NEXT: \" .. string.upper(EVENTS[event_index].name))\n    else\n      start_event(event_index)\n    end\n  end\nend\n\nlocal spot_timer = 0\nfunction on_tick(dt)\n  if banner_until > 0 and time.now > banner_until then ui.set_visible(\"Banner\", false) banner_until = 0 end\n  if hint_until > 0 and time.now > hint_until then ui.set_visible(\"Hint\", false) hint_until = 0 end\n  if phase == \"title\" or not player then return end\n  if input.pressed(\"p\") then game.pause() end\n  if input.pressed(\"r\") and phase ~= \"countdown\" and phase ~= \"results\" then reset_player() end\n  spot_timer = spot_timer + dt\n  if spot_timer > 0.25 then spot_timer = 0 spot_check() end\n  local outcome = update_pursuit(dt)\n  if outcome == \"busted\" then\n    end_pursuit()\n    if phase == \"race\" or phase == \"escape\" or phase == \"countdown\" then\n      show_results(false, \"BUSTED\", \"The police caught you.\")\n    else\n      banner(\"BUSTED\", 3)\n      reset_player()\n    end\n    return\n  elseif outcome == \"evaded\" then\n    end_pursuit(\"EVADED\")\n    if phase == \"escape\" then\n      local key = \"best_\" .. event_index\n      local best = tonumber(save.get(key) or \"\")\n      if not best or escape_time < best then save.set(key, string.format(\"%.2f\", escape_time)) end\n      show_results(true, \"1ST PLACE - EVADED\", \"Time \" .. clock(escape_time) .. \"   -   you lost the police\")\n    end\n  end\n  if phase == \"roam\" then\n    local e = EVENTS[event_index]\n    if e and not pursuing then\n      local x, _, z = car_position(player)\n      if dist(x, z, e.marker[1], e.marker[2]) < 18 then start_event(event_index) end\n    end\n  elseif phase == \"countdown\" then\n    local left = countdown_until - time.now\n    local text = left > 2.2 and \"3\" or left > 1.2 and \"2\" or left > 0.2 and \"1\" or \"GO!\"\n    if text ~= last_shown then\n      last_shown = text\n      ui.set_text(\"Countdown\", text)\n      sound.play(text == \"GO!\" and \"sfx:hit:kill\" or \"sfx:hit\")\n    end\n    if left <= 0.2 then\n      phase = \"race\"\n      race_start = time.now\n      for _, r in ipairs(racers) do vehicle.freeze(r.id, false) end\n    end\n  elseif phase == \"race\" then\n    if time.now - race_start > 1 then ui.set_visible(\"Countdown\", false) end\n    update_race(dt)\n  end\nend\n",
+     "props": {}
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Objective",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "top-left",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 24,
+     "offsetY": 22,
+     "width": 0,
+     "height": 0,
+     "fontSize": 18,
+     "color": {
+      "x": 0.9568627450980393,
+      "y": 0.9450980392156862,
+      "z": 0.9098039215686274
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Pos",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "top-left",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 24,
+     "offsetY": 54,
+     "width": 0,
+     "height": 0,
+     "fontSize": 30,
+     "color": {
+      "x": 0.9490196078431372,
+      "y": 0.7607843137254902,
+      "z": 0.18823529411764706
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Lap",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "top-left",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 24,
+     "offsetY": 92,
+     "width": 0,
+     "height": 0,
+     "fontSize": 18,
+     "color": {
+      "x": 0.9568627450980393,
+      "y": 0.9450980392156862,
+      "z": 0.9098039215686274
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Time",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "top-left",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 24,
+     "offsetY": 118,
+     "width": 0,
+     "height": 0,
+     "fontSize": 18,
+     "color": {
+      "x": 0.9568627450980393,
+      "y": 0.9450980392156862,
+      "z": 0.9098039215686274
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Heat",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "top-center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 22,
+     "width": 0,
+     "height": 0,
+     "fontSize": 22,
+     "color": {
+      "x": 0.8784313725490196,
+      "y": 0.21176470588235294,
+      "z": 0.17254901960784313
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "PursuitLabel",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "top-center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 52,
+     "width": 0,
+     "height": 0,
+     "fontSize": 13,
+     "color": {
+      "x": 0.9568627450980393,
+      "y": 0.9450980392156862,
+      "z": 0.9098039215686274
+     },
+     "opacity": 0.85,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "PursuitBar",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Bar",
+     "text": "",
+     "anchor": "top-center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 70,
+     "width": 300,
+     "height": 12,
+     "fontSize": 16,
+     "color": {
+      "x": 0.22745098039215686,
+      "y": 0.8156862745098039,
+      "z": 0.41568627450980394
+     },
+     "opacity": 0.9,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Banner",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "top-center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 120,
+     "width": 0,
+     "height": 0,
+     "fontSize": 34,
+     "color": {
+      "x": 0.9490196078431372,
+      "y": 0.7607843137254902,
+      "z": 0.18823529411764706
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Countdown",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": -60,
+     "width": 0,
+     "height": 0,
+     "fontSize": 96,
+     "color": {
+      "x": 0.9490196078431372,
+      "y": 0.7607843137254902,
+      "z": 0.18823529411764706
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Hint",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "bottom-center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": -40,
+     "width": 0,
+     "height": 0,
+     "fontSize": 16,
+     "color": {
+      "x": 0.9568627450980393,
+      "y": 0.9450980392156862,
+      "z": 0.9098039215686274
+     },
+     "opacity": 0.9,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "TitlePanel",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Panel",
+     "text": "",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 0,
+     "width": 640,
+     "height": 430,
+     "fontSize": 16,
+     "color": {
+      "x": 0.050980392156862744,
+      "y": 0.06274509803921569,
+      "z": 0.0784313725490196
+     },
+     "opacity": 0.86,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Title",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "HIGH HEAT",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": -150,
+     "width": 0,
+     "height": 0,
+     "fontSize": 64,
+     "color": {
+      "x": 0.9490196078431372,
+      "y": 0.7607843137254902,
+      "z": 0.18823529411764706
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "TitleSub",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "Win three races in Bayview. Then outrun the police.",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": -90,
+     "width": 0,
+     "height": 0,
+     "fontSize": 17,
+     "color": {
+      "x": 0.9568627450980393,
+      "y": 0.9450980392156862,
+      "z": 0.9098039215686274
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Start",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Button",
+     "text": "DRIVE",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "script",
+     "offsetX": 0,
+     "offsetY": -20,
+     "width": 240,
+     "height": 54,
+     "fontSize": 22,
+     "color": {
+      "x": 0.7529411764705882,
+      "y": 0.2235294117647059,
+      "z": 0.16862745098039217
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Controls",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "W/S throttle and brake  ·  A/D steer  ·  Space handbrake (drift)",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 60,
+     "width": 0,
+     "height": 0,
+     "fontSize": 14,
+     "color": {
+      "x": 0.9568627450980393,
+      "y": 0.9450980392156862,
+      "z": 0.9098039215686274
+     },
+     "opacity": 0.75,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Controls2",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "Shift nitro  ·  R reset car  ·  P pause",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 82,
+     "width": 0,
+     "height": 0,
+     "fontSize": 14,
+     "color": {
+      "x": 0.9568627450980393,
+      "y": 0.9450980392156862,
+      "z": 0.9098039215686274
+     },
+     "opacity": 0.75,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "TitleBest",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 130,
+     "width": 0,
+     "height": 0,
+     "fontSize": 13,
+     "color": {
+      "x": 0.9490196078431372,
+      "y": 0.7607843137254902,
+      "z": 0.18823529411764706
+     },
+     "opacity": 0.85,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "ResultPanel",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Panel",
+     "text": "",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 0,
+     "width": 560,
+     "height": 250,
+     "fontSize": 16,
+     "color": {
+      "x": 0.050980392156862744,
+      "y": 0.06274509803921569,
+      "z": 0.0784313725490196
+     },
+     "opacity": 0.88,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "ResultTitle",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": -60,
+     "width": 0,
+     "height": 0,
+     "fontSize": 42,
+     "color": {
+      "x": 0.9490196078431372,
+      "y": 0.7607843137254902,
+      "z": 0.18823529411764706
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "ResultText",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 0,
+     "width": 0,
+     "height": 0,
+     "fontSize": 17,
+     "color": {
+      "x": 0.9568627450980393,
+      "y": 0.9450980392156862,
+      "z": 0.9098039215686274
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Continue",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Button",
+     "text": "CONTINUE",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "script",
+     "offsetX": 0,
+     "offsetY": 64,
+     "width": 220,
+     "height": 46,
+     "fontSize": 18,
+     "color": {
+      "x": 0.7529411764705882,
+      "y": 0.2235294117647059,
+      "z": 0.16862745098039217
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "PausePanel",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Panel",
+     "text": "",
+     "anchor": "center",
+     "visibleWhen": "pause",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 0,
+     "width": 320,
+     "height": 200,
+     "fontSize": 16,
+     "color": {
+      "x": 0.050980392156862744,
+      "y": 0.06274509803921569,
+      "z": 0.0784313725490196
+     },
+     "opacity": 0.85,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Resume",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Button",
+     "text": "Resume",
+     "anchor": "center",
+     "visibleWhen": "pause",
+     "action": "resume",
+     "offsetX": 0,
+     "offsetY": -20,
+     "width": 200,
+     "height": 40,
+     "fontSize": 16,
+     "color": {
+      "x": 0.23137254901960785,
+      "y": 0.43137254901960786,
+      "z": 0.5607843137254902
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Restart",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Button",
+     "text": "Restart",
+     "anchor": "center",
+     "visibleWhen": "pause",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 34,
+     "width": 200,
+     "height": 40,
+     "fontSize": 16,
+     "color": {
+      "x": 0.3607843137254902,
+      "y": 0.3607843137254902,
+      "z": 0.3607843137254902
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  }
+ ]
+}

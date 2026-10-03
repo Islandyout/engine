@@ -4,6 +4,8 @@
 
 **[Play LAST SIGNAL](https://islandyout.github.io/engine/last-signal.html)**, a first-person shooter built entirely in the editor's data and Lua on this engine ([design document](docs/fps/GAME_DESIGN.md)).
 
+**[Play HIGH HEAT](https://islandyout.github.io/engine/high-heat.html)**, an open-city street racer with police pursuits ([design document](docs/racing/GAME_DESIGN.md)).
+
 The integrated editor provides scene authoring, component inspection, undo/redo, JSON save/load and a Three.js viewport connected to the C++ fixed-step world through WebAssembly. See [the editor contract](docs/BTAI_EDITOR.md) for build instructions and supported behaviors.
 
 This repository is the implementation companion to `GAME_ENGINE_BIBLE_v0.6_RESEARCH.md`.
@@ -280,6 +282,16 @@ Engine version 0.69.0 makes characters hold their weapons with their own arms, a
 - **Interpolation**: every object is drawn between its last two 60 Hz simulation ticks, so enemies, pickups and projectiles move smoothly on any display rate instead of stepping.
 
 See [F69](docs/IMPLEMENTATION_STATUS.md#f69--characters-hold-their-weapons-and-interpolated-motion-0690).
+
+Engine version 0.70.0 adds driving, and ships **HIGH HEAT**, a street racer in the spirit of *Need for Speed: Most Wanted* ([design document](docs/racing/GAME_DESIGN.md)):
+
+- **Arcade car dynamics** (`engine::gameplay::step_car`): grip-limited cornering, handbrake drifts that refill nitro, nitro boost, gears and revs. `Vehicle.model = "Arcade"` with top speed, acceleration, braking, grip, drift grip, steering, nitro and gears.
+- **AI drivers** (`Driver`): Race follows a route and brakes for the corners ahead; Pursuit chases a target (straight at it in sight, by a scripted route around blocks otherwise) and rams; Traffic cruises a loop and brakes for cars ahead. All have stuck recovery.
+- **`ModelInstances`**: hundreds of catalog models (road tiles, buildings, lamps) from one entity, instanced in chunks, with solid footprints.
+- **Driving presentation**: a speed-scaled chase camera, body roll and pitch, brake lights, nitro flames, skid marks, tyre smoke, police light bars, a synthesized engine note, tyre squeal and sirens, plus a speedometer and a heading-up minimap.
+- **Lua `vehicle.*`**: `state`, `set_nitro`, `reset`, `freeze`, `set_route`, `set_target`, `set_mode`, `set_speed_scale`.
+
+See [F70](docs/IMPLEMENTATION_STATUS.md#f70--driving-arcade-cars-ai-drivers-modelinstances-and-high-heat-0700).
 
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).

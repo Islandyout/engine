@@ -220,6 +220,8 @@ const componentNames = [
   "Terrain",
   "AudioSettings",
   "PostProcessing",
+  "Driver",
+  "ModelInstances",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -381,8 +383,50 @@ export function normalizeComponent(
     }
     case "Player":
       return {};
-    case "Vehicle":
-      return { archetype: boundedIndex(value.archetype, "Vehicle.archetype", 0, 4) };
+    case "Vehicle": {
+      // Older scenes (no model field) keep the original Classic drive.
+      const model = value.model ?? "Classic";
+      if (model !== "Classic" && model !== "Arcade") throw new Error("Vehicle.model must be Classic or Arcade.");
+      const or = (v: unknown, fallback: number, label: string) => (v === undefined ? fallback : positiveNumber(v, label));
+      const driftGrip = or(value.driftGrip, 0.45, "Vehicle.driftGrip");
+      if (driftGrip > 1) throw new Error("Vehicle.driftGrip must be from 0 to 1.");
+      const gears = or(value.gears, 6, "Vehicle.gears");
+      if (!Number.isInteger(gears) || gears > 9) throw new Error("Vehicle.gears must be a whole number from 1 to 9.");
+      return {
+        archetype: boundedIndex(value.archetype, "Vehicle.archetype", 0, 4),
+        model,
+        topSpeed: or(value.topSpeed, 60, "Vehicle.topSpeed"),
+        acceleration: or(value.acceleration, 11, "Vehicle.acceleration"),
+        braking: or(value.braking, 26, "Vehicle.braking"),
+        grip: or(value.grip, 1.25, "Vehicle.grip"),
+        driftGrip,
+        steering: or(value.steering, 32, "Vehicle.steering"),
+        nitroBoost: value.nitroBoost === undefined ? 9 : nonNegativeNumber(value.nitroBoost, "Vehicle.nitroBoost"),
+        nitroSeconds: or(value.nitroSeconds, 4, "Vehicle.nitroSeconds"),
+        gears,
+      };
+    }
+    case "Driver": {
+      const mode = value.mode;
+      if (mode !== "Off" && mode !== "Race" && mode !== "Pursuit" && mode !== "Traffic")
+        throw new Error("Driver.mode must be Off, Race, Pursuit, or Traffic.");
+      const unit = (v: unknown, label: string) => {
+        const n = number(v, label);
+        if (n < 0 || n > 1) throw new Error(`${label} must be from 0 to 1.`);
+        return n;
+      };
+      return {
+        mode,
+        route: string(value.route, "Driver.route"),
+        loop: boolean(value.loop, "Driver.loop"),
+        target: string(value.target, "Driver.target"),
+        skill: unit(value.skill, "Driver.skill"),
+        aggression: unit(value.aggression, "Driver.aggression"),
+        speedScale: positiveNumber(value.speedScale, "Driver.speedScale"),
+      };
+    }
+    case "ModelInstances":
+      return { instances: string(value.instances, "ModelInstances.instances") };
     case "AnimationState":
       return {
         clip: string(value.clip, "AnimationState.clip"),

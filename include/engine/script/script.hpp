@@ -86,6 +86,25 @@ public:
         (void)out;
         return false;
     }
+    // Vehicles (0.70.0), for the Lua `vehicle` table, on any entity: `op` is
+    // "state" (out: speed, forward speed, gear, rpm, nitro, drifting 0/1,
+    // boosting 0/1, yaw, slip), "set_nitro" (args: 0..1), "reset" (args: x,
+    // y, z, yaw; stops it there), "freeze" (args: 1/0; holds it still),
+    // "route" (args: loop 1/0; text: "x,z x,z ..."), "target" (`other`: the
+    // entity to chase, or none), "mode" (text: "race",
+    // "pursuit", "traffic" or "off") and "speed_scale" (args: scale).
+    // Returns false when `entity` isn't a car. The default host has none.
+    virtual bool vehicle(World &world, Entity entity, const std::string &op, const std::vector<double> &args,
+                         const std::string &text, std::optional<Entity> other, std::vector<double> &out) {
+        (void)world;
+        (void)other;
+        (void)entity;
+        (void)op;
+        (void)args;
+        (void)text;
+        (void)out;
+        return false;
+    }
 };
 
 // Owns one Lua VM per (Box, physics::RigidBody, Script) entity, created the

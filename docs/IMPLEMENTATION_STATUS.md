@@ -4709,3 +4709,54 @@ Playtest feedback on 0.68.0: smoother but still laggy, the animations didn't mat
   - hand attachment (parent, barrel direction, world scale, palm position);
   - turning a bladed hold to face forward.
 - Screenshots: soldiers aim with both hands, along their facing. In first person the Mannequin's tinted hands hold every weapon, and aiming down sights centers the sight with the shoulders out of view.
+
+## F70 — Driving: arcade cars, AI drivers, ModelInstances, and HIGH HEAT (0.70.0)
+
+A request for a racing game "like Need for Speed: Most Wanted" found the engine's driving was a stub: a player-only constant-turn-rate model with no grip, drift, gears or AI drivers. This round adds driving as an engine feature and builds the game on it ([docs/racing/GAME_DESIGN.md](racing/GAME_DESIGN.md)).
+
+- **`engine::gameplay` car dynamics** (`include/engine/gameplay/car.hpp`):
+  - The car is a single body in the ground plane. Longitudinal drive fades toward top speed; there are brakes, reverse, coasting, handbrake and nitro (+20% top speed, a tank that drains).
+  - The yaw rate follows the bicycle model, overshooting on the handbrake or in a drift.
+  - Lateral velocity is scrubbed up to the grip limit, so the car slides past it, and part of the scrubbed speed carries forward in a drift.
+  - Steering lock shrinks with speed and is capped by grip unless the car is loose, so steering alone corners on the limit and the handbrake starts slides.
+  - Drifting refills nitro. Gears and revs are derived for the HUD and engine sound.
+- **AI driving**:
+  - `steer_toward` does pure-pursuit steering with speed control capped by the arc to the target. `corner_speed` gives the grip-limited speed for a radius.
+  - In the bridge's `Driver` (`editor.drivers`, before physics):
+    - **Race** follows its route, advancing past points it has reached or driven by. It looks ahead by speed and brakes for each upcoming turn in time (`v² = v_corner² + 2·a·d`).
+    - **Pursuit** chases its target with lead. It goes straight when nothing solid is in between and follows its script-given route otherwise, and rams the target's flank when aggressive.
+    - **Traffic** cruises its loop and brakes for cars ahead.
+    - All modes steer around obstacles by probing, and back out when stuck.
+- **Bridge**:
+  - `Heading` gains an arcade `CarSpec`/`CarState`. `editor_set_car` makes any entity an arcade car and `editor_set_driver(_text)` gives it a driver.
+  - The player's car reads the named actions: move_y throttle and brake, move_x steer, jump handbrake, sprint nitro.
+  - Physics-resolved velocity feeds back each tick, so walls and other cars take speed off. `editor_vehicle_value` exposes the car's state.
+- **Lua `vehicle` table** (`Host::vehicle`): `state`, `set_nitro`, `reset`, `freeze`, `set_route`, `set_target`, `set_mode`, `set_speed_scale`.
+- **Components**:
+  - `Vehicle` gains `model` (Classic or Arcade; older scenes stay Classic) and the handling numbers.
+  - New `Driver` (mode, route, loop, target, skill, aggression, speed scale).
+  - New `ModelInstances` (`model x z [yaw] [scale] [solid]` per line): drawn with the chunked scatter instancing, with solid instances added as obstacles covering their rotated footprint.
+- **Editor**:
+  - Cars face their interpolated heading, and spawned cars too.
+  - `carFx.ts`: body roll and pitch, brake lights, nitro flames, police light bars and glows, skid marks (instanced ring buffer) and tyre smoke.
+  - `carAudio.ts`: an engine note from revs, gear and throttle, tyre squeal from slip, and spatial sirens on pursuit drivers. A sudden loss of speed plays an impact and shakes the camera.
+  - The chase rig trails a car's heading with lag, pulls back and widens the field of view with speed and nitro.
+  - The driving HUD has a speedometer with rev arc, gear and nitro, and a heading-up minimap of road tiles, cars by role and markers.
+- **Fixes along the way**:
+  - The camera-collision raycast now has a camera, which sprites need.
+  - The sun's normal bias is raised, so low suns don't stripe thin pads with acne.
+  - The new state is declared before the player-mode bootstrap.
+- **HIGH HEAT**: `tools/racing/build_high_heat.ts` generates a 768 m grid city with 801 road tiles, 256 buildings and 288 lamps on three entities.
+  - It also places the player, four rivals, three police patrols, fourteen traffic cars, Cruiser and Interceptor prefabs, the UI and the director config.
+  - `director.lua` runs three events (a circuit, a sprint, and a showdown that ends in a pursuit), race positions with a subtle ±6% catch-up, and heat levels 1-5 with reinforcements, grid routing, bust and evade meters.
+  - It is published as `high-heat.html`.
+
+### F70 verification
+
+- `engine_car_tests`: launch, top speed, brakes, reverse, coasting, steering direction, grip, handbrake drift, nitro, pure pursuit, holding a 50 m circle and corner speed.
+- `engine_editor_bridge_tests`: the player's car on W and D, a racer lapping a square route, a pursuit car closing on its target, and `vehicle.state`/`reset`/`freeze` from Lua.
+- `apps/editor/tests/modelInstances.test.ts` (parsing, rotated footprints) and `highHeat.test.ts` (the committed scene matches the generator; city, cars, police and events present).
+- `tests/browser/high_heat.cjs` (CI):
+  - the title screen;
+  - free roam with the driving HUD, accelerating on W;
+  - a trimmed race through countdown, the racing HUD, the win screen and on to the next event.

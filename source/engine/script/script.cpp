@@ -642,6 +642,47 @@ struct LuaApi final {
         return weapon_call(L, "give_ammo",
                            {static_cast<double>(luaL_checkinteger(L, 1)), static_cast<double>(luaL_optinteger(L, 2, 0) - 1)});
     }
+    // vehicle.*(id, ...): see Host::vehicle.
+    static int vehicle_call(lua_State *L, const char *op, std::vector<double> args, const std::string &text = {},
+                            std::optional<Entity> other = std::nullopt) {
+        auto &self = runtime(L);
+        const auto entity = entity_arg(L, 1);
+        std::vector<double> out;
+        if (!entity || !self.host_ || !self.world_ ||
+            !self.host_->vehicle(*self.world_, *entity, op, args, text, other, out))
+            return lua_pushnil(L), 1;
+        for (const double value : out)
+            lua_pushnumber(L, value);
+        if (out.empty())
+            lua_pushboolean(L, 1);
+        return out.empty() ? 1 : static_cast<int>(out.size());
+    }
+    // vehicle.state(id) -> speed, forward, gear, rpm, nitro, drifting, boosting, yaw, slip
+    static int vehicle_state(lua_State *L) {
+        const int count = vehicle_call(L, "state", {});
+        if (count < 9)
+            return count;
+        // drifting and boosting as booleans
+        const bool boosting = lua_tonumber(L, -3) != 0, drifting = lua_tonumber(L, -4) != 0;
+        lua_pushboolean(L, drifting ? 1 : 0);
+        lua_replace(L, -5);
+        lua_pushboolean(L, boosting ? 1 : 0);
+        lua_replace(L, -4);
+        return count;
+    }
+    static int vehicle_set_nitro(lua_State *L) { return vehicle_call(L, "set_nitro", {number_arg(L, 2)}); }
+    static int vehicle_reset(lua_State *L) {
+        return vehicle_call(L, "reset", {number_arg(L, 2), number_arg(L, 3), number_arg(L, 4), number_arg(L, 5)});
+    }
+    static int vehicle_freeze(lua_State *L) { return vehicle_call(L, "freeze", {lua_toboolean(L, 2) ? 1.0 : 0.0}); }
+    static int vehicle_set_route(lua_State *L) {
+        return vehicle_call(L, "route", {lua_toboolean(L, 3) ? 1.0 : 0.0}, luaL_checkstring(L, 2));
+    }
+    static int vehicle_set_target(lua_State *L) {
+        return vehicle_call(L, "target", {}, {}, entity_arg(L, 2));
+    }
+    static int vehicle_set_mode(lua_State *L) { return vehicle_call(L, "mode", {}, luaL_checkstring(L, 2)); }
+    static int vehicle_set_speed_scale(lua_State *L) { return vehicle_call(L, "speed_scale", {number_arg(L, 2)}); }
     static int particles_burst(lua_State *L) {
         emit(L, "particles_burst", std::to_string(luaL_optinteger(L, 1, 10)), "");
         return 0;
@@ -880,6 +921,15 @@ struct LuaApi final {
         table(L, self, "game", {{"pause", game_pause}, {"resume", game_resume}});
         table(L, self, "anim", {{"set", anim_set}, {"trigger", anim_trigger}});
         table(L, self, "camera", {{"shake", camera_shake}});
+        table(L, self, "vehicle",
+              {{"state", vehicle_state},
+               {"set_nitro", vehicle_set_nitro},
+               {"reset", vehicle_reset},
+               {"freeze", vehicle_freeze},
+               {"set_route", vehicle_set_route},
+               {"set_target", vehicle_set_target},
+               {"set_mode", vehicle_set_mode},
+               {"set_speed_scale", vehicle_set_speed_scale}});
         table(L, self, "particles", {{"burst", particles_burst}, {"set_emitting", particles_emitting}});
         table(L, self, "weapon",
               {{"fire", weapon_fire},
