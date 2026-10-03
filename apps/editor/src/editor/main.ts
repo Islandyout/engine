@@ -4132,6 +4132,7 @@ async function startEditor() {
   }
   // "!" over soldiers in combat, "?" over ones that heard or lost something.
   function drawSoldierMarkers() {
+    const alive = doc.scene.eachAlive();
     objects.forEach((object, i) => {
       if (!runtime._editor_alive(i)) return;
       const mode = runtime._editor_soldier_value(i, 0);
@@ -4139,7 +4140,7 @@ async function startEditor() {
       const fighting = mode === 2 || mode === 4;
       const curious = mode === 1 || mode === 3;
       if (!fighting && !curious) return;
-      const scaleY = doc.scene.resolve(doc.scene.eachAlive()[i] ?? { index: -1, generation: 0 }, "Scale")?.value.y ?? 1.8;
+      const scaleY = doc.scene.resolve(alive[i] ?? { index: -1, generation: 0 }, "Scale")?.value.y ?? 1.8;
       hudScratch.copy(object.position);
       hudScratch.y += scaleY / 2 + 0.75;
       hudScratch.project(viewCamera);

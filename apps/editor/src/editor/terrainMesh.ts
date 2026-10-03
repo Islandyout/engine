@@ -97,6 +97,9 @@ export interface ScatterModel {
 
 // One InstancedMesh per mesh of each model, with every instance standing on
 // the ground (the model's lowest point at the instance's height).
+// World units per side of a scatter chunk (see buildScatter).
+export const scatterChunkSize = 64;
+
 export function buildScatter(instances: ScatterInstance[], models: Map<number, ScatterModel>): THREE.Group {
   const group = new THREE.Group();
   group.name = "terrain-scatter";
@@ -111,29 +114,45 @@ export function buildScatter(instances: ScatterInstance[], models: Map<number, S
     placement = new THREE.Matrix4(),
     rotation = new THREE.Quaternion(),
     up = new THREE.Vector3(0, 1, 0);
-  for (const [id, list] of byModel) {
+  for (const [id, all] of byModel) {
     const root = models.get(id)!.scene;
     root.updateMatrixWorld(true);
-    const bottom = new THREE.Box3().setFromObject(root).min.y;
-    root.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) return;
-      const instanced = new THREE.InstancedMesh(child.geometry, child.material, list.length);
-      instanced.castShadow = true;
-      instanced.receiveShadow = true;
-      list.forEach((instance, i) => {
-        rotation.setFromAxisAngle(up, instance.yaw);
-        placement.compose(
-          new THREE.Vector3(instance.x, instance.y - bottom * instance.scale, instance.z),
-          rotation,
-          new THREE.Vector3(instance.scale, instance.scale, instance.scale),
-        );
-        matrix.multiplyMatrices(placement, child.matrixWorld);
-        instanced.setMatrixAt(i, matrix);
+    const bounds = new THREE.Box3().setFromObject(root);
+    const bottom = bounds.min.y;
+    // Small props (bushes, small rocks) don't cast shadows: they cost a full
+    // shadow pass for marks nobody sees.
+    const castShadow = bounds.max.y - bounds.min.y > 2.5;
+    // Instances are grouped into square chunks so frustum culling can drop
+    // what's off screen (one InstancedMesh for the whole map is always
+    // drawn, and drawn again for shadows).
+    const chunks = new Map<string, ScatterInstance[]>();
+    for (const instance of all) {
+      const key = `${Math.floor(instance.x / scatterChunkSize)},${Math.floor(instance.z / scatterChunkSize)}`;
+      let chunk = chunks.get(key);
+      if (!chunk) chunks.set(key, (chunk = []));
+      chunk.push(instance);
+    }
+    for (const list of chunks.values()) {
+      root.traverse((child) => {
+        if (!(child instanceof THREE.Mesh)) return;
+        const instanced = new THREE.InstancedMesh(child.geometry, child.material, list.length);
+        instanced.castShadow = castShadow;
+        instanced.receiveShadow = true;
+        list.forEach((instance, i) => {
+          rotation.setFromAxisAngle(up, instance.yaw);
+          placement.compose(
+            new THREE.Vector3(instance.x, instance.y - bottom * instance.scale, instance.z),
+            rotation,
+            new THREE.Vector3(instance.scale, instance.scale, instance.scale),
+          );
+          matrix.multiplyMatrices(placement, child.matrixWorld);
+          instanced.setMatrixAt(i, matrix);
+        });
+        instanced.instanceMatrix.needsUpdate = true;
+        instanced.computeBoundingSphere();
+        group.add(instanced);
       });
-      instanced.instanceMatrix.needsUpdate = true;
-      instanced.computeBoundingSphere();
-      group.add(instanced);
-    });
+    }
   }
   return group;
 }

@@ -4671,3 +4671,23 @@ Engine fixes found by building and playing it:
 - `tests/browser/last_signal.cjs` (CI) serves the game as a player build and checks the title card, Deploy, the pause menu and Resume. On a trimmed copy of the level it plays the whole mission: generator destroyed by holding fire, uplink, upload, extraction and the win panel.
 - `apps/editor/tests/lastSignal.test.ts` regenerates the level and fails if the committed scene is stale.
 - `engine_editor_bridge_tests` runs a level-sized 131² terrain under a controller.
+
+## F68 — Frame rate and first-person arms (0.68.0)
+
+Playtest feedback on LAST SIGNAL: under 50 fps, and the gun came loose from the player's hands. Measured with the editor's Stats overlay in a software-rendered browser: physics took about 44 ms of each tick, and a frame drew about 4.3 million triangles in roughly 1,070 draw calls.
+
+- **Physics broadphase**: `physics::step` gathers the solid obstacles once per step with their components and world bounds. Each body rejects most of them with one bounds test (padded, and covering both shapes a body can be tested as) before any shape is built. Dynamic obstacles, which a step can push, get their bounds recomputed. Physics fell from about 44 ms to 3 ms per tick.
+- **Foliage culling**: `buildScatter` groups instances into 64 m chunks (`scatterChunkSize`), one InstancedMesh per chunk and mesh, so frustum culling drops off-screen chunks in the main and shadow passes. Models under 2.5 m tall don't cast shadows.
+- **Marker loop**: `drawSoldierMarkers` rebuilt the entity list for every soldier each frame; it's built once per frame now.
+- **Recoil stability**: the viewmodel's recoil spring took one explicit step per frame, which diverges above about 1/20 s (the eigenvalues leave the unit circle), so a slow or hitching frame flung the weapon away. It is substepped at 240 Hz or finer.
+- **First-person arms**: every viewmodel has gloved hands at its grip and support point, with cuffs and sleeved forearms running to elbows below the view. They are built into the weapon's group, so they follow it through sway, recoil, reloads and aiming. The hip poses moved up and in so the hands are on screen.
+- **LAST SIGNAL**: `PostProcessing` turns ambient occlusion off (a second full scene pass) and uses the Medium (2048) shadow map.
+
+Together: frame time in the same software-rendered run went from about 263 ms to 39 ms, triangles from 4.3 M to 1.4 M, and draw calls from about 1,070 to 890.
+
+### F68 verification
+
+- `tests/terrainMesh.test.ts`: each scatter InstancedMesh holds the instances of one chunk, every instance is placed once, and only tall models cast shadows.
+- `tests/viewmodels.test.ts`: every weapon has both gloves, and its forearms reach below the screen.
+- The existing physics and bridge suites pass unchanged with the broadphase.
+
