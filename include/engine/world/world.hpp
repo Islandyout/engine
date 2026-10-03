@@ -68,6 +68,8 @@ public:
     }
 
     [[nodiscard]] std::vector<std::string> component_names() const;
+    // Whether register_component<T>() has run (get<T>() throws otherwise).
+    template <typename T> [[nodiscard]] bool registered() const { return types_.count(std::type_index(typeid(T))) != 0; }
 
     template <typename T> T& set(Entity entity, T value) {
         require_idle();

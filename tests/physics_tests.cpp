@@ -213,6 +213,34 @@ int main() {
                   "a ray facing away from everything hits nothing");
         }
         {
+            // raycast(RaycastTargets) matches raycast(World&), rejects static
+            // boxes off the segment, and sees bodies where they are now.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<Collider>("collider");
+            world.register_component<RigidBody>("body");
+            const auto wall = world.create();
+            world.set(wall, Box{{5, 0, 0}, {1, 2, 2}});
+            world.set(wall, Collider{});
+            const auto side = world.create();
+            world.set(side, Box{{3, 0, 6}, {1, 2, 2}});
+            world.set(side, Collider{});
+            const auto car = world.create();
+            world.set(car, Box{{0, 0, 9}, {1, 1, 1}});
+            world.set(car, Collider{});
+            world.set(car, RigidBody{});
+            const Config config{.gravity = -18.0F, .ground_y = -1000.0F};
+            const auto targets = physics::raycast_targets(world);
+            const auto hit = physics::raycast(targets, {0, 0, 0}, {1, 0, 0}, 100.0F, config);
+            check(hit && hit->entity == wall && std::abs(hit->distance - 4.5F) < 0.001F,
+                  "a shared-targets ray hits the wall like raycast(World&)");
+            check(!physics::raycast(targets, {0, 0, 0}, {1, 0, 0}, 4.0F, config).has_value(),
+                  "a shared-targets ray stops at max_distance");
+            world.get<Box>(car)->center = {2, 0, 0};
+            const auto moved = physics::raycast(targets, {0, 0, 0}, {1, 0, 0}, 100.0F, config);
+            check(moved && moved->entity == car, "a body moved after gathering is hit where it is now");
+        }
+        {
             // raycast() hits a sphere collider too, and picks the closer of
             // two overlapping candidates rather than whichever was queried
             // first.

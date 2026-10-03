@@ -714,7 +714,31 @@ void step(World &world, float dt, const Config &config, Events *events) {
         events->touching.insert(entry.first);
 }
 
+RaycastTargets raycast_targets(const World &world) {
+    RaycastTargets result;
+    const auto entities = world.query<Box, Collider>();
+    result.targets.reserve(entities.size());
+    const bool bodies = world.registered<RigidBody>();
+    for (const auto entity : entities) {
+        const auto *box = world.get<Box>(entity);
+        const auto *collider = world.get<Collider>(entity);
+        RaycastTargets::Target target{entity, box, collider, bodies && world.get<RigidBody>(entity) != nullptr, {}, {}};
+        if (!target.moving) {
+            const auto bounds = shape_of(*box, collider).bounds;
+            target.min = bounds.min;
+            target.max = bounds.max;
+        }
+        result.targets.push_back(target);
+    }
+    return result;
+}
+
 std::optional<RaycastHit> raycast(World &world, Vec3 origin, Vec3 direction, float max_distance,
+                                  const Config &config, const QueryFilter &filter) {
+    return raycast(raycast_targets(world), origin, direction, max_distance, config, filter);
+}
+
+std::optional<RaycastHit> raycast(const RaycastTargets &targets, Vec3 origin, Vec3 direction, float max_distance,
                                   const Config &config, const QueryFilter &filter) {
     if (!(max_distance > 0))
         return std::nullopt;
@@ -787,11 +811,20 @@ std::optional<RaycastHit> raycast(World &world, Vec3 origin, Vec3 direction, flo
         }
     }
 
-    for (const auto entity : world.query<Box, Collider>()) {
+    // The segment's own bounds reject static targets nowhere near it.
+    const Vec3 end{origin.x + direction.x * max_distance, origin.y + direction.y * max_distance,
+                   origin.z + direction.z * max_distance};
+    const Vec3 lo{std::min(origin.x, end.x), std::min(origin.y, end.y), std::min(origin.z, end.z)};
+    const Vec3 hi{std::max(origin.x, end.x), std::max(origin.y, end.y), std::max(origin.z, end.z)};
+    for (const auto &target : targets.targets) {
+        const Entity entity = target.entity;
         if (entity == filter.ignore)
             continue;
-        const auto &box = *world.get<Box>(entity);
-        const auto &collider = *world.get<Collider>(entity);
+        if (!target.moving && (target.max.x < lo.x || target.min.x > hi.x || target.max.y < lo.y ||
+                               target.min.y > hi.y || target.max.z < lo.z || target.min.z > hi.z))
+            continue;
+        const auto &box = *target.box;
+        const auto &collider = *target.collider;
         if (collider.is_trigger && !filter.hit_triggers)
             continue;
         if ((filter.layer_mask & (std::uint32_t{1} << (collider.layer & 31U))) == 0)

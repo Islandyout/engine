@@ -4760,3 +4760,9 @@ A request for a racing game "like Need for Speed: Most Wanted" found the engine'
   - the title screen;
   - free roam with the driving HUD, accelerating on W;
   - a trimmed race through countdown, the racing HUD, the win screen and on to the next event.
+
+### F70 follow-up — responsiveness
+
+- **Shared raycast targets**: `physics::raycast_targets(world)` gathers the colliders once, and `raycast(const RaycastTargets&, ...)` casts against them (a per-call `raycast(World&)` scans every entity). The `editor.drivers` system shares one set across every AI driver's probes: 5.4 ms → 0.4 ms per tick in the HIGH HEAT city. Static targets keep their world bounds and are rejected by the segment's bounds. `World::registered<T>()` reports whether a component type is registered.
+- **Dynamic resolution**: while playing, the editor/player lowers the render pixel ratio (to half at most) when frames average over ~18.5 ms, and raises it again after 2 s of fast frames. Stopping play restores full resolution.
+- **Steering response**: `step_car` steers its wheels at 20/s (was 12) and settles the yaw rate at 15/s, or 7/s when loose (was 9/5). The chase camera swings behind a car at 7/s (was 4.5), and HIGH HEAT's camera position smoothing is 0.02 s (was 0.06).

@@ -337,7 +337,7 @@ add("Chase Camera", [0, 5, 0], {
   CameraFollow: component("CameraFollow", {
     target: "",
     offset: vec(0, 2.6, -7.2),
-    smoothing: 0.06,
+    smoothing: 0.02,
     lookHeight: 1.3,
     collision: true,
     orbit: false,

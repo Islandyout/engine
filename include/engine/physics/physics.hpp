@@ -228,6 +228,29 @@ struct QueryFilter final {
                                                 float max_distance, const Config& config = {},
                                                 const QueryFilter& filter = {});
 
+// The (Box, Collider) entities of a world, gathered once so many raycasts
+// can share one scan (an AI system casting dozens of probes a tick):
+// raycast(World&) scans every entity per call. Boxes and colliders are read
+// through pointers, so bodies that move between casts are hit where they
+// are now; static ones also keep their world bounds for a cheap reject.
+// Rebuild it after creating or destroying colliders, or moving static ones.
+struct RaycastTargets final {
+    struct Target final {
+        Entity entity{};
+        const Box* box{};
+        const Collider* collider{};
+        bool moving{};
+        Vec3 min{}, max{};
+    };
+    std::vector<Target> targets;
+};
+[[nodiscard]] RaycastTargets raycast_targets(const World& world);
+// raycast() against a prepared set: same results as raycast(World&) for the
+// world the set was gathered from.
+[[nodiscard]] std::optional<RaycastHit> raycast(const RaycastTargets& targets, Vec3 origin, Vec3 direction,
+                                                float max_distance, const Config& config = {},
+                                                const QueryFilter& filter = {});
+
 // Every (Box, Collider) entity whose shape overlaps the sphere, in creation
 // order. Trigger colliders are skipped unless the filter asks for them.
 [[nodiscard]] std::vector<Entity> overlap_sphere(const World& world, Vec3 center, float radius,
