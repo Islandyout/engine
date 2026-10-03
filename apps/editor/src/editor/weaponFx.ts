@@ -8,6 +8,7 @@
 import * as THREE from "three";
 import { burst, createEmitter, stepEmitter, type EmitterState } from "./particles";
 import { buildViewmodel, type Viewmodel } from "./viewmodels";
+import { attachToHand, faceWeaponForward, splitForWeapon } from "./characterRig";
 
 // editor_weapon_event's kinds and flags (bridge.cpp).
 export const EventKind = {
@@ -133,6 +134,14 @@ export class WeaponFx {
   private readonly indicators: Array<{ angle: number; life: number }> = [];
   private hurtFlash = 0;
   private readonly scratch = new THREE.Vector3();
+  // First-person arms (0.69.0): the player's character model posed by its
+  // weapon-holding clip, eyes at the view camera, head and legs hidden. The
+  // equipped weapon rides its right hand. Without one, weapons float.
+  private body: { group: THREE.Group; root: THREE.Object3D } | undefined;
+  // Per weapon with a body: rig offsets at the hip and aiming down sights,
+  // and the rotation that lines the barrel up with the view when aiming.
+  private readonly holds = new Map<string, { hip: THREE.Vector3; ads: THREE.Vector3; adsTurn: THREE.Quaternion }>();
+  private readonly turn = new THREE.Quaternion();
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -212,7 +221,8 @@ export class WeaponFx {
   equip(model: string) {
     if (model === this.currentName) return;
     this.currentName = model;
-    if (this.current) this.rig.remove(this.current.group);
+    // On the rig, or in the first-person body's hand.
+    if (this.current) this.current.group.removeFromParent();
     this.current = undefined;
     if (!model) return;
     let viewmodel = this.models.get(model);
@@ -221,8 +231,90 @@ export class WeaponFx {
       this.models.set(model, viewmodel);
     }
     this.current = viewmodel;
-    this.rig.add(viewmodel.group);
+    if (this.body) this.hold(model, viewmodel);
+    else this.rig.add(viewmodel.group);
     viewmodel.muzzle.add(this.flash);
+  }
+
+  // Gives the first-person view a character to hold its weapons: `root`
+  // (a fresh clone, already tinted) and its clips. A rig without hands or a
+  // weapon-holding clip is ignored; undefined goes back to floating weapons.
+  setBody(root: THREE.Object3D | undefined, clips: THREE.AnimationClip[] = []) {
+    if (this.body) this.rig.remove(this.body.group);
+    this.body = undefined;
+    this.holds.clear();
+    const split = root && splitForWeapon(root, clips);
+    if (root && split && root.getObjectByName("hand_r")) {
+      const group = new THREE.Group();
+      group.add(root);
+      // Characters face +z; the view looks down -z.
+      root.rotation.y = Math.PI;
+      // One still frame of the holding clip: aiming needs a steady sight.
+      const mixer = new THREE.AnimationMixer(root);
+      mixer.clipAction(split.upper).play();
+      mixer.update(0);
+      // Collapse the head (the camera is inside it) and the legs.
+      for (const name of ["Head", "thigh_l", "thigh_r"]) root.getObjectByName(name)?.scale.setScalar(1e-4);
+      root.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.frustumCulled = false;
+          child.castShadow = child.receiveShadow = false;
+        }
+      });
+      // Holding poses are bladed (the rifle crosses the body), so turn the
+      // body until the line from the trigger hand to the support hand points
+      // down the view.
+      faceWeaponForward(root, Math.PI);
+      // Eyes at the origin: a little above and in front of the head bone.
+      group.updateMatrixWorld(true);
+      const head = root.getObjectByName("Head")?.getWorldPosition(new THREE.Vector3()) ?? new THREE.Vector3(0, 1.6, 0);
+      root.position.sub(head.add(new THREE.Vector3(0, 0.07, -0.09)));
+      this.body = { group, root };
+      this.rig.add(group);
+    }
+    // Re-seat the equipped weapon in the new hands (or back on the rig).
+    const name = this.currentName;
+    this.currentName = "";
+    if (this.current) this.current.group.removeFromParent();
+    this.current = undefined;
+    this.equip(name);
+  }
+
+  // Puts `viewmodel` in the body's right hand and works out the rig offsets
+  // that hold it at the hip and line its sight up with the view.
+  private hold(name: string, viewmodel: Viewmodel) {
+    const body = this.body!;
+    const gun = viewmodel.group;
+    // Measure in view space with the rig at rest.
+    const position = this.rig.position.clone(),
+      quaternion = this.rig.quaternion.clone();
+    this.rig.position.set(0, 0, 0);
+    this.rig.quaternion.identity();
+    this.rig.updateMatrixWorld(true);
+    if (!gun.parent || gun.parent === this.rig) {
+      gun.removeFromParent();
+      attachToHand(body.root, gun);
+    }
+    if (!this.holds.has(name)) {
+      body.group.updateMatrixWorld(true);
+      // The sight line: sightHeight above the grip, parallel to the barrel.
+      const scale = gun.getWorldScale(new THREE.Vector3()).x || 1;
+      const sight = gun.localToWorld(new THREE.Vector3(0, viewmodel.sightHeight / scale, 0));
+      const barrel = gun.getWorldDirection(new THREE.Vector3()).negate();
+      const adsTurn = new THREE.Quaternion().setFromUnitVectors(barrel, new THREE.Vector3(0, 0, -1));
+      sight.applyQuaternion(adsTurn);
+      this.holds.set(name, {
+        // At the hip the weapon sits low and to the right: the body rides
+        // up so the chest-height hold comes into view below the sight line.
+        hip: new THREE.Vector3(0.07 - sight.x * 0.4, 0.08, 0),
+        // Aiming raises the body to the eye; it also moves back so the
+        // shoulders stay behind the camera.
+        ads: new THREE.Vector3(-sight.x, -sight.y, 0.11),
+        adsTurn,
+      });
+    }
+    this.rig.position.copy(position);
+    this.rig.quaternion.copy(quaternion);
   }
 
   // The local player fired: kick the viewmodel and flash the muzzle.
@@ -392,8 +484,9 @@ export class WeaponFx {
     const bobX = Math.cos(this.bobPhase) * 0.012 * this.bobAmount * steady;
     const bobY = -Math.abs(Math.sin(this.bobPhase)) * 0.014 * this.bobAmount * steady;
 
+    const held = this.body ? this.holds.get(this.currentName) : undefined;
     const ads = new THREE.Vector3(0, -model.sightHeight, model.hip.z + 0.05);
-    const position = model.hip.clone().lerp(ads, this.aimBlend);
+    const position = held ? held.hip.clone().lerp(held.ads, this.aimBlend) : model.hip.clone().lerp(ads, this.aimBlend);
     position.x += bobX + this.sway.x * steady;
     position.y += bobY + this.sway.y * steady;
     position.z += this.kick * 0.035;
@@ -418,6 +511,8 @@ export class WeaponFx {
     }
     this.rig.position.copy(position);
     this.rig.rotation.set(pitch, yaw, roll);
+    // With a body, aiming also turns the barrel onto the view axis.
+    if (held) this.rig.quaternion.premultiply(this.turn.identity().slerp(held.adsTurn, this.aimBlend));
   }
 
   drawHud(ctx: CanvasRenderingContext2D, width: number, height: number, hud: CombatHud) {

@@ -64,6 +64,7 @@ import { AudioMixer, defaultMixerSettings, FootstepTracker, type Bus } from "./a
 import { defaultPostSettings, gradingActive, gradingShader, shadowQualities, type PostSettings } from "./postFx";
 import { EventFlag, EventKind, WeaponFx } from "./weaponFx";
 import { buildViewmodel } from "./viewmodels";
+import { attachToHand, faceWeaponForward, splitForWeapon } from "./characterRig";
 import {
   applyBrush,
   decodeSculpt,
@@ -868,6 +869,8 @@ async function startEditor() {
     // quick succession) can detach the first's now-stale handler before it
     // has a chance to fire later and clobber state set by the second.
     oneShotHandler?: (event: { action: THREE.AnimationAction }) => void;
+    // An armed character's upper-body weapon-holding action (characterRig.ts).
+    upper?: THREE.AnimationAction;
   }
   // Parallel to `objects`; index i holds the animation state for objects[i], or
   // undefined for a non-animated (static) entity. Reset alongside objects on every rebuild().
@@ -1070,6 +1073,33 @@ async function startEditor() {
   // Ease in/out of the aim-down-sights zoom.
   let zoomBlend = 0;
   let viewmodelStudio: THREE.Texture | undefined;
+  // First-person arms (0.69.0): the player's own animated Renderable (it may
+  // be invisible) or, without one, the Mannequin, holds the weapons, tinted
+  // by the player's Material.
+  const firstPersonBodyFallback = 132;
+  function holdFirstPersonWeapons() {
+    const entity = playerIndex >= 0 ? doc.scene.eachAlive()[playerIndex] : undefined;
+    if (!entity || !doc.scene.effectiveHas(entity, "Weapons")) {
+      weaponFx.setBody(undefined);
+      return;
+    }
+    const mesh = doc.scene.resolve(entity, "Renderable")?.mesh ?? 0;
+    const id = catalogEntry(mesh)?.animated ? mesh : firstPersonBodyFallback;
+    const material = doc.scene.resolve(entity, "Material");
+    const apply = (cached: CachedModel) => {
+      const root = SkeletonUtils.clone(cached.scene);
+      if (material) root.traverse((child) => child instanceof THREE.Mesh && applyMaterial(child, material));
+      weaponFx.setBody(root, cached.clips);
+    };
+    const cached = catalogCache.get(id);
+    if (cached) apply(cached);
+    else
+      loadCatalogModel(id)
+        ?.then((loaded) => {
+          if (doc.mode !== "edit") apply(loaded);
+        })
+        .catch((error) => log(`Catalog model ${id} failed to load: ${String(error)}`));
+  }
   function playerWeaponModel(slot?: number): string {
     if (playerIndex < 0 || runtime._editor_weapon_value(playerIndex, 5) <= 0) return "";
     const current = slot ?? runtime._editor_weapon_value(playerIndex, 0);
@@ -2115,6 +2145,17 @@ async function startEditor() {
   }
   // Script-set UI text (ui.set_text), keyed by the UI entity's Name.
   // Play-session state only: cleared whenever the runtime is rebuilt.
+  // Each object's simulated position (and soldier yaw) at the last two
+  // fixed ticks, for drawing in between (see frame()). Reset when Play starts;
+  // declared before the player-mode bootstrap, which starts Play.
+  interface TickState {
+    previous: THREE.Vector3;
+    current: THREE.Vector3;
+    previousYaw: number;
+    currentYaw: number;
+  }
+  const tickStates: TickState[] = [];
+  let tickAlpha = 1;
   // Play-session UI state from scripts and interaction, keyed by the UI
   // entity's Name: values (Bar/Slider/Toggle) and visibility. Cleared
   // whenever the runtime is rebuilt, like uiTextOverrides. Declared before
@@ -2537,10 +2578,17 @@ async function startEditor() {
       if (catalog?.animated) {
         object = SkeletonUtils.clone(cached.scene);
         const mixer = new THREE.AnimationMixer(object);
+        // An armed soldier (0.69.0): locomotion on the legs, a weapon-holding
+        // clip on the upper body, so its own arms hold the gun it carries.
+        const armed = get("AICombat") && get("Weapons") ? splitForWeapon(object, cached.clips) : undefined;
         const actions = new Map(
-          cached.clips.map((clip) => [clip.name, mixer.clipAction(clip)]),
+          (armed?.lower ?? cached.clips).map((clip) => [clip.name, mixer.clipAction(clip)]),
         );
         animState = { mixer, actions, prevPosition: new THREE.Vector3() };
+        if (armed) {
+          animState.upper = mixer.clipAction(armed.upper);
+          animState.upper.play();
+        }
         // An authored AnimationState.clip picks and pins a specific clip --
         // manually applied from the inspector's per-model dropdown, so it
         // previews immediately in Edit mode too, not just Play -- instead
@@ -2648,13 +2696,26 @@ async function startEditor() {
     if (loadout !== undefined) {
       const model = /model=(\w+)/.exec(loadout.split("\n").find((line) => line.trim() && !line.trim().startsWith("#")) ?? "")?.[1] ?? "rifle";
       const held = buildViewmodel(model).group;
-      // Undo the anchor's scale so the gun keeps its real size, and point
-      // it along the body's facing (+z) at chest height on the right.
-      const size = get("Scale")?.value ?? { x: 1, y: 1, z: 1 };
-      held.scale.set(held.scale.x / anchor.scale.x, held.scale.y / anchor.scale.y, held.scale.z / anchor.scale.z);
-      held.position.set((size.x * 0.35) / anchor.scale.x, (size.y * 0.12) / anchor.scale.y, (size.z * 0.3) / anchor.scale.z);
-      held.rotation.y = Math.PI;
-      anchor.add(held);
+      // In the hands of a rig playing a weapon-holding clip (0.69.0): posed
+      // once, then the gun rides the right hand bone.
+      let inHand = false;
+      if (animState?.upper) {
+        animState.mixer.update(0);
+        // Holding poses are bladed: turn the model so the gun, not the
+        // hips, points where the soldier faces (+z).
+        faceWeaponForward(object);
+        anchor.updateMatrixWorld(true);
+        inHand = attachToHand(object, held);
+      }
+      if (!inHand) {
+        // Undo the anchor's scale so the gun keeps its real size, and point
+        // it along the body's facing (+z) at chest height on the right.
+        const size = get("Scale")?.value ?? { x: 1, y: 1, z: 1 };
+        held.scale.set(held.scale.x / anchor.scale.x, held.scale.y / anchor.scale.y, held.scale.z / anchor.scale.z);
+        held.position.set((size.x * 0.35) / anchor.scale.x, (size.y * 0.12) / anchor.scale.y, (size.z * 0.3) / anchor.scale.z);
+        held.rotation.y = Math.PI;
+        anchor.add(held);
+      }
     }
     const light = get("Light");
     // A sibling of `object`, not a child of it -- see the comment on
@@ -3121,8 +3182,11 @@ async function startEditor() {
         fps.view.reset();
         deathRoll = 0;
         weaponFx.reset();
+        tickStates.length = 0;
+        tickAlpha = 1;
         zoomBlend = 0;
         weaponFx.equip(playerWeaponModel());
+        holdFirstPersonWeapons();
         if (playerIndex >= 0 && playerController()) {
           playerFeet(fps.previous);
           fps.current.copy(fps.previous);
@@ -3541,6 +3605,9 @@ async function startEditor() {
         // would place no foliage, and Play never rebuilds again.
         const terrain = doc.scene.resolve(entity, "Terrain");
         if (terrain) for (const rule of parseScatter(terrain.scatter).rules) meshIds.add(rule.model);
+        // The first-person arms' fallback character (holdFirstPersonWeapons).
+        if (doc.scene.effectiveHas(entity, "Player") && doc.scene.effectiveHas(entity, "Weapons"))
+          meshIds.add(firstPersonBodyFallback);
       }
       await Promise.all(
         [...meshIds].map((id) =>
@@ -3594,6 +3661,24 @@ async function startEditor() {
     window.addEventListener("pointerdown", resumeAudio);
     window.addEventListener("keydown", resumeAudio);
   }
+  function sampleTickState(i: number): TickState {
+    const state = (tickStates[i] ??= {
+      previous: new THREE.Vector3(),
+      current: new THREE.Vector3(),
+      previousYaw: 0,
+      currentYaw: 0,
+    });
+    state.current.set(runtime._editor_value(i, 0), runtime._editor_value(i, 1), runtime._editor_value(i, 2));
+    state.currentYaw = runtime._editor_soldier_value(i, 1);
+    if (!state.previous.lengthSq() && !state.previousYaw) {
+      state.previous.copy(state.current);
+      state.previousYaw = state.currentYaw;
+    }
+    return state;
+  }
+  function sampleTickStates() {
+    for (let i = 0; i < objects.length; i++) if (runtime._editor_alive(i)) sampleTickState(i);
+  }
   function frame(now: number) {
     const frameStart = performance.now();
     let tickMs = 0;
@@ -3635,7 +3720,12 @@ async function startEditor() {
       if (firstPersonTicks) runtime._editor_set_look(fps.look.yaw, fps.look.pitch);
       while (accumulator >= 1 / 60 && steps++ < 5) {
         if (firstPersonTicks) playerFeet(fps.previous);
+        tickStates.forEach((state) => {
+          state.previous.copy(state.current);
+          state.previousYaw = state.currentYaw;
+        });
         runtime._editor_tick();
+        sampleTickStates();
         if (firstPersonTicks) {
           playerFeet(fps.current);
           fpsLanding = Math.max(fpsLanding, runtime._editor_controller_value(playerIndex, 3));
@@ -3644,6 +3734,7 @@ async function startEditor() {
         accumulator -= 1 / 60;
       }
       tickMs = performance.now() - tickStart;
+      tickAlpha = Math.min(1, accumulator * 60);
       inputFrameConsumed = steps > 0;
       persistDirtySaves();
       pollAnimationRequests();
@@ -3670,11 +3761,11 @@ async function startEditor() {
           if (state.elapsed >= deathFadeDuration) object.visible = false;
           return;
         }
-        object.position.set(
-          runtime._editor_value(i, 0),
-          runtime._editor_value(i, 1),
-          runtime._editor_value(i, 2),
-        );
+        // Drawn between the last two ticks, by how far into the next one
+        // this frame is: the simulation steps at 60 Hz, so drawing raw tick
+        // positions makes motion judder on any display not exactly in step.
+        const state = tickStates[i] ?? sampleTickState(i);
+        object.position.lerpVectors(state.previous, state.current, tickAlpha);
       });
       // A Vehicle+Player entity's facing comes straight from its own steered
       // heading (bridge.cpp field 4), not inferred from position deltas like
@@ -3683,8 +3774,10 @@ async function startEditor() {
       // Soldiers face where their AI is looking (bridge.cpp's Soldier::yaw).
       objects.forEach((object, i) => {
         if (!runtime._editor_alive(i)) return;
-        const yaw = runtime._editor_soldier_value(i, 1);
-        if (runtime._editor_soldier_value(i, 0) >= 0) object.rotation.y = yaw;
+        const state = tickStates[i];
+        if (runtime._editor_soldier_value(i, 0) < 0 || !state) return;
+        const turn = Math.atan2(Math.sin(state.currentYaw - state.previousYaw), Math.cos(state.currentYaw - state.previousYaw));
+        object.rotation.y = state.previousYaw + turn * tickAlpha;
       });
       doc.scene.eachAlive().forEach((entity, i) => {
         if (!doc.scene.effectiveHas(entity, "Vehicle") || !doc.scene.effectiveHas(entity, "Player")) return;
@@ -3771,11 +3864,13 @@ async function startEditor() {
         // "should already be back to walk/run."
         if (deathStates[i] || state.oneShot) return;
         const object = objects[i]!;
-        const dx = object.position.x - state.prevPosition.x;
-        const dz = object.position.z - state.prevPosition.z;
-        const speed = groundSpeed(object.position, state.prevPosition, tickDt);
-        const verticalSpeed = (object.position.y - state.prevPosition.y) / tickDt;
-        state.prevPosition.copy(object.position);
+        // Speed from the simulated positions, not the interpolated ones drawn.
+        const at = tickStates[i]?.current ?? object.position;
+        const dx = at.x - state.prevPosition.x;
+        const dz = at.z - state.prevPosition.z;
+        const speed = groundSpeed(at, state.prevPosition, tickDt);
+        const verticalSpeed = (at.y - state.prevPosition.y) / tickDt;
+        state.prevPosition.copy(at);
         // Face the direction actually traveled — not for a Vehicle, whose
         // facing already comes from its own steered heading above, which is
         // exact every tick where this would lag and wobble mid-turn.
