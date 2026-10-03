@@ -4690,4 +4690,3 @@ Together: frame time in the same software-rendered run went from about 263 ms to
 - `tests/terrainMesh.test.ts`: each scatter InstancedMesh holds the instances of one chunk, every instance is placed once, and only tall models cast shadows.
 - `tests/viewmodels.test.ts`: every weapon has both gloves, and its forearms reach below the screen.
 - The existing physics and bridge suites pass unchanged with the broadphase.
-

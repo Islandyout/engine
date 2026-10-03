@@ -27,4 +27,3 @@ test("every viewmodel is held by two gloved arms that run off the bottom of the 
     assert.ok(model.group.getObjectByName("glove:right") && model.group.getObjectByName("glove:left"), `${name} has both gloves`);
   }
 });
-
