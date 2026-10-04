@@ -229,7 +229,7 @@ target_compile_features(engine_script PUBLIC cxx_std_20)
 engine_set_project_warnings(engine_script)
 
 add_executable(engine_playground apps/native_playground/main.cpp)
-target_link_libraries(engine_playground PRIVATE GameEngine::World GameEngine::Graphics GameEngine::Scene GameEngine::Physics)
+target_link_libraries(engine_playground PRIVATE GameEngine::World GameEngine::Graphics GameEngine::Scene GameEngine::Physics GameEngine::Gameplay)
 if(ENGINE_ENABLE_SDL3)
     target_link_libraries(engine_playground PRIVATE GameEngine::SdlPlatform)
     target_compile_definitions(engine_playground PRIVATE ENGINE_HAS_SDL3=1)
@@ -243,7 +243,7 @@ add_custom_command(TARGET engine_playground POST_BUILD
 
 if(ENGINE_BUILD_TESTS)
     add_executable(engine_playground_tests tests/playground_tests.cpp)
-    target_link_libraries(engine_playground_tests PRIVATE GameEngine::World GameEngine::Graphics GameEngine::Scene GameEngine::Physics)
+    target_link_libraries(engine_playground_tests PRIVATE GameEngine::World GameEngine::Graphics GameEngine::Scene GameEngine::Physics GameEngine::Gameplay)
     engine_set_project_warnings(engine_playground_tests)
     add_test(NAME engine_playground_tests COMMAND engine_playground_tests)
     add_executable(engine_physics_tests tests/physics_tests.cpp)

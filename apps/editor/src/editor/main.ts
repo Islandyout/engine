@@ -63,6 +63,8 @@ import { applyMouseLook, applyStickLook, ViewEffects, type Look } from "./fpsVie
 import { Sfx } from "./sfx";
 import { AudioMixer, defaultMixerSettings, FootstepTracker, type Bus } from "./audioMixer";
 import { parseVisor, Visor } from "./visor";
+// The header shows the version package.json records (bump.sh keeps it current).
+import { version as editorVersion } from "../../package.json";
 import { Music } from "./music";
 import { MAX_SPOTS, swayMaterial, swayUniforms } from "./scatterSway";
 import { crowdNear, FrameGovernor, governorTiers, presetFloor } from "./frameGovernor";
@@ -351,7 +353,7 @@ async function startEditor() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `<header>
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
-  <span class="brand-sub">BTAI Editor <span class="version">0.35.0</span></span>
+  <span class="brand-sub">BTAI Editor <span class="version">${editorVersion}</span></span>
   <a class="link-external" href="https://github.com/Islandyout/engine">View source${iconHtml("external")}</a>
 </header>
 <nav>
@@ -406,6 +408,7 @@ async function startEditor() {
       <button id="frame" class="btn btn-sm btn-ghost">${iconHtml("target")}<span>Frame selected</span></button>
       <button id="grid" class="btn btn-sm btn-ghost">${iconHtml("grid")}<span>Grid</span></button>
       <button id="stats" class="btn btn-sm btn-ghost" aria-pressed="false">${iconHtml("target")}<span>Stats</span></button>
+      <select id="site-view" class="select-sm" aria-label="Show site" hidden></select>
       <span id="sculpt-bar" class="sculpt-bar" hidden>
         <select id="sculpt" class="select-sm" aria-label="Terrain sculpt tool">
           <option value="off">Sculpt: off</option><option value="raise">Raise</option><option value="lower">Lower</option><option value="smooth">Smooth</option><option value="flatten">Flatten</option>
@@ -3303,6 +3306,7 @@ async function startEditor() {
     padSnapshot = undefined;
     pointerQueue.length = 0;
     runtime._editor_begin();
+    applySiteView(); // shows what the editor's site view hid
     playerIndex = -1;
     shipIndex = -1;
     stageSpaceSystem();
@@ -3862,7 +3866,59 @@ async function startEditor() {
     el<HTMLButtonElement>("prefab-place").disabled = !hasPrefabs || doc.mode !== "edit";
     el("prefab-hint").hidden = hasPrefabs;
   }
+  // Site view (0.75.0): a scene's Sites keep their children at site-local
+  // positions, which in the editor would pile on top of the home layout.
+  // "Show" picks everything, home, or one site; selecting an entity that
+  // lives elsewhere switches to it.
+  let siteView = "all";
+  function applySiteView() {
+    const select = el("site-view") as HTMLSelectElement;
+    const refs = doc.scene.eachAlive();
+    const sites = refs.flatMap((e, i) => (doc.scene.effectiveHas(e, "Site") ? [i] : []));
+    select.hidden = sites.length === 0;
+    if (!sites.length) return;
+    const siteOfEntity = (index: number): string => {
+      let ref = refs[index];
+      for (let guard = 0; ref && guard < 64; guard++) {
+        const i = refs.findIndex((e) => e.index === ref!.index && e.generation === ref!.generation);
+        if (sites.includes(i)) return String(i);
+        const parent = doc.scene.resolve(ref, "Parent")?.entity;
+        ref = parent && doc.scene.alive(parent) ? parent : undefined;
+      }
+      return "home";
+    };
+    if (doc.selection && siteView !== "all") {
+      const i = refs.findIndex((e) => e.index === doc.selection!.index && e.generation === doc.selection!.generation);
+      if (i >= 0) siteView = siteOfEntity(i);
+    }
+    const options = [["all", "Show: everything"], ["home", "Show: home"], ...sites.map((i) => [String(i), `Show: ${doc.scene.resolve(refs[i]!, "Site")?.name || "site"}`])];
+    if (select.options.length !== options.length || [...select.options].some((o, k) => o.value !== options[k]![0] || o.text !== options[k]![1])) {
+      select.replaceChildren(...options.map(([value, text]) => new Option(text, value)));
+    }
+    if (!options.some(([value]) => value === siteView)) siteView = "all";
+    select.value = siteView;
+    refs.forEach((entity, i) => {
+      const object = objects[i];
+      if (!object || doc.scene.effectiveHas(entity, "Parent")) return;
+      // Playing: the game decides what's where.
+      if (doc.mode !== "edit") {
+        if (object.userData.siteHidden) object.visible = true;
+        object.userData.siteHidden = false;
+        return;
+      }
+      const site = sites.includes(i) ? String(i) : "home";
+      const shown = siteView === "all" || siteView === site;
+      if (!shown) {
+        if (object.visible) object.userData.siteHidden = true;
+        object.visible = false;
+      } else if (object.userData.siteHidden) {
+        object.visible = true;
+        object.userData.siteHidden = false;
+      }
+    });
+  }
   function updatePanels() {
+    applySiteView();
     updateSculptBar();
     gizmo.detach();
     populatePrefabSelect();
@@ -4461,6 +4517,10 @@ async function startEditor() {
     "color:#cfe8ff;font:12px/1.45 ui-monospace,monospace;border-radius:6px;pointer-events:none;z-index:5";
   viewport.appendChild(statsPanel);
   const stats = { frames: 0, frameMs: 0, tickMs: 0, since: performance.now() };
+  el("site-view").addEventListener("change", (event) => {
+    siteView = (event.target as HTMLSelectElement).value;
+    applySiteView();
+  });
   el("stats").onclick = () => {
     statsPanel.hidden = !statsPanel.hidden;
     el("stats").setAttribute("aria-pressed", String(!statsPanel.hidden));
@@ -4636,7 +4696,7 @@ async function startEditor() {
     );
     const ray = new THREE.Raycaster();
     ray.setFromCamera(pointer, camera);
-    const hit = ray.intersectObjects(objects, true)[0];
+    const hit = ray.intersectObjects(objects.filter((o) => o.visible), true)[0];
     if (hit) {
       let object = hit.object;
       while (!objects.includes(object) && object.parent) object = object.parent;
