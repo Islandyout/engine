@@ -1,6 +1,6 @@
-# Pale Signal — gap map (prototype → engine, 0.74.0)
+# Pale Signal — gap map (prototype → engine, 0.75.0)
 
-What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has, compared with what the game on this engine has as of 0.74.0 ([PALE_SIGNAL_SLICE.md](PALE_SIGNAL_SLICE.md)). The first version of this map (0.72.0) listed 53 gaps. 0.73.0 worked through all seven phases it proposed, and 0.74.0 closed the terrain, rotation, landing and Talari gaps that were left.
+What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has, compared with what the game on this engine has as of 0.75.0 ([PALE_SIGNAL_SLICE.md](PALE_SIGNAL_SLICE.md)). The first version of this map (0.72.0) listed 53 gaps. 0.73.0 worked through all seven phases it proposed, 0.74.0 closed the terrain, rotation, landing and Talari gaps, and 0.75.0 closed the rest; PWA/Android packaging was replaced by holding 45–60 fps everywhere (the frame governor).
 
 **Sources inventoried:**
 - `prototype/pale-signal.html.html`: 17 source modules, 249 functions, and these data tables: 6 bodies, 22 species, 13 civilization sites, 24 NPCs, 16 evidence items, 9 landmarks, 7 upgrades and 12 tutorial pages.
@@ -39,10 +39,10 @@ What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has,
 | System | Status | How | Left |
 |---|---|---|---|
 | MANUAL / STABILIZED / NAV, owner shown | ✅ | Assist in the flight HUD; AUTOPILOT and its phase in the ship line | — |
-| NAV auto-transfer | ✅ | `space::autopilot_command`: climb, burn, coast under auto warp, brake, arrive; any input takes over (E) | Clearance corridors around moons |
-| Mouse steering mode | ❌ | — | Optional mouse-steer toggle (E) |
+| NAV auto-transfer | ✅ | `space::autopilot_command`: climb (coasting out once carried), transfers around the star by shooting for an intercepting coast, clearance corridors around bodies in the way, an approach timed to brake; any input takes over (E) | — |
+| Mouse steering mode | ✅ | A click captures the mouse as a virtual stick (`editor_space_stick`); a setting switches it back to looking around (E) | — |
 | Atmospheric heating, drag, lift | ✅ | Plus wind (`ShipInput::wind`, `space.call("wind")`) | — |
-| Landing telemetry | ✅ | A radar tape below 400 m with sink rate, ground slope, drift, water and a SAFE / UNSAFE call against the gear's limits; the guidance line; landing law near towns (E) | — |
+| Landing telemetry | ✅ | A radar tape below 400 m with sink rate, ground slope, drift, water and a SAFE / UNSAFE call against the gear's limits; a predicted path drawn over the turning ground; landing law at every settlement and heritage site (E + C) | — |
 | Landing settle | ✅ | Settle bob, touchdown thump, spray from water landings and from low hovers (E) | — |
 | Ship components | ✅ | Engine, RCS, gear, scanner condition; efficiency curve; wear from landings, heat and hard turns; repairs (E + C) | — |
 | Emergency reserve | ✅ | `space.call("reserve")`, B (E + C) | — |
@@ -66,14 +66,14 @@ What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has,
 
 | System | Status | How | Left |
 |---|---|---|---|
-| Walking, slopes, curvature, walk anywhere | ✅ | — | Re-anchor while walking (no edge limit) |
+| Walking, slopes, curvature, walk anywhere | ✅ | The walk frame re-anchors on foot (ground built ahead, a tick at a time) and hands over between sites and the wilds (E) | — |
 | Suit O2 | ✅ | 180 s reserve, Life Support upgrade (C) | — |
 | Suit integrity and vitals | ✅ | Three meters, hazards, recovery tether (C) | — |
 | Helmet and atmosphere verification | ✅ | Look up and hold F (`scanner.skyKey`); ambient intake; H with interlock (E + C) | — |
 | Return status | ✅ | RETURN distance and margin, point-of-no-return warning (C) | — |
-| Solid minerals | ✅ | Large mineral scatter pushes the walker out (`editor_push`) (E) | Soft radii for big fauna |
+| Solid minerals and fauna | ✅ | Large mineral scatter pushes the walker out (`editor_push`); big animals and the walker ease apart (E) | — |
 | Interaction arbitration | ✅ | One prompt by priority: people, stations, artifacts, harvest, ship (C, `board_key` E) | — |
-| Footprints, EVA FX | 🟡 | Footprints on soft ground, dust motes (E) | Suit light, visor effects |
+| Footprints, EVA FX | ✅ | Footprints, dust motes, a suit light (auto / on / off), a visor with rain beads, frost, heat shimmer and cracks (`host.send("visor")`) (E + C) | — |
 
 ## 5. Scanning, resources and gathering
 
@@ -96,8 +96,8 @@ What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has,
 |---|---|---|---|
 | Fauna states | ✅ | `Wildlife` component: calm → wary → flee, sprint doubles the radius, home leash (E) | — |
 | Reactions to the ship | ✅ | A running engine nearby is a threat (E) | — |
-| Herds | 🟡 | Herds at Kestra; walk/run/idle from the AI state | Graze animation |
-| Fauna on every world | ✅ | Prefabs released around away frames on Tethys, Cinder, Ossuary, Hollow (C) | — |
+| Herds | ✅ | Herds at Kestra; walk/run/idle from the AI state; calm animals graze on and off (E) | — |
+| Fauna on every world | ✅ | Prefabs released around away frames on every world, Rime Striders on Vell and Pale Watchers on Nemesis included, and brought along as you walk (C) | — |
 
 ## 7. Civilization
 
@@ -106,16 +106,16 @@ What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has,
 | Sites | ✅ | Kestra Reach, field, market, Meridian House, Old Vey Gate (home frame); Darsa Delta, Meridian Spur, Civic Archive Nine, Retreat Causeway, the Third Mooring with the Resonance Exchange (`Site` entities, E) | — |
 | NPCs | ✅ | All 24 Talari plus three Clade resonators (C) | — |
 | Daily schedules | ✅ | `Routine` component on the scene clock (E) | — |
-| Ambient conversations, visible jobs | 🟡 | Routines between home, work and market | Talking-pair idles, job animations |
+| Ambient conversations, visible jobs | ✅ | Routine stops name an activity (sit, work, talk); people standing close talk in pairs; staggered days, stall keepers and neighbours keep the town busy (E + C) | — |
 | Language model | ✅ | Talari, Ossuary and Clade resonance (C) | — |
 | Evidence and investigations | ✅ | All 16 items, 3 investigations (C) | — |
-| Reputation | ✅ | Five institutions; landings, talk, evidence and ethics move them; archive access gated (C) | Prices by standing |
+| Reputation | ✅ | Five institutions; landings, talk, evidence and ethics move them; archive access gated; workshop and market prices follow Commons standing (C) | — |
 | Artifact ethics | ✅ | Document in situ or take (C) | — |
 | Workshop actions | ✅ | Full service, trade, archive sessions (C) | — |
 | Culture panel | ✅ | Y: languages, reputation, contacts, investigations, places, evidence by era (C) | — |
-| Interiors / vestibules | ✅ | Meridian House annex, warm doorways everywhere (C) | More interiors |
+| Interiors / vestibules | ✅ | Meridian House annex, the workshop hall, Darsa's Water Court chamber, the Spur reading room, the Resonance Exchange, an Ossuary records room; warm doorways everywhere (C) | — |
 | Talari architecture | ✅ | Terraces, roofs, doorways, canals, floodwalls, civic halls, stalls, observatories, towers (C) | — |
-| Talari look | ✅ | A Talari model (`talari.glb`, made by `tools/models/make_talari.py`): narrow torso, long crested skull, tunic and mantle on the animated rig; clothing tints and job accessories (C) | — |
+| Talari look | ✅ | A Talari model (`talari.glb`, made by `tools/models/make_talari.py`): narrow torso, long crested skull, tunic and mantle on the animated rig; clothes tinted by role (`Material.parts`), job accessories (E + C) | — |
 
 ## 8. Progression and the mystery
 
@@ -125,18 +125,18 @@ What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has,
 | Landmarks | ✅ | All 9, with camp / array / monolith / ruin / beacon structures (E + C) | — |
 | Signal fragments | ✅ | 7 from landmarks; 7/7 reveals Nemesis (C) | — |
 | Ending | ✅ | THE PALE SIGNAL on Nemesis: play time, worlds, species, evidence, fragments (C) | — |
-| Save / load | ✅ | Autosave, checkpoints on discoveries, CONTINUE, NEW EXPEDITION with confirmation, hashed saves (C on `save.set`) | — |
+| Save / load | ✅ | Autosave, checkpoints, CONTINUE, NEW EXPEDITION with confirmation, hashed saves; the hull, the system clock, everyone's place in their day and harvested specimens persist (E + C) | — |
 
 ## 9. Environment and visuals
 
 | System | Status | How | Left |
 |---|---|---|---|
 | Planets, seas, clouds, sky, stars, sun | ✅ | Dark reflective canals per the visual bible | — |
-| Atmosphere scattering | 🟡 | Rim shell lit by the sun, sky dome | A full scattering model |
-| Weather | ✅ | Tethys storms: rain streaks, fog, crosswind on ship and walker, scanner interference, rain audio (E + C) | Shelter behind terrain |
+| Atmosphere scattering | ✅ | Single scattering (Rayleigh and Mie, planet shadow, reddened sunlight) for the sky and the air seen from space; the fog takes the scattered horizon colour (`atmosphere.ts`, E) | — |
+| Weather | ✅ | Tethys storms: rain streaks, fog, crosswind on ship and walker, scanner interference, rain audio; shelter under roofs and in the lee of cover (E + C) | — |
 | Environment FX | ✅ | Dust motes per world (E) | — |
-| Pale Signal grammar | ✅ | Concentric rings breathing in step around every structure, beams and flares (E) | Synchronized grass near structures |
-| Quality settings | ✅ | Low / Medium / High presets (pixel ratio, shadows, scatter) (E) | — |
+| Pale Signal grammar | ✅ | Concentric rings breathing in step around every structure, beams and flares; scattered plants sway, in step with the rings near a structure (E) | — |
+| Quality settings | ✅ | Low / Medium / High presets set the best tier the frame governor may use (E) | — |
 
 ## 10. Audio
 
@@ -146,6 +146,7 @@ What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has,
 | Audio zones | ✅ | Wind, rain, settlement, wildlife and signal layers by context (`ambience.ts`, E + C) | — |
 | UI and discovery cues | ✅ | Good / warn / bad / anomaly / discovery / thump (E) | — |
 | Weather and signal audio | ✅ | (E) | — |
+| Music | ✅ | A generative score by mood (`music.ts`, `host.send("music", mood)`): title, exploring, night, flight, space, the signal, storms (E + C) | — |
 
 ## 11. UI and UX
 
@@ -167,10 +168,10 @@ What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has,
 | System | Status | How | Left |
 |---|---|---|---|
 | Touch controls | ✅ | Stick and buttons pressing real keys, automatic on touch screens (E) | — |
-| Mobile governor | 🟡 | Quality presets thin scatter and drop shadows | Automatic simulation tiers |
+| Frame governor | ✅ | Holds 45–60 fps: steps resolution, shadows, bloom, scatter density, terrain streaming and distant animation by measured frame time (`frameGovernor.ts`, E) | — |
 | Profiler / QA evidence | ✅ | 60-second capture to `profile.json` (percentiles) (E) | — |
 | Save robustness | ✅ | Hashed save, fresh-game guard (C) | — |
-| PWA / Android | ❌ | — | Out of engine scope |
+| PWA / Android | — | Replaced by the frame governor (the game runs well in a phone browser) | — |
 
 ---
 
@@ -179,20 +180,18 @@ What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has,
 | Area | ✅ | 🟡 | ❌ |
 |---|---|---|---|
 | World & system | 8 | 0 | 0 |
-| Flight | 10 | 0 | 1 |
+| Flight | 11 | 0 | 0 |
 | Navigation | 6 | 0 | 0 |
-| EVA | 7 | 1 | 0 |
+| EVA | 8 | 0 | 0 |
 | Scanning & resources | 10 | 0 | 0 |
-| Wildlife | 3 | 1 | 0 |
-| Civilization | 12 | 1 | 0 |
+| Wildlife | 4 | 0 | 0 |
+| Civilization | 13 | 0 | 0 |
 | Progression & mystery | 5 | 0 | 0 |
-| Visuals | 5 | 1 | 0 |
-| Audio | 4 | 0 | 0 |
+| Visuals | 6 | 0 | 0 |
+| Audio | 5 | 0 | 0 |
 | UI/UX | 10 | 0 | 0 |
-| Platforms/QA | 3 | 1 | 1 |
+| Platforms/QA | 4 | 0 | 0 |
 
 ## What's left
 
-- **Engine:** an optional mouse-steer flight mode, re-anchoring while walking, and a full atmospheric scattering model.
-- **Art:** graze and conversation animations.
-- **Content:** more interiors, prices by reputation, shelter from storms.
+Nothing from the prototype. PWA/Android packaging was dropped in favour of the frame governor. The fuel economy was tuned on simulated autopilot flights between every pair of worlds the expedition uses; a hand-flown expedition from title to ending hasn't been timed.

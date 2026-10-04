@@ -5076,3 +5076,76 @@ Closes the terrain, rotation, landing and character gaps left in the [Pale Signa
   - the spin quaternion.
 - `tests/editor_bridge_tests.cpp`: on a turning Tethys the landed ship doesn't drift in the site frame and stepping out works.
 - `apps/editor/tests/paleSignal.test.ts`: the body options, and the Talari model on every routine.
+
+## F75 — 45–60 fps, and the last Pale Signal gaps (0.75.0)
+
+Holds play at 45–60 fps (in place of PWA/Android packaging) and closes everything left in the [Pale Signal gap map](space/PALE_SIGNAL_GAP_MAP.md).
+
+### Frame rate
+
+- **Profiling** the Pale Signal town (530 entities) found physics at about 20 ms a tick, the status line serializing the whole scene every frame, and thousands of per-entity runtime calls a tick.
+- **Physics broadphase** (`physics::step`): static obstacles go into an 8 m grid; a body tests only nearby cells. Moving and very large obstacles are still tested by every body, and candidates keep their order, so results match. Trigger checks build each body's shape once. About 20 ms → 2 ms a tick.
+- **Editor**:
+  - the "unsaved" check serializes the scene at most twice a second, never while playing;
+  - `editor_snapshot()` returns every entity's alive flag, position, yaw and flags in one call (read from `HEAPF64`, now exported);
+  - camera collision raycasts only objects near its line;
+  - still catalog models compose their node matrices once;
+  - planet terrain streams within a per-frame time budget.
+- **The frame governor** (`frameGovernor.ts`):
+  - samples frame intervals in half-second windows;
+  - drops a tier while frames average over 20 ms (or hitch over 45 ms), and climbs back after 3 s under 17.5 ms; a tier that just failed waits longer each time;
+  - tiers step resolution (100% → 50%), shadows (full, half map, off), bloom, scatter density, the terrain build budget and how often characters past 25 m animate;
+  - the player's quality preset sets the best tier allowed; the stats panel shows the tier.
+
+### Flight
+
+- **Mouse steering**: `editor_space_stick(yaw, pitch)` feeds a virtual stick that keys override. A click captures the mouse while flying; the stick eases back to centre at rest and the HUD draws it. The `flightMouse` player setting switches back to look-around.
+- **The autopilot** (`autopilot_command`):
+  - climbs only until the coast will carry it clear of the air, eases off when the hull heats;
+  - flies transfers around the star by shooting for the coast that meets the target (Newton steps on the miss, finite-difference Jacobian); the flight time is the cheapest of several, kept until flown, and the coast is checked a quarter of the way at a time;
+  - keeps a clearance corridor around a body in the way (`route_obstacle`);
+  - starts its approach early enough to brake from the closing speed, and brakes against the target's pull.
+- **Route plans** price transfers with the same solver (cached per route), with a flown-losses factor.
+- **Path prediction**: `predict_path(..., t)` returns points over the turning ground at each point's time; the bridge uses it for paths that come down.
+
+### On foot
+
+- **Re-anchoring while walking** (`walk_reframe`): the frame follows the walker across the wilds and switches between sites, home and the wilds. The next frame's heightfield is built 24 rows a tick ahead (`FieldBuild`); a landing site's is built during the descent. Fields 52–54 give the walker's shift so the editor moves its camera and interpolation with it; scripts get a `reframe` event.
+- **Soft radii**: big animals (half-width ≥ 0.6 m) and the walker ease apart.
+- **Visor and suit light** (`visor.ts`, `host.send("visor"|"suitlight")`).
+- **Shelter** (Pale Signal): rays up and upwind decide whether the storm's rain and wind reach you.
+
+### The world on screen
+
+- **Atmospheric scattering** (`atmosphere.ts`): single Rayleigh and Mie scattering with the planet's shadow and reddened sunlight, shared by the sky dome and the shell seen from space; a CPU copy colours the fog.
+- **Swaying scatter** (`scatterSway.ts`): plants sway in a travelling wave, in step with the breathing rings near a structure.
+- **`Material.parts`**: a tint for named parts of a model only (the Talari's clothes).
+
+### Living towns
+
+- **Routine activities**: a stop may end with a word (`"6 120 40 sit"`) the editor plays as a clip; `editor_routine_stop(i)` says which stop.
+- **Talking pairs and grazing**: people standing still within 2.5 m turn to each other and talk; calm wildlife grazes on and off.
+- **`space.call("settle")`** puts everyone with a Routine at the clock's stop; `space.call("time")` sets the system clock; `space.call("hull")` sets the hull.
+
+### Audio, tools and the editor
+
+- **Generative music** (`music.ts`): pad, drone and bells in a reverb, by mood, crossfading; `host.send("music", mood)` and a Music volume setting.
+- **Site view**: a "Show" select in the editor picks everything, home or one Site.
+- **The editor header** reads its version from `package.json`.
+- **`engine_playground --space`**: the engine's spaceflight in the native playground.
+
+### Pale Signal
+
+- Prices by Commons standing; five more interiors; Rime Striders on Vell and Pale Watchers on Nemesis; landing law on the Third Mooring and Ossuary's ruins.
+- Kestra's people keep staggered days with jobs, lunch and the evening market; stall keepers and talking neighbours.
+- Saves keep the hull, the clock, everyone's place in their day and harvested specimens (scatter is now seeded by place).
+- Fuel was retuned on simulated autopilot flights: the Kestrel burns 0.32 and starts with 55.
+
+### Tests
+
+- `tests/physics_tests.cpp`: the broadphase among 400 obstacles and a huge floor.
+- `tests/space_tests.cpp`: a corridor around Tethys on the way to Vell, and a body-fixed path.
+- `tests/editor_bridge_tests.cpp`: walking re-anchors with no edge; soft radii; settling routines; routine activity words.
+- `tests/playground_tests.cpp`: the playground's spaceflight.
+- `apps/editor/tests/frameGovernor.test.ts`: the governor's tiers, hold-off and floor.
+- `tests/browser/pale_signal.cjs`: the settings panel.
