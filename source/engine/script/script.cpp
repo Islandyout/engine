@@ -716,7 +716,7 @@ struct LuaApi final {
         std::string text;
         if (!space_call(L, "state", {}, {}, out, text) || out.size() < 24)
             return lua_pushnil(L), 1;
-        lua_createtable(L, 0, 27);
+        lua_createtable(L, 0, 36);
         static const char *const numbers[] = {"altitude", "speed", "vertical_speed", "ground_speed", "throttle",
                                               "fuel", "fuel_max", "hull", "hull_max", "heat"};
         for (std::size_t i = 0; i < 10; ++i)
@@ -745,8 +745,21 @@ struct LuaApi final {
         set_string(L, "assist", first == std::string::npos ? "" : text.substr(first + 1, second - first - 1));
         const auto third = second == std::string::npos ? std::string::npos : text.find(';', second + 1);
         set_string(L, "target", second == std::string::npos ? "" : text.substr(second + 1, third - second - 1));
-        set_string(L, "frame", third == std::string::npos ? "" : text.substr(third + 1));
+        const auto fourth = third == std::string::npos ? std::string::npos : text.find(';', third + 1);
+        const auto fifth = fourth == std::string::npos ? std::string::npos : text.find(';', fourth + 1);
+        set_string(L, "frame", third == std::string::npos ? "" : text.substr(third + 1, fourth - third - 1));
         set_bool(L, "away", out.size() >= 27 && out[26] != 0);
+        // 0.73.0: component condition, autopilot, reserve, site.
+        if (out.size() >= 34) {
+            set_number(L, "engine", out[27]);
+            set_number(L, "rcs", out[28]);
+            set_number(L, "gear", out[29]);
+            set_number(L, "scanner", out[30]);
+            set_bool(L, "autopilot", out[31] != 0);
+            set_bool(L, "reserve_used", out[32] != 0);
+        }
+        set_string(L, "site", fourth == std::string::npos ? "" : text.substr(fourth + 1, fifth - fourth - 1));
+        set_string(L, "autopilot_phase", fifth == std::string::npos ? "" : text.substr(fifth + 1));
         return 1;
     }
     // space.events() -> {"touchdown", "liftoff", ...} since the last call
@@ -824,6 +837,49 @@ struct LuaApi final {
         set_number(L, "distance", out[3]);
         set_number(L, "altitude", out[4]);
         return 1;
+    }
+    // space.call(op, text, n1, n2, ...) -> {n1, n2, ..., text = "..."} or nil:
+    // any SpaceSystem operation by name (0.73.0) -- plan, autopilot,
+    // reserve, part, reveal, bodies, wind, board_key -- without a binding
+    // per operation. See BridgeHost::space for the list.
+    static int space_generic(lua_State *L) {
+        const std::string op = luaL_checkstring(L, 1);
+        const std::string text = lua_isnoneornil(L, 2) ? std::string{} : luaL_checkstring(L, 2);
+        std::vector<double> args;
+        for (int i = 3; i <= lua_gettop(L) && i < 19; ++i)
+            args.push_back(number_arg(L, i));
+        std::vector<double> out;
+        std::string text_out;
+        if (!space_call(L, op.c_str(), args, text, out, text_out))
+            return lua_pushnil(L), 1;
+        lua_createtable(L, static_cast<int>(out.size()), 1);
+        for (std::size_t i = 0; i < out.size(); ++i) {
+            lua_pushnumber(L, out[i]);
+            lua_rawseti(L, -2, static_cast<lua_Integer>(i + 1));
+        }
+        set_string(L, "text", text_out);
+        return 1;
+    }
+    // world.set_clock(hours) -> hours: the scene clock Routines follow.
+    static int set_clock(lua_State *L) {
+        std::vector<double> out;
+        std::string text;
+        space_call(L, "clock", {number_arg(L, 1)}, {}, out, text);
+        lua_pushnumber(L, out.empty() ? 0.0 : out[0]);
+        return 1;
+    }
+    // host.send(kind, text): a message to the host application (the editor
+    // or player), for presentation the engine doesn't own -- maps, weather,
+    // waypoints, settings (0.73.0). Unknown kinds are ignored there.
+    static int host_send(lua_State *L) {
+        const char *kind = luaL_checkstring(L, 1);
+        size_t length = 0;
+        const char *text = lua_isnoneornil(L, 2) ? "" : luaL_tolstring(L, 2, &length);
+        const std::string value(text, length);
+        if (!lua_isnoneornil(L, 2))
+            lua_pop(L, 1);
+        emit(L, "host", kind, value);
+        return 0;
     }
     static int particles_burst(lua_State *L) {
         emit(L, "particles_burst", std::to_string(luaL_optinteger(L, 1, 10)), "");
@@ -1051,7 +1107,9 @@ struct LuaApi final {
                {"raycast", raycast},
                {"overlap", overlap},
                {"send", send},
-               {"path", path}});
+               {"path", path},
+               {"set_clock", set_clock}});
+        table(L, self, "host", {{"send", host_send}});
         table(L, self, "physics", {{"add_force", add_force}, {"add_impulse", add_impulse}});
         table(L, self, "sound", {{"play", play_sound}, {"play_at", play_sound_at}, {"volume", sound_volume}});
         table(L, self, "ui",
@@ -1088,7 +1146,8 @@ struct LuaApi final {
                {"set_controls", space_set_controls},
                {"place_landed", space_place_landed},
                {"place_orbit", space_place_orbit},
-               {"body", space_body}});
+               {"body", space_body},
+               {"call", space_generic}});
         table(L, self, "particles", {{"burst", particles_burst}, {"set_emitting", particles_emitting}});
         table(L, self, "weapon",
               {{"fire", weapon_fire},

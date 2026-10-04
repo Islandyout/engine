@@ -8,6 +8,7 @@
 #include "engine/script/script.hpp"
 #include "engine/world/fixed_systems.hpp"
 #include <algorithm>
+#include <sstream>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
@@ -98,6 +99,29 @@ namespace space = engine::gameplay::space;
 // Marks the entity the SpaceSystem flies (0.71.0); its Box follows the ship.
 struct Spaceship final {};
 
+// A daily routine (0.73.0): stops by hour of the day; the entity walks to
+// the latest stop whose hour has passed (wrapping at midnight) and waits
+// there. The hour is the scene clock, set by scripts (world.set_clock).
+struct Routine final {
+    struct Stop final {
+        float hour{}, x{}, z{};
+    };
+    std::vector<Stop> stops;
+    float speed{1.4F};
+    int current{-1};
+};
+// Wildlife (0.73.0): calm (its own wander, if it has an AIAgent) -> wary
+// (stops and watches) inside `wary` metres of a threat -> flees inside
+// `flee` (twice that from a sprinting player), never running more than
+// `leash` metres from where it started. Threats: the walking player, and
+// the ship while its engines run nearby.
+struct Wildlife final {
+    float wary{44}, flee{16}, speed{7}, leash{80};
+    engine::Vec3 home{};
+    bool homed{};
+    int state{}; // 0 calm, 1 wary, 2 fleeing
+};
+
 // A scene's star system and its one flown ship (0.71.0). Authored entities
 // live in the *site frame*: metres around a point on the site body's surface,
 // +y along the local vertical (away from the body's centre), so the editor's
@@ -139,6 +163,25 @@ struct SpaceSim final {
     std::optional<engine::Entity> stowed;
     bool stowed_trigger{};
     engine::physics::BodyType stowed_type{engine::physics::BodyType::Dynamic};
+    // Several sites per scene (0.73.0): each Site entity anchors its child
+    // entities around its own surface point. -1 is the home site (the
+    // SpaceSystem's own), -2 the wilderness (a frame at no site).
+    struct SiteInfo final {
+        std::string name;
+        int body{};
+        space::DVec3 up{0, 1, 0};
+        double radius{300};
+        std::optional<engine::Entity> entity;
+    };
+    std::vector<SiteInfo> sites;
+    std::map<engine::Entity, int> members; // entity -> site index; absent = home
+    int active_site{-1};
+    std::map<engine::Entity, engine::Vec3> pinned; // parked entities hold still
+    // NAV autopilot (0.73.0).
+    std::string autopilot_phase;
+    bool reserve_used{};
+    bool board_key{true}; // E beside the ship boards it (scripts can take E over)
+    space::DVec3 wind_local{}; // m/s in the frame (x, z)
 
     [[nodiscard]] space::DVec3 site_position() const { return space::body_position(system, site_body, time); }
     // Absolute (system frame) -> site frame, and back.
@@ -169,6 +212,7 @@ const char *assist_name(space::Assist assist) {
     case space::Assist::prograde: return "prograde";
     case space::Assist::retrograde: return "retrograde";
     case space::Assist::target: return "target";
+    case space::Assist::autopilot: return "autopilot";
     }
     return "stabilized";
 }
@@ -178,6 +222,7 @@ std::optional<space::Assist> parse_assist(std::string_view name) {
     if (name == "prograde") return space::Assist::prograde;
     if (name == "retrograde") return space::Assist::retrograde;
     if (name == "target") return space::Assist::target;
+    if (name == "autopilot") return space::Assist::autopilot;
     return std::nullopt;
 }
 
@@ -711,23 +756,76 @@ struct Runtime {
         physics_config.ground_y = lowest - 500.0F;
         ++sim.frame_generation;
     }
-    // After a touchdown: away from the authored site, the frame follows the
-    // ship so the pilot can step out anywhere; back at the site, it returns.
-    // Authored scenery is parked (non-solid; the editor hides it) while away.
+    // The frame axes anchor_frame() builds for a surface direction.
+    static void frame_axes(space::DVec3 up, space::DVec3 &x, space::DVec3 &z) {
+        const space::DVec3 helper = std::abs(up.y) < 0.99 ? space::DVec3{0, 1, 0} : space::DVec3{1, 0, 0};
+        x = space::normalized(space::cross(helper, up));
+        z = space::cross(x, up);
+    }
+    // Which site a landed ship at body-frame `p` on body `ref` stands in:
+    // a Site's index, -1 the home site, -2 none (0.73.0).
+    int site_at(int ref, space::DVec3 p) const {
+        const auto &sim = *space;
+        for (std::size_t i = 0; i < sim.sites.size(); ++i) {
+            const auto &site = sim.sites[i];
+            if (site.body != ref)
+                continue;
+            const auto &body = sim.system.bodies[static_cast<std::size_t>(ref)];
+            const double arc = std::acos(std::clamp(space::dot(space::normalized(p), site.up), -1.0, 1.0)) * body.radius;
+            if (arc < site.radius)
+                return static_cast<int>(i);
+        }
+        if (ref == sim.home_body) {
+            const auto d = p - sim.home_origin;
+            if (std::abs(space::dot(d, sim.home_x)) < sim.eva_range - 30 &&
+                std::abs(space::dot(d, sim.home_z)) < sim.eva_range - 30 && space::dot(d, sim.home_y) < 500)
+                return -1;
+        }
+        return -2;
+    }
+    // Parks every entity that isn't part of the active site (non-solid,
+    // held still; the editor hides them) and wakes the ones that are.
+    void update_parking(engine::World &w) {
+        auto &sim = *space;
+        for (const auto entity : w.query<engine::Box>()) {
+            if (entity == sim.ship_entity || entity == sim.stowed || w.get<PlayerMarker>(entity))
+                continue;
+            const auto member = sim.members.find(entity);
+            const int site = member == sim.members.end() ? -1 : member->second;
+            auto *collider = w.get<engine::physics::Collider>(entity);
+            if (site != sim.active_site) {
+                if (!sim.pinned.count(entity)) {
+                    sim.pinned[entity] = w.get<engine::Box>(entity)->center;
+                    if (collider) {
+                        sim.parked[entity] = collider->is_trigger;
+                        collider->is_trigger = true;
+                    }
+                }
+            } else if (sim.pinned.count(entity)) {
+                w.get<engine::Box>(entity)->center = sim.pinned[entity];
+                sim.pinned.erase(entity);
+                if (collider && sim.parked.count(entity))
+                    collider->is_trigger = sim.parked[entity];
+                sim.parked.erase(entity);
+            }
+        }
+    }
+    // After a touchdown: at a Site the frame moves there; back home it
+    // returns; anywhere else it follows the ship so the pilot can step out.
+    // Entities of other sites are parked (non-solid; the editor hides them).
     void reframe_after_landing(engine::World &w) {
         auto &sim = *space;
         if (!sim.ship.landed || sim.ship.ref < 0)
             return;
-        const auto at_home = [&] {
-            if (sim.ship.ref != sim.home_body)
-                return false;
-            const auto p = sim.ship.position - sim.home_origin;
-            return std::abs(space::dot(p, sim.home_x)) < sim.eva_range - 30 &&
-                   std::abs(space::dot(p, sim.home_z)) < sim.eva_range - 30 && space::dot(p, sim.home_y) < 500;
-        }();
-        if (at_home) {
-            if (!sim.away)
-                return;
+        const int site = site_at(sim.ship.ref, sim.ship.position);
+        if (site == sim.active_site && site != -2)
+            return;
+        if (site == -2 && sim.active_site == -2 && sim.ship.ref == sim.site_body) {
+            const auto local = sim.rotate_to_local(sim.ship.position - sim.site_origin);
+            if (std::abs(local.x) < sim.eva_range - 30 && std::abs(local.z) < sim.eva_range - 30)
+                return; // still inside the current wilderness frame
+        }
+        if (site == -1) {
             sim.site_body = sim.home_body;
             sim.site_origin = sim.home_origin;
             sim.axis_x = sim.home_x;
@@ -737,31 +835,21 @@ struct Runtime {
             physics_config.terrain = terrain ? &*terrain : nullptr;
             physics_config.ground_y = sim.home_ground_y;
             ++sim.frame_generation;
-            for (const auto &[entity, trigger] : sim.parked)
-                if (w.alive(entity))
-                    if (auto *collider = w.get<engine::physics::Collider>(entity))
-                        collider->is_trigger = trigger;
-            sim.parked.clear();
-            sim.away = false;
-            sim.event("frame:home");
+        } else if (site >= 0) {
+            const auto &info = sim.sites[static_cast<std::size_t>(site)];
+            anchor_frame(info.body, info.up);
         } else {
-            const auto local = sim.rotate_to_local(sim.ship.position - sim.site_origin);
-            const bool inside = sim.away && sim.ship.ref == sim.site_body && std::abs(local.x) < sim.eva_range - 30 &&
-                                std::abs(local.z) < sim.eva_range - 30;
-            if (inside)
-                return;
-            if (!sim.away)
-                for (const auto entity : w.query<engine::physics::Collider>()) {
-                    if (entity == sim.ship_entity || entity == sim.stowed || w.get<PlayerMarker>(entity))
-                        continue;
-                    auto &collider = *w.get<engine::physics::Collider>(entity);
-                    sim.parked[entity] = collider.is_trigger;
-                    collider.is_trigger = true;
-                }
-            sim.away = true;
             anchor_frame(sim.ship.ref, sim.ship.position);
-            sim.event("frame:" + sim.system.bodies[static_cast<std::size_t>(sim.ship.ref)].name);
         }
+        sim.active_site = site;
+        sim.away = site != -1;
+        update_parking(w);
+        if (site == -1)
+            sim.event("frame:home");
+        else if (site >= 0)
+            sim.event("site:" + sim.sites[static_cast<std::size_t>(site)].name);
+        else
+            sim.event("frame:" + sim.system.bodies[static_cast<std::size_t>(sim.ship.ref)].name);
         settle_landed(w);
     }
     // A landed ship rests on whatever is under it: a pad or roof of the
@@ -899,7 +987,10 @@ struct Runtime {
                 case space::Assist::retrograde:
                     sp.assist = sp.target >= 0 ? space::Assist::target : space::Assist::stabilized;
                     break;
-                case space::Assist::target: sp.assist = space::Assist::stabilized; break;
+                case space::Assist::target:
+                    sp.assist = sp.target >= 0 ? space::Assist::autopilot : space::Assist::stabilized;
+                    break;
+                case space::Assist::autopilot: sp.assist = space::Assist::stabilized; break;
                 default: sp.assist = space::Assist::prograde; break;
                 }
             }
@@ -909,7 +1000,7 @@ struct Runtime {
                 sp.warp = std::min(1000.0, sp.warp * 2);
             if (pressed[0] && sp.ship.landed)
                 space_exit(w);
-        } else if (!sp.piloting && pressed[0] && sp.ship_entity && sp.ship.landed) {
+        } else if (!sp.piloting && sp.board_key && pressed[0] && sp.ship_entity && sp.ship.landed) {
             const auto player = player_entity(w);
             if (player) {
                 const auto a = w.get<engine::Box>(*player)->center, b = w.get<engine::Box>(*sp.ship_entity)->center;
@@ -923,8 +1014,45 @@ struct Runtime {
         control.assist = sp.assist;
         if (sp.target >= 0)
             control.target_direction = space::body_position(sp.system, sp.target, sp.time) - sp.ship_absolute();
+        // The NAV autopilot (0.73.0) owns throttle and nose until the pilot
+        // touches anything -- manual input always wins.
+        sp.autopilot_phase.clear();
+        if (sp.assist == space::Assist::autopilot) {
+            const bool pilot = sp.piloting && sp.controls &&
+                               (down(Key::w) || down(Key::s) || down(Key::left_shift) || down(Key::right_shift) ||
+                                pressed[3] || control.pitch != 0 || control.yaw != 0 || control.roll != 0 ||
+                                control.vertical != 0);
+            if (!sp.piloting || sp.target < 0 || pilot || sp.ship.landed) {
+                if (!sp.ship.landed || pilot) {
+                    sp.assist = space::Assist::stabilized;
+                    control.assist = sp.assist;
+                    sp.event("autopilot_off");
+                }
+            } else {
+                const auto command = space::autopilot_command(sp.ship, sp.spec, sp.system, sp.time, sp.target);
+                sp.autopilot_phase = command.phase;
+                if (command.arrived) {
+                    sp.assist = space::Assist::stabilized;
+                    control.assist = sp.assist;
+                    sp.throttle = control.throttle = 0;
+                    sp.warp = 1;
+                    sp.event("autopilot_arrived");
+                } else {
+                    control.target_direction = command.direction;
+                    sp.throttle = control.throttle = command.throttle;
+                    // Coasting: time warp scaled to the time left.
+                    if (command.throttle == 0 && sp.ship.density == 0) {
+                        const auto plan = space::plan_route(sp.ship, sp.spec, sp.system, sp.time, sp.target);
+                        const double eta = plan.closing_speed > 1 ? plan.distance / plan.closing_speed : 0;
+                        sp.warp = std::clamp(std::floor(eta / 40), 1.0, 64.0);
+                    }
+                }
+            }
+        }
+        if (sp.ship.ref == sp.site_body && sp.ship.ref >= 0)
+            control.wind = sp.axis_x * sp.wind_local.x + sp.axis_y * sp.wind_local.y + sp.axis_z * sp.wind_local.z;
         // Time warp only while coasting in space.
-        const bool can_warp = sp.piloting && !sp.ship.landed && sp.ship.density == 0 && sp.throttle == 0 &&
+        const bool can_warp = sp.piloting && !sp.ship.landed && sp.ship.density == 0 && control.throttle == 0 &&
                               control.vertical == 0 && !sp.ship.destroyed;
         if (!can_warp)
             sp.warp = 1;
@@ -968,6 +1096,13 @@ struct Runtime {
     void space_after(engine::World &w) {
         auto &sp = *space;
         place_stowed(w);
+        // Parked entities (other sites') hold still wherever they were left.
+        for (const auto &[entity, at] : sp.pinned)
+            if (w.alive(entity)) {
+                w.get<engine::Box>(entity)->center = at;
+                if (auto *body = w.get<engine::physics::RigidBody>(entity))
+                    body->velocity = {};
+            }
         if (sp.piloting)
             return;
         if (const auto player = player_entity(w)) {
@@ -975,6 +1110,99 @@ struct Runtime {
             const float limit = static_cast<float>(sp.eva_range) - 2.0F;
             box.center.x = std::clamp(box.center.x, -limit, limit);
             box.center.z = std::clamp(box.center.z, -limit, limit);
+        }
+    }
+    bool parked(engine::Entity entity) const { return space && space->pinned.count(entity) > 0; }
+    void step_routines(engine::World &w) {
+        for (const auto entity : w.query<engine::Box, Routine, engine::physics::RigidBody>()) {
+            auto &routine = *w.get<Routine>(entity);
+            auto &body = *w.get<engine::physics::RigidBody>(entity);
+            if (routine.stops.empty() || parked(entity))
+                continue;
+            // The latest stop whose hour has passed, wrapping to the last.
+            int stop = static_cast<int>(routine.stops.size()) - 1;
+            for (std::size_t i = 0; i < routine.stops.size(); ++i)
+                if (routine.stops[i].hour <= clock_hours)
+                    stop = static_cast<int>(i);
+            routine.current = stop;
+            const auto &goal = routine.stops[static_cast<std::size_t>(stop)];
+            const auto at = w.get<engine::Box>(entity)->center;
+            const float dx = goal.x - at.x, dz = goal.z - at.z;
+            const float distance = std::hypot(dx, dz);
+            if (auto *agent = w.get<AIAgent>(entity))
+                agent->state = distance > 1.2F ? AIState::Walking : AIState::Idle;
+            if (distance > 1.2F) {
+                body.velocity.x = dx / distance * routine.speed;
+                body.velocity.z = dz / distance * routine.speed;
+            } else {
+                body.velocity.x = body.velocity.z = 0;
+            }
+        }
+    }
+    void step_wildlife(engine::World &w) {
+        std::vector<std::pair<engine::Vec3, float>> threats; // position, flee scale
+        if (const auto player = player_entity(w); player && !stowed(*player)) {
+            float scale = 1;
+            if (const auto *controller = w.get<Controller>(*player))
+                scale = controller->state.sprinting || controller->state.speed > 6 ? 2.1F : 1.0F;
+            threats.push_back({w.get<engine::Box>(*player)->center, scale});
+        }
+        if (space && space->ship_entity && w.alive(*space->ship_entity) && space->ship.engine_on)
+            threats.push_back({w.get<engine::Box>(*space->ship_entity)->center, 3.5F});
+        for (const auto entity : w.query<engine::Box, Wildlife, engine::physics::RigidBody>()) {
+            auto &animal = *w.get<Wildlife>(entity);
+            auto &body = *w.get<engine::physics::RigidBody>(entity);
+            const auto at = w.get<engine::Box>(entity)->center;
+            if (!animal.homed) {
+                animal.home = at;
+                animal.homed = true;
+            }
+            if (parked(entity)) {
+                animal.state = 0;
+                continue;
+            }
+            float nearest = 1e9F, flee_scale = 1;
+            engine::Vec3 from{};
+            for (const auto &[p, scale] : threats) {
+                const float d = std::hypot(p.x - at.x, p.z - at.z);
+                if (d / scale < nearest / flee_scale) {
+                    nearest = d;
+                    flee_scale = scale;
+                    from = p;
+                }
+            }
+            const int before = animal.state;
+            if (nearest < animal.flee * flee_scale)
+                animal.state = 2;
+            else if (nearest < animal.wary * std::max(1.0F, flee_scale * 0.8F))
+                animal.state = before == 2 && nearest < animal.flee * flee_scale * 1.6F ? 2 : 1;
+            else
+                animal.state = 0;
+            auto *agent = w.get<AIAgent>(entity);
+            if (animal.state == 2) {
+                float x = at.x - from.x, z = at.z - from.z;
+                const float l = std::max(std::hypot(x, z), 1e-3F);
+                x /= l;
+                z /= l;
+                // The leash bends the escape back toward home.
+                const float hx = animal.home.x - at.x, hz = animal.home.z - at.z;
+                const float home = std::hypot(hx, hz);
+                if (home > animal.leash) {
+                    x = x * 0.4F + hx / home * 0.6F;
+                    z = z * 0.4F + hz / home * 0.6F;
+                }
+                body.velocity.x = x * animal.speed;
+                body.velocity.z = z * animal.speed;
+                if (agent)
+                    agent->state = AIState::Fleeing;
+            } else if (animal.state == 1) {
+                body.velocity.x = body.velocity.z = 0;
+                if (agent)
+                    agent->state = AIState::Idle;
+            } else if (agent && before != 0) {
+                agent->state = AIState::Walking;
+                agent->timer = 0;
+            }
         }
     }
     // One tick of an arcade car (0.70.0): picks up the velocity physics
@@ -1710,6 +1938,9 @@ struct Runtime {
         }
     }
     float time_now{0};
+    // The scene clock in hours (0.73.0): Routines follow it; scripts set it
+    // (world.set_clock), e.g. from a planet's day.
+    float clock_hours{10};
     // Milliseconds each system took on the most recent tick, for the
     // editor's Stats overlay (editor_profile_text).
     std::map<std::string, double> profile;
@@ -1967,6 +2198,12 @@ struct Runtime {
                       if (space)
                           space_after(w);
                   });
+        // Daily routines and wildlife (0.73.0), after the AI's own wander
+        // (which they override) and before physics.
+        add_timed("editor.routines", engine::FixedPhase::update, 6,
+                  [this](engine::World &w, const engine::FixedUpdateContext &) { step_routines(w); });
+        add_timed("editor.wildlife", engine::FixedPhase::update, 7,
+                  [this](engine::World &w, const engine::FixedUpdateContext &) { step_wildlife(w); });
         add_timed("editor.soldiers", engine::FixedPhase::update, 3,
                   [this](engine::World &w, const engine::FixedUpdateContext &) {
                       time_now += 1.0F / 60.0F;
@@ -2385,6 +2622,8 @@ void register_components(engine::World &w) {
     w.register_component<Heading>("editor.heading");
     w.register_component<Driver>("editor.driver");
     w.register_component<Spaceship>("editor.spaceship");
+    w.register_component<Routine>("editor.routine");
+    w.register_component<Wildlife>("editor.wildlife");
     w.register_component<AIAgent>("editor.ai_agent");
     w.register_component<Pedestrian>("editor.pedestrian");
     w.register_component<engine::script::Script>("editor.script");
@@ -2435,6 +2674,8 @@ std::optional<engine::Entity> BridgeHost::spawn(engine::World &world, const std:
     copy_component<Heading>(from, source, world, entity);
     copy_component<AIAgent>(from, source, world, entity);
     copy_component<Pedestrian>(from, source, world, entity);
+    copy_component<Routine>(from, source, world, entity);
+    copy_component<Wildlife>(from, source, world, entity);
     copy_component<engine::script::Script>(from, source, world, entity);
     copy_component<Controller>(from, source, world, entity);
     copy_component<Arsenal>(from, source, world, entity);
@@ -2448,6 +2689,20 @@ std::optional<engine::Entity> BridgeHost::spawn(engine::World &world, const std:
 
 bool BridgeHost::space(engine::World &world, const std::string &op, const std::vector<double> &args,
                        const std::string &text, std::vector<double> &out, std::string &text_out) {
+    // The scene clock (world.set_clock) works with or without a SpaceSystem.
+    if (op == "clock") {
+        if (!args.empty() && std::isfinite(args[0]))
+            runtime_.clock_hours = static_cast<float>(std::fmod(std::fmod(args[0], 24.0) + 24.0, 24.0));
+        out = {runtime_.clock_hours};
+        return true;
+    }
+    if (op == "wildlife") {
+        // Fleeing or wary animals near a point: out = {state of the entity named `text`}.
+        const auto entity = find(world, text);
+        const auto *animal = entity ? world.get<Wildlife>(*entity) : nullptr;
+        out = {animal ? static_cast<double>(animal->state) : -1.0};
+        return animal != nullptr;
+    }
     if (!runtime_.space)
         return false;
     auto &sp = *runtime_.space;
@@ -2477,6 +2732,71 @@ bool BridgeHost::space(engine::World &world, const std::string &op, const std::v
                    (sp.target >= 0 ? sp.system.bodies[static_cast<std::size_t>(sp.target)].name : std::string{}) + ";" +
                    sp.system.bodies[static_cast<std::size_t>(sp.site_body)].name;
         out.push_back(sp.away ? 1.0 : 0.0);
+        // 0.73.0: components, autopilot, reserve, wind.
+        out.insert(out.end(), {sp.ship.engine, sp.ship.rcs_condition, sp.ship.gear, sp.ship.scanner,
+                               sp.assist == space::Assist::autopilot ? 1.0 : 0.0, sp.reserve_used ? 1.0 : 0.0,
+                               static_cast<double>(sp.active_site)});
+        text_out += ";" + (sp.active_site >= 0 ? sp.sites[static_cast<std::size_t>(sp.active_site)].name : std::string{}) +
+                    ";" + sp.autopilot_phase;
+        return true;
+    }
+    if (op == "bodies") {
+        // Every body not hidden, one per line: name, parent name.
+        for (const auto &b : sp.system.bodies)
+            if (!b.hidden)
+                text_out += b.name + "\n";
+        return true;
+    }
+    if (op == "reveal") {
+        const int index = body_index(text);
+        if (index < 0)
+            return false;
+        sp.system.bodies[static_cast<std::size_t>(index)].hidden = false;
+        sp.event("revealed:" + text);
+        return true;
+    }
+    if (op == "plan") {
+        const int index = body_index(text);
+        if (index < 0)
+            return false;
+        const auto plan = space::plan_route(sp.ship, sp.spec, sp.system, sp.time, index);
+        out = {plan.distance, plan.closing_speed, plan.delta_v, plan.fuel_needed, static_cast<double>(plan.status)};
+        return true;
+    }
+    if (op == "autopilot") {
+        if (arg(0) != 0) {
+            if (sp.target < 0 || sp.ship.landed)
+                return false;
+            sp.assist = space::Assist::autopilot;
+        } else if (sp.assist == space::Assist::autopilot) {
+            sp.assist = space::Assist::stabilized;
+        }
+        return true;
+    }
+    if (op == "reserve") {
+        // The emergency reserve: once, below 35% fuel, 8.5% of the tank.
+        if (sp.reserve_used || sp.ship.fuel > sp.spec.fuel * 0.35)
+            return false;
+        sp.reserve_used = true;
+        sp.ship.fuel = std::min(sp.spec.fuel, sp.ship.fuel + sp.spec.fuel * 0.085);
+        return true;
+    }
+    if (op == "part") {
+        // part(name, delta): + repairs, - damages; returns the new condition.
+        double *part = text == "engine" ? &sp.ship.engine : text == "rcs" ? &sp.ship.rcs_condition
+                     : text == "gear" ? &sp.ship.gear : text == "scanner" ? &sp.ship.scanner : nullptr;
+        if (!part)
+            return false;
+        *part = std::clamp(*part + arg(0), 0.0, 100.0);
+        out = {*part};
+        return true;
+    }
+    if (op == "wind") {
+        sp.wind_local = {arg(0), arg(1), arg(2)};
+        return true;
+    }
+    if (op == "board_key") {
+        sp.board_key = arg(0) != 0;
         return true;
     }
     if (op == "events") {
@@ -2574,7 +2894,12 @@ bool BridgeHost::space(engine::World &world, const std::string &op, const std::v
             return false;
         const auto &b = sp.system.bodies[static_cast<std::size_t>(index)];
         const double distance = space::length(space::body_position(sp.system, index, sp.time) - sp.ship_absolute());
-        out = {b.radius, b.surface_gravity, b.atmosphere_height, distance, distance - b.radius};
+        const auto rel = space::body_velocity(sp.system, index, sp.time) -
+                         ((sp.ship.ref >= 0 ? space::body_velocity(sp.system, sp.ship.ref, sp.time) : space::DVec3{}) +
+                          sp.ship.velocity);
+        const auto towards = space::normalized(space::body_position(sp.system, index, sp.time) - sp.ship_absolute());
+        out = {b.radius, b.surface_gravity, b.atmosphere_height, distance, distance - b.radius,
+               -space::dot(rel, towards), b.hidden ? 1.0 : 0.0, b.sea_level};
         return true;
     }
     return false;
@@ -3542,6 +3867,78 @@ EXPORT void editor_space_body_sea(double sea_level) {
         return;
     staging->space->system.bodies.back().sea_level = sea_level;
 }
+// The last added body starts hidden (0.73.0): not drawn or listed until a
+// script reveals it (space.call("reveal", name)).
+EXPORT void editor_space_body_hidden(int hidden) {
+    if (!staging || !staging->space || staging->space->system.bodies.empty())
+        return;
+    staging->space->system.bodies.back().hidden = hidden != 0;
+}
+// A Site (0.73.0): entity `index` anchors the entities given to it with
+// editor_space_member around a surface point of body `body`. Sites are
+// numbered in the order they're added.
+EXPORT void editor_space_site(int index, const char *name, int body, double latitude, double longitude, double radius) {
+    if (!staging || !staging->space || !name || !std::isfinite(latitude) || !std::isfinite(longitude) ||
+        !(radius > 0) || body < 0 || body >= static_cast<int>(staging->space->system.bodies.size()))
+        return;
+    const double lat = latitude * 3.14159265358979 / 180, lon = longitude * 3.14159265358979 / 180;
+    SpaceSim::SiteInfo info;
+    info.name = name;
+    info.body = body;
+    info.up = {std::cos(lat) * std::cos(lon), std::sin(lat), std::cos(lat) * std::sin(lon)};
+    info.radius = radius;
+    if (const auto target = staged(index))
+        info.entity = target->second;
+    staging->space->sites.push_back(std::move(info));
+    // A site is level ground, like the home site.
+    auto &b = staging->space->system.bodies[static_cast<std::size_t>(body)];
+    b.flats.push_back({staging->space->sites.back().up, radius});
+}
+EXPORT void editor_space_member(int index, int site) {
+    if (!staging || !staging->space || site < 0 || site >= static_cast<int>(staging->space->sites.size()))
+        return;
+    if (const auto target = staged(index))
+        staging->space->members[target->second] = site;
+}
+// A Routine (0.73.0): "hour x z; hour x z; ..." stops, walked at `speed`.
+EXPORT void editor_set_routine(int index, const char *stops, double speed) {
+    const auto target = staged(index);
+    if (!target || !stops || !(speed > 0))
+        return;
+    Routine routine;
+    routine.speed = static_cast<float>(speed);
+    std::string text{stops};
+    for (auto &c : text)
+        if (c == ';' || c == ',')
+            c = ' ';
+    std::istringstream in{text};
+    Routine::Stop stop;
+    while (in >> stop.hour >> stop.x >> stop.z)
+        if (std::isfinite(stop.hour) && std::isfinite(stop.x) && std::isfinite(stop.z))
+            routine.stops.push_back(stop);
+    std::sort(routine.stops.begin(), routine.stops.end(),
+              [](const Routine::Stop &a, const Routine::Stop &b) { return a.hour < b.hour; });
+    target->first->set(target->second, std::move(routine));
+}
+EXPORT void editor_set_wildlife(int index, double wary, double flee, double speed, double leash) {
+    const auto target = staged(index);
+    if (!target || !(wary > 0) || !(flee > 0) || !(speed > 0) || !(leash > 0))
+        return;
+    Wildlife animal;
+    animal.wary = static_cast<float>(wary);
+    animal.flee = static_cast<float>(flee);
+    animal.speed = static_cast<float>(speed);
+    animal.leash = static_cast<float>(leash);
+    target->first->set(target->second, animal);
+}
+// 0 calm, 1 wary, 2 fleeing; -1 not wildlife.
+EXPORT int editor_wildlife_state(int index) {
+    if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
+        return -1;
+    const auto entity = active->entities[static_cast<std::size_t>(index)];
+    const auto *animal = active->world.alive(entity) ? active->world.get<Wildlife>(entity) : nullptr;
+    return animal ? animal->state : -1;
+}
 // Ship tuning; `start_orbit` >= 0 starts in a circular orbit that high above
 // the site body instead of landed where the entity is authored. `heading` is
 // the entity's yaw (radians).
@@ -3601,6 +3998,9 @@ bool finish_space(Runtime &rt) {
     sim.home_ground = rt.terrain;
     sim.home_ground_y = rt.physics_config.ground_y;
     sim.frame_generation = 0;
+    // Other sites' entities wait, parked, until the ship lands there.
+    sim.active_site = -1;
+    rt.update_parking(rt.world);
     // The ship: landed where it was authored, or in orbit.
     if (sim.ship_entity && rt.world.alive(*sim.ship_entity)) {
         // The space simulation moves the ship; physics only sees its collider.
@@ -3658,7 +4058,9 @@ EXPORT int editor_commit() {
 // distance to the site origin, 32 orbital period, 33 eccentricity, 34
 // reference body radius, 35 has a SpaceSystem, 36 body count, 37 away from
 // the authored site (the frame follows the ship), 38 frame generation
-// (changes when the frame moves), 39 the frame's body. 0 without.
+// (changes when the frame moves), 39 the frame's body, 40 the active site
+// (-1 home, -2 none, else its Site number), 41 autopilot engaged, 42-45
+// component condition (engine, rcs, gear, scanner), 46 wind speed. 0 without.
 EXPORT double editor_space_value(int field) {
     if (!active->space)
         return 0;
@@ -3712,6 +4114,13 @@ EXPORT double editor_space_value(int field) {
     case 37: return sp.away ? 1 : 0;
     case 38: return sp.frame_generation;
     case 39: return sp.site_body;
+    case 40: return sp.active_site;
+    case 41: return sp.assist == space::Assist::autopilot ? 1 : 0;
+    case 42: return sp.ship.engine;
+    case 43: return sp.ship.rcs_condition;
+    case 44: return sp.ship.gear;
+    case 45: return sp.ship.scanner;
+    case 46: return space::length(sp.wind_local);
     default: return 0;
     }
 }
@@ -3736,6 +4145,7 @@ EXPORT double editor_space_body_value(int index, int field) {
     case 7: return b.atmosphere_height;
     case 8: return b.parent;
     case 9: return b.terrain_amplitude;
+    case 10: return b.hidden ? 1 : 0;
     default: return 0;
     }
 }
