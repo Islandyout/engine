@@ -89,6 +89,8 @@ const componentNames = [
   "PostProcessing",
   "Driver",
   "ModelInstances",
+  "SpaceSystem",
+  "Spaceship",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -555,6 +557,13 @@ function defaultCollider(): ColliderComponent {
     bounciness: 0,
   };
 }
+// A new SpaceSystem's bodies (Pale Signal's inner system, scaled for play):
+// a temperate planet with air, its airless moon, and a dead world farther out.
+export const defaultSpaceBodies = [
+  "Tethys - 1600000 5027 0 0 60000 9 9000 1.05 300 3000 7 #4f7a4a #87b6c8",
+  "Vell Tethys 230000 3850 20 7 18000 2.6 0 0 160 2000 3 #b9c6d4 #000000",
+  "Ossuary - 2400000 9230 126 -3 52000 6.4 5000 0.18 400 4000 11 #9a9385 #c0b49a",
+].join("\n");
 export function defaultComponent(
   type: Exclude<ComponentName, "Parent">,
 ): SceneComponents[typeof type] {
@@ -599,6 +608,33 @@ export function defaultComponent(
       return { mode: "Race", route: "", loop: true, target: "", skill: 0.8, aggression: 0.5, speedScale: 1 };
     case "ModelInstances":
       return { instances: "" };
+    case "SpaceSystem":
+      return {
+        bodies: defaultSpaceBodies,
+        starGm: 6.4e12,
+        starColor: { x: 1, y: 0.95, z: 0.85 },
+        siteBody: "Tethys",
+        siteLatitude: 30,
+        siteLongitude: 40,
+        siteRadius: 300,
+        evaRange: 1500,
+        startTime: 0,
+        landmarks: "",
+      };
+    case "Spaceship":
+      return {
+        mass: 12000,
+        thrust: 300000,
+        liftThrust: 180000,
+        rcs: 2.2,
+        maxRate: 75,
+        fuel: 100,
+        burn: 1.2,
+        hull: 100,
+        gearClearance: 1.6,
+        startPiloting: true,
+        startOrbit: -1,
+      };
     case "AnimationState":
       return { clip: "", time: 0, looping: true };
     case "Renderable":

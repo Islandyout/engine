@@ -106,6 +106,43 @@ export interface DriverComponent {
 export interface ModelInstancesComponent {
   instances: string;
 }
+// A star system to fly through (0.71.0). `bodies` is one planet or moon per
+// line: "name parent orbitRadius period phase inclination radius gravity
+// atmosphereHeight atmosphereDensity terrainAmplitude terrainScale seed
+// color haze" -- parent "-" for the star, metres/seconds/degrees, colors as
+// #rrggbb. Authored entities sit around a site on `siteBody` at the given
+// latitude/longitude (+y up, out of the planet); the ground is flattened
+// within siteRadius and walkable within evaRange.
+export interface SpaceSystemComponent {
+  bodies: string;
+  starGm: number;
+  starColor: Vec3;
+  siteBody: string;
+  siteLatitude: number;
+  siteLongitude: number;
+  siteRadius: number;
+  evaRange: number;
+  startTime: number;
+  // Surface landmarks, one per line: "body latitude longitude #color label"
+  // -- beacons seen from orbit and marked on the flight HUD.
+  landmarks: string;
+}
+// The ship the SpaceSystem flies (0.71.0). kg, N, rad/s^2 (rcs), degrees/s
+// (maxRate), tank units and units/s (burn). startOrbit >= 0 starts in orbit
+// that high above the site body; otherwise landed where authored.
+export interface SpaceshipComponent {
+  mass: number;
+  thrust: number;
+  liftThrust: number;
+  rcs: number;
+  maxRate: number;
+  fuel: number;
+  burn: number;
+  hull: number;
+  gearClearance: number;
+  startPiloting: boolean;
+  startOrbit: number;
+}
 // clip names a clip on the entity's own animated Renderable model (e.g.
 // "idle"/"walk"/"wave") -- "" means no authored override, so main.ts's
 // automatic ground-speed-based clip selection (animationClips.ts's

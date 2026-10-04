@@ -105,6 +105,31 @@ public:
         (void)out;
         return false;
     }
+    // Spaceflight (0.71.0), for the Lua `space` table: `op` is "state" (out:
+    // altitude, speed, vertical speed, ground speed, throttle, fuel, fuel
+    // capacity, hull, hull capacity, heat, landed 0/1, piloting 0/1, air
+    // density, warp, periapsis, apoapsis, time, destroyed 0/1, site-local x,
+    // y, z, orbit closed 0/1, g-force, distance to the site, latitude and
+    // longitude over the reference body in degrees; text_out:
+    // "reference body;assist;target"), "events" (text_out: newline-separated
+    // events since the last call), "warp" (args: rate), "assist" (text),
+    // "target" (text: a body name, empty for none), "refuel"/"repair" (args:
+    // amount, negative for full), "set_fuel" (args: units), "board", "exit", "controls" (args: 1/0),
+    // "place_landed" (text: body; args: latitude, longitude, heading in
+    // degrees), "place_orbit" (text: body; args: altitude) and "body" (text:
+    // name; out: radius, surface gravity, atmosphere height, distance from
+    // the ship's centre, altitude of the ship above its radius). Returns
+    // false when the scene has no SpaceSystem. The default host has none.
+    virtual bool space(World &world, const std::string &op, const std::vector<double> &args, const std::string &text,
+                       std::vector<double> &out, std::string &text_out) {
+        (void)world;
+        (void)op;
+        (void)args;
+        (void)text;
+        (void)out;
+        (void)text_out;
+        return false;
+    }
 };
 
 // Owns one Lua VM per (Box, physics::RigidBody, Script) entity, created the

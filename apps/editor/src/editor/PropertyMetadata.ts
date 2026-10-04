@@ -218,6 +218,30 @@ const metadata: Record<string, PropertyMetadata> = {
   "Driver.aggression": { label: "Aggression (0-1)", step: "0.05" },
   "Driver.speedScale": { label: "Speed scale", step: "0.05" },
   "ModelInstances.instances": { label: "Instances (model x z [yaw] [scale] [solid], one per line)", multiline: true },
+  "SpaceSystem.bodies": {
+    label: "Bodies (name parent orbit period phase incl radius g atmoH atmoDensity relief reliefScale seed color haze)",
+    multiline: true,
+  },
+  "SpaceSystem.starGm": { label: "Star GM (m^3/s^2)" },
+  "SpaceSystem.starColor": { label: "Star color" },
+  "SpaceSystem.siteBody": { label: "Site body (name)" },
+  "SpaceSystem.siteLatitude": { label: "Site latitude (deg)" },
+  "SpaceSystem.siteLongitude": { label: "Site longitude (deg)" },
+  "SpaceSystem.siteRadius": { label: "Flattened site radius (m)" },
+  "SpaceSystem.evaRange": { label: "Walkable range from site (m)" },
+  "SpaceSystem.startTime": { label: "Start time (s)" },
+  "SpaceSystem.landmarks": { label: "Landmarks (body lat lon #color label, one per line)", multiline: true },
+  "Spaceship.mass": { label: "Mass (kg)" },
+  "Spaceship.thrust": { label: "Main thrust (N)" },
+  "Spaceship.liftThrust": { label: "Belly thrust (N)" },
+  "Spaceship.rcs": { label: "Turn authority (rad/s^2)", step: "0.1" },
+  "Spaceship.maxRate": { label: "Max turn rate (deg/s)" },
+  "Spaceship.fuel": { label: "Fuel tank" },
+  "Spaceship.burn": { label: "Fuel burn at full throttle (/s)", step: "0.1" },
+  "Spaceship.hull": { label: "Hull" },
+  "Spaceship.gearClearance": { label: "Gear clearance (m)", step: "0.1" },
+  "Spaceship.startPiloting": { label: "Start in the pilot seat" },
+  "Spaceship.startOrbit": { label: "Start in orbit at altitude (m, -1 = landed)" },
   "Renderable.mesh": {
     label: "Model",
     // Id 0 (the default box) isn't a modelCatalog entry — it's the fallback a
@@ -324,7 +348,7 @@ export const componentGroups: readonly ComponentGroup[] = [
   },
   {
     label: "Gameplay",
-    types: ["Health", "AIState", "AICombat", "Pedestrian", "Player", "CharacterController", "Weapons", "Vehicle", "Driver"],
+    types: ["Health", "AIState", "AICombat", "Pedestrian", "Player", "CharacterController", "Weapons", "Vehicle", "Driver", "Spaceship"],
   },
   {
     label: "Appearance & Animation",
@@ -332,5 +356,5 @@ export const componentGroups: readonly ComponentGroup[] = [
   },
   { label: "Scripting & Audio", types: ["Script", "Sound", "AudioSettings"] },
   { label: "UI", types: ["UI"] },
-  { label: "Scene & Camera", types: ["Environment", "PostProcessing", "Terrain", "ModelInstances", "Camera", "CameraFollow", "InputActions"] },
+  { label: "Scene & Camera", types: ["Environment", "PostProcessing", "Terrain", "ModelInstances", "SpaceSystem", "Camera", "CameraFollow", "InputActions"] },
 ];

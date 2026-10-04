@@ -1,6 +1,6 @@
 {
   "name": "game-engine-editor",
-  "version": "0.70.0",
+  "version": "0.71.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,8 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "build": "npm run typecheck && vite build",
     "fps": "tsx ../../tools/fps/build_last_signal.ts",
-    "racing": "tsx ../../tools/racing/build_high_heat.ts"
+    "racing": "tsx ../../tools/racing/build_high_heat.ts",
+    "space": "tsx ../../tools/space/build_pale_signal.ts"
   },
   "dependencies": {
     "three": "0.169.0"

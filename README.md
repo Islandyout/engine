@@ -6,6 +6,8 @@
 
 **[Play HIGH HEAT](https://islandyout.github.io/engine/high-heat.html)**, an open-city street racer with police pursuits ([design document](docs/racing/GAME_DESIGN.md)).
 
+**[Play the Pale Signal slice](https://islandyout.github.io/engine/pale-signal.html)**: step out onto Tethys, survey a ruin, fly out of the atmosphere and land on its moon, with no loading screens ([slice document](docs/space/PALE_SIGNAL_SLICE.md)).
+
 The integrated editor provides scene authoring, component inspection, undo/redo, JSON save/load and a Three.js viewport connected to the C++ fixed-step world through WebAssembly. See [the editor contract](docs/BTAI_EDITOR.md) for build instructions and supported behaviors.
 
 This repository is the implementation companion to `GAME_ENGINE_BIBLE_v0.6_RESEARCH.md`.
@@ -292,6 +294,16 @@ Engine version 0.70.0 adds driving, and ships **HIGH HEAT**, a street racer in t
 - **Lua `vehicle.*`**: `state`, `set_nitro`, `reset`, `freeze`, `set_route`, `set_target`, `set_mode`, `set_speed_scale`.
 
 See [F70](docs/IMPLEMENTATION_STATUS.md#f70--driving-arcade-cars-ai-drivers-modelinstances-and-high-heat-0700).
+
+Engine version 0.71.0 adds spaceflight for [Pale Signal](https://github.com/Islandyout/pale-signal), and ships an engine slice of it ([slice document](docs/space/PALE_SIGNAL_SLICE.md)):
+
+- **Star systems** (`SpaceSystem`, `engine::gameplay::space`): planets and moons on rails, spheres of influence, exponential atmospheres, and procedural terrain with flattened sites, all in double precision.
+- **A flown ship** (`Spaceship`): rate-limited attitude, main and belly thrusters, Pale Signal's MANUAL / STABILIZED / NAV assists, drag, lift and heating, judged touchdowns, fuel, hull, time warp, orbit elements and a predicted path.
+- **Seamless surface to space**: planets refine as you approach and are drawn in a system pass behind the scene, with atmospheres, a sky that fades to stars with altitude, the sun, landmark beams, and a chase camera that never steers.
+- **The site frame**: authored entities live around a point on a planet's surface, so walking, physics, AI and scripts work on curved ground; E boards and leaves the ship.
+- **Lua `space.*`**: `state`, `events`, `set_warp`, `set_assist`, `set_target`, `refuel`, `set_fuel`, `repair`, `board`, `exit`, `set_controls`, `place_landed`, `place_orbit`, `body`.
+
+See [F71](docs/IMPLEMENTATION_STATUS.md#f71--spaceflight-star-systems-a-flown-ship-and-the-pale-signal-slice-0710).
 
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).

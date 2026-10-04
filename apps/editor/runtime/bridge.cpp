@@ -1,6 +1,7 @@
 #include "bindings.hpp"
 #include "engine/gameplay/character.hpp"
 #include "engine/gameplay/car.hpp"
+#include "engine/gameplay/space.hpp"
 #include "engine/gameplay/weapons.hpp"
 #include "engine/nav/nav.hpp"
 #include "engine/physics/physics.hpp"
@@ -91,6 +92,83 @@ struct Driver final {
     float reversing{0.0F};
     float reverse_steer{1.0F};
 };
+
+namespace space = engine::gameplay::space;
+
+// Marks the entity the SpaceSystem flies (0.71.0); its Box follows the ship.
+struct Spaceship final {};
+
+// A scene's star system and its one flown ship (0.71.0). Authored entities
+// live in the *site frame*: metres around a point on the site body's surface,
+// +y along the local vertical (away from the body's centre), so the editor's
+// flat-world systems (characters, physics, nav, scripts) work there
+// unchanged while the ship flies the whole system in double precision.
+struct SpaceSim final {
+    space::System system;
+    int site_body{0};
+    space::DVec3 site_origin{}; // the site's surface point, relative to the body's centre
+    space::DVec3 axis_x{1, 0, 0}, axis_y{0, 1, 0}, axis_z{0, 0, 1}; // site axes in the body frame
+    double eva_range{1500};     // half-size of the walkable heightfield around the site
+    double time{};
+    double warp{1};
+    space::ShipSpec spec;
+    space::ShipState ship;
+    std::optional<engine::Entity> ship_entity;
+    double throttle{};          // the pilot's held throttle level
+    space::Assist assist{space::Assist::stabilized};
+    int target{-1};             // NAV target body
+    bool piloting{true};
+    bool controls{true};
+    double vertical_applied{};
+    std::vector<std::string> events;
+    std::vector<space::DVec3> path; // predicted, relative to the reference body
+    // Key levels last tick, for edges that survive multi-tick frames.
+    bool previous_keys[8]{};
+    // The stowed player's collider while piloting.
+    std::optional<engine::Entity> stowed;
+    bool stowed_trigger{};
+    engine::physics::BodyType stowed_type{engine::physics::BodyType::Dynamic};
+
+    [[nodiscard]] space::DVec3 site_position() const { return space::body_position(system, site_body, time); }
+    // Absolute (system frame) -> site frame, and back.
+    [[nodiscard]] space::DVec3 to_local(space::DVec3 absolute) const {
+        const auto p = absolute - site_position() - site_origin;
+        return {space::dot(p, axis_x), space::dot(p, axis_y), space::dot(p, axis_z)};
+    }
+    [[nodiscard]] space::DVec3 from_local(space::DVec3 local) const {
+        return site_position() + site_origin + axis_x * local.x + axis_y * local.y + axis_z * local.z;
+    }
+    [[nodiscard]] space::DVec3 ship_absolute() const {
+        return (ship.ref >= 0 ? space::body_position(system, ship.ref, time) : space::DVec3{}) + ship.position;
+    }
+    // Body frame -> site frame rotation (the inverse of the axes' basis).
+    [[nodiscard]] space::DVec3 rotate_to_local(space::DVec3 v) const {
+        return {space::dot(v, axis_x), space::dot(v, axis_y), space::dot(v, axis_z)};
+    }
+    void event(std::string text) {
+        if (events.size() < 64)
+            events.push_back(std::move(text));
+    }
+};
+
+const char *assist_name(space::Assist assist) {
+    switch (assist) {
+    case space::Assist::manual: return "manual";
+    case space::Assist::stabilized: return "stabilized";
+    case space::Assist::prograde: return "prograde";
+    case space::Assist::retrograde: return "retrograde";
+    case space::Assist::target: return "target";
+    }
+    return "stabilized";
+}
+std::optional<space::Assist> parse_assist(std::string_view name) {
+    if (name == "manual") return space::Assist::manual;
+    if (name == "stabilized") return space::Assist::stabilized;
+    if (name == "prograde") return space::Assist::prograde;
+    if (name == "retrograde") return space::Assist::retrograde;
+    if (name == "target") return space::Assist::target;
+    return std::nullopt;
+}
 
 // "x,z x,z ..." (or ";" separated) route points on the ground.
 std::vector<engine::Vec3> parse_route(std::string_view text) {
@@ -470,6 +548,8 @@ public:
                 std::vector<double> &out) override;
     bool vehicle(engine::World &world, engine::Entity entity, const std::string &op, const std::vector<double> &args,
                  const std::string &text, std::optional<engine::Entity> other, std::vector<double> &out) override;
+    bool space(engine::World &world, const std::string &op, const std::vector<double> &args, const std::string &text,
+               std::vector<double> &out, std::string &text_out) override;
 
 private:
     Runtime &runtime_;
@@ -553,6 +633,246 @@ struct Runtime {
     void push_event(WeaponEvent event) {
         if (weapon_events.size() < 1024)
             weapon_events.push_back(event);
+    }
+    // ---- Spaceflight (0.71.0): see SpaceSim.
+    std::optional<SpaceSim> space;
+    std::optional<engine::Entity> player_entity(const engine::World &w) const {
+        for (const auto entity : w.query<engine::Box, PlayerMarker>())
+            return entity;
+        return std::nullopt;
+    }
+    bool stowed(engine::Entity entity) const { return space && space->piloting && space->stowed == entity; }
+    // The terrain under a point for the ship: the body's surface, or a roof
+    // or pad of the site's colliders just below it.
+    double space_surface(int index, space::DVec3 p, const engine::physics::RaycastTargets *targets) const {
+        const auto &sp = *space;
+        double radius = space::surface_radius(sp.system.bodies[static_cast<std::size_t>(index)], space::normalized(p));
+        if (index != sp.site_body || !targets)
+            return radius;
+        const auto local = sp.rotate_to_local(p - sp.site_origin);
+        if (std::abs(local.x) > sp.eva_range || std::abs(local.z) > sp.eva_range || local.y < -100 || local.y > 3000)
+            return radius;
+        engine::physics::QueryFilter filter;
+        if (sp.ship_entity)
+            filter.ignore = *sp.ship_entity;
+        const engine::Vec3 from{static_cast<float>(local.x), static_cast<float>(local.y + 3.0), static_cast<float>(local.z)};
+        const auto hit = engine::physics::raycast(*targets, from, {0, -1, 0}, 40.0F, physics_config, filter);
+        if (hit && !hit->hit_ground) {
+            const space::DVec3 point{hit->point.x, hit->point.y, hit->point.z};
+            const auto body_point = sp.site_origin + sp.axis_x * point.x + sp.axis_y * point.y + sp.axis_z * point.z;
+            radius = std::max(radius, space::length(body_point));
+        }
+        return radius;
+    }
+    // A landed ship rests on whatever is under it: a pad or roof of the
+    // site's colliders as well as the ground.
+    void settle_landed(engine::World &w) {
+        auto &sp = *space;
+        if (!sp.ship.landed || sp.ship.ref < 0)
+            return;
+        const auto targets = engine::physics::raycast_targets(w);
+        const double ground = space_surface(sp.ship.ref, sp.ship.position, &targets);
+        sp.ship.position = space::normalized(sp.ship.position) * (ground + sp.spec.gear_clearance);
+        if (sp.ship_entity && w.alive(*sp.ship_entity)) {
+            const auto local = sp.to_local(sp.ship_absolute());
+            w.get<engine::Box>(*sp.ship_entity)->center = {static_cast<float>(local.x), static_cast<float>(local.y),
+                                                           static_cast<float>(local.z)};
+        }
+    }
+    // The site-frame height of the walkable ground (the heightfield) at x, z.
+    float site_ground(float x, float z) const {
+        if (terrain && terrain->contains(x, z))
+            return terrain->height_at(x, z);
+        return physics_config.ground_y;
+    }
+    void stow_player(engine::World &w) {
+        auto &sp = *space;
+        const auto player = player_entity(w);
+        if (!player)
+            return;
+        sp.stowed = *player;
+        if (auto *collider = w.get<engine::physics::Collider>(*player)) {
+            sp.stowed_trigger = collider->is_trigger;
+            collider->is_trigger = true;
+        }
+        if (auto *body = w.get<engine::physics::RigidBody>(*player)) {
+            sp.stowed_type = body->type;
+            body->type = engine::physics::BodyType::Kinematic;
+            body->velocity = {};
+        }
+    }
+    void place_stowed(engine::World &w) {
+        auto &sp = *space;
+        if (!sp.piloting || !sp.stowed || !w.alive(*sp.stowed) || !sp.ship_entity)
+            return;
+        if (auto *box = w.get<engine::Box>(*sp.stowed))
+            box->center = w.get<engine::Box>(*sp.ship_entity)->center;
+        if (auto *body = w.get<engine::physics::RigidBody>(*sp.stowed))
+            body->velocity = {};
+    }
+    // Out of the ship onto the ground beside it: only landed, inside the
+    // walkable site.
+    bool space_exit(engine::World &w) {
+        auto &sp = *space;
+        if (!sp.piloting || !sp.ship.landed || !sp.ship_entity || !sp.stowed || !w.alive(*sp.stowed))
+            return false;
+        const auto ship_box = *w.get<engine::Box>(*sp.ship_entity);
+        const auto left = sp.rotate_to_local(space::rotate(sp.ship.attitude, {1, 0, 0}));
+        const double side = std::max(ship_box.size.x, ship_box.size.z) * 0.5 + 1.5;
+        const float x = static_cast<float>(ship_box.center.x + left.x * side);
+        const float z = static_cast<float>(ship_box.center.z + left.z * side);
+        if (std::abs(x) > sp.eva_range - 5 || std::abs(z) > sp.eva_range - 5) {
+            sp.event("exit_blocked");
+            return false;
+        }
+        auto &box = *w.get<engine::Box>(*sp.stowed);
+        box.center = {x, site_ground(x, z) + box.size.y * 0.5F + 0.05F, z};
+        if (auto *collider = w.get<engine::physics::Collider>(*sp.stowed))
+            collider->is_trigger = sp.stowed_trigger;
+        if (auto *body = w.get<engine::physics::RigidBody>(*sp.stowed)) {
+            body->type = sp.stowed_type;
+            body->velocity = {};
+        }
+        sp.piloting = false;
+        sp.throttle = 0;
+        sp.event("exited");
+        return true;
+    }
+    bool space_board(engine::World &w) {
+        auto &sp = *space;
+        if (sp.piloting || !sp.ship_entity || sp.ship.destroyed)
+            return false;
+        const auto player = player_entity(w);
+        if (!player)
+            return false;
+        sp.piloting = true;
+        stow_player(w);
+        place_stowed(w);
+        sp.event("boarded");
+        return true;
+    }
+    void space_tick(engine::World &w, const engine::InputState &in) {
+        auto &sp = *space;
+        constexpr double dt = 1.0 / 60.0;
+        using engine::Key;
+        const auto down = [&](Key k) { return in.key_down(k); };
+        const Key edge_keys[8] = {Key::e, Key::t, Key::n, Key::x, Key::digit9, Key::digit0, Key::f1, Key::f2};
+        bool pressed[8]{};
+        for (int i = 0; i < 8; ++i) {
+            const bool d = down(edge_keys[i]);
+            pressed[i] = d && !sp.previous_keys[i];
+            sp.previous_keys[i] = d;
+        }
+        space::ShipInput control;
+        if (sp.piloting && sp.controls && !sp.ship.destroyed) {
+            const auto axis = [&](std::initializer_list<Key> plus, std::initializer_list<Key> minus) {
+                double v = 0;
+                for (const auto k : plus)
+                    if (down(k)) {
+                        v += 1;
+                        break;
+                    }
+                for (const auto k : minus)
+                    if (down(k)) {
+                        v -= 1;
+                        break;
+                    }
+                return v;
+            };
+            const double throttle_axis = axis({Key::w}, {Key::s});
+            sp.throttle = std::clamp(sp.throttle + throttle_axis * dt * 0.85, 0.0, 1.0);
+            if (down(Key::left_shift) || down(Key::right_shift))
+                sp.throttle = 1;
+            if (pressed[3])
+                sp.throttle = 0;
+            control.pitch = axis({Key::up, Key::i}, {Key::down, Key::k});
+            control.yaw = axis({Key::right, Key::l, Key::d}, {Key::left, Key::j, Key::a});
+            if (!sp.ship.landed)
+                control.roll = axis({Key::e}, {Key::q});
+            control.vertical = axis({Key::space}, {Key::c, Key::left_control});
+            if (pressed[1])
+                sp.assist = sp.assist == space::Assist::manual ? space::Assist::stabilized : space::Assist::manual;
+            if (pressed[2]) {
+                // NAV cycles prograde -> retrograde -> target (if any) -> off.
+                switch (sp.assist) {
+                case space::Assist::prograde: sp.assist = space::Assist::retrograde; break;
+                case space::Assist::retrograde:
+                    sp.assist = sp.target >= 0 ? space::Assist::target : space::Assist::stabilized;
+                    break;
+                case space::Assist::target: sp.assist = space::Assist::stabilized; break;
+                default: sp.assist = space::Assist::prograde; break;
+                }
+            }
+            if (pressed[4])
+                sp.warp = std::max(1.0, sp.warp / 2);
+            if (pressed[5])
+                sp.warp = std::min(1000.0, sp.warp * 2);
+            if (pressed[0] && sp.ship.landed)
+                space_exit(w);
+        } else if (!sp.piloting && pressed[0] && sp.ship_entity && sp.ship.landed) {
+            const auto player = player_entity(w);
+            if (player) {
+                const auto a = w.get<engine::Box>(*player)->center, b = w.get<engine::Box>(*sp.ship_entity)->center;
+                const auto size = w.get<engine::Box>(*sp.ship_entity)->size;
+                const float reach = std::max(size.x, size.z) * 0.5F + 4.0F;
+                if (std::hypot(a.x - b.x, a.z - b.z) < reach)
+                    space_board(w);
+            }
+        }
+        control.throttle = sp.piloting ? sp.throttle : 0.0;
+        control.assist = sp.assist;
+        if (sp.target >= 0)
+            control.target_direction = space::body_position(sp.system, sp.target, sp.time) - sp.ship_absolute();
+        // Time warp only while coasting in space.
+        const bool can_warp = sp.piloting && !sp.ship.landed && sp.ship.density == 0 && sp.throttle == 0 &&
+                              control.vertical == 0 && !sp.ship.destroyed;
+        if (!can_warp)
+            sp.warp = 1;
+        const double step = dt * sp.warp;
+        std::optional<engine::physics::RaycastTargets> targets;
+        const auto local_ship = sp.to_local(sp.ship_absolute());
+        if (sp.ship.ref == sp.site_body && std::abs(local_ship.x) < sp.eva_range * 1.5 &&
+            std::abs(local_ship.z) < sp.eva_range * 1.5)
+            targets = engine::physics::raycast_targets(w);
+        const engine::physics::RaycastTargets *targets_ptr = targets ? &*targets : nullptr;
+        const space::SurfaceQuery query = [this, targets_ptr](int index, space::DVec3 p) {
+            return space_surface(index, p, targets_ptr);
+        };
+        const int before = sp.ship.ref;
+        const bool was_destroyed = sp.ship.destroyed;
+        space::step_ship(sp.ship, sp.spec, control, sp.system, sp.time, step, query);
+        sp.time += step;
+        sp.vertical_applied = control.vertical;
+        if (sp.ship.touched_down)
+            sp.event(sp.ship.last_touchdown.rough ? "rough_touchdown" : "touchdown");
+        if (sp.ship.lifted_off)
+            sp.event("liftoff");
+        if (sp.ship.changed_ref && sp.ship.ref != before)
+            sp.event("soi:" + (sp.ship.ref >= 0 ? sp.system.bodies[static_cast<std::size_t>(sp.ship.ref)].name
+                                                : std::string{"star"}));
+        if (sp.ship.destroyed && !was_destroyed)
+            sp.event("destroyed");
+        sp.ship.touched_down = sp.ship.lifted_off = sp.ship.changed_ref = false;
+        if (sp.ship_entity && w.alive(*sp.ship_entity)) {
+            const auto local = sp.to_local(sp.ship_absolute());
+            w.get<engine::Box>(*sp.ship_entity)->center = {static_cast<float>(local.x), static_cast<float>(local.y),
+                                                           static_cast<float>(local.z)};
+        }
+        place_stowed(w);
+    }
+    // After physics: the stowed pilot rides along; on foot, the walkable
+    // site's edge holds the player in.
+    void space_after(engine::World &w) {
+        auto &sp = *space;
+        place_stowed(w);
+        if (sp.piloting)
+            return;
+        if (const auto player = player_entity(w)) {
+            auto &box = *w.get<engine::Box>(*player);
+            const float limit = static_cast<float>(sp.eva_range) - 2.0F;
+            box.center.x = std::clamp(box.center.x, -limit, limit);
+            box.center.z = std::clamp(box.center.z, -limit, limit);
+        }
     }
     // One tick of an arcade car (0.70.0): picks up the velocity physics
     // resolved last tick (walls and other cars), steps the car model, and
@@ -1533,6 +1853,17 @@ struct Runtime {
                           drive_car(w, entity, heading, *w.get<engine::physics::RigidBody>(entity), control);
                       }
                   });
+        // Spaceflight (0.71.0): the ship before physics, the pilot after.
+        add_timed("editor.space", engine::FixedPhase::update, 5,
+                  [this](engine::World &w, const engine::FixedUpdateContext &context) {
+                      if (space)
+                          space_tick(w, context.input);
+                  });
+        add_timed("editor.space_after", engine::FixedPhase::update, 14,
+                  [this](engine::World &w, const engine::FixedUpdateContext &) {
+                      if (space)
+                          space_after(w);
+                  });
         add_timed("editor.soldiers", engine::FixedPhase::update, 3,
                   [this](engine::World &w, const engine::FixedUpdateContext &) {
                       time_now += 1.0F / 60.0F;
@@ -1549,6 +1880,8 @@ struct Runtime {
             "editor.move", engine::FixedPhase::update, 0,
             [this](engine::World &w, const engine::FixedUpdateContext &context) {
                 for (const auto entity : w.query<engine::physics::RigidBody, PlayerMarker>()) {
+                    if (stowed(entity))
+                        continue;
                     auto &body = *w.get<engine::physics::RigidBody>(entity);
                     auto *heading = w.get<Heading>(entity);
                     auto *controller = w.get<Controller>(entity);
@@ -1721,6 +2054,8 @@ struct Runtime {
         add_timed("editor.controller", engine::FixedPhase::update, 11,
                   [this](engine::World &w, const engine::FixedUpdateContext &) {
                       for (const auto entity : w.query<engine::physics::RigidBody, Controller>()) {
+                          if (stowed(entity))
+                              continue;
                           auto &controller = *w.get<Controller>(entity);
                           engine::gameplay::end_step(w, entity, controller.state, controller.settings,
                                                      physics_config, 1.0F / 60.0F);
@@ -1946,6 +2281,7 @@ void register_components(engine::World &w) {
     w.register_component<Projectile>("editor.projectile");
     w.register_component<Heading>("editor.heading");
     w.register_component<Driver>("editor.driver");
+    w.register_component<Spaceship>("editor.spaceship");
     w.register_component<AIAgent>("editor.ai_agent");
     w.register_component<Pedestrian>("editor.pedestrian");
     w.register_component<engine::script::Script>("editor.script");
@@ -2007,6 +2343,116 @@ std::optional<engine::Entity> BridgeHost::spawn(engine::World &world, const std:
     return entity;
 }
 
+bool BridgeHost::space(engine::World &world, const std::string &op, const std::vector<double> &args,
+                       const std::string &text, std::vector<double> &out, std::string &text_out) {
+    if (!runtime_.space)
+        return false;
+    auto &sp = *runtime_.space;
+    const auto arg = [&](std::size_t i) { return i < args.size() && std::isfinite(args[i]) ? args[i] : 0.0; };
+    const auto body_index = [&](const std::string &name) {
+        for (std::size_t i = 0; i < sp.system.bodies.size(); ++i)
+            if (sp.system.bodies[i].name == name)
+                return static_cast<int>(i);
+        return -1;
+    };
+    const auto finite = [](double v) { return std::isfinite(v) ? v : 1e12; };
+    if (op == "state") {
+        const auto orbit = space::orbit_elements(sp.ship, sp.system);
+        const auto local = sp.to_local(sp.ship_absolute());
+        out = {finite(sp.ship.altitude), space::length(sp.ship.velocity), sp.ship.vertical_speed, sp.ship.ground_speed,
+               sp.ship.throttle, sp.ship.fuel, sp.spec.fuel, sp.ship.hull, sp.spec.hull, sp.ship.heat,
+               sp.ship.landed ? 1.0 : 0.0, sp.piloting ? 1.0 : 0.0, sp.ship.density, sp.warp,
+               orbit.valid ? finite(orbit.periapsis) : 0.0, orbit.valid ? finite(orbit.apoapsis) : 0.0, sp.time,
+               sp.ship.destroyed ? 1.0 : 0.0, local.x, local.y, local.z, orbit.valid && orbit.closed ? 1.0 : 0.0,
+               sp.ship.g_force, space::length(local)};
+        // Where the ship is over its reference body, in degrees.
+        const auto dir = space::normalized(sp.ship.position);
+        out.push_back(std::asin(std::clamp(dir.y, -1.0, 1.0)) * 180 / 3.14159265358979);
+        out.push_back(std::atan2(dir.z, dir.x) * 180 / 3.14159265358979);
+        text_out = (sp.ship.ref >= 0 ? sp.system.bodies[static_cast<std::size_t>(sp.ship.ref)].name : std::string{"star"}) +
+                   ";" + assist_name(sp.assist) + ";" +
+                   (sp.target >= 0 ? sp.system.bodies[static_cast<std::size_t>(sp.target)].name : std::string{});
+        return true;
+    }
+    if (op == "events") {
+        for (const auto &e : sp.events)
+            text_out += e + "\n";
+        sp.events.clear();
+        return true;
+    }
+    if (op == "warp") {
+        sp.warp = std::clamp(arg(0), 1.0, 1000.0);
+        return true;
+    }
+    if (op == "assist") {
+        const auto assist = parse_assist(text);
+        if (!assist)
+            return false;
+        sp.assist = *assist;
+        return true;
+    }
+    if (op == "target") {
+        sp.target = text.empty() ? -1 : body_index(text);
+        if (sp.target < 0 && sp.assist == space::Assist::target)
+            sp.assist = space::Assist::stabilized;
+        return text.empty() || sp.target >= 0;
+    }
+    if (op == "refuel") {
+        sp.ship.fuel = arg(0) < 0 ? sp.spec.fuel : std::min(sp.spec.fuel, sp.ship.fuel + arg(0));
+        return true;
+    }
+    if (op == "set_fuel") {
+        sp.ship.fuel = std::clamp(arg(0), 0.0, sp.spec.fuel);
+        return true;
+    }
+    if (op == "repair") {
+        sp.ship.hull = arg(0) < 0 ? sp.spec.hull : std::min(sp.spec.hull, sp.ship.hull + arg(0));
+        if (sp.ship.hull > 0)
+            sp.ship.destroyed = false;
+        return true;
+    }
+    if (op == "board")
+        return runtime_.space_board(world);
+    if (op == "exit")
+        return runtime_.space_exit(world);
+    if (op == "controls") {
+        sp.controls = arg(0) != 0;
+        return true;
+    }
+    if (op == "place_landed" || op == "place_orbit") {
+        const int index = body_index(text);
+        if (index < 0)
+            return false;
+        if (op == "place_orbit") {
+            space::place_in_orbit(sp.ship, sp.system, index, std::max(0.0, arg(0)));
+        } else {
+            const double lat = arg(0) * 3.14159265358979 / 180, lon = arg(1) * 3.14159265358979 / 180;
+            const space::DVec3 dir{std::cos(lat) * std::cos(lon), std::sin(lat), std::cos(lat) * std::sin(lon)};
+            // Heading measured from the body's north (+y) around the local vertical.
+            const space::DVec3 helper = std::abs(dir.y) < 0.99 ? space::DVec3{0, 1, 0} : space::DVec3{1, 0, 0};
+            const auto north = space::normalized(helper - dir * space::dot(helper, dir));
+            const auto east = space::cross(north, dir);
+            const double heading = arg(2) * 3.14159265358979 / 180;
+            space::place_landed(sp.ship, sp.spec, sp.system, index, dir,
+                                north * std::cos(heading) + east * std::sin(heading));
+            runtime_.settle_landed(world);
+        }
+        sp.ship.destroyed = false;
+        sp.warp = 1;
+        sp.throttle = 0;
+        return true;
+    }
+    if (op == "body") {
+        const int index = body_index(text);
+        if (index < 0)
+            return false;
+        const auto &b = sp.system.bodies[static_cast<std::size_t>(index)];
+        const double distance = space::length(space::body_position(sp.system, index, sp.time) - sp.ship_absolute());
+        out = {b.radius, b.surface_gravity, b.atmosphere_height, distance, distance - b.radius};
+        return true;
+    }
+    return false;
+}
 bool BridgeHost::vehicle(engine::World &world, engine::Entity entity, const std::string &op,
                          const std::vector<double> &args, const std::string &text, std::optional<engine::Entity> other,
                          std::vector<double> &out) {
@@ -2901,14 +3347,321 @@ EXPORT void editor_template_begin(const char *name) {
     if (staging && name)
         staging->adding_template = std::string(name);
 }
+// ---- Spaceflight (0.71.0) staging: the SpaceSystem component sends the
+// star and site (editor_space_begin) and then each body (editor_space_body);
+// the Spaceship component marks the flown entity (editor_set_spaceship).
+// Degrees for angles. Bad numbers fail the commit.
+EXPORT void editor_space_begin(double star_gm, int site_body, double site_latitude, double site_longitude,
+                               double site_radius, double eva_range, double start_time) {
+    if (!staging)
+        return;
+    for (const double v : {star_gm, site_latitude, site_longitude, site_radius, eva_range, start_time})
+        if (!std::isfinite(v)) {
+            failed = true;
+            return;
+        }
+    if (!(star_gm > 0) || !(eva_range >= 50) || eva_range > 20000 || site_radius < 0) {
+        failed = true;
+        return;
+    }
+    SpaceSim sim;
+    sim.system.star_gm = star_gm;
+    sim.site_body = site_body;
+    sim.eva_range = eva_range;
+    sim.time = start_time;
+    const double lat = site_latitude * 3.14159265358979 / 180, lon = site_longitude * 3.14159265358979 / 180;
+    const space::DVec3 dir{std::cos(lat) * std::cos(lon), std::sin(lat), std::cos(lat) * std::sin(lon)};
+    sim.axis_y = space::normalized(dir);
+    sim.site_origin = sim.axis_y * site_radius; // radius of the flat; resolved at commit
+    staging->space = std::move(sim);
+}
+EXPORT void editor_space_body(const char *name, int parent, double orbit_radius, double period, double phase,
+                              double inclination, double radius, double gravity, double atmosphere_height,
+                              double atmosphere_density, double terrain_amplitude, double terrain_scale, double seed) {
+    if (!staging || !staging->space || !name)
+        return;
+    for (const double v : {orbit_radius, period, phase, inclination, radius, gravity, atmosphere_height,
+                           atmosphere_density, terrain_amplitude, terrain_scale, seed})
+        if (!std::isfinite(v)) {
+            failed = true;
+            return;
+        }
+    auto &bodies = staging->space->system.bodies;
+    if (bodies.size() >= 32 || !(radius > 0) || !(gravity > 0) || !(period > 0) || orbit_radius < 0 ||
+        parent >= static_cast<int>(bodies.size()) || parent < -1 || atmosphere_height < 0 || atmosphere_density < 0 ||
+        terrain_amplitude < 0 || !(terrain_scale > 0)) {
+        failed = true;
+        return;
+    }
+    space::Body body;
+    body.name = name;
+    body.parent = parent;
+    body.orbit_radius = orbit_radius;
+    body.period = period;
+    body.phase = phase * 3.14159265358979 / 180;
+    body.inclination = inclination * 3.14159265358979 / 180;
+    body.radius = radius;
+    body.surface_gravity = gravity;
+    body.atmosphere_height = atmosphere_height;
+    body.atmosphere_density = atmosphere_density;
+    body.terrain_amplitude = terrain_amplitude;
+    body.terrain_scale = terrain_scale;
+    body.seed = static_cast<std::uint32_t>(std::max(0.0, seed));
+    bodies.push_back(std::move(body));
+}
+// Ship tuning; `start_orbit` >= 0 starts in a circular orbit that high above
+// the site body instead of landed where the entity is authored. `heading` is
+// the entity's yaw (radians).
+EXPORT void editor_set_spaceship(int index, double heading, double mass, double thrust, double lift_thrust, double rcs,
+                                 double max_rate, double fuel, double burn, double hull, double gear_clearance,
+                                 int start_piloting, double start_orbit) {
+    const auto target = staged(index);
+    if (!target || !staging || !staging->space || staging->adding_template)
+        return;
+    for (const double v : {heading, mass, thrust, lift_thrust, rcs, max_rate, fuel, burn, hull, gear_clearance,
+                           start_orbit})
+        if (!std::isfinite(v)) {
+            failed = true;
+            return;
+        }
+    if (!(mass > 0) || thrust < 0 || lift_thrust < 0 || !(rcs > 0) || !(max_rate > 0) || fuel < 0 || burn < 0 ||
+        !(hull > 0) || gear_clearance < 0) {
+        failed = true;
+        return;
+    }
+    auto &sim = *staging->space;
+    sim.spec.mass = mass;
+    sim.spec.thrust = thrust;
+    sim.spec.lift_thrust = lift_thrust;
+    sim.spec.rcs = rcs;
+    sim.spec.max_rate = max_rate;
+    sim.spec.fuel = fuel;
+    sim.spec.burn = burn;
+    sim.spec.hull = hull;
+    sim.spec.gear_clearance = gear_clearance;
+    sim.ship.fuel = fuel;
+    sim.ship.hull = hull;
+    sim.ship_entity = target->second;
+    sim.piloting = start_piloting != 0;
+    // Resolved at commit, once the site frame exists.
+    sim.ship.heat = 0;
+    sim.ship.position = {heading, start_orbit, 0};
+    target->first->set(target->second, Spaceship{});
+}
+namespace {
+// Builds the site frame, the walkable heightfield and the ship's starting
+// state once every staged piece is in.
+bool finish_space(Runtime &rt) {
+    auto &sim = *rt.space;
+    if (sim.site_body < 0 || sim.site_body >= static_cast<int>(sim.system.bodies.size()))
+        return false;
+    auto &site = sim.system.bodies[static_cast<std::size_t>(sim.site_body)];
+    const double flat_radius = space::length(sim.site_origin);
+    if (flat_radius > 0)
+        site.flats.push_back({sim.axis_y, flat_radius});
+    const space::DVec3 up = sim.axis_y;
+    const space::DVec3 helper = std::abs(up.y) < 0.99 ? space::DVec3{0, 1, 0} : space::DVec3{1, 0, 0};
+    sim.axis_x = space::normalized(space::cross(helper, up));
+    sim.axis_z = space::cross(sim.axis_x, up);
+    sim.site_origin = up * space::surface_radius(site, up);
+    // The walkable ground: the body's surface in site coordinates, curvature included.
+    const double size = sim.eva_range * 2;
+    const int resolution = std::clamp(static_cast<int>(size / 8.0) + 1, 65, 513);
+    engine::physics::Heightfield field;
+    field.center = {0, 0, 0};
+    field.size = static_cast<float>(size);
+    field.resolution = resolution;
+    field.heights.resize(static_cast<std::size_t>(resolution) * static_cast<std::size_t>(resolution));
+    float lowest = 0;
+    for (int row = 0; row < resolution; ++row)
+        for (int col = 0; col < resolution; ++col) {
+            const double x = -size / 2 + size * col / (resolution - 1), z = -size / 2 + size * row / (resolution - 1);
+            const auto p = space::normalized(sim.site_origin + sim.axis_x * x + sim.axis_z * z);
+            const auto surface = p * space::surface_radius(site, p);
+            const auto h = static_cast<float>(space::dot(surface - sim.site_origin, up));
+            field.heights[static_cast<std::size_t>(row) * static_cast<std::size_t>(resolution) +
+                          static_cast<std::size_t>(col)] = h;
+            lowest = std::min(lowest, h);
+        }
+    rt.terrain = std::move(field);
+    rt.physics_config.terrain = &*rt.terrain;
+    rt.physics_config.ground_y = lowest - 500.0F;
+    // The ship: landed where it was authored, or in orbit.
+    if (sim.ship_entity && rt.world.alive(*sim.ship_entity)) {
+        // The space simulation moves the ship; physics only sees its collider.
+        rt.world.remove<engine::physics::RigidBody>(*sim.ship_entity);
+        const double heading = sim.ship.position.x, orbit = sim.ship.position.y;
+        if (orbit >= 0) {
+            space::place_in_orbit(sim.ship, sim.system, sim.site_body, orbit);
+        } else {
+            const auto c = rt.world.get<engine::Box>(*sim.ship_entity)->center;
+            const auto p = sim.site_origin + sim.axis_x * c.x + sim.axis_y * c.y + sim.axis_z * c.z;
+            const auto forward = sim.axis_x * std::sin(heading) + sim.axis_z * std::cos(heading);
+            space::place_landed(sim.ship, sim.spec, sim.system, sim.site_body, p, forward);
+        }
+        const auto local = sim.to_local(sim.ship_absolute());
+        rt.world.get<engine::Box>(*sim.ship_entity)->center = {static_cast<float>(local.x), static_cast<float>(local.y),
+                                                               static_cast<float>(local.z)};
+        rt.settle_landed(rt.world);
+        if (sim.piloting) {
+            if (rt.player_entity(rt.world)) {
+                rt.stow_player(rt.world);
+                rt.place_stowed(rt.world);
+            } else {
+                sim.piloting = true; // nobody to walk: always flying
+            }
+        }
+    } else {
+        sim.ship_entity.reset();
+        sim.piloting = false;
+    }
+    return true;
+}
+} // namespace
 EXPORT int editor_commit() {
     if (!staging || failed) {
+        staging.reset();
+        return 0;
+    }
+    if (staging->space && !finish_space(*staging)) {
         staging.reset();
         return 0;
     }
     active.swap(staging);
     staging.reset();
     return 1;
+}
+// Spaceflight readouts for the editor (0.71.0). editor_space_value fields:
+// 0 piloting, 1-3 ship site-frame position, 4-7 ship attitude quaternion in
+// the site frame (x, y, z, w), 8 altitude, 9 speed relative to the
+// reference body, 10 vertical speed, 11 ground speed, 12 throttle, 13 fuel
+// 0..1, 14 hull 0..1, 15 heat, 16 air density, 17 warp, 18 assist (0
+// manual, 1 stabilized, 2 prograde, 3 retrograde, 4 target), 19 landed, 20
+// periapsis, 21 apoapsis, 22 orbit closed, 23 reference body (-1 star), 24
+// g-force, 25 engine on, 26 belly thrust input, 27 system time, 28
+// destroyed, 29 target body, 30 distance to the target's surface, 31
+// distance to the site origin, 32 orbital period, 33 eccentricity, 34
+// reference body radius, 35 has a SpaceSystem, 36 body count. 0 without.
+EXPORT double editor_space_value(int field) {
+    if (!active->space)
+        return 0;
+    const auto &sp = *active->space;
+    const auto local = sp.to_local(sp.ship_absolute());
+    const auto frame = space::conjugate(space::from_axes(sp.axis_x, sp.axis_y, sp.axis_z));
+    const auto attitude = space::normalized(frame * sp.ship.attitude);
+    const auto orbit = space::orbit_elements(sp.ship, sp.system);
+    const auto finite = [](double v) { return std::isfinite(v) ? v : 1e12; };
+    switch (field) {
+    case 0: return sp.piloting ? 1 : 0;
+    case 1: return local.x;
+    case 2: return local.y;
+    case 3: return local.z;
+    case 4: return attitude.x;
+    case 5: return attitude.y;
+    case 6: return attitude.z;
+    case 7: return attitude.w;
+    case 8: return finite(sp.ship.altitude);
+    case 9: return space::length(sp.ship.velocity);
+    case 10: return sp.ship.vertical_speed;
+    case 11: return sp.ship.ground_speed;
+    case 12: return sp.ship.throttle;
+    case 13: return sp.spec.fuel > 0 ? sp.ship.fuel / sp.spec.fuel : 0;
+    case 14: return sp.ship.hull / sp.spec.hull;
+    case 15: return sp.ship.heat;
+    case 16: return sp.ship.density;
+    case 17: return sp.warp;
+    case 18: return static_cast<int>(sp.assist);
+    case 19: return sp.ship.landed ? 1 : 0;
+    case 20: return orbit.valid ? finite(orbit.periapsis) : 0;
+    case 21: return orbit.valid ? finite(orbit.apoapsis) : 0;
+    case 22: return orbit.valid && orbit.closed ? 1 : 0;
+    case 23: return sp.ship.ref;
+    case 24: return sp.ship.g_force;
+    case 25: return sp.ship.engine_on ? 1 : 0;
+    case 26: return sp.vertical_applied;
+    case 27: return sp.time;
+    case 28: return sp.ship.destroyed ? 1 : 0;
+    case 29: return sp.target;
+    case 30:
+        return sp.target >= 0 ? space::length(space::body_position(sp.system, sp.target, sp.time) - sp.ship_absolute()) -
+                                    sp.system.bodies[static_cast<std::size_t>(sp.target)].radius
+                              : 0;
+    case 31: return space::length(local);
+    case 32: return orbit.valid ? orbit.period : 0;
+    case 33: return orbit.valid ? orbit.eccentricity : 0;
+    case 34: return sp.ship.ref >= 0 ? sp.system.bodies[static_cast<std::size_t>(sp.ship.ref)].radius : 0;
+    case 35: return 1;
+    case 36: return static_cast<double>(sp.system.bodies.size());
+    default: return 0;
+    }
+}
+// Body `index` (-1 the star): 0-2 its centre in the site frame, 3 radius, 4
+// atmosphere top, 5 surface air density, 6 surface gravity, 7 atmosphere
+// height, 8 parent, 9 terrain amplitude.
+EXPORT double editor_space_body_value(int index, int field) {
+    if (!active->space || index < -1 || index >= static_cast<int>(active->space->system.bodies.size()))
+        return 0;
+    const auto &sp = *active->space;
+    const auto centre = sp.to_local(space::body_position(sp.system, index, sp.time));
+    if (field <= 2)
+        return field == 0 ? centre.x : field == 1 ? centre.y : centre.z;
+    if (index < 0)
+        return 0;
+    const auto &b = sp.system.bodies[static_cast<std::size_t>(index)];
+    switch (field) {
+    case 3: return b.radius;
+    case 4: return b.atmosphere_top();
+    case 5: return b.atmosphere_density;
+    case 6: return b.surface_gravity;
+    case 7: return b.atmosphere_height;
+    case 8: return b.parent;
+    case 9: return b.terrain_amplitude;
+    default: return 0;
+    }
+}
+// The rotation from body frames to the site frame, as a quaternion (field
+// 0-3: x, y, z, w). Planets are meshed in their own frame and turned by it.
+EXPORT double editor_space_frame(int field) {
+    if (!active->space)
+        return field == 3 ? 1 : 0;
+    const auto &sp = *active->space;
+    const auto q = space::conjugate(space::from_axes(sp.axis_x, sp.axis_y, sp.axis_z));
+    return field == 0 ? q.x : field == 1 ? q.y : field == 2 ? q.z : q.w;
+}
+// A body's terrain height (m above its radius) under a direction from its
+// centre, in the body's frame: what the editor meshes planets from.
+EXPORT double editor_planet_height(int index, double x, double y, double z) {
+    if (!active->space || index < 0 || index >= static_cast<int>(active->space->system.bodies.size()))
+        return 0;
+    return space::surface_height(active->space->system.bodies[static_cast<std::size_t>(index)], {x, y, z});
+}
+// The walkable ground's site-frame height at x, z (the heightfield the
+// SpaceSystem built around the site).
+EXPORT double editor_space_ground(double x, double z) {
+    if (!active->space)
+        return 0;
+    return active->site_ground(static_cast<float>(x), static_cast<float>(z));
+}
+// Predicts the ship's coasting path (see space::predict_path) over
+// `horizon` seconds (0: one orbital period, capped); returns the point count.
+EXPORT int editor_space_path(int count, double horizon) {
+    if (!active->space)
+        return 0;
+    auto &sp = *active->space;
+    if (!(horizon > 0)) {
+        const auto orbit = space::orbit_elements(sp.ship, sp.system);
+        horizon = orbit.valid && orbit.closed ? std::min(orbit.period, 40000.0) : 3000.0;
+    }
+    sp.path = sp.ship.landed ? std::vector<space::DVec3>{} : space::predict_path(sp.ship, sp.system, horizon, std::clamp(count, 2, 512));
+    return static_cast<int>(sp.path.size());
+}
+// Point i of the last predicted path, relative to the reference body's
+// centre in the body frame (axis 0-2).
+EXPORT double editor_space_path_value(int i, int axis) {
+    if (!active->space || i < 0 || static_cast<std::size_t>(i) >= active->space->path.size())
+        return 0;
+    const auto p = active->space->path[static_cast<std::size_t>(i)];
+    return axis == 0 ? p.x : axis == 1 ? p.y : p.z;
 }
 EXPORT void editor_tick() {
     active->systems.run(active->world,

@@ -25,7 +25,7 @@ emar rcs build/lua-obj/liblua.a "${lua_objects[@]}"
 # (editor_set_terrain); the 64 KB default overflowed at about 110x110.
 em++ -std=c++20 -O2 -fexceptions -Wall -Wextra -Werror -Iinclude -Ithird_party/lua \
   apps/editor/runtime/bridge.cpp source/engine/world/world.cpp source/engine/world/fixed_systems.cpp \
-  source/engine/physics/physics.cpp source/engine/nav/nav.cpp source/engine/gameplay/character.cpp source/engine/gameplay/weapons.cpp source/engine/gameplay/car.cpp source/engine/input/input.cpp source/engine/input/actions.cpp source/engine/script/script.cpp \
+  source/engine/physics/physics.cpp source/engine/nav/nav.cpp source/engine/gameplay/character.cpp source/engine/gameplay/weapons.cpp source/engine/gameplay/car.cpp source/engine/gameplay/space.cpp source/engine/input/input.cpp source/engine/input/actions.cpp source/engine/script/script.cpp \
   build/lua-obj/liblua.a \
   -sMODULARIZE=1 -sEXPORT_NAME=createEditorRuntime -sSINGLE_FILE=1 \
   -sENVIRONMENT=web,node -sALLOW_MEMORY_GROWTH=1 -sDISABLE_EXCEPTION_CATCHING=0 \
@@ -41,3 +41,5 @@ cp third_party/aether/LICENSE build/site/AETHER-LICENSE.txt
 node tools/export_build.mjs examples/fps/last-signal.json --page last-signal.html --name "LAST SIGNAL"
 # The street racer (docs/racing/GAME_DESIGN.md), at high-heat.html.
 node tools/export_build.mjs examples/racing/high-heat.json --page high-heat.html --name "HIGH HEAT"
+# The Pale Signal engine slice (docs/space/PALE_SIGNAL_SLICE.md), at pale-signal.html.
+node tools/export_build.mjs examples/space/pale-signal.json --page pale-signal.html --name "Pale Signal"
