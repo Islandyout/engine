@@ -222,9 +222,16 @@ export interface FlightState {
   targetDistance: number;
   siteDistance: number;
   period: number;
+  // Landing telemetry (0.74.0): ground slope (degrees), the gear's limits,
+  // and water under the ship.
+  slope: number;
+  sinkLimit: number;
+  slopeLimit: number;
+  driftLimit: number;
+  overWater: boolean;
 }
 
-export const assistNames = ["MANUAL", "STABILIZED", "NAV PROGRADE", "NAV RETROGRADE", "NAV TARGET"];
+export const assistNames = ["MANUAL", "STABILIZED", "NAV PROGRADE", "NAV RETROGRADE", "NAV TARGET", "NAV AUTOPILOT"];
 
 function readFlight(rt: SpaceRuntime): FlightState {
   const v = (f: number) => rt._editor_space_value(f);
@@ -254,6 +261,11 @@ function readFlight(rt: SpaceRuntime): FlightState {
     targetDistance: v(30),
     siteDistance: v(31),
     period: v(32),
+    slope: v(47),
+    sinkLimit: v(48),
+    slopeLimit: v(49),
+    driftLimit: v(50),
+    overWater: v(51) === 1,
   };
 }
 
@@ -1185,6 +1197,59 @@ function bar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, val
 
 // The flight instruments, bottom left; landing guidance near the ground;
 // markers for the bodies; contextual prompts.
+// The landing radar: a tape from 0 to 400 m of radar altitude with the
+// ship's marker, a sink-rate bar, and SLOPE / SINK / DRIFT / WATER calls
+// that turn red past the gear's limits; SAFE when all are inside.
+function drawLandingRadar(ctx: CanvasRenderingContext2D, width: number, height: number, f: FlightState) {
+  // Right of centre, clear of the ship and of HUD columns.
+  const x = width / 2 + Math.min(220, width * 0.2), top = height * 0.4, h = height * 0.3, scale = 400;
+  ctx.save();
+  ctx.fillStyle = "rgba(6,12,18,0.55)";
+  ctx.fillRect(x - 14, top - 26, 140, h + 40);
+  ctx.strokeStyle = "rgba(143,247,255,0.6)";
+  ctx.beginPath();
+  ctx.moveTo(x, top);
+  ctx.lineTo(x, top + h);
+  ctx.stroke();
+  ctx.font = "10px ui-monospace, Menlo, Consolas, monospace";
+  ctx.fillStyle = "rgba(207,231,245,0.7)";
+  for (const mark of [0, 50, 100, 200, 300, 400]) {
+    const y = top + h - (mark / scale) * h;
+    ctx.fillRect(x, y, 6, 1);
+    ctx.fillText(String(mark), x + 9, y + 3);
+  }
+  const y = top + h - (Math.min(Math.max(f.altitude, 0), scale) / scale) * h;
+  const sink = -f.verticalSpeed;
+  const limit = f.sinkLimit || 7;
+  const bad = sink > limit || f.slope > (f.slopeLimit || 28) || f.groundSpeed > (f.driftLimit || 5);
+  ctx.fillStyle = bad ? "#ff5d5d" : "#9be37a";
+  ctx.beginPath();
+  ctx.moveTo(x - 2, y);
+  ctx.lineTo(x - 10, y - 5);
+  ctx.lineTo(x - 10, y + 5);
+  ctx.closePath();
+  ctx.fill();
+  // Sink-rate bar beside the tape, scaled to twice the limit.
+  const bar = Math.min(Math.max(sink, 0) / (limit * 2), 1) * h * 0.5;
+  ctx.fillStyle = sink > limit ? "#ff5d5d" : sink > limit * 0.6 ? "#ffb347" : "#7fc8ff";
+  ctx.fillRect(x + 36, y, 5, Math.min(bar, top + h - y));
+  ctx.font = "bold 11px ui-monospace, Menlo, Consolas, monospace";
+  ctx.fillStyle = "#cfe7f5";
+  ctx.fillText("RADAR", x - 8, top - 12);
+  const calls: Array<[string, boolean]> = [
+    [`SLOPE ${f.slope.toFixed(0)}°`, f.slope > (f.slopeLimit || 28)],
+    [`SINK ${Math.max(sink, 0).toFixed(1)}`, sink > limit],
+    [`DRIFT ${f.groundSpeed.toFixed(1)}`, f.groundSpeed > (f.driftLimit || 5)],
+  ];
+  if (f.overWater) calls.push(["WATER", false]);
+  calls.push([bad ? "UNSAFE" : "SAFE", bad]);
+  calls.forEach(([text, warn], i) => {
+    ctx.fillStyle = warn ? "#ff5d5d" : text === "SAFE" ? "#9be37a" : text === "WATER" ? "#7fc8ff" : "#cfe7f5";
+    ctx.fillText(text, x + 50, top + 12 + i * 16);
+  });
+  ctx.restore();
+}
+
 export function drawFlightHud(ctx: CanvasRenderingContext2D, width: number, height: number, view: SpaceView, camera: THREE.Camera, nearShip: boolean) {
   const f = view.flight;
   ctx.save();
@@ -1215,10 +1280,14 @@ export function drawFlightHud(ctx: CanvasRenderingContext2D, width: number, heig
     bar(ctx, x, y + 120, w, f.fuel, f.fuel < 0.2 ? "#ff9f43" : "#9be37a", `FUEL ${(f.fuel * 100).toFixed(0)}%`);
     bar(ctx, x, y + 144, w * 0.48, f.hull, f.hull < 0.35 ? "#ff5d5d" : "#d8e2ea", `HULL ${(f.hull * 100).toFixed(0)}%`);
     if (f.heat > 5) bar(ctx, x + w * 0.52, y + 144, w * 0.48, f.heat / 100, f.heat > 78 ? "#ff5d5d" : "#ffb347", "HEAT");
+    // Landing radar below 400 m (0.74.0): a radar-altitude tape with the
+    // sink rate, and the ground under the ship against the gear's limits.
+    if (!f.landed && f.altitude < 400 && f.ref >= 0) drawLandingRadar(ctx, width, height, f);
     // Landing guidance below 150 m: descent rate against the gear's limit.
     if (!f.landed && f.altitude < 150 && f.ref >= 0) {
       const sink = -vs;
-      const color = sink > 7 ? "#ff5d5d" : sink > 4 ? "#ffb347" : "#9be37a";
+      const limit = f.sinkLimit || 7;
+      const color = sink > limit ? "#ff5d5d" : sink > limit * 0.6 ? "#ffb347" : "#9be37a";
       ctx.textAlign = "center";
       ctx.font = "bold 14px ui-monospace, Menlo, Consolas, monospace";
       ctx.fillStyle = color;

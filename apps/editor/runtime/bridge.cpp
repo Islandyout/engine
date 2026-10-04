@@ -4093,7 +4093,9 @@ EXPORT int editor_commit() {
 // the authored site (the frame follows the ship), 38 frame generation
 // (changes when the frame moves), 39 the frame's body, 40 the active site
 // (-1 home, -2 none, else its Site number), 41 autopilot engaged, 42-45
-// component condition (engine, rcs, gear, scanner), 46 wind speed. 0 without.
+// component condition (engine, rcs, gear, scanner), 46 wind speed, 47 ground
+// slope under the ship (degrees), 48-50 the landing limits (sink m/s, slope
+// degrees, drift m/s), 51 water under the ship. 0 without.
 EXPORT double editor_space_value(int field) {
     if (!active->space)
         return 0;
@@ -4154,6 +4156,19 @@ EXPORT double editor_space_value(int field) {
     case 44: return sp.ship.gear;
     case 45: return sp.ship.scanner;
     case 46: return space::length(sp.wind_local);
+    case 47: case 51: {
+        // Under the ship (0.74.0): the ground's slope in degrees, and water.
+        if (sp.ship.ref < 0)
+            return 0;
+        const auto &body = sp.system.bodies[static_cast<std::size_t>(sp.ship.ref)];
+        const auto dir = space::normalized(sp.fixed(sp.ship.position, sp.ship.ref));
+        if (field == 51)
+            return space::terrain_height(body, dir) < body.sea_level ? 1 : 0;
+        return std::acos(std::clamp(space::dot(space::surface_normal(body, dir), dir), -1.0, 1.0)) * 180 / 3.14159265358979;
+    }
+    case 48: return sp.spec.land_vertical * (0.5 + 0.5 * space::component_efficiency(sp.ship.gear));
+    case 49: return sp.spec.land_slope * 180 / 3.14159265358979;
+    case 50: return sp.spec.land_lateral;
     default: return 0;
     }
 }

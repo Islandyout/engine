@@ -2197,12 +2197,18 @@ async function startEditor() {
     ambience?.update(spaceView.air);
     // Touchdown: the settle bob and a thump.
     const landed = spaceView.flight.landed;
+    const ship = shipIndex >= 0 ? objects[shipIndex] : undefined;
+    const f = spaceView.flight;
     if (landed && !wasLanded) {
-      explorerFx.touchdown(Math.abs(spaceView.flight.verticalSpeed));
+      explorerFx.touchdown(Math.abs(f.verticalSpeed));
       cue("thump");
+      // A water landing throws a ring of spray.
+      if (ship && f.overWater) explorerFx.splash(ship.position.clone().setY(runtime._editor_space_ground(ship.position.x, ship.position.z)), 220, 6);
     }
     wasLanded = landed;
-    const ship = shipIndex >= 0 ? objects[shipIndex] : undefined;
+    // Belly thrusters low over water kick up spray.
+    if (ship && f.piloting && !landed && f.overWater && f.altitude < 25 && (f.engineOn || f.vertical > 0))
+      explorerFx.splash(ship.position.clone().setY(runtime._editor_space_ground(ship.position.x, ship.position.z)), Math.ceil(dt * 160 * (1 - f.altitude / 25)), 4);
     if (ship) ship.position.y -= explorerFx.settleOffset();
     // Large minerals are solid: the walker is pushed back out of them.
     if (walking && player && playerIndex >= 0)
