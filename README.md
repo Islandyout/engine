@@ -345,7 +345,7 @@ Engine version 0.75.0 holds games at 45–60 fps and closes the last Pale Signal
 - **Living towns**: Routine activities (`"6 120 40 sit"`), talking pairs, grazing; `Material.parts` tints named parts of a model.
 - **Generative music** (`host.send("music", mood)`), interiors, prices by standing, fuller saves, and spaceflight in the native playground (`engine_playground --space`).
 
-See [F75](docs/IMPLEMENTATION_STATUS.md#f75--45-60-fps-and-the-last-pale-signal-gaps-0750).
+See [F75](docs/IMPLEMENTATION_STATUS.md#f75--4560-fps-and-the-last-pale-signal-gaps-0750).
 
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
