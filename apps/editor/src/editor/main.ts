@@ -62,6 +62,12 @@ import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGrap
 import { applyMouseLook, applyStickLook, ViewEffects, type Look } from "./fpsView";
 import { Sfx } from "./sfx";
 import { AudioMixer, defaultMixerSettings, FootstepTracker, type Bus } from "./audioMixer";
+import { parseVisor, Visor } from "./visor";
+// The header shows the version package.json records (bump.sh keeps it current).
+import { version as editorVersion } from "../../package.json";
+import { Music } from "./music";
+import { MAX_SPOTS, swayMaterial, swayUniforms } from "./scatterSway";
+import { crowdNear, FrameGovernor, governorTiers, presetFloor } from "./frameGovernor";
 import { defaultPostSettings, gradingActive, gradingShader, shadowQualities, type PostSettings } from "./postFx";
 import { EventFlag, EventKind, WeaponFx } from "./weaponFx";
 import { buildViewmodel } from "./viewmodels";
@@ -195,6 +201,8 @@ type Runtime = {
   _editor_count(): number;
   _editor_value(index: number, field: number): number;
   _editor_alive(index: number): number;
+  _editor_snapshot(): number;
+  HEAPF64: Float64Array;
   _editor_input_begin_frame(): void;
   _editor_set_camera_forward(x: number, z: number): void;
   _editor_key(code: number, down: number): void;
@@ -263,6 +271,8 @@ type Runtime = {
   _editor_space_body_value(index: number, field: number): number;
   _editor_space_frame(field: number): number;
   _editor_space_body_spin(index: number, field: number): number;
+  _editor_space_stick(yaw: number, pitch: number): void;
+  _editor_routine_stop(index: number): number;
   _editor_planet_lava(index: number, x: number, y: number, z: number): number;
   _editor_planet_height(index: number, x: number, y: number, z: number): number;
   _editor_space_path(count: number, horizon: number): number;
@@ -343,7 +353,7 @@ async function startEditor() {
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `<header>
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
-  <span class="brand-sub">BTAI Editor <span class="version">0.35.0</span></span>
+  <span class="brand-sub">BTAI Editor <span class="version">${editorVersion}</span></span>
   <a class="link-external" href="https://github.com/Islandyout/engine">View source${iconHtml("external")}</a>
 </header>
 <nav>
@@ -398,6 +408,7 @@ async function startEditor() {
       <button id="frame" class="btn btn-sm btn-ghost">${iconHtml("target")}<span>Frame selected</span></button>
       <button id="grid" class="btn btn-sm btn-ghost">${iconHtml("grid")}<span>Grid</span></button>
       <button id="stats" class="btn btn-sm btn-ghost" aria-pressed="false">${iconHtml("target")}<span>Stats</span></button>
+      <select id="site-view" class="select-sm" aria-label="Show site" hidden></select>
       <span id="sculpt-bar" class="sculpt-bar" hidden>
         <select id="sculpt" class="select-sm" aria-label="Terrain sculpt tool">
           <option value="off">Sculpt: off</option><option value="raise">Raise</option><option value="lower">Lower</option><option value="smooth">Smooth</option><option value="flatten">Flatten</option>
@@ -805,7 +816,22 @@ async function startEditor() {
       rigRaycaster.far = length;
       // Sprites (car light glows) need a camera to be raycast.
       rigRaycaster.camera = view;
-      const blockers = objects.filter((o) => o !== target && o.visible);
+      // Only objects whose bounds reach the camera's line are raycast (a
+      // town is hundreds of objects; most are nowhere near it).
+      const blockers = objects.filter((o) => {
+        if (o === target || !o.visible) return false;
+        let radius = o.userData.blockRadius as number | undefined;
+        if (radius === undefined) {
+          new THREE.Box3().setFromObject(o).getBoundingSphere(blockSphere);
+          radius = blockSphere.radius + blockSphere.center.distanceTo(o.position);
+          o.userData.blockRadius = Number.isFinite(radius) ? radius / Math.max(o.scale.x, o.scale.y, o.scale.z, 1e-6) : Infinity;
+          radius = o.userData.blockRadius as number;
+        }
+        radius *= Math.max(o.scale.x, o.scale.y, o.scale.z);
+        blockSegment.set(focus, desired);
+        blockSegment.closestPointToPoint(o.position, true, blockPoint);
+        return blockPoint.distanceTo(o.position) < radius + 1;
+      });
       const hit = rigRaycaster.intersectObjects(blockers, true)[0];
       if (hit) desired.copy(focus).addScaledVector(toCamera, Math.max(0.3, hit.distance - 0.3));
     }
@@ -815,6 +841,9 @@ async function startEditor() {
     view.position.copy(rig.position);
     view.lookAt(focus);
   }
+  const blockSphere = new THREE.Sphere(),
+    blockSegment = new THREE.Line3(),
+    blockPoint = new THREE.Vector3();
   // Orbit: dragging on the viewport during Play turns the rig.
   let orbitDrag: { x: number; y: number } | undefined;
   renderer.domElement.addEventListener("pointerdown", (event) => {
@@ -912,6 +941,9 @@ async function startEditor() {
   const animatorErrors: string[] = [];
   interface AnimState {
     mixer: THREE.AnimationMixer;
+    // Seconds not yet applied while the frame governor skips this
+    // (distant) character's frames.
+    skipped?: number;
     actions: Map<string, THREE.AnimationAction>;
     current?: string;
     prevPosition: THREE.Vector3;
@@ -937,6 +969,13 @@ async function startEditor() {
   // Parallel to `objects`; index i holds the animation state for objects[i], or
   // undefined for a non-animated (static) entity. Reset alongside objects on every rebuild().
   const animStates: (AnimState | undefined)[] = [];
+  const governor = new FrameGovernor();
+  let crowdFrame = 0;
+  // Characters who can talk, and which of them stood still last tick.
+  let talkerIndices: number[] = [];
+  let talkerScan = -1; // objects.length when talkerIndices was built
+  let talkerResting = new Set<number>();
+  let talkerWasResting = new Set<number>();
   interface ParticleState {
     emitter: EmitterState;
     points: THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>;
@@ -1067,8 +1106,10 @@ async function startEditor() {
       gtaoPass.updateGtaoMaterial({ radius: settings.aoRadius });
     }
     const quality = shadowQualities[settings.shadowQuality];
-    if (sun.shadow.mapSize.x !== quality.mapSize) {
-      sun.shadow.mapSize.set(quality.mapSize, quality.mapSize);
+    // The frame governor halves the map under load.
+    const mapSize = quality.mapSize / (governorTier().shadows === 1 ? 2 : 1);
+    if (sun.shadow.mapSize.x !== mapSize) {
+      sun.shadow.mapSize.set(mapSize, mapSize);
       sun.shadow.map?.dispose();
       sun.shadow.map = null;
     }
@@ -1155,7 +1196,7 @@ async function startEditor() {
     const material = doc.scene.resolve(entity, "Material");
     const apply = (cached: CachedModel) => {
       const root = SkeletonUtils.clone(cached.scene);
-      if (material) root.traverse((child) => child instanceof THREE.Mesh && applyMaterial(child, material));
+      if (material) root.traverse((child) => child instanceof THREE.Mesh && materialAppliesTo(child, material) && applyMaterial(child, material));
       weaponFx.setBody(root, cached.clips);
     };
     const cached = catalogCache.get(id);
@@ -1623,6 +1664,17 @@ async function startEditor() {
   // trigger (a melee hit landing, a footstep) -- that needs the bridge to
   // expose which tick an event actually fired, which this round doesn't add.
   let audioContext: AudioContext | undefined;
+  // Generative music (0.75.0): scripts pick the mood (host.send("music", ...)).
+  let music: Music | undefined;
+  let musicMood = "off";
+  function updateMusic() {
+    if (musicMood !== "off" && !music && audioContext) {
+      music = new Music(audioContext, audioMixer().buses.music);
+      audioMixer().buses.music.gain.value = playerSettings.music;
+      music.setMood(musicMood);
+    }
+    music?.update();
+  }
   const soundBuffers = new Map<number, AudioBuffer>();
   const soundBufferPromises = new Map<number, Promise<AudioBuffer>>();
   function getAudioContext(): AudioContext {
@@ -1751,6 +1803,9 @@ async function startEditor() {
     activePanners.clear();
     stopCarSounds();
     spaceView?.stopAudio();
+    music?.dispose();
+    music = undefined;
+    musicMood = "off";
   }
   let runtime: Runtime;
   try {
@@ -1834,6 +1889,7 @@ async function startEditor() {
     const shipEntity = shipIndex >= 0 ? doc.scene.eachAlive()[shipIndex] : undefined;
     const shipModel = (shipEntity && doc.scene.resolve(shipEntity, "Spaceship")?.model) ?? "";
     spaceView = new SpaceView(runtime as unknown as SpaceRuntime, bodies, colorOf(space.starColor), parseLandmarks(space.landmarks, bodies), shipModel);
+    spaceView.chunkMs = governorTier().chunkMs;
     spaceView.sampleTick();
     grid.visible = false;
     spaceSpecies = parseSpecies(space.species, bodies);
@@ -1901,15 +1957,33 @@ async function startEditor() {
       placed.map((p) => ({ model: p.species.model, x: p.x, y: p.y, z: p.z, yaw: p.yaw, scale: p.scale, collide: false })),
       models,
     );
+    // Plants sway (minerals don't), in step with any structure nearby.
+    const kindOf = new Map(placed.map((p) => [p.species.model, p.species.kind]));
+    spaceScatter.traverse((child) => {
+      if (!(child instanceof THREE.InstancedMesh)) return;
+      const model = (child.userData.instances as Array<{ model: number }> | undefined)?.[0]?.model;
+      if (model === undefined || kindOf.get(model) === "mineral" || Array.isArray(child.material)) return;
+      let swayed = swayCache.get(child.material);
+      if (!swayed) swayCache.set(child.material, (swayed = swayMaterial(child.material, sway)));
+      child.material = swayed;
+    });
     scene.add(spaceScatter);
+    applyScatterDensity(governorTier().scatter);
     scatterPlacements = placed.map((p) => ({ x: p.x, y: p.y, z: p.z, key: p.species.id, kind: p.species.kind, scale: p.scale }));
     harvested.clear();
     explorerFx?.clearPrints();
     const kind = (k: string) => k[0]!.toUpperCase() + k.slice(1);
     scatterTargets = placed.map((p) => ({ key: p.species.id, name: p.species.name, kind: kind(p.species.kind), position: new THREE.Vector3(p.x, p.y + 0.4, p.z), range: 5 }));
+    hideHarvestedHere();
   }
   function endSpaceView() {
     endExplorer();
+    if (suitLight) {
+      scene.remove(suitLight, suitLight.target);
+      suitLight.dispose();
+      suitLight = undefined;
+    }
+    suitLightLevel = 0;
     spaceView?.dispose();
     spaceView = undefined;
     if (spaceScatter) scene.remove(spaceScatter);
@@ -1951,18 +2025,31 @@ async function startEditor() {
     hemisphere.color.copy(spaceView.skyColor).lerp(new THREE.Color(1, 1, 1), 0.4).multiplyScalar(0.35 + 0.65 * day);
     scene.background = null;
     if (skyMesh) skyMesh.visible = false;
-    scene.fog = spaceView.air > 0.02 ? new THREE.FogExp2(spaceView.skyColor.clone().multiplyScalar(day * 0.9), 6e-5 * spaceView.air) : null;
+    // The scattered horizon (atmosphere.ts) colours the haze.
+    scene.fog = spaceView.air > 0.02 ? new THREE.FogExp2(spaceView.horizonColor.getHex(), 6e-5 * spaceView.air) : null;
     if (playerIndex >= 0 && objects[playerIndex]) objects[playerIndex]!.visible = !spaceView.flight.piloting;
     // Warm light at sunrise and sunset.
     sun.color.setRGB(1, 1 - spaceView.sunset * 0.35, 1 - spaceView.sunset * 0.6);
     const frame = runtime._editor_space_value(38);
     if (frame !== spaceFrame) {
       spaceFrame = frame;
+      // Re-anchored on foot (0.75.0): what moved with the walker, the
+      // camera included, shifts by the same amount, so nothing visibly jumps.
+      const shift = new THREE.Vector3(runtime._editor_space_value(52), runtime._editor_space_value(53), runtime._editor_space_value(54));
+      if (shift.lengthSq() > 1) {
+        const step = shift.length();
+        tickStates.forEach((state) => {
+          if (state && state.previous.distanceTo(state.current) > step * 0.5) state.previous.add(shift);
+        });
+        rig.position.add(shift);
+        view.position.add(shift);
+        controls.target.add(shift);
+      }
       rebuildSpaceFrame();
     }
     // Weather fog (0.73.0) thickens the haze.
     const fog = explorerFx?.weather.fog ?? 0;
-    if (fog > 0.01) scene.fog = new THREE.FogExp2(spaceView.skyColor.clone().multiplyScalar(day * 0.8), 6e-5 * spaceView.air + fog * 0.012);
+    if (fog > 0.01) scene.fog = new THREE.FogExp2(spaceView.horizonColor.clone().lerp(spaceView.skyColor.clone().multiplyScalar(day * 0.8), 0.5).getHex(), 6e-5 * spaceView.air + fog * 0.012);
     updateExplorer(dt, view);
     // Only the active site's objects are here; the rest are elsewhere on
     // the planet (or another world).
@@ -1990,6 +2077,11 @@ async function startEditor() {
   const playerSettings = loadSettings();
   const announcer = new Announcer(app);
   let explorerFx: ExplorerFx | undefined;
+  // The visor and the suit light (0.75.0).
+  const visor = new Visor();
+  let suitLight: THREE.SpotLight | undefined;
+  let suitLightMode: "auto" | "on" | "off" = "auto";
+  let suitLightLevel = 0;
   let ambience: Ambience | undefined;
   let explorerBodies: ReturnType<typeof parseSpaceBodies>["bodies"] = [];
   let mapMode: "off" | "system" | "surface" = "off";
@@ -2065,12 +2157,21 @@ async function startEditor() {
     else if (kind === "minimap") minimapAllowed = text !== "0";
     else if (kind === "catalogued") catalogued.add(text);
     else if (kind === "harvest") harvest(text);
+    else if (kind === "harvest_spot") {
+      harvestedSpots.add(text);
+      if (text.startsWith(`${scatterFrameKey()}|`)) hideScatter(Number(text.split("|")[1]));
+    }
     else if (kind === "scanner") {
       const [range = 1, time = 1, condition = 1] = text.split(/\s+/).map(Number);
       scanner.tuning.range = Number.isFinite(range) && range > 0 ? range : 1;
       scanner.tuning.time = Number.isFinite(time) && time > 0 ? time : 1;
       scanner.tuning.condition = Number.isFinite(condition) ? THREE.MathUtils.clamp(condition, 0, 1) : 1;
     } else if (kind === "sky_scan") scanner.skyKey = text;
+    else if (kind === "music") {
+      musicMood = text.trim();
+      music?.setMood(musicMood);
+    } else if (kind === "visor") visor.state = parseVisor(text);
+    else if (kind === "suitlight") suitLightMode = text === "on" || text === "off" ? text : "auto";
     else if (kind === "dust" && explorerFx) {
       const [color = "#d8cfb8", density = "0.5"] = text.split(/\s+/);
       if (/^#[0-9a-fA-F]{6}$/.test(color)) explorerFx.dustColor.set(color);
@@ -2096,13 +2197,9 @@ async function startEditor() {
     });
   }
   function applyPlayerSettings() {
-    const profile = qualityProfile(playerSettings.quality);
-    if (renderer instanceof THREE.WebGLRenderer) {
-      const ratio = Math.min(devicePixelRatio, profile.pixelRatio);
-      renderer.setPixelRatio(ratio);
-      composer?.setPixelRatio(ratio);
-      renderer.shadowMap.enabled = profile.shadows;
-    }
+    governor.reset(presetFloor(playerSettings.quality));
+    applyGovernor();
+    if (mixer) mixer.buses.music.gain.value = playerSettings.music;
     if (explorerFx) {
       explorerFx.reducedMotion = playerSettings.reducedMotion;
       explorerFx.footprints = playerSettings.footprints;
@@ -2137,6 +2234,7 @@ async function startEditor() {
     latLonWaypoints.clear();
     catalogued.clear();
     harvested.clear();
+    harvestedSpots.clear();
     nearHarvest = "";
     softGround = true;
     wasLanded = true;
@@ -2172,8 +2270,23 @@ async function startEditor() {
       }
     });
     if (best < 0) return;
-    harvested.add(best);
-    const placement = scatterPlacements[best]!;
+    hideScatter(best);
+    // Remembered by place (and saved by scripts), so it stays harvested.
+    const spot = `${scatterFrameKey()}|${best}`;
+    harvestedSpots.add(spot);
+    uiEvent("harvested", key);
+    uiEvent("harvest_spot", spot);
+  }
+  // Harvested specimens by place: "<body>:<lat>:<lon>|<index>".
+  const harvestedSpots = new Set<string>();
+  function scatterFrameKey() {
+    return `${runtime._editor_space_value(39)}:${runtime._editor_space_value(55).toFixed(2)}:${runtime._editor_space_value(56).toFixed(2)}`;
+  }
+  // Hides scatter placement `index` (harvested).
+  function hideScatter(index: number) {
+    if (!spaceScatter || harvested.has(index) || !scatterPlacements[index]) return;
+    harvested.add(index);
+    const placement = scatterPlacements[index]!;
     const zero = new THREE.Matrix4().makeScale(0, 0, 0);
     spaceScatter.traverse((o) => {
       const list = (o as THREE.InstancedMesh).userData?.instances as Array<{ x: number; z: number }> | undefined;
@@ -2185,7 +2298,52 @@ async function startEditor() {
       }
     });
     scatterTargets = scatterTargets.filter((t) => !(t.position.x === placement.x && t.position.z === placement.z));
-    uiEvent("harvested", key);
+  }
+  // After a frame's scatter is built: hide what was harvested there before.
+  function hideHarvestedHere() {
+    const prefix = `${scatterFrameKey()}|`;
+    for (const spot of harvestedSpots) if (spot.startsWith(prefix)) hideScatter(Number(spot.slice(prefix.length)));
+  }
+  const sway = swayUniforms();
+  const swayCache = new Map<THREE.Material, THREE.Material>();
+  // The grass clock and the structures it falls into step near.
+  function updateSway(dt: number) {
+    if (!spaceView) return;
+    sway.uSwayTime.value += dt;
+    sway.uPulse.value = spaceView.grammarTime;
+    const w = explorerFx?.weather;
+    sway.uWind.value = w ? Math.min(1, Math.hypot(w.windX, w.windZ) / 14) : 0;
+    const eye = viewCamera.position;
+    const spots = spaceView.landmarks
+      .map((l) => l.anchor.getWorldPosition(new THREE.Vector3()))
+      .filter((p) => p.distanceTo(eye) < 3000)
+      .sort((a, b) => a.distanceTo(eye) - b.distanceTo(eye));
+    for (let i = 0; i < MAX_SPOTS; i++) {
+      const p = spots[i];
+      // Unused slots sit far away (a zero radius would be undefined).
+      sway.uSpots.value[i]!.set(p?.x ?? 1e9, p?.y ?? 0, p?.z ?? 1e9, 70);
+    }
+  }
+  // The suit light: a lamp at the walker's helmet along their facing,
+  // easing on as the light fails (or forced on or off with L).
+  function updateSuitLight(dt: number, walker: THREE.Object3D | undefined) {
+    const dark = spaceView ? 1 - THREE.MathUtils.smoothstep(spaceView.daylight * Math.max(spaceView.air, 0.25), 0.06, 0.16) : 0;
+    const want = !walker ? 0 : suitLightMode === "on" ? 1 : suitLightMode === "off" ? 0 : dark;
+    suitLightLevel += (want - suitLightLevel) * (1 - Math.exp(-dt * 4));
+    if (suitLightLevel < 0.01 || !walker) {
+      if (suitLight) suitLight.visible = false;
+      return;
+    }
+    if (!suitLight) {
+      suitLight = new THREE.SpotLight(0xf4f2ea, 0, 30, 0.45, 0.6, 1.6);
+      scene.add(suitLight, suitLight.target);
+    }
+    suitLight.visible = true;
+    suitLight.intensity = 14 * suitLightLevel;
+    const yaw = walker.rotation.y;
+    const forward = new THREE.Vector3(Math.sin(yaw), -0.18, Math.cos(yaw)).normalize();
+    suitLight.position.copy(walker.position).add(new THREE.Vector3(0, 0.75, 0)).addScaledVector(forward, 0.35);
+    suitLight.target.position.copy(suitLight.position).addScaledVector(forward, 10);
   }
   // Per frame while playing a SpaceSystem scene.
   function updateExplorer(dt: number, view: THREE.Camera) {
@@ -2194,6 +2352,9 @@ async function startEditor() {
     const walking = !spaceView.flight.piloting;
     const moving = walking && playerIndex >= 0 && runtime._editor_controller_value(playerIndex, 4) > 0.5;
     explorerFx.update(dt, view, walking ? player : undefined, moving, (x, z) => runtime._editor_space_ground(x, z), softGround);
+    visor.update(dt, walking ? explorerFx.weather.rain : 0);
+    updateSway(dt);
+    updateSuitLight(dt, walking ? player : undefined);
     ambience?.update(spaceView.air);
     // Touchdown: the settle bob and a thump.
     const landed = spaceView.flight.landed;
@@ -2906,6 +3067,12 @@ async function startEditor() {
     currentYaw: number;
   }
   const tickStates: TickState[] = [];
+  // The last tick's bulk snapshot (editor_snapshot): six doubles per index
+  // after a count; undefined until play's first tick.
+  let tickSnapshot: Float64Array | undefined;
+  const tickSnapshotAlive = (i: number) =>
+    tickSnapshot && i < tickSnapshot[0]! ? tickSnapshot[1 + i * 6] === 1 : runtime._editor_alive(i) === 1;
+  const tickSnapshotFlags = (i: number) => (tickSnapshot && i < tickSnapshot[0]! ? tickSnapshot[1 + i * 6 + 5]! : -1);
   let tickAlpha = 1;
   // Arcade car sounds and HUD state (0.70.0; see updateCars), declared
   // before the player-mode bootstrap, which rebuilds and starts Play.
@@ -2993,8 +3160,19 @@ async function startEditor() {
   });
   renderer.domElement.addEventListener("pointermove", (event) => {
     if (doc.mode !== "play") return;
-    // Flying: dragging looks around the ship (never steers it).
-    if (spaceView?.flight.piloting && event.buttons & 3)
+    // Flying with the mouse captured: it moves the virtual stick
+    // (0.75.0). Otherwise dragging looks around the ship.
+    if (spaceView?.stick.active && document.pointerLockElement === renderer.domElement) {
+      const gain = 0.0035 * playerSettings.sensitivity;
+      mouseStick.x += event.movementX * gain;
+      mouseStick.y += event.movementY * gain * (playerSettings.invertY ? -1 : 1);
+      const length = Math.hypot(mouseStick.x, mouseStick.y);
+      if (length > 1) {
+        mouseStick.x /= length;
+        mouseStick.y /= length;
+      }
+      mouseStick.idle = 0;
+    } else if (spaceView?.flight.piloting && event.buttons & 3)
       spaceView.look(event.movementX * playerSettings.sensitivity, event.movementY * playerSettings.sensitivity * (playerSettings.invertY ? -1 : 1));
     // Right-drag looks around in first person without capturing the mouse.
     const controller = playerController();
@@ -3005,6 +3183,9 @@ async function startEditor() {
   });
   renderer.domElement.addEventListener("pointerdown", (event) => {
     if (doc.mode !== "play" || event.button > 2) return;
+    // A left click while flying captures the mouse for steering.
+    if (event.button === 0 && spaceView?.stick.available && document.pointerLockElement !== renderer.domElement)
+      void renderer.domElement.requestPointerLock?.();
     const { x, y } = viewportPoint(event);
     pointerQueue.push(() => runtime._editor_input_mouse_button(event.button, 1, x, y));
   });
@@ -3125,6 +3306,7 @@ async function startEditor() {
     padSnapshot = undefined;
     pointerQueue.length = 0;
     runtime._editor_begin();
+    applySiteView(); // shows what the editor's site view hid
     playerIndex = -1;
     shipIndex = -1;
     stageSpaceSystem();
@@ -3246,6 +3428,13 @@ async function startEditor() {
   // off) a fresh MeshStandardMaterial replaces the mesh's own; otherwise
   // each model material is cloned and tinted, keeping its texture maps.
   // Always a new material, never an edit of the shared/cached one.
+  // Material.parts: only meshes whose material is named for one of them.
+  function materialAppliesTo(mesh: THREE.Mesh, m: MaterialComponent) {
+    const parts = (m.parts ?? "").split(",").map((p) => p.trim().toLowerCase()).filter(Boolean);
+    if (!parts.length) return true;
+    const names = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((x) => x.name.toLowerCase());
+    return names.some((name) => parts.some((part) => name.includes(part)));
+  }
   function applyMaterial(mesh: THREE.Mesh, m: MaterialComponent) {
     const build = (base: THREE.Material): THREE.Material => {
       const standard =
@@ -3580,8 +3769,16 @@ async function startEditor() {
       if (!(child instanceof THREE.Mesh)) return;
       child.castShadow = true;
       child.receiveShadow = true;
-      if (materialOverride) applyMaterial(child, materialOverride);
+      if (materialOverride && materialAppliesTo(child, materialOverride)) applyMaterial(child, materialOverride);
     });
+    // A still model (no rig, nothing scripted on it) never moves inside its
+    // anchor: its nodes' local matrices are composed once, not every frame
+    // (0.75.0; a town is thousands of nodes).
+    if (cached && !animState && !get("Script") && !get("Spaceship") && !loadout)
+      object.traverse((node) => {
+        node.updateMatrix();
+        node.matrixAutoUpdate = false;
+      });
     const particles = get("Particles");
     let particleState: ParticleState | undefined;
     if (particles) particleState = createParticles(particles, anchor);
@@ -3594,6 +3791,7 @@ async function startEditor() {
     deathStates.push(undefined);
   }
   function rebuild() {
+    talkerScan = -1;
     gizmo.detach();
     const environmentEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "Environment"));
     applyEnvironment(
@@ -3668,7 +3866,59 @@ async function startEditor() {
     el<HTMLButtonElement>("prefab-place").disabled = !hasPrefabs || doc.mode !== "edit";
     el("prefab-hint").hidden = hasPrefabs;
   }
+  // Site view (0.75.0): a scene's Sites keep their children at site-local
+  // positions, which in the editor would pile on top of the home layout.
+  // "Show" picks everything, home, or one site; selecting an entity that
+  // lives elsewhere switches to it.
+  let siteView = "all";
+  function applySiteView() {
+    const select = el("site-view") as HTMLSelectElement;
+    const refs = doc.scene.eachAlive();
+    const sites = refs.flatMap((e, i) => (doc.scene.effectiveHas(e, "Site") ? [i] : []));
+    select.hidden = sites.length === 0;
+    if (!sites.length) return;
+    const siteOfEntity = (index: number): string => {
+      let ref = refs[index];
+      for (let guard = 0; ref && guard < 64; guard++) {
+        const i = refs.findIndex((e) => e.index === ref!.index && e.generation === ref!.generation);
+        if (sites.includes(i)) return String(i);
+        const parent = doc.scene.resolve(ref, "Parent")?.entity;
+        ref = parent && doc.scene.alive(parent) ? parent : undefined;
+      }
+      return "home";
+    };
+    if (doc.selection && siteView !== "all") {
+      const i = refs.findIndex((e) => e.index === doc.selection!.index && e.generation === doc.selection!.generation);
+      if (i >= 0) siteView = siteOfEntity(i);
+    }
+    const options = [["all", "Show: everything"], ["home", "Show: home"], ...sites.map((i) => [String(i), `Show: ${doc.scene.resolve(refs[i]!, "Site")?.name || "site"}`])];
+    if (select.options.length !== options.length || [...select.options].some((o, k) => o.value !== options[k]![0] || o.text !== options[k]![1])) {
+      select.replaceChildren(...options.map(([value, text]) => new Option(text, value)));
+    }
+    if (!options.some(([value]) => value === siteView)) siteView = "all";
+    select.value = siteView;
+    refs.forEach((entity, i) => {
+      const object = objects[i];
+      if (!object || doc.scene.effectiveHas(entity, "Parent")) return;
+      // Playing: the game decides what's where.
+      if (doc.mode !== "edit") {
+        if (object.userData.siteHidden) object.visible = true;
+        object.userData.siteHidden = false;
+        return;
+      }
+      const site = sites.includes(i) ? String(i) : "home";
+      const shown = siteView === "all" || siteView === site;
+      if (!shown) {
+        if (object.visible) object.userData.siteHidden = true;
+        object.visible = false;
+      } else if (object.userData.siteHidden) {
+        object.visible = true;
+        object.userData.siteHidden = false;
+      }
+    });
+  }
   function updatePanels() {
+    applySiteView();
     updateSculptBar();
     gizmo.detach();
     populatePrefabSelect();
@@ -4065,6 +4315,7 @@ async function startEditor() {
         carFx.reset();
         playerCarSpeed = 0;
         tickStates.length = 0;
+        tickSnapshot = undefined;
         tickAlpha = 1;
         zoomBlend = 0;
         weaponFx.equip(playerWeaponModel());
@@ -4266,6 +4517,10 @@ async function startEditor() {
     "color:#cfe8ff;font:12px/1.45 ui-monospace,monospace;border-radius:6px;pointer-events:none;z-index:5";
   viewport.appendChild(statsPanel);
   const stats = { frames: 0, frameMs: 0, tickMs: 0, since: performance.now() };
+  el("site-view").addEventListener("change", (event) => {
+    siteView = (event.target as HTMLSelectElement).value;
+    applySiteView();
+  });
   el("stats").onclick = () => {
     statsPanel.hidden = !statsPanel.hidden;
     el("stats").setAttribute("aria-pressed", String(!statsPanel.hidden));
@@ -4291,6 +4546,7 @@ async function startEditor() {
       `Frame        ${(stats.frameMs / stats.frames).toFixed(2)} ms`,
       `C++ ticks    ${(stats.tickMs / stats.frames).toFixed(2)} ms/frame`,
       `Draw calls   ${info?.render.calls ?? "-"}`,
+      `Governor     tier ${governorTier() === governor.settings ? governor.tier : governor.floor} (${(governorTier().scale * 100).toFixed(0)}% res)`,
       `Triangles    ${info?.render.triangles ?? "-"}`,
       `Entities     ${doc.scene.entityCount} (+${Math.max(0, objects.length - doc.scene.eachAlive().length)} spawned)`,
       ...(systems.length ? ["Systems (last tick):", ...systems] : []),
@@ -4440,7 +4696,7 @@ async function startEditor() {
     );
     const ray = new THREE.Raycaster();
     ray.setFromCamera(pointer, camera);
-    const hit = ray.intersectObjects(objects, true)[0];
+    const hit = ray.intersectObjects(objects.filter((o) => o.visible), true)[0];
     if (hit) {
       let object = hit.object;
       while (!objects.includes(object) && object.parent) object = object.parent;
@@ -4567,8 +4823,27 @@ async function startEditor() {
     }
     return state;
   }
+  // Every object's tick state from one bulk read (editor_snapshot).
   function sampleTickStates() {
-    for (let i = 0; i < objects.length; i++) if (runtime._editor_alive(i)) sampleTickState(i);
+    const base = runtime._editor_snapshot() / 8;
+    const heap = (tickSnapshot = runtime.HEAPF64.slice(base, base + 1 + runtime.HEAPF64[base]! * 6));
+    const count = Math.min(objects.length, heap[0]!);
+    for (let i = 0; i < count; i++) {
+      const row = 1 + i * 6;
+      if (heap[row] !== 1) continue;
+      const state = (tickStates[i] ??= {
+        previous: new THREE.Vector3(),
+        current: new THREE.Vector3(),
+        previousYaw: 0,
+        currentYaw: 0,
+      });
+      state.current.set(heap[row + 1]!, heap[row + 2]!, heap[row + 3]!);
+      state.currentYaw = heap[row + 4]!;
+      if (!state.previous.lengthSq() && !state.previousYaw) {
+        state.previous.copy(state.current);
+        state.previousYaw = state.currentYaw;
+      }
+    }
   }
   // -- Arcade cars (0.70.0): effects, sounds and the HUD's car ------------
   function stopCarSounds() {
@@ -4637,48 +4912,179 @@ async function startEditor() {
       }
     carFx.update(dt);
   }
-  // Dynamic resolution: while playing, a GPU that can't hold
-  // ~55 fps renders fewer pixels (down to half the display's ratio) instead
-  // of dropping frames, and climbs back once frames are fast again -- what
-  // console and PC games do so input stays responsive on weaker hardware.
-  const fullPixelRatio = renderer instanceof THREE.WebGLRenderer ? renderer.getPixelRatio() : 1;
-  const resolution = { scale: 1, frames: 0, total: 0, fastSeconds: 0 };
-  function adaptResolution(intervalMs: number) {
-    if (!(renderer instanceof THREE.WebGLRenderer)) return;
-    if (doc.mode === "edit" && resolution.scale < 1) {
-      resolution.scale = 1;
-      renderer.setPixelRatio(fullPixelRatio);
-      composer?.setPixelRatio(fullPixelRatio);
-      resizeAntialias();
+  // Frame governor (0.75.0): while playing, holds 45-60 fps by stepping
+  // through quality tiers (resolution, shadows, bloom, scatter, terrain
+  // streaming, distant animation) -- see frameGovernor.ts. Edit mode always
+  // draws at the best tier the player's preset allows.
+  function governorTier() {
+    return doc.mode === "play" ? governor.settings : governorTiers[governor.floor]!;
+  }
+  function applyGovernor() {
+    const tier = governorTier();
+    const profile = qualityProfile(playerSettings.quality);
+    if (renderer instanceof THREE.WebGLRenderer) {
+      const ratio = Math.min(devicePixelRatio, profile.pixelRatio) * tier.scale;
+      if (Math.abs(renderer.getPixelRatio() - ratio) > 1e-3) {
+        renderer.setPixelRatio(ratio);
+        composer?.setPixelRatio(ratio);
+        resizeAntialias();
+      }
+      renderer.shadowMap.enabled = profile.shadows && tier.shadows > 0;
     }
-    if (doc.mode !== "play") return;
-    if (!(intervalMs > 0 && intervalMs < 250)) return;
-    resolution.frames++;
-    resolution.total += intervalMs;
-    if (resolution.total < 500) return;
-    const average = resolution.total / resolution.frames;
-    resolution.frames = 0;
-    resolution.total = 0;
-    let scale = resolution.scale;
-    if (average > 18.5) {
-      scale = Math.max(0.5, scale * Math.sqrt(16.7 / average));
-      resolution.fastSeconds = 0;
-    } else if (average < 17.5 && scale < 1) {
-      resolution.fastSeconds += 0.5;
-      if (resolution.fastSeconds >= 2) scale = Math.min(1, scale + 0.1);
+    if (bloomPass) bloomPass.enabled = tier.bloom;
+    const mapSize = shadowQualities[postSettings.shadowQuality].mapSize / (tier.shadows === 1 ? 2 : 1);
+    if (sun.shadow.mapSize.x !== mapSize) {
+      sun.shadow.mapSize.set(mapSize, mapSize);
+      sun.shadow.map?.dispose();
+      sun.shadow.map = null;
     }
-    if (Math.abs(scale - resolution.scale) < 0.02) return;
-    resolution.scale = scale;
-    resolution.fastSeconds = 0;
-    renderer.setPixelRatio(fullPixelRatio * scale);
-    composer?.setPixelRatio(fullPixelRatio * scale);
-    resizeAntialias();
+    if (spaceView) spaceView.chunkMs = tier.chunkMs;
+    applyScatterDensity(tier.scatter);
+  }
+  // Draws the first `fraction` of each scatter chunk's instances (their
+  // order is random, so this thins evenly).
+  function applyScatterDensity(fraction: number) {
+    spaceScatter?.traverse((child) => {
+      if (!(child instanceof THREE.InstancedMesh)) return;
+      const all = (child.userData.instances as unknown[] | undefined)?.length ?? child.count;
+      child.count = Math.max(0, Math.round(all * fraction));
+    });
+  }
+  let governedMode = doc.mode;
+  function governFrame(intervalMs: number) {
+    if (doc.mode !== governedMode) {
+      governedMode = doc.mode;
+      if (doc.mode === "edit") governor.reset(presetFloor(playerSettings.quality));
+      applyGovernor();
+    }
+    if (doc.mode === "play" && governor.sample(intervalMs)) applyGovernor();
+  }
+  // Resting activities (0.75.0). A Routine stop may name one ("6 120 40
+  // sit"): the clip to play once there, if the model has it (a few
+  // aliases help). Two people standing close turn to each other and talk.
+  // Calm animals graze, on and off.
+  const routineActivities = new Map<string, string[]>();
+  const activityAliases: Record<string, string[]> = {
+    sit: ["sit"],
+    talk: ["talk"],
+    work: ["punching", "talk"],
+    hammer: ["punching"],
+    graze: ["graze", "Eating", "peck", "Idle_Headlow", "Idle_2_HeadLow"],
+  };
+  function routineActivity(stops: string, stop: number) {
+    let list = routineActivities.get(stops);
+    if (!list) {
+      // Same order the simulation uses: stops sorted by hour.
+      const parsed: Array<{ hour: number; activity: string }> = [];
+      let numbers: number[] = [];
+      const flush = (activity: string) => {
+        for (let k = 0; k + 2 < numbers.length; k += 3) parsed.push({ hour: numbers[k]!, activity: k + 5 >= numbers.length ? activity : "" });
+        numbers = [];
+      };
+      for (const token of stops.split(/[\s;,]+/).filter(Boolean)) {
+        const v = Number(token);
+        if (Number.isFinite(v)) numbers.push(v);
+        else flush(token);
+      }
+      flush("");
+      list = parsed.sort((a, b) => a.hour - b.hour).map((p) => p.activity);
+      routineActivities.set(stops, list);
+    }
+    return list[stop] ?? "";
+  }
+  function firstClip(state: AnimState, wanted: string[]) {
+    return wanted.find((name) => state.actions.has(name));
+  }
+  function restingClip(i: number, state: AnimState, entity: EntityRef | undefined, object: THREE.Object3D, tickDt: number): string | undefined {
+    const routine = entity ? doc.scene.resolve(entity, "Routine") : undefined;
+    if (routine) {
+      const activity = routineActivity(routine.stops, runtime._editor_routine_stop(i));
+      const clip = activity ? firstClip(state, activityAliases[activity] ?? [activity]) : undefined;
+      if (clip) return clip;
+    }
+    if (state.actions.has("talk") && (routine || (entity && doc.scene.effectiveHas(entity, "Pedestrian")))) {
+      // The nearest other resting talker within 2.5 m.
+      let partner: THREE.Vector3 | undefined;
+      let best = 2.5;
+      for (const j of talkerIndices) {
+        if (j === i || !talkerWasResting.has(j)) continue;
+        const other = tickStates[j]?.current ?? objects[j]?.position;
+        if (!other) continue;
+        const d = Math.hypot(other.x - object.position.x, other.z - object.position.z);
+        if (d < best) {
+          best = d;
+          partner = other;
+        }
+      }
+      talkerResting.add(i);
+      if (partner) {
+        const yaw = Math.atan2(partner.x - object.position.x, partner.z - object.position.z);
+        const turn = Math.atan2(Math.sin(yaw - object.rotation.y), Math.cos(yaw - object.rotation.y));
+        object.rotation.y += Math.max(-4 * tickDt, Math.min(4 * tickDt, turn));
+        return "talk";
+      }
+    }
+    if (runtime._editor_wildlife_state(i) === 0) {
+      // Head down for a while, up for a while, each animal on its own beat.
+      const grazing = (performance.now() / 1000 + i * 1.7) % 11 < 7;
+      if (grazing) return firstClip(state, activityAliases.graze!);
+    }
+    return undefined;
+  }
+  // Mouse steering (0.75.0): while flying with the mouse captured, its
+  // motion moves a virtual stick (yaw right, pitch up for the mouse moving
+  // up) that eases back to centre once the mouse rests; keys still win.
+  const mouseStick = { x: 0, y: 0, idle: 0, sent: false, locked: false };
+  function updateMouseStick(dt: number) {
+    const f = spaceView?.flight;
+    const flying = !!f && doc.mode === "play" && f.piloting && !f.landed;
+    const available = flying && playerSettings.flightMouse === "steer" && !isTouchDevice();
+    const active = available && document.pointerLockElement === renderer.domElement;
+    if (spaceView) {
+      spaceView.stick.available = available;
+      spaceView.stick.active = active;
+    }
+    // Landing or leaving the pilot's seat hands the mouse back.
+    if (!available && mouseStick.locked && document.pointerLockElement === renderer.domElement) document.exitPointerLock();
+    mouseStick.locked = active;
+    if (!active) {
+      mouseStick.x = mouseStick.y = 0;
+      if (mouseStick.sent) runtime._editor_space_stick(0, 0);
+      mouseStick.sent = false;
+      return;
+    }
+    mouseStick.idle += dt;
+    if (mouseStick.idle > 0.25) {
+      const k = Math.exp(-dt * 1.2);
+      mouseStick.x *= k;
+      mouseStick.y *= k;
+    }
+    const dead = spaceView!.stick.deadzone;
+    const shape = (v: number) => (Math.abs(v) < dead ? 0 : Math.sign(v) * ((Math.abs(v) - dead) / (1 - dead)));
+    spaceView!.stick.x = mouseStick.x;
+    spaceView!.stick.y = mouseStick.y;
+    runtime._editor_space_stick(shape(mouseStick.x), -shape(mouseStick.y));
+    mouseStick.sent = true;
+  }
+  // The status line's "unsaved" check serializes the whole scene; it runs
+  // at most twice a second, and not at all while playing (the document
+  // can't change then).
+  const dirtyCheck = { at: -Infinity, value: false, mode: doc.mode };
+  function statusDirty() {
+    const now = performance.now();
+    if ((doc.mode !== "edit" && dirtyCheck.mode === doc.mode) || now - dirtyCheck.at < 500) return dirtyCheck.value;
+    dirtyCheck.at = now;
+    dirtyCheck.mode = doc.mode;
+    dirtyCheck.value = doc.dirty;
+    return dirtyCheck.value;
   }
   function frame(now: number) {
     const frameStart = performance.now();
     let tickMs = 0;
     const dt = Math.min((now - previous) / 1000, 5 / 60);
-    adaptResolution(now - previous);
+    governFrame(now - previous);
+    updateMouseStick(dt);
+    if (doc.mode === "play") updateMusic();
     previous = now;
     let steps = 0;
     const player = playerIndex >= 0 ? objects[playerIndex] : undefined;
@@ -4749,7 +5155,7 @@ async function startEditor() {
         // already set each object's visibility from its own authored
         // Renderable.visible, and an entity that's still alive never needs
         // that touched here.
-        if (!runtime._editor_alive(i)) {
+        if (!tickSnapshotAlive(i)) {
           const state = (deathStates[i] ??= startDeath(object, animStates[i]));
           state.elapsed += dt;
           const progress = Math.max(0, 1 - state.elapsed / deathFadeDuration);
@@ -4770,20 +5176,22 @@ async function startEditor() {
       // mid-turn, where a real heading is exact every tick.
       // Soldiers face where their AI is looking (bridge.cpp's Soldier::yaw).
       objects.forEach((object, i) => {
-        if (!runtime._editor_alive(i)) return;
+        if (!tickSnapshotAlive(i)) return;
         const state = tickStates[i];
-        if (runtime._editor_soldier_value(i, 0) < 0 || !state) return;
+        const flags = tickSnapshotFlags(i);
+        if (!state || (flags >= 0 ? !(flags & 1) : runtime._editor_soldier_value(i, 0) < 0)) return;
         const turn = Math.atan2(Math.sin(state.currentYaw - state.previousYaw), Math.cos(state.currentYaw - state.previousYaw));
         object.rotation.y = state.previousYaw + turn * tickAlpha;
       });
       const authored = doc.scene.eachAlive();
       objects.forEach((object, i) => {
-        if (!runtime._editor_alive(i)) return;
+        if (!tickSnapshotAlive(i)) return;
         const entity = authored[i];
         // Arcade cars (any driver, spawned ones too), drawn between ticks
         // like positions.
         const state = tickStates[i];
-        if (runtime._editor_vehicle_value(i, 11) && state) {
+        const flags = tickSnapshotFlags(i);
+        if ((flags >= 0 ? flags & 2 : runtime._editor_vehicle_value(i, 11)) && state) {
           const turn = Math.atan2(Math.sin(state.currentYaw - state.previousYaw), Math.cos(state.currentYaw - state.previousYaw));
           object.rotation.y = state.previousYaw + turn * tickAlpha;
         } else if (entity && doc.scene.effectiveHas(entity, "Vehicle") && doc.scene.effectiveHas(entity, "Player"))
@@ -4850,7 +5258,24 @@ async function startEditor() {
     }
     // Always advance mixers, even in edit mode: a rigged model sitting
     // perfectly still reads as a broken rig, and an idle clip is meant to loop.
-    animStates.forEach((state) => state?.mixer.update(dt));
+    // Beyond crowdNear, characters animate every few frames under load (the
+    // frame governor's crowd stride), each catching up its skipped time.
+    const stride = governorTier().crowdStride;
+    crowdFrame++;
+    const eye = viewCamera.position;
+    animStates.forEach((state, i) => {
+      if (!state) return;
+      const object = objects[i];
+      if (stride > 1 && object && object.position.distanceToSquared(eye) > crowdNear * crowdNear) {
+        state.skipped = (state.skipped ?? 0) + dt;
+        if ((crowdFrame + i) % stride !== 0) return;
+        state.mixer.update(state.skipped);
+        state.skipped = 0;
+        return;
+      }
+      state.mixer.update(dt + (state.skipped ?? 0));
+      state.skipped = 0;
+    });
     // Same reasoning as mixers above -- a Particles emitter is as "always on"
     // as a Light, not gated to Play mode like Script/Sound.
     particleScale.value = viewport.clientHeight / 2;
@@ -4861,6 +5286,12 @@ async function startEditor() {
     if (doc.mode === "play" && steps > 0) {
       const tickDt = steps / 60;
       const entities = doc.scene.eachAlive();
+      [talkerWasResting, talkerResting] = [talkerResting, talkerWasResting];
+      talkerResting.clear();
+      if (talkerScan !== objects.length) {
+        talkerScan = objects.length;
+        talkerIndices = entities.flatMap((entity, k) => (doc.scene.effectiveHas(entity, "Routine") || doc.scene.effectiveHas(entity, "Pedestrian") ? [k] : []));
+      }
       animStates.forEach((state, i) => {
         if (!state) return;
         // A dying entity's own death clip (startDeath()) must not be
@@ -4934,8 +5365,11 @@ async function startEditor() {
         // `clipName !== state.current` check below makes this a no-op once
         // it's already showing, so it's harmless in the ordinary case too.
         const restoringPin = !sitClip && overridden;
+        // Standing still (0.75.0): an activity -- a job at a routine's
+        // stop, talking with whoever stands close, grazing -- before plain idle.
+        const resting = !sitClip && !overridden && speed < 0.15 && i !== playerIndex ? restingClip(i, state, entities[i], object, tickDt) : undefined;
         const clipName =
-          sitClip ?? (overridden ? override!.clip : pickClipName([...state.actions.keys()], speed));
+          sitClip ?? (overridden ? override!.clip : resting ?? pickClipName([...state.actions.keys()], speed));
         if (clipName && clipName !== state.current) {
           const next = state.actions.get(clipName);
           const previous = state.current
@@ -5079,7 +5513,7 @@ async function startEditor() {
             return error ? ` · Script error: ${error}` : "";
           })()
         : "";
-    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${spawnedReadout}${playerReadout}${selectedHealthReadout}${selectedAiReadout}${selectedScriptErrorReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider box/sphere collision, Health-based combat (F melee, G blast), Vehicle driving (W/S/A/D), AIState/Pedestrian wander/chase/flee, Script (Lua callbacks and world API), and Sound (Web Audio) are simulated`;
+    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${spawnedReadout}${playerReadout}${selectedHealthReadout}${selectedAiReadout}${selectedScriptErrorReadout} · ${statusDirty() ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider box/sphere collision, Health-based combat (F melee, G blast), Vehicle driving (W/S/A/D), AIState/Pedestrian wander/chase/flee, Script (Lua callbacks and world API), and Sound (Web Audio) are simulated`;
     requestAnimationFrame(frame);
   }
   const cameraForwardScratch = new THREE.Vector3();
@@ -5356,6 +5790,8 @@ async function startEditor() {
   }
   function drawHud() {
     hudCtx.clearRect(0, 0, hud.width, hud.height);
+    // The visor under everything else, while walking in a suit.
+    if (doc.mode !== "edit" && spaceView && !spaceView.flight.piloting) visor.draw(hudCtx, hud.width, hud.height);
     uiButtonHits.length = 0;
     const hudLines: string[] = [];
     if (doc.mode === "play")

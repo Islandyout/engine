@@ -14,7 +14,7 @@ local function fresh()
     res = { ore = 0, biomass = 0, volatiles = 0 },
     known = {}, landmarks = {}, frags = {}, visited = {}, completed = {},
     upg = { thrust = 0, fuel = 0, scan = 0, hull = 0, life = 0, heat = 0, rcs = 0 },
-    journal = {}, atmo = {}, lessons = {}, ice = {},
+    journal = {}, atmo = {}, lessons = {}, ice = {}, spots = {},
     civ = {
       discovered = {}, evidence = {}, contacts = {}, artifacts = {}, investigations = {},
       lang = { talari = 0, ossuary = 0, hollow = 0 },
@@ -36,6 +36,8 @@ local banner_until, hint_until, last_banner = 0, 0, "Banner"
 local near_harvest = ""
 local confidence = 1
 local helmet = true
+local suit_light = "auto"
+local visor_clock = 0
 local prospect_mode = 0 -- 0 off, 1 volatiles, 2 ore, 3 biomass
 local PROSPECT = { "volatiles", "ore", "biomass" }
 local board_index = 1
@@ -139,6 +141,8 @@ local function save_now(reason)
   end
   S.fuel = st and st.fuel or S.fuel
   if st then S.parts = { engine = st.engine, rcs = st.rcs, gear = st.gear, scanner = st.scanner } end
+  -- The hull exactly and the system clock (0.75.0).
+  if st then S.hull, S.time = st.hull, st.time end
   local text = encode(S)
   save.set("expedition", text)
   save.set("expedition_hash", tostring(hash(text)))
@@ -827,10 +831,15 @@ end
 local function controls_menu()
   open_menu({
     title = "CONTROLS",
-    body = "ON FOOT  WASD move · mouse look (drag) · Shift sprint · E interact (talk, use, harvest, board) · hold F scan; look up into open sky to sample the air · H helmet · R prospect for fuel / ore / biomass\n\n"
-      .. "FLIGHT  W/S throttle · Shift full · X cut · arrows or IJKL pitch and yaw (A/D yaw) · Q/E roll · Space/C lift and sink · T stabilized/manual · N NAV mode · G autopilot to target · B emergency reserve · 9/0 time warp\n\n"
+    body = "ON FOOT  WASD move · mouse look (drag) · Shift sprint · E interact (talk, use, harvest, board) · hold F scan; look up into open sky to sample the air · H helmet · L suit light · R prospect for fuel / ore / biomass\n\n"
+      .. "FLIGHT  W/S throttle · Shift full · X cut · click, then the mouse steers (F10 to change) · arrows or IJKL pitch and yaw (A/D yaw) · Q/E roll · Space/C lift and sink · T stabilized/manual · N NAV mode · G autopilot to target · B emergency reserve · 9/0 time warp\n\n"
       .. "PANELS  J journal · U upgrades · I ship services · Y culture record · TAB system board · M map · F1 controls · F2 Survey Academy · F10 settings · P pause · Esc close · 1-6 choose",
   })
+end
+
+-- What standing does to a price: -100 .. +100 standing is 1.6x .. 0.6x.
+local function price_factor(standing)
+  return math.max(0.6, math.min(1.6, 1 - standing / 100 * 0.4 - (standing < 0 and -standing / 100 * 0.2 or 0)))
 end
 
 local function workshop_menu(kind)
@@ -839,10 +848,22 @@ local function workshop_menu(kind)
       m.title = STATIONS[kind].name
       m.body = string.format("Ore %d · biomass %d · volatiles %d\nCommons standing %+d · Meridian standing %+d", S.res.ore, S.res.biomass, S.res.volatiles, S.civ.rep.commons, S.civ.rep.meridian)
       m.buttons = {}
+      -- Prices by standing (0.75.0): the Commons charge friends less and
+      -- strangers who wronged them more, and stop serving the worst.
+      local standing = S.civ.rep.commons
+      if (kind == "workshop" or kind == "market") and standing < -40 then
+        m.body = m.body .. "\n\nThe keepers turn away. Nobody here will trade with you until the Commons' trust is earned back."
+        return
+      end
+      local cost = function(base) return math.max(1, math.floor(base * price_factor(standing) + 0.5)) end
+      if standing ~= 0 then
+        m.body = m.body .. string.format("\nPrices %s (%+d%%)", standing > 0 and "eased for a friend" or "raised for a stranger", math.floor((price_factor(standing) - 1) * 100 + 0.5))
+      end
       if kind == "workshop" then
-        m.buttons[1] = { "Full service: 8 ore + 4 biomass", function()
-          if S.res.ore < 8 or S.res.biomass < 4 then return hint("The workshop needs 8 ore and 4 biomass.", 3) end
-          S.res.ore, S.res.biomass = S.res.ore - 8, S.res.biomass - 4
+        local ore, bio = cost(8), cost(4)
+        m.buttons[1] = { string.format("Full service: %d ore + %d biomass", ore, bio), function()
+          if S.res.ore < ore or S.res.biomass < bio then return hint(string.format("The workshop needs %d ore and %d biomass.", ore, bio), 3) end
+          S.res.ore, S.res.biomass = S.res.ore - ore, S.res.biomass - bio
           space.repair(32)
           for _, p in ipairs({ "engine", "rcs", "gear" }) do space.call("part", p, 18) end
           rep("commons", 2)
@@ -851,17 +872,19 @@ local function workshop_menu(kind)
         end }
       end
       if kind == "workshop" or kind == "market" then
-        m.buttons[#m.buttons + 1] = { "Trade 6 biomass -> 8 volatiles", function()
-          if S.res.biomass < 6 then return hint("Needs 6 biomass.", 3) end
-          S.res.biomass, S.res.volatiles = S.res.biomass - 6, S.res.volatiles + 8
+        local bio = cost(6)
+        m.buttons[#m.buttons + 1] = { string.format("Trade %d biomass -> 8 volatiles", bio), function()
+          if S.res.biomass < bio then return hint(string.format("Needs %d biomass.", bio), 3) end
+          S.res.biomass, S.res.volatiles = S.res.biomass - bio, S.res.volatiles + 8
           rep("commons", 1)
           banner("TRADE COMPLETE  +8 VOLATILES", 2, "good")
           refresh_meters()
           if S.step == "fuel" then set_step("fuel") end
         end }
-        m.buttons[#m.buttons + 1] = { "Trade 10 ore -> 6 biomass", function()
-          if S.res.ore < 10 then return hint("Needs 10 ore.", 3) end
-          S.res.ore, S.res.biomass = S.res.ore - 10, S.res.biomass + 6
+        local ore = cost(10)
+        m.buttons[#m.buttons + 1] = { string.format("Trade %d ore -> 6 biomass", ore), function()
+          if S.res.ore < ore then return hint(string.format("Needs %d ore.", ore), 3) end
+          S.res.ore, S.res.biomass = S.res.ore - ore, S.res.biomass + 6
           rep("commons", 1)
           banner("TRADE COMPLETE  +6 BIOMASS", 2, "good")
           refresh_meters()
@@ -1052,11 +1075,24 @@ local function frame_changed(st)
   end
 end
 
--- Landing near a Tethys settlement: on its field it's welcome; elsewhere
--- engine wash over houses is an offence.
-local FIELDS = { home = { 0, 0, 20 }, darsa_delta = { -216, -90, 20 }, meridian_spur = { 252, 54, 20 } }
+-- Landing near a settlement (Tethys, and the Third Mooring on Hollow): on
+-- its field it's welcome; elsewhere engine wash over houses is an offence.
+-- On Ossuary's archaeology sites, setting down on the ruins themselves
+-- damages them.
+local FIELDS = { home = { 0, 0, 20 }, darsa_delta = { -216, -90, 20 }, meridian_spur = { 252, 54, 20 }, hollow_enclave = { -160, 60, 20 } }
+local HERITAGE = { ossuary_archive = { 0, 0, 110 }, ossuary_transit = { 0, 0, 110 } }
 local function landing_law(st)
   local here = current_site(st)
+  local h = HERITAGE[here]
+  if h then
+    if math.sqrt((st.x - h[1]) ^ 2 + (st.z - h[2]) ^ 2) < h[3] then
+      S.civ.offences = S.civ.offences + 1
+      rep("preservation", -6)
+      banner("LANDING ON A HERITAGE SITE -- SET DOWN CLEAR OF THE RUINS", 3, "bad")
+      log_journal("Heritage damage", "The ship came down inside the archive's footprint. Engine wash and the gear's weight disturbed fallen masonry the Preservation Office had mapped stone by stone.", "warn")
+    end
+    return
+  end
   local f = FIELDS[here]
   if not f then return end
   local d = math.sqrt((st.x - f[1]) ^ 2 + (st.z - f[2]) ^ 2)
@@ -1072,7 +1108,7 @@ local function landing_law(st)
     rep("concord", -7)
     rep("commons", -3)
     banner("UNAUTHORIZED SETTLEMENT LANDING -- USE THE MARKED FIELD", 3, "bad")
-    log_journal("Landing violation", "Engine wash crossed an inhabited zone. Concord control logged the landing as unsafe. Public landing fields exist for a reason.", "warn")
+    log_journal("Landing violation", "Engine wash crossed an inhabited zone. " .. (here == "hollow_enclave" and "Mooring" or "Concord") .. " control logged the landing as unsafe. Public landing fields exist for a reason.", "warn")
   end
 end
 
@@ -1097,6 +1133,7 @@ local function weather(st, dt)
     target = 1
     if S.play > storm.until_t then
       storm.until_t = 0
+      storm.told = false
       storm.next = S.play + 360 + math.random() * 240
     end
   end
@@ -1104,11 +1141,37 @@ local function weather(st, dt)
   local l = storm.level
   if l < 0.01 and target == 0 then return end
   local wind = l * 14
-  host.send("weather", string.format("%.2f %.2f %.1f %.1f", l, l * 0.6, wind, wind * 0.4))
-  space.call("wind", "", wind, 0, wind * 0.4)
-  host.send("audio", string.format("rain %.2f", l))
-  -- The crosswind leans on a walker.
+  -- Shelter (0.75.0): under a roof the rain stops; in the lee of a wall,
+  -- a building or the ground upwind the crosswind does.
+  local roof, lee = false, false
   if not st.piloting and player and l > 0.2 then
+    storm.check = (storm.check or 0) - dt
+    if storm.check <= 0 then
+      storm.check = 0.25
+      local x, y, z = world.position(player)
+      if x then
+        local hit = world.raycast(x, y + 1.2, z, 0, 1, 0, 25)
+        roof = hit ~= nil and hit ~= "ground" and hit ~= player
+        local ux, uz = -0.928, -0.371 -- upwind (the storm blows toward +x, +z)
+        local h2 = world.raycast(x + ux * 0.6, y + 0.4, z + uz * 0.6, ux, 0, uz, 6)
+        lee = h2 ~= nil and h2 ~= player
+      end
+      storm.roof, storm.lee = roof, lee
+    else
+      roof, lee = storm.roof, storm.lee
+    end
+  end
+  local sheltered = roof or lee
+  if sheltered and not storm.told then
+    storm.told = true
+    hint(roof and "Sheltered: under cover the rain can't reach the suit or the scanner." or "Sheltered: out of the wind behind cover.", 3)
+  end
+  local rain = roof and l * 0.12 or l
+  host.send("weather", string.format("%.2f %.2f %.1f %.1f", rain, l * 0.6, wind, wind * 0.4))
+  space.call("wind", "", wind, 0, wind * 0.4)
+  host.send("audio", string.format("rain %.2f", roof and l * 0.45 or l))
+  -- The crosswind leans on a walker in the open.
+  if not st.piloting and player and l > 0.2 and not sheltered then
     local x, y, z = world.position(player)
     if x then world.set_position(player, x + wind * 0.004, y, z + wind * 0.0016) end
   end
@@ -1116,6 +1179,24 @@ end
 
 -- Ambience by context: wind (the view scales it by air), settlement murmur
 -- near people, wildlife in the wild, the signal hum near structures.
+-- Music (0.75.0): the generative score's mood follows what you're doing.
+local music_mood, music_clock = "", 0
+local function music(st, dt)
+  local mood
+  local hour = ((st.time - 3498) / 969 * 24 + 12) % 24
+  if S.ended then mood = "space"
+  elseif st.frame == "Nemesis" or st.body == "Nemesis" then mood = "signal"
+  elseif st.piloting and not st.landed then mood = (st.altitude or 0) > 25000 and "space" or "flight"
+  elseif storm.level > 0.5 and st.frame == "Tethys" then mood = "tension"
+  elseif st.frame == "Tethys" and (hour < 6 or hour > 19.5) then mood = "night"
+  else mood = "explore" end
+  music_clock = music_clock - dt
+  if mood ~= music_mood or music_clock <= 0 then
+    music_mood, music_clock = mood, 5
+    host.send("music", mood)
+  end
+end
+
 local function ambience(st)
   local here = current_site(st)
   local settlement = 0
@@ -1170,6 +1251,15 @@ local function suit(st, dt)
   if s.integrity > 0 and s.o2 > 0 then s.vitals = math.min(100, s.vitals + dt * 0.5) end
   ui.set_text("SuitLabel", string.format("SUIT INTEGRITY %d%%%s", math.floor(s.integrity), info.hazard ~= "none" and info.hazard and (" · " .. string.upper(info.hazard)) or ""))
   ui.set_text("VitalsLabel", string.format("VITALS %d%%", math.floor(s.vitals)))
+  -- The visor (0.75.0): frost in the cold, shimmer in the heat, cracks as
+  -- the suit fails.
+  visor_clock = visor_clock - dt
+  if visor_clock <= 0 then
+    visor_clock = 0.2
+    local cold = info.hazard == "cryo" and 0.35 + 0.5 * (1 - s.integrity / 100) or 0
+    local hot = info.hazard == "thermal" and 0.3 + 0.5 * (1 - s.integrity / 100) or 0
+    host.send("visor", string.format("%d %.2f %.2f %.2f", (helmet and not st.piloting) and 1 or 0, s.integrity / 100, cold, hot))
+  end
   ui.set_value("O2Bar", math.max(0, s.o2))
   ui.set_value("SuitBar", s.integrity / 100)
   ui.set_value("VitalsBar", math.max(0, s.vitals) / 100)
@@ -1212,8 +1302,16 @@ local function begin(from_save)
   apply_upgrades()
   local st = space.state()
   if from_save then
+    -- The clock first: the planets (and the town's day) where they were.
+    if S.time then
+      space.call("time", "", S.time)
+      world.set_clock(((S.time - 3498) / 969 * 24 + 12) % 24)
+      space.call("settle")
+    end
     if S.ship and S.ship.body then space.place_landed(S.ship.body, S.ship.lat, S.ship.lon, 0) end
     if S.fuel then space.set_fuel(S.fuel) end
+    if S.hull then space.call("hull", "", S.hull) end
+    for spot in pairs(S.spots or {}) do host.send("harvest_spot", spot) end
     if S.parts then for p, v in pairs(S.parts) do space.call("part", p, v - 100) end end
     if S.reserve then space.call("reserve") end
     if S.nemesis then space.call("reveal", "Nemesis") end
@@ -1248,6 +1346,12 @@ function on_ui(name, value)
   if name == "scan_confidence" then confidence = tonumber(value) or 1
   elseif name == "scan" then on_scan(value)
   elseif name == "near_harvest" then near_harvest = value or ""
+  elseif name == "harvest_spot" then
+    -- Remembered so it stays harvested after a reload (a few hundred).
+    S.spots = S.spots or {}
+    local n = 0
+    for _ in pairs(S.spots) do n = n + 1 end
+    if n < 400 then S.spots[value] = true end
   elseif name == "harvested" then
     local sp = SPECIES[value]
     if sp then
@@ -1293,6 +1397,7 @@ function on_tick(dt)
     show_talk(nil)
     objective("", "")
     for _, el in ipairs(HUD) do ui.set_visible(el, false) end
+    host.send("music", "title")
     if load_save() then
       ui.set_text("Begin", "CONTINUE")
     else
@@ -1335,8 +1440,21 @@ function on_tick(dt)
       S.suit.o2, S.suit.integrity = 1, math.min(100, S.suit.integrity + 25)
       ui.set_text("ReturnLabel", "")
     elseif e == "frame:home" or e:sub(1, 6) == "frame:" or e:sub(1, 5) == "site:" then
-      frame_changed(space.state())
-      if e:sub(1, 6) == "frame:" and e ~= "frame:home" then hint("Landed on " .. e:sub(7) .. ": step out with E to explore and scan (F).", 4) end
+      local fs = space.state()
+      frame_changed(fs)
+      if e:sub(1, 6) == "frame:" and e ~= "frame:home" and fs.piloting then hint("Landed on " .. e:sub(7) .. ": step out with E to explore and scan (F).", 4) end
+    elseif e == "reframe" then
+      -- Walked far across the wilds: the frame moved under the walker; bring
+      -- the local wildlife along if it's been left behind.
+      local fs = space.state()
+      local px, pz
+      if player then px, _, pz = world.position(player) end
+      local near = false
+      for _, id in ipairs(spawned) do
+        local x, _, z = world.position(id)
+        if x and px and math.sqrt((x - px) ^ 2 + (z - pz) ^ 2) < 350 then near = true break end
+      end
+      if not near and current_site(fs) == "" then release_fauna(fs.frame) end
     elseif e == "autopilot_arrived" then
       banner("ARRIVED -- AUTOPILOT DISENGAGED", 2.5, "good")
       lesson("autopilot")
@@ -1380,6 +1498,12 @@ function on_tick(dt)
     else
       hint("Interlock: the helmet stays sealed in unverified or unsafe air.", 3)
     end
+  end
+  -- The suit light (0.75.0): automatic in the dark, or forced on or off.
+  if input.pressed("l") and not st.piloting then
+    suit_light = suit_light == "auto" and "on" or suit_light == "on" and "off" or "auto"
+    host.send("suitlight", suit_light)
+    banner("SUIT LIGHT " .. string.upper(suit_light), 1.5)
   end
   if input.pressed("r") and not st.piloting then
     prospect_mode = (prospect_mode + 1) % 4
@@ -1429,6 +1553,7 @@ function on_tick(dt)
     st.autopilot and ("  · AUTOPILOT " .. string.upper(st.autopilot_phase or "")) or ""))
   weather(st, step_dt)
   ambience(st)
+  music(st, step_dt)
   if menu and menu.build and (menu.key == "tab" or menu.key == "i") then render_menu() end
 
   -- Objectives that complete by state.

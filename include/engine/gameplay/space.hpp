@@ -230,8 +230,11 @@ OrbitElements orbit_elements(const ShipState& state, const System& system);
 
 // Where the ship will coast: `count` positions relative to its reference
 // body over `horizon` seconds, under that body's gravity alone (no thrust,
-// drag or body changes). Stops early at the surface.
-std::vector<DVec3> predict_path(const ShipState& state, const System& system, double horizon, int count);
+// drag or body changes). Stops early at the surface. Given the time now
+// (t >= 0), the points are body-fixed: over the turning ground at the time
+// the ship gets there (0.75.0).
+std::vector<DVec3> predict_path(const ShipState& state, const System& system, double horizon, int count,
+                                double t = -1);
 
 // Ship-frame helpers.
 DVec3 ship_forward(const ShipState& state);
@@ -249,7 +252,7 @@ struct AutopilotCommand final {
     DVec3 direction{};    // nose direction, system frame
     double throttle{};    // 0..1
     bool arrived{};       // close and slow: hand back to the pilot
-    const char* phase{""}; // "climb", "burn", "coast", "brake", "arrived"
+    const char* phase{""}; // "climb", "avoid", "transfer", "burn", "coast", "brake", "arrived"
 };
 AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec, const System& system, double t,
                                    int target);

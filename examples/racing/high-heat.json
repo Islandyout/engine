@@ -88,7 +88,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": true,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "RigidBody": {
      "mass": 1300,
@@ -252,7 +253,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -294,7 +296,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -336,7 +339,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -378,7 +382,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -420,7 +425,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -462,7 +468,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -504,7 +511,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -546,7 +554,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -588,7 +597,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -630,7 +640,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -672,7 +683,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -714,7 +726,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -756,7 +769,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -798,7 +812,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -840,7 +855,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -882,7 +898,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -924,7 +941,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -966,7 +984,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1008,7 +1027,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1050,7 +1070,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1092,7 +1113,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1134,7 +1156,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1176,7 +1199,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1218,7 +1242,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1260,7 +1285,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1302,7 +1328,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1344,7 +1371,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1386,7 +1414,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1428,7 +1457,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1470,7 +1500,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1512,7 +1543,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1554,7 +1586,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1596,7 +1629,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1638,7 +1672,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1680,7 +1715,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1722,7 +1758,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1764,7 +1801,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1806,7 +1844,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1848,7 +1887,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1890,7 +1930,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1932,7 +1973,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -1974,7 +2016,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2016,7 +2059,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2058,7 +2102,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2100,7 +2145,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2142,7 +2188,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2184,7 +2231,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2226,7 +2274,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2268,7 +2317,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2310,7 +2360,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2352,7 +2403,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2394,7 +2446,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2436,7 +2489,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2478,7 +2532,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2520,7 +2575,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2562,7 +2618,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2604,7 +2661,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2646,7 +2704,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2688,7 +2747,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2730,7 +2790,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2772,7 +2833,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2814,7 +2876,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2856,7 +2919,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2898,7 +2962,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2940,7 +3005,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -3027,7 +3093,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -3082,7 +3149,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -3137,7 +3205,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -3192,7 +3261,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -3255,7 +3325,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": true,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "RigidBody": {
      "mass": 1300,
@@ -3365,7 +3436,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": true,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "RigidBody": {
      "mass": 1300,
@@ -3447,7 +3519,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": true,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "RigidBody": {
      "mass": 1300,
@@ -3529,7 +3602,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": true,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "RigidBody": {
      "mass": 1300,
@@ -3611,7 +3685,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": true,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "RigidBody": {
      "mass": 1300,

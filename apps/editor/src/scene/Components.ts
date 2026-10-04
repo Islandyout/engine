@@ -440,6 +440,10 @@ export interface MaterialComponent {
   keepTextures: boolean;
   // Color texture (0.58.0): a URL, or "asset:<file>" for an imported image.
   texture: string;
+  // Which parts of a catalog model it applies to (0.75.0): meshes whose
+  // own material's name contains one of these comma-separated words
+  // ("Cloth" tints a character's clothes, not their skin); empty for all.
+  parts: string;
 }
 
 // Animation state machine (0.53.0), authored as text -- see

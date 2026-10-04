@@ -1,4 +1,5 @@
 #include "../apps/native_playground/scene.hpp"
+#include "../apps/native_playground/space_demo.hpp"
 #include <cmath>
 #include <iostream>
 #include <limits>
@@ -442,6 +443,34 @@ int main() {
                   "a defeated enemy reports no ratio, not a stale one");
         }
 
+        {
+            // Spaceflight in the playground (0.75.0): throttle climbs, the
+            // ship burns fuel and moves, the orrery draws, and G engages the
+            // autopilot toward the moon.
+            playground::SpaceDemo space;
+            InputState flight;
+            const double fuel = space.ship.fuel;
+            const auto start = space.ship.position;
+            key(flight, Key::w, true);
+            for (int i = 0; i < 120; ++i) {
+                space.step(flight);
+                flight.begin_frame();
+            }
+            key(flight, Key::w, false);
+            check(space.throttle > 0.5 && space.ship.fuel < fuel, "the playground ship burns fuel");
+            check(engine::gameplay::space::length(space.ship.position - start) > 1000, "the playground ship flies");
+            const auto drawn = space.boxes();
+            check(drawn.size() > 3, "planet, moon, ship and a path");
+            BoxView frame;
+            frame.draw(drawn, space.camera);
+            space.hud(frame);
+            key(flight, Key::g, true);
+            space.step(flight);
+            flight.begin_frame();
+            key(flight, Key::g, false);
+            space.step(flight);
+            check(space.autopilot, "G engages the autopilot");
+        }
         std::cout << "Playground actions, lifecycle, camera, raster repeatability, depth and "
                      "validation passed.\n";
     } catch (const std::exception &e) {

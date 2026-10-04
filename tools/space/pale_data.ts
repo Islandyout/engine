@@ -46,6 +46,7 @@ export const SPECIES: SpeciesRow[] = [
   ["ve_ice", "Vell", "mineral", 43, 5, 1.1, "Blue Ice Column", 7, "volatiles", 16, "Compressed for long enough to squeeze out every bubble. Rings when struck."],
   ["ve_reg", "Vell", "mineral", 42, 3, 1.6, "Impact Regolith", 4, "ore", 8, "Glass beads and shattered anorthosite. The record of every strike this moon ever took."],
   ["ve_frond", "Vell", "flora", 37, 2, 0.5, "Rime Frond", 16, "biomass", 6, "Grows in vacuum, in the dark, at 100 kelvin. It should not exist. It is thriving."],
+  ["ve_strider", "Vell", "fauna", 112, 0, 0.9, "Rime Strider", 28, "biomass", 7, "Crosses the crater floors in the dark, grazing rime fronds. Its heat signature is barely warmer than the ice it walks on."],
   ["os_bone", "Ossuary", "mineral", 42, 4, 1.4, "Chalk Spar", 6, "ore", 11, "Calcite, laid down in water this world has not had for a very long time."],
   ["os_dust", "Ossuary", "mineral", 44, 3, 0.9, "Ferric Dust", 4, "ore", 9, "Fine enough to hold a static charge. It gets into every seal you own."],
   ["os_stalk", "Ossuary", "flora", 51, 1, 0.6, "Grey Stalk", 14, "biomass", 6, "Desiccated but not dead. Rehydrates in minutes if you are careless with your water."],
@@ -55,6 +56,7 @@ export const SPECIES: SpeciesRow[] = [
   ["ho_crys", "Hollow", "mineral", 43, 3, 1.3, "Abyssal Crystal", 9, "volatiles", 15, "Grew under this atmosphere. It is under enormous strain and it is holding."],
   ["ho_drift", "Hollow", "fauna", 114, 0, 2.2, "Mist Drifter", 30, "biomass", 12, "Rides the overcast, filter-feeding. It is the largest living thing in the system."],
   ["ne_shard", "Nemesis", "mineral", 44, 4, 1.2, "Null Shard", 18, "ore", 14, "Absorbs across every band you can measure. The sample reads colder than its surroundings."],
+  ["ne_watcher", "Nemesis", "fauna", 133, 0, 1.1, "Pale Watcher", 40, "biomass", 6, "It keeps its distance and keeps facing you. The signal is loudest when one is near."],
 ];
 
 // Landmarks: [body, lat, lon, colour, name, fragment (0 none), kind, RP, log]

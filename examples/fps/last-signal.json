@@ -32,7 +32,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 100,
@@ -94,7 +95,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 70,
@@ -156,7 +158,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 320,
@@ -218,7 +221,8 @@
      "emissiveIntensity": 0.6,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Particles": {
      "preset": "Sparkle",
@@ -280,7 +284,8 @@
      "emissiveIntensity": 0.6,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Particles": {
      "preset": "Sparkle",
@@ -342,7 +347,8 @@
      "emissiveIntensity": 0.6,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Particles": {
      "preset": "Sparkle",
@@ -404,7 +410,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Particles": {
      "preset": "Fire",
@@ -745,7 +752,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -800,7 +808,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -855,7 +864,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -910,7 +920,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -965,7 +976,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -1020,7 +1032,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -1075,7 +1088,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -1130,7 +1144,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -1185,7 +1200,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -1240,7 +1256,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -1295,7 +1312,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -1485,7 +1503,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -1540,7 +1559,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -1595,7 +1615,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -1657,7 +1678,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -1719,7 +1741,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -1774,7 +1797,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -1829,7 +1853,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -1891,7 +1916,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -1946,7 +1972,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -2001,7 +2028,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -2063,7 +2091,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -2125,7 +2154,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -2564,7 +2594,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -2619,7 +2650,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -2674,7 +2706,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -2729,7 +2762,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -2784,7 +2818,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2826,7 +2861,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2868,7 +2904,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2910,7 +2947,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -2952,7 +2990,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -3007,7 +3046,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -3062,7 +3102,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -3117,7 +3158,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -3172,7 +3214,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -3227,7 +3270,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -3269,7 +3313,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -3311,7 +3356,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -3353,7 +3399,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -3395,7 +3442,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -3437,7 +3485,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -3492,7 +3541,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -3547,7 +3597,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -3602,7 +3653,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -3657,7 +3709,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -3712,7 +3765,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -3826,7 +3880,8 @@
      "emissiveIntensity": 0.15,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -3923,7 +3978,8 @@
      "emissiveIntensity": 0.15,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -4020,7 +4076,8 @@
      "emissiveIntensity": 0.15,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -4117,7 +4174,8 @@
      "emissiveIntensity": 0.35,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -4172,7 +4230,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -4221,7 +4280,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -4363,7 +4423,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -4425,7 +4486,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -4609,7 +4671,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Collider": {
      "type": "AABB",
@@ -4896,7 +4959,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -4938,7 +5002,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     }
    }
   },
@@ -5050,7 +5115,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 100,
@@ -5120,7 +5186,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 100,
@@ -5224,7 +5291,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 100,
@@ -5328,7 +5396,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 100,
@@ -5398,7 +5467,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 70,
@@ -5468,7 +5538,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 100,
@@ -5538,7 +5609,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 100,
@@ -5608,7 +5680,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 100,
@@ -5678,7 +5751,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 70,
@@ -5748,7 +5822,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 100,
@@ -5818,7 +5893,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 70,
@@ -5888,7 +5964,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 320,
@@ -5958,7 +6035,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 70,
@@ -6028,7 +6106,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 70,
@@ -6149,7 +6228,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "Health": {
      "current": 100,
@@ -6213,7 +6293,8 @@
      "emissiveIntensity": 1,
      "opacity": 1,
      "keepTextures": false,
-     "texture": ""
+     "texture": "",
+     "parts": ""
     },
     "CharacterController": {
      "mode": "FirstPerson",

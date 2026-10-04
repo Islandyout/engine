@@ -695,6 +695,7 @@ export function normalizeComponent(
         opacity,
         keepTextures: boolean(value.keepTextures, "Material.keepTextures"),
         texture: value.texture === undefined ? "" : string(value.texture, "Material.texture"),
+        parts: value.parts === undefined ? "" : string(value.parts, "Material.parts"),
       };
     }
     case "Particles": {

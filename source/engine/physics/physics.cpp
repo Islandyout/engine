@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <unordered_map>
+#include <vector>
 
 namespace engine::physics {
 namespace {
@@ -512,6 +514,33 @@ void step(World &world, float dt, const Config &config, Events *events) {
         obstacles.push_back({other, &collider, obstacle_box, world.get<RigidBody>(other),
                              shape_of(*obstacle_box, &collider).bounds});
     }
+    // Broadphase (0.75.0): static obstacles bucketed in a uniform grid of
+    // 8 m cells, so a body tests only the obstacles near it instead of every
+    // one in the level (a town of hundreds of colliders and a hundred
+    // walkers was most of a tick). Moving obstacles and very large ones are
+    // tested by every body, as before. Candidates keep their original order,
+    // so results match the brute-force loop.
+    constexpr float cell = 8.0F;
+    const auto cell_of = [](float v) { return static_cast<std::int32_t>(std::floor(v / cell)); };
+    const auto cell_key = [](std::int32_t x, std::int32_t z) {
+        return (static_cast<std::int64_t>(x) << 32) ^ static_cast<std::uint32_t>(z);
+    };
+    std::unordered_map<std::int64_t, std::vector<std::uint32_t>> grid;
+    std::vector<std::uint32_t> always;
+    for (std::uint32_t i = 0; i < obstacles.size(); ++i) {
+        const auto &o = obstacles[i];
+        const auto x0 = cell_of(o.bounds.min.x), x1 = cell_of(o.bounds.max.x);
+        const auto z0 = cell_of(o.bounds.min.z), z1 = cell_of(o.bounds.max.z);
+        if (finite_dynamic(o.body) || !std::isfinite(o.bounds.min.x) || !std::isfinite(o.bounds.max.z) ||
+            static_cast<std::int64_t>(x1 - x0 + 1) * (z1 - z0 + 1) > 64) {
+            always.push_back(i);
+            continue;
+        }
+        for (auto x = x0; x <= x1; ++x)
+            for (auto z = z0; z <= z1; ++z)
+                grid[cell_key(x, z)].push_back(i);
+    }
+    std::vector<std::uint32_t> nearby;
     for (const auto entity : bodies) {
         auto &box = *world.get<Box>(entity);
         auto &body = *world.get<RigidBody>(entity);
@@ -566,7 +595,49 @@ void step(World &world, float dt, const Config &config, Events *events) {
         const float own_bounce = own_collider ? own_collider->bounciness : 0.0F;
         const float own_inv = kinematic || body.mass <= 0 ? 0.0F : 1.0F / body.mass;
 
-        for (const auto &candidate : obstacles) {
+        // The body's extent under either shape it can be tested as (its own
+        // collider's, or its plain box for oriented and box obstacles),
+        // padded so a touching contact still passes; rebuilt only when a
+        // contact moved the body.
+        Bounds reach{};
+        Vec3 reach_at{std::nanf(""), 0, 0};
+        const auto update_reach = [&] {
+            if (box.center.x == reach_at.x && box.center.y == reach_at.y && box.center.z == reach_at.z)
+                return;
+            reach_at = box.center;
+            const auto own_bounds = shape_of(box, own_collider).bounds;
+            const auto plain = bounds_of(box);
+            constexpr float pad = 1e-3F;
+            reach = {{std::min(own_bounds.min.x, plain.min.x) - pad, std::min(own_bounds.min.y, plain.min.y) - pad,
+                      std::min(own_bounds.min.z, plain.min.z) - pad},
+                     {std::max(own_bounds.max.x, plain.max.x) + pad, std::max(own_bounds.max.y, plain.max.y) + pad,
+                      std::max(own_bounds.max.z, plain.max.z) + pad}};
+        };
+        update_reach();
+        nearby.assign(always.begin(), always.end());
+        if (std::isfinite(reach.min.x) && std::isfinite(reach.max.z)) {
+            // One cell of slack: contacts can push the body during the loop.
+            const auto x0 = cell_of(reach.min.x) - 1, x1 = cell_of(reach.max.x) + 1;
+            const auto z0 = cell_of(reach.min.z) - 1, z1 = cell_of(reach.max.z) + 1;
+            if (static_cast<std::int64_t>(x1 - x0 + 1) * (z1 - z0 + 1) > 4096) {
+                nearby.resize(obstacles.size());
+                for (std::uint32_t i = 0; i < obstacles.size(); ++i)
+                    nearby[i] = i;
+            } else {
+                for (auto x = x0; x <= x1; ++x)
+                    for (auto z = z0; z <= z1; ++z)
+                        if (const auto found = grid.find(cell_key(x, z)); found != grid.end())
+                            nearby.insert(nearby.end(), found->second.begin(), found->second.end());
+            }
+        } else {
+            nearby.resize(obstacles.size());
+            for (std::uint32_t i = 0; i < obstacles.size(); ++i)
+                nearby[i] = i;
+        }
+        std::sort(nearby.begin(), nearby.end());
+        nearby.erase(std::unique(nearby.begin(), nearby.end()), nearby.end());
+        for (const auto index : nearby) {
+            const auto &candidate = obstacles[index];
             const auto other = candidate.entity;
             if (other == entity)
                 continue;
@@ -576,18 +647,7 @@ void step(World &world, float dt, const Config &config, Events *events) {
             auto &obstacle = *candidate.box;
             auto *other_body = candidate.body;
             {
-                // The body's extent under either shape it can be tested as
-                // (its own collider's, or its plain box for oriented and box
-                // obstacles), padded so a touching contact still passes.
-                const auto own_bounds = shape_of(box, own_collider).bounds;
-                const auto plain = bounds_of(box);
-                constexpr float pad = 1e-3F;
-                const Bounds reach{{std::min(own_bounds.min.x, plain.min.x) - pad,
-                                    std::min(own_bounds.min.y, plain.min.y) - pad,
-                                    std::min(own_bounds.min.z, plain.min.z) - pad},
-                                   {std::max(own_bounds.max.x, plain.max.x) + pad,
-                                    std::max(own_bounds.max.y, plain.max.y) + pad,
-                                    std::max(own_bounds.max.z, plain.max.z) + pad}};
+                update_reach();
                 const auto &bounds =
                     finite_dynamic(other_body) ? shape_of(obstacle, &collider).bounds : candidate.bounds;
                 if (!bounds_overlap(reach, bounds))
@@ -681,21 +741,36 @@ void step(World &world, float dt, const Config &config, Events *events) {
     if (!events)
         return;
 
-    // Trigger overlaps: every trigger collider against every moving body.
+    // Trigger overlaps: every trigger collider against every moving body
+    // (each body's shape built once, not once per trigger).
+    struct Moving final {
+        Entity entity;
+        const Collider *collider;
+        Shape shape;
+    };
+    std::vector<Moving> moving;
     for (const auto trigger : colliders) {
         const auto &trigger_collider = *world.get<Collider>(trigger);
         if (!trigger_collider.is_trigger)
             continue;
+        if (moving.empty()) {
+            moving.reserve(bodies.size());
+            for (const auto entity : bodies) {
+                const auto *collider = world.get<Collider>(entity);
+                moving.push_back({entity, collider, shape_of(*world.get<Box>(entity), collider)});
+            }
+        }
         const auto trigger_shape = shape_of(*world.get<Box>(trigger), &trigger_collider);
-        for (const auto entity : bodies) {
-            if (entity == trigger)
+        for (const auto &body : moving) {
+            if (body.entity == trigger)
                 continue;
-            const auto *collider = world.get<Collider>(entity);
-            if (!layers_interact(trigger_collider.layer, trigger_collider.mask, collider ? collider->layer : 0,
-                                 collider ? collider->mask : all_layers))
+            if (!layers_interact(trigger_collider.layer, trigger_collider.mask, body.collider ? body.collider->layer : 0,
+                                 body.collider ? body.collider->mask : all_layers))
                 continue;
-            if (shapes_overlap(trigger_shape, shape_of(*world.get<Box>(entity), collider)))
-                record(trigger, entity, true, {});
+            if (!bounds_overlap(trigger_shape.bounds, body.shape.bounds))
+                continue;
+            if (shapes_overlap(trigger_shape, body.shape))
+                record(trigger, body.entity, true, {});
         }
     }
 

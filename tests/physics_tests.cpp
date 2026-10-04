@@ -19,6 +19,34 @@ int main() {
         using physics::RigidBody;
 
         {
+            // The broadphase (0.75.0): a body far out among hundreds of
+            // static obstacles lands on the one under it, and a floor larger
+            // than the grid's bucket limit still holds bodies up.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            for (int i = 0; i < 400; ++i) {
+                const auto block = world.create();
+                world.set(block, Box{{static_cast<float>(i % 20) * 20 - 200, 1, static_cast<float>(i / 20) * 20 - 200}, {2, 2, 2}});
+                world.set(block, Collider{});
+            }
+            const auto floor = world.create();
+            world.set(floor, Box{{0, 20, 0}, {2000, 2, 2000}});
+            world.set(floor, Collider{});
+            const auto on_block = world.create();
+            world.set(on_block, Box{{160, 6, 160}, {1, 1, 1}});
+            world.set(on_block, RigidBody{});
+            const auto on_floor = world.create();
+            world.set(on_floor, Box{{170, 26, 170}, {1, 1, 1}});
+            world.set(on_floor, RigidBody{});
+            for (int i = 0; i < 240; ++i)
+                physics::step(world, 1.0F / 60);
+            check(std::abs(world.get<Box>(on_block)->center.y - 2.5F) < 0.05F, "a body far out lands on the block under it");
+            check(world.get<RigidBody>(on_block)->grounded, "and is grounded there");
+            check(std::abs(world.get<Box>(on_floor)->center.y - 21.5F) < 0.05F, "a huge floor still holds a body up");
+        }
+        {
             // A free-falling body accelerates downward and moves before any
             // collision is resolved.
             World world;

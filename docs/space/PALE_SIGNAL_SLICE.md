@@ -77,6 +77,30 @@ The expedition **autosaves** every 45 s and checkpoints on discoveries; the titl
 - **Landing**: below 400 m a radar tape shows radar altitude, sink rate, ground slope, drift and water, with a SAFE / UNSAFE call against the gear's limits. Landing or hovering over water throws spray.
 - **The Talari** have their own model: narrow-torsoed and crested, in tunic and mantle, on the same animated rig.
 
+### 0.75.0: everything that was left
+
+- **Holds 45–60 fps**: a frame governor trades resolution, shadows, bloom, scatter and distant animation for frame rate while you play; physics, the tick snapshot and the camera are much cheaper.
+- **Flight**:
+  - Mouse steering: click while flying and the mouse moves a virtual stick (F10 switches it back to looking around).
+  - The autopilot flies real transfers around the star, coasts out of the air, keeps clear of moons and planets in the way, and brakes in time.
+  - A path that comes down is drawn over the turning ground, so it ends where you'll land.
+  - Landing law covers the Third Mooring's field and Ossuary's ruins as well as Tethys.
+- **On foot**:
+  - No edge: the walk frame follows you across the wilds and between sites.
+  - A suit light (L: auto / on / off) and a visor: rain beads, frost, heat shimmer and cracks as the suit fails.
+  - Big animals and you ease apart instead of passing through each other.
+  - Shelter: under a roof the rain stops, in the lee of cover the wind does.
+- **The sky**: real single scattering, teal at noon over Tethys, orange at sunset, blue over Ossuary's dust; from orbit the air glows on the limb.
+- **Kestra's day**:
+  - People work (sitting at desks, working with their hands, talking at stalls), lunch at the market, go back to work, then the evening market and home, each a little off the others.
+  - Stall keepers stay put, neighbours talk in pairs, herds graze.
+  - The Talari's clothes take their colours; their skin and crest stay their own.
+- **Places**: the workshop hall beside the field, Darsa's Water Court chamber, the Spur's reading room, the Resonance Exchange and an Ossuary records room are enterable and roofed.
+- **Prices** at the workshop and market follow your Commons standing; below −40 they won't trade.
+- **Fauna on every world**: Rime Striders on Vell, Pale Watchers on Nemesis.
+- **Music**: a generative score by mood (title, exploring, night, flight, space, the signal, storms), with its own volume in settings.
+- **Saves** keep the hull exactly, the system clock (the planets and Kestra's hour), where everyone is in their day, and what you harvested.
+
 ### The living world
 
 - **Wildlife**: Flat Grazer herds and Ridge Skimmers near Kestra, plus Slag Crawlers, Dust Husks and Mist Drifters released around you on their worlds. They grow wary and flee from you or a running ship, which ruins a scan.
@@ -90,6 +114,7 @@ The expedition **autosaves** every 45 s and checkpoints on discoveries; the titl
 - **F2**: the Survey Academy (the prototype's 12 pages) and a playable course of 11 lessons.
 - **F10**: settings:
   - quality preset and look sensitivity;
+  - whether the mouse steers while flying, and music volume;
   - invert Y and reduced motion;
   - minimap, footprints and touch controls;
   - a 60-second profile capture.
@@ -99,9 +124,9 @@ The expedition **autosaves** every 45 s and checkpoints on discoveries; the titl
 
 | | |
 |---|---|
-| On foot | WASD move · mouse look (drag) · Shift sprint · **E interact** · **hold F scan** (look up to sample air) · H helmet · R prospect |
+| On foot | WASD move · mouse look (drag) · Shift sprint · **E interact** · **hold F scan** (look up to sample air) · H helmet · L suit light · R prospect |
 | Throttle | W/S up/down · Shift full · X cut |
-| Attitude | ↑/↓ or I/K pitch · ←/→, J/L or A/D yaw · Q/E roll |
+| Attitude | click, then the mouse steers · ↑/↓ or I/K pitch · ←/→, J/L or A/D yaw · Q/E roll |
 | Belly thrusters | Space lift · C or Ctrl sink (in STABILIZED: commanded climb/sink rate) |
 | Assist | T stabilized ↔ manual · N cycles NAV prograde → retrograde → target → autopilot → off · **G autopilot** · B emergency reserve |
 | Time warp | 9 slower · 0 faster (coasting in space only; the autopilot warps itself) |
@@ -119,20 +144,31 @@ The expedition **autosaves** every 45 s and checkpoints on discoveries; the titl
 | Hollow | 68 km | 11.2 m/s² | 2.6, 38 km deep | 3,400 km, 15,540 s | pressure |
 | Nemesis | 30 km | 4.2 m/s² | none | 4,700 km, 25,300 s, hidden | cryo |
 
-The Kestrel masses 12 t with 300 kN main and 180 kN belly thrust. Its starting 45 fuel isn't enough for Vell; Propellant Tanks and refined volatiles carry you further out. Nemesis needs most of a fully upgraded tank.
+The Kestrel masses 12 t with 300 kN main and 180 kN belly thrust, and burns 0.32 fuel a second at full throttle. Fuel was tuned on routes flown with the autopilot from landed to landed (0.75.0):
+
+| Route | Fuel | Route | Fuel |
+|---|---|---|---|
+| Tethys → Vell | ~69 | Vell → Tethys | ~30 |
+| Tethys → Ossuary | ~48 | Ossuary → Hollow | ~50 |
+| Tethys → Hollow | ~62 | Hollow → Tethys | ~140 |
+| Tethys → Nemesis | ~62 | Hollow → Nemesis | ~73 |
+| Tethys → Cinder | ~161 | Hollow → Cinder | ~120 |
+
+You start with 55 of 100; one refine (12 volatiles, +24) gets you to Vell. Inward trips toward Cinder need Propellant Tanks (three levels make 166). The one-time research in the game comes to about 1,440 RP, enough for a little over half of all upgrades.
 
 ## 5. Limits and next steps
 
 What's still left compared with the prototype is in [PALE_SIGNAL_GAP_MAP.md](PALE_SIGNAL_GAP_MAP.md).
 
-- **Engine**: a mouse-steer mode, re-anchoring while walking (a walk frame is 2.4 km across), and full atmospheric scattering.
-- **Art**: graze and conversation animations.
+- Nothing from the prototype is missing (see the gap map). PWA/Android packaging is out of scope; the frame governor covers running well on phones.
+- The fuel numbers above come from simulated autopilot flights; a hand-flown expedition from title to ending hasn't been timed.
 
 ## 6. Test plan
 
 - `tests/space_tests.cpp`:
   - flight: rails, air, terrain, landings, orbits, SOI handover and the climb from the site;
   - 0.73.0: components and their wear, wind, route plans and an autopilot run from Tethys orbit to Vell.
+  - 0.75.0: a corridor around Tethys on the way to Vell, and a path over turning ground.
 - `tests/editor_bridge_tests.cpp`:
   - the landed start, walking anywhere and `space.*` from Lua;
   - 0.73.0: landing at a second `Site` and back, and `Routine` and `Wildlife` behaviour.

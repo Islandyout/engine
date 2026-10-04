@@ -40,18 +40,21 @@ test("Pale Signal has six worlds, nine landmarks, every site, NPC and evidence i
   assert.deepEqual([...new Set(landmarks.map((l) => l.kind))].sort(), ["array", "beacon", "camp", "monolith", "ruin"]);
   assert.equal(bodies[1]!.sea, -60);
   const species = parseSpecies(space.species, bodies);
-  assert.equal(species.length, 23, "all 22 prototype species plus the Kestra Spire");
+  assert.equal(species.length, 25, "all 22 prototype species, the Kestra Spire, and fauna for Vell and Nemesis");
   assert.equal(named("Ship").components.Spaceship.model, "Kestrel");
   // Every site beyond Kestra is a Site with its own people and evidence.
   const sites = scene.entities.filter((e: { components: { Site?: unknown } }) => e.components.Site);
   assert.deepEqual(sites.map((e: { name: string }) => e.name).sort(), ["Civic Archive Nine", "Darsa Delta", "Meridian Spur", "Retreat Causeway", "The Third Mooring"]);
   const routines = scene.entities.filter((e: { components: { Routine?: unknown } }) => e.components.Routine);
-  assert.equal(routines.length, 24, "24 Talari keep daily routines");
+  // The 24 named Talari, plus stall keepers and neighbours (0.75.0).
+  assert.equal(routines.filter((e: { name: string }) => !/^(Stall Keeper|Neighbour)$/.test(e.name)).length, 24, "24 Talari keep daily routines");
+  // Work, lunch at the market, evening market: every named day has an activity at work.
+  assert.ok(routines.every((e: { components: { Routine: { stops: string } } }) => /(sit|work|talk)/.test(e.components.Routine.stops)), "routines say what people do there");
   for (const e of routines) assert.equal(e.components.Renderable.mesh, 175, "the Talari model");
   const evidence = scene.entities.filter((e: { components: { Scannable?: { kind: string; id: string } } }) => e.components.Scannable?.kind === "Culture" && /^(te|os|ho)_/.test(e.components.Scannable.id));
   assert.equal(evidence.length, 16, "all 16 evidence items");
   assert.ok(scene.entities.some((e: { components: { Wildlife?: unknown } }) => e.components.Wildlife), "herds of wildlife");
-  assert.deepEqual(Object.keys(scene.prefabs).sort(), ["Crawler", "Drifter", "Grazer", "Husk", "Skimmer"]);
+  assert.deepEqual(Object.keys(scene.prefabs).sort(), ["Crawler", "Drifter", "Grazer", "Husk", "Skimmer", "Strider", "Watcher"]);
   const director = named("Director").components.Script.source;
   assert.ok(!director.includes("{{CONFIG}}") && director.includes("space.state()") && director.includes("save.set"));
 });

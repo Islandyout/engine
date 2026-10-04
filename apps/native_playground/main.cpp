@@ -1,5 +1,6 @@
 #include "engine/platform/headless_platform.hpp"
 #include "scene.hpp"
+#include "space_demo.hpp"
 #if ENGINE_HAS_SDL3
 #include "engine/platform/sdl_platform.hpp"
 #endif
@@ -16,6 +17,8 @@ public:
     // Deferred: constructed once command-line arguments (including an
     // optional --scene document) are known, before the run loop starts.
     std::optional<playground::Scene> scene;
+    // --space (0.75.0): fly the engine's spaceflight instead.
+    std::optional<playground::SpaceDemo> space;
     engine::BoxView view;
     engine::MeshAsset model;
     std::vector<engine::InputEvent> pending;
@@ -34,6 +37,10 @@ public:
         for (const auto &event : pending)
             input.apply(event);
         pending.clear();
+        if (space) {
+            space->step(input);
+            return smoke && context.tick >= 3 ? engine::LoopControl::exit : engine::LoopControl::continue_running;
+        }
         scene->step({context.tick, context.delta_time, input});
         if (scene->won() && !announced_win) {
             announced_win = true;
@@ -45,6 +52,15 @@ public:
                                           : engine::LoopControl::continue_running;
     }
     engine::LoopControl on_render(const engine::RenderContext &) override {
+        if (space) {
+            view.draw(space->boxes(), space->camera);
+            space->hud(view);
+#if ENGINE_HAS_SDL3
+            if (desktop && !desktop->present_rgba(view.pixels(), view.width, view.height))
+                throw std::runtime_error{"window presentation failed"};
+#endif
+            return engine::LoopControl::continue_running;
+        }
         const auto boxes = scene->boxes(false);
         view.draw(boxes, scene->camera);
         const auto player = *scene->world.get<engine::Box>(scene->player);
@@ -76,6 +92,8 @@ int main(int argc, char **argv) {
                 demo.smoke = true;
             else if (arg == "--headless")
                 headless = true;
+            else if (arg == "--space")
+                demo.space.emplace();
             else if (arg == "--asset" && i + 1 < argc)
                 asset_path = argv[++i];
             else if (arg == "--scene" && i + 1 < argc)
@@ -87,7 +105,7 @@ int main(int argc, char **argv) {
                 headless = true;
             } else
                 throw std::invalid_argument{
-                    "Usage: engine_playground [--smoke] [--headless] [--snapshot file.ppm] "
+                    "Usage: engine_playground [--smoke] [--headless] [--space] [--snapshot file.ppm] "
                     "[--asset file.gea] [--scene file.json] [--save-scene file.json]"};
         }
         if (scene_path.empty()) {
@@ -124,6 +142,19 @@ int main(int argc, char **argv) {
         if (!asset_file)
             throw std::runtime_error{"asset read failed"};
         demo.model = engine::decode_mesh_asset(bytes);
+        if (!snapshot.empty() && demo.space) {
+            demo.view.draw(demo.space->boxes(), demo.space->camera);
+            demo.space->hud(demo.view);
+            std::ofstream file{snapshot, std::ios::binary};
+            file << "P6\n800 500\n255\n";
+            const auto pixels = demo.view.pixels();
+            for (engine::usize i = 0; i < pixels.size(); i += 4)
+                file.write(reinterpret_cast<const char *>(pixels.data() + i), 3);
+            if (!file)
+                throw std::runtime_error{"snapshot write failed"};
+            std::cout << "Saved native CPU frame: " << snapshot << '\n';
+            return 0;
+        }
         if (!snapshot.empty()) {
             const auto boxes = demo.scene->boxes(false);
             demo.view.draw(boxes, demo.scene->camera);
@@ -149,10 +180,14 @@ int main(int argc, char **argv) {
 #if ENGINE_HAS_SDL3
         if (!headless) {
             engine::SdlPlatformConfig config;
-            config.application_name = "Game Engine | WASD move | Shift jump, hold to fly | F "
-                                      "attack | G blast | Q/E orbit | Z/X zoom | Space add | "
-                                      "Backspace remove | R reset | reach the gold goal at z=6 "
-                                      "to win";
+            if (demo.space)
+                config.application_name = "Game Engine spaceflight | W/S throttle | X cut | arrows pitch/yaw | Q/E roll | "
+                                          "Space/C lift/sink | G autopilot to the moon";
+            else
+                config.application_name = "Game Engine | WASD move | Shift jump, hold to fly | F "
+                                          "attack | G blast | Q/E orbit | Z/X zoom | Space add | "
+                                          "Backspace remove | R reset | reach the gold goal at z=6 "
+                                          "to win";
             config.hidden = demo.smoke;
             auto sdl = std::make_unique<engine::SdlPlatform>(config);
             demo.desktop = sdl.get();

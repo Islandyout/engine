@@ -102,7 +102,7 @@ function ruinVariant(scene) {
       const { page, errors, context } = await open();
       saved = context;
       await waitHud(page, /PALE SIGNAL.*BEGIN/, "title");
-      await waitHud(page, /ALT 0 m.*FUEL 45%.*LANDED/, "landed flight HUD");
+      await waitHud(page, /ALT 0 m.*FUEL 55%.*LANDED/, "landed flight HUD");
       await clickCenter(page, -20); // BEGIN
       await waitHud(page, /Step out onto Tethys/, "first objective");
       await page.keyboard.down("Space");
@@ -135,6 +135,16 @@ function ruinVariant(scene) {
       await page.keyboard.up("KeyF");
       await waitHud(page, /Survey Kestra/, "the survey begins");
       await page.screenshot({ path: "build/browser-evidence/pale-signal-eva.png" });
+      // Pause, open Settings (0.75.0: mouse steering and music volume).
+      await page.keyboard.press("KeyP");
+      await page.waitForTimeout(1500);
+      await clickCenter(page, 0);
+      await page.waitForSelector("#player-settings", { timeout: 60000 });
+      const settings = await page.locator("#player-settings").textContent();
+      assert.match(settings, /Mouse while flying/);
+      assert.match(settings, /Music/);
+      await page.locator("#player-settings button", { hasText: "Done" }).click();
+      await clickCenter(page, -50); // Resume
       assert.deepEqual(errors, []);
       await page.close();
     }
@@ -182,7 +192,7 @@ function ruinVariant(scene) {
       await page.close();
       await context.close();
     }
-    console.log("Pale Signal: title, flight HUD, hover and set-down, stepping out on the suit reserve, the prompt and journal, the air sample, save and continue, scanning the Vey Gate foundation, and walking on Vell passed.");
+    console.log("Pale Signal: title, flight HUD, hover and set-down, stepping out on the suit reserve, the prompt and journal, the air sample, the settings panel, save and continue, scanning the Vey Gate foundation, and walking on Vell passed.");
   } finally {
     await browser?.close();
     server.close();

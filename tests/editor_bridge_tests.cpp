@@ -69,6 +69,9 @@ void editor_set_driver(int, int, int, double, double, double);
 void editor_set_driver_text(int, int, const char *);
 double editor_vehicle_value(int, int);
 void editor_space_begin(double, int, double, double, double, double, double);
+void editor_push(int, double, double);
+int editor_routine_stop(int);
+double editor_space_ground(double, double);
 void editor_space_body(const char *, int, double, double, double, double, double, double, double, double, double,
                        double, double);
 void editor_set_spaceship(int, double, double, double, double, double, double, double, double, double, double, int,
@@ -1675,6 +1678,51 @@ int main() {
         }
         check(saw_moon && saw_home);
 
+        // Re-anchoring on foot (0.75.0): walking far across a wilderness
+        // frame moves the frame under the walker -- no edge -- and the
+        // ground is still under their feet.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_add(20, 2, 0, 0, 0, 0, 6, 3, 9, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_add(0, 30, 40, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_script_source(2, "local t = 0 function on_tick(dt) t = t + 1 "
+                                    "if t == 2 then space.place_landed('Vell', 10, 20, 0) end "
+                                    "for _, e in ipairs(space.events()) do log('ev ' .. e) end end");
+        editor_space_begin(6.4e12, 0, 30, 40, 300, 800, 0);
+        editor_space_body("Tethys", -1, 1.6e6, 5027, 0, 0, 60000, 9, 9000, 1.05, 250, 3000, 7);
+        editor_space_body("Vell", 0, 230000, 3850, 20, 7, 18000, 2.6, 0, 0, 120, 2000, 3);
+        editor_set_spaceship(1, 0, 12000, 300000, 180000, 2.2, 1.3, 100, 1.2, 100, 1.6, 1, -1);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 10; ++i)
+            editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("KeyE", 1);
+        editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("KeyE", 0);
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(editor_space_value(0) == 0); // on foot on Vell
+        const double before = editor_space_value(38);
+        double farthest = 0;
+        for (int i = 0; i < 150; ++i) {
+            editor_push(0, 5, 0);
+            editor_tick();
+            farthest = std::max(farthest, std::abs(editor_value(0, 0)));
+        }
+        check(editor_space_value(38) > before);                 // the frame moved
+        check(editor_space_value(39) == 1);                     // still on Vell
+        check(farthest < 800 - 2);                              // never held at an edge
+        check(std::abs(editor_space_value(52)) > 100);          // the walker's shift is reported
+        for (int i = 0; i < 30; ++i)
+            editor_tick();
+        const double walked_feet = editor_value(0, 1) - 0.9 - editor_space_ground(editor_value(0, 0), editor_value(0, 2));
+        check(walked_feet > -3 && walked_feet < 3);             // still on the ground
+        bool saw_reframe = false;
+        for (int n = editor_take_commands(), i = 0; i < n; ++i)
+            saw_reframe |= std::string(editor_command_text(i, 1)) == "ev reframe";
+        check(saw_reframe);
+
         // Sites (0.73.0): landing at a second site moves the frame there,
         // wakes its own entities and parks home's; scripts see the site.
         editor_begin();
@@ -1751,7 +1799,7 @@ int main() {
         check(editor_add(10, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         editor_set_wildlife(1, 44, 16, 7, 80);
         check(editor_add(0, 0.9, -30, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
-        editor_set_routine(2, "0 0 -30; 12 20 -30", 1.5);
+        editor_set_routine(2, "0 0 -30 sit; 12 20 -30 talk", 1.5); // activity words (0.75.0) are skipped
         check(editor_add(0, 30, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         editor_set_script_source(3, "function on_tick(dt) world.set_clock(13) end");
         check(editor_commit() == 1);
@@ -1761,6 +1809,31 @@ int main() {
         check(editor_value(1, 0) > 12);                                 // away from the player
         check(editor_wildlife_state(0) == -1);                          // the player isn't wildlife
         check(editor_value(2, 0) > 1.5);                                // walking to the 12:00 stop
+        check(editor_routine_stop(2) == 1 && editor_routine_stop(0) == -1);
+    }
+    {
+        // Settling (0.75.0): after a load, everyone with a Routine stands at
+        // the stop the clock says at once.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_routine(0, "0 0 0 sit; 12 30 -20 talk", 1.5);
+        check(editor_add(0, 30, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_script_source(1, "local t = 0 function on_tick(dt) t = t + 1 if t == 1 then world.set_clock(13) space.call('settle') end end");
+        check(editor_commit() == 1);
+        for (int i = 0; i < 3; ++i)
+            editor_tick();
+        check(std::abs(editor_value(0, 0) - 30) < 0.5 && std::abs(editor_value(0, 2) + 20) < 0.5);
+    }
+    {
+        // Soft radii (0.75.0): the walker and a big animal ease apart.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_add(0.4, 0.8, 0, 0, 0, 0, 2.4, 1.6, 1.4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_wildlife(1, 0.2, 0.1, 7, 80);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(std::abs(editor_value(0, 0) - editor_value(1, 0)) > 1.3); // pushed apart
     }
     {
         // A level-sized terrain (260 m, 131x131) under a player and a soldier.
