@@ -136,6 +136,7 @@ export function buildScatter(instances: ScatterInstance[], models: Map<number, S
       root.traverse((child) => {
         if (!(child instanceof THREE.Mesh)) return;
         const instanced = new THREE.InstancedMesh(child.geometry, child.material, list.length);
+        instanced.userData.instances = list;
         instanced.castShadow = castShadow;
         instanced.receiveShadow = true;
         list.forEach((instance, i) => {

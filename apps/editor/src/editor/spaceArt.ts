@@ -125,39 +125,113 @@ export function milkyWay() {
 // A Pale Signal structure: a black monolith ringed by kneeling dishes all
 // facing the same patch of sky, with glyph light along its edges. Built
 // standing on +y at the origin; tens of metres tall.
-export function signalStructure(color: string) {
+export function signalStructure(color: string, kind = "array") {
   const group = new THREE.Group();
   const stone = new THREE.MeshStandardMaterial({ color: 0x23262b, roughness: 0.35, metalness: 0.7 });
+  const rubble = new THREE.MeshStandardMaterial({ color: 0x3a3632, roughness: 0.95 });
   const glyph = new THREE.MeshStandardMaterial({ color: 0x0b0d10, emissive: new THREE.Color(color), emissiveIntensity: 1.6, roughness: 0.4 });
-  const monolith = new THREE.Mesh(new THREE.BoxGeometry(5, 34, 5), stone);
-  monolith.position.y = 17;
-  group.add(monolith);
-  for (const [x, z] of [
-    [2.52, 0],
-    [-2.52, 0],
-    [0, 2.52],
-    [0, -2.52],
-  ] as const) {
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(x ? 0.06 : 0.5, 30, z ? 0.06 : 0.5), glyph);
-    strip.position.set(x, 17, z);
-    group.add(strip);
+  const monolith = (height: number, width: number) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(width, height, width), stone);
+    m.position.y = height / 2;
+    group.add(m);
+    for (const [x, z] of [
+      [width / 2 + 0.02, 0],
+      [-width / 2 - 0.02, 0],
+      [0, width / 2 + 0.02],
+      [0, -width / 2 - 0.02],
+    ] as const) {
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(x ? 0.06 : width * 0.1, height * 0.88, z ? 0.06 : width * 0.1), glyph);
+      strip.position.set(x, height / 2, z);
+      group.add(strip);
+    }
+  };
+  // The Pale Signal's grammar (0.73.0): concentric, coherent rings around
+  // every structure, pulsing in step (spaceView animates userData.rings).
+  const rings: THREE.Mesh[] = [];
+  const addRings = (inner: number, count: number, y = 0.3) => {
+    for (let i = 0; i < count; i++) {
+      const r = inner + i * 7;
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(r, r + 0.35, 96),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = y + i * 0.02;
+      group.add(ring);
+      rings.push(ring);
+    }
+  };
+  if (kind === "camp") {
+    // A scorched drop capsule, half-buried, with a tarp and crates.
+    const capsule = new THREE.Mesh(new THREE.CapsuleGeometry(1.6, 3.2, 6, 16), new THREE.MeshStandardMaterial({ color: 0x8a8f96, roughness: 0.6, metalness: 0.5 }));
+    capsule.rotation.z = 1.2;
+    capsule.position.set(0, 0.9, 0);
+    const scorch = new THREE.Mesh(new THREE.CircleGeometry(7, 24), new THREE.MeshBasicMaterial({ color: 0x15130f, transparent: true, opacity: 0.6, depthWrite: false }));
+    scorch.rotation.x = -Math.PI / 2;
+    scorch.position.y = 0.05;
+    const tarp = new THREE.Mesh(new THREE.ConeGeometry(2.4, 2, 4), new THREE.MeshStandardMaterial({ color: 0xc58a3a, roughness: 0.9 }));
+    tarp.position.set(5, 1, 3);
+    group.add(capsule, scorch, tarp);
+    for (let i = 0; i < 3; i++) {
+      const crate = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.9), rubble);
+      crate.position.set(4 + i * 1.1, 0.35, -2 - (i % 2));
+      group.add(crate);
+    }
+  } else if (kind === "monolith") {
+    monolith(40, 6);
+    addRings(10, 4);
+  } else if (kind === "ruin") {
+    // Broken resonators and wall stubs in a ring, around a cracked core.
+    monolith(14, 4);
+    for (let i = 0; i < 11; i++) {
+      const a = (i / 11) * Math.PI * 2;
+      const h = 3 + ((i * 37) % 11);
+      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.4, h, 8), i % 3 ? stone : rubble);
+      pillar.position.set(Math.cos(a) * 22, h / 2, Math.sin(a) * 22);
+      pillar.rotation.z = ((i % 4) - 1.5) * 0.06;
+      group.add(pillar);
+      if (i % 2) {
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(9, 1.6 + (i % 3), 1.2), rubble);
+        wall.position.set(Math.cos(a + 0.28) * 22, 0.8, Math.sin(a + 0.28) * 22);
+        wall.rotation.y = -a - 0.28 + Math.PI / 2;
+        group.add(wall);
+      }
+    }
+    addRings(8, 3);
+  } else if (kind === "beacon") {
+    // The origin: a tall needle in nested halos.
+    const needle = new THREE.Mesh(new THREE.ConeGeometry(3, 70, 6), stone);
+    needle.position.y = 35;
+    group.add(needle);
+    for (let i = 0; i < 4; i++) {
+      const halo = new THREE.Mesh(new THREE.TorusGeometry(8 + i * 5, 0.4, 8, 64), glyph);
+      halo.position.y = 18 + i * 12;
+      halo.rotation.x = Math.PI / 2;
+      group.add(halo);
+      rings.push(halo);
+    }
+    addRings(14, 6);
+  } else {
+    monolith(34, 5);
+    const aim = new THREE.Vector3(0.35, 1, -0.5).normalize();
+    const dishMetal = new THREE.MeshStandardMaterial({ color: 0x5b626b, roughness: 0.45, metalness: 0.75, side: THREE.DoubleSide });
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2;
+      const dish = new THREE.Group();
+      const bowl = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 0.5, 1.3, 24, 1, true), dishMetal);
+      bowl.position.y = 1.4;
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 3.2, 8), stone);
+      stem.position.y = -0.4;
+      const feed = new THREE.Mesh(new THREE.SphereGeometry(0.35, 10, 8), glyph);
+      feed.position.y = 2.6;
+      dish.add(bowl, stem, feed);
+      dish.position.set(Math.cos(a) * 18, 2, Math.sin(a) * 18);
+      dish.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), aim);
+      group.add(dish);
+    }
+    addRings(24, 3);
   }
-  const aim = new THREE.Vector3(0.35, 1, -0.5).normalize();
-  const dishMetal = new THREE.MeshStandardMaterial({ color: 0x5b626b, roughness: 0.45, metalness: 0.75, side: THREE.DoubleSide });
-  for (let i = 0; i < 9; i++) {
-    const a = (i / 9) * Math.PI * 2;
-    const dish = new THREE.Group();
-    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 0.5, 1.3, 24, 1, true), dishMetal);
-    bowl.position.y = 1.4;
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 3.2, 8), stone);
-    stem.position.y = -0.4;
-    const feed = new THREE.Mesh(new THREE.SphereGeometry(0.35, 10, 8), glyph);
-    feed.position.y = 2.6;
-    dish.add(bowl, stem, feed);
-    dish.position.set(Math.cos(a) * 18, 2, Math.sin(a) * 18);
-    dish.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), aim);
-    group.add(dish);
-  }
+  group.userData.rings = rings;
   return group;
 }
 

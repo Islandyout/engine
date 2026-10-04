@@ -738,3 +738,152 @@ input[readonly] {
 .sculpt-bar[hidden] { display: none; }
 .sculpt-slider { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted, #9aa7b4); }
 .sculpt-slider input { width: 80px; }
+
+/* Games library overlay (gamesLibrary.ts). */
+.games-library {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(8, 10, 12, 0.72);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 16px;
+  overflow: auto;
+}
+.games-panel {
+  width: min(960px, 100%);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 18px 20px 22px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.games-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.games-head h2 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-bright);
+}
+.games-panel h4 {
+  margin: 18px 0 2px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+.game-card {
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border-soft);
+  border-top: 3px solid var(--card-accent, var(--accent));
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.game-card h3 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-bright);
+}
+.game-genre {
+  font-size: 11px;
+  color: var(--card-accent, var(--accent));
+}
+.game-card p {
+  margin: 4px 0 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+  flex: 1;
+}
+.game-actions {
+  display: flex;
+  gap: 6px;
+}
+.btn-primary {
+  background: var(--accent-strong);
+  border-color: var(--accent);
+}
+
+/* Player settings, screen-reader text and touch controls (playerSettings.ts). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.settings-panel {
+  width: min(460px, 100%);
+}
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 13px;
+}
+.settings-panel .game-actions {
+  margin-top: 14px;
+  justify-content: flex-end;
+}
+.touch-controls {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+}
+.touch-stick {
+  position: absolute;
+  left: 28px;
+  bottom: 28px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(143, 247, 255, 0.12);
+  border: 1px solid rgba(143, 247, 255, 0.4);
+  pointer-events: auto;
+  touch-action: none;
+}
+.touch-knob {
+  position: absolute;
+  left: 38px;
+  top: 38px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(143, 247, 255, 0.45);
+}
+.touch-buttons {
+  position: absolute;
+  right: 16px;
+  bottom: 20px;
+  display: grid;
+  grid-template-columns: repeat(5, 56px);
+  gap: 8px;
+  pointer-events: auto;
+}
+.touch-button {
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(143, 247, 255, 0.45);
+  background: rgba(6, 12, 18, 0.6);
+  color: #cfe7f5;
+  font-size: 11px;
+  font-weight: 700;
+  touch-action: none;
+}

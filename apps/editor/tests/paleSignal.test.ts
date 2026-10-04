@@ -19,28 +19,36 @@ test("examples/space/pale-signal.json is what tools/space/build_pale_signal.ts g
   assert.equal(readFileSync(out, "utf8"), readFileSync(committed, "utf8"), "regenerate it with `npm run space --prefix apps/editor`");
 });
 
-test("the Pale Signal slice has a system, a ship, a site and a director", () => {
+test("Pale Signal has six worlds, nine landmarks, every site, NPC and evidence item", () => {
   const scene = JSON.parse(readFileSync(committed, "utf8"));
   validateSceneDocument(scene);
   const named = (name: string) => scene.entities.find((e: { name?: string }) => e.name === name);
-  for (const name of ["Space", "Ship", "Player", "Director", "Landing Pad", "Ruin Core", "Volatile Ice 1"]) assert.ok(named(name), name);
+  for (const name of ["Space", "Ship", "Player", "Director", "Landing Pad", "Ruin Core", "Volatile Ice 1", "Kestra Workshop", "MenuPanel"]) assert.ok(named(name), name);
   const space = named("Space").components.SpaceSystem;
   const { bodies, errors } = parseSpaceBodies(space.bodies);
   assert.deepEqual(errors, []);
-  assert.deepEqual(bodies.map((b) => b.name), ["Tethys", "Vell", "Cinder", "Ossuary"]);
-  assert.equal(bodies[1]!.parent, 0, "Vell orbits Tethys");
+  assert.deepEqual(bodies.map((b) => b.name), ["Cinder", "Tethys", "Vell", "Ossuary", "Hollow", "Nemesis"]);
+  assert.equal(bodies[2]!.parent, 1, "Vell orbits Tethys");
+  assert.ok(bodies[5]!.hidden && bodies[5]!.unlit, "Nemesis starts hidden and unlit");
   assert.equal(space.siteBody, "Tethys");
-  assert.deepEqual(parseLandmarks(space.landmarks, bodies).map((l) => l.label), ["The Kneeling Array", "Under-Ice Relay", "The Anvil", "Kestra Station"]);
-  assert.equal(bodies[0]!.sea, -60);
-  assert.ok(bodies[0]!.clouds > 0);
+  const landmarks = parseLandmarks(space.landmarks, bodies);
+  assert.equal(landmarks.length, 9);
+  assert.deepEqual([...new Set(landmarks.map((l) => l.kind))].sort(), ["array", "beacon", "camp", "monolith", "ruin"]);
+  assert.equal(bodies[1]!.sea, -60);
   const species = parseSpecies(space.species, bodies);
-  assert.ok(species.length >= 12 && species.some((s) => s.body === 1), "species on Tethys and Vell");
+  assert.equal(species.length, 23, "all 22 prototype species plus the Kestra Spire");
   assert.equal(named("Ship").components.Spaceship.model, "Kestrel");
-  const scannable = scene.entities.filter((e: { components: { Scannable?: unknown } }) => e.components.Scannable);
-  assert.ok(scannable.length >= 9, "evidence, ice, the foundation and grazers are scannable");
-  for (const npc of ["Tal Ossin", "Ena Vey", "Maru Sen"]) assert.ok(named(npc), npc);
+  // Every site beyond Kestra is a Site with its own people and evidence.
+  const sites = scene.entities.filter((e: { components: { Site?: unknown } }) => e.components.Site);
+  assert.deepEqual(sites.map((e: { name: string }) => e.name).sort(), ["Civic Archive Nine", "Darsa Delta", "Meridian Spur", "Retreat Causeway", "The Third Mooring"]);
+  const routines = scene.entities.filter((e: { components: { Routine?: unknown } }) => e.components.Routine);
+  assert.equal(routines.length, 24, "24 Talari keep daily routines");
+  const evidence = scene.entities.filter((e: { components: { Scannable?: { kind: string; id: string } } }) => e.components.Scannable?.kind === "Culture" && /^(te|os|ho)_/.test(e.components.Scannable.id));
+  assert.equal(evidence.length, 16, "all 16 evidence items");
+  assert.ok(scene.entities.some((e: { components: { Wildlife?: unknown } }) => e.components.Wildlife), "herds of wildlife");
+  assert.deepEqual(Object.keys(scene.prefabs).sort(), ["Crawler", "Drifter", "Grazer", "Husk", "Skimmer"]);
   const director = named("Director").components.Script.source;
-  assert.ok(!director.includes("{{CONFIG}}") && director.includes("space.state()"));
+  assert.ok(!director.includes("{{CONFIG}}") && director.includes("space.state()") && director.includes("save.set"));
 });
 
 test("space bodies: parents by name, defaults, and readable errors", () => {
@@ -59,6 +67,8 @@ test("species and body options", () => {
   assert.equal(bodies[0]!.sea, -5);
   assert.equal(bodies[0]!.clouds, 0.4);
   assert.equal(bodies[0]!.snow, true);
+  assert.equal(bodies[0]!.hidden, false);
+  assert.equal(parseSpaceBodies("Dark - 1 10 0 0 1000 9 0 0 10 100 1 #808080 #000000 hidden=1 unlit=1").bodies[0]!.unlit, true);
   const species = parseSpecies("a World flora 37 2 0.5 Pale Reed | grows\nb Nowhere flora 37 1 1 X\nc World rock 1 1 1 Bad\n# d World flora 1 1 1 Comment", bodies);
   assert.deepEqual(species, [{ id: "a", body: 0, kind: "flora", model: 37, weight: 2, scale: 0.5, name: "Pale Reed", description: "grows" }]);
 });
@@ -67,7 +77,8 @@ test("landmarks and latitude/longitude", () => {
   const { bodies } = parseSpaceBodies(defaultSpaceBodies);
   const marks = parseLandmarks("Vell -12 35 #8ff7ff Pale Signal\nNowhere 0 0\nTethys 10 x", bodies);
   assert.equal(marks.length, 1);
-  assert.deepEqual({ ...marks[0] }, { body: 1, latitude: -12, longitude: 35, color: "#8ff7ff", label: "Pale Signal" });
+  assert.deepEqual({ ...marks[0] }, { body: 1, latitude: -12, longitude: 35, color: "#8ff7ff", label: "Pale Signal", kind: "array" });
+  assert.equal(parseLandmarks("Vell 0 0 #ffffff kind=ruin Old Place", bodies)[0]!.kind, "ruin");
   const up = latLonDirection(90, 0);
   assert.ok(Math.abs(up.y - 1) < 1e-9);
   const east = latLonDirection(0, 90);

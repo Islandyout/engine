@@ -68,6 +68,8 @@ struct Body final {
     // Water fills the terrain below this height (m relative to `radius`):
     // ships and walkers stand on its surface. Below -1e8 means no sea.
     double sea_level{-1e9};
+    // Not drawn or listed until revealed (0.73.0): Pale Signal's Nemesis.
+    bool hidden{};
     std::uint32_t seed{1};
     std::vector<Flat> flats;
 
@@ -130,6 +132,7 @@ enum class Assist : std::uint8_t {
     prograde,   // NAV: the nose follows the velocity
     retrograde, // NAV: the nose points against the velocity (to brake)
     target,     // NAV: the nose points along `target_direction`
+    autopilot,  // NAV transfer (0.73.0): see autopilot_command
 };
 
 struct ShipInput final {
@@ -138,6 +141,7 @@ struct ShipInput final {
     double vertical{};             // -1..1 belly thrusters (down..up)
     Assist assist{Assist::stabilized};
     DVec3 target_direction{};      // for Assist::target, in the system frame
+    DVec3 wind{};                  // m/s of moving air, in the reference body's frame (0.73.0)
 };
 
 struct Touchdown final {
@@ -172,6 +176,11 @@ struct ShipState final {
     // caller clears them after reading.
     bool touched_down{}, lifted_off{}, changed_ref{};
     Touchdown last_touchdown{};
+    // Ship components (0.73.0), condition 0..100 each. Worn by rough
+    // landings (gear), overheating (engine) and hard manoeuvring (rcs);
+    // their efficiency scales thrust, turning and landing tolerance. The
+    // scanner's condition is the game's to use.
+    double engine{100}, rcs_condition{100}, gear{100}, scanner{100};
 };
 
 // The terrain radius under a point (relative to body `index`'s centre).
@@ -210,5 +219,34 @@ std::vector<DVec3> predict_path(const ShipState& state, const System& system, do
 // Ship-frame helpers.
 DVec3 ship_forward(const ShipState& state);
 DVec3 ship_up(const ShipState& state);
+
+// A component's efficiency at a condition (0..100): 1 at full condition,
+// easing down to 0.35 at zero (the prototype's compEff curve).
+double component_efficiency(double condition);
+
+// The NAV autopilot (0.73.0): climb clear of the current body's air, burn
+// toward where the target is, coast, flip and brake, arriving slow above
+// the target's atmosphere. What the bridge feeds the ship each tick; the
+// pilot's own input always wins over it.
+struct AutopilotCommand final {
+    DVec3 direction{};    // nose direction, system frame
+    double throttle{};    // 0..1
+    bool arrived{};       // close and slow: hand back to the pilot
+    const char* phase{""}; // "climb", "burn", "coast", "brake", "arrived"
+};
+AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec, const System& system, double t,
+                                   int target);
+
+// A fuel estimate for flying to `target` (0.73.0): the NAV board's route
+// plan. status: 0 OK (fuel with a quarter to spare), 1 MARGINAL, 2
+// INSUFFICIENT.
+struct RoutePlan final {
+    double distance{};      // m to the target's surface
+    double closing_speed{}; // m/s, + approaching
+    double delta_v{};       // m/s estimated
+    double fuel_needed{};   // tank units
+    int status{};
+};
+RoutePlan plan_route(const ShipState& state, const ShipSpec& spec, const System& system, double t, int target);
 
 } // namespace engine::gameplay::space

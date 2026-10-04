@@ -1,0 +1,8 @@
+{
+  "name": "HIGH HEAT",
+  "genre": "Street racing",
+  "description": "Race the city at night, outrun pursuits, climb the heat ladder.",
+  "scene": "../../examples/racing/high-heat.json",
+  "accent": "#f2a23a",
+  "builtin": true
+}

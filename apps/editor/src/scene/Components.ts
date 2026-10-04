@@ -160,6 +160,33 @@ export interface ScannableComponent {
   kind: ScanKind;
   range: number;
 }
+// A second (third, ...) place in a SpaceSystem scene (0.73.0): its child
+// entities are authored around this surface point (metres, +y up, the
+// Site entity at the origin) and only exist -- solid and drawn -- while the
+// frame is there, which happens when the ship lands within `radius`.
+export interface SiteComponent {
+  name: string;
+  body: string;
+  latitude: number;
+  longitude: number;
+  radius: number;
+}
+// A daily routine (0.73.0): "hour x z" stops separated by ";" -- the entity
+// walks to the latest stop whose hour has passed on the scene clock
+// (world.set_clock) and waits there.
+export interface RoutineComponent {
+  stops: string;
+  speed: number;
+}
+// Wildlife (0.73.0): calm, then wary (stops and watches) inside `wary`
+// metres of the player or a running ship, fleeing inside `flee`, never
+// more than `leash` metres from home.
+export interface WildlifeComponent {
+  wary: number;
+  flee: number;
+  speed: number;
+  leash: number;
+}
 // clip names a clip on the entity's own animated Renderable model (e.g.
 // "idle"/"walk"/"wave") -- "" means no authored override, so main.ts's
 // automatic ground-speed-based clip selection (animationClips.ts's

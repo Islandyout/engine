@@ -290,6 +290,83 @@ int main() {
             check(!ship.destroyed && ship.altitude > system.bodies[0].atmosphere_top(), "the ship climbs out of the air");
             check(ship.density == 0 && ship.ref == 0, "in space, still in Tethys' sphere of influence");
         }
+        {
+            // Ship components (0.73.0): efficiency, wear from a rough
+            // landing, and a worn engine pushing less.
+            check(near(component_efficiency(100), 1, 1e-9) && near(component_efficiency(0), 0.35, 1e-9),
+                  "component efficiency runs from 1 to 0.35");
+            check(component_efficiency(50) > 0.8, "half condition still works fairly well");
+            ShipState ship;
+            double t = 0;
+            place_in_orbit(ship, system, 1, 600);
+            ship.position = normalized(DVec3{0, 1, 0.2}) * (surface_radius(system.bodies[1], normalized(DVec3{0, 1, 0.2})) + spec.gear_clearance + 30);
+            ship.velocity = normalized(ship.position) * -16.0;
+            ship.attitude = DQuat{};
+            ShipInput idle;
+            idle.assist = Assist::manual;
+            for (int i = 0; i < 600 && !ship.landed; ++i) {
+                step_ship(ship, spec, idle, system, t, 1.0 / 60.0);
+                t += 1.0 / 60.0;
+            }
+            check(ship.landed && ship.last_touchdown.rough && ship.gear < 100, "a rough landing wears the gear");
+            ShipState fresh, worn;
+            place_in_orbit(fresh, system, 2, 20000);
+            place_in_orbit(worn, system, 2, 20000);
+            worn.engine = 0;
+            ShipInput burn;
+            burn.assist = Assist::manual;
+            burn.throttle = 1;
+            double t1 = 0, t2 = 0;
+            run(fresh, spec, burn, system, t1, 2);
+            run(worn, spec, burn, system, t2, 2);
+            const double gain_fresh = length(fresh.velocity), gain_worn = length(worn.velocity);
+            check(gain_worn < gain_fresh, "a worn engine accelerates the ship less");
+        }
+        {
+            // Wind (0.73.0) pushes a ship hovering in air.
+            ShipState ship;
+            double t = 0;
+            place_landed(ship, spec, system, 0, {0, 1, 0}, {0, 0, 1});
+            ShipInput hover;
+            hover.assist = Assist::stabilized;
+            hover.vertical = 0.6;
+            run(ship, spec, hover, system, t, 3);
+            hover.vertical = 0;
+            hover.wind = DVec3{25, 0, 0};
+            const double before = ship.position.x;
+            run(ship, spec, hover, system, t, 6);
+            check(ship.position.x > before + 1, "wind drifts a hovering ship downwind");
+        }
+        {
+            // Route plans and the autopilot (0.73.0): Tethys orbit to Vell.
+            ShipState ship;
+            double t = 0;
+            place_in_orbit(ship, system, 0, 15000);
+            ShipSpec big = spec;
+            big.fuel = 400;
+            ship.fuel = 400;
+            const RoutePlan plan = plan_route(ship, big, system, t, 1);
+            check(plan.distance > 100000 && plan.delta_v > 0 && plan.fuel_needed > 0, "a plan has a distance and a cost");
+            check(plan.status == 0, "a full big tank makes the trip OK");
+            ShipState empty = ship;
+            empty.fuel = plan.fuel_needed * 0.5;
+            check(plan_route(empty, big, system, t, 1).status == 2, "half the fuel needed is INSUFFICIENT");
+            empty.fuel = plan.fuel_needed * 1.1;
+            check(plan_route(empty, big, system, t, 1).status == 1, "a little over is MARGINAL");
+            bool arrived = false;
+            for (int i = 0; i < 60 * 1800 && !arrived && !ship.destroyed; ++i) {
+                const AutopilotCommand command = autopilot_command(ship, big, system, t, 1);
+                arrived = command.arrived;
+                ShipInput input;
+                input.assist = Assist::autopilot;
+                input.target_direction = command.direction;
+                input.throttle = command.throttle;
+                step_ship(ship, big, input, system, t, 1.0 / 30.0);
+                t += 1.0 / 30.0;
+            }
+            check(arrived && !ship.destroyed, "the autopilot brings the ship to Vell, slow");
+            check(ship.ref == 1, "arrival is inside Vell's sphere of influence");
+        }
         (void)pi;
         std::cout << "space tests passed\n";
         return 0;

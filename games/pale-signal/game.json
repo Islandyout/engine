@@ -1,0 +1,8 @@
+{
+  "name": "Pale Signal",
+  "genre": "Space exploration",
+  "description": "Fly the Kestrel across a living star system, survey alien worlds, learn the Talari language and follow the signal.",
+  "scene": "../../examples/space/pale-signal.json",
+  "accent": "#7fd1c7",
+  "builtin": true
+}

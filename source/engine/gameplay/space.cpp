@@ -170,7 +170,9 @@ void touchdown(ShipState& state, const ShipSpec& spec, const System& system, con
     result.tilt = std::acos(clampd(dot(ship_up(state), normal), -1, 1));
     result.slope = std::acos(clampd(dot(normal, radial), -1, 1));
     const double deg = 180.0 / pi;
-    const double excess = std::max(result.vertical - spec.land_vertical, 0.0) +
+    // Worn gear takes less (0.73.0).
+    const double gear = 0.5 + 0.5 * component_efficiency(state.gear);
+    const double excess = std::max(result.vertical - spec.land_vertical * gear, 0.0) +
                           std::max(result.lateral - spec.land_lateral, 0.0) * 0.6 +
                           std::max(result.tilt - spec.land_tilt, 0.0) * deg * 0.35 +
                           std::max(result.slope - spec.land_slope, 0.0) * deg * 0.45;
@@ -185,6 +187,11 @@ void touchdown(ShipState& state, const ShipSpec& spec, const System& system, con
     state.touched_down = true;
     state.last_touchdown = result;
     state.hull = std::max(0.0, state.hull - result.damage);
+    // The gear takes the landing: rough ones hard, firm ones a little.
+    if (result.rough)
+        state.gear = std::max(0.0, state.gear - result.damage * 0.9);
+    else if (result.vertical > spec.land_vertical * 0.6)
+        state.gear = std::max(0.0, state.gear - 1.0);
     if (state.hull <= 0)
         state.destroyed = true;
 }
@@ -231,7 +238,10 @@ void substep_ship(ShipState& state, const ShipSpec& spec, const ShipInput& input
         state.angular_velocity =
             state.angular_velocity + DVec3{clampd(input.pitch, -1, 1), clampd(input.yaw, -1, 1),
                                            clampd(input.roll, -1, 1)} *
-                                         (spec.rcs * h);
+                                         (spec.rcs * component_efficiency(state.rcs_condition) * h);
+        // Hard turns at speed in thick air strain the thrusters.
+        if (density > 0.2 && length(state.velocity) > 160)
+            state.rcs_condition = std::max(0.0, state.rcs_condition - 0.25 * h);
         // Letting go of an axis stops it turning on that axis.
         const double damp = std::exp(-3.0 * h);
         if (std::abs(input.pitch) <= 0.01)
@@ -257,9 +267,10 @@ void substep_ship(ShipState& state, const ShipSpec& spec, const ShipInput& input
             break;
         case Assist::prograde:
         case Assist::retrograde:
-        case Assist::target: {
+        case Assist::target:
+        case Assist::autopilot: {
             DVec3 dir{};
-            if (input.assist == Assist::target)
+            if (input.assist == Assist::target || input.assist == Assist::autopilot)
                 dir = input.target_direction;
             else if (travel > 0.5)
                 dir = velocity * (input.assist == Assist::prograde ? 1.0 : -1.0);
@@ -297,11 +308,12 @@ void substep_ship(ShipState& state, const ShipSpec& spec, const ShipInput& input
     state.throttle = throttle;
     state.engine_on = throttle > 0.001;
     const DVec3 forward = ship_forward(state), up = ship_up(state);
-    accel = accel + forward * (spec.thrust * throttle / spec.mass);
+    const double engine = component_efficiency(state.engine);
+    accel = accel + forward * (spec.thrust * engine * throttle / spec.mass);
     state.fuel = std::max(0.0, state.fuel - spec.burn * throttle * h);
 
     double vertical = state.fuel > 0 ? clampd(input.vertical, -1, 1) : 0.0;
-    const double lift_max = spec.lift_thrust / spec.mass;
+    const double lift_max = spec.lift_thrust * std::sqrt(engine) / spec.mass;
     if (body && input.assist == Assist::stabilized && state.fuel > 0 && altitude < 3000 &&
         (!state.landed || vertical > 0.05)) {
         // Hover assist (STABILIZED near a surface): the stick commands a
@@ -323,22 +335,26 @@ void substep_ship(ShipState& state, const ShipSpec& spec, const ShipInput& input
     if (std::abs(vertical) > 0.001)
         state.engine_on = true;
 
+    // Drag and lift work on the air-relative velocity (wind, 0.73.0).
+    const DVec3 air_velocity = density > 1e-6 ? state.velocity - input.wind : state.velocity;
+    const double air_speed = length(air_velocity);
     const double speed = length(state.velocity);
-    if (density > 1e-6 && speed > 0.5) {
-        const double q = 0.5 * density * speed * speed;
-        accel = accel + state.velocity * (-q * spec.drag_area / (spec.mass * speed));
+    if (density > 1e-6 && air_speed > 0.5) {
+        const double q = 0.5 * density * air_speed * air_speed;
+        accel = accel + air_velocity * (-q * spec.drag_area / (spec.mass * air_speed));
         // Air turns the velocity toward the nose: it flies, rather than
         // drifting like a spacecraft.
-        const DVec3 dir = state.velocity * (1.0 / speed);
+        const DVec3 dir = state.velocity * (1.0 / std::max(speed, 1e-9));
         const double along = dot(dir, forward);
-        if (along > 0.2) {
+        if (along > 0.2 && speed > 0.5) {
             const double k = clampd(clampd(density * spec.lift, 0, 0.9) * h * 2.2, 0, 0.4);
             state.velocity = normalized(dir + (forward - dir) * k) * speed;
         }
-        const double heating = q * speed * 5e-6;
+        const double heating = q * air_speed * 5e-6;
         state.heat = clampd(state.heat + (heating - state.heat * 0.55) * h * 1.6, 0, 200);
         if (state.heat > spec.heat_tolerance) {
             state.hull = std::max(0.0, state.hull - (state.heat - spec.heat_tolerance) * 0.055 * h);
+            state.engine = std::max(0.0, state.engine - (state.heat - spec.heat_tolerance) * 0.03 * h);
             if (state.hull <= 0)
                 state.destroyed = true;
         }
@@ -587,5 +603,118 @@ std::vector<DVec3> predict_path(const ShipState& state, const System& system, do
 
 DVec3 ship_forward(const ShipState& state) { return rotate(state.attitude, {0, 0, 1}); }
 DVec3 ship_up(const ShipState& state) { return rotate(state.attitude, {0, 1, 0}); }
+
+double component_efficiency(double condition) {
+    const double c = clampd(condition, 0, 100) / 100.0;
+    return 0.35 + 0.65 * (1 - (1 - c) * (1 - c));
+}
+
+namespace {
+// The ship's position and velocity in the system frame.
+DVec3 absolute_position(const ShipState& state, const System& system, double t) {
+    return (state.ref >= 0 ? body_position(system, state.ref, t) : DVec3{}) + state.position;
+}
+DVec3 absolute_velocity(const ShipState& state, const System& system, double t) {
+    return (state.ref >= 0 ? body_velocity(system, state.ref, t) : DVec3{}) + state.velocity;
+}
+// Where the autopilot stops: above the target's air, or a tenth of its
+// radius up for an airless body.
+double arrival_altitude(const Body& body) { return std::max(body.atmosphere_top() + 1500.0, body.radius * 0.12); }
+double cruise_speed(const ShipSpec& spec, double distance) {
+    const double accel = spec.thrust / spec.mass;
+    // Slow enough to be cheap on fuel; time warp covers the coast.
+    return clampd(0.2 * std::sqrt(accel * std::max(distance, 0.0)), 60.0, 1500.0);
+}
+} // namespace
+
+AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec, const System& system, double t,
+                                   int target) {
+    AutopilotCommand command;
+    if (target < 0 || target >= static_cast<int>(system.bodies.size()) || state.destroyed)
+        return command;
+    const auto& goal = system.bodies[static_cast<std::size_t>(target)];
+    const double accel = spec.thrust * component_efficiency(state.engine) / spec.mass;
+    // First climb clear of the air (or the terrain) of the body we're on.
+    if (state.ref >= 0 && state.ref != target) {
+        const auto& here = system.bodies[static_cast<std::size_t>(state.ref)];
+        const double clear = std::max(here.atmosphere_top(), 2500.0);
+        const double altitude = length(state.position) - here.radius;
+        if (altitude < clear) {
+            const DVec3 up = normalized(state.position);
+            // Pitch over gradually as the air thins.
+            DVec3 a, b;
+            tangents(up, a, b);
+            DVec3 along = state.velocity - up * dot(state.velocity, up);
+            along = length(along) > 1 ? normalized(along) : a;
+            const double k = clampd(altitude / clear, 0, 1) * 0.6;
+            command.direction = normalized(up * (1 - k) + along * k);
+            command.throttle = 1;
+            command.phase = "climb";
+            return command;
+        }
+    }
+    const DVec3 to = body_position(system, target, t) - absolute_position(state, system, t);
+    const DVec3 rel = absolute_velocity(state, system, t) - body_velocity(system, target, t);
+    const double centre = length(to);
+    const DVec3 dir = normalized(to);
+    const double distance = centre - goal.radius - arrival_altitude(goal);
+    const double closing = dot(rel, dir);
+    if (distance < 1500 && length(rel) < 40) {
+        command.arrived = true;
+        command.phase = "arrived";
+        command.direction = dir;
+        return command;
+    }
+    // Wanted velocity: straight at the target, as fast as we can still stop
+    // in the distance left (with a margin), capped at cruise.
+    const double stop = std::sqrt(2 * accel * 0.7 * std::max(distance, 0.0));
+    const double want = std::min(cruise_speed(spec, distance), stop);
+    // Gravity of the target near arrival is absorbed by the margin; the
+    // error between wanted and actual velocity is what the engine fixes.
+    const DVec3 error = dir * want - rel;
+    const double err = length(error);
+    command.direction = err > 1e-6 ? normalized(error) : dir;
+    if (err < 6) {
+        command.throttle = 0;
+        command.phase = "coast";
+        command.direction = closing > want * 0.9 ? normalized(-rel) : dir;
+        return command;
+    }
+    const double facing = dot(ship_forward(state), command.direction);
+    command.throttle = facing > 0.985 ? clampd(err / (accel * 1.5), 0.05, 1) : 0.0;
+    command.phase = closing > want ? "brake" : "burn";
+    return command;
+}
+
+RoutePlan plan_route(const ShipState& state, const ShipSpec& spec, const System& system, double t, int target) {
+    RoutePlan plan;
+    if (target < 0 || target >= static_cast<int>(system.bodies.size()))
+        return plan;
+    const auto& goal = system.bodies[static_cast<std::size_t>(target)];
+    const DVec3 to = body_position(system, target, t) - absolute_position(state, system, t);
+    const DVec3 rel = absolute_velocity(state, system, t) - body_velocity(system, target, t);
+    plan.distance = std::max(0.0, length(to) - goal.radius);
+    plan.closing_speed = dot(rel, normalized(to));
+    double dv = 0;
+    // Climb out of where we are.
+    if (state.ref >= 0 && state.ref != target) {
+        const auto& here = system.bodies[static_cast<std::size_t>(state.ref)];
+        const double r = std::max(length(state.position), here.radius);
+        const double orbital = std::sqrt(here.gm() / r);
+        dv += state.landed ? orbital * 1.25 + std::sqrt(2 * here.surface_gravity * here.atmosphere_top()) * 0.3
+                           : std::max(0.0, orbital - length(state.velocity) * 0.5);
+    }
+    // Accelerate to cruise, cancel what we already have sideways, brake.
+    const double cruise = cruise_speed(spec, plan.distance);
+    dv += cruise * 2 + std::max(0.0, length(rel) - std::max(plan.closing_speed, 0.0));
+    // Descend and land on the target.
+    dv += std::sqrt(goal.gm() / (goal.radius + arrival_altitude(goal))) * 0.6 +
+          std::sqrt(2 * goal.surface_gravity * 400);
+    plan.delta_v = dv;
+    const double accel = spec.thrust / spec.mass;
+    plan.fuel_needed = dv / accel * spec.burn;
+    plan.status = state.fuel >= plan.fuel_needed * 1.25 ? 0 : state.fuel >= plan.fuel_needed ? 1 : 2;
+    return plan;
+}
 
 } // namespace engine::gameplay::space

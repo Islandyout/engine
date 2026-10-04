@@ -321,3 +321,20 @@ Consumed the same way as every other animated catalog entry:
 Hashes (SHA-256):
 
 - `assets/source/kit/people/mannequin_f.glb` (post-merge): `3c3b4533c5d85a604cd9562f4ee7821213b368309b3bc65b8e10c0334cd66c2e`
+
+## Quaternius spaceships and sci-fi props (0.73.0)
+
+Source: two GitHub ports of Quaternius packs, cloned at these commits:
+
+- https://github.com/Malcolmnixon/Quaternius-Ultimate-Spaceships-Pack @
+  `f2782cc8c7964fc38223bfb5d13fb33d85e7dd09` (Quaternius "Ultimate Spaceships Pack").
+- https://github.com/Malcolmnixon/Quaternius-Modular-Scifi-Pack @
+  `1b7f670e9d8c84f47cd0814cd290e447cc36e38e` (Quaternius "Modular Sci-Fi Pack").
+
+Each pack's own `addons/*/License.txt` (by Quaternius) grants CC0 1.0 Universal.
+
+- `source/kit/spaceships/*.glb` (11 ships) and `source/kit/scifi/*.glb` (26 props,
+  columns, walls, doors, tiles): converted from the packs' `blender/*.blend` sources
+  with `tools/blend_to_vertex_color_glb.py`. That script bakes each face's
+  palette-texture colour into a vertex colour and drops the texture. The shapes are
+  unmodified. These are derivatives of CC0 works, and the derivatives are also CC0.
