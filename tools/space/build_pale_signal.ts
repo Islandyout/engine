@@ -185,7 +185,8 @@ function talari(name: string, at: [number, number], stops: string, role: string)
   const index = add(name, [at[0], 0.9, at[1]], {
     Scale: { value: vec(1.62, 1.8, 0.34) },
     Renderable: { mesh: TALARI, material: 0, visible: true },
-    Material: material(pick(TINTS), { roughness: 0.85 }),
+    // Clothes in the role's tint; skin and crest stay the model's own.
+    Material: material(pick(TINTS), { roughness: 0.85, parts: "TunicCloth,MantleCloth" }),
     AIState: { state: "Walking" },
     Pedestrian: { archetype: 1 },
     Routine: { stops, speed: 1.3 + random() * 0.4 },
@@ -343,7 +344,7 @@ for (const n of NPCS.filter((n) => n.site === "kestra"))
   talari(n.name, kestra(...n.home), routine(n.role, n.home, n.work, n.market, kestra), n.role);
 for (let i = 0; i < 5; i++) {
   const a = random() * Math.PI * 2;
-  add("Talari", [KX + Math.cos(a) * 14, 0.9, KZ + Math.sin(a) * 14], { Scale: { value: vec(1.62, 1.8, 0.34) }, Renderable: { mesh: TALARI, material: 0, visible: true }, Material: material(pick(TINTS), { roughness: 0.85 }), AIState: { state: "Walking" }, Pedestrian: { archetype: 0 } });
+  add("Talari", [KX + Math.cos(a) * 14, 0.9, KZ + Math.sin(a) * 14], { Scale: { value: vec(1.62, 1.8, 0.34) }, Renderable: { mesh: TALARI, material: 0, visible: true }, Material: material(pick(TINTS), { roughness: 0.85, parts: "TunicCloth,MantleCloth" }), AIState: { state: "Walking" }, Pedestrian: { archetype: 0 } });
 }
 
 // ------------------------------------------------------------ volatile ice --

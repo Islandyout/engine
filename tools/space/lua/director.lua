@@ -36,6 +36,8 @@ local banner_until, hint_until, last_banner = 0, 0, "Banner"
 local near_harvest = ""
 local confidence = 1
 local helmet = true
+local suit_light = "auto"
+local visor_clock = 0
 local prospect_mode = 0 -- 0 off, 1 volatiles, 2 ore, 3 biomass
 local PROSPECT = { "volatiles", "ore", "biomass" }
 local board_index = 1
@@ -827,8 +829,8 @@ end
 local function controls_menu()
   open_menu({
     title = "CONTROLS",
-    body = "ON FOOT  WASD move · mouse look (drag) · Shift sprint · E interact (talk, use, harvest, board) · hold F scan; look up into open sky to sample the air · H helmet · R prospect for fuel / ore / biomass\n\n"
-      .. "FLIGHT  W/S throttle · Shift full · X cut · arrows or IJKL pitch and yaw (A/D yaw) · Q/E roll · Space/C lift and sink · T stabilized/manual · N NAV mode · G autopilot to target · B emergency reserve · 9/0 time warp\n\n"
+    body = "ON FOOT  WASD move · mouse look (drag) · Shift sprint · E interact (talk, use, harvest, board) · hold F scan; look up into open sky to sample the air · H helmet · L suit light · R prospect for fuel / ore / biomass\n\n"
+      .. "FLIGHT  W/S throttle · Shift full · X cut · click, then the mouse steers (F10 to change) · arrows or IJKL pitch and yaw (A/D yaw) · Q/E roll · Space/C lift and sink · T stabilized/manual · N NAV mode · G autopilot to target · B emergency reserve · 9/0 time warp\n\n"
       .. "PANELS  J journal · U upgrades · I ship services · Y culture record · TAB system board · M map · F1 controls · F2 Survey Academy · F10 settings · P pause · Esc close · 1-6 choose",
   })
 end
@@ -1210,6 +1212,15 @@ local function suit(st, dt)
   if s.integrity > 0 and s.o2 > 0 then s.vitals = math.min(100, s.vitals + dt * 0.5) end
   ui.set_text("SuitLabel", string.format("SUIT INTEGRITY %d%%%s", math.floor(s.integrity), info.hazard ~= "none" and info.hazard and (" · " .. string.upper(info.hazard)) or ""))
   ui.set_text("VitalsLabel", string.format("VITALS %d%%", math.floor(s.vitals)))
+  -- The visor (0.75.0): frost in the cold, shimmer in the heat, cracks as
+  -- the suit fails.
+  visor_clock = visor_clock - dt
+  if visor_clock <= 0 then
+    visor_clock = 0.2
+    local cold = info.hazard == "cryo" and 0.35 + 0.5 * (1 - s.integrity / 100) or 0
+    local hot = info.hazard == "thermal" and 0.3 + 0.5 * (1 - s.integrity / 100) or 0
+    host.send("visor", string.format("%d %.2f %.2f %.2f", (helmet and not st.piloting) and 1 or 0, s.integrity / 100, cold, hot))
+  end
   ui.set_value("O2Bar", math.max(0, s.o2))
   ui.set_value("SuitBar", s.integrity / 100)
   ui.set_value("VitalsBar", math.max(0, s.vitals) / 100)
@@ -1433,6 +1444,12 @@ function on_tick(dt)
     else
       hint("Interlock: the helmet stays sealed in unverified or unsafe air.", 3)
     end
+  end
+  -- The suit light (0.75.0): automatic in the dark, or forced on or off.
+  if input.pressed("l") and not st.piloting then
+    suit_light = suit_light == "auto" and "on" or suit_light == "on" and "off" or "auto"
+    host.send("suitlight", suit_light)
+    banner("SUIT LIGHT " .. string.upper(suit_light), 1.5)
   end
   if input.pressed("r") and not st.piloting then
     prospect_mode = (prospect_mode + 1) % 4

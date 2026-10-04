@@ -12,6 +12,7 @@
 // kept in doubles: three.js composes model-view matrices in doubles, so a
 // mesh far from the origin still renders steadily.
 import * as THREE from "three";
+import { atmosphereParams, scatterColor, scatterShellMaterial, scatterSkyMaterial, setScatterUniforms, type AtmosphereParams } from "./atmosphere";
 import { buildKestrel, cloudShell, milkyWay, signalStructure } from "./spaceArt";
 
 export interface SpaceRuntime {
@@ -559,37 +560,14 @@ class Planet {
   }
 }
 
+// The air seen from space (0.75.0): a shell at the top of the atmosphere
+// drawing single scattering (atmosphere.ts) over the planet and its limb.
 function atmosphereShell(body: SpaceBody) {
-  const material = new THREE.ShaderMaterial({
-    uniforms: {
-      color: { value: new THREE.Color(body.haze) },
-      sun: { value: new THREE.Vector3(0, 1, 0) },
-      strength: { value: 1 },
-    },
-    vertexShader: /* glsl */ `
-      varying vec3 vNormal; varying vec3 vView; varying vec3 vWorldNormal;
-      void main() {
-        vec4 world = modelMatrix * vec4(position, 1.0);
-        vWorldNormal = normalize(mat3(modelMatrix) * normal);
-        vView = normalize(cameraPosition - world.xyz);
-        gl_Position = projectionMatrix * viewMatrix * world;
-      }`,
-    fragmentShader: /* glsl */ `
-      uniform vec3 color; uniform vec3 sun; uniform float strength;
-      varying vec3 vView; varying vec3 vWorldNormal;
-      void main() {
-        float rim = 1.0 - abs(dot(vWorldNormal, vView));
-        float lit = clamp(dot(vWorldNormal, sun) * 1.4 + 0.35, 0.0, 1.0);
-        float a = pow(rim, 2.6) * lit * strength;
-        gl_FragColor = vec4(color * (1.2 + lit), a);
-      }`,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  });
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), material);
-  mesh.scale.setScalar(body.radius + body.atmosphereHeight * 1.2);
+  const params = atmosphereParams(body);
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 48), scatterShellMaterial());
+  mesh.scale.setScalar(body.radius * params.top);
   mesh.renderOrder = 2;
+  mesh.userData.params = params;
   return mesh;
 }
 
@@ -640,45 +618,9 @@ function starField() {
   return points;
 }
 
+// The sky from inside the air (0.75.0): single scattering toward the eye.
 function skyDome() {
-  const material = new THREE.ShaderMaterial({
-    uniforms: {
-      up: { value: new THREE.Vector3(0, 1, 0) },
-      sun: { value: new THREE.Vector3(0, 1, 0) },
-      haze: { value: new THREE.Color() },
-      air: { value: 0 },
-      day: { value: 1 },
-      sunset: { value: 0 },
-    },
-    vertexShader: /* glsl */ `
-      varying vec3 vDir;
-      void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: /* glsl */ `
-      uniform vec3 up; uniform vec3 sun; uniform vec3 haze; uniform float air; uniform float day; uniform float sunset;
-      varying vec3 vDir;
-      void main() {
-        vec3 d = normalize(vDir);
-        float h = dot(d, up);
-        float horizon = pow(1.0 - clamp(h, 0.0, 1.0), 3.0);
-        vec3 zenith = haze * 0.42;
-        vec3 col = mix(zenith, haze * 0.85, horizon);
-        float s = max(dot(d, sun), 0.0);
-        // Low sun: an orange band along the horizon, strongest toward it.
-        col = mix(col, vec3(1.0, 0.52, 0.26) * 1.05, sunset * horizon * (0.35 + 0.65 * pow(s, 2.0)));
-        col += vec3(1.0, 0.88, 0.68) * (pow(s, 32.0) * 0.22 + pow(s, 900.0) * 1.2);
-        // Below the horizon the ground haze darkens toward the planet.
-        col = mix(col, haze * 0.35, clamp(-h * 6.0, 0.0, 1.0));
-        float a = clamp(air * day, 0.0, 1.0);
-        // Opaque, drawn first: space black where there's no air or daylight.
-        gl_FragColor = vec4(col * day * a, 1.0);
-      }`,
-    side: THREE.BackSide,
-    transparent: false,
-    depthWrite: false,
-    depthTest: false,
-    fog: false,
-  });
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), material);
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), scatterSkyMaterial());
   mesh.frustumCulled = false;
   mesh.renderOrder = -1;
   return mesh;
@@ -751,6 +693,8 @@ class ThrusterVoice {
 
 // ---- the view ----------------------------------------------------------
 
+const scratchColor = new THREE.Color();
+
 export class SpaceView {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(60, 1, 1, 1e8);
@@ -777,6 +721,8 @@ export class SpaceView {
   readonly sunDirection = new THREE.Vector3(0, 1, 0);
   // Sky colour and how much air the camera is in (0..1), for the scene's fog.
   readonly skyColor = new THREE.Color();
+  // The scattered horizon colour around the camera (0.75.0), lit: the fog.
+  readonly horizonColor = new THREE.Color();
   air = 0;
   daylight = 1;
   // Ship pose, interpolated between ticks.
@@ -796,7 +742,9 @@ export class SpaceView {
   private voice?: ThrusterVoice;
 
   readonly landmarks: Array<Landmark & { anchor: THREE.Object3D; beam: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>; flare: THREE.Sprite; rings: THREE.Mesh[] }> = [];
-  private grammarTime = 0;
+  // The Pale Signal grammar's shared clock (seconds): rings and the grass
+  // near structures move on it.
+  grammarTime = 0;
 
   constructor(
     private readonly rt: SpaceRuntime,
@@ -1032,6 +980,7 @@ export class SpaceView {
     const budget: ChunkBudget = { left: this.warm < 30 ? 24 : 8, built: 0, until: performance.now() + (this.warm < 30 ? 14 : this.chunkMs) };
     this.warm++;
     let nearest: { planet: Planet; altitude: number; up: THREE.Vector3 } | undefined;
+    let skyInside = false;
     const spin = new THREE.Quaternion();
     this.planets.forEach((planet, i) => {
       const centre = new THREE.Vector3(this.rt._editor_space_body_value(i, 0), this.rt._editor_space_body_value(i, 1), this.rt._editor_space_body_value(i, 2));
@@ -1050,10 +999,16 @@ export class SpaceView {
       const cameraBody = relative.applyQuaternion(inverse);
       planet.update(cameraBody, budget);
       if (planet.atmosphere) {
-        const outside = altitude > planet.body.atmosphereHeight * 2.4;
+        const params = planet.atmosphere.userData.params as AtmosphereParams;
+        const outside = relative.length() > planet.body.radius * params.top * 1.0005;
         planet.atmosphere.visible = outside;
-        planet.atmosphere.material.uniforms.sun!.value.copy(this.sunDirection);
-        planet.atmosphere.material.uniforms.strength!.value = THREE.MathUtils.clamp(altitude / (planet.body.atmosphereHeight * 6), 0.35, 1);
+        if (outside)
+          setScatterUniforms(
+            planet.atmosphere.material.uniforms as never,
+            params,
+            cameraPosition.clone().sub(centre).divideScalar(planet.body.radius),
+            this.sunDirection,
+          );
       }
     });
     // Sky: the nearest body's air around the camera.
@@ -1072,18 +1027,29 @@ export class SpaceView {
       const elevation = nearest.up.dot(this.sunDirection);
       this.daylight = THREE.MathUtils.clamp(elevation * 3 + 0.35, 0.04, 1);
       this.skyColor.set(body.haze);
-      const sky = this.sky.material.uniforms;
-      sky.up!.value.copy(nearest.up);
-      sky.sun!.value.copy(this.sunDirection);
-      sky.haze!.value.copy(this.skyColor);
-      sky.air!.value = this.air;
-      sky.day!.value = this.daylight;
       this.sunset = THREE.MathUtils.clamp(1 - elevation / 0.3, 0, 1) * (elevation > -0.12 ? 1 : 0);
-      sky.sunset!.value = this.sunset;
+      const params = nearest.planet.atmosphere?.userData.params as AtmosphereParams | undefined;
+      skyInside = !!params && !nearest.planet.atmosphere!.visible;
+      if (params) {
+        const eye = cameraPosition.clone().sub(nearest.planet.group.position).divideScalar(body.radius);
+        setScatterUniforms(this.sky.material.uniforms as never, params, eye, this.sunDirection);
+        // The horizon's colour toward the sun's side, for the fog: distant
+        // ground fades into the same sky (and goes orange at sunset).
+        const across = this.sunDirection.clone().addScaledVector(nearest.up, -this.sunDirection.dot(nearest.up));
+        if (across.lengthSq() < 1e-6) across.set(1, 0, 0).cross(nearest.up);
+        across.normalize().addScaledVector(nearest.up, 0.04).normalize();
+        const toward = scatterColor(params, eye, across, this.sunDirection, scratchColor);
+        const away = scatterColor(params, eye, across.clone().multiplyScalar(-1).addScaledVector(nearest.up, 0.08).normalize(), this.sunDirection);
+        this.horizonColor.copy(toward).lerp(away, 0.45);
+      } else this.horizonColor.setRGB(0, 0, 0);
       // Haze swallows distant terrain in thick air.
-      this.scene.fog = this.air > 0.02 ? new THREE.FogExp2(this.skyColor.clone().multiplyScalar(this.daylight * 0.9), 2.2e-5 * this.air) : null;
+      if (this.air > 0.02) {
+        if (!(this.scene.fog instanceof THREE.FogExp2)) this.scene.fog = new THREE.FogExp2(0, 0);
+        this.scene.fog.color.copy(this.horizonColor);
+        this.scene.fog.density = 2.2e-5 * this.air;
+      } else this.scene.fog = null;
     }
-    this.sky.visible = this.air > 0.01;
+    this.sky.visible = skyInside && this.air > 0.003;
     this.sky.position.copy(cameraPosition);
     this.sky.scale.setScalar(Math.max(near * 4, 10));
     this.stars.position.copy(cameraPosition);

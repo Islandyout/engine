@@ -844,6 +844,7 @@ export function defaultComponent(
         opacity: 1,
         keepTextures: true,
         texture: "",
+        parts: "",
       };
   }
 }

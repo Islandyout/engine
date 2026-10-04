@@ -114,6 +114,7 @@ const metadata: Record<string, PropertyMetadata> = {
   "Material.emissiveIntensity": { label: "Emissive intensity", step: "0.1" },
   "Material.keepTextures": { label: "Keep model textures (tint only)" },
   "Material.texture": { label: "Texture (URL or asset:file.png)" },
+  "Material.parts": { label: "Only parts named (comma-separated, empty = all)" },
   "Material.color.x": { label: "color R (0-1)", step: "0.05" },
   "Material.color.y": { label: "color G (0-1)", step: "0.05" },
   "Material.color.z": { label: "color B (0-1)", step: "0.05" },

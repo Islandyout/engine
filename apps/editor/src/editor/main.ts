@@ -62,6 +62,8 @@ import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGrap
 import { applyMouseLook, applyStickLook, ViewEffects, type Look } from "./fpsView";
 import { Sfx } from "./sfx";
 import { AudioMixer, defaultMixerSettings, FootstepTracker, type Bus } from "./audioMixer";
+import { parseVisor, Visor } from "./visor";
+import { MAX_SPOTS, swayMaterial, swayUniforms } from "./scatterSway";
 import { crowdNear, FrameGovernor, governorTiers, presetFloor } from "./frameGovernor";
 import { defaultPostSettings, gradingActive, gradingShader, shadowQualities, type PostSettings } from "./postFx";
 import { EventFlag, EventKind, WeaponFx } from "./weaponFx";
@@ -1184,7 +1186,7 @@ async function startEditor() {
     const material = doc.scene.resolve(entity, "Material");
     const apply = (cached: CachedModel) => {
       const root = SkeletonUtils.clone(cached.scene);
-      if (material) root.traverse((child) => child instanceof THREE.Mesh && applyMaterial(child, material));
+      if (material) root.traverse((child) => child instanceof THREE.Mesh && materialAppliesTo(child, material) && applyMaterial(child, material));
       weaponFx.setBody(root, cached.clips);
     };
     const cached = catalogCache.get(id);
@@ -1931,6 +1933,16 @@ async function startEditor() {
       placed.map((p) => ({ model: p.species.model, x: p.x, y: p.y, z: p.z, yaw: p.yaw, scale: p.scale, collide: false })),
       models,
     );
+    // Plants sway (minerals don't), in step with any structure nearby.
+    const kindOf = new Map(placed.map((p) => [p.species.model, p.species.kind]));
+    spaceScatter.traverse((child) => {
+      if (!(child instanceof THREE.InstancedMesh)) return;
+      const model = (child.userData.instances as Array<{ model: number }> | undefined)?.[0]?.model;
+      if (model === undefined || kindOf.get(model) === "mineral" || Array.isArray(child.material)) return;
+      let swayed = swayCache.get(child.material);
+      if (!swayed) swayCache.set(child.material, (swayed = swayMaterial(child.material, sway)));
+      child.material = swayed;
+    });
     scene.add(spaceScatter);
     applyScatterDensity(governorTier().scatter);
     scatterPlacements = placed.map((p) => ({ x: p.x, y: p.y, z: p.z, key: p.species.id, kind: p.species.kind, scale: p.scale }));
@@ -1941,6 +1953,12 @@ async function startEditor() {
   }
   function endSpaceView() {
     endExplorer();
+    if (suitLight) {
+      scene.remove(suitLight, suitLight.target);
+      suitLight.dispose();
+      suitLight = undefined;
+    }
+    suitLightLevel = 0;
     spaceView?.dispose();
     spaceView = undefined;
     if (spaceScatter) scene.remove(spaceScatter);
@@ -1982,7 +2000,8 @@ async function startEditor() {
     hemisphere.color.copy(spaceView.skyColor).lerp(new THREE.Color(1, 1, 1), 0.4).multiplyScalar(0.35 + 0.65 * day);
     scene.background = null;
     if (skyMesh) skyMesh.visible = false;
-    scene.fog = spaceView.air > 0.02 ? new THREE.FogExp2(spaceView.skyColor.clone().multiplyScalar(day * 0.9), 6e-5 * spaceView.air) : null;
+    // The scattered horizon (atmosphere.ts) colours the haze.
+    scene.fog = spaceView.air > 0.02 ? new THREE.FogExp2(spaceView.horizonColor.getHex(), 6e-5 * spaceView.air) : null;
     if (playerIndex >= 0 && objects[playerIndex]) objects[playerIndex]!.visible = !spaceView.flight.piloting;
     // Warm light at sunrise and sunset.
     sun.color.setRGB(1, 1 - spaceView.sunset * 0.35, 1 - spaceView.sunset * 0.6);
@@ -2005,7 +2024,7 @@ async function startEditor() {
     }
     // Weather fog (0.73.0) thickens the haze.
     const fog = explorerFx?.weather.fog ?? 0;
-    if (fog > 0.01) scene.fog = new THREE.FogExp2(spaceView.skyColor.clone().multiplyScalar(day * 0.8), 6e-5 * spaceView.air + fog * 0.012);
+    if (fog > 0.01) scene.fog = new THREE.FogExp2(spaceView.horizonColor.clone().lerp(spaceView.skyColor.clone().multiplyScalar(day * 0.8), 0.5).getHex(), 6e-5 * spaceView.air + fog * 0.012);
     updateExplorer(dt, view);
     // Only the active site's objects are here; the rest are elsewhere on
     // the planet (or another world).
@@ -2033,6 +2052,11 @@ async function startEditor() {
   const playerSettings = loadSettings();
   const announcer = new Announcer(app);
   let explorerFx: ExplorerFx | undefined;
+  // The visor and the suit light (0.75.0).
+  const visor = new Visor();
+  let suitLight: THREE.SpotLight | undefined;
+  let suitLightMode: "auto" | "on" | "off" = "auto";
+  let suitLightLevel = 0;
   let ambience: Ambience | undefined;
   let explorerBodies: ReturnType<typeof parseSpaceBodies>["bodies"] = [];
   let mapMode: "off" | "system" | "surface" = "off";
@@ -2114,6 +2138,8 @@ async function startEditor() {
       scanner.tuning.time = Number.isFinite(time) && time > 0 ? time : 1;
       scanner.tuning.condition = Number.isFinite(condition) ? THREE.MathUtils.clamp(condition, 0, 1) : 1;
     } else if (kind === "sky_scan") scanner.skyKey = text;
+    else if (kind === "visor") visor.state = parseVisor(text);
+    else if (kind === "suitlight") suitLightMode = text === "on" || text === "off" ? text : "auto";
     else if (kind === "dust" && explorerFx) {
       const [color = "#d8cfb8", density = "0.5"] = text.split(/\s+/);
       if (/^#[0-9a-fA-F]{6}$/.test(color)) explorerFx.dustColor.set(color);
@@ -2225,6 +2251,47 @@ async function startEditor() {
     scatterTargets = scatterTargets.filter((t) => !(t.position.x === placement.x && t.position.z === placement.z));
     uiEvent("harvested", key);
   }
+  const sway = swayUniforms();
+  const swayCache = new Map<THREE.Material, THREE.Material>();
+  // The grass clock and the structures it falls into step near.
+  function updateSway(dt: number) {
+    if (!spaceView) return;
+    sway.uSwayTime.value += dt;
+    sway.uPulse.value = spaceView.grammarTime;
+    const w = explorerFx?.weather;
+    sway.uWind.value = w ? Math.min(1, Math.hypot(w.windX, w.windZ) / 14) : 0;
+    const eye = viewCamera.position;
+    const spots = spaceView.landmarks
+      .map((l) => l.anchor.getWorldPosition(new THREE.Vector3()))
+      .filter((p) => p.distanceTo(eye) < 3000)
+      .sort((a, b) => a.distanceTo(eye) - b.distanceTo(eye));
+    for (let i = 0; i < MAX_SPOTS; i++) {
+      const p = spots[i];
+      // Unused slots sit far away (a zero radius would be undefined).
+      sway.uSpots.value[i]!.set(p?.x ?? 1e9, p?.y ?? 0, p?.z ?? 1e9, 70);
+    }
+  }
+  // The suit light: a lamp at the walker's helmet along their facing,
+  // easing on as the light fails (or forced on or off with L).
+  function updateSuitLight(dt: number, walker: THREE.Object3D | undefined) {
+    const dark = spaceView ? 1 - THREE.MathUtils.smoothstep(spaceView.daylight * Math.max(spaceView.air, 0.25), 0.12, 0.3) : 0;
+    const want = !walker ? 0 : suitLightMode === "on" ? 1 : suitLightMode === "off" ? 0 : dark;
+    suitLightLevel += (want - suitLightLevel) * (1 - Math.exp(-dt * 4));
+    if (suitLightLevel < 0.01 || !walker) {
+      if (suitLight) suitLight.visible = false;
+      return;
+    }
+    if (!suitLight) {
+      suitLight = new THREE.SpotLight(0xfff0d8, 0, 36, 0.5, 0.55, 1.4);
+      scene.add(suitLight, suitLight.target);
+    }
+    suitLight.visible = true;
+    suitLight.intensity = 60 * suitLightLevel;
+    const yaw = walker.rotation.y;
+    const forward = new THREE.Vector3(Math.sin(yaw), -0.18, Math.cos(yaw)).normalize();
+    suitLight.position.copy(walker.position).add(new THREE.Vector3(0, 0.75, 0)).addScaledVector(forward, 0.35);
+    suitLight.target.position.copy(suitLight.position).addScaledVector(forward, 10);
+  }
   // Per frame while playing a SpaceSystem scene.
   function updateExplorer(dt: number, view: THREE.Camera) {
     if (!spaceView || !explorerFx) return;
@@ -2232,6 +2299,9 @@ async function startEditor() {
     const walking = !spaceView.flight.piloting;
     const moving = walking && playerIndex >= 0 && runtime._editor_controller_value(playerIndex, 4) > 0.5;
     explorerFx.update(dt, view, walking ? player : undefined, moving, (x, z) => runtime._editor_space_ground(x, z), softGround);
+    visor.update(dt, walking ? explorerFx.weather.rain : 0);
+    updateSway(dt);
+    updateSuitLight(dt, walking ? player : undefined);
     ambience?.update(spaceView.air);
     // Touchdown: the settle bob and a thump.
     const landed = spaceView.flight.landed;
@@ -3304,6 +3374,13 @@ async function startEditor() {
   // off) a fresh MeshStandardMaterial replaces the mesh's own; otherwise
   // each model material is cloned and tinted, keeping its texture maps.
   // Always a new material, never an edit of the shared/cached one.
+  // Material.parts: only meshes whose material is named for one of them.
+  function materialAppliesTo(mesh: THREE.Mesh, m: MaterialComponent) {
+    const parts = (m.parts ?? "").split(",").map((p) => p.trim().toLowerCase()).filter(Boolean);
+    if (!parts.length) return true;
+    const names = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((x) => x.name.toLowerCase());
+    return names.some((name) => parts.some((part) => name.includes(part)));
+  }
   function applyMaterial(mesh: THREE.Mesh, m: MaterialComponent) {
     const build = (base: THREE.Material): THREE.Material => {
       const standard =
@@ -3638,7 +3715,7 @@ async function startEditor() {
       if (!(child instanceof THREE.Mesh)) return;
       child.castShadow = true;
       child.receiveShadow = true;
-      if (materialOverride) applyMaterial(child, materialOverride);
+      if (materialOverride && materialAppliesTo(child, materialOverride)) applyMaterial(child, materialOverride);
     });
     // A still model (no rig, nothing scripted on it) never moves inside its
     // anchor: its nodes' local matrices are composed once, not every frame
@@ -5520,6 +5597,8 @@ async function startEditor() {
   }
   function drawHud() {
     hudCtx.clearRect(0, 0, hud.width, hud.height);
+    // The visor under everything else, while walking in a suit.
+    if (doc.mode !== "edit" && spaceView && !spaceView.flight.piloting) visor.draw(hudCtx, hud.width, hud.height);
     uiButtonHits.length = 0;
     const hudLines: string[] = [];
     if (doc.mode === "play")
