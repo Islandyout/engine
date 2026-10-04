@@ -82,6 +82,9 @@ The Kestrel masses 12 t with 300 kN main and 180 kN belly thrust: about 2,080 m/
 
 ## 5. Limits and next steps
 
+Everything still missing compared with the prototype, system by system, with a proposed order: [PALE_SIGNAL_GAP_MAP.md](PALE_SIGNAL_GAP_MAP.md).
+
+
 - **Walking anywhere**: you can step out wherever you land. Each landing re-centres a walkable area about 2.4 km across: any planet, any moon, any spot. Only the authored site (Kestra) has buildings and people; elsewhere you get the world's generated plants and rocks, its landmarks, and its air (or lack of it).
 - **Bodies don't rotate**, and orbits are circular.
 - **Art**: the Kestrel and the signal structures are procedural; the Talari use the Mannequin, and species use catalog models (plants, rocks). Authored art is Pale Signal's own Phase 4.
