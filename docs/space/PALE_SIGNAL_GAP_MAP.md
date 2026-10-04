@@ -1,6 +1,6 @@
-# Pale Signal — gap map (prototype → engine, 0.73.0)
+# Pale Signal — gap map (prototype → engine, 0.74.0)
 
-What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has, compared with what the game on this engine has as of 0.73.0 ([PALE_SIGNAL_SLICE.md](PALE_SIGNAL_SLICE.md)). The first version of this map (0.72.0) listed 53 gaps; 0.73.0 worked through all seven phases it proposed.
+What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has, compared with what the game on this engine has as of 0.74.0 ([PALE_SIGNAL_SLICE.md](PALE_SIGNAL_SLICE.md)). The first version of this map (0.72.0) listed 53 gaps. 0.73.0 worked through all seven phases it proposed, and 0.74.0 closed the terrain, rotation, landing and Talari gaps that were left.
 
 **Sources inventoried:**
 - `prototype/pale-signal.html.html`: 17 source modules, 249 functions, and these data tables: 6 bodies, 22 species, 13 civilization sites, 24 NPCs, 16 evidence items, 9 landmarks, 7 upgrades and 12 tutorial pages.
@@ -31,8 +31,8 @@ What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has,
 | Star "Aster" | ✅ | Named in the title and journal (C) | — |
 | Per-body hazards | ✅ | thermal / cryo / toxic / pressure rates wear the suit (C) | — |
 | Surface temperature / description | ✅ | System Board and landfall journal entries (C) | — |
-| Terrain features per body | ❌ | — | Craters, lava rifts, dune fields (E) |
-| Axial rotation / day–night | 🟡 | Orbit-driven light; a scene clock (`world.set_clock`) drives NPC days (E) | Rotating body frames |
+| Terrain features per body | ✅ | `craters=`, `rifts=` (glowing lava channels) and `dunes=` body options: craters on Vell, Nemesis, Cinder and Ossuary; rifts on Cinder; dunes on Ossuary (E) | — |
+| Axial rotation / day–night | ✅ | `day=` turns a body: surfaces, sites and landmarks turn with it, landed ships ride along, and the sun rises and sets. Kestra's NPC clock follows its solar day (E + C) | — |
 
 ## 2. Flight
 
@@ -42,8 +42,8 @@ What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has,
 | NAV auto-transfer | ✅ | `space::autopilot_command`: climb, burn, coast under auto warp, brake, arrive; any input takes over (E) | Clearance corridors around moons |
 | Mouse steering mode | ❌ | — | Optional mouse-steer toggle (E) |
 | Atmospheric heating, drag, lift | ✅ | Plus wind (`ShipInput::wind`, `space.call("wind")`) | — |
-| Landing telemetry | 🟡 | Guidance line, landing law near towns | Radar ribbon, slope warning before contact |
-| Landing settle | 🟡 | Settle bob and touchdown thump (E) | Water splash |
+| Landing telemetry | ✅ | A radar tape below 400 m with sink rate, ground slope, drift, water and a SAFE / UNSAFE call against the gear's limits; the guidance line; landing law near towns (E) | — |
+| Landing settle | ✅ | Settle bob, touchdown thump, spray from water landings and from low hovers (E) | — |
 | Ship components | ✅ | Engine, RCS, gear, scanner condition; efficiency curve; wear from landings, heat and hard turns; repairs (E + C) | — |
 | Emergency reserve | ✅ | `space.call("reserve")`, B (E + C) | — |
 | Fuel warnings | ✅ | Route plans on the board, low-fuel and out-of-fuel hints, auto-refine safety (C) | — |
@@ -115,7 +115,7 @@ What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has,
 | Culture panel | ✅ | Y: languages, reputation, contacts, investigations, places, evidence by era (C) | — |
 | Interiors / vestibules | ✅ | Meridian House annex, warm doorways everywhere (C) | More interiors |
 | Talari architecture | ✅ | Terraces, roofs, doorways, canals, floodwalls, civic halls, stalls, observatories, towers (C) | — |
-| Talari look | 🟡 | Narrow-torso mannequins, tints, job accessories | A dedicated Talari model |
+| Talari look | ✅ | A Talari model (`talari.glb`, made by `tools/models/make_talari.py`): narrow torso, long crested skull, tunic and mantle on the animated rig; clothing tints and job accessories (C) | — |
 
 ## 8. Progression and the mystery
 
@@ -178,13 +178,13 @@ What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has,
 
 | Area | ✅ | 🟡 | ❌ |
 |---|---|---|---|
-| World & system | 6 | 1 | 1 |
-| Flight | 8 | 2 | 1 |
+| World & system | 8 | 0 | 0 |
+| Flight | 10 | 0 | 1 |
 | Navigation | 6 | 0 | 0 |
 | EVA | 7 | 1 | 0 |
 | Scanning & resources | 10 | 0 | 0 |
 | Wildlife | 3 | 1 | 0 |
-| Civilization | 11 | 2 | 0 |
+| Civilization | 12 | 1 | 0 |
 | Progression & mystery | 5 | 0 | 0 |
 | Visuals | 5 | 1 | 0 |
 | Audio | 4 | 0 | 0 |
@@ -193,6 +193,6 @@ What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has,
 
 ## What's left
 
-- **Engine:** terrain features (craters, rifts, dunes), rotating body frames, an optional mouse-steer flight mode, a landing radar ribbon, water splashes, re-anchoring while walking, and a full atmospheric scattering model.
-- **Art:** a dedicated Talari character model, graze and conversation animations.
+- **Engine:** an optional mouse-steer flight mode, re-anchoring while walking, and a full atmospheric scattering model.
+- **Art:** graze and conversation animations.
 - **Content:** more interiors, prices by reputation, shelter from storms.

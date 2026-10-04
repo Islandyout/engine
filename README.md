@@ -327,6 +327,15 @@ Engine version 0.73.0 brings the whole Pale Signal expedition, and a home for yo
 
 See [F73](docs/IMPLEMENTATION_STATUS.md#f73--the-whole-pale-signal-expedition-the-games-library-and-cc0-ship-and-sci-fi-models-0730).
 
+Engine version 0.74.0 makes the worlds turn and the ground more interesting:
+
+- **Turning planets** (`day=`): days and nights pass over the sites while landed ships, settlements and landmarks turn with the ground.
+- **Terrain features**: craters, glowing lava rifts and dune fields (`craters=`, `rifts=`, `dunes=`).
+- **Landing radar**: radar altitude, sink, slope and drift against the gear's limits, with a SAFE / UNSAFE call, plus water spray.
+- **The Talari model**: Pale Signal's people get their own crested, robed figure on the animated rig.
+
+See [F74](docs/IMPLEMENTATION_STATUS.md#f74--turning-worlds-craters-and-lava-rifts-the-landing-radar-and-the-talari-0740).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

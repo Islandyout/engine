@@ -30,6 +30,10 @@ test("Pale Signal has six worlds, nine landmarks, every site, NPC and evidence i
   assert.deepEqual(bodies.map((b) => b.name), ["Cinder", "Tethys", "Vell", "Ossuary", "Hollow", "Nemesis"]);
   assert.equal(bodies[2]!.parent, 1, "Vell orbits Tethys");
   assert.ok(bodies[5]!.hidden && bodies[5]!.unlit, "Nemesis starts hidden and unlit");
+  assert.ok(bodies[0]!.rifts && bodies[0]!.craters > 0, "Cinder has craters and lava rifts");
+  assert.ok(bodies[3]!.dunes, "Ossuary has dunes");
+  assert.equal(bodies[1]!.day, 1200, "Tethys turns every 1200 s");
+  assert.equal(bodies[2]!.day, 0, "Vell keeps one face to Tethys");
   assert.equal(space.siteBody, "Tethys");
   const landmarks = parseLandmarks(space.landmarks, bodies);
   assert.equal(landmarks.length, 9);
@@ -43,6 +47,7 @@ test("Pale Signal has six worlds, nine landmarks, every site, NPC and evidence i
   assert.deepEqual(sites.map((e: { name: string }) => e.name).sort(), ["Civic Archive Nine", "Darsa Delta", "Meridian Spur", "Retreat Causeway", "The Third Mooring"]);
   const routines = scene.entities.filter((e: { components: { Routine?: unknown } }) => e.components.Routine);
   assert.equal(routines.length, 24, "24 Talari keep daily routines");
+  for (const e of routines) assert.equal(e.components.Renderable.mesh, 175, "the Talari model");
   const evidence = scene.entities.filter((e: { components: { Scannable?: { kind: string; id: string } } }) => e.components.Scannable?.kind === "Culture" && /^(te|os|ho)_/.test(e.components.Scannable.id));
   assert.equal(evidence.length, 16, "all 16 evidence items");
   assert.ok(scene.entities.some((e: { components: { Wildlife?: unknown } }) => e.components.Wildlife), "herds of wildlife");
@@ -69,6 +74,9 @@ test("species and body options", () => {
   assert.equal(bodies[0]!.snow, true);
   assert.equal(bodies[0]!.hidden, false);
   assert.equal(parseSpaceBodies("Dark - 1 10 0 0 1000 9 0 0 10 100 1 #808080 #000000 hidden=1 unlit=1").bodies[0]!.unlit, true);
+  const featured = parseSpaceBodies("Rock - 1 10 0 0 1000 9 0 0 10 100 1 #808080 #000000 craters=0.4 rifts=1 dunes=1 day=900").bodies[0]!;
+  assert.deepEqual([featured.craters, featured.rifts, featured.dunes, featured.day], [0.4, true, true, 900]);
+  assert.equal(bodies[0]!.day, 0, "bodies don't turn unless asked");
   const species = parseSpecies("a World flora 37 2 0.5 Pale Reed | grows\nb Nowhere flora 37 1 1 X\nc World rock 1 1 1 Bad\n# d World flora 1 1 1 Comment", bodies);
   assert.deepEqual(species, [{ id: "a", body: 0, kind: "flora", model: 37, weight: 2, scale: 0.5, name: "Pale Reed", description: "grows" }]);
 });
