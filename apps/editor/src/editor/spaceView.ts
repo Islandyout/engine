@@ -18,6 +18,8 @@ export interface SpaceRuntime {
   _editor_space_value(field: number): number;
   _editor_space_body_value(index: number, field: number): number;
   _editor_space_frame(field: number): number;
+  _editor_space_body_spin(index: number, field: number): number;
+  _editor_planet_lava(index: number, x: number, y: number, z: number): number;
   _editor_planet_height(index: number, x: number, y: number, z: number): number;
   _editor_space_path(count: number, horizon: number): number;
   _editor_space_path_value(index: number, axis: number): number;
@@ -49,6 +51,12 @@ export interface SpaceBody {
   snow: boolean;
   hidden: boolean;
   unlit: boolean;
+  // Terrain features and turn (0.74.0): craters (0..1 density), rifts and
+  // dunes (0/1), day (seconds per turn, 0: none).
+  craters: number;
+  rifts: boolean;
+  dunes: boolean;
+  day: number;
 }
 
 // One body per line (see SpaceSystemComponent.bodies). Blank lines and
@@ -153,6 +161,10 @@ function options(tokens: string[]) {
     snow: values.snow === 1,
     hidden: values.hidden === 1,
     unlit: values.unlit === 1,
+    craters: THREE.MathUtils.clamp(values.craters ?? 0, 0, 1),
+    rifts: values.rifts === 1,
+    dunes: values.dunes === 1,
+    day: Math.max(0, values.day ?? 0),
   };
 }
 
@@ -210,9 +222,16 @@ export interface FlightState {
   targetDistance: number;
   siteDistance: number;
   period: number;
+  // Landing telemetry (0.74.0): ground slope (degrees), the gear's limits,
+  // and water under the ship.
+  slope: number;
+  sinkLimit: number;
+  slopeLimit: number;
+  driftLimit: number;
+  overWater: boolean;
 }
 
-export const assistNames = ["MANUAL", "STABILIZED", "NAV PROGRADE", "NAV RETROGRADE", "NAV TARGET"];
+export const assistNames = ["MANUAL", "STABILIZED", "NAV PROGRADE", "NAV RETROGRADE", "NAV TARGET", "NAV AUTOPILOT"];
 
 function readFlight(rt: SpaceRuntime): FlightState {
   const v = (f: number) => rt._editor_space_value(f);
@@ -242,6 +261,11 @@ function readFlight(rt: SpaceRuntime): FlightState {
     targetDistance: v(30),
     siteDistance: v(31),
     period: v(32),
+    slope: v(47),
+    sinkLimit: v(48),
+    slopeLimit: v(49),
+    driftLimit: v(50),
+    overWater: v(51) === 1,
   };
 }
 
@@ -303,11 +327,13 @@ class Planet {
     // Water is glossy: a per-vertex "water" weight lowers the roughness.
     this.material.onBeforeCompile = (shader) => {
       shader.vertexShader = shader.vertexShader
-        .replace("#include <common>", "#include <common>\nattribute float water;\nvarying float vWater;")
-        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWater = water;");
+        .replace("#include <common>", "#include <common>\nattribute float water;\nattribute float lava;\nvarying float vWater;\nvarying float vLava;")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWater = water;\nvLava = lava;");
+      // Lava rifts (0.74.0) glow on their own, day or night.
       shader.fragmentShader = shader.fragmentShader
-        .replace("#include <common>", "#include <common>\nvarying float vWater;")
-        .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.12, vWater);");
+        .replace("#include <common>", "#include <common>\nvarying float vWater;\nvarying float vLava;")
+        .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.12, vWater);")
+        .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.32, 0.06) * smoothstep(0.35, 0.9, vLava) * 2.2;");
     };
     const base = new THREE.Color(body.color);
     const haze = new THREE.Color(body.haze);
@@ -406,6 +432,8 @@ class Planet {
     // tinted by depth -- with a little per-vertex variation so slopes read.
     const c = new THREE.Color();
     const water = new Float32Array(k);
+    const lavaAmount = new Float32Array(k);
+    const basalt = new THREE.Color("#1c1412");
     const shallow = new THREE.Color("#3f8a96"), deep = new THREE.Color("#0f2f44"), sand = new THREE.Color("#c9b98c");
     const snow = new THREE.Color("#eef3f6");
     for (let v = 0; v < k; v++) {
@@ -424,10 +452,17 @@ class Planet {
         if (this.body.snow && t > 0.5) c.lerp(snow, THREE.MathUtils.clamp((t - 0.5) * 4 - slope * 3, 0, 1));
         const jitter = (Math.sin(up.x * 91731.7 + up.y * 37211.3 + up.z * 51923.1) * 43758.5453) % 1;
         c.multiplyScalar(0.93 + Math.abs(jitter) * 0.14);
+        if (this.body.rifts) {
+          const l = this.rt._editor_planet_lava(this.index, up.x, up.y, up.z);
+          lavaAmount[v] = l;
+          // Cooled black crust around the channel, molten in it.
+          if (l > 0) c.lerp(basalt, THREE.MathUtils.clamp(l * 1.6, 0, 1));
+        }
       }
       colors.set([c.r, c.g, c.b], v * 3);
     }
     geometry.setAttribute("water", new THREE.BufferAttribute(water, 1));
+    geometry.setAttribute("lava", new THREE.BufferAttribute(lavaAmount, 1));
     geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     geometry.computeBoundingSphere();
     const mesh = new THREE.Mesh(geometry, this.material);
@@ -981,11 +1016,15 @@ export class SpaceView {
     const budget = { left: this.warm < 30 ? 24 : 8 };
     this.warm++;
     let nearest: { planet: Planet; altitude: number; up: THREE.Vector3 } | undefined;
-    const inverse = this.frame.clone().invert();
+    const spin = new THREE.Quaternion();
     this.planets.forEach((planet, i) => {
       const centre = new THREE.Vector3(this.rt._editor_space_body_value(i, 0), this.rt._editor_space_body_value(i, 1), this.rt._editor_space_body_value(i, 2));
       planet.group.position.copy(centre);
-      planet.group.quaternion.copy(this.frame);
+      // Turning bodies (0.74.0): the frame times the body's own turn.
+      const sp = (f: number) => this.rt._editor_space_body_spin(i, f);
+      spin.set(sp(0), sp(1), sp(2), sp(3));
+      planet.group.quaternion.copy(this.frame).multiply(spin);
+      const inverse = planet.group.quaternion.clone().invert();
       // Hidden bodies (0.73.0) aren't there until a script reveals them.
       planet.group.visible = this.rt._editor_space_body_value(i, 10) !== 1;
       if (!planet.group.visible) return;
@@ -1158,6 +1197,59 @@ function bar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, val
 
 // The flight instruments, bottom left; landing guidance near the ground;
 // markers for the bodies; contextual prompts.
+// The landing radar: a tape from 0 to 400 m of radar altitude with the
+// ship's marker, a sink-rate bar, and SLOPE / SINK / DRIFT / WATER calls
+// that turn red past the gear's limits; SAFE when all are inside.
+function drawLandingRadar(ctx: CanvasRenderingContext2D, width: number, height: number, f: FlightState) {
+  // Right of centre, clear of the ship and of HUD columns.
+  const x = width / 2 + Math.min(220, width * 0.2), top = height * 0.4, h = height * 0.3, scale = 400;
+  ctx.save();
+  ctx.fillStyle = "rgba(6,12,18,0.55)";
+  ctx.fillRect(x - 14, top - 26, 140, h + 40);
+  ctx.strokeStyle = "rgba(143,247,255,0.6)";
+  ctx.beginPath();
+  ctx.moveTo(x, top);
+  ctx.lineTo(x, top + h);
+  ctx.stroke();
+  ctx.font = "10px ui-monospace, Menlo, Consolas, monospace";
+  ctx.fillStyle = "rgba(207,231,245,0.7)";
+  for (const mark of [0, 50, 100, 200, 300, 400]) {
+    const y = top + h - (mark / scale) * h;
+    ctx.fillRect(x, y, 6, 1);
+    ctx.fillText(String(mark), x + 9, y + 3);
+  }
+  const y = top + h - (Math.min(Math.max(f.altitude, 0), scale) / scale) * h;
+  const sink = -f.verticalSpeed;
+  const limit = f.sinkLimit || 7;
+  const bad = sink > limit || f.slope > (f.slopeLimit || 28) || f.groundSpeed > (f.driftLimit || 5);
+  ctx.fillStyle = bad ? "#ff5d5d" : "#9be37a";
+  ctx.beginPath();
+  ctx.moveTo(x - 2, y);
+  ctx.lineTo(x - 10, y - 5);
+  ctx.lineTo(x - 10, y + 5);
+  ctx.closePath();
+  ctx.fill();
+  // Sink-rate bar beside the tape, scaled to twice the limit.
+  const bar = Math.min(Math.max(sink, 0) / (limit * 2), 1) * h * 0.5;
+  ctx.fillStyle = sink > limit ? "#ff5d5d" : sink > limit * 0.6 ? "#ffb347" : "#7fc8ff";
+  ctx.fillRect(x + 36, y, 5, Math.min(bar, top + h - y));
+  ctx.font = "bold 11px ui-monospace, Menlo, Consolas, monospace";
+  ctx.fillStyle = "#cfe7f5";
+  ctx.fillText("RADAR", x - 8, top - 12);
+  const calls: Array<[string, boolean]> = [
+    [`SLOPE ${f.slope.toFixed(0)}°`, f.slope > (f.slopeLimit || 28)],
+    [`SINK ${Math.max(sink, 0).toFixed(1)}`, sink > limit],
+    [`DRIFT ${f.groundSpeed.toFixed(1)}`, f.groundSpeed > (f.driftLimit || 5)],
+  ];
+  if (f.overWater) calls.push(["WATER", false]);
+  calls.push([bad ? "UNSAFE" : "SAFE", bad]);
+  calls.forEach(([text, warn], i) => {
+    ctx.fillStyle = warn ? "#ff5d5d" : text === "SAFE" ? "#9be37a" : text === "WATER" ? "#7fc8ff" : "#cfe7f5";
+    ctx.fillText(text, x + 50, top + 12 + i * 16);
+  });
+  ctx.restore();
+}
+
 export function drawFlightHud(ctx: CanvasRenderingContext2D, width: number, height: number, view: SpaceView, camera: THREE.Camera, nearShip: boolean) {
   const f = view.flight;
   ctx.save();
@@ -1188,10 +1280,14 @@ export function drawFlightHud(ctx: CanvasRenderingContext2D, width: number, heig
     bar(ctx, x, y + 120, w, f.fuel, f.fuel < 0.2 ? "#ff9f43" : "#9be37a", `FUEL ${(f.fuel * 100).toFixed(0)}%`);
     bar(ctx, x, y + 144, w * 0.48, f.hull, f.hull < 0.35 ? "#ff5d5d" : "#d8e2ea", `HULL ${(f.hull * 100).toFixed(0)}%`);
     if (f.heat > 5) bar(ctx, x + w * 0.52, y + 144, w * 0.48, f.heat / 100, f.heat > 78 ? "#ff5d5d" : "#ffb347", "HEAT");
+    // Landing radar below 400 m (0.74.0): a radar-altitude tape with the
+    // sink rate, and the ground under the ship against the gear's limits.
+    if (!f.landed && f.altitude < 400 && f.ref >= 0) drawLandingRadar(ctx, width, height, f);
     // Landing guidance below 150 m: descent rate against the gear's limit.
     if (!f.landed && f.altitude < 150 && f.ref >= 0) {
       const sink = -vs;
-      const color = sink > 7 ? "#ff5d5d" : sink > 4 ? "#ffb347" : "#9be37a";
+      const limit = f.sinkLimit || 7;
+      const color = sink > limit ? "#ff5d5d" : sink > limit * 0.6 ? "#ffb347" : "#9be37a";
       ctx.textAlign = "center";
       ctx.font = "bold 14px ui-monospace, Menlo, Consolas, monospace";
       ctx.fillStyle = color;

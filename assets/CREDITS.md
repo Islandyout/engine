@@ -338,3 +338,13 @@ Each pack's own `addons/*/License.txt` (by Quaternius) grants CC0 1.0 Universal.
   with `tools/blend_to_vertex_color_glb.py`. That script bakes each face's
   palette-texture colour into a vertex colour and drops the texture. The shapes are
   unmodified. These are derivatives of CC0 works, and the derivatives are also CC0.
+
+## The Talari model (0.74.0)
+
+- `source/kit/people/talari.glb`: a derivative of `source/kit/people/mannequin_f.glb`
+  (Quaternius, CC0 1.0; see above), made by `tools/models/make_talari.py`. That
+  script keeps the mannequin's skeleton, skin weights and nine clips; narrows
+  the torso; lengthens the skull; and adds a tunic, a shoulder mantle and a
+  head crest, all skinned to the same bones. The added geometry is generated
+  by the script, and the result is CC0 like its source.
+  SHA-256 `bdb2bb3b993b892afb425442b2ded47ea47b68ff5bec2f555aa8ce08fe177596`.

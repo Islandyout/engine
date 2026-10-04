@@ -77,8 +77,9 @@ add("Space", [0, 40, 0], {
     siteLongitude: SITE.longitude,
     siteRadius: 320,
     evaRange: 1200,
-    // Mid-morning at Kestra: the sun about 35 degrees up in the east.
-    startTime: 2600,
+    // Mid-morning at Kestra (Tethys turns every 1200 s; a solar day is
+    // about 969 s, noon at 3498): the sun about 32 degrees up in the east.
+    startTime: 2390,
     landmarks: LANDMARKS.map(([body, lat, lon, color, name, , kind]) => `${body} ${lat} ${lon} ${color} kind=${kind} ${name}`).join("\n"),
     species: SPECIES.map(([id, body, cls, mesh, weight, scale, name, , , , text]) => `${id} ${body} ${cls} ${mesh} ${weight} ${scale} ${name} | ${text}`).join("\n"),
   }),
@@ -163,21 +164,27 @@ function canal(x: number, z: number, w: number, d: number, yaw = 0) {
 }
 
 // ------------------------------------------------------- people and life --
+// The Talari model (catalog 175): narrow-torsoed, crested, in tunic and
+// mantle, on the mannequin's rig (tools/models/make_talari.py).
+const TALARI = 175;
 const TINTS = ["#c9a46a", "#b9805a", "#6f9a95", "#d8c8a2", "#8a6f5a", "#9a7aa8", "#5f7f9a"];
+// Accessories in the model's normalized box (x spans the T-pose arms, so
+// the body itself is only the middle tenth of it).
 const ACCESSORY: Record<string, [string, V3, V3]> = {
-  satchel: ["#6a4a30", [0.55, 0.05, 0], [0.35, 0.18, 0.5]],
-  hood: ["#3f5f6a", [0, 0.44, 0], [1.1, 0.12, 1.1]],
-  staff: ["#4a3a2a", [0.75, 0.05, 0.3], [0.08, 1.05, 0.08]],
-  sash: ["#c4553a", [0, 0.12, 0], [1.05, 0.06, 1.05]],
+  satchel: ["#6a4a30", [0.09, -0.02, 0.05], [0.06, 0.14, 0.75]],
+  staff: ["#4a3a2a", [0.15, 0.05, 0.4], [0.015, 1.05, 0.2]],
+  sash: ["#c4553a", [0, 0.1, 0], [0.13, 0.05, 1.08]],
 };
 const accessoryFor = (role: string) =>
-  /historian|archivist|scholar|student|astronomer|keeper/.test(role) ? "satchel" : /dock|surveyor|operator|pilot/.test(role) ? "sash" : /fisher|boat|reed|engineer/.test(role) ? "staff" : "hood";
-// A Talari: narrow-torsoed, layered clothing tints, an accessory for the job,
+  /historian|archivist|scholar|student|astronomer|keeper/.test(role) ? "satchel" : /fisher|boat|reed|engineer/.test(role) ? "staff" : "sash";
+// A Talari: the Talari model in a clothing tint, an accessory for the job,
 // walking a daily routine between home, work and the market.
 function talari(name: string, at: [number, number], stops: string, role: string) {
+  // The model's own proportions (its bounding box is the T-pose, 1.76 m
+  // across the arms), a little under human height.
   const index = add(name, [at[0], 0.9, at[1]], {
-    Scale: { value: vec(0.5, 1.85, 0.5) },
-    Renderable: { mesh: 132, material: 0, visible: true },
+    Scale: { value: vec(1.62, 1.8, 0.34) },
+    Renderable: { mesh: TALARI, material: 0, visible: true },
     Material: material(pick(TINTS), { roughness: 0.85 }),
     AIState: { state: "Walking" },
     Pedestrian: { archetype: 1 },
@@ -336,7 +343,7 @@ for (const n of NPCS.filter((n) => n.site === "kestra"))
   talari(n.name, kestra(...n.home), routine(n.role, n.home, n.work, n.market, kestra), n.role);
 for (let i = 0; i < 5; i++) {
   const a = random() * Math.PI * 2;
-  add("Talari", [KX + Math.cos(a) * 14, 0.9, KZ + Math.sin(a) * 14], { Scale: { value: vec(0.5, 1.85, 0.5) }, Renderable: { mesh: 132, material: 0, visible: true }, Material: material(pick(TINTS), { roughness: 0.85 }), AIState: { state: "Walking" }, Pedestrian: { archetype: 0 } });
+  add("Talari", [KX + Math.cos(a) * 14, 0.9, KZ + Math.sin(a) * 14], { Scale: { value: vec(1.62, 1.8, 0.34) }, Renderable: { mesh: TALARI, material: 0, visible: true }, Material: material(pick(TINTS), { roughness: 0.85 }), AIState: { state: "Walking" }, Pedestrian: { archetype: 0 } });
 }
 
 // ------------------------------------------------------------ volatile ice --

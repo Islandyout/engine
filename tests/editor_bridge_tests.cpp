@@ -75,6 +75,8 @@ void editor_set_spaceship(int, double, double, double, double, double, double, d
                           double);
 double editor_space_value(int);
 void editor_space_site(int, const char *, int, double, double, double);
+void editor_space_body_features(double, int, int, double);
+double editor_space_body_spin(int, int);
 void editor_space_member(int, int);
 void editor_set_routine(int, const char *, double);
 void editor_set_wildlife(int, double, double, double, double);
@@ -1708,6 +1710,32 @@ int main() {
             saw_back |= text == "site [] false";
         }
         check(saw_site && saw_back);
+
+        // A turning world (0.74.0): the site and the landed ship turn with
+        // it, so in the site frame nothing drifts; stepping out still works.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_add(20, 2, 0, 0, 0, 0, 6, 3, 9, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_space_begin(6.4e12, 0, 30, 40, 300, 800, 0);
+        editor_space_body("Tethys", -1, 1.6e6, 5027, 0, 0, 60000, 9, 9000, 1.05, 250, 3000, 7);
+        editor_space_body_features(0.5, 0, 0, 1200);
+        editor_set_spaceship(1, 0, 12000, 300000, 180000, 2.2, 1.3, 100, 1.2, 100, 1.6, 1, -1);
+        check(editor_commit() == 1);
+        const double sx = editor_space_value(1), sz = editor_space_value(3);
+        for (int i = 0; i < 600; ++i)
+            editor_tick();
+        check(editor_space_value(19) == 1);                                                       // still landed
+        check(std::abs(editor_space_value(1) - sx) < 0.2 && std::abs(editor_space_value(3) - sz) < 0.2); // no drift
+        check(std::abs(editor_space_value(11)) < 0.01);                                             // no ground speed
+        check(std::abs(editor_space_body_spin(0, 3) - 1) > 1e-4);                                   // it has turned
+        editor_input_begin_frame();
+        editor_input_key("KeyE", 1);
+        editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("KeyE", 0);
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(editor_space_value(0) == 0); // stepped out
 
         // A body with a bad parent fails the commit.
         editor_begin();

@@ -70,6 +70,13 @@ The expedition **autosaves** every 45 s and checkpoints on discoveries; the titl
   - Y opens the culture record;
   - stations offer workshop repairs, trades and archive sessions.
 
+### The worlds (0.74.0)
+
+- **Turning worlds**: Tethys turns every 1200 s (a solar day of about 969 s), Cinder every 1800 s, Ossuary every 2400 s and Hollow every 3000 s, so the sun rises and sets over Kestra; Vell keeps one face to Tethys. Kestra's people follow its solar clock.
+- **Terrain**: craters on Vell, Nemesis, Cinder and Ossuary, glowing lava rifts on Cinder and dune fields on Ossuary.
+- **Landing**: below 400 m a radar tape shows radar altitude, sink rate, ground slope, drift and water, with a SAFE / UNSAFE call against the gear's limits. Landing or hovering over water throws spray.
+- **The Talari** have their own model: narrow-torsoed and crested, in tunic and mantle, on the same animated rig.
+
 ### The living world
 
 - **Wildlife**: Flat Grazer herds and Ridge Skimmers near Kestra, plus Slag Crawlers, Dust Husks and Mist Drifters released around you on their worlds. They grow wary and flee from you or a running ship, which ruins a scan.
@@ -118,8 +125,8 @@ The Kestrel masses 12 t with 300 kN main and 180 kN belly thrust. Its starting 4
 
 What's still left compared with the prototype is in [PALE_SIGNAL_GAP_MAP.md](PALE_SIGNAL_GAP_MAP.md).
 
-- **Engine**: terrain features (craters, rifts, dunes), rotating bodies, a mouse-steer mode, a landing radar ribbon and water splashes.
-- **Art**: the Talari use the Mannequin with tints and job accessories rather than a dedicated model; ships and props include CC0 Quaternius models.
+- **Engine**: a mouse-steer mode, re-anchoring while walking (a walk frame is 2.4 km across), and full atmospheric scattering.
+- **Art**: graze and conversation animations.
 
 ## 6. Test plan
 

@@ -262,6 +262,8 @@ type Runtime = {
   _editor_push(index: number, dx: number, dz: number): void;
   _editor_space_body_value(index: number, field: number): number;
   _editor_space_frame(field: number): number;
+  _editor_space_body_spin(index: number, field: number): number;
+  _editor_planet_lava(index: number, x: number, y: number, z: number): number;
   _editor_planet_height(index: number, x: number, y: number, z: number): number;
   _editor_space_path(count: number, horizon: number): number;
   _editor_space_path_value(index: number, axis: number): number;
@@ -1817,6 +1819,8 @@ async function startEditor() {
       );
       if (b.sea !== undefined) runtime.ccall("editor_space_body_sea", null, ["number"], [b.sea]);
       if (b.hidden) runtime._editor_space_body_hidden(1);
+      if (b.craters || b.rifts || b.dunes || b.day)
+        runtime.ccall("editor_space_body_features", null, ["number", "number", "number", "number"], [b.craters, b.rifts ? 1 : 0, b.dunes ? 1 : 0, b.day]);
     }
   }
   // On Play: the system view, its render pass, and the site's ground as a
@@ -2018,14 +2022,24 @@ async function startEditor() {
       runtime._editor_space_body_value(index, 2),
     );
   }
+  // Body-fixed -> walk frame for body `index`: the frame times its turn.
+  function bodyQuaternion(index: number) {
+    const spin = new THREE.Quaternion(
+      runtime._editor_space_body_spin(index, 0),
+      runtime._editor_space_body_spin(index, 1),
+      runtime._editor_space_body_spin(index, 2),
+      runtime._editor_space_body_spin(index, 3),
+    );
+    return frameQuaternion().multiply(spin);
+  }
   // A latitude/longitude on a body, as a point in the walk frame.
   function latLonToFrame(index: number, latitude: number, longitude: number, lift = 2) {
     const dir = latLonDirection(latitude, longitude);
     const radius = runtime._editor_space_body_value(index, 3) + Math.max(runtime._editor_planet_height(index, dir.x, dir.y, dir.z), explorerBodies[index]?.sea ?? -1e9) + lift;
-    return dir.multiplyScalar(radius).applyQuaternion(frameQuaternion()).add(bodyCentre(index));
+    return dir.multiplyScalar(radius).applyQuaternion(bodyQuaternion(index)).add(bodyCentre(index));
   }
   function frameToLatLon(index: number, p: THREE.Vector3) {
-    const dir = p.clone().sub(bodyCentre(index)).applyQuaternion(frameQuaternion().invert()).normalize();
+    const dir = p.clone().sub(bodyCentre(index)).applyQuaternion(bodyQuaternion(index).invert()).normalize();
     return { latitude: THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1))), longitude: THREE.MathUtils.radToDeg(Math.atan2(dir.z, dir.x)) };
   }
   function cue(name: string) {
@@ -2183,12 +2197,18 @@ async function startEditor() {
     ambience?.update(spaceView.air);
     // Touchdown: the settle bob and a thump.
     const landed = spaceView.flight.landed;
+    const ship = shipIndex >= 0 ? objects[shipIndex] : undefined;
+    const f = spaceView.flight;
     if (landed && !wasLanded) {
-      explorerFx.touchdown(Math.abs(spaceView.flight.verticalSpeed));
+      explorerFx.touchdown(Math.abs(f.verticalSpeed));
       cue("thump");
+      // A water landing throws a ring of spray.
+      if (ship && f.overWater) explorerFx.splash(ship.position.clone().setY(runtime._editor_space_ground(ship.position.x, ship.position.z)), 220, 6);
     }
     wasLanded = landed;
-    const ship = shipIndex >= 0 ? objects[shipIndex] : undefined;
+    // Belly thrusters low over water kick up spray.
+    if (ship && f.piloting && !landed && f.overWater && f.altitude < 25 && (f.engineOn || f.vertical > 0))
+      explorerFx.splash(ship.position.clone().setY(runtime._editor_space_ground(ship.position.x, ship.position.z)), Math.ceil(dt * 160 * (1 - f.altitude / 25)), 4);
     if (ship) ship.position.y -= explorerFx.settleOffset();
     // Large minerals are solid: the walker is pushed back out of them.
     if (walking && player && playerIndex >= 0)

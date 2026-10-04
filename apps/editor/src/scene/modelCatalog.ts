@@ -168,6 +168,7 @@ export const modelCatalog: CatalogEntry[] = [
   // merge" entry for how, and why an earlier attempt at this exact
   // retarget (F37/F38) was abandoned in favor of that second entry.
   { id: 132, category: "people", name: "Mannequin F", path: "./kit/people/mannequin_f.glb", animated: true },
+  { id: 175, category: "people", name: "Talari", path: "./kit/people/talari.glb", animated: true },
   { id: 133, category: "animals", name: "Wolf", path: "./kit/animals/wolf.glb", animated: true },
   { id: 134, category: "animals", name: "Husky", path: "./kit/animals/husky.glb", animated: true },
   { id: 135, category: "animals", name: "Stag", path: "./kit/animals/stag.glb", animated: true },

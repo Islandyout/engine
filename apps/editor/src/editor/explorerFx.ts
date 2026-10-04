@@ -19,6 +19,7 @@ export function parseWeather(text: string): WeatherState {
 }
 
 const RAIN = 2400;
+const SPRAY = 600;
 const DUST = 700;
 
 export class ExplorerFx {
@@ -34,6 +35,11 @@ export class ExplorerFx {
   private lastPrint?: THREE.Vector3;
   private stepSide = 1;
   private time = 0;
+  // Water spray (0.74.0): droplets thrown up by a touchdown on water or by
+  // belly thrusters low over it.
+  private readonly spray: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
+  private readonly drops = Array.from({ length: SPRAY }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), life: 0 }));
+  private nextDrop = 0;
   private settle = 0; // seconds left of the touchdown settle
   private settleDepth = 0;
   reducedMotion = false;
@@ -67,13 +73,32 @@ export class ExplorerFx {
     );
     this.prints.count = 0;
     this.prints.frustumCulled = false;
-    this.group.add(this.rain, this.dust, this.prints);
+    const sprayGeometry = new THREE.BufferGeometry();
+    sprayGeometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(SPRAY * 3).fill(-1e5), 3));
+    this.spray = new THREE.Points(
+      sprayGeometry,
+      new THREE.PointsMaterial({ size: 0.18, color: 0xdfeef2, transparent: true, opacity: 0.75, depthWrite: false }),
+    );
+    this.spray.frustumCulled = false;
+    this.group.add(this.rain, this.dust, this.prints, this.spray);
   }
 
   // Touchdown: the ship sinks onto its gear and springs back.
   touchdown(vertical: number) {
     this.settle = 0.9;
     this.settleDepth = Math.min(0.5, 0.08 + vertical * 0.05);
+  }
+
+  // Throws `count` droplets out from `at` (on the water) with `speed`.
+  splash(at: THREE.Vector3, count: number, speed: number) {
+    for (let i = 0; i < count; i++) {
+      const d = this.drops[this.nextDrop]!;
+      this.nextDrop = (this.nextDrop + 1) % SPRAY;
+      const a = Math.random() * Math.PI * 2, r = Math.random();
+      d.p.set(at.x + Math.cos(a) * r * 2, at.y, at.z + Math.sin(a) * r * 2);
+      d.v.set(Math.cos(a) * speed * (0.4 + Math.random()), speed * (0.8 + Math.random() * 0.9), Math.sin(a) * speed * (0.4 + Math.random()));
+      d.life = 1 + Math.random() * 0.6;
+    }
   }
 
   // The ship's settle offset this frame (metres down).
@@ -100,6 +125,17 @@ export class ExplorerFx {
   ) {
     this.time += dt;
     this.settle = Math.max(0, this.settle - dt);
+    const spray = this.spray.geometry.getAttribute("position") as THREE.BufferAttribute;
+    let live = false;
+    this.drops.forEach((d, i) => {
+      if (d.life <= 0) return;
+      d.life -= dt;
+      d.v.y -= 9 * dt;
+      d.p.addScaledVector(d.v, dt);
+      spray.setXYZ(i, d.p.x, d.life > 0 ? d.p.y : -1e5, d.p.z);
+      live = true;
+    });
+    if (live) spray.needsUpdate = true;
     const eye = camera.getWorldPosition(new THREE.Vector3());
     // Rain: streaks in a box around the eye, slanted by the wind.
     const rain = this.weather.rain;
@@ -176,6 +212,8 @@ export class ExplorerFx {
     this.dust.geometry.dispose();
     this.dust.material.dispose();
     this.prints.geometry.dispose();
+    this.spray.geometry.dispose();
+    this.spray.material.dispose();
     (this.prints.material as THREE.Material).dispose();
   }
 }
