@@ -1625,6 +1625,49 @@ int main() {
         }
         check(saw_liftoff && saw_touchdown && saw_exit && saw_state);
 
+        // Walking anywhere (0.72.0): landed on Vell, far from the site, the
+        // frame follows the ship -- the pilot can step out onto the moon --
+        // and returns home when the ship lands back at the site.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_add(20, 2, 0, 0, 0, 0, 6, 3, 9, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_add(5, 1, 30, 0, 0, 0, 4, 2, 4, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // site scenery
+        check(editor_add(0, 30, 40, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_script_source(3, "local t = 0 function on_tick(dt) t = t + 1 "
+                                    "if t == 2 then space.place_landed('Vell', 10, 20, 0) end "
+                                    "if t == 3 then local s = space.state() log('frame ' .. s.frame .. ' ' .. tostring(s.away)) end "
+                                    "if t == 200 then space.board() space.place_landed('Tethys', 30, 40, 0) end "
+                                    "if t == 201 then local s = space.state() log('frame ' .. s.frame .. ' ' .. tostring(s.away)) end end");
+        editor_space_begin(6.4e12, 0, 30, 40, 300, 800, 0);
+        editor_space_body("Tethys", -1, 1.6e6, 5027, 0, 0, 60000, 9, 9000, 1.05, 250, 3000, 7);
+        editor_space_body("Vell", 0, 230000, 3850, 20, 7, 18000, 2.6, 0, 0, 120, 2000, 3);
+        editor_set_spaceship(1, 0, 12000, 300000, 180000, 2.2, 1.3, 100, 1.2, 100, 1.6, 1, -1);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 10; ++i)
+            editor_tick();
+        check(editor_space_value(37) == 1 && editor_space_value(39) == 1 && editor_space_value(38) >= 1); // away, on Vell
+        check(std::abs(editor_space_value(1)) < 1 && std::abs(editor_space_value(3)) < 1);               // ship at the new origin
+        editor_input_begin_frame();
+        editor_input_key("KeyE", 1);
+        editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("KeyE", 0);
+        for (int i = 0; i < 120; ++i)
+            editor_tick();
+        check(editor_space_value(0) == 0);                    // stepped out onto Vell
+        const double moon_feet = editor_value(0, 1) - 0.9;
+        check(moon_feet > -3 && moon_feet < 3);               // standing on the moon's ground
+        for (int i = 0; i < 100; ++i)
+            editor_tick();
+        check(editor_space_value(37) == 0 && editor_space_value(39) == 0); // home again
+        bool saw_moon = false, saw_home = false;
+        for (int n = editor_take_commands(), i = 0; i < n; ++i) {
+            const std::string text = editor_command_text(i, 1);
+            saw_moon |= text == "frame Vell true";
+            saw_home |= text == "frame Tethys false";
+        }
+        check(saw_moon && saw_home);
+
         // A body with a bad parent fails the commit.
         editor_begin();
         editor_space_begin(6.4e12, 0, 0, 0, 0, 800, 0);
@@ -1734,5 +1777,5 @@ int main() {
                  "(crouch/sit) freezing Player WASD input while held, authored "
                  "RigidBody mass/kinematic and Collider trigger/layer settings, the script host "
                  "(prefab templates for world.spawn, names, props, sound/ui/log commands), and native "
-                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill), and combat soldiers (sight, bursts, hearing, investigating around cover, reloading in cover, melee hunters, patrols), terrain (walking up a hill, scripted raycasts, obstacles), and game-support script APIs (heal, give_ammo, markers, pause), and arcade cars (driving, AI racing, pursuit, vehicle.* API), and spaceflight (landed start, hover, touchdown, exiting and boarding, space.* API) passed.\n";
+                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill), and combat soldiers (sight, bursts, hearing, investigating around cover, reloading in cover, melee hunters, patrols), terrain (walking up a hill, scripted raycasts, obstacles), and game-support script APIs (heal, give_ammo, markers, pause), and arcade cars (driving, AI racing, pursuit, vehicle.* API), and spaceflight (landed start, hover, touchdown, exiting and boarding, walking anywhere, space.* API) passed.\n";
 }

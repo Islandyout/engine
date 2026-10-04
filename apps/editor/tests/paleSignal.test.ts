@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { validateSceneDocument } from "../src/scene/SceneSerializer";
 import { defaultSpaceBodies } from "../src/authoring/CommandInterpreter";
-import { latLonDirection, parseLandmarks, parseSpaceBodies } from "../src/editor/spaceView";
+import { latLonDirection, parseLandmarks, parseSpaceBodies, parseSpecies } from "../src/editor/spaceView";
 
 const committed = new URL("../../../examples/space/pale-signal.json", import.meta.url);
 
@@ -30,9 +30,15 @@ test("the Pale Signal slice has a system, a ship, a site and a director", () => 
   assert.deepEqual(bodies.map((b) => b.name), ["Tethys", "Vell", "Cinder", "Ossuary"]);
   assert.equal(bodies[1]!.parent, 0, "Vell orbits Tethys");
   assert.equal(space.siteBody, "Tethys");
-  assert.deepEqual(parseLandmarks(space.landmarks, bodies).map((l) => l.label), ["Pale Signal", "Kestra Station"]);
-  const shipIndex = scene.entities.indexOf(named("Ship"));
-  assert.ok(scene.entities.filter((e: { parent?: { index: number } }) => e.parent?.index === shipIndex).length >= 8, "ship parts");
+  assert.deepEqual(parseLandmarks(space.landmarks, bodies).map((l) => l.label), ["The Kneeling Array", "Under-Ice Relay", "The Anvil", "Kestra Station"]);
+  assert.equal(bodies[0]!.sea, -60);
+  assert.ok(bodies[0]!.clouds > 0);
+  const species = parseSpecies(space.species, bodies);
+  assert.ok(species.length >= 12 && species.some((s) => s.body === 1), "species on Tethys and Vell");
+  assert.equal(named("Ship").components.Spaceship.model, "Kestrel");
+  const scannable = scene.entities.filter((e: { components: { Scannable?: unknown } }) => e.components.Scannable);
+  assert.ok(scannable.length >= 9, "evidence, ice, the foundation and grazers are scannable");
+  for (const npc of ["Tal Ossin", "Ena Vey", "Maru Sen"]) assert.ok(named(npc), npc);
   const director = named("Director").components.Script.source;
   assert.ok(!director.includes("{{CONFIG}}") && director.includes("space.state()"));
 });
@@ -46,6 +52,15 @@ test("space bodies: parents by name, defaults, and readable errors", () => {
   assert.equal(bad.bodies.length, 0);
   assert.equal(bad.errors.length, 3);
   assert.match(bad.errors[0]!, /parent "Nowhere"/);
+});
+
+test("species and body options", () => {
+  const { bodies } = parseSpaceBodies("World - 1 10 0 0 1000 9 0 0 10 100 1 #808080 #000000 sea=-5 clouds=0.4 snow=1");
+  assert.equal(bodies[0]!.sea, -5);
+  assert.equal(bodies[0]!.clouds, 0.4);
+  assert.equal(bodies[0]!.snow, true);
+  const species = parseSpecies("a World flora 37 2 0.5 Pale Reed | grows\nb Nowhere flora 37 1 1 X\nc World rock 1 1 1 Bad\n# d World flora 1 1 1 Comment", bodies);
+  assert.deepEqual(species, [{ id: "a", body: 0, kind: "flora", model: 37, weight: 2, scale: 0.5, name: "Pale Reed", description: "grows" }]);
 });
 
 test("landmarks and latitude/longitude", () => {

@@ -456,6 +456,10 @@ double air_density(const Body& body, double altitude) {
 }
 
 double surface_height(const Body& body, DVec3 direction) {
+    return std::max(terrain_height(body, direction), body.sea_level);
+}
+
+double terrain_height(const Body& body, DVec3 direction) {
     direction = normalized(direction);
     double height = natural_height(body, direction);
     for (const auto& flat : body.flats) {

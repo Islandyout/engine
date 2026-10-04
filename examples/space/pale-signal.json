@@ -13,7 +13,7 @@
      }
     },
     "SpaceSystem": {
-     "bodies": "Tethys - 1600000 5027 0 0 60000 9 9000 1.05 320 3200 7 #4f7a4a #87b6c8\nVell Tethys 230000 3850 20 7 18000 2.6 0 0 180 1800 3 #b9c6d4 #000000\nCinder - 900000 2120 40 2 44000 7 0 0 500 2500 5 #b35a3c #000000\nOssuary - 2400000 9230 126 -3 52000 6.4 5000 0.18 420 4000 11 #9a9385 #c0b49a",
+     "bodies": "Tethys - 1600000 5027 0 0 60000 9 9000 1.05 320 3200 7 #4f7a4a #87b6c8 sea=-60 clouds=0.42 snow=1\nVell Tethys 230000 3850 20 7 18000 2.6 0 0 180 1800 3 #c3cfdc #000000 snow=1\nCinder - 900000 2120 40 2 44000 7 0 0 500 2500 5 #8a4a34 #000000\nOssuary - 2400000 9230 126 -3 52000 6.4 5000 0.18 420 4000 11 #9a9385 #c0b49a clouds=0.25",
      "starGm": 6400000000000,
      "starColor": {
       "x": 1,
@@ -26,7 +26,8 @@
      "siteRadius": 320,
      "evaRange": 1200,
      "startTime": 2600,
-     "landmarks": "Vell -12 35 #8ff7ff Pale Signal\nTethys 30 40 #ffd36e Kestra Station"
+     "landmarks": "Tethys 21 54 #8ff7ff The Kneeling Array\nVell -12 35 #8ff7ff Under-Ice Relay\nCinder 18 -30 #ff9a5a The Anvil\nTethys 30 40 #ffd36e Kestra Station",
+     "species": "te_reed Tethys flora 38 6 0.8 Pale Reed | Hollow-stemmed, wind-pollinated, and the dominant ground cover of the northern flats.\nte_cap Tethys flora 45 2 0.7 Lantern Cap | Fruiting body glows on a 40-second cycle. Nothing here is known to see in that band.\nte_pine Tethys flora 49 3 1 Kestra Spire | A conifer analogue whose rings record every flood the Talari have recorded, and several they have not.\nte_iron Tethys mineral 42 2 0.8 Banded Ironstone | Layered oxide. Proof this world once had far more free oxygen than it does now.\nte_ice Tethys mineral 44 2 1.2 Clathrate Pocket | Methane locked in a water lattice. Vents when disturbed. Excellent propellant feedstock.\nte_graze Tethys fauna 135 0 1 Flat Grazer | Herd animal. Six legs, no forward-facing eyes, and an alarm call you feel before you hear.\nve_spar Vell mineral 43 5 1.1 Rime Spar | Crystals of nitrogen ice that ring when struck. The ringing has a pattern.\nve_ridge Vell mineral 42 3 1.6 Pressure Ridge | Ice folded by tides from Tethys. Some ridges run arrow-straight toward the relay.\nve_lichen Vell flora 37 2 0.5 Frost Lichen | Living, at 100 kelvin, on a moon with no air. It should not exist. It grows thickest near the signal.\nci_slag Cinder mineral 44 4 1 Vitrous Slag | Rift glass, quenched in seconds. Trapped bubbles still hold the original atmosphere.\nci_sulf Cinder mineral 43 3 0.9 Sulphur Bloom | Vents deposit it faster than the heat can destroy it. Barely a mineral. Barely stable.\nci_ember Cinder flora 37 2 0.6 Ember Lichen | Not a plant. A thermophile colony that metabolises the rock it sits on.\nos_column Ossuary mineral 42 4 1.4 Dust Column | Fused grit standing in rows. Machine-straight. Then abandoned mid-row.\nos_coral Ossuary flora 51 1 0.6 Bone Coral | Calcified stalks with no living tissue -- and new growth every season."
     },
     "Environment": {
      "sky": "Color",
@@ -119,7 +120,8 @@
      "hull": 100,
      "gearClearance": 1.6,
      "startPiloting": true,
-     "startOrbit": -1
+     "startOrbit": -1,
+     "model": "Kestrel"
     },
     "Rotation": {
      "euler": {
@@ -170,650 +172,6 @@
      "layer": 0,
      "mask": 4294967295,
      "bounciness": 0
-    }
-   }
-  },
-  {
-   "name": "Canopy",
-   "parent": {
-    "index": 1,
-    "generation": 1
-   },
-   "components": {
-    "Transform": {
-     "position": {
-      "x": 0,
-      "y": 0.5227272727272726,
-      "z": 0.21818181818181817
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 0.6538461538461539,
-      "y": 0.36363636363636365,
-      "z": 0.2545454545454545
-     }
-    },
-    "Renderable": {
-     "mesh": 0,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 0.10196078431372549,
-      "y": 0.1568627450980392,
-      "z": 0.2196078431372549
-     },
-     "metalness": 0.8,
-     "roughness": 0.12,
-     "emissive": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-     },
-     "emissiveIntensity": 1,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
-    }
-   }
-  },
-  {
-   "name": "Nose",
-   "parent": {
-    "index": 1,
-    "generation": 1
-   },
-   "components": {
-    "Transform": {
-     "position": {
-      "x": 0,
-      "y": -0.06818181818181818,
-      "z": 0.5545454545454546
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 0.6923076923076923,
-      "y": 0.6818181818181818,
-      "z": 0.12727272727272726
-     }
-    },
-    "Renderable": {
-     "mesh": 0,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 0.7215686274509804,
-      "y": 0.7372549019607844,
-      "z": 0.7607843137254902
-     },
-     "metalness": 0.55,
-     "roughness": 0.45,
-     "emissive": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-     },
-     "emissiveIntensity": 1,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
-    }
-   }
-  },
-  {
-   "name": "Wings",
-   "parent": {
-    "index": 1,
-    "generation": 1
-   },
-   "components": {
-    "Transform": {
-     "position": {
-      "x": 0,
-      "y": -0.15909090909090906,
-      "z": -0.10909090909090909
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 3.846153846153846,
-      "y": 0.1272727272727273,
-      "z": 0.32727272727272727
-     }
-    },
-    "Renderable": {
-     "mesh": 0,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 0.5607843137254902,
-      "y": 0.5843137254901961,
-      "z": 0.615686274509804
-     },
-     "metalness": 0.5,
-     "roughness": 0.5,
-     "emissive": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-     },
-     "emissiveIntensity": 1,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
-    }
-   }
-  },
-  {
-   "name": "Wing Stripe",
-   "parent": {
-    "index": 1,
-    "generation": 1
-   },
-   "components": {
-    "Transform": {
-     "position": {
-      "x": 0,
-      "y": -0.08636363636363635,
-      "z": -0.009090909090909092
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 3.538461538461538,
-      "y": 0.022727272727272728,
-      "z": 0.045454545454545456
-     }
-    },
-    "Renderable": {
-     "mesh": 0,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 0.9098039215686274,
-      "y": 0.7137254901960784,
-      "z": 0.16470588235294117
-     },
-     "metalness": 0,
-     "roughness": 0.6,
-     "emissive": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-     },
-     "emissiveIntensity": 1,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
-    }
-   }
-  },
-  {
-   "name": "Engine Pod",
-   "parent": {
-    "index": 1,
-    "generation": 1
-   },
-   "components": {
-    "Transform": {
-     "position": {
-      "x": -0.8846153846153845,
-      "y": -0.045454545454545456,
-      "z": -0.35454545454545455
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 0.4807692307692307,
-      "y": 0.5681818181818181,
-      "z": 0.3090909090909091
-     }
-    },
-    "Renderable": {
-     "mesh": 0,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 0.2901960784313726,
-      "y": 0.30980392156862746,
-      "z": 0.3411764705882353
-     },
-     "metalness": 0.6,
-     "roughness": 0.5,
-     "emissive": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-     },
-     "emissiveIntensity": 1,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
-    }
-   }
-  },
-  {
-   "name": "Engine Glow",
-   "parent": {
-    "index": 1,
-    "generation": 1
-   },
-   "components": {
-    "Transform": {
-     "position": {
-      "x": -0.8846153846153845,
-      "y": -0.045454545454545456,
-      "z": -0.5109090909090909
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 0.36538461538461536,
-      "y": 0.43181818181818177,
-      "z": 0.005454545454545454
-     }
-    },
-    "Renderable": {
-     "mesh": 0,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 0.6235294117647059,
-      "y": 0.8627450980392157,
-      "z": 1
-     },
-     "metalness": 0,
-     "roughness": 0.8,
-     "emissive": {
-      "x": 0.37254901960784315,
-      "y": 0.7843137254901961,
-      "z": 1
-     },
-     "emissiveIntensity": 3,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
-    }
-   }
-  },
-  {
-   "name": "Landing Leg",
-   "parent": {
-    "index": 1,
-    "generation": 1
-   },
-   "components": {
-    "Transform": {
-     "position": {
-      "x": -0.5769230769230769,
-      "y": -0.6590909090909091,
-      "z": -0.2818181818181818
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 0.0846153846153846,
-      "y": 0.5,
-      "z": 0.02
-     }
-    },
-    "Renderable": {
-     "mesh": 0,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 0.22745098039215686,
-      "y": 0.24705882352941178,
-      "z": 0.27058823529411763
-     },
-     "metalness": 0,
-     "roughness": 0.8,
-     "emissive": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-     },
-     "emissiveIntensity": 1,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
-    }
-   }
-  },
-  {
-   "name": "Landing Leg",
-   "parent": {
-    "index": 1,
-    "generation": 1
-   },
-   "components": {
-    "Transform": {
-     "position": {
-      "x": -0.5769230769230769,
-      "y": -0.6590909090909091,
-      "z": 0.2818181818181818
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 0.0846153846153846,
-      "y": 0.5,
-      "z": 0.02
-     }
-    },
-    "Renderable": {
-     "mesh": 0,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 0.22745098039215686,
-      "y": 0.24705882352941178,
-      "z": 0.27058823529411763
-     },
-     "metalness": 0,
-     "roughness": 0.8,
-     "emissive": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-     },
-     "emissiveIntensity": 1,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
-    }
-   }
-  },
-  {
-   "name": "Engine Pod",
-   "parent": {
-    "index": 1,
-    "generation": 1
-   },
-   "components": {
-    "Transform": {
-     "position": {
-      "x": 0.8846153846153845,
-      "y": -0.045454545454545456,
-      "z": -0.35454545454545455
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 0.4807692307692307,
-      "y": 0.5681818181818181,
-      "z": 0.3090909090909091
-     }
-    },
-    "Renderable": {
-     "mesh": 0,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 0.2901960784313726,
-      "y": 0.30980392156862746,
-      "z": 0.3411764705882353
-     },
-     "metalness": 0.6,
-     "roughness": 0.5,
-     "emissive": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-     },
-     "emissiveIntensity": 1,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
-    }
-   }
-  },
-  {
-   "name": "Engine Glow",
-   "parent": {
-    "index": 1,
-    "generation": 1
-   },
-   "components": {
-    "Transform": {
-     "position": {
-      "x": 0.8846153846153845,
-      "y": -0.045454545454545456,
-      "z": -0.5109090909090909
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 0.36538461538461536,
-      "y": 0.43181818181818177,
-      "z": 0.005454545454545454
-     }
-    },
-    "Renderable": {
-     "mesh": 0,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 0.6235294117647059,
-      "y": 0.8627450980392157,
-      "z": 1
-     },
-     "metalness": 0,
-     "roughness": 0.8,
-     "emissive": {
-      "x": 0.37254901960784315,
-      "y": 0.7843137254901961,
-      "z": 1
-     },
-     "emissiveIntensity": 3,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
-    }
-   }
-  },
-  {
-   "name": "Landing Leg",
-   "parent": {
-    "index": 1,
-    "generation": 1
-   },
-   "components": {
-    "Transform": {
-     "position": {
-      "x": 0.5769230769230769,
-      "y": -0.6590909090909091,
-      "z": -0.2818181818181818
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 0.0846153846153846,
-      "y": 0.5,
-      "z": 0.02
-     }
-    },
-    "Renderable": {
-     "mesh": 0,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 0.22745098039215686,
-      "y": 0.24705882352941178,
-      "z": 0.27058823529411763
-     },
-     "metalness": 0,
-     "roughness": 0.8,
-     "emissive": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-     },
-     "emissiveIntensity": 1,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
-    }
-   }
-  },
-  {
-   "name": "Landing Leg",
-   "parent": {
-    "index": 1,
-    "generation": 1
-   },
-   "components": {
-    "Transform": {
-     "position": {
-      "x": 0.5769230769230769,
-      "y": -0.6590909090909091,
-      "z": 0.2818181818181818
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 0.0846153846153846,
-      "y": 0.5,
-      "z": 0.02
-     }
-    },
-    "Renderable": {
-     "mesh": 0,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 0.22745098039215686,
-      "y": 0.24705882352941178,
-      "z": 0.27058823529411763
-     },
-     "metalness": 0,
-     "roughness": 0.8,
-     "emissive": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-     },
-     "emissiveIntensity": 1,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
-    }
-   }
-  },
-  {
-   "name": "Tail Fin",
-   "parent": {
-    "index": 1,
-    "generation": 1
-   },
-   "components": {
-    "Transform": {
-     "position": {
-      "x": 0,
-      "y": 0.7954545454545454,
-      "z": -0.3727272727272727
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 0.0846153846153846,
-      "y": 0.8636363636363635,
-      "z": 0.2
-     }
-    },
-    "Renderable": {
-     "mesh": 0,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 0.5607843137254902,
-      "y": 0.5843137254901961,
-      "z": 0.615686274509804
-     },
-     "metalness": 0.5,
-     "roughness": 0.5,
-     "emissive": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-     },
-     "emissiveIntensity": 1,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
-    }
-   }
-  },
-  {
-   "name": "Beacon",
-   "parent": {
-    "index": 1,
-    "generation": 1
-   },
-   "components": {
-    "Transform": {
-     "position": {
-      "x": 0,
-      "y": 1.25,
-      "z": -0.41818181818181815
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 0.09615384615384615,
-      "y": 0.11363636363636363,
-      "z": 0.022727272727272728
-     }
-    },
-    "Renderable": {
-     "mesh": 0,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 1,
-      "y": 0.25098039215686274,
-      "z": 0.25098039215686274
-     },
-     "metalness": 0,
-     "roughness": 0.8,
-     "emissive": {
-      "x": 1,
-      "y": 0.18823529411764706,
-      "z": 0.18823529411764706
-     },
-     "emissiveIntensity": 4,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
     }
    }
   },
@@ -1605,13 +963,13 @@
    }
   },
   {
-   "name": "Talari",
+   "name": "Tal Ossin",
    "components": {
     "Transform": {
      "position": {
-      "x": 178.0006038766822,
+      "x": 176,
       "y": 0.9,
-      "z": 39.8796144705321
+      "z": 30
      }
     },
     "Scale": {
@@ -1653,13 +1011,109 @@
    }
   },
   {
-   "name": "Talari",
+   "name": "Ena Vey",
    "components": {
     "Transform": {
      "position": {
-      "x": 190.8787768792619,
+      "x": 200,
       "y": 0.9,
-      "z": 28.03222028960782
+      "z": 52
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.43529411764705883,
+      "y": 0.6039215686274509,
+      "z": 0.5843137254901961
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    }
+   }
+  },
+  {
+   "name": "Maru Sen",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 184,
+      "y": 0.9,
+      "z": 56
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.8470588235294118,
+      "y": 0.7843137254901961,
+      "z": 0.6352941176470588
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    }
+   }
+  },
+  {
+   "name": "Osen Kai",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 204,
+      "y": 0.9,
+      "z": 28
      }
     },
     "Scale": {
@@ -1701,13 +1155,13 @@
    }
   },
   {
-   "name": "Talari",
+   "name": "Veyra Tol",
    "components": {
     "Transform": {
      "position": {
-      "x": 191.87379613212667,
+      "x": 192,
       "y": 0.9,
-      "z": 28.147199147238354
+      "z": 22
      }
     },
     "Scale": {
@@ -1724,9 +1178,9 @@
     },
     "Material": {
      "color": {
-      "x": 0.5411764705882353,
-      "y": 0.43529411764705883,
-      "z": 0.35294117647058826
+      "x": 0.8470588235294118,
+      "y": 0.7843137254901961,
+      "z": 0.6352941176470588
      },
      "metalness": 0,
      "roughness": 0.85,
@@ -1753,57 +1207,9 @@
    "components": {
     "Transform": {
      "position": {
-      "x": 191.03501228861592,
+      "x": 203.93062024065023,
       "y": 0.9,
-      "z": 51.95528124146036
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 0.6,
-      "y": 1.8,
-      "z": 0.6
-     }
-    },
-    "Renderable": {
-     "mesh": 132,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 0.5411764705882353,
-      "y": 0.43529411764705883,
-      "z": 0.35294117647058826
-     },
-     "metalness": 0,
-     "roughness": 0.85,
-     "emissive": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-     },
-     "emissiveIntensity": 1,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
-    },
-    "AIState": {
-     "state": "Walking"
-    },
-    "Pedestrian": {
-     "archetype": 0
-    }
-   }
-  },
-  {
-   "name": "Talari",
-   "components": {
-    "Transform": {
-     "position": {
-      "x": 186.40852920267483,
-      "y": 0.9,
-      "z": 28.550050763782377
+      "z": 38.60794407052499
      }
     },
     "Scale": {
@@ -1849,9 +1255,57 @@
    "components": {
     "Transform": {
      "position": {
-      "x": 200.50122672125153,
+      "x": 194.70966704849187,
       "y": 0.9,
-      "z": 45.80725730004044
+      "z": 26.815955237775096
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.8470588235294118,
+      "y": 0.7843137254901961,
+      "z": 0.6352941176470588
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    }
+   }
+  },
+  {
+   "name": "Talari",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 186.06610223629818,
+      "y": 0.9,
+      "z": 53.43593868640155
      }
     },
     "Scale": {
@@ -1893,6 +1347,237 @@
    }
   },
   {
+   "name": "Talari",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 203.87366327017418,
+      "y": 0.9,
+      "z": 41.87655734413323
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5411764705882353,
+      "y": 0.43529411764705883,
+      "z": 0.35294117647058826
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    }
+   }
+  },
+  {
+   "name": "Concord Memorial Wall",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 190,
+      "y": 1.6,
+      "z": 12
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 9,
+      "y": 3.2,
+      "z": 0.8
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6039215686274509,
+      "y": 0.5607843137254902,
+      "z": 0.5019607843137255
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Scannable": {
+     "id": "te_memorial",
+     "name": "Concord Memorial Wall",
+     "kind": "Culture",
+     "range": 6
+    }
+   }
+  },
+  {
+   "name": "Oral-History Listening Post",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 214,
+      "y": 1.1,
+      "z": 46
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.8,
+      "y": 2.2,
+      "z": 0.8
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.43529411764705883,
+      "y": 0.6039215686274509,
+      "z": 0.5843137254901961
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Scannable": {
+     "id": "te_oral",
+     "name": "Oral-History Listening Post",
+     "kind": "Culture",
+     "range": 6
+    }
+   }
+  },
+  {
+   "name": "Flood Calendar Stone",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -4,
+      "y": 1,
+      "z": -152
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.4,
+      "y": 2,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.49019607843137253,
+      "y": 0.4549019607843137,
+      "z": 0.4
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Scannable": {
+     "id": "te_calendar",
+     "name": "Flood Calendar Stone",
+     "kind": "Culture",
+     "range": 6
+    }
+   }
+  },
+  {
    "name": "Ruin Core",
    "components": {
     "Transform": {
@@ -1920,14 +1605,14 @@
       "y": 0.16470588235294117,
       "z": 0.1568627450980392
      },
-     "metalness": 0,
-     "roughness": 0.9,
+     "metalness": 0.5,
+     "roughness": 0.6,
      "emissive": {
       "x": 0.24705882352941178,
       "y": 0.8470588235294118,
       "z": 0.7843137254901961
      },
-     "emissiveIntensity": 0.35,
+     "emissiveIntensity": 0.08,
      "opacity": 1,
      "keepTextures": false,
      "texture": ""
@@ -1944,6 +1629,12 @@
      "layer": 0,
      "mask": 4294967295,
      "bounciness": 0
+    },
+    "Scannable": {
+     "id": "te_gate_layer",
+     "name": "Black Foundation",
+     "kind": "Culture",
+     "range": 8
     }
    }
   },
@@ -1953,63 +1644,8 @@
     "Transform": {
      "position": {
       "x": 33.374710847758486,
-      "y": 2.87496339605421,
-      "z": -165.86271710674126
-     }
-    },
-    "Scale": {
-     "value": {
-      "x": 1.4,
-      "y": 5.74992679210842,
-      "z": 1.4
-     }
-    },
-    "Renderable": {
-     "mesh": 0,
-     "material": 0,
-     "visible": true
-    },
-    "Material": {
-     "color": {
-      "x": 0.22745098039215686,
-      "y": 0.20784313725490197,
-      "z": 0.18823529411764706
-     },
-     "metalness": 0,
-     "roughness": 0.95,
-     "emissive": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-     },
-     "emissiveIntensity": 1,
-     "opacity": 1,
-     "keepTextures": false,
-     "texture": ""
-    },
-    "Collider": {
-     "type": "AABB",
-     "halfExtents": {
-      "x": 0.5,
-      "y": 0.5,
-      "z": 0.5
-     },
-     "radius": 0.5,
-     "isTrigger": false,
-     "layer": 0,
-     "mask": 4294967295,
-     "bounciness": 0
-    }
-   }
-  },
-  {
-   "name": "Ruin Pillar",
-   "components": {
-    "Transform": {
-     "position": {
-      "x": 25.104337798560678,
       "y": 2.527794123290942,
-      "z": -156.96367629896432
+      "z": -165.86271710674126
      }
     },
     "Scale": {
@@ -2062,9 +1698,9 @@
    "components": {
     "Transform": {
      "position": {
-      "x": 12.990294277530804,
+      "x": 25.104337798560678,
       "y": 1.6163628103054886,
-      "z": -157.88125313060866
+      "z": -156.96367629896432
      }
     },
     "Scale": {
@@ -2117,9 +1753,9 @@
    "components": {
     "Transform": {
      "position": {
-      "x": 6.154702137458617,
+      "x": 12.990294277530804,
       "y": 1.4349005819228016,
-      "z": -167.92449353228977
+      "z": -157.88125313060866
      }
     },
     "Scale": {
@@ -2172,9 +1808,9 @@
    "components": {
     "Transform": {
      "position": {
-      "x": 9.744901680487049,
+      "x": 6.154702137458617,
       "y": 2.1161805395345112,
-      "z": -179.530632636773
+      "z": -167.92449353228977
      }
     },
     "Scale": {
@@ -2227,9 +1863,9 @@
    "components": {
     "Transform": {
      "position": {
-      "x": 21.05739942399146,
+      "x": 9.744901680487049,
       "y": 3.103570581345619,
-      "z": -183.9600109762902
+      "z": -179.530632636773
      }
     },
     "Scale": {
@@ -2282,15 +1918,70 @@
    "components": {
     "Transform": {
      "position": {
-      "x": 31.573653834212898,
+      "x": 21.05739942399146,
       "y": 2.495930672272076,
-      "z": -177.87721631833284
+      "z": -183.9600109762902
      }
     },
     "Scale": {
      "value": {
       "x": 1.4,
       "y": 4.991861344544152,
+      "z": 1.4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.22745098039215686,
+      "y": 0.20784313725490197,
+      "z": 0.18823529411764706
+     },
+     "metalness": 0,
+     "roughness": 0.95,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Ruin Pillar",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 31.573653834212898,
+      "y": 1.6751070024562567,
+      "z": -177.87721631833284
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.4,
+      "y": 3.3502140049125133,
       "z": 1.4
      }
     },
@@ -2343,7 +2034,7 @@
      }
     },
     "ModelInstances": {
-     "instances": "42 25.1 -148.6 107 1.32\n43 23.2 -184.6 21 0.77\n43 39.8 -169.1 148 1.28\n43 37.6 -163.6 358 1.21\n42 5.9 -184.3 141 1.17\n43 -3.0 -172.8 188 0.78\n44 14.1 -178.4 56 0.96\n42 40.3 -179.4 240 0.95\n44 23.3 -160.2 61 1.32\n43 32.9 -185.6 82 1.18\n43 25.9 -155.0 312 1.39\n44 31.3 -179.1 261 0.64\n44 22.6 -187.7 208 1.03\n42 7.7 -183.5 312 0.97\n43 32.1 -166.0 286 1.19\n44 29.3 -175.0 32 0.77"
+     "instances": "42 26.7 -176.7 323 1.23\n42 7.6 -164.4 76 0.61\n43 18.9 -184.3 304 0.64\n44 11.3 -185.5 273 1.10\n43 20.4 -179.9 258 1.02\n43 34.4 -175.0 79 1.12\n42 34.3 -152.1 159 1.34\n44 29.4 -177.2 156 0.76\n42 34.2 -151.1 322 1.29\n42 21.2 -184.3 261 0.75\n44 6.4 -170.6 354 1.31\n44 2.1 -158.4 16 1.22\n43 5.0 -183.9 192 1.11\n44 14.2 -177.0 166 0.64\n44 15.4 -155.0 263 1.34\n42 31.9 -151.5 76 0.79"
     }
    }
   },
@@ -2386,6 +2077,12 @@
      "opacity": 1,
      "keepTextures": false,
      "texture": ""
+    },
+    "Scannable": {
+     "id": "ice:1",
+     "name": "Volatile Ice",
+     "kind": "Mineral",
+     "range": 5
     }
    }
   },
@@ -2428,6 +2125,12 @@
      "opacity": 1,
      "keepTextures": false,
      "texture": ""
+    },
+    "Scannable": {
+     "id": "ice:2",
+     "name": "Volatile Ice",
+     "kind": "Mineral",
+     "range": 5
     }
    }
   },
@@ -2470,6 +2173,12 @@
      "opacity": 1,
      "keepTextures": false,
      "texture": ""
+    },
+    "Scannable": {
+     "id": "ice:3",
+     "name": "Volatile Ice",
+     "kind": "Mineral",
+     "range": 5
     }
    }
   },
@@ -2484,7 +2193,7 @@
      }
     },
     "ModelInstances": {
-     "instances": "46 41.2 354.3 131 0.80\n50 -315.2 -489.5 347 0.81\n48 900.0 -426.3 183 1.14\n46 -357.7 -11.3 277 1.13\n49 -641.3 -523.5 150 0.94\n47 -592.4 -108.2 162 1.02\n49 456.1 265.3 154 1.23\n49 899.7 150.8 356 1.37\n47 4.7 -754.3 110 0.88\n50 697.7 -116.3 272 1.29\n50 77.7 538.4 218 1.33\n48 -119.5 511.9 291 1.07\n46 -476.9 831.6 274 0.87\n46 640.3 -16.4 125 1.19\n48 -659.4 -371.2 71 0.90\n46 -291.2 -908.4 298 1.22\n46 -513.3 -772.7 145 1.17\n46 80.9 719.6 124 0.95\n49 485.1 320.5 61 0.87\n46 -129.6 -437.3 63 0.88\n46 359.8 -766.6 167 1.30\n49 602.6 5.3 193 1.35\n47 432.4 677.4 56 1.31\n49 983.3 -144.1 210 1.15\n47 -93.3 -701.1 281 1.32\n48 407.2 533.2 67 1.08\n48 67.0 523.9 61 0.98\n49 271.5 -343.6 113 1.30\n49 -537.8 -566.2 207 0.83\n46 347.9 878.0 351 0.82\n48 491.6 -109.8 125 1.15\n49 209.2 -458.5 311 1.21\n46 -168.2 500.3 31 1.39\n46 648.9 560.4 283 0.98\n47 -772.3 497.5 177 0.88\n46 84.5 867.2 5 0.80\n46 -602.7 -147.5 93 1.23\n47 401.4 670.0 326 0.95\n50 -194.3 114.3 319 0.96\n49 538.9 -461.6 300 1.09\n46 -532.2 839.0 269 1.11\n47 719.8 -27.0 265 1.01\n48 97.5 -286.0 293 1.40\n46 147.0 502.9 18 1.11\n46 -976.9 157.8 71 1.34\n50 162.4 -744.0 96 1.38\n46 -163.6 819.3 312 1.20\n48 -101.2 619.7 211 1.10\n47 -110.2 -836.7 216 1.34\n49 -387.1 -584.9 83 0.91\n47 -111.9 -167.7 154 1.12\n46 -562.6 -448.4 350 1.30\n48 598.7 -146.4 309 0.90\n47 -417.0 -272.9 179 1.29\n47 -568.7 494.9 341 0.84\n46 -508.9 -175.7 164 0.87\n48 452.1 -752.7 154 0.89\n50 213.7 -124.8 289 0.81\n46 -411.8 -209.6 163 1.36\n50 723.4 171.0 332 1.02\n50 446.5 -166.7 294 0.86\n46 588.6 -105.2 225 1.21\n49 40.7 573.7 150 1.10\n48 291.5 -369.3 275 1.04\n48 350.0 686.5 336 0.98\n46 -322.4 -773.2 17 0.87\n48 311.3 518.7 132 1.00\n48 21.6 626.4 235 1.04\n49 975.9 6.6 227 0.90\n48 357.8 788.6 205 1.16\n49 711.9 555.6 181 1.03\n50 293.5 -837.3 189 0.94\n49 -418.4 266.4 131 0.94\n50 168.8 850.9 340 0.88\n49 255.3 -578.7 68 0.88\n49 -252.2 181.8 279 1.07\n50 -832.7 454.4 70 1.15\n46 -695.3 -192.9 39 1.38\n50 345.6 -224.8 175 1.33\n47 715.2 -460.9 229 0.86\n46 61.6 281.6 73 0.84\n49 -191.1 -801.7 86 0.90\n50 -572.7 84.0 358 0.86\n47 442.9 8.7 141 0.81\n49 264.0 798.6 111 1.17\n47 -585.0 801.6 283 0.99\n46 8.3 -203.3 22 1.36\n47 -67.2 927.0 342 1.30\n48 67.0 -128.6 15 0.82\n47 554.8 813.6 286 1.04\n48 175.3 655.3 255 1.34\n49 477.9 -697.1 86 0.82\n50 459.5 623.3 46 1.16\n46 744.1 348.5 257 0.99\n47 292.8 -734.0 104 1.18\n49 135.0 589.1 81 1.10\n48 -393.1 -789.5 287 1.36\n50 94.3 35.9 96 0.98\n47 -180.4 -580.1 340 1.16\n48 868.5 -451.2 152 1.14\n49 -767.4 -225.7 193 0.90\n49 -210.8 -476.6 235 0.85\n48 -17.0 -654.0 111 0.90\n49 -143.9 -366.6 277 0.97\n50 140.4 670.8 170 0.84\n48 -649.9 -589.3 326 0.81\n47 230.5 592.3 4 1.21\n48 458.8 884.2 85 1.09\n50 -780.5 440.0 111 0.92\n48 706.8 -161.3 113 0.94\n48 503.3 138.7 93 1.05\n50 656.3 691.7 249 0.82\n48 -815.5 179.5 131 1.24\n49 303.1 -0.7 57 0.97\n47 -565.5 -142.5 121 0.96\n50 -789.2 492.8 176 0.85\n48 354.8 363.7 38 1.08\n46 292.0 850.8 358 1.01\n49 889.3 -243.3 42 1.13\n47 -184.6 -732.0 130 1.33\n50 -41.2 -141.5 254 0.84\n48 -880.2 278.2 168 1.25\n47 539.6 679.9 93 1.15\n48 -306.9 396.4 198 1.22\n50 -410.3 177.7 223 0.92\n50 103.8 -85.9 268 1.33\n47 380.7 -854.9 49 1.30\n49 412.5 803.3 49 1.33\n48 -516.0 -66.3 18 1.31\n49 860.4 426.9 249 1.02\n47 -172.6 44.3 106 1.32\n46 -811.0 -459.1 16 1.39\n46 436.1 708.0 27 0.94\n46 -722.7 379.3 351 1.24\n50 -436.5 -110.8 191 0.83\n49 -789.1 -298.3 139 1.03\n49 622.5 183.0 318 1.20\n47 113.0 326.8 15 0.81\n46 -484.8 -21.6 104 1.10\n46 -340.0 501.7 232 1.37\n49 -224.9 604.1 234 1.32\n50 547.7 506.1 42 0.91\n49 100.7 743.5 5 0.97\n48 -40.8 66.1 285 1.31\n49 -511.9 278.3 255 1.09\n50 304.2 -717.0 258 1.22\n47 -848.9 82.0 310 1.29\n46 51.8 217.3 150 0.88\n48 461.8 -291.9 64 1.36\n47 -115.3 923.3 13 1.25\n50 122.9 -868.3 320 0.91\n47 310.6 -334.0 7 0.89\n50 719.2 322.1 33 1.29\n49 -734.3 -655.6 173 0.82\n46 -412.8 -277.9 168 0.85\n47 60.1 452.0 161 0.85\n46 -808.4 242.8 294 1.13\n49 -804.5 441.4 326 1.25\n49 -145.5 -324.5 83 1.09\n48 659.9 569.1 339 0.98\n46 -578.6 -90.5 12 1.01\n47 -55.8 642.8 65 1.36\n49 619.1 404.1 139 1.26\n50 -644.0 203.5 297 0.86\n50 -434.4 878.9 12 1.32\n47 -731.2 -510.5 66 1.02\n48 -533.0 419.8 229 0.98\n48 -813.4 -172.7 204 0.83\n48 333.0 -586.5 260 1.33\n49 -98.2 182.4 230 0.81\n47 -710.9 188.5 334 1.11\n48 -247.3 -611.2 297 1.21\n49 -294.9 -489.8 74 1.17\n48 -284.4 -168.4 176 1.05\n48 -784.3 -578.9 163 1.11\n47 917.1 -344.3 290 1.16\n48 458.1 199.5 356 1.07\n46 -293.2 -164.3 85 1.14\n50 692.7 563.0 204 1.36\n49 -525.7 -21.2 167 1.32\n47 -444.6 -863.4 334 0.88\n47 -180.4 -865.9 205 1.34\n46 -616.1 553.7 278 0.94\n47 -191.9 -589.7 252 1.22\n48 -438.0 786.8 186 0.82\n49 -203.2 821.9 312 0.99\n48 769.8 414.6 31 0.99\n48 420.4 864.1 154 0.96\n49 -128.6 -913.2 1 1.37\n47 -926.5 -72.4 116 0.98\n48 28.4 -226.4 324 0.82\n48 221.1 -610.3 337 1.23\n46 -30.9 -255.6 139 0.93\n49 -128.1 478.8 289 0.83\n50 647.4 -718.8 141 1.19\n46 -96.8 -710.5 245 1.16\n47 27.0 -570.5 9 1.07\n50 625.6 -290.7 133 1.22\n46 -104.0 -378.5 333 0.99\n49 289.6 -6.6 161 0.94\n49 -673.1 -656.0 92 0.86\n47 -4.2 435.4 210 1.20\n48 206.5 -49.2 65 0.93\n46 411.8 234.9 108 1.04\n47 422.3 398.4 156 0.98\n50 -441.6 -158.4 14 0.95\n46 -925.2 202.9 40 1.39\n46 -840.4 200.2 234 0.98\n47 -141.7 -111.1 206 1.04\n50 885.7 -249.2 74 1.32\n46 770.7 -372.2 133 1.26\n47 -11.0 -912.8 153 1.38\n48 856.4 -423.2 302 0.81\n50 -73.5 -658.0 325 0.84\n50 957.4 168.7 320 0.82\n50 538.6 -2.0 57 1.36\n49 -919.0 -74.0 185 1.10\n46 578.9 494.7 247 0.99\n46 24.0 -449.7 44 1.00\n48 -443.7 321.4 264 1.27\n46 -511.7 -395.7 342 1.02\n47 -114.3 -813.5 174 1.31\n46 623.2 115.0 36 1.25\n47 -205.2 -895.7 1 0.97\n50 -386.2 321.9 241 1.08\n46 160.7 -58.3 205 1.14\n48 -810.1 -409.7 101 0.87\n46 -102.7 -358.9 253 1.06\n46 112.1 837.1 95 1.04\n46 799.0 -6.2 43 1.10\n50 -490.9 617.2 265 1.27\n48 127.6 -196.7 78 1.38\n50 553.8 468.8 189 1.19\n48 -128.5 720.9 161 1.27\n47 -344.8 -267.8 281 0.93\n50 672.8 208.4 12 1.12\n49 941.7 -15.8 49 0.82\n48 -344.4 -888.4 217 0.81\n49 330.6 -34.5 354 1.34\n49 930.4 31.1 36 0.95\n47 29.5 -874.0 69 1.07\n50 134.1 -65.4 213 0.96\n48 -370.8 855.7 94 1.24\n47 -308.6 -500.9 35 1.05\n50 690.3 251.9 92 0.83\n50 -986.8 125.1 241 1.05\n50 11.4 212.1 114 1.26\n47 -114.6 -397.2 54 1.34\n49 -43.9 208.6 349 1.10\n49 408.4 -89.0 177 1.10\n49 33.2 -914.7 283 1.00\n49 -38.9 -909.4 60 1.17\n50 -851.7 270.3 44 1.03\n47 -482.5 -15.6 8 1.12\n46 -294.0 -388.0 299 1.29\n49 938.5 158.6 230 1.02\n47 -669.3 157.5 332 1.17\n46 480.0 -347.2 253 1.16\n47 669.1 377.4 79 1.11\n47 135.0 436.0 316 1.38\n49 -184.4 -137.4 332 0.90\n46 701.0 -366.7 84 1.36\n50 -840.8 255.9 247 1.15\n46 -320.9 -493.7 324 1.31\n47 755.8 -297.6 240 1.30\n48 -653.9 -21.1 287 1.19\n48 52.1 433.1 284 1.01\n48 -34.3 -138.2 297 1.39\n47 88.6 -221.5 328 1.36\n49 -400.3 -301.8 329 0.82\n49 -17.9 -112.1 259 1.28\n46 -346.3 386.2 163 0.89\n50 230.9 401.9 121 0.99\n46 -726.7 -628.3 355 0.83\n50 -99.4 758.5 55 1.39\n46 724.9 647.9 305 0.90\n50 798.3 18.7 55 0.83\n48 37.7 851.4 101 1.21\n47 218.6 369.6 201 1.01\n47 -899.4 363.6 43 1.36\n48 16.3 925.8 16 1.20\n46 -275.0 -471.9 157 1.36\n46 650.6 230.8 352 1.15\n48 -138.4 281.4 239 1.32\n50 -33.2 824.4 269 1.38\n50 -287.2 832.2 144 0.87\n49 -390.2 -366.5 125 1.21\n47 735.9 -527.8 223 0.84\n50 -933.2 254.5 254 1.03\n50 -702.5 66.5 127 1.39\n47 -951.1 264.8 53 1.35\n47 43.4 -104.7 59 0.85\n48 911.8 -357.6 350 1.10\n46 280.0 265.2 248 1.18\n46 -589.9 44.5 232 0.97\n46 511.9 327.5 188 0.85\n46 536.8 -360.3 164 0.83\n49 -745.1 -42.9 299 0.96\n49 578.7 -145.9 359 1.39\n47 22.7 508.1 127 1.02\n46 641.1 -149.7 76 0.84\n47 -8.6 -238.0 309 0.84\n49 677.0 496.5 87 0.85\n47 -616.9 -6.2 347 1.15\n50 507.4 -121.7 250 0.82\n50 709.1 -192.5 17 1.14\n48 -106.9 7.4 50 1.39\n49 -155.6 -804.8 197 0.91\n49 70.6 -363.1 65 0.83\n47 -124.0 -130.7 23 1.00\n48 269.3 -384.9 151 1.27\n50 -670.4 -230.8 305 1.02\n46 -54.2 -430.5 334 1.09\n50 814.4 -487.1 214 0.85\n48 41.0 874.4 87 0.99\n49 -424.9 900.5 130 1.36\n46 -706.9 49.0 166 1.16\n48 50.8 -573.1 136 1.34\n47 47.2 243.0 262 1.15\n49 -36.4 -117.2 217 1.16\n46 -853.7 -214.4 312 1.37\n50 -133.5 51.9 192 1.23\n48 502.6 251.9 228 0.98\n49 54.8 146.7 129 0.80\n49 -562.2 230.0 270 1.06\n47 -572.1 702.9 48 1.30\n50 482.6 197.3 331 1.22\n46 -336.4 847.0 228 0.96\n50 -940.6 -82.6 171 0.90\n50 950.6 -134.5 55 1.32\n47 880.3 -353.7 296 1.00\n48 673.9 -597.1 303 0.98\n46 -890.8 159.0 252 0.87\n48 386.8 -196.0 355 1.14\n49 37.3 321.2 36 1.29\n50 -659.2 -679.1 133 1.13\n47 501.6 185.8 202 1.04\n48 -294.7 -396.0 274 1.35\n49 -669.6 469.1 1 0.95\n47 356.3 -340.4 287 1.08\n50 -924.1 -227.3 285 1.12\n48 -412.8 -62.6 77 0.98\n48 470.2 839.4 143 1.17\n46 -812.9 -245.9 272 1.23\n48 -617.5 71.7 313 0.92\n47 -453.1 371.4 230 1.26\n48 -744.6 181.4 354 1.35\n48 -332.1 351.0 274 1.04\n50 120.5 710.4 277 1.08\n47 115.9 530.9 74 1.12\n47 -309.6 425.3 103 0.96\n48 664.2 669.6 104 0.89\n49 -355.4 -916.5 233 1.34\n48 -882.1 -56.0 32 1.10\n49 -746.0 -444.4 324 1.29\n49 -919.5 298.5 110 0.81\n50 -517.9 193.1 4 0.84\n50 517.0 -578.5 82 0.82\n47 325.5 740.9 46 1.09\n48 951.2 176.9 97 0.85\n50 51.4 347.5 44 0.92\n48 779.6 -322.3 336 0.95\n47 331.5 151.9 341 0.84\n49 -923.5 -6.6 108 0.90\n49 -754.3 368.8 299 1.34\n49 910.1 153.8 75 0.97\n49 562.4 -562.0 121 0.81\n49 432.5 -178.2 349 1.19\n48 958.6 213.2 186 1.37\n46 37.7 613.6 85 1.27\n50 423.7 672.9 124 0.92\n49 317.0 -794.5 299 1.05\n47 735.7 46.2 279 1.25\n46 294.1 376.3 15 1.35\n46 -135.0 -360.3 274 1.21\n47 -861.5 -66.2 63 1.36\n49 515.5 41.1 192 1.23\n50 -293.5 236.6 312 1.37\n50 -4.0 -519.1 335 1.19\n46 399.6 -104.6 118 1.06\n48 609.2 255.2 358 1.04\n48 -805.0 143.0 245 1.35\n48 -439.1 -773.7 10 1.28\n46 -156.7 -669.0 339 1.21\n47 718.8 277.2 296 0.88\n49 -746.5 240.2 348 1.31\n50 -633.3 -614.3 16 1.04\n50 655.3 601.5 354 1.18\n46 162.8 271.9 228 1.02\n49 295.4 -721.8 344 1.02\n46 -453.8 -13.0 198 1.35\n46 -256.8 -31.3 106 0.87\n47 -95.5 -390.3 134 1.20\n46 946.5 -302.6 23 0.90\n50 757.3 -354.2 352 0.86\n47 290.8 348.1 49 1.10\n50 -297.2 670.5 302 1.30\n50 -510.1 835.7 136 0.95\n50 -202.3 -921.4 68 0.89\n46 325.3 196.3 88 1.21\n48 -527.1 739.6 117 1.14\n47 -356.0 402.6 197 1.09\n50 -480.7 -547.1 231 1.13\n48 -649.3 -17.6 164 1.04\n48 -595.1 351.4 142 1.33\n49 924.9 266.4 321 1.12\n48 -67.3 890.8 6 1.22\n50 774.6 392.1 249 1.18\n50 368.6 -728.4 342 1.32\n46 -86.8 480.3 298 0.91"
+     "instances": "50 114.9 88.2 0 1.20\n48 -279.3 658.0 8 1.36\n47 121.4 94.2 198 1.17\n46 -199.0 -364.2 85 1.11\n46 -416.4 675.5 129 0.85\n46 -12.7 732.0 255 0.82\n48 249.0 -497.7 339 1.25\n50 -438.2 -141.3 47 1.05\n47 882.6 167.9 300 1.38\n47 -572.6 77.0 292 0.94\n47 -79.4 618.3 318 0.97\n47 609.9 -361.5 43 0.91\n49 -442.9 -860.5 17 1.40\n50 -636.0 551.4 235 1.15\n48 565.0 -381.6 251 1.19\n46 513.2 -674.9 224 0.96\n46 849.8 343.5 151 0.94\n50 -437.0 -9.9 89 0.86\n49 -237.1 568.5 43 1.01\n48 961.5 -84.6 345 0.87\n46 963.7 -88.2 261 1.22\n49 46.2 102.8 46 1.09\n46 -168.8 -561.7 302 1.27\n50 -458.7 827.1 97 0.80\n46 -323.2 520.6 327 0.90\n49 -177.7 -187.7 307 1.39\n46 836.7 -68.8 207 1.29\n50 -410.7 840.3 227 1.24\n47 -681.8 91.7 312 0.89\n50 398.7 690.6 297 1.18\n46 -665.8 -433.6 16 0.91\n48 504.0 -437.0 12 1.38\n50 65.1 985.1 304 1.29\n48 96.2 702.8 248 0.98\n49 -16.4 870.1 351 0.87\n47 -90.6 -516.0 107 1.05\n46 69.4 -115.7 50 0.94\n49 -8.3 -522.1 2 1.12\n50 -528.9 634.5 259 0.90\n48 -557.1 -364.0 89 1.05\n48 637.5 138.7 93 1.33\n48 -564.0 64.2 174 1.00\n47 768.9 -65.6 186 1.40\n47 -758.5 10.2 128 1.28\n49 5.1 747.8 186 1.08\n49 732.9 -100.9 326 1.27\n50 -198.0 -79.8 350 0.97\n48 -254.9 -575.7 238 0.97\n47 -238.8 -709.8 323 1.19\n50 -838.5 158.8 67 1.19\n46 573.2 92.5 191 1.06\n48 207.5 905.8 144 1.18\n47 -875.3 466.1 334 1.16\n48 -529.6 11.3 300 1.38\n46 140.7 812.4 295 1.03\n48 -556.6 -177.0 21 1.13\n46 -70.6 786.3 40 1.30\n48 332.4 92.5 4 1.14\n46 109.5 267.4 335 0.82\n48 -458.0 -95.3 132 1.37\n48 136.7 436.2 33 1.38\n47 -308.1 538.6 247 0.94\n46 -286.7 786.9 180 1.06\n49 -193.1 -466.4 43 0.90\n49 -288.1 -878.9 220 0.80\n47 595.0 -193.6 57 1.11\n50 -244.3 914.1 128 1.19\n46 880.7 287.0 235 0.91\n46 259.7 -702.7 135 1.28\n46 139.9 -826.9 82 1.05\n50 123.3 656.6 85 1.31\n47 875.5 336.3 248 0.93\n48 -29.5 -487.5 49 1.29\n49 -376.1 371.8 50 1.04\n47 587.5 301.1 163 1.05\n49 275.6 -214.4 207 1.13\n49 -358.9 0.6 350 0.88\n47 -708.6 555.5 214 1.34\n46 303.9 393.7 317 1.35\n47 -179.0 -709.2 38 0.93\n50 363.2 151.5 24 1.23\n50 -283.0 -472.0 60 1.09\n48 -48.1 121.7 36 0.80\n50 288.5 534.0 3 1.33\n47 233.7 869.5 329 0.98\n50 -168.3 -452.9 219 1.01\n47 739.6 -74.8 114 1.25\n49 215.0 -118.2 348 0.98\n50 -415.0 -795.5 157 1.11\n49 373.9 356.5 209 0.89\n48 -246.9 302.2 311 1.37\n46 -452.2 -762.6 250 1.27\n49 -596.8 -534.3 237 1.13\n48 -719.1 -459.2 218 1.18\n50 68.2 -557.0 122 1.20\n47 399.2 303.0 276 1.20\n47 -42.7 541.3 123 1.23\n48 289.6 -930.4 344 1.09\n46 360.6 -563.4 224 1.00\n47 745.7 25.5 88 1.02\n47 816.6 53.4 145 1.05\n47 570.0 -100.9 47 0.85\n49 366.9 803.6 254 1.30\n50 551.8 -144.7 160 1.08\n48 -88.3 697.7 56 1.29\n47 573.0 -757.6 273 1.19\n49 582.5 -755.8 136 1.23\n46 -93.0 -132.1 211 1.33\n49 169.9 954.3 357 1.14\n46 257.7 -444.9 285 0.82\n48 -139.7 561.1 181 1.10\n49 308.2 -495.9 88 0.82\n49 409.6 -343.3 325 0.83\n46 -388.7 745.6 245 1.14\n48 605.4 -154.7 25 0.94\n46 344.1 259.5 113 1.19\n46 -278.8 -532.7 309 1.22\n49 98.2 707.8 83 0.92\n49 339.9 -117.9 287 1.09\n48 -997.9 -31.0 303 1.24\n47 271.7 262.1 198 0.92\n46 73.8 845.0 304 1.05\n49 650.2 -258.8 266 1.12\n50 -77.6 -529.5 81 0.88\n48 599.9 -459.4 359 1.36\n46 139.3 -380.7 62 1.03\n48 -55.2 797.1 2 1.20\n46 840.2 23.2 6 1.09\n46 -292.6 103.3 234 1.24\n46 -812.0 564.7 63 0.85\n48 -513.7 535.4 343 1.39\n49 233.9 596.5 143 1.02\n49 586.9 739.5 256 1.29\n49 737.1 -12.8 34 1.18\n46 62.0 -238.6 75 1.11\n50 -560.5 -22.7 123 1.07\n50 -255.0 279.4 195 0.99\n50 55.9 157.0 0 1.10\n49 490.0 695.6 158 1.29\n46 520.9 516.0 146 1.37\n48 37.5 -517.7 211 0.98\n46 -128.2 846.0 257 1.05\n48 -649.7 135.6 98 1.00\n47 -179.1 -147.9 272 0.92\n48 -51.5 944.3 65 1.07\n49 -144.1 -116.9 217 1.21\n46 603.6 372.5 79 1.09\n47 -650.2 259.5 72 1.29\n50 -918.4 186.1 65 0.97\n46 -461.5 -507.0 251 1.01\n50 -872.8 -257.1 198 1.35\n46 143.8 534.9 300 1.18\n47 937.5 181.4 37 1.26\n46 494.0 118.7 88 1.39\n49 232.2 -231.2 269 1.24\n46 784.1 -574.5 114 0.86\n48 -216.1 -76.0 101 1.38\n50 -737.3 308.2 141 0.88\n49 292.9 -698.3 189 1.17\n46 525.2 367.0 156 0.97\n50 136.3 903.6 345 1.15\n50 -46.4 -456.9 157 1.13\n47 602.1 -539.9 157 1.29\n46 -599.9 -770.8 243 1.10\n50 760.3 -98.4 130 1.34\n48 -268.3 723.4 155 1.25\n46 536.3 607.4 187 1.06\n50 -586.7 -767.0 88 1.27\n47 -811.1 447.9 148 0.89\n47 509.0 -757.9 108 1.17\n46 371.5 305.6 31 0.84\n47 715.3 -8.8 341 0.80\n50 353.4 -593.8 196 1.31\n48 -971.1 -83.3 344 1.02\n49 20.5 -903.6 80 1.23\n46 655.5 -748.3 32 1.11\n49 -512.1 -5.5 283 0.84\n47 -592.5 -762.3 277 0.90\n47 -813.9 349.7 129 0.83\n50 -246.7 -809.5 288 1.20\n50 480.3 -554.1 253 0.90\n49 860.2 366.1 271 0.85\n46 278.0 -178.2 220 1.35\n47 428.9 -518.8 303 1.08\n47 81.5 -584.2 12 1.05\n48 927.1 -216.9 143 0.84\n47 685.8 -686.3 17 1.07\n50 -629.4 121.4 79 0.85\n48 599.2 673.5 335 1.01\n50 29.6 644.8 156 1.35\n47 376.7 161.2 177 1.20\n48 -834.1 -7.1 18 1.29\n46 -927.2 272.8 128 1.02\n47 -292.5 -797.0 162 1.36\n47 -180.4 355.0 195 1.40\n50 649.3 758.2 39 1.07\n47 785.5 568.8 304 1.02\n47 71.3 521.6 260 1.15\n48 -466.7 -828.7 113 0.81\n48 -289.5 200.1 298 1.20\n50 387.9 -902.3 308 0.91\n48 144.9 599.9 211 1.27\n46 -65.9 316.1 183 0.98\n46 -378.1 -34.0 263 1.06\n50 -222.2 724.3 115 0.82\n49 690.1 -92.4 190 1.19\n49 -241.2 751.7 259 1.14\n48 292.6 -350.8 170 1.04\n49 -934.4 -242.4 188 1.02\n48 65.0 -741.4 333 1.14\n48 -650.4 -235.9 17 1.26\n48 626.7 -142.4 319 0.92\n47 861.6 48.8 141 1.34\n48 695.7 -264.4 12 1.40\n49 -73.2 800.4 336 1.24\n46 477.8 -728.6 181 0.87\n47 -250.2 -100.6 111 1.26\n49 212.8 435.1 122 1.04\n48 -265.4 206.6 134 1.24\n46 -209.5 -327.8 307 0.82\n49 -422.3 408.7 269 1.23\n49 425.0 -702.7 99 1.03\n47 34.7 239.9 167 1.37\n46 504.3 51.5 205 1.14\n47 434.3 386.8 155 0.94\n50 -228.9 -698.5 143 1.40\n49 -338.2 -324.5 177 1.01\n47 -580.3 -447.5 284 1.30\n46 -854.8 -31.1 235 0.97\n47 310.7 530.1 78 0.83\n49 -654.2 106.4 190 1.40\n49 537.3 -496.2 12 1.21\n48 699.1 433.5 323 1.23\n48 -687.5 679.6 94 0.80\n49 201.6 -244.2 87 1.25\n50 -271.8 -848.5 168 1.36\n46 780.3 53.5 96 0.99\n50 -476.5 -59.0 16 1.09\n47 825.2 -58.1 152 0.94\n50 722.5 134.2 278 1.14\n47 -102.3 -914.9 220 1.22\n49 418.6 549.1 322 1.10\n46 -408.2 -864.4 14 0.97\n48 404.3 75.8 180 1.38\n46 299.0 411.8 178 1.25\n47 287.2 -525.5 122 1.25\n49 353.9 -751.6 221 1.40\n48 -533.9 -640.7 114 1.30\n50 -554.4 467.5 277 0.81\n48 -928.9 -177.1 201 0.84\n50 582.3 568.8 166 1.30\n47 -482.1 502.8 246 1.35\n50 -726.8 -614.0 207 1.22\n48 -246.7 -187.8 69 0.89\n49 -201.6 -250.6 227 0.93\n47 -476.5 -25.4 233 1.33\n49 763.9 -189.5 43 1.35\n49 482.5 833.2 213 0.94\n50 638.5 -259.9 141 1.21\n49 -721.1 -392.0 171 1.34\n50 609.4 -756.2 281 1.20\n50 370.5 -623.4 292 1.28\n47 -317.8 -394.4 302 1.27\n47 -498.1 690.2 319 1.30\n50 898.4 -111.4 248 1.35\n47 732.7 -288.9 66 1.35\n49 833.8 205.4 30 1.23\n49 185.3 -596.9 186 1.07\n49 239.2 367.2 141 1.00\n50 518.6 165.3 90 0.89\n48 416.5 720.2 163 0.99\n48 -211.2 -630.0 306 0.90\n49 105.3 24.2 142 0.89\n49 498.3 142.5 308 0.97\n48 -357.0 -926.3 275 1.32\n48 -523.5 195.8 184 0.88\n47 279.8 -334.3 266 1.14\n50 -404.3 -719.5 195 1.06\n50 248.9 -107.8 195 1.39\n48 -470.5 -299.1 351 1.27\n49 456.3 373.5 334 1.20\n49 337.4 -410.0 127 1.25\n47 558.0 -129.5 128 1.04\n50 587.4 540.2 61 1.01\n46 -504.3 502.1 114 1.01\n50 798.4 -428.9 219 0.90\n47 -379.7 14.6 176 1.21\n46 -488.6 -520.2 157 1.19\n48 -43.3 257.7 158 1.32\n50 -329.5 -65.3 196 1.11\n49 836.8 458.6 163 1.07\n46 690.4 230.7 2 1.30\n46 -152.9 969.2 16 1.40\n48 262.5 -33.8 94 1.25\n49 -487.0 -177.1 248 1.01\n50 -663.8 724.3 197 0.93\n50 787.2 369.5 285 1.32\n49 324.2 135.8 61 0.95\n46 628.2 357.5 268 1.38\n49 -872.6 -450.5 133 1.22\n50 967.3 155.5 96 0.83\n50 -664.2 -263.0 353 0.88\n46 850.7 -94.4 33 1.13\n46 376.2 805.9 39 0.91\n49 769.4 231.8 236 0.84\n49 -493.0 782.0 342 1.05\n49 120.6 -746.6 127 1.31\n47 -621.8 755.6 123 1.02\n47 -608.1 -610.5 163 1.36\n47 -487.3 -175.1 291 0.95\n46 648.4 -299.6 214 1.08\n46 -724.8 -499.7 342 1.03\n47 414.9 -270.1 216 1.24\n50 -743.6 -403.5 67 1.16\n48 -705.3 -490.6 38 0.93\n46 -744.0 -72.7 200 1.32\n50 641.0 -229.5 119 1.12\n46 -67.9 -300.8 318 1.18\n46 -160.6 439.0 65 1.02\n49 678.5 21.7 69 1.25\n46 136.3 -251.6 77 1.35\n48 -39.5 692.8 298 1.15\n48 -521.8 181.0 71 1.09\n46 741.6 615.7 332 1.39\n49 -458.0 -218.0 69 0.86\n48 215.9 -505.1 275 1.38\n47 -261.1 -88.6 251 1.14\n46 -668.7 465.7 351 1.26\n50 560.6 -334.7 39 0.80\n46 -28.8 940.0 282 1.28\n47 -713.2 -188.5 339 0.93\n50 -576.8 -483.2 147 1.25\n47 -129.2 -697.4 340 1.32\n49 197.2 612.9 269 1.18\n50 40.5 -694.5 350 1.39\n49 418.9 -468.3 319 1.26\n49 -392.7 307.6 129 1.26\n48 -855.6 143.6 238 1.04\n50 416.7 260.3 283 0.92\n48 -588.9 -121.2 49 1.32\n47 538.1 -291.8 263 0.97\n47 676.7 -538.9 356 0.83\n49 665.7 295.9 345 0.85\n46 -776.8 14.7 10 1.34\n46 674.3 105.0 88 0.81\n48 709.4 290.5 305 1.16\n50 692.5 626.9 109 0.94\n47 449.9 83.9 272 0.88\n48 -936.2 96.2 136 1.22\n48 734.2 473.7 225 0.80\n48 427.5 -859.4 16 0.91\n48 -715.5 -656.9 212 0.89\n49 501.1 34.6 84 0.87\n49 315.1 917.3 299 1.36\n50 6.6 298.3 255 1.37\n50 360.0 566.6 46 1.30\n50 -195.0 918.2 6 1.00\n47 968.6 51.3 61 1.38\n48 -319.0 -404.6 343 1.27\n50 494.0 -147.9 171 0.94\n50 109.2 -416.6 123 1.01\n46 498.1 755.9 28 1.30\n50 -127.9 68.0 220 1.27\n50 -15.5 -410.7 212 0.83\n48 619.4 -380.1 42 0.81\n50 35.6 -840.1 181 1.26\n48 -223.7 -581.9 91 1.01\n50 212.8 698.2 239 0.91\n46 144.6 -61.1 59 1.12\n47 -135.6 -630.4 112 1.32\n48 643.1 -241.1 5 0.87\n48 -380.9 689.4 37 0.88\n48 -873.7 452.3 110 0.95\n47 -477.2 729.9 135 1.36\n48 -426.5 -535.5 208 1.36\n49 521.8 -830.0 197 1.00\n48 -826.7 319.2 292 1.30\n48 309.3 -379.4 314 1.21\n47 -230.6 173.7 308 1.40\n47 -566.0 416.4 335 1.21\n49 284.7 -803.5 197 1.37\n50 -124.9 -250.5 258 1.29\n46 480.9 491.5 10 1.38\n50 452.0 -659.6 113 0.83\n47 -300.9 -314.0 173 1.18\n46 -574.4 700.6 52 1.37\n48 -589.6 691.8 172 1.38\n50 205.6 -695.0 175 1.13\n46 620.9 -392.6 201 0.98\n48 734.5 647.4 189 0.97\n46 201.8 827.2 268 1.02\n48 -242.8 -445.3 174 0.81\n50 519.7 814.7 129 1.39\n46 323.3 243.1 283 0.88\n47 -584.4 -1.8 114 1.30\n50 196.5 264.2 152 0.95\n46 -115.8 -57.6 86 1.37\n50 -229.1 236.1 94 0.95\n48 -134.8 -740.6 133 1.27\n47 154.0 -294.3 183 1.08\n46 -475.9 658.4 143 0.95\n47 534.4 -439.5 296 1.39\n50 127.2 -660.0 120 1.36\n46 -6.6 966.0 163 1.25\n50 932.9 166.0 283 0.83\n49 136.0 -109.3 267 1.25\n48 -262.3 798.5 234 1.00\n49 -906.3 123.6 33 1.28"
     }
    }
   },
@@ -2499,7 +2208,7 @@
      }
     },
     "ModelInstances": {
-     "instances": "43 -215.4 -13.6 331 1.61\n43 -157.5 99.9 323 1.42\n43 -52.4 207.8 228 1.87\n42 361.6 747.2 41 0.77\n43 -29.9 283.3 190 1.29\n42 -598.7 792.7 311 2.04\n42 747.0 654.3 188 1.72\n43 -672.5 76.8 27 1.20\n42 108.6 -586.3 81 1.08\n42 230.2 -542.6 138 1.58\n42 -469.1 212.4 87 1.88\n42 -453.9 183.6 312 1.26\n42 -444.6 -497.5 235 2.00\n43 -856.0 338.0 17 0.80\n42 -82.6 -840.5 47 1.56\n42 -558.2 -73.0 115 1.20\n43 -155.0 -212.1 208 1.62\n42 165.4 -225.3 243 1.67\n43 445.8 468.1 239 1.53\n42 342.7 -341.1 250 1.98\n43 -215.2 761.7 288 2.09\n43 411.0 -838.8 279 0.73\n43 -729.1 423.3 225 1.53\n43 827.9 184.6 108 1.01\n43 420.7 -78.7 323 1.61\n42 -723.4 -285.9 330 1.98\n42 747.6 519.9 337 0.73\n43 741.0 -671.0 50 1.58\n42 822.2 -528.7 118 2.02\n43 851.7 39.5 188 1.07\n42 623.7 270.4 186 0.82\n43 -598.2 -268.6 87 1.25\n42 -370.8 -298.1 313 1.26\n42 15.0 756.0 101 1.20\n43 -491.2 -174.7 30 1.15\n42 441.1 -336.7 223 0.95\n43 -185.8 -568.8 199 0.81\n43 14.4 -679.2 342 1.04\n42 -457.7 422.0 207 1.78\n42 -50.0 519.3 306 1.54\n43 13.3 751.8 341 1.23\n42 -659.0 442.3 2 1.89\n42 -429.0 522.6 51 1.57\n43 135.3 -228.2 239 1.96\n43 534.1 600.8 359 0.89\n43 377.1 -156.2 130 1.02\n42 288.9 -211.1 8 1.27\n43 553.7 407.7 240 1.56\n43 -979.3 171.2 106 1.84\n43 -191.7 242.7 281 1.10\n43 986.7 19.7 137 1.42\n42 -503.0 -745.4 90 1.20\n42 181.2 407.3 144 1.46\n43 -742.1 -161.3 204 1.48\n42 -767.2 215.2 274 1.48\n43 -258.7 216.3 70 1.43\n43 -14.6 -266.3 296 1.62\n42 -154.8 -613.2 303 1.07\n42 12.2 -845.1 107 1.35\n43 -793.0 -340.4 286 1.56\n43 -832.9 23.0 156 0.76\n43 -522.8 771.2 142 1.60\n42 -364.3 -787.8 300 1.41\n43 106.0 -89.2 26 0.87\n42 774.8 394.3 55 1.56\n43 181.6 930.6 140 1.60\n42 -243.3 -496.5 114 1.68\n43 -715.6 403.2 57 0.75\n43 604.4 -58.0 313 1.32\n43 -152.2 643.4 46 1.91\n43 -118.8 526.3 283 0.85\n42 379.2 121.8 309 1.44\n42 562.6 187.0 268 1.48\n42 258.2 -74.3 133 1.58\n43 699.3 588.4 252 1.48\n42 -117.7 -756.4 79 1.24\n42 930.7 99.3 80 1.42\n43 -396.9 103.5 210 1.76\n42 883.7 -363.7 205 1.33\n42 -112.7 600.6 171 1.32\n43 -90.6 543.9 349 1.67\n42 381.7 -906.1 169 1.91\n43 -43.3 -729.2 146 0.82\n42 -312.2 515.6 309 1.99\n43 -72.7 -832.5 18 0.79\n43 -619.8 -286.9 213 0.86\n42 419.7 -394.7 252 1.46\n43 10.2 -880.5 2 1.85\n42 278.9 -159.6 64 1.57\n43 824.2 -323.9 56 0.72\n43 55.3 859.2 280 1.99\n42 -191.2 913.0 146 0.92\n42 -782.7 -36.5 4 1.76\n42 -92.4 105.7 128 0.98\n42 -473.1 155.9 43 1.16\n42 -293.3 -221.1 50 1.29\n42 442.3 -95.5 90 1.18\n43 -509.7 179.4 335 1.88\n43 67.6 -431.7 301 1.90\n43 84.4 366.7 246 1.26\n42 322.2 -712.7 349 1.81\n43 377.0 -105.7 103 1.00\n42 31.1 267.9 7 1.60\n42 -459.9 -233.4 31 1.33\n43 528.8 -337.9 31 0.97\n43 -729.5 -547.6 154 1.31\n42 69.1 595.4 334 1.09\n42 315.0 123.2 310 1.60"
+     "instances": "43 510.5 -27.9 203 1.41\n43 967.0 187.4 233 1.44\n43 929.3 121.2 186 1.11\n43 -2.2 528.2 164 1.17\n42 -596.1 -207.6 61 1.68\n42 -850.7 365.7 128 1.85\n42 -427.5 210.7 165 1.02\n42 -9.3 438.9 109 1.90\n42 112.6 812.4 208 1.31\n43 521.6 247.3 358 0.99\n43 -600.0 638.9 179 1.72\n43 -248.7 319.0 58 1.53\n42 28.4 -464.3 55 1.98\n42 520.0 -826.7 26 1.90\n43 247.7 700.6 145 0.94\n43 -387.7 -198.4 107 1.66\n42 -347.0 537.0 119 1.04\n43 -541.1 586.1 142 1.73\n43 -63.9 -826.8 215 0.85\n43 -769.0 -630.0 357 0.98\n42 -257.6 123.5 308 0.74\n43 -659.3 -720.6 3 1.37\n43 848.7 -50.2 252 1.12\n42 785.7 -436.1 1 1.61\n42 571.9 772.1 295 1.84\n43 -278.1 -556.2 3 1.00\n43 -488.9 720.0 312 1.72\n42 89.7 -393.4 290 1.56\n43 185.8 354.9 88 1.33\n42 254.0 -83.4 330 1.71\n43 -182.3 -536.7 310 0.80\n42 -228.2 103.9 243 1.60\n43 -261.5 534.4 251 1.05\n42 -812.5 47.7 141 1.70\n42 287.2 764.6 193 1.54\n42 451.8 -773.2 113 0.74\n42 -128.4 -923.4 11 0.70\n42 431.4 -133.9 309 1.78\n43 -181.3 288.1 348 1.49\n43 -271.2 -366.7 119 1.91\n43 -47.2 218.7 282 0.82\n42 836.0 -191.2 9 0.80\n43 -176.8 745.0 90 0.90\n43 664.0 214.0 338 0.98\n42 103.1 -761.1 241 1.29\n42 64.2 113.4 331 1.57\n43 101.3 14.6 308 0.78\n43 -823.7 -49.0 108 1.48\n43 70.5 796.7 2 1.06\n43 -535.0 -456.0 315 1.11\n43 -84.9 59.3 257 1.23\n42 3.3 698.3 161 0.86\n43 -655.3 491.5 103 1.05\n42 -598.5 774.8 138 0.99\n42 -816.7 -304.6 219 1.30\n43 -957.4 -118.0 316 1.88\n43 842.8 285.8 237 1.42\n43 -119.2 762.5 283 1.55\n42 214.1 -491.5 43 1.69\n42 728.4 175.9 345 0.86\n42 -841.1 -83.7 284 1.55\n43 469.5 -327.2 8 2.08\n42 12.1 -590.4 160 1.75\n42 467.6 -543.3 266 1.63\n42 -275.4 574.5 151 0.78\n43 603.0 76.2 334 1.26\n42 -687.5 -26.9 123 0.87\n42 89.4 -184.6 67 1.59\n43 -378.1 -319.3 211 1.25\n42 -301.9 734.5 194 2.08\n42 371.9 -35.9 196 1.89\n42 -412.9 539.4 280 0.87\n43 473.4 -220.7 358 0.77\n42 -359.3 -881.3 278 1.57\n42 633.7 279.6 100 1.69\n42 687.1 -82.5 246 0.91\n42 832.3 500.7 290 2.06\n42 -949.5 130.0 123 1.53\n43 313.4 191.0 218 1.68\n42 -247.1 533.0 60 1.21\n43 -130.5 114.5 109 1.01\n42 -564.4 254.1 217 0.89\n42 -205.3 -541.5 165 1.59\n43 22.4 -730.7 123 1.37\n42 524.1 839.1 142 0.91\n43 638.8 -730.0 137 1.50\n42 -914.4 325.7 252 1.85\n42 -502.1 798.8 335 1.88\n42 -199.3 673.7 155 1.68\n43 -276.0 -753.5 94 1.22\n43 -733.8 140.3 81 1.81\n43 -132.4 419.8 332 1.26\n43 801.0 -425.1 114 1.36\n42 -52.8 383.1 345 1.10\n43 519.1 660.1 13 1.61\n42 311.8 -612.5 7 1.13\n42 -204.9 -56.3 334 1.08\n42 665.1 282.2 12 1.12\n42 161.4 -126.5 10 0.99\n42 201.8 -104.7 356 1.42\n43 189.0 522.1 159 1.27\n42 695.1 -446.8 328 0.74\n43 -313.9 208.1 126 2.08\n42 -597.2 -772.4 196 0.79\n42 285.6 -529.5 74 1.23\n42 6.6 853.6 105 0.97\n42 -243.3 -560.3 320 1.16\n42 641.5 -82.2 332 0.99\n42 -26.7 976.6 76 0.90"
     }
    }
   },
@@ -2508,9 +2217,9 @@
    "components": {
     "Transform": {
      "position": {
-      "x": 161.4234447601056,
+      "x": 158.16160326747243,
       "y": 0.8,
-      "z": -61.296998606006454
+      "z": 111.61572805658143
      }
     },
     "Scale": {
@@ -2524,6 +2233,12 @@
      "mesh": 135,
      "material": 0,
      "visible": true
+    },
+    "Scannable": {
+     "id": "te_graze",
+     "name": "Flat Grazer",
+     "kind": "Fauna",
+     "range": 14
     },
     "AIState": {
      "state": "Walking"
@@ -2538,9 +2253,9 @@
    "components": {
     "Transform": {
      "position": {
-      "x": -112.83414058088097,
+      "x": -124.06204874093004,
       "y": 0.8,
-      "z": -164.82561836623466
+      "z": -160.76567949765357
      }
     },
     "Scale": {
@@ -2554,6 +2269,12 @@
      "mesh": 135,
      "material": 0,
      "visible": true
+    },
+    "Scannable": {
+     "id": "te_graze",
+     "name": "Flat Grazer",
+     "kind": "Fauna",
+     "range": 14
     },
     "AIState": {
      "state": "Walking"
@@ -2568,9 +2289,9 @@
    "components": {
     "Transform": {
      "position": {
-      "x": 148.73173196103087,
+      "x": -63.108998738321745,
       "y": 0.8,
-      "z": -29.603573760030546
+      "z": -156.27343129375657
      }
     },
     "Scale": {
@@ -2584,6 +2305,12 @@
      "mesh": 135,
      "material": 0,
      "visible": true
+    },
+    "Scannable": {
+     "id": "te_graze",
+     "name": "Flat Grazer",
+     "kind": "Fauna",
+     "range": 14
     },
     "AIState": {
      "state": "Walking"
@@ -2598,9 +2325,9 @@
    "components": {
     "Transform": {
      "position": {
-      "x": -1.6773081377188215,
+      "x": 177.23625317837002,
       "y": 0.8,
-      "z": -160.08530270851153
+      "z": -105.47703705600222
      }
     },
     "Scale": {
@@ -2614,6 +2341,12 @@
      "mesh": 135,
      "material": 0,
      "visible": true
+    },
+    "Scannable": {
+     "id": "te_graze",
+     "name": "Flat Grazer",
+     "kind": "Fauna",
+     "range": 14
     },
     "AIState": {
      "state": "Walking"
@@ -2628,9 +2361,9 @@
    "components": {
     "Transform": {
      "position": {
-      "x": -87.84005426088244,
+      "x": -179.12991083137533,
       "y": 0.8,
-      "z": -103.23806874432469
+      "z": -15.507389217533952
      }
     },
     "Scale": {
@@ -2644,6 +2377,12 @@
      "mesh": 135,
      "material": 0,
      "visible": true
+    },
+    "Scannable": {
+     "id": "te_graze",
+     "name": "Flat Grazer",
+     "kind": "Fauna",
+     "range": 14
     },
     "AIState": {
      "state": "Walking"
@@ -2760,7 +2499,7 @@
      }
     },
     "Script": {
-     "source": "-- Pale Signal engine slice director: the run from Kestra Station on Tethys to\n-- the signal on Vell -- objectives, scanning, fuel gathering, the field\n-- journal, flight guidance, recovery after a lost ship, and the ending. See\n-- docs/space/PALE_SIGNAL_SLICE.md. The placeholder below is replaced by the\n-- level generator with the ruin, ice and signal coordinates.\nlocal RUIN = {20, 0, -170}\nlocal ICE = {{name = \"Volatile Ice 1\", x = 95, z = -70}, {name = \"Volatile Ice 2\", x = -110, z = 95}, {name = \"Volatile Ice 3\", x = 60, z = 140}}\nlocal SIGNAL = {body = \"Vell\", latitude = -12, longitude = 35}\nlocal SITE = {body = \"Tethys\", latitude = 30, longitude = 40}\nlocal START_FUEL = 45\n\nlocal phase = \"title\"\nlocal player\nlocal scan = 0\nlocal collected = 0\nlocal ice_left = {}\nlocal journal = {}\nlocal journal_open = false\nlocal banner_until = 0\nlocal hint_until = 0\nlocal lost_at = nil\nlocal reached_space = false\nlocal reached_orbit = false\n\nlocal function banner(text, seconds)\n  ui.set_text(\"Banner\", text)\n  ui.set_visible(\"Banner\", true)\n  banner_until = time.now + (seconds or 3)\nend\n\nlocal function hint(text, seconds)\n  ui.set_text(\"Hint\", text)\n  ui.set_visible(\"Hint\", true)\n  hint_until = time.now + (seconds or 5)\nend\n\nlocal function objective(text, detail)\n  ui.set_text(\"Objective\", text)\n  ui.set_text(\"Detail\", detail or \"\")\nend\n\nlocal function log_journal(title, body)\n  journal[#journal + 1] = title .. \"\\n\" .. body\n  local shown = {}\n  for i = math.max(1, #journal - 4), #journal do shown[#shown + 1] = journal[i] end\n  ui.set_text(\"JournalText\", table.concat(shown, \"\\n\\n\"))\n  hint(\"Field journal updated (J)\", 4)\nend\n\nlocal function km(m)\n  if m >= 10000 then return string.format(\"%.0f km\", m / 1000) end\n  if m >= 1000 then return string.format(\"%.1f km\", m / 1000) end\n  return string.format(\"%.0f m\", m)\nend\n\n-- Great-circle distance between two latitude/longitude points (degrees) on\n-- a sphere of radius r.\nlocal function arc(lat1, lon1, lat2, lon2, r)\n  local d = math.pi / 180\n  local a = math.sin(lat1 * d) * math.sin(lat2 * d) + math.cos(lat1 * d) * math.cos(lat2 * d) * math.cos((lon1 - lon2) * d)\n  return math.acos(math.max(-1, math.min(1, a))) * r\nend\n\nlocal function near(x, z, range)\n  local px, _, pz = world.position(player)\n  return px and math.sqrt((px - x) ^ 2 + (pz - z) ^ 2) < range\nend\n\nlocal function set_phase(name)\n  phase = name\n  if name == \"exit\" then\n    objective(\"Step out onto Tethys\", \"Press E to leave the ship.\")\n  elseif name == \"survey\" then\n    objective(\"Survey the Talari ruin\", \"North of the station. Hold F at the monolith.\")\n    ui.marker(\"goal\", RUIN[1], 10, RUIN[3], \"Ruin\")\n  elseif name == \"fuel\" then\n    ui.clear_marker(\"goal\")\n    objective(\"Gather volatile ice: 0/2\", \"Glowing outcrops around the station. F to collect.\")\n    for i, ice in ipairs(ICE) do\n      ui.marker(\"ice\" .. i, ice.x, 2.4, ice.z, \"Ice\")\n    end\n  elseif name == \"board\" then\n    for i = 1, #ICE do ui.clear_marker(\"ice\" .. i) end\n    objective(\"Return to your ship\", \"E to board.\")\n    ui.marker(\"goal\", 0, 4, 0, \"Ship\")\n  elseif name == \"launch\" then\n    ui.clear_marker(\"goal\")\n    space.set_target(SIGNAL.body)\n    objective(\"Lift off and climb out of the atmosphere\", \"SPACE lift · W/SHIFT throttle · pitch up with the arrows or I/K.\")\n  elseif name == \"orbit\" then\n    objective(\"Make orbit\", \"Raise your periapsis above 25 km. N cycles NAV modes; prograde helps.\")\n  elseif name == \"transfer\" then\n    objective(\"Cross to Vell\", \"NAV TARGET (press N until it shows) points you at the moon. Burn, then coast; 9/0 warps time.\")\n  elseif name == \"descent\" then\n    objective(\"Land at the signal\", \"Follow the beam. Kill your speed early; under 7 m/s at touchdown.\")\n  end\nend\n\nfunction on_ui(name)\n  if name == \"Begin\" and phase == \"title\" then\n    ui.set_visible(\"TitlePanel\", false)\n    ui.set_visible(\"Title\", false)\n    ui.set_visible(\"TitleSub\", false)\n    ui.set_visible(\"Begin\", false)\n    ui.set_visible(\"Controls\", false)\n    ui.set_visible(\"Controls2\", false)\n    ui.set_visible(\"Controls3\", false)\n    space.set_controls(true)\n    local s = space.state()\n    if s and s.piloting then set_phase(\"exit\") else set_phase(\"survey\") end\n    banner(\"TETHYS — KESTRA STATION\", 4)\n    log_journal(\"Landfall: Tethys\", \"Thin but breathable air, 14 C. The Talari built Kestra on older foundations than their own records admit.\")\n  end\nend\n\nlocal started = false\nfunction on_tick(dt)\n  if not started then\n    started = true\n    player = world.find(\"Player\")\n    space.set_fuel(START_FUEL)\n    space.set_controls(false)\n    for i, ice in ipairs(ICE) do ice_left[i] = world.find(ice.name) end\n    ui.set_visible(\"EndPanel\", false)\n    ui.set_visible(\"EndTitle\", false)\n    ui.set_visible(\"EndText\", false)\n    ui.set_visible(\"Again\", false)\n    ui.set_visible(\"JournalPanel\", false)\n    ui.set_visible(\"JournalTitle\", false)\n    ui.set_visible(\"JournalText\", false)\n    ui.set_visible(\"ScanBar\", false)\n    ui.set_visible(\"Banner\", false)\n    ui.set_visible(\"Hint\", false)\n    objective(\"\", \"\")\n  end\n  if banner_until > 0 and time.now > banner_until then ui.set_visible(\"Banner\", false) banner_until = 0 end\n  if hint_until > 0 and time.now > hint_until then ui.set_visible(\"Hint\", false) hint_until = 0 end\n  if input.pressed(\"p\") and phase ~= \"title\" then game.pause() end\n  if input.pressed(\"j\") then\n    journal_open = not journal_open\n    ui.set_visible(\"JournalPanel\", journal_open)\n    ui.set_visible(\"JournalTitle\", journal_open)\n    ui.set_visible(\"JournalText\", journal_open)\n  end\n\n  local s = space.state()\n  if not s then return end\n  for _, e in ipairs(space.events()) do\n    if e == \"rough_touchdown\" then banner(\"ROUGH TOUCHDOWN\", 2.5)\n    elseif e == \"touchdown\" and phase ~= \"title\" then banner(\"TOUCHDOWN\", 2)\n    elseif e == \"exited\" and phase == \"exit\" then set_phase(\"survey\")\n    elseif e == \"boarded\" and phase == \"board\" then set_phase(\"launch\")\n    elseif e == \"exit_blocked\" then hint(\"Outside the surveyed area: you can't walk here.\", 4)\n    elseif e == \"soi:\" .. SIGNAL.body then\n      banner(\"ENTERING \" .. string.upper(SIGNAL.body) .. \"'S INFLUENCE\", 3)\n      if phase == \"transfer\" or phase == \"orbit\" or phase == \"launch\" then set_phase(\"descent\") end\n    elseif e == \"destroyed\" then\n      banner(\"SHIP LOST\", 3)\n      lost_at = time.now\n    end\n  end\n\n  -- Recovery: back on the pad at Kestra, patched up.\n  if lost_at and time.now > lost_at + 3 then\n    lost_at = nil\n    space.place_landed(SITE.body, SITE.latitude, SITE.longitude, 0)\n    space.repair()\n    space.set_fuel(math.max(s.fuel, 60))\n    hint(\"Recovered to Kestra Station.\", 4)\n    if phase == \"descent\" or phase == \"transfer\" or phase == \"orbit\" then set_phase(\"launch\") end\n  end\n\n  if phase == \"survey\" then\n    local close = near(RUIN[1], RUIN[3], 7)\n    if close and not s.piloting then\n      if input.down(\"f\") then\n        scan = scan + dt / 1.6\n        ui.set_visible(\"ScanBar\", true)\n        ui.set_value(\"ScanBar\", math.min(scan, 1))\n      end\n      if scan >= 1 then\n        ui.set_visible(\"ScanBar\", false)\n        banner(\"SCAN COMPLETE\", 2.5)\n        log_journal(\"Talari ruin: the monolith\",\n          \"Talari glyphs over a lower layer in no known script. Dating puts the lower layer 40,000 years before the Talari arrived -- their histories say they found Tethys empty.\")\n        log_journal(\"A signal\",\n          \"The monolith answers a carrier wave from Vell, Tethys' moon. The source is a point on the surface. Volatile ice will fuel the crossing.\")\n        set_phase(\"fuel\")\n      elseif not input.down(\"f\") then\n        hint(\"Hold F to scan\", 1)\n      end\n    else\n      scan = 0\n      ui.set_visible(\"ScanBar\", false)\n    end\n  elseif phase == \"fuel\" then\n    for i, ice in ipairs(ICE) do\n      local id = ice_left[i]\n      if id and near(ice.x, ice.z, 3.2) then\n        if input.pressed(\"f\") then\n          world.destroy(id)\n          ice_left[i] = nil\n          ui.clear_marker(\"ice\" .. i)\n          collected = collected + 1\n          space.refuel(25)\n          sound.play(\"pickup\")\n          banner(\"VOLATILES +25\", 1.6)\n          objective(\"Gather volatile ice: \" .. collected .. \"/2\", \"Glowing outcrops around the station. F to collect.\")\n          if collected >= 2 then\n            log_journal(\"Fuel\", \"Enough volatile ice for the crossing to Vell and a landing.\")\n            set_phase(\"board\")\n          end\n        else\n          hint(\"F to collect\", 1)\n        end\n      end\n    end\n  elseif phase == \"launch\" then\n    if s.altitude > 21600 and not s.landed then\n      reached_space = true\n      banner(\"SPACE\", 2.5)\n      set_phase(\"orbit\")\n    end\n  elseif phase == \"orbit\" then\n    if s.orbit_closed and s.periapsis > 25000 then\n      reached_orbit = true\n      banner(\"STABLE ORBIT\", 2.5)\n      set_phase(\"transfer\")\n    end\n  elseif phase == \"transfer\" then\n    local vell = space.body(SIGNAL.body)\n    if vell then ui.set_text(\"Detail\", string.format(\"Vell: %s · NAV: %s\", km(vell.altitude), s.assist)) end\n  elseif phase == \"descent\" and s.body == SIGNAL.body then\n    local vell = space.body(SIGNAL.body)\n    local d = arc(s.latitude, s.longitude, SIGNAL.latitude, SIGNAL.longitude, vell and vell.radius or 18000)\n    ui.set_text(\"Detail\", string.format(\"Signal: %s across the surface · altitude %s\", km(d), km(math.max(s.altitude, 0))))\n    if s.landed then\n      if d < 2500 then\n        phase = \"end\"\n        space.set_controls(false)\n        log_journal(\"Vell: the signal\",\n          \"A structure of the same lower layer as the Kestra monolith, intact, under the ice. It is still transmitting -- not to Tethys. Outward.\")\n        objective(\"\", \"\")\n        ui.set_visible(\"EndPanel\", true)\n        ui.set_visible(\"EndTitle\", true)\n        ui.set_visible(\"EndText\", true)\n        ui.set_visible(\"Again\", true)\n        ui.set_text(\"EndTitle\", \"THE SIGNAL IS OLDER THAN THE TALARI\")\n        ui.set_text(\"EndText\", string.format(\"Surface to orbit to Vell in %d minutes, no loading screens.\\nThe structure under the ice is still transmitting -- outward.\", math.floor(time.now / 60)))\n      else\n        hint(string.format(\"Landed %s from the signal. Lift off and fly closer.\", km(d)), 2)\n      end\n    end\n  end\n\n  -- Context hints for flight.\n  if s.piloting and phase ~= \"title\" and phase ~= \"end\" then\n    if s.fuel <= 0 and not s.landed then hint(\"Out of fuel. Glide: STABILIZED holds you level; land gently.\", 2) end\n    if s.heat > 70 then hint(\"Hull heating: slow down in the thick air.\", 2) end\n  end\nend\n",
+     "source": "-- Pale Signal engine slice director: the run from Kestra Station on Tethys to\n-- the relay under Vell's ice. Scanning (species, evidence, landmarks) earns\n-- research points that buy ship upgrades; talking to the Talari and\n-- scanning their evidence grows a language model that translates their\n-- speech; the suit's oxygen runs down on airless worlds. See\n-- docs/space/PALE_SIGNAL_SLICE.md. The placeholder below is replaced by the\n-- level generator with the site, species, people, evidence and landmarks.\nlocal RUIN = {20, 0, -170}\nlocal ICE = {{name = \"Volatile Ice 1\", x = 95, z = -70}, {name = \"Volatile Ice 2\", x = -110, z = 95}, {name = \"Volatile Ice 3\", x = 60, z = 140}}\nlocal SIGNAL = {body = \"Vell\", latitude = -12, longitude = 35}\nlocal SITE = {body = \"Tethys\", latitude = 30, longitude = 40}\nlocal START_FUEL = 45\nlocal SPECIES = {te_reed = {name = \"Pale Reed\", body = \"Tethys\", cls = \"flora\", rp = 8, text = \"Hollow-stemmed, wind-pollinated, and the dominant ground cover of the northern flats.\"}, te_cap = {name = \"Lantern Cap\", body = \"Tethys\", cls = \"flora\", rp = 11, text = \"Fruiting body glows on a 40-second cycle. Nothing here is known to see in that band.\"}, te_pine = {name = \"Kestra Spire\", body = \"Tethys\", cls = \"flora\", rp = 9, text = \"A conifer analogue whose rings record every flood the Talari have recorded, and several they have not.\"}, te_iron = {name = \"Banded Ironstone\", body = \"Tethys\", cls = \"mineral\", rp = 5, text = \"Layered oxide. Proof this world once had far more free oxygen than it does now.\"}, te_ice = {name = \"Clathrate Pocket\", body = \"Tethys\", cls = \"mineral\", rp = 6, text = \"Methane locked in a water lattice. Vents when disturbed. Excellent propellant feedstock.\"}, te_graze = {name = \"Flat Grazer\", body = \"Tethys\", cls = \"fauna\", rp = 22, text = \"Herd animal. Six legs, no forward-facing eyes, and an alarm call you feel before you hear.\"}, ve_spar = {name = \"Rime Spar\", body = \"Vell\", cls = \"mineral\", rp = 7, text = \"Crystals of nitrogen ice that ring when struck. The ringing has a pattern.\"}, ve_ridge = {name = \"Pressure Ridge\", body = \"Vell\", cls = \"mineral\", rp = 6, text = \"Ice folded by tides from Tethys. Some ridges run arrow-straight toward the relay.\"}, ve_lichen = {name = \"Frost Lichen\", body = \"Vell\", cls = \"flora\", rp = 16, text = \"Living, at 100 kelvin, on a moon with no air. It should not exist. It grows thickest near the signal.\"}, ci_slag = {name = \"Vitrous Slag\", body = \"Cinder\", cls = \"mineral\", rp = 6, text = \"Rift glass, quenched in seconds. Trapped bubbles still hold the original atmosphere.\"}, ci_sulf = {name = \"Sulphur Bloom\", body = \"Cinder\", cls = \"mineral\", rp = 5, text = \"Vents deposit it faster than the heat can destroy it. Barely a mineral. Barely stable.\"}, ci_ember = {name = \"Ember Lichen\", body = \"Cinder\", cls = \"flora\", rp = 12, text = \"Not a plant. A thermophile colony that metabolises the rock it sits on.\"}, os_column = {name = \"Dust Column\", body = \"Ossuary\", cls = \"mineral\", rp = 6, text = \"Fused grit standing in rows. Machine-straight. Then abandoned mid-row.\"}, os_coral = {name = \"Bone Coral\", body = \"Ossuary\", cls = \"flora\", rp = 14, text = \"Calcified stalks with no living tissue -- and new growth every season.\"}}\nlocal NPCS = {{id = \"tal_ossin\", name = \"Tal Ossin\", role = \"dockwarden\", line = \"Your ship is welcome on the marked field. In the houses, engine wash is not a philosophical question.\"}, {id = \"ena_vey\", name = \"Ena Vey\", role = \"historian\", line = \"The oldest honest answer is that the Arrays were already old when our oldest dated stones were new.\"}, {id = \"maru_sen\", name = \"Maru Sen\", role = \"reedwright\", line = \"Every flood leaves a different town. We build knowing the river gets a vote.\"}, {id = \"osen_kai\", name = \"Osen Kai\", role = \"teacher\", line = \"Children learn five eras. Adults spend the rest of their lives arguing about where one era ends.\"}, {id = \"veyra_tol\", name = \"Veyra Tol\", role = \"astronomer\", line = \"Every dish tracks one empty coordinate. Empty is an observation, not an explanation.\"}}\nlocal EVIDENCE = {te_memorial = {name = \"Concord Memorial Wall\", gain = 7, rp = 7, era = \"Concord Era\", text = \"Names from both sides of the Basin Wars are written together. Several families appear beneath conflicting descriptions of the same final battle.\"}, te_oral = {name = \"Oral-History Listening Post\", gain = 11, rp = 9, era = \"Concord Era\", text = \"Recorded elders disagree about the Arrays: taboo graves, astronomical instruments, or 'stars that learned to kneel.' The contradictions are preserved rather than reconciled.\"}, te_calendar = {name = \"Flood Calendar Stone\", gain = 9, rp = 9, era = \"Reed Settlement Age\", text = \"A weathered flood calendar uses a star symbol beside a direction matching the Kneeling Array. The carving predates the River Kingdoms.\"}}\nlocal LANDMARKS = {[\"landmark:The Kneeling Array\"] = {name = \"The Kneeling Array\", body = \"Tethys\", rp = 40, text = \"Nine dishes, all facing the same empty patch of sky. None of them are pointed at anything in this system.\"}, [\"landmark:Under-Ice Relay\"] = {name = \"Under-Ice Relay\", body = \"Vell\", rp = 60, text = \"Forty metres of clear ice, and beneath it a lattice of aerials, aimed straight up at you.\"}, [\"landmark:The Anvil\"] = {name = \"The Anvil\", body = \"Cinder\", rp = 40, text = \"A slab of worked metal standing in a lava channel. The rock flowed around it. It did not melt.\"}}\nlocal BREATHABLE = { Tethys = true }\n\nlocal phase = \"title\"\nlocal player\nlocal rp = 0\nlocal language = 0\nlocal catalogued = {}\nlocal catalogue_count = 0\nlocal collected = 0\nlocal journal = {}\nlocal journal_open = false\nlocal upgrades_open = false\nlocal talking = nil\nlocal talk_until = 0\nlocal talked = {}\nlocal talk_count = 0\nlocal banner_until = 0\nlocal hint_until = 0\nlocal lost_at = nil\nlocal o2 = 1\nlocal levels = { thrust = 0, fuel = 0, hull = 0, heat = 0, life = 0, rcs = 0 }\nlocal base = nil\nlocal UPGRADE = {\n  thrust = { name = \"Thrust Vectoring\", max = 5, cost = function(l) return 30 + l * 38 end, desc = function(l) return string.format(\"main engine +%d%%\", (l + 1) * 14) end },\n  fuel = { name = \"Propellant Tanks\", max = 5, cost = function(l) return 26 + l * 32 end, desc = function(l) return string.format(\"fuel capacity +%d%%\", (l + 1) * 22) end },\n  hull = { name = \"Hull Reinforcement\", max = 4, cost = function(l) return 40 + l * 44 end, desc = function(l) return string.format(\"hull +%d%%, softer landings\", (l + 1) * 25) end },\n  heat = { name = \"Ablative Shielding\", max = 3, cost = function(l) return 44 + l * 52 end, desc = function(l) return string.format(\"heat tolerance +%d%%\", (l + 1) * 22) end },\n  life = { name = \"Life Support\", max = 4, cost = function(l) return 28 + l * 30 end, desc = function(l) return string.format(\"suit oxygen +%d%%\", (l + 1) * 30) end },\n  rcs = { name = \"Reaction Control\", max = 3, cost = function(l) return 22 + l * 26 end, desc = function(l) return string.format(\"turn authority +%d%%\", (l + 1) * 30) end },\n}\nlocal UPGRADE_ORDER = { \"thrust\", \"fuel\", \"hull\", \"heat\", \"life\", \"rcs\" }\n\nlocal function banner(text, seconds)\n  ui.set_text(\"Banner\", text)\n  ui.set_visible(\"Banner\", true)\n  banner_until = time.now + (seconds or 3)\nend\n\nlocal function hint(text, seconds)\n  ui.set_text(\"Hint\", text)\n  ui.set_visible(\"Hint\", true)\n  hint_until = time.now + (seconds or 5)\nend\n\nlocal function objective(text, detail)\n  ui.set_text(\"Objective\", text)\n  ui.set_text(\"Detail\", detail or \"\")\nend\n\nlocal function log_journal(title, body)\n  journal[#journal + 1] = title .. \"\\n\" .. body\n  local shown = {}\n  for i = math.max(1, #journal - 4), #journal do shown[#shown + 1] = journal[i] end\n  ui.set_text(\"JournalText\", table.concat(shown, \"\\n\\n\"))\n  hint(\"Field journal updated (J)\", 3)\nend\n\nlocal function km(m)\n  if m >= 10000 then return string.format(\"%.0f km\", m / 1000) end\n  if m >= 1000 then return string.format(\"%.1f km\", m / 1000) end\n  return string.format(\"%.0f m\", m)\nend\n\nlocal function arc(lat1, lon1, lat2, lon2, r)\n  local d = math.pi / 180\n  local a = math.sin(lat1 * d) * math.sin(lat2 * d) + math.cos(lat1 * d) * math.cos(lat2 * d) * math.cos((lon1 - lon2) * d)\n  return math.acos(math.max(-1, math.min(1, a))) * r\nend\n\nlocal function near_entity(id, range)\n  if not id then return false end\n  local px, _, pz = world.position(player)\n  local x, _, z = world.position(id)\n  return px and x and math.sqrt((px - x) ^ 2 + (pz - z) ^ 2) < range\nend\n\n-- The prototype's language model: unparsed, then patterned (every third\n-- word), then basic (function words bracketed), then fluent.\nlocal function stage()\n  if language < 15 then return \"UNPARSED\" elseif language < 35 then return \"PATTERNED\" elseif language < 60 then return \"BASIC\" elseif language < 85 then return \"CONVERSATIONAL\" end\n  return \"FLUENT\"\nend\nlocal function translated(text)\n  if language >= 60 then return text end\n  if language >= 35 then\n    return (text:gsub(\"%f[%a](%a+)%f[%A]\", function(w)\n      local l = w:lower()\n      if l == \"the\" or l == \"and\" or l == \"is\" or l == \"are\" or l == \"our\" or l == \"your\" or l == \"we\" or l == \"they\" or l == \"not\" or l == \"old\" or l == \"sky\" then return \"[\" .. w .. \"]\" end\n      return w\n    end))\n  end\n  if language >= 15 then\n    local words, i = {}, 0\n    for w in text:gmatch(\"%S+\") do\n      if i % 3 == 0 then words[#words + 1] = w end\n      i = i + 1\n    end\n    return \"Partial: \" .. table.concat(words, \" \") .. \" ...\"\n  end\n  return \"[unparsed speech -- the scanner picks out repeated names, directions and gestures]\"\nend\n\nlocal function refresh_meters()\n  ui.set_text(\"Research\", string.format(\"RESEARCH %d RP  ·  CATALOGUE %d\", rp, catalogue_count))\n  ui.set_text(\"Language\", string.format(\"TALARI LANGUAGE %d%%  %s\", math.floor(language), stage()))\nend\n\nlocal function learn(amount)\n  local before = stage()\n  language = math.min(100, language + amount)\n  if stage() ~= before then banner(\"LANGUAGE MODEL: \" .. stage(), 2.5) end\n  refresh_meters()\nend\n\nlocal function refresh_upgrades()\n  for _, id in ipairs(UPGRADE_ORDER) do\n    local u, l = UPGRADE[id], levels[id]\n    local label\n    if l >= u.max then label = u.name .. \"  MAX\"\n    else label = string.format(\"%s %d/%d  -- %s  (%d RP)\", u.name, l, u.max, u.desc(l), u.cost(l)) end\n    ui.set_text(\"Up_\" .. id, label)\n  end\nend\n\nlocal function apply_upgrades()\n  if not base then base = space.spec() end\n  space.tune(\"thrust\", base.thrust * (1 + 0.14 * levels.thrust))\n  space.tune(\"fuel\", base.fuel * (1 + 0.22 * levels.fuel))\n  space.tune(\"hull\", base.hull * (1 + 0.25 * levels.hull))\n  space.tune(\"land_vertical\", 7 * (1 + 0.2 * levels.hull))\n  space.tune(\"heat\", base.heat * (1 + 0.22 * levels.heat))\n  space.tune(\"rcs\", base.rcs * (1 + 0.3 * levels.rcs))\nend\n\nlocal function show_upgrades(open)\n  upgrades_open = open\n  ui.set_visible(\"UpgradePanel\", open)\n  ui.set_visible(\"UpgradeTitle\", open)\n  for _, id in ipairs(UPGRADE_ORDER) do ui.set_visible(\"Up_\" .. id, open) end\n  if open then refresh_upgrades() end\nend\n\nlocal function show_talk(npc)\n  talking = npc\n  talk_until = time.now + 9\n  ui.set_visible(\"TalkPanel\", npc ~= nil)\n  ui.set_visible(\"TalkName\", npc ~= nil)\n  ui.set_visible(\"TalkLine\", npc ~= nil)\n  if npc then\n    ui.set_text(\"TalkName\", npc.name .. \"  ·  \" .. npc.role)\n    ui.set_text(\"TalkLine\", translated(npc.line))\n  end\nend\n\nlocal function set_phase(name)\n  phase = name\n  -- Kestra's markers only make sense while the frame is at Kestra.\n  local st = space.state()\n  local home = not (st and st.away)\n  if name == \"exit\" then\n    objective(\"Step out onto Tethys\", \"Press E to leave the ship.\")\n  elseif name == \"survey\" then\n    objective(\"Survey Kestra\", \"Scan the Black Foundation at the ruin (hold F) · talk to the Talari (E)\")\n    if home then\n      ui.marker(\"goal\", RUIN[1], 10, RUIN[3], \"Ruin\")\n      ui.marker(\"quarter\", 190, 3, 40, \"Kestra\")\n    end\n  elseif name == \"fuel\" then\n    ui.clear_marker(\"goal\")\n    ui.clear_marker(\"quarter\")\n    objective(\"Gather volatile ice: \" .. collected .. \"/2\", \"Glowing outcrops around the station: scan one to collect it (+25 fuel).\")\n    for i, ice in ipairs(ICE) do\n      if home and world.find(ice.name) then ui.marker(\"ice\" .. i, ice.x, 2.4, ice.z, \"Ice\") end\n    end\n  elseif name == \"launch\" then\n    for i = 1, #ICE do ui.clear_marker(\"ice\" .. i) end\n    space.set_target(SIGNAL.body)\n    objective(\"Follow the signal to Vell\", \"Board (E), lift off (SPACE), climb out of the air and make orbit. Optional: the Kneeling Array, a short hop away.\")\n  elseif name == \"descent\" then\n    objective(\"Land near the Under-Ice Relay\", \"Follow its beam. Under 7 m/s at touchdown. Then step out -- Vell has no air.\")\n  elseif name == \"relay\" then\n    objective(\"Scan the Under-Ice Relay\", \"Walk to the structure and hold F. Watch your oxygen.\")\n  end\nend\n\nlocal function finish()\n  phase = \"end\"\n  space.set_controls(false)\n  log_journal(\"Under-Ice Relay\",\n    \"Same black material as Kestra's foundation, intact, under forty metres of ice. It is still transmitting -- not to Tethys. Outward.\")\n  objective(\"\", \"\")\n  ui.set_visible(\"EndPanel\", true)\n  ui.set_visible(\"EndTitle\", true)\n  ui.set_visible(\"EndText\", true)\n  ui.set_visible(\"Again\", true)\n  ui.set_text(\"EndTitle\", \"THE SIGNAL IS OLDER THAN THE TALARI\")\n  ui.set_text(\"EndText\", string.format(\"%d species catalogued · %d RP · Talari language %d%%\\nThe relay is still transmitting -- outward.\", catalogue_count, rp, math.floor(language)))\nend\n\n-- Scans arrive from the engine's scanner as on_ui(\"scan\", key).\nlocal function on_scan(key)\n  local ice = key:match(\"^ice:(%d+)$\")\n  if ice then\n    local name = ICE[tonumber(ice)] and ICE[tonumber(ice)].name\n    local id = name and world.find(name)\n    if id then world.destroy(id) end\n    ui.clear_marker(\"ice\" .. ice)\n    collected = collected + 1\n    space.refuel(25)\n    sound.play(\"pickup\")\n    banner(\"VOLATILES +25 FUEL\", 1.8)\n    if phase == \"fuel\" then\n      objective(\"Gather volatile ice: \" .. collected .. \"/2\", \"Glowing outcrops around the station: scan one to collect it (+25 fuel).\")\n      if collected >= 2 then\n        log_journal(\"Fuel\", \"Enough volatile ice for the crossing to Vell and a landing.\")\n        set_phase(\"launch\")\n      end\n    end\n    return\n  end\n  local sp = SPECIES[key]\n  if sp and not catalogued[key] then\n    catalogued[key] = true\n    catalogue_count = catalogue_count + 1\n    rp = rp + sp.rp\n    banner(string.upper(sp.name) .. \"  +\" .. sp.rp .. \" RP\", 2)\n    log_journal(sp.name .. \" (\" .. sp.body .. \", \" .. sp.cls .. \")\", sp.text)\n  end\n  local ev = EVIDENCE[key]\n  if ev and not catalogued[key] then\n    catalogued[key] = true\n    rp = rp + ev.rp\n    learn(ev.gain)\n    banner(string.upper(ev.name) .. \"  +\" .. ev.rp .. \" RP\", 2.2)\n    log_journal(ev.name .. \" -- \" .. ev.era, ev.text)\n  end\n  if key == \"te_gate_layer\" and not catalogued[key] then\n    catalogued[key] = true\n    rp = rp + 12\n    learn(6)\n    banner(\"BLACK FOUNDATION  +12 RP\", 2.5)\n    log_journal(\"The Black Foundation\",\n      \"Talari glyphs over a lower layer in no known script, dated 40,000 years before the Talari arrived -- their histories say they found Tethys empty. It answers a carrier wave from Vell.\")\n  end\n  local lm = LANDMARKS[key]\n  if lm and not catalogued[key] then\n    catalogued[key] = true\n    rp = rp + lm.rp\n    banner(string.upper(lm.name) .. \"  +\" .. lm.rp .. \" RP\", 3)\n    log_journal(lm.name, lm.text)\n    if lm.name == \"Under-Ice Relay\" then finish() end\n  end\n  refresh_meters()\n  if phase == \"survey\" and catalogued.te_gate_layer and next(talked) then set_phase(\"fuel\") end\nend\n\nfunction on_ui(name, value)\n  if name == \"scan\" then\n    on_scan(value)\n  elseif name == \"Begin\" and phase == \"title\" then\n    for _, el in ipairs({ \"TitlePanel\", \"Title\", \"TitleSub\", \"Begin\", \"Controls\", \"Controls2\", \"Controls3\" }) do ui.set_visible(el, false) end\n    space.set_controls(true)\n    local s = space.state()\n    if s and s.piloting then set_phase(\"exit\") else set_phase(\"survey\") end\n    banner(\"TETHYS -- KESTRA STATION\", 4)\n    log_journal(\"Landfall: Tethys\", \"Thin but breathable air, 14 C. The Talari built Kestra on older foundations than their own records admit.\")\n  elseif name:sub(1, 3) == \"Up_\" then\n    local id = name:sub(4)\n    local u, l = UPGRADE[id], levels[id]\n    if u and l < u.max then\n      local cost = u.cost(l)\n      if rp >= cost then\n        rp = rp - cost\n        levels[id] = l + 1\n        apply_upgrades()\n        banner(string.upper(u.name) .. \" \" .. levels[id], 2)\n        refresh_meters()\n      else\n        hint(string.format(\"%s needs %d RP -- scan more.\", u.name, cost), 3)\n      end\n      refresh_upgrades()\n    end\n  end\nend\n\nlocal started = false\nfunction on_tick(dt)\n  if not started then\n    started = true\n    player = world.find(\"Player\")\n    space.set_fuel(START_FUEL)\n    space.set_controls(false)\n    for _, el in ipairs({ \"EndPanel\", \"EndTitle\", \"EndText\", \"Again\", \"JournalPanel\", \"JournalTitle\", \"JournalText\", \"Banner\", \"Hint\" }) do ui.set_visible(el, false) end\n    show_upgrades(false)\n    show_talk(nil)\n    objective(\"\", \"\")\n    refresh_meters()\n  end\n  if banner_until > 0 and time.now > banner_until then ui.set_visible(\"Banner\", false) banner_until = 0 end\n  if hint_until > 0 and time.now > hint_until then ui.set_visible(\"Hint\", false) hint_until = 0 end\n  if talking and time.now > talk_until then show_talk(nil) end\n  if input.pressed(\"p\") and phase ~= \"title\" then game.pause() end\n  if input.pressed(\"j\") then\n    journal_open = not journal_open\n    ui.set_visible(\"JournalPanel\", journal_open)\n    ui.set_visible(\"JournalTitle\", journal_open)\n    ui.set_visible(\"JournalText\", journal_open)\n  end\n  if input.pressed(\"u\") and phase ~= \"title\" then show_upgrades(not upgrades_open) end\n\n  local s = space.state()\n  if not s then return end\n  for _, e in ipairs(space.events()) do\n    if e == \"rough_touchdown\" then banner(\"ROUGH TOUCHDOWN\", 2.5)\n    elseif e == \"touchdown\" and phase ~= \"title\" then banner(\"TOUCHDOWN\", 2)\n    elseif e == \"exited\" and phase == \"exit\" then set_phase(\"survey\")\n    elseif e == \"boarded\" then o2 = 1\n    elseif e == \"exit_blocked\" then hint(\"Outside the walkable area.\", 4)\n    elseif e == \"frame:home\" then\n      -- Back at Kestra: its markers again.\n      if phase == \"survey\" or phase == \"fuel\" then set_phase(phase) end\n    elseif e:sub(1, 6) == \"frame:\" then\n      -- Kestra's markers are elsewhere on the planet now.\n      for _, m in ipairs({ \"goal\", \"quarter\", \"ice1\", \"ice2\", \"ice3\" }) do ui.clear_marker(m) end\n      hint(\"Landed on \" .. e:sub(7) .. \": step out with E to explore and scan (F).\", 4)\n    elseif e == \"soi:\" .. SIGNAL.body then\n      banner(\"ENTERING \" .. string.upper(SIGNAL.body) .. \"'S INFLUENCE\", 3)\n      if phase == \"launch\" then set_phase(\"descent\") end\n    elseif e == \"destroyed\" then\n      banner(\"SHIP LOST\", 3)\n      lost_at = time.now\n    end\n  end\n\n  -- Recovery: back on the pad at Kestra, patched up.\n  if lost_at and time.now > lost_at + 3 then\n    lost_at = nil\n    space.place_landed(SITE.body, SITE.latitude, SITE.longitude, 0)\n    space.repair()\n    space.set_fuel(math.max(s.fuel, 60))\n    hint(\"Recovered to Kestra Station.\", 4)\n    if phase == \"descent\" or phase == \"relay\" then set_phase(\"launch\") end\n  end\n\n  -- On foot: talking, and the suit's oxygen where there's no air.\n  if not s.piloting and phase ~= \"title\" then\n    if input.pressed(\"e\") then\n      for _, npc in ipairs(NPCS) do\n        local id = world.find(npc.name)\n        if id and near_entity(id, 3.5) then\n          if not talked[npc.id] then\n            talked[npc.id] = true\n            talk_count = talk_count + 1\n            rp = rp + 3\n            if talk_count == 1 then\n              learn(8)\n              log_journal(\"First contact -- Kestra\", \"Communication begins with names, pointing, repeated phrases and patient correction rather than instant translation.\")\n            else\n              learn(5)\n            end\n          end\n          show_talk(npc)\n          if phase == \"survey\" and catalogued.te_gate_layer then set_phase(\"fuel\") end\n          break\n        end\n      end\n    end\n    local breathable = BREATHABLE[s.frame]\n    if breathable then\n      o2 = math.min(1, o2 + dt * 0.2)\n      ui.set_text(\"O2Label\", \"AIR: AMBIENT INTAKE\")\n    else\n      o2 = o2 - dt / (90 * (1 + 0.3 * levels.life))\n      ui.set_text(\"O2Label\", string.format(\"SUIT O2 %d%%\", math.max(0, math.floor(o2 * 100))))\n      if o2 < 0.25 then hint(\"Oxygen low: return to the ship (E to board).\", 1) end\n      if o2 <= 0 then\n        o2 = 1\n        space.board()\n        banner(\"SUIT FAILURE -- RECOVERED TO SHIP\", 3)\n        log_journal(\"Suit failure\", \"Oxygen ran out on \" .. s.frame .. \". The suit's recovery tether pulled you back aboard.\")\n      end\n    end\n    ui.set_value(\"O2Bar\", math.max(o2, 0))\n    if phase == \"descent\" and s.frame == SIGNAL.body then set_phase(\"relay\") end\n  else\n    o2 = 1\n    ui.set_text(\"O2Label\", s.piloting and \"SHIP LIFE SUPPORT\" or \"\")\n    ui.set_value(\"O2Bar\", 1)\n  end\n\n  if phase == \"descent\" and s.body == SIGNAL.body then\n    local vell = space.body(SIGNAL.body)\n    local d = arc(s.latitude, s.longitude, SIGNAL.latitude, SIGNAL.longitude, vell and vell.radius or 18000)\n    ui.set_text(\"Detail\", string.format(\"Relay: %s across the surface · altitude %s. Land within 1 km and step out.\", km(d), km(math.max(s.altitude, 0))))\n  end\n\n  if s.piloting and phase ~= \"title\" and phase ~= \"end\" then\n    if s.fuel <= 0 and not s.landed then hint(\"Out of fuel. STABILIZED holds you level; land gently.\", 2) end\n    if s.heat > 70 then hint(\"Hull heating: slow down in the thick air.\", 2) end\n  end\nend\n",
      "props": {}
     },
     "Renderable": {
@@ -2861,10 +2600,10 @@
      "visibleWhen": "always",
      "action": "restart",
      "offsetX": 0,
-     "offsetY": 90,
+     "offsetY": 200,
      "width": 0,
      "height": 0,
-     "fontSize": 28,
+     "fontSize": 26,
      "color": {
       "x": 0.5607843137254902,
       "y": 0.9686274509803922,
@@ -2919,7 +2658,118 @@
    }
   },
   {
-   "name": "ScanBar",
+   "name": "Research",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "top-right",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": -24,
+     "offsetY": 96,
+     "width": 0,
+     "height": 0,
+     "fontSize": 15,
+     "color": {
+      "x": 1,
+      "y": 0.8274509803921568,
+      "z": 0.43137254901960786
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Language",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "top-right",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": -24,
+     "offsetY": 118,
+     "width": 0,
+     "height": 0,
+     "fontSize": 13,
+     "color": {
+      "x": 0.9333333333333333,
+      "y": 0.9568627450980393,
+      "z": 0.9647058823529412
+     },
+     "opacity": 0.8,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "O2Label",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "top-right",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": -24,
+     "offsetY": 140,
+     "width": 0,
+     "height": 0,
+     "fontSize": 13,
+     "color": {
+      "x": 0.9333333333333333,
+      "y": 0.9568627450980393,
+      "z": 0.9647058823529412
+     },
+     "opacity": 0.85,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "O2Bar",
    "components": {
     "Transform": {
      "position": {
@@ -2931,20 +2781,427 @@
     "UI": {
      "kind": "Bar",
      "text": "",
-     "anchor": "center",
+     "anchor": "top-right",
      "visibleWhen": "always",
      "action": "restart",
-     "offsetX": 0,
-     "offsetY": 60,
-     "width": 240,
+     "offsetX": -24,
+     "offsetY": 162,
+     "width": 180,
      "height": 8,
      "fontSize": 16,
      "color": {
-      "x": 0.5607843137254902,
-      "y": 0.9686274509803922,
+      "x": 0.4980392156862745,
+      "y": 0.8196078431372549,
       "z": 1
      },
      "opacity": 0.9,
+     "image": "",
+     "value": 1
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "TalkPanel",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Panel",
+     "text": "",
+     "anchor": "bottom-center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": -110,
+     "width": 640,
+     "height": 120,
+     "fontSize": 16,
+     "color": {
+      "x": 0.03137254901960784,
+      "y": 0.06274509803921569,
+      "z": 0.09411764705882353
+     },
+     "opacity": 0.85,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "TalkName",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "bottom-center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": -196,
+     "width": 0,
+     "height": 0,
+     "fontSize": 16,
+     "color": {
+      "x": 1,
+      "y": 0.8274509803921568,
+      "z": 0.43137254901960786
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "TalkLine",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "bottom-center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": -160,
+     "width": 0,
+     "height": 0,
+     "fontSize": 14,
+     "color": {
+      "x": 0.9333333333333333,
+      "y": 0.9568627450980393,
+      "z": 0.9647058823529412
+     },
+     "opacity": 0.95,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "UpgradePanel",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Panel",
+     "text": "",
+     "anchor": "middle-left",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 20,
+     "offsetY": 0,
+     "width": 360,
+     "height": 360,
+     "fontSize": 16,
+     "color": {
+      "x": 0.03137254901960784,
+      "y": 0.06274509803921569,
+      "z": 0.09411764705882353
+     },
+     "opacity": 0.88,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "UpgradeTitle",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "SHIP UPGRADES (research points)",
+     "anchor": "middle-left",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 40,
+     "offsetY": -150,
+     "width": 0,
+     "height": 0,
+     "fontSize": 14,
+     "color": {
+      "x": 1,
+      "y": 0.8274509803921568,
+      "z": 0.43137254901960786
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Up_thrust",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Button",
+     "text": "thrust",
+     "anchor": "middle-left",
+     "visibleWhen": "always",
+     "action": "script",
+     "offsetX": 40,
+     "offsetY": -110,
+     "width": 320,
+     "height": 38,
+     "fontSize": 13,
+     "color": {
+      "x": 0.12156862745098039,
+      "y": 0.30980392156862746,
+      "z": 0.35294117647058826
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Up_fuel",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Button",
+     "text": "fuel",
+     "anchor": "middle-left",
+     "visibleWhen": "always",
+     "action": "script",
+     "offsetX": 40,
+     "offsetY": -64,
+     "width": 320,
+     "height": 38,
+     "fontSize": 13,
+     "color": {
+      "x": 0.12156862745098039,
+      "y": 0.30980392156862746,
+      "z": 0.35294117647058826
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Up_hull",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Button",
+     "text": "hull",
+     "anchor": "middle-left",
+     "visibleWhen": "always",
+     "action": "script",
+     "offsetX": 40,
+     "offsetY": -18,
+     "width": 320,
+     "height": 38,
+     "fontSize": 13,
+     "color": {
+      "x": 0.12156862745098039,
+      "y": 0.30980392156862746,
+      "z": 0.35294117647058826
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Up_heat",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Button",
+     "text": "heat",
+     "anchor": "middle-left",
+     "visibleWhen": "always",
+     "action": "script",
+     "offsetX": 40,
+     "offsetY": 28,
+     "width": 320,
+     "height": 38,
+     "fontSize": 13,
+     "color": {
+      "x": 0.12156862745098039,
+      "y": 0.30980392156862746,
+      "z": 0.35294117647058826
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Up_life",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Button",
+     "text": "life",
+     "anchor": "middle-left",
+     "visibleWhen": "always",
+     "action": "script",
+     "offsetX": 40,
+     "offsetY": 74,
+     "width": 320,
+     "height": 38,
+     "fontSize": 13,
+     "color": {
+      "x": 0.12156862745098039,
+      "y": 0.30980392156862746,
+      "z": 0.35294117647058826
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Up_rcs",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Button",
+     "text": "rcs",
+     "anchor": "middle-left",
+     "visibleWhen": "always",
+     "action": "script",
+     "offsetX": 40,
+     "offsetY": 120,
+     "width": 320,
+     "height": 38,
+     "fontSize": 13,
+     "color": {
+      "x": 0.12156862745098039,
+      "y": 0.30980392156862746,
+      "z": 0.35294117647058826
+     },
+     "opacity": 1,
      "image": "",
      "value": 0
     },
@@ -3152,7 +3409,7 @@
     },
     "UI": {
      "kind": "Text",
-     "text": "Engine slice: Tethys to Vell, surface to orbit, no loading screens.",
+     "text": "Survey Tethys, meet the Talari, and follow the signal to Vell. No loading screens.",
      "anchor": "center",
      "visibleWhen": "always",
      "action": "restart",
@@ -3226,7 +3483,7 @@
     },
     "UI": {
      "kind": "Text",
-     "text": "On foot: WASD move · mouse look · E board/exit ship · F scan/collect · J journal",
+     "text": "On foot: WASD move · mouse look · E board/exit or talk · hold F scan · J journal · U upgrades",
      "anchor": "center",
      "visibleWhen": "always",
      "action": "restart",

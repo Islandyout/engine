@@ -8,13 +8,24 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const { chromium } = require("playwright");
 
+// Landed on the moon Vell beside the relay, far from the authored site.
+function vellVariant(scene) {
+  const copy = structuredClone(scene);
+  const director = copy.entities.find((e) => e.name === "Director").components.Script;
+  director.source = director.source.replace('banner("TETHYS -- KESTRA STATION", 4)', 'banner("TETHYS -- KESTRA STATION", 4) space.place_landed("Vell", -12.02, 35.03, 40)');
+  return copy;
+}
+
 // On foot beside the Talari ruin's monolith, the ship left on the pad.
 function ruinVariant(scene) {
   const copy = structuredClone(scene);
   const director = copy.entities.find((e) => e.name === "Director").components.Script;
   const ruin = /local RUIN = \{(-?[\d.]+), (-?[\d.]+), (-?[\d.]+)\}/.exec(director.source);
   const [x, z] = [Number(ruin[1]), Number(ruin[3])];
-  copy.entities.find((e) => e.name === "Player").components.Transform.position = { x: x + 3, y: 1, z: z + 3 };
+  const player = copy.entities.find((e) => e.name === "Player").components;
+  player.Transform.position = { x: x + 3, y: 1, z: z + 3 };
+  // Facing the monolith (yaw 0 faces +z; this faces -x -z).
+  player.Rotation = { euler: { x: 0, y: -2.356, z: 0 } };
   copy.entities.find((e) => e.name === "Ship").components.Spaceship.startPiloting = false;
   return copy;
 }
@@ -27,7 +38,8 @@ function ruinVariant(scene) {
     const url = new URL(req.url, "http://localhost");
     const pathname = url.pathname.replace(/^\/engine\//, "");
     if (pathname === "" || pathname === "index.html") {
-      const baked = url.searchParams.get("variant") === "ruin" ? ruinVariant(scene) : scene;
+      const variant = url.searchParams.get("variant");
+      const baked = variant === "ruin" ? ruinVariant(scene) : variant === "vell" ? vellVariant(scene) : scene;
       const text = JSON.stringify(baked).replace(/</g, "\\u003c");
       res.setHeader("Content-Type", "text/html");
       res.end(index.replace("</body>", () => `<script type="application/json" id="exported-scene">${text}</script>\n</body>`));
@@ -97,7 +109,8 @@ function ruinVariant(scene) {
       await page.keyboard.up("KeyC");
       assert.doesNotMatch(await hud(page), /ROUGH/, "a gentle set-down is clean");
       await page.keyboard.down("KeyE");
-      await waitHud(page, /Survey the Talari ruin/, "stepping out starts the survey");
+      await waitHud(page, /Survey Kestra/, "stepping out starts the survey");
+      await waitHud(page, /AIR: AMBIENT INTAKE/, "Tethys' air is breathable");
       await page.keyboard.up("KeyE");
       await waitHud(page, /E board ship/, "the boarding prompt beside the ship");
       await page.screenshot({ path: "build/browser-evidence/pale-signal-eva.png" });
@@ -105,21 +118,37 @@ function ruinVariant(scene) {
       await page.close();
     }
 
-    // On foot at the ruin: holding F scans the monolith and moves on to fuel.
+    // On foot at the ruin: holding F scans the Black Foundation through the
+    // engine's scanner, which pays research and teaches the language.
     {
       const { page, errors } = await open("ruin");
       await waitHud(page, /BEGIN/, "ruin title");
       await clickCenter(page, -10);
-      await waitHud(page, /Survey the Talari ruin/, "survey objective");
+      await waitHud(page, /Survey Kestra/, "survey objective");
       await page.keyboard.down("KeyF");
-      await waitHud(page, /Gather volatile ice: 0\/2/, "the scan completes");
+      await waitHud(page, /SCAN Black Foundation|Black Foundation \(catalogued\)/, "the scanner locks on");
+      await waitHud(page, /RESEARCH 12 RP/, "the scan completes and pays research");
       await page.keyboard.up("KeyF");
-      assert.match(await hud(page), /SCAN COMPLETE|Gather volatile ice/);
+      assert.match(await hud(page), /TALARI LANGUAGE 6%/);
       await page.screenshot({ path: "build/browser-evidence/pale-signal-ruin.png" });
       assert.deepEqual(errors, []);
       await page.close();
     }
-    console.log("Pale Signal: title, landed flight HUD, hover and set-down, stepping out, and scanning the ruin passed.");
+    // Walking anywhere: landed on Vell, far from Kestra, step out onto the
+    // moon; the suit's oxygen runs down in vacuum.
+    {
+      const { page, errors } = await open("vell");
+      await waitHud(page, /BEGIN/, "vell title");
+      await clickCenter(page, -10);
+      await waitHud(page, /LANDED/, "landed on Vell");
+      await page.keyboard.down("KeyE");
+      await waitHud(page, /SUIT O2 \d+%/, "on foot on an airless moon");
+      await page.keyboard.up("KeyE");
+      await page.screenshot({ path: "build/browser-evidence/pale-signal-vell.png" });
+      assert.deepEqual(errors, []);
+      await page.close();
+    }
+    console.log("Pale Signal: title, landed flight HUD, hover and set-down, stepping out, scanning the ruin, and walking on Vell passed.");
   } finally {
     await browser?.close();
     server.close();

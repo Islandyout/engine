@@ -743,7 +743,10 @@ struct LuaApi final {
         const auto second = first == std::string::npos ? std::string::npos : text.find(';', first + 1);
         set_string(L, "body", text.substr(0, first));
         set_string(L, "assist", first == std::string::npos ? "" : text.substr(first + 1, second - first - 1));
-        set_string(L, "target", second == std::string::npos ? "" : text.substr(second + 1));
+        const auto third = second == std::string::npos ? std::string::npos : text.find(';', second + 1);
+        set_string(L, "target", second == std::string::npos ? "" : text.substr(second + 1, third - second - 1));
+        set_string(L, "frame", third == std::string::npos ? "" : text.substr(third + 1));
+        set_bool(L, "away", out.size() >= 27 && out[26] != 0);
         return 1;
     }
     // space.events() -> {"touchdown", "liftoff", ...} since the last call
@@ -774,6 +777,22 @@ struct LuaApi final {
     }
     static int space_refuel(lua_State *L) {
         return space_simple(L, "refuel", {lua_isnoneornil(L, 1) ? -1.0 : number_arg(L, 1)});
+    }
+    static int space_tune(lua_State *L) { return space_simple(L, "tune", {number_arg(L, 2)}, luaL_checkstring(L, 1)); }
+    // space.spec() -> {thrust, lift, fuel, hull, heat, rcs}
+    static int space_spec(lua_State *L) {
+        std::vector<double> out;
+        std::string text;
+        if (!space_call(L, "spec", {}, {}, out, text) || out.size() < 6)
+            return lua_pushnil(L), 1;
+        lua_createtable(L, 0, 6);
+        set_number(L, "thrust", out[0]);
+        set_number(L, "lift", out[1]);
+        set_number(L, "fuel", out[2]);
+        set_number(L, "hull", out[3]);
+        set_number(L, "heat", out[4]);
+        set_number(L, "rcs", out[5]);
+        return 1;
     }
     static int space_set_fuel(lua_State *L) { return space_simple(L, "set_fuel", {number_arg(L, 1)}); }
     static int space_repair(lua_State *L) {
@@ -1061,6 +1080,8 @@ struct LuaApi final {
                {"set_target", space_set_target},
                {"refuel", space_refuel},
                {"set_fuel", space_set_fuel},
+               {"tune", space_tune},
+               {"spec", space_spec},
                {"repair", space_repair},
                {"board", space_board},
                {"exit", space_exit},

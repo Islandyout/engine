@@ -91,6 +91,7 @@ const componentNames = [
   "ModelInstances",
   "SpaceSystem",
   "Spaceship",
+  "Scannable",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -620,6 +621,7 @@ export function defaultComponent(
         evaRange: 1500,
         startTime: 0,
         landmarks: "",
+        species: "",
       };
     case "Spaceship":
       return {
@@ -634,7 +636,10 @@ export function defaultComponent(
         gearClearance: 1.6,
         startPiloting: true,
         startOrbit: -1,
+        model: "Kestrel",
       };
+    case "Scannable":
+      return { id: "", name: "", kind: "Mineral", range: 6 };
     case "AnimationState":
       return { clip: "", time: 0, looping: true };
     case "Renderable":

@@ -6,7 +6,7 @@
 
 **[Play HIGH HEAT](https://islandyout.github.io/engine/high-heat.html)**, an open-city street racer with police pursuits ([design document](docs/racing/GAME_DESIGN.md)).
 
-**[Play the Pale Signal slice](https://islandyout.github.io/engine/pale-signal.html)**: step out onto Tethys, survey a ruin, fly out of the atmosphere and land on its moon, with no loading screens ([slice document](docs/space/PALE_SIGNAL_SLICE.md)).
+**[Play the Pale Signal slice](https://islandyout.github.io/engine/pale-signal.html)**: scan species and ruins, talk to the Talari, fly out of the atmosphere and walk on its moon, with no loading screens ([slice document](docs/space/PALE_SIGNAL_SLICE.md)).
 
 The integrated editor provides scene authoring, component inspection, undo/redo, JSON save/load and a Three.js viewport connected to the C++ fixed-step world through WebAssembly. See [the editor contract](docs/BTAI_EDITOR.md) for build instructions and supported behaviors.
 
@@ -304,6 +304,15 @@ Engine version 0.71.0 adds spaceflight for [Pale Signal](https://github.com/Isla
 - **Lua `space.*`**: `state`, `events`, `set_warp`, `set_assist`, `set_target`, `refuel`, `set_fuel`, `repair`, `board`, `exit`, `set_controls`, `place_landed`, `place_orbit`, `body`.
 
 See [F71](docs/IMPLEMENTATION_STATUS.md#f71--spaceflight-star-systems-a-flown-ship-and-the-pale-signal-slice-0710).
+
+Engine version 0.72.0 brings the Pale Signal prototype's exploration loop:
+
+- **Walk anywhere**: land on any world and step out; the walkable area follows the ship, with that world's plants, rocks and air (or none).
+- **A field scanner** (`Scannable`, hold F) for species, evidence and landmarks, reported to scripts; research points buy the prototype's ship upgrades (`space.tune`).
+- **The Talari**: talk to Kestra's residents; their speech translates as your language model grows.
+- **Seas, clouds, sunsets, the Milky Way**, snow and shores on the planets, walk-up signal structures, and the built-in **Kestrel** ship model.
+
+See [F72](docs/IMPLEMENTATION_STATUS.md#f72--pale-signal-slice-2-walking-anywhere-the-scanner-seas-and-clouds-and-the-kestrel-0720).
 
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
