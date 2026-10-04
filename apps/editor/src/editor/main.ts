@@ -269,6 +269,7 @@ type Runtime = {
   _editor_space_frame(field: number): number;
   _editor_space_body_spin(index: number, field: number): number;
   _editor_space_stick(yaw: number, pitch: number): void;
+  _editor_routine_stop(index: number): number;
   _editor_planet_lava(index: number, x: number, y: number, z: number): number;
   _editor_planet_height(index: number, x: number, y: number, z: number): number;
   _editor_space_path(count: number, horizon: number): number;
@@ -966,6 +967,11 @@ async function startEditor() {
   const animStates: (AnimState | undefined)[] = [];
   const governor = new FrameGovernor();
   let crowdFrame = 0;
+  // Characters who can talk, and which of them stood still last tick.
+  let talkerIndices: number[] = [];
+  let talkerScan = -1; // objects.length when talkerIndices was built
+  let talkerResting = new Set<number>();
+  let talkerWasResting = new Set<number>();
   interface ParticleState {
     emitter: EmitterState;
     points: THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>;
@@ -2274,7 +2280,7 @@ async function startEditor() {
   // The suit light: a lamp at the walker's helmet along their facing,
   // easing on as the light fails (or forced on or off with L).
   function updateSuitLight(dt: number, walker: THREE.Object3D | undefined) {
-    const dark = spaceView ? 1 - THREE.MathUtils.smoothstep(spaceView.daylight * Math.max(spaceView.air, 0.25), 0.12, 0.3) : 0;
+    const dark = spaceView ? 1 - THREE.MathUtils.smoothstep(spaceView.daylight * Math.max(spaceView.air, 0.25), 0.06, 0.16) : 0;
     const want = !walker ? 0 : suitLightMode === "on" ? 1 : suitLightMode === "off" ? 0 : dark;
     suitLightLevel += (want - suitLightLevel) * (1 - Math.exp(-dt * 4));
     if (suitLightLevel < 0.01 || !walker) {
@@ -2282,11 +2288,11 @@ async function startEditor() {
       return;
     }
     if (!suitLight) {
-      suitLight = new THREE.SpotLight(0xfff0d8, 0, 36, 0.5, 0.55, 1.4);
+      suitLight = new THREE.SpotLight(0xf4f2ea, 0, 30, 0.45, 0.6, 1.6);
       scene.add(suitLight, suitLight.target);
     }
     suitLight.visible = true;
-    suitLight.intensity = 60 * suitLightLevel;
+    suitLight.intensity = 14 * suitLightLevel;
     const yaw = walker.rotation.y;
     const forward = new THREE.Vector3(Math.sin(yaw), -0.18, Math.cos(yaw)).normalize();
     suitLight.position.copy(walker.position).add(new THREE.Vector3(0, 0.75, 0)).addScaledVector(forward, 0.35);
@@ -3737,6 +3743,7 @@ async function startEditor() {
     deathStates.push(undefined);
   }
   function rebuild() {
+    talkerScan = -1;
     gizmo.detach();
     const environmentEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "Environment"));
     applyEnvironment(
@@ -4848,6 +4855,78 @@ async function startEditor() {
     }
     if (doc.mode === "play" && governor.sample(intervalMs)) applyGovernor();
   }
+  // Resting activities (0.75.0). A Routine stop may name one ("6 120 40
+  // sit"): the clip to play once there, if the model has it (a few
+  // aliases help). Two people standing close turn to each other and talk.
+  // Calm animals graze, on and off.
+  const routineActivities = new Map<string, string[]>();
+  const activityAliases: Record<string, string[]> = {
+    sit: ["sit"],
+    talk: ["talk"],
+    work: ["punching", "talk"],
+    hammer: ["punching"],
+    graze: ["graze", "Eating", "peck", "Idle_Headlow", "Idle_2_HeadLow"],
+  };
+  function routineActivity(stops: string, stop: number) {
+    let list = routineActivities.get(stops);
+    if (!list) {
+      // Same order the simulation uses: stops sorted by hour.
+      const parsed: Array<{ hour: number; activity: string }> = [];
+      let numbers: number[] = [];
+      const flush = (activity: string) => {
+        for (let k = 0; k + 2 < numbers.length; k += 3) parsed.push({ hour: numbers[k]!, activity: k + 5 >= numbers.length ? activity : "" });
+        numbers = [];
+      };
+      for (const token of stops.split(/[\s;,]+/).filter(Boolean)) {
+        const v = Number(token);
+        if (Number.isFinite(v)) numbers.push(v);
+        else flush(token);
+      }
+      flush("");
+      list = parsed.sort((a, b) => a.hour - b.hour).map((p) => p.activity);
+      routineActivities.set(stops, list);
+    }
+    return list[stop] ?? "";
+  }
+  function firstClip(state: AnimState, wanted: string[]) {
+    return wanted.find((name) => state.actions.has(name));
+  }
+  function restingClip(i: number, state: AnimState, entity: EntityRef | undefined, object: THREE.Object3D, tickDt: number): string | undefined {
+    const routine = entity ? doc.scene.resolve(entity, "Routine") : undefined;
+    if (routine) {
+      const activity = routineActivity(routine.stops, runtime._editor_routine_stop(i));
+      const clip = activity ? firstClip(state, activityAliases[activity] ?? [activity]) : undefined;
+      if (clip) return clip;
+    }
+    if (state.actions.has("talk") && (routine || (entity && doc.scene.effectiveHas(entity, "Pedestrian")))) {
+      // The nearest other resting talker within 2.5 m.
+      let partner: THREE.Vector3 | undefined;
+      let best = 2.5;
+      for (const j of talkerIndices) {
+        if (j === i || !talkerWasResting.has(j)) continue;
+        const other = tickStates[j]?.current ?? objects[j]?.position;
+        if (!other) continue;
+        const d = Math.hypot(other.x - object.position.x, other.z - object.position.z);
+        if (d < best) {
+          best = d;
+          partner = other;
+        }
+      }
+      talkerResting.add(i);
+      if (partner) {
+        const yaw = Math.atan2(partner.x - object.position.x, partner.z - object.position.z);
+        const turn = Math.atan2(Math.sin(yaw - object.rotation.y), Math.cos(yaw - object.rotation.y));
+        object.rotation.y += Math.max(-4 * tickDt, Math.min(4 * tickDt, turn));
+        return "talk";
+      }
+    }
+    if (runtime._editor_wildlife_state(i) === 0) {
+      // Head down for a while, up for a while, each animal on its own beat.
+      const grazing = (performance.now() / 1000 + i * 1.7) % 11 < 7;
+      if (grazing) return firstClip(state, activityAliases.graze!);
+    }
+    return undefined;
+  }
   // Mouse steering (0.75.0): while flying with the mouse captured, its
   // motion moves a virtual stick (yaw right, pitch up for the mouse moving
   // up) that eases back to centre once the mouse rests; keys still win.
@@ -5102,6 +5181,12 @@ async function startEditor() {
     if (doc.mode === "play" && steps > 0) {
       const tickDt = steps / 60;
       const entities = doc.scene.eachAlive();
+      [talkerWasResting, talkerResting] = [talkerResting, talkerWasResting];
+      talkerResting.clear();
+      if (talkerScan !== objects.length) {
+        talkerScan = objects.length;
+        talkerIndices = entities.flatMap((entity, k) => (doc.scene.effectiveHas(entity, "Routine") || doc.scene.effectiveHas(entity, "Pedestrian") ? [k] : []));
+      }
       animStates.forEach((state, i) => {
         if (!state) return;
         // A dying entity's own death clip (startDeath()) must not be
@@ -5175,8 +5260,11 @@ async function startEditor() {
         // `clipName !== state.current` check below makes this a no-op once
         // it's already showing, so it's harmless in the ordinary case too.
         const restoringPin = !sitClip && overridden;
+        // Standing still (0.75.0): an activity -- a job at a routine's
+        // stop, talking with whoever stands close, grazing -- before plain idle.
+        const resting = !sitClip && !overridden && speed < 0.15 && i !== playerIndex ? restingClip(i, state, entities[i], object, tickDt) : undefined;
         const clipName =
-          sitClip ?? (overridden ? override!.clip : pickClipName([...state.actions.keys()], speed));
+          sitClip ?? (overridden ? override!.clip : resting ?? pickClipName([...state.actions.keys()], speed));
         if (clipName && clipName !== state.current) {
           const next = state.actions.get(clipName);
           const previous = state.current

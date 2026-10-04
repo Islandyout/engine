@@ -323,6 +323,8 @@ class Planet {
   private readonly colors: { low: THREE.Color; mid: THREE.Color; high: THREE.Color; rock: THREE.Color };
   atmosphere?: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;
   clouds?: THREE.Mesh<THREE.SphereGeometry, THREE.MeshLambertMaterial>;
+  // The surface's average colour, for the sky below the horizon.
+  readonly groundColor = new THREE.Color();
 
   constructor(
     private readonly rt: SpaceRuntime,
@@ -351,6 +353,7 @@ class Planet {
       high: base.clone().lerp(new THREE.Color("#a49c8c"), 0.55),
       rock: base.clone().lerp(new THREE.Color("#5a554e"), 0.7),
     };
+    this.groundColor.copy(this.colors.mid).multiplyScalar(0.45);
     // Chunks down to ~30 m across.
     this.maxLevel = Math.max(2, Math.min(14, Math.ceil(Math.log2((body.radius * 1.6) / 30))));
     this.roots = faces.map((_, face) => this.chunk(face, 0, -1, -1, 2));
@@ -1033,6 +1036,7 @@ export class SpaceView {
       if (params) {
         const eye = cameraPosition.clone().sub(nearest.planet.group.position).divideScalar(body.radius);
         setScatterUniforms(this.sky.material.uniforms as never, params, eye, this.sunDirection);
+        (this.sky.material.uniforms.uGround!.value as THREE.Color).copy(nearest.planet.groundColor);
         // The horizon's colour toward the sun's side, for the fog: distant
         // ground fades into the same sky (and goes orange at sunset).
         const across = this.sunDirection.clone().addScaledVector(nearest.up, -this.sunDirection.dot(nearest.up));

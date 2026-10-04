@@ -160,7 +160,7 @@ function floodwall(x0: number, z0: number, x1: number, z1: number) {
 }
 // Canal water: dark and reflective, never tropical blue (the visual bible).
 function canal(x: number, z: number, w: number, d: number, yaw = 0) {
-  add("Canal", [x, 0.06, z], { Scale: { value: vec(w, 0.1, d) }, Rotation: { euler: vec(0, yaw, 0) }, Renderable: { mesh: 0, material: 0, visible: true }, Material: material("#1c2a2c", { roughness: 0.08, metalness: 0.35 }) });
+  add("Canal", [x, 0.06, z], { Scale: { value: vec(w, 0.1, d) }, Rotation: { euler: vec(0, yaw, 0) }, Renderable: { mesh: 0, material: 0, visible: true }, Material: material("#2b4549", { roughness: 0.18, metalness: 0.12 }) });
 }
 
 // ------------------------------------------------------- people and life --
@@ -196,10 +196,29 @@ function talari(name: string, at: [number, number], stops: string, role: string)
   return index;
 }
 // Routine stops in a frame: scholars work two shifts; others work then shop.
+// What each trade does at work (0.75.0): Routine activity words the editor
+// plays as clips -- desk work sits, craft works with the hands, officials
+// and traders talk.
+const JOBS: Array<[RegExp, string]> = [
+  [/historian|archivist|scholar|student|teacher|clerk|operator|surveyor|astronomer|skeptic|memorial|observatory/, "sit"],
+  [/wright|engineer|maker|fisher|medic/, "work"],
+];
+// A day: work from early morning, lunch at the market, back to work, the
+// market again in the evening, home. Everyone's hours drift a little, so
+// the town never empties or fills all at once.
 function routine(role: string, home: [number, number], work: [number, number], market: [number, number], to: (e: number, n: number) => [number, number]) {
   const p = (q: [number, number]) => to(q[0], q[1]).map((v) => v.toFixed(1)).join(" ");
-  const scholar = /historian|astronomer|archivist|student|scholar|dock|surveyor|operator/.test(role);
-  return scholar ? `0 ${p(home)}; 6 ${p(work)}; 15 ${p(market)}; 19 ${p(home)}` : `0 ${p(home)}; 6 ${p(work)}; 12 ${p(market)}; 18 ${p(home)}`;
+  const job = JOBS.find(([re]) => re.test(role))?.[1] ?? "talk";
+  const h = (base: number, spread: number) => (base + random() * spread).toFixed(2);
+  const lunch = 11.5 + random() * 1.5;
+  return [
+    `0 ${p(home)}`,
+    `${h(6, 1.5)} ${p(work)} ${job}`,
+    `${lunch.toFixed(2)} ${p(market)} talk`,
+    `${(lunch + 1).toFixed(2)} ${p(work)} ${job}`,
+    `${h(16.5, 1.5)} ${p(market)} talk`,
+    `${h(19, 1.5)} ${p(home)}`,
+  ].join("; ");
 }
 // Wildlife prefabs (released by the director on other worlds) and herds.
 const FAUNA: Record<string, { mesh: number; scale: V3; species: string; name: string; tint?: string }> = {
@@ -342,9 +361,23 @@ for (const row of EVIDENCE) if (siteCentre[row[1]]) evidenceEntity(row);
 // Kestra's people (16 named Talari) and a few passers-by.
 for (const n of NPCS.filter((n) => n.site === "kestra"))
   talari(n.name, kestra(...n.home), routine(n.role, n.home, n.work, n.market, kestra), n.role);
-for (let i = 0; i < 5; i++) {
-  const a = random() * Math.PI * 2;
-  add("Talari", [KX + Math.cos(a) * 14, 0.9, KZ + Math.sin(a) * 14], { Scale: { value: vec(1.62, 1.8, 0.34) }, Renderable: { mesh: TALARI, material: 0, visible: true }, Material: material(pick(TINTS), { roughness: 0.85, parts: "TunicCloth,MantleCloth" }), AIState: { state: "Walking" }, Pedestrian: { archetype: 0 } });
+for (let i = 0; i < 10; i++) {
+  const a = random() * Math.PI * 2, r = 10 + random() * 30;
+  add("Talari", [KX + Math.cos(a) * r, 0.9, KZ + Math.sin(a) * r], { Scale: { value: vec(1.62, 1.8, 0.34) }, Renderable: { mesh: TALARI, material: 0, visible: true }, Material: material(pick(TINTS), { roughness: 0.85, parts: "TunicCloth,MantleCloth" }), AIState: { state: "Walking" }, Pedestrian: { archetype: 0 } });
+}
+// People who stay put through the day: stall keepers calling out at the
+// market, and neighbours talking in pairs in the square.
+const keeper = (name: string, x: number, z: number, activity: string, open: number, close: number) =>
+  add(name, [x, 0.9, z], {
+    Scale: { value: vec(1.62, 1.8, 0.34) },
+    Renderable: { mesh: TALARI, material: 0, visible: true },
+    Material: material(pick(TINTS), { roughness: 0.85, parts: "TunicCloth,MantleCloth" }),
+    Routine: { stops: `0 ${(x + 6).toFixed(1)} ${(z + 9).toFixed(1)}; ${open} ${x.toFixed(1)} ${z.toFixed(1)} ${activity}; ${close} ${(x + 6).toFixed(1)} ${(z + 9).toFixed(1)}`, speed: 1.2 },
+  });
+for (let i = 0; i < 3; i++) keeper("Stall Keeper", MX - 6 + i * 6, MZ + 2.5, "talk", 6.5 + i * 0.3, 19 + i * 0.4);
+for (const [dx, dz] of [[-12, 8], [10, -14], [4, 18]] as const) {
+  keeper("Neighbour", KX + dx, KZ + dz, "talk", 7 + random() * 2, 18 + random() * 2);
+  keeper("Neighbour", KX + dx + 1.4, KZ + dz + 0.6, "talk", 7 + random() * 2, 18 + random() * 2);
 }
 
 // ------------------------------------------------------------ volatile ice --

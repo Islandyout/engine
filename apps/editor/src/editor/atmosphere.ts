@@ -130,31 +130,39 @@ export const scatterGLSL = /* glsl */ `
   }
 `;
 
-// The sky from inside the air: drawn first at the camera, added over the
-// stars (night lets them through).
+// The sky from inside the air: drawn first, behind everything, at the
+// camera.
 export function scatterSkyMaterial() {
   return new THREE.ShaderMaterial({
-    uniforms: { ...scatterUniforms(), uSunDisc: { value: 1 } },
+    uniforms: { ...scatterUniforms(), uSunDisc: { value: 1 }, uGround: { value: new THREE.Color(0.1, 0.1, 0.1) } },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
       void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: /* glsl */ `
       ${scatterGLSL}
-      uniform float uStrength; uniform float uSunDisc;
+      uniform float uStrength; uniform float uSunDisc; uniform vec3 uGround;
       varying vec3 vDir;
       void main() {
         vec3 d = normalize(vDir);
         vec3 transmit;
         vec3 col = scatter(uCam, d, transmit);
-        // The sun's disc and its glow, reddened by the air in front of it.
-        float s = max(dot(d, uSun), 0.0);
-        col += transmit * vec3(1.0, 0.92, 0.8) * (pow(s, 900.0) * 6.0 + pow(s, 48.0) * 0.12) * uSunDisc;
-        col = 1.0 - exp(-col * 1.15);
-        gl_FragColor = vec4(col * uStrength, 1.0);
+        vec2 hit = raySphere(uCam, d, 1.0);
+        bool ground = hit.x < hit.y && hit.x > 0.0;
+        if (ground) {
+          // Below the horizon: the ground's own colour under the air.
+          float lit = clamp(dot(normalize(uCam), uSun) * 1.5 + 0.15, 0.03, 1.0);
+          col += transmit * uGround * lit;
+        } else {
+          // The sun's disc and its glow, reddened by the air in front of it.
+          float s = max(dot(d, uSun), 0.0);
+          col += transmit * vec3(1.0, 0.92, 0.8) * (pow(s, 900.0) * 6.0 + pow(s, 48.0) * 0.12) * uSunDisc;
+        }
+        col = (1.0 - exp(-col * 1.15)) * uStrength;
+        gl_FragColor = vec4(col, 1.0);
       }`,
     side: THREE.BackSide,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
+    // Opaque and first (the stars, transparent, fade in over it at night).
+    transparent: false,
     depthWrite: false,
     depthTest: false,
     fog: false,

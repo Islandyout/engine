@@ -70,6 +70,7 @@ void editor_set_driver_text(int, int, const char *);
 double editor_vehicle_value(int, int);
 void editor_space_begin(double, int, double, double, double, double, double);
 void editor_push(int, double, double);
+int editor_routine_stop(int);
 double editor_space_ground(double, double);
 void editor_space_body(const char *, int, double, double, double, double, double, double, double, double, double,
                        double, double);
@@ -1798,7 +1799,7 @@ int main() {
         check(editor_add(10, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         editor_set_wildlife(1, 44, 16, 7, 80);
         check(editor_add(0, 0.9, -30, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
-        editor_set_routine(2, "0 0 -30; 12 20 -30", 1.5);
+        editor_set_routine(2, "0 0 -30 sit; 12 20 -30 talk", 1.5); // activity words (0.75.0) are skipped
         check(editor_add(0, 30, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         editor_set_script_source(3, "function on_tick(dt) world.set_clock(13) end");
         check(editor_commit() == 1);
@@ -1808,6 +1809,7 @@ int main() {
         check(editor_value(1, 0) > 12);                                 // away from the player
         check(editor_wildlife_state(0) == -1);                          // the player isn't wildlife
         check(editor_value(2, 0) > 1.5);                                // walking to the 12:00 stop
+        check(editor_routine_stop(2) == 1 && editor_routine_stop(0) == -1);
     }
     {
         // Soft radii (0.75.0): the walker and a big animal ease apart.

@@ -4120,18 +4120,43 @@ EXPORT void editor_set_routine(int index, const char *stops, double speed) {
         return;
     Routine routine;
     routine.speed = static_cast<float>(speed);
+    // "hour x z [activity]; ..." -- the activity word (0.75.0) is for the
+    // editor's animation; the simulation only needs where and when.
     std::string text{stops};
     for (auto &c : text)
         if (c == ';' || c == ',')
             c = ' ';
     std::istringstream in{text};
-    Routine::Stop stop;
-    while (in >> stop.hour >> stop.x >> stop.z)
-        if (std::isfinite(stop.hour) && std::isfinite(stop.x) && std::isfinite(stop.z))
-            routine.stops.push_back(stop);
+    std::vector<double> numbers;
+    std::string token;
+    const auto flush = [&] {
+        for (std::size_t i = 0; i + 2 < numbers.size(); i += 3)
+            if (std::isfinite(numbers[i]) && std::isfinite(numbers[i + 1]) && std::isfinite(numbers[i + 2]))
+                routine.stops.push_back({static_cast<float>(numbers[i]), static_cast<float>(numbers[i + 1]),
+                                         static_cast<float>(numbers[i + 2])});
+        numbers.clear();
+    };
+    while (in >> token) {
+        char *end = nullptr;
+        const double v = std::strtod(token.c_str(), &end);
+        if (end && *end == '\0' && end != token.c_str())
+            numbers.push_back(v);
+        else
+            flush(); // an activity word ends its stop
+    }
+    flush();
     std::sort(routine.stops.begin(), routine.stops.end(),
               [](const Routine::Stop &a, const Routine::Stop &b) { return a.hour < b.hour; });
     target->first->set(target->second, std::move(routine));
+}
+// The stop a Routine is at or heading for (0.75.0): its index in hour
+// order, -1 without a Routine.
+EXPORT int editor_routine_stop(int index) {
+    if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
+        return -1;
+    const auto entity = active->entities[static_cast<std::size_t>(index)];
+    const auto *routine = active->world.alive(entity) ? active->world.get<Routine>(entity) : nullptr;
+    return routine ? routine->current : -1;
 }
 EXPORT void editor_set_wildlife(int index, double wary, double flee, double speed, double leash) {
     const auto target = staged(index);
