@@ -21,6 +21,7 @@ import type {
   UIKind,
   Vec3,
   TerrainComponent,
+  ScannableComponent,
 } from "../scene/Components";
 import { propertyMetadata, componentLabel, componentGroups } from "./PropertyMetadata";
 import { defaultComponent } from "../authoring/CommandInterpreter";
@@ -1875,7 +1876,18 @@ async function startEditor() {
     scatterTargets = [];
     if (!scatterModelsReady) return;
     const away = runtime._editor_space_value(37) === 1;
-    const placed = spaceView.scatter(spaceSpecies, space.evaRange * 0.92, away ? 22 : 75);
+    // Plants and rocks keep clear of the active site's solid structures; the
+    // quality preset thins them on weaker devices (the mobile governor).
+    const activeSite = away ? runtime._editor_space_value(40) : -1;
+    const keep: Array<{ x: number; z: number; r: number }> = [];
+    if (activeSite !== -2)
+      doc.scene.eachAlive().forEach((entity, i) => {
+        if ((memberSite[i] ?? -1) !== activeSite || !doc.scene.effectiveHas(entity, "Collider")) return;
+        const p = doc.scene.resolve(entity, "Transform")?.position;
+        const size = doc.scene.resolve(entity, "Scale")?.value ?? { x: 1, y: 1, z: 1 };
+        if (p) keep.push({ x: p.x, z: p.z, r: Math.max(size.x, size.z) * 0.75 + 3 });
+      });
+    const placed = spaceView.scatter(spaceSpecies, space.evaRange * 0.92, away ? 22 : 75, keep, qualityProfile(playerSettings.quality).scatter);
     const models = new Map<number, { scene: THREE.Object3D }>();
     for (const p of placed) {
       const cached = catalogCache.get(p.species.model);
@@ -2311,9 +2323,8 @@ async function startEditor() {
           objects.forEach((o, i) => {
             if (!o?.visible || i === playerIndex || i === shipIndex || !runtime._editor_alive(i)) return;
             const e = entities[i];
-            if (!e) return;
             const wild = runtime._editor_wildlife_state(i);
-            const kind = wild === 2 ? "fleeing" : wild >= 0 ? "fauna" : doc.scene.effectiveHas(e, "Routine") ? "npc" : undefined;
+            const kind = wild === 2 ? "fleeing" : wild >= 0 ? "fauna" : e && doc.scene.effectiveHas(e, "Routine") ? "npc" : undefined;
             if (kind) blips.push({ x: o.position.x - me.position.x, z: o.position.z - me.position.z, kind });
           });
           const heading = view_heading();
@@ -2332,10 +2343,10 @@ async function startEditor() {
   function scanCandidates(): ScanTarget[] {
     const list: ScanTarget[] = [];
     const entities = doc.scene.eachAlive();
-    for (const i of scannableIndices) {
+    for (const i of [...scannableIndices, ...spawnedScans.keys()]) {
       const entity = entities[i];
       const object = objects[i];
-      const scan = entity && doc.scene.resolve(entity, "Scannable");
+      const scan = (entity && doc.scene.resolve(entity, "Scannable")) || spawnedScans.get(i);
       if (!scan || !object || !object.visible || !runtime._editor_alive(i)) continue;
       list.push({ key: scan.id || scan.name, name: scan.name, kind: scan.kind, position: object.position, range: scan.range, fleeing: runtime._editor_wildlife_state(i) === 2 });
     }
@@ -2908,8 +2919,11 @@ async function startEditor() {
           ? ({ position } as SceneComponents[typeof type])
           : components[type],
       );
+      // Spawned scannables (0.73.0: wildlife a script releases) can be scanned too.
+      if (components.Scannable) spawnedScans.set(index, components.Scannable);
     }
   }
+  const spawnedScans = new Map<number, ScannableComponent>();
   // One Animator step for entity i: built-in parameters, events to the
   // entity's script, and a crossfade when the state changes.
   function runAnimator(
@@ -4005,6 +4019,7 @@ async function startEditor() {
         syncRuntime();
         startSpaceView();
         scanner.reset();
+        spawnedScans.clear();
         scannableIndices = doc.scene
           .eachAlive()
           .map((e, i) => (doc.scene.effectiveHas(e, "Scannable") ? i : -1))
@@ -5367,7 +5382,8 @@ async function startEditor() {
       const me = playerIndex >= 0 ? objects[playerIndex] : undefined;
       const nearShip =
         !!ship && !!me && !spaceView.flight.piloting && spaceView.flight.landed && me.position.distanceTo(ship.position) < 9;
-      drawFlightHud(hudCtx, hud.width, hud.height, spaceView, viewCamera, nearShip);
+      // A game with its own interaction prompt (a "Prompt" UI text) owns the hint.
+      drawFlightHud(hudCtx, hud.width, hud.height, spaceView, viewCamera, nearShip && !uiTextOverrides.has("Prompt"));
       drawExplorerHud(hudLines);
       // The same readout as text, for screen readers and tests.
       const f = spaceView.flight;
@@ -5379,7 +5395,7 @@ async function startEditor() {
           `FUEL ${Math.round(f.fuel * 100)}%`,
           f.landed ? "LANDED" : "FLYING",
         );
-      else if (nearShip) hudLines.push("E board ship");
+      else if (nearShip && !uiTextOverrides.has("Prompt")) hudLines.push("E board ship");
     }
     // Driving HUD (0.70.0): when the player is an arcade car.
     if (doc.mode !== "edit" && playerIndex >= 0 && runtime._editor_alive(playerIndex) && runtime._editor_vehicle_value(playerIndex, 11)) {

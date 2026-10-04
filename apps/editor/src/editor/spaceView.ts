@@ -108,9 +108,11 @@ export interface Landmark {
   longitude: number;
   color: string;
   label: string;
+  // The structure's kind (0.73.0): array, monolith, ruin, camp or beacon.
+  kind: string;
 }
 
-// One per line: "body latitude longitude #color label words".
+// One per line: "body latitude longitude #color [kind=array] label words".
 export function parseLandmarks(text: string, bodies: SpaceBody[]): Landmark[] {
   const out: Landmark[] = [];
   for (const raw of text.split(/\r?\n/)) {
@@ -120,8 +122,14 @@ export function parseLandmarks(text: string, bodies: SpaceBody[]): Landmark[] {
     const latitude = Number(tokens[1]), longitude = Number(tokens[2]);
     if (body < 0 || !Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
     const color = /^#[0-9a-f]{6}$/i.test(tokens[3] ?? "") ? tokens[3]! : "#9fe8ff";
-    const label = tokens.slice(/^#/.test(tokens[3] ?? "") ? 4 : 3).join(" ") || bodies[body]!.name;
-    out.push({ body, latitude, longitude, color, label });
+    let rest = tokens.slice(/^#/.test(tokens[3] ?? "") ? 4 : 3);
+    let kind = "array";
+    if (/^kind=\w+$/.test(rest[0] ?? "")) {
+      kind = rest[0]!.slice(5);
+      rest = rest.slice(1);
+    }
+    const label = rest.join(" ") || bodies[body]!.name;
+    out.push({ body, latitude, longitude, color, label, kind });
   }
   return out;
 }
@@ -736,7 +744,8 @@ export class SpaceView {
   private decor?: ShipDecor;
   private voice?: ThrusterVoice;
 
-  readonly landmarks: Array<Landmark & { anchor: THREE.Object3D; beam: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>; flare: THREE.Sprite }> = [];
+  readonly landmarks: Array<Landmark & { anchor: THREE.Object3D; beam: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>; flare: THREE.Sprite; rings: THREE.Mesh[] }> = [];
+  private grammarTime = 0;
 
   constructor(
     private readonly rt: SpaceRuntime,
@@ -778,10 +787,10 @@ export class SpaceView {
       const flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: landmark.color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
       flare.scale.setScalar(160);
       flare.position.y = 20;
-      const structure = signalStructure(landmark.color);
+      const structure = signalStructure(landmark.color, landmark.kind);
       anchor.add(beam, flare, structure);
       planet.group.add(anchor);
-      this.landmarks.push({ ...landmark, anchor, beam, flare });
+      this.landmarks.push({ ...landmark, anchor, beam, flare, rings: (structure.userData.rings as THREE.Mesh[]) ?? [] });
     }
     this.path = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x6fd8ff, transparent: true, opacity: 0.85, fog: false }));
     this.path.frustumCulled = false;
@@ -1047,12 +1056,21 @@ export class SpaceView {
     this.camera.updateProjectionMatrix();
     // Landmark beams are for finding a place from afar: they fade out as
     // you arrive (from inside, one would tint the whole view).
+    this.grammarTime += dt;
     for (const landmark of this.landmarks) {
       const distance = landmark.anchor.getWorldPosition(new THREE.Vector3()).distanceTo(cameraPosition);
       const k = THREE.MathUtils.smoothstep(distance, 400, 2500);
       landmark.beam.material.opacity = 0.32 * k;
       landmark.flare.material.opacity = k;
       landmark.beam.visible = landmark.flare.visible = k > 0.01;
+      // The Pale Signal's grammar: concentric rings breathing in step,
+      // every structure on the same narrow-band clock.
+      landmark.rings.forEach((ring, i) => {
+        const phase = this.grammarTime * 1.4 - i * 0.55;
+        ring.scale.setScalar(1 + 0.06 * Math.sin(phase));
+        ring.rotation.z = this.grammarTime * 0.05 * (i % 2 ? 1 : -1);
+        (ring.material as THREE.MeshBasicMaterial).opacity = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(phase));
+      });
     }
     this.updatePath(dt);
   }
@@ -1089,7 +1107,8 @@ export class SpaceView {
   // frame's position, weighted by the frame body's flora and mineral
   // species, standing on the ground, clear of the origin (the ship or the
   // site's buildings) and of the sea.
-  scatter(species: Species[], range: number, keepClear: number) {
+  // `keep`: circles kept clear (around buildings); `density` scales the count.
+  scatter(species: Species[], range: number, keepClear: number, keep: Array<{ x: number; z: number; r: number }> = [], density = 1) {
     const body = this.rt._editor_space_value(39);
     const pool = species.filter((s) => s.body === body && s.kind !== "fauna" && s.weight > 0);
     const out: Array<{ species: Species; x: number; y: number; z: number; yaw: number; scale: number }> = [];
@@ -1097,14 +1116,14 @@ export class SpaceView {
     const total = pool.reduce((sum, s) => sum + s.weight, 0);
     let seed = (Math.floor(this.rt._editor_space_body_value(body, 0) * 7 + this.rt._editor_space_body_value(body, 2) * 13) >>> 0) || 7;
     const random = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
-    for (let i = 0; i < 900 && out.length < 650; i++) {
+    for (let i = 0; i < 900 && out.length < 650 * density; i++) {
       // Denser near the middle, where you walk.
       const r = keepClear + Math.pow(random(), 1.6) * (range - keepClear);
       const a = random() * Math.PI * 2;
       const x = Math.cos(a) * r, z = Math.sin(a) * r;
       let pick = random() * total;
       const chosen = pool.find((s) => (pick -= s.weight) <= 0) ?? pool[0]!;
-      if (this.rt._editor_space_wet(x, z)) continue;
+      if (this.rt._editor_space_wet(x, z) || keep.some((k) => Math.hypot(x - k.x, z - k.z) < k.r)) continue;
       const y = this.rt._editor_space_ground(x, z);
       out.push({ species: chosen, x, y, z, yaw: random() * Math.PI * 2, scale: chosen.scale * (0.75 + random() * 0.5) });
     }

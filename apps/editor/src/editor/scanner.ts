@@ -78,7 +78,7 @@ export class Scanner {
       this.progress = 0;
       return undefined;
     }
-    if (!best && this.skyKey && forward.clone().normalize().y > 0.55)
+    if (!best && this.skyKey && forward.clone().normalize().y > 0.3)
       best = { target: { key: this.skyKey, name: "Atmosphere", kind: "Atmosphere", position: from.clone(), range: 1 }, score: 0, aim: 1 };
     if (!best) {
       this.target = undefined;
