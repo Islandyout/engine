@@ -1110,6 +1110,7 @@ local function weather(st, dt)
     target = 1
     if S.play > storm.until_t then
       storm.until_t = 0
+      storm.told = false
       storm.next = S.play + 360 + math.random() * 240
     end
   end
@@ -1117,11 +1118,37 @@ local function weather(st, dt)
   local l = storm.level
   if l < 0.01 and target == 0 then return end
   local wind = l * 14
-  host.send("weather", string.format("%.2f %.2f %.1f %.1f", l, l * 0.6, wind, wind * 0.4))
-  space.call("wind", "", wind, 0, wind * 0.4)
-  host.send("audio", string.format("rain %.2f", l))
-  -- The crosswind leans on a walker.
+  -- Shelter (0.75.0): under a roof the rain stops; in the lee of a wall,
+  -- a building or the ground upwind the crosswind does.
+  local roof, lee = false, false
   if not st.piloting and player and l > 0.2 then
+    storm.check = (storm.check or 0) - dt
+    if storm.check <= 0 then
+      storm.check = 0.25
+      local x, y, z = world.position(player)
+      if x then
+        local hit = world.raycast(x, y + 1.2, z, 0, 1, 0, 25)
+        roof = hit ~= nil and hit ~= "ground" and hit ~= player
+        local ux, uz = -0.928, -0.371 -- upwind (the storm blows toward +x, +z)
+        local h2 = world.raycast(x + ux * 0.6, y + 0.4, z + uz * 0.6, ux, 0, uz, 6)
+        lee = h2 ~= nil and h2 ~= player
+      end
+      storm.roof, storm.lee = roof, lee
+    else
+      roof, lee = storm.roof, storm.lee
+    end
+  end
+  local sheltered = roof or lee
+  if sheltered and not storm.told then
+    storm.told = true
+    hint(roof and "Sheltered: under cover the rain can't reach the suit or the scanner." or "Sheltered: out of the wind behind cover.", 3)
+  end
+  local rain = roof and l * 0.12 or l
+  host.send("weather", string.format("%.2f %.2f %.1f %.1f", rain, l * 0.6, wind, wind * 0.4))
+  space.call("wind", "", wind, 0, wind * 0.4)
+  host.send("audio", string.format("rain %.2f", roof and l * 0.45 or l))
+  -- The crosswind leans on a walker in the open.
+  if not st.piloting and player and l > 0.2 and not sheltered then
     local x, y, z = world.position(player)
     if x then world.set_position(player, x + wind * 0.004, y, z + wind * 0.0016) end
   end
@@ -1348,8 +1375,21 @@ function on_tick(dt)
       S.suit.o2, S.suit.integrity = 1, math.min(100, S.suit.integrity + 25)
       ui.set_text("ReturnLabel", "")
     elseif e == "frame:home" or e:sub(1, 6) == "frame:" or e:sub(1, 5) == "site:" then
-      frame_changed(space.state())
-      if e:sub(1, 6) == "frame:" and e ~= "frame:home" then hint("Landed on " .. e:sub(7) .. ": step out with E to explore and scan (F).", 4) end
+      local fs = space.state()
+      frame_changed(fs)
+      if e:sub(1, 6) == "frame:" and e ~= "frame:home" and fs.piloting then hint("Landed on " .. e:sub(7) .. ": step out with E to explore and scan (F).", 4) end
+    elseif e == "reframe" then
+      -- Walked far across the wilds: the frame moved under the walker; bring
+      -- the local wildlife along if it's been left behind.
+      local fs = space.state()
+      local px, pz
+      if player then px, _, pz = world.position(player) end
+      local near = false
+      for _, id in ipairs(spawned) do
+        local x, _, z = world.position(id)
+        if x and px and math.sqrt((x - px) ^ 2 + (z - pz) ^ 2) < 350 then near = true break end
+      end
+      if not near and current_site(fs) == "" then release_fauna(fs.frame) end
     elseif e == "autopilot_arrived" then
       banner("ARRIVED -- AUTOPILOT DISENGAGED", 2.5, "good")
       lesson("autopilot")

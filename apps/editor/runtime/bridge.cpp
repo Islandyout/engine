@@ -162,6 +162,11 @@ struct SpaceSim final {
     float home_ground_y{};
     bool away{};
     int frame_generation{};
+    // The walker's move in the last on-foot re-anchor (0.75.0), new frame
+    // minus old, and the generation it belongs to: the editor shifts its
+    // camera and interpolation by it.
+    space::DVec3 reframe_shift{};
+    int reframe_generation{-1};
     // Authored colliders made non-solid while away (their old trigger flag).
     std::map<engine::Entity, bool> parked;
     // The stowed player's collider while piloting.
@@ -734,41 +739,71 @@ struct Runtime {
         }
         return radius;
     }
+    // A walk frame's heightfield under construction (0.75.0): built a few
+    // rows a tick ahead of need, so re-anchoring on foot never stalls a frame.
+    struct FieldBuild final {
+        int body{-1};
+        int site{-2}; // the site it's for (-2 a wilderness frame)
+        space::DVec3 up{}, axis_x{}, axis_z{}, origin{};
+        engine::physics::Heightfield field;
+        int row{};
+        float lowest{};
+        [[nodiscard]] bool done() const { return row >= field.resolution; }
+    };
+    std::optional<FieldBuild> pending_field;
+    FieldBuild begin_field(int index, space::DVec3 up, int site) const {
+        const auto &sim = *space;
+        const auto &body = sim.system.bodies[static_cast<std::size_t>(index)];
+        FieldBuild b;
+        b.body = index;
+        b.site = site;
+        b.up = space::normalized(up);
+        frame_axes(b.up, b.axis_x, b.axis_z);
+        b.origin = b.up * space::surface_radius(body, b.up);
+        const double size = sim.eva_range * 2;
+        const int resolution = std::clamp(static_cast<int>(size / 8.0) + 1, 65, 385);
+        b.field.center = {0, 0, 0};
+        b.field.size = static_cast<float>(size);
+        b.field.resolution = resolution;
+        b.field.heights.resize(static_cast<std::size_t>(resolution) * static_cast<std::size_t>(resolution));
+        return b;
+    }
+    void step_field(FieldBuild &b, int rows) const {
+        const auto &body = space->system.bodies[static_cast<std::size_t>(b.body)];
+        const int resolution = b.field.resolution;
+        const double size = b.field.size;
+        for (int n = 0; n < rows && b.row < resolution; ++n, ++b.row)
+            for (int col = 0; col < resolution; ++col) {
+                const double x = -size / 2 + size * col / (resolution - 1), z = -size / 2 + size * b.row / (resolution - 1);
+                const auto p = space::normalized(b.origin + b.axis_x * x + b.axis_z * z);
+                const auto surface = p * space::surface_radius(body, p);
+                const auto h = static_cast<float>(space::dot(surface - b.origin, b.up));
+                b.field.heights[static_cast<std::size_t>(b.row) * static_cast<std::size_t>(resolution) +
+                                static_cast<std::size_t>(col)] = h;
+                b.lowest = std::min(b.lowest, h);
+            }
+    }
+    void apply_field(FieldBuild &&b) {
+        auto &sim = *space;
+        sim.site_body = b.body;
+        sim.axis_y = b.up;
+        sim.axis_x = b.axis_x;
+        sim.axis_z = b.axis_z;
+        sim.site_origin = b.origin;
+        const float lowest = b.lowest;
+        terrain = std::move(b.field);
+        physics_config.terrain = &*terrain;
+        physics_config.ground_y = lowest - 500.0F;
+        ++sim.frame_generation;
+    }
     // Puts the walk/draw frame on body `index` above `up`: axes, origin on
     // the surface, and the walkable heightfield sampled from the body in
     // frame coordinates (curvature included).
     void anchor_frame(int index, space::DVec3 up) {
-        auto &sim = *space;
-        const auto &body = sim.system.bodies[static_cast<std::size_t>(index)];
-        up = space::normalized(up);
-        sim.site_body = index;
-        sim.axis_y = up;
-        const space::DVec3 helper = std::abs(up.y) < 0.99 ? space::DVec3{0, 1, 0} : space::DVec3{1, 0, 0};
-        sim.axis_x = space::normalized(space::cross(helper, up));
-        sim.axis_z = space::cross(sim.axis_x, up);
-        sim.site_origin = up * space::surface_radius(body, up);
-        const double size = sim.eva_range * 2;
-        const int resolution = std::clamp(static_cast<int>(size / 8.0) + 1, 65, 385);
-        engine::physics::Heightfield field;
-        field.center = {0, 0, 0};
-        field.size = static_cast<float>(size);
-        field.resolution = resolution;
-        field.heights.resize(static_cast<std::size_t>(resolution) * static_cast<std::size_t>(resolution));
-        float lowest = 0;
-        for (int row = 0; row < resolution; ++row)
-            for (int col = 0; col < resolution; ++col) {
-                const double x = -size / 2 + size * col / (resolution - 1), z = -size / 2 + size * row / (resolution - 1);
-                const auto p = space::normalized(sim.site_origin + sim.axis_x * x + sim.axis_z * z);
-                const auto surface = p * space::surface_radius(body, p);
-                const auto h = static_cast<float>(space::dot(surface - sim.site_origin, up));
-                field.heights[static_cast<std::size_t>(row) * static_cast<std::size_t>(resolution) +
-                              static_cast<std::size_t>(col)] = h;
-                lowest = std::min(lowest, h);
-            }
-        terrain = std::move(field);
-        physics_config.terrain = &*terrain;
-        physics_config.ground_y = lowest - 500.0F;
-        ++sim.frame_generation;
+        auto b = begin_field(index, up, -2);
+        step_field(b, b.field.resolution);
+        pending_field.reset();
+        apply_field(std::move(b));
     }
     // The frame axes anchor_frame() builds for a surface direction.
     static void frame_axes(space::DVec3 up, space::DVec3 &x, space::DVec3 &z) {
@@ -1124,12 +1159,129 @@ struct Runtime {
             }
         if (sp.piloting)
             return;
+        walk_reframe(w);
         if (const auto player = player_entity(w)) {
             auto &box = *w.get<engine::Box>(*player);
             const float limit = static_cast<float>(sp.eva_range) - 2.0F;
             box.center.x = std::clamp(box.center.x, -limit, limit);
             box.center.z = std::clamp(box.center.z, -limit, limit);
         }
+    }
+    // Walking anywhere (0.75.0): on foot, the frame follows the walker. Out
+    // past a site's edge (or the home field's) it becomes a wilderness
+    // frame under them; far enough across a wilderness frame it re-anchors
+    // ahead; into a site, that site's frame. The next frame's ground is
+    // built a few rows a tick beforehand, and everything not parked moves
+    // into the new frame's coordinates.
+    void walk_reframe(engine::World &w) {
+        auto &sp = *space;
+        const auto player = player_entity(w);
+        if (!player || sp.site_body < 0)
+            return;
+        const auto at = w.get<engine::Box>(*player)->center;
+        const space::DVec3 local{at.x, at.y, at.z};
+        const auto here = sp.site_origin + sp.axis_x * local.x + sp.axis_y * local.y + sp.axis_z * local.z;
+        const double reach = std::max(std::abs(local.x), std::abs(local.z));
+        // Where the walker is: a site (with some slack to leave the current
+        // one, so its edge doesn't flicker), home, or the wilds.
+        int site = site_at(sp.site_body, here);
+        if (site != sp.active_site && sp.active_site >= 0) {
+            const auto &current = sp.sites[static_cast<std::size_t>(sp.active_site)];
+            const double arc = std::acos(std::clamp(space::dot(space::normalized(here), current.up), -1.0, 1.0)) *
+                               sp.system.bodies[static_cast<std::size_t>(sp.site_body)].radius;
+            if (current.body == sp.site_body && arc < current.radius + 60)
+                site = sp.active_site;
+        }
+        if (site == -1 && sp.active_site != -1) {
+            // Back into the home field only well inside it.
+            const auto d = here - sp.home_origin;
+            if (std::max(std::abs(space::dot(d, sp.home_x)), std::abs(space::dot(d, sp.home_z))) > sp.eva_range - 160)
+                site = sp.active_site;
+        }
+        const bool wild_edge = site == -2 && sp.active_site == -2 && reach > sp.eva_range * 0.55;
+        const bool leaving = site != sp.active_site;
+        // Build ahead: the frame we'll want next.
+        const bool soon = (sp.active_site == -2 && reach > sp.eva_range * 0.4) ||
+                          (sp.active_site != -2 && reach > sp.eva_range * 0.25) || leaving;
+        if (soon && site != -1) {
+            const space::DVec3 up = site >= 0 ? sp.sites[static_cast<std::size_t>(site)].up : space::normalized(here);
+            const bool stale = !pending_field || pending_field->site != site || pending_field->body != sp.site_body ||
+                               (site == -2 && space::length(pending_field->origin - here) > sp.eva_range * 0.3);
+            if (stale)
+                pending_field = begin_field(site >= 0 ? sp.sites[static_cast<std::size_t>(site)].body : sp.site_body, up, site);
+            step_field(*pending_field, 24);
+        }
+        if (!leaving && !wild_edge)
+            return;
+        // Into the new frame in body-fixed terms: across a wilderness frame
+        // everything active (unparked) comes along; into or out of a site
+        // only the walker does (the site's own stay where they are, parked).
+        struct Moved final {
+            engine::Entity entity;
+            space::DVec3 position, velocity, home;
+        };
+        std::vector<Moved> moved;
+        const auto to_fixed = [&](space::DVec3 v) { return sp.axis_x * v.x + sp.axis_y * v.y + sp.axis_z * v.z; };
+        for (const auto entity : w.query<engine::Box>()) {
+            if (entity == sp.ship_entity || sp.pinned.count(entity) || (leaving && entity != *player))
+                continue;
+            const auto c = w.get<engine::Box>(entity)->center;
+            const auto *body = w.get<engine::physics::RigidBody>(entity);
+            const auto *wild = w.get<Wildlife>(entity);
+            moved.push_back({entity, sp.site_origin + to_fixed({c.x, c.y, c.z}),
+                             body ? to_fixed({body->velocity.x, body->velocity.y, body->velocity.z}) : space::DVec3{},
+                             wild ? sp.site_origin + to_fixed({wild->home.x, wild->home.y, wild->home.z}) : space::DVec3{}});
+        }
+        const int from = sp.active_site;
+        if (site == -1) {
+            sp.site_body = sp.home_body;
+            sp.site_origin = sp.home_origin;
+            sp.axis_x = sp.home_x;
+            sp.axis_y = sp.home_y;
+            sp.axis_z = sp.home_z;
+            terrain = sp.home_ground;
+            physics_config.terrain = terrain ? &*terrain : nullptr;
+            physics_config.ground_y = sp.home_ground_y;
+            ++sp.frame_generation;
+        } else {
+            if (!pending_field || pending_field->site != site)
+                pending_field = begin_field(site >= 0 ? sp.sites[static_cast<std::size_t>(site)].body : sp.site_body,
+                                            site >= 0 ? sp.sites[static_cast<std::size_t>(site)].up : space::normalized(here),
+                                            site);
+            step_field(*pending_field, pending_field->field.resolution);
+            apply_field(std::move(*pending_field));
+            pending_field.reset();
+        }
+        for (const auto &m : moved) {
+            const auto p = sp.rotate_to_local(m.position - sp.site_origin);
+            w.get<engine::Box>(m.entity)->center = {static_cast<float>(p.x), static_cast<float>(p.y), static_cast<float>(p.z)};
+            if (auto *body = w.get<engine::physics::RigidBody>(m.entity)) {
+                const auto v = sp.rotate_to_local(m.velocity);
+                body->velocity = {static_cast<float>(v.x), static_cast<float>(v.y), static_cast<float>(v.z)};
+            }
+            if (auto *wild = w.get<Wildlife>(m.entity); wild && wild->homed) {
+                const auto h = sp.rotate_to_local(m.home - sp.site_origin);
+                wild->home = {static_cast<float>(h.x), static_cast<float>(h.y), static_cast<float>(h.z)};
+            }
+            if (m.entity == *player) {
+                sp.reframe_shift = p - local;
+                sp.reframe_generation = sp.frame_generation;
+            }
+        }
+        sp.active_site = site;
+        sp.away = site != -1;
+        if (site != from) {
+            update_parking(w);
+            if (site == -1)
+                sp.event("frame:home");
+            else if (site >= 0)
+                sp.event("site:" + sp.sites[static_cast<std::size_t>(site)].name);
+            else
+                sp.event("frame:" + sp.system.bodies[static_cast<std::size_t>(sp.site_body)].name);
+        } else {
+            sp.event("reframe");
+        }
+        settle_landed(w);
     }
     bool parked(engine::Entity entity) const { return space && space->pinned.count(entity) > 0; }
     void step_routines(engine::World &w) {
@@ -1168,6 +1320,9 @@ struct Runtime {
         }
         if (space && space->ship_entity && w.alive(*space->ship_entity) && space->ship.engine_on)
             threats.push_back({w.get<engine::Box>(*space->ship_entity)->center, 3.5F});
+        std::optional<engine::Entity> walker = player_entity(w);
+        if (walker && stowed(*walker))
+            walker.reset();
         for (const auto entity : w.query<engine::Box, Wildlife, engine::physics::RigidBody>()) {
             auto &animal = *w.get<Wildlife>(entity);
             auto &body = *w.get<engine::physics::RigidBody>(entity);
@@ -1221,6 +1376,26 @@ struct Runtime {
             } else if (agent && before != 0) {
                 agent->state = AIState::Walking;
                 agent->timer = 0;
+            }
+            // Soft radii (0.75.0): a big animal and the walker ease apart
+            // instead of passing through each other -- the walker gives most.
+            if (walker) {
+                const auto &size = w.get<engine::Box>(entity)->size;
+                const float own = std::max(size.x, size.z) * 0.5F;
+                if (own >= 0.6F) {
+                    auto &me = w.get<engine::Box>(*walker)->center;
+                    auto &it = w.get<engine::Box>(entity)->center;
+                    const float reach = own + 0.35F;
+                    const float dx = me.x - it.x, dz = me.z - it.z;
+                    const float d = std::hypot(dx, dz);
+                    if (d < reach && d > 1e-3F && std::abs(me.y - it.y) < size.y) {
+                        const float overlap = reach - d;
+                        me.x += dx / d * overlap * 0.35F;
+                        me.z += dz / d * overlap * 0.35F;
+                        it.x -= dx / d * overlap * 0.12F;
+                        it.z -= dz / d * overlap * 0.12F;
+                    }
+                }
             }
         }
     }
@@ -4112,7 +4287,9 @@ EXPORT int editor_commit() {
 // (-1 home, -2 none, else its Site number), 41 autopilot engaged, 42-45
 // component condition (engine, rcs, gear, scanner), 46 wind speed, 47 ground
 // slope under the ship (degrees), 48-50 the landing limits (sink m/s, slope
-// degrees, drift m/s), 51 water under the ship. 0 without.
+// degrees, drift m/s), 51 water under the ship; 52-54 the walker's shift in
+// the latest on-foot re-anchor (0.75.0, x y z; 0 once the frame changes
+// otherwise). 0 without.
 EXPORT double editor_space_value(int field) {
     if (!active->space)
         return 0;
@@ -4167,6 +4344,9 @@ EXPORT double editor_space_value(int field) {
     case 38: return sp.frame_generation;
     case 39: return sp.site_body;
     case 40: return sp.active_site;
+    case 52: return sp.reframe_generation == sp.frame_generation ? sp.reframe_shift.x : 0;
+    case 53: return sp.reframe_generation == sp.frame_generation ? sp.reframe_shift.y : 0;
+    case 54: return sp.reframe_generation == sp.frame_generation ? sp.reframe_shift.z : 0;
     case 41: return sp.assist == space::Assist::autopilot ? 1 : 0;
     case 42: return sp.ship.engine;
     case 43: return sp.ship.rcs_condition;

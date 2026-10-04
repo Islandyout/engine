@@ -1989,6 +1989,18 @@ async function startEditor() {
     const frame = runtime._editor_space_value(38);
     if (frame !== spaceFrame) {
       spaceFrame = frame;
+      // Re-anchored on foot (0.75.0): what moved with the walker, the
+      // camera included, shifts by the same amount, so nothing visibly jumps.
+      const shift = new THREE.Vector3(runtime._editor_space_value(52), runtime._editor_space_value(53), runtime._editor_space_value(54));
+      if (shift.lengthSq() > 1) {
+        const step = shift.length();
+        tickStates.forEach((state) => {
+          if (state && state.previous.distanceTo(state.current) > step * 0.5) state.previous.add(shift);
+        });
+        rig.position.add(shift);
+        view.position.add(shift);
+        controls.target.add(shift);
+      }
       rebuildSpaceFrame();
     }
     // Weather fog (0.73.0) thickens the haze.
