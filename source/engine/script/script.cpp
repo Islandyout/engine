@@ -683,6 +683,129 @@ struct LuaApi final {
     }
     static int vehicle_set_mode(lua_State *L) { return vehicle_call(L, "mode", {}, luaL_checkstring(L, 2)); }
     static int vehicle_set_speed_scale(lua_State *L) { return vehicle_call(L, "speed_scale", {number_arg(L, 2)}); }
+    // space.*(...): see Host::space.
+    static bool space_call(lua_State *L, const char *op, const std::vector<double> &args, const std::string &text,
+                           std::vector<double> &out, std::string &text_out) {
+        auto &self = runtime(L);
+        return self.host_ && self.world_ && self.host_->space(*self.world_, op, args, text, out, text_out);
+    }
+    static int space_simple(lua_State *L, const char *op, const std::vector<double> &args, const std::string &text = {}) {
+        std::vector<double> out;
+        std::string text_out;
+        lua_pushboolean(L, space_call(L, op, args, text, out, text_out) ? 1 : 0);
+        return 1;
+    }
+    static void set_number(lua_State *L, const char *key, double value) {
+        lua_pushnumber(L, value);
+        lua_setfield(L, -2, key);
+    }
+    static void set_bool(lua_State *L, const char *key, bool value) {
+        lua_pushboolean(L, value ? 1 : 0);
+        lua_setfield(L, -2, key);
+    }
+    static void set_string(lua_State *L, const char *key, const std::string &value) {
+        lua_pushstring(L, value.c_str());
+        lua_setfield(L, -2, key);
+    }
+    // space.state() -> {altitude, speed, vertical_speed, ground_speed,
+    // throttle, fuel, fuel_max, hull, hull_max, heat, landed, piloting,
+    // density, warp, periapsis, apoapsis, time, destroyed, x, y, z,
+    // orbit_closed, g, site_distance, latitude, longitude, body, assist, target}
+    static int space_state(lua_State *L) {
+        std::vector<double> out;
+        std::string text;
+        if (!space_call(L, "state", {}, {}, out, text) || out.size() < 24)
+            return lua_pushnil(L), 1;
+        lua_createtable(L, 0, 27);
+        static const char *const numbers[] = {"altitude", "speed", "vertical_speed", "ground_speed", "throttle",
+                                              "fuel", "fuel_max", "hull", "hull_max", "heat"};
+        for (std::size_t i = 0; i < 10; ++i)
+            set_number(L, numbers[i], out[i]);
+        set_bool(L, "landed", out[10] != 0);
+        set_bool(L, "piloting", out[11] != 0);
+        set_number(L, "density", out[12]);
+        set_number(L, "warp", out[13]);
+        set_number(L, "periapsis", out[14]);
+        set_number(L, "apoapsis", out[15]);
+        set_number(L, "time", out[16]);
+        set_bool(L, "destroyed", out[17] != 0);
+        set_number(L, "x", out[18]);
+        set_number(L, "y", out[19]);
+        set_number(L, "z", out[20]);
+        set_bool(L, "orbit_closed", out[21] != 0);
+        set_number(L, "g", out[22]);
+        set_number(L, "site_distance", out[23]);
+        if (out.size() >= 26) {
+            set_number(L, "latitude", out[24]);
+            set_number(L, "longitude", out[25]);
+        }
+        const auto first = text.find(';');
+        const auto second = first == std::string::npos ? std::string::npos : text.find(';', first + 1);
+        set_string(L, "body", text.substr(0, first));
+        set_string(L, "assist", first == std::string::npos ? "" : text.substr(first + 1, second - first - 1));
+        set_string(L, "target", second == std::string::npos ? "" : text.substr(second + 1));
+        return 1;
+    }
+    // space.events() -> {"touchdown", "liftoff", ...} since the last call
+    static int space_events(lua_State *L) {
+        std::vector<double> out;
+        std::string text;
+        if (!space_call(L, "events", {}, {}, out, text))
+            return lua_pushnil(L), 1;
+        lua_newtable(L);
+        lua_Integer n = 0;
+        std::size_t start = 0;
+        while (start < text.size()) {
+            auto end = text.find('\n', start);
+            if (end == std::string::npos)
+                end = text.size();
+            if (end > start) {
+                lua_pushlstring(L, text.data() + start, end - start);
+                lua_rawseti(L, -2, ++n);
+            }
+            start = end + 1;
+        }
+        return 1;
+    }
+    static int space_set_warp(lua_State *L) { return space_simple(L, "warp", {number_arg(L, 1)}); }
+    static int space_set_assist(lua_State *L) { return space_simple(L, "assist", {}, luaL_checkstring(L, 1)); }
+    static int space_set_target(lua_State *L) {
+        return space_simple(L, "target", {}, lua_isnoneornil(L, 1) ? std::string{} : luaL_checkstring(L, 1));
+    }
+    static int space_refuel(lua_State *L) {
+        return space_simple(L, "refuel", {lua_isnoneornil(L, 1) ? -1.0 : number_arg(L, 1)});
+    }
+    static int space_set_fuel(lua_State *L) { return space_simple(L, "set_fuel", {number_arg(L, 1)}); }
+    static int space_repair(lua_State *L) {
+        return space_simple(L, "repair", {lua_isnoneornil(L, 1) ? -1.0 : number_arg(L, 1)});
+    }
+    static int space_board(lua_State *L) { return space_simple(L, "board", {}); }
+    static int space_exit(lua_State *L) { return space_simple(L, "exit", {}); }
+    static int space_set_controls(lua_State *L) {
+        return space_simple(L, "controls", {lua_toboolean(L, 1) ? 1.0 : 0.0});
+    }
+    static int space_place_landed(lua_State *L) {
+        return space_simple(L, "place_landed",
+                            {number_arg(L, 2), number_arg(L, 3), lua_isnoneornil(L, 4) ? 0.0 : number_arg(L, 4)},
+                            luaL_checkstring(L, 1));
+    }
+    static int space_place_orbit(lua_State *L) {
+        return space_simple(L, "place_orbit", {number_arg(L, 2)}, luaL_checkstring(L, 1));
+    }
+    // space.body(name) -> {radius, gravity, atmosphere, distance, altitude} or nil
+    static int space_body(lua_State *L) {
+        std::vector<double> out;
+        std::string text;
+        if (!space_call(L, "body", {}, luaL_checkstring(L, 1), out, text) || out.size() < 5)
+            return lua_pushnil(L), 1;
+        lua_createtable(L, 0, 5);
+        set_number(L, "radius", out[0]);
+        set_number(L, "gravity", out[1]);
+        set_number(L, "atmosphere", out[2]);
+        set_number(L, "distance", out[3]);
+        set_number(L, "altitude", out[4]);
+        return 1;
+    }
     static int particles_burst(lua_State *L) {
         emit(L, "particles_burst", std::to_string(luaL_optinteger(L, 1, 10)), "");
         return 0;
@@ -930,6 +1053,21 @@ struct LuaApi final {
                {"set_target", vehicle_set_target},
                {"set_mode", vehicle_set_mode},
                {"set_speed_scale", vehicle_set_speed_scale}});
+        table(L, self, "space",
+              {{"state", space_state},
+               {"events", space_events},
+               {"set_warp", space_set_warp},
+               {"set_assist", space_set_assist},
+               {"set_target", space_set_target},
+               {"refuel", space_refuel},
+               {"set_fuel", space_set_fuel},
+               {"repair", space_repair},
+               {"board", space_board},
+               {"exit", space_exit},
+               {"set_controls", space_set_controls},
+               {"place_landed", space_place_landed},
+               {"place_orbit", space_place_orbit},
+               {"body", space_body}});
         table(L, self, "particles", {{"burst", particles_burst}, {"set_emitting", particles_emitting}});
         table(L, self, "weapon",
               {{"fire", weapon_fire},

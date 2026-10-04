@@ -222,6 +222,8 @@ const componentNames = [
   "PostProcessing",
   "Driver",
   "ModelInstances",
+  "SpaceSystem",
+  "Spaceship",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -427,6 +429,33 @@ export function normalizeComponent(
     }
     case "ModelInstances":
       return { instances: string(value.instances, "ModelInstances.instances") };
+    case "SpaceSystem":
+      return {
+        bodies: string(value.bodies, "SpaceSystem.bodies"),
+        starGm: positiveNumber(value.starGm, "SpaceSystem.starGm"),
+        starColor: unitVec3(value.starColor, "SpaceSystem.starColor"),
+        siteBody: string(value.siteBody, "SpaceSystem.siteBody"),
+        siteLatitude: number(value.siteLatitude, "SpaceSystem.siteLatitude"),
+        siteLongitude: number(value.siteLongitude, "SpaceSystem.siteLongitude"),
+        siteRadius: nonNegativeNumber(value.siteRadius, "SpaceSystem.siteRadius"),
+        evaRange: positiveNumber(value.evaRange, "SpaceSystem.evaRange"),
+        startTime: number(value.startTime, "SpaceSystem.startTime"),
+        landmarks: value.landmarks === undefined ? "" : string(value.landmarks, "SpaceSystem.landmarks"),
+      };
+    case "Spaceship":
+      return {
+        mass: positiveNumber(value.mass, "Spaceship.mass"),
+        thrust: nonNegativeNumber(value.thrust, "Spaceship.thrust"),
+        liftThrust: nonNegativeNumber(value.liftThrust, "Spaceship.liftThrust"),
+        rcs: positiveNumber(value.rcs, "Spaceship.rcs"),
+        maxRate: positiveNumber(value.maxRate, "Spaceship.maxRate"),
+        fuel: nonNegativeNumber(value.fuel, "Spaceship.fuel"),
+        burn: nonNegativeNumber(value.burn, "Spaceship.burn"),
+        hull: positiveNumber(value.hull, "Spaceship.hull"),
+        gearClearance: nonNegativeNumber(value.gearClearance, "Spaceship.gearClearance"),
+        startPiloting: boolean(value.startPiloting, "Spaceship.startPiloting"),
+        startOrbit: number(value.startOrbit, "Spaceship.startOrbit"),
+      };
     case "AnimationState":
       return {
         clip: string(value.clip, "AnimationState.clip"),

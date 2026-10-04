@@ -68,6 +68,7 @@ import { attachToHand, faceWeaponForward, splitForWeapon } from "./characterRig"
 import { instanceBox, parseModelInstances } from "./modelInstances";
 import { CarFx, type CarView, type MinimapBlip, type MinimapRoad } from "./carFx";
 import { EngineVoice, SirenVoice, TireVoice } from "./carAudio";
+import { SpaceView, drawFlightHud, parseLandmarks, parseSpaceBodies, type SpaceRuntime } from "./spaceView";
 import {
   applyBrush,
   decodeSculpt,
@@ -244,6 +245,15 @@ type Runtime = {
   _editor_set_car(index: number, yaw: number, ...spec: number[]): void;
   _editor_set_driver(index: number, mode: number, loop: number, skill: number, aggression: number, speedScale: number): void;
   _editor_vehicle_value(index: number, field: number): number;
+  // Spaceflight (0.71.0): see editor_space_* and editor_set_spaceship.
+  _editor_set_spaceship(index: number, heading: number, ...spec: number[]): void;
+  _editor_space_value(field: number): number;
+  _editor_space_body_value(index: number, field: number): number;
+  _editor_space_frame(field: number): number;
+  _editor_planet_height(index: number, x: number, y: number, z: number): number;
+  _editor_space_path(count: number, horizon: number): number;
+  _editor_space_path_value(index: number, axis: number): number;
+  _editor_space_ground(x: number, z: number): number;
   _editor_take_weapon_events(): number;
   _editor_weapon_event(index: number, field: number): number;
   // Catch-all for text calls added from 0.59.0 on.
@@ -712,10 +722,17 @@ async function startEditor() {
     const follow = doc.scene.resolve(doc.scene.eachAlive()[index]!, "CameraFollow");
     const target = follow ? followTarget(follow.target) : undefined;
     if (follow && target) placeRig(view, follow, target);
-    else {
+    else if (!spaceView?.flight.piloting) {
       anchor.updateWorldMatrix(true, false);
       anchor.getWorldPosition(view.position);
       anchor.getWorldQuaternion(view.quaternion);
+    }
+    // Flying: the chase camera behind the ship (mouse-drag looks around).
+    if (spaceView && view instanceof THREE.PerspectiveCamera) {
+      const ship = shipIndex >= 0 ? objects[shipIndex] : undefined;
+      if (spaceView.flight.piloting && ship) spaceView.placeShipCamera(view, ship, rig.frameDt);
+      view.far = Math.max(view.far, 20000);
+      view.updateProjectionMatrix();
     }
     return view;
   }
@@ -1714,6 +1731,7 @@ async function startEditor() {
     activeSounds.clear();
     activePanners.clear();
     stopCarSounds();
+    spaceView?.stopAudio();
   }
   let runtime: Runtime;
   try {
@@ -1734,6 +1752,108 @@ async function startEditor() {
   // fixed for the rest of that session, matching the fact that entities
   // can't be added or removed while playing.
   let playerIndex = -1;
+  // -- Spaceflight (0.71.0): the scene's SpaceSystem, drawn by SpaceView ---
+  let shipIndex = -1;
+  let spaceView: SpaceView | undefined;
+  let spaceGround: THREE.Mesh<THREE.BufferGeometry, THREE.ShadowMaterial> | undefined;
+  let spacePass: RenderPass | undefined;
+  function spaceComponent() {
+    const entity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "SpaceSystem"));
+    return entity ? doc.scene.resolve(entity, "SpaceSystem") : undefined;
+  }
+  // The star and bodies, before any entity (the Spaceship needs them).
+  function stageSpaceSystem() {
+    const space = spaceComponent();
+    if (!space) return;
+    const { bodies, errors } = parseSpaceBodies(space.bodies);
+    for (const error of errors) log(`SpaceSystem: ${error}`);
+    const site = bodies.findIndex((b) => b.name === space.siteBody);
+    if (site < 0) log(`SpaceSystem: site body "${space.siteBody}" not found; using ${bodies[0]?.name ?? "none"}`);
+    runtime.ccall(
+      "editor_space_begin",
+      null,
+      ["number", "number", "number", "number", "number", "number", "number"],
+      [space.starGm, Math.max(site, 0), space.siteLatitude, space.siteLongitude, space.siteRadius, space.evaRange, space.startTime],
+    );
+    for (const b of bodies)
+      runtime.ccall(
+        "editor_space_body",
+        null,
+        ["string", ...Array<"number">(12).fill("number")],
+        [b.name, b.parent, b.orbitRadius, b.period, b.phase, b.inclination, b.radius, b.gravity, b.atmosphereHeight, b.atmosphereDensity, b.terrainAmplitude, b.terrainScale, b.seed],
+      );
+  }
+  // On Play: the system view, its render pass, and the site's ground as a
+  // depth-and-shadow surface in the scene pass (hills hide what's behind
+  // them; buildings cast shadows on the curved ground).
+  function startSpaceView() {
+    endSpaceView();
+    const space = spaceComponent();
+    if (!space || !runtime._editor_space_value(35)) return;
+    const { bodies } = parseSpaceBodies(space.bodies);
+    spaceView = new SpaceView(runtime as unknown as SpaceRuntime, bodies, colorOf(space.starColor), parseLandmarks(space.landmarks, bodies));
+    spaceView.sampleTick();
+    grid.visible = false;
+    const n = 129;
+    const size = space.evaRange * 2;
+    const geometry = new THREE.PlaneGeometry(size, size, n - 1, n - 1);
+    geometry.rotateX(-Math.PI / 2);
+    const position = geometry.getAttribute("position") as THREE.BufferAttribute;
+    for (let i = 0; i < position.count; i++)
+      position.setY(i, runtime._editor_space_ground(position.getX(i), position.getZ(i)) + 0.02);
+    geometry.computeVertexNormals();
+    spaceGround = new THREE.Mesh(geometry, new THREE.ShadowMaterial({ opacity: 0.4 }));
+    spaceGround.receiveShadow = true;
+    scene.add(spaceGround);
+    shadowGround.visible = false;
+    if (composer) {
+      spacePass = new RenderPass(spaceView.scene, spaceView.camera);
+      composer.insertPass(spacePass, 0);
+      renderPass.clear = false;
+      renderPass.clearDepth = true;
+    }
+  }
+  function endSpaceView() {
+    spaceView?.dispose();
+    spaceView = undefined;
+    if (spaceGround) {
+      scene.remove(spaceGround);
+      spaceGround.geometry.dispose();
+      spaceGround.material.dispose();
+      spaceGround = undefined;
+    }
+    if (spacePass && composer) {
+      composer.removePass(spacePass);
+      spacePass = undefined;
+      renderPass.clear = true;
+      renderPass.clearDepth = false;
+    }
+    sun.visible = true;
+    sun.shadow.bias = -0.0005;
+    sun.shadow.normalBias = 0.05;
+  }
+  // Per frame while playing: the system around the camera, and the scene's
+  // light, sky and haze taken from it.
+  function updateSpace(view: THREE.Camera, dt: number) {
+    if (!spaceView) return;
+    spaceView.update(view, dt);
+    sunDirection.copy(spaceView.sunDirection);
+    const day = spaceView.daylight;
+    // Below the horizon the sun neither lights nor shadows; night keeps a
+    // dim, cool fill so the site stays readable.
+    const elevation = spaceView.sunDirection.y;
+    sun.visible = elevation > -0.03;
+    // The site's curved ground takes shadows at grazing angles: more bias.
+    sun.shadow.bias = -0.0015;
+    sun.shadow.normalBias = 0.12;
+    sun.intensity = 2.6 * THREE.MathUtils.clamp(elevation * 4 + 0.15, 0, 1);
+    hemisphere.intensity = 0.35 + 1.3 * spaceView.air * day;
+    hemisphere.color.copy(spaceView.skyColor).lerp(new THREE.Color(1, 1, 1), 0.4).multiplyScalar(0.35 + 0.65 * day);
+    scene.background = null;
+    if (skyMesh) skyMesh.visible = false;
+    scene.fog = spaceView.air > 0.02 ? new THREE.FogExp2(spaceView.skyColor.clone().multiplyScalar(day * 0.9), 6e-5 * spaceView.air) : null;
+    if (playerIndex >= 0 && objects[playerIndex]) objects[playerIndex]!.visible = !spaceView.flight.piloting;
+  }
   // The player's authored scale at the moment Play started, and its y position
   // the moment before this frame's ticks ran — the jump squash/stretch effect
   // (see frame()) needs an un-squashed baseline to scale from each frame,
@@ -2153,6 +2273,25 @@ async function startEditor() {
         if (driver.target) runtime.ccall("editor_set_driver_text", null, ["number", "number", "string"], [index, 1, driver.target]);
       }
     }
+    // Spaceship (0.71.0): see editor_set_spaceship (bridge.cpp); the first
+    // one is flown by the scene's SpaceSystem.
+    const ship = get("Spaceship");
+    if (ship && !isChild && index >= 0 && index === shipIndex)
+      runtime._editor_set_spaceship(
+        index,
+        get("Rotation")?.euler.y ?? 0,
+        ship.mass,
+        ship.thrust,
+        ship.liftThrust,
+        ship.rcs,
+        (ship.maxRate * Math.PI) / 180,
+        ship.fuel,
+        ship.burn,
+        ship.hull,
+        ship.gearClearance,
+        ship.startPiloting ? 1 : 0,
+        ship.startOrbit,
+      );
     // Weapons (0.61.0): see editor_set_weapons (bridge.cpp).
     const weapons = get("Weapons");
     if (weapons && !isChild) runtime.ccall("editor_set_weapons", null, ["number", "string"], [index, weapons.loadout]);
@@ -2302,6 +2441,8 @@ async function startEditor() {
   });
   renderer.domElement.addEventListener("pointermove", (event) => {
     if (doc.mode !== "play") return;
+    // Flying: dragging looks around the ship (never steers it).
+    if (spaceView?.flight.piloting && event.buttons & 3) spaceView.look(event.movementX, event.movementY);
     // Right-drag looks around in first person without capturing the mouse.
     const controller = playerController();
     if (controller?.mode === "FirstPerson" && event.buttons & 2 && document.pointerLockElement !== renderer.domElement)
@@ -2428,6 +2569,8 @@ async function startEditor() {
     pointerQueue.length = 0;
     runtime._editor_begin();
     playerIndex = -1;
+    shipIndex = -1;
+    stageSpaceSystem();
     // Prefab templates first, so a script's world.spawn("Name") can
     // instantiate any prefab (bridge.cpp's Runtime::templates).
     for (const [name, definition] of doc.scene.prefabEntries()) {
@@ -2441,6 +2584,7 @@ async function startEditor() {
       // bridge itself would happily drive every one of them from the same
       // input, but only one can sensibly own the camera and status readout.
       if (doc.scene.effectiveHas(entity, "Player") && playerIndex < 0) playerIndex = index;
+      if (doc.scene.effectiveHas(entity, "Spaceship") && !isChild && shipIndex < 0 && spaceComponent()) shipIndex = index;
       addToRuntime(
         (type) => doc.scene.resolve(entity, type),
         isChild,
@@ -3290,6 +3434,7 @@ async function startEditor() {
       if (doc.mode === "edit") {
         prePlayTarget = controls.target.clone();
         syncRuntime();
+        startSpaceView();
         rig.placed = false;
         shake.remaining = 0;
         for (const animator of animators)
@@ -3362,6 +3507,7 @@ async function startEditor() {
     // rather than leaving stale blast meshes on screen in Edit mode.
     while (projectileMeshes.length) scene.remove(projectileMeshes.pop()!);
     weaponFx.reset();
+    endSpaceView();
     rebuild();
   };
   // -- Terrain sculpting (0.63.0) -------------------------------------------
@@ -3960,6 +4106,7 @@ async function startEditor() {
         });
         runtime._editor_tick();
         sampleTickStates();
+        spaceView?.sampleTick();
         if (firstPersonTicks) {
           playerFeet(fps.current);
           fpsLanding = Math.max(fpsLanding, runtime._editor_controller_value(playerIndex, 3));
@@ -4079,6 +4226,10 @@ async function startEditor() {
         ),
       );
       updateCars(dt);
+      if (spaceView && shipIndex >= 0 && objects[shipIndex]) {
+        const context = audioContext;
+        spaceView.placeShip(objects[shipIndex]!, tickAlpha, dt, context ? { context, output: audioMixer().buses.sfx } : undefined);
+      }
       if (player) controls.target.copy(player.position);
     }
     // Always advance mixers, even in edit mode: a rigged model sitting
@@ -4250,6 +4401,7 @@ async function startEditor() {
         if (object) mixer.place(panner, object.getWorldPosition(new THREE.Vector3()));
       }
     }
+    if (doc.mode !== "edit") updateSpace(viewCamera, dt);
     updateSunShadow();
     renderPass.camera = viewCamera;
     if (gtaoPass) gtaoPass.camera = viewCamera;
@@ -4597,6 +4749,25 @@ async function startEditor() {
       drawWaypoints();
     }
     if (firstPerson()) hudLines.push(...drawFirstPersonOverlay());
+    // Flight HUD (0.71.0).
+    if (doc.mode !== "edit" && spaceView) {
+      const ship = shipIndex >= 0 ? objects[shipIndex] : undefined;
+      const me = playerIndex >= 0 ? objects[playerIndex] : undefined;
+      const nearShip =
+        !!ship && !!me && !spaceView.flight.piloting && spaceView.flight.landed && me.position.distanceTo(ship.position) < 9;
+      drawFlightHud(hudCtx, hud.width, hud.height, spaceView, viewCamera, nearShip);
+      // The same readout as text, for screen readers and tests.
+      const f = spaceView.flight;
+      if (f.piloting)
+        hudLines.push(
+          `ALT ${Math.round(Math.max(f.altitude, 0))} m`,
+          `VS ${f.verticalSpeed.toFixed(1)} m/s`,
+          `THR ${Math.round(f.throttle * 100)}%`,
+          `FUEL ${Math.round(f.fuel * 100)}%`,
+          f.landed ? "LANDED" : "FLYING",
+        );
+      else if (nearShip) hudLines.push("E board ship");
+    }
     // Driving HUD (0.70.0): when the player is an arcade car.
     if (doc.mode !== "edit" && playerIndex >= 0 && runtime._editor_alive(playerIndex) && runtime._editor_vehicle_value(playerIndex, 11)) {
       const car = carView(playerIndex);

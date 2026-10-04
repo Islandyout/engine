@@ -68,6 +68,15 @@ void editor_set_car(int, double, double, double, double, double, double, double,
 void editor_set_driver(int, int, int, double, double, double);
 void editor_set_driver_text(int, int, const char *);
 double editor_vehicle_value(int, int);
+void editor_space_begin(double, int, double, double, double, double, double);
+void editor_space_body(const char *, int, double, double, double, double, double, double, double, double, double,
+                       double, double);
+void editor_set_spaceship(int, double, double, double, double, double, double, double, double, double, double, int,
+                          double);
+double editor_space_value(int);
+double editor_space_body_value(int, int);
+double editor_planet_height(int, double, double, double);
+int editor_space_path(int, double);
 }
 namespace {
 std::string base64_floats(const std::vector<float> &values) {
@@ -1532,6 +1541,97 @@ int main() {
     }
 
     {
+        // Spaceflight (0.71.0): a ship landed at a site on a small planet
+        // lifts off on its belly thrusters, hovers, sets down, lets the
+        // pilot out onto the curved ground and back in, and scripts read
+        // the flight through space.*.
+        editor_begin();
+        // 0: the player (on foot once out of the ship).
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        // 1: the ship, 20 m from the site centre, with a collider.
+        check(editor_add(20, 2, 0, 0, 0, 0, 6, 3, 9, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        // 2: a script watching the flight.
+        check(editor_add(0, 30, 40, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_script_source(2, "local seen = {} function on_tick(dt) "
+                                    "for _, e in ipairs(space.events()) do log('event ' .. e) end "
+                                    "local s = space.state() "
+                                    "if s.altitude > 5 and not seen.up then seen.up = true "
+                                    "log(string.format('up %s %s %.0f', s.body, s.assist, s.fuel_max)) end end");
+        editor_space_begin(6.4e12, 0, 30, 40, 300, 800, 0);
+        editor_space_body("Tethys", -1, 1.6e6, 5027, 0, 0, 60000, 9, 9000, 1.05, 250, 3000, 7);
+        editor_space_body("Vell", 0, 230000, 3850, 20, 7, 18000, 2.6, 0, 0, 120, 2000, 3);
+        editor_set_spaceship(1, 0, 12000, 300000, 180000, 2.2, 1.3, 100, 1.2, 100, 1.6, 1, -1);
+        check(editor_commit() == 1);
+        check(editor_space_value(35) == 1 && editor_space_value(36) == 2);
+        check(editor_space_value(0) == 1 && editor_space_value(19) == 1); // piloting, landed
+        // Landed on the site's flat ground where it was authored.
+        check(std::abs(editor_space_value(1) - 20) < 0.5 && std::abs(editor_space_value(3)) < 0.5);
+        check(std::abs(editor_space_value(2) - 1.6) < 0.3); // gear clearance above the flat
+        check(std::abs(editor_space_body_value(0, 1) + 60000) < 400); // Tethys' centre is straight down
+        check(std::abs(editor_planet_height(0, 0, 1, 0)) < 400);
+        for (int i = 0; i < 30; ++i)
+            editor_tick();
+        check(editor_space_value(19) == 1); // idle stays landed
+        editor_input_begin_frame();
+        editor_input_key("Space", 1);
+        for (int i = 0; i < 120; ++i)
+            editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("Space", 0);
+        check(editor_space_value(19) == 0 && editor_space_value(8) > 5); // lifted off
+        check(editor_value(1, 1) > 5);                                   // the ship's Box rides along
+        for (int i = 0; i < 120; ++i)
+            editor_tick();
+        const double hover = editor_space_value(8);
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(std::abs(editor_space_value(8) - hover) < 1.5); // stabilized hover
+        check(editor_space_path(32, 0) > 0);
+        editor_input_begin_frame();
+        editor_input_key("KeyC", 1);
+        for (int i = 0; i < 60 * 20 && editor_space_value(19) == 0; ++i)
+            editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("KeyC", 0);
+        check(editor_space_value(19) == 1 && editor_space_value(14) == 1); // set down cleanly
+        // Out of the ship: E while landed.
+        editor_input_begin_frame();
+        editor_input_key("KeyE", 1);
+        editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("KeyE", 0);
+        editor_tick();
+        check(editor_space_value(0) == 0); // on foot
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        const double feet = editor_value(0, 1) - 0.9;
+        check(std::abs(editor_value(0, 0) - editor_value(1, 0)) < 9); // beside the ship
+        check(feet > -2 && feet < 2);                                   // standing on the site ground
+        // And back in.
+        editor_input_begin_frame();
+        editor_input_key("KeyE", 1);
+        editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("KeyE", 0);
+        editor_tick();
+        check(editor_space_value(0) == 1);
+        bool saw_liftoff = false, saw_touchdown = false, saw_exit = false, saw_state = false;
+        for (int n = editor_take_commands(), i = 0; i < n; ++i) {
+            const std::string text = editor_command_text(i, 1);
+            saw_liftoff |= text == "event liftoff";
+            saw_touchdown |= text == "event touchdown";
+            saw_exit |= text == "event exited";
+            saw_state |= text == "up Tethys stabilized 100";
+        }
+        check(saw_liftoff && saw_touchdown && saw_exit && saw_state);
+
+        // A body with a bad parent fails the commit.
+        editor_begin();
+        editor_space_begin(6.4e12, 0, 0, 0, 0, 800, 0);
+        editor_space_body("Lost", 3, 1000, 10, 0, 0, 100, 1, 0, 0, 0, 100, 1);
+        check(editor_commit() == 0);
+    }
+    {
         // A level-sized terrain (260 m, 131x131) under a player and a soldier.
         editor_begin();
         check(editor_add(0, 6, 100, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -1634,5 +1734,5 @@ int main() {
                  "(crouch/sit) freezing Player WASD input while held, authored "
                  "RigidBody mass/kinematic and Collider trigger/layer settings, the script host "
                  "(prefab templates for world.spawn, names, props, sound/ui/log commands), and native "
-                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill), and combat soldiers (sight, bursts, hearing, investigating around cover, reloading in cover, melee hunters, patrols), terrain (walking up a hill, scripted raycasts, obstacles), and game-support script APIs (heal, give_ammo, markers, pause), and arcade cars (driving, AI racing, pursuit, vehicle.* API) passed.\n";
+                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill), and combat soldiers (sight, bursts, hearing, investigating around cover, reloading in cover, melee hunters, patrols), terrain (walking up a hill, scripted raycasts, obstacles), and game-support script APIs (heal, give_ammo, markers, pause), and arcade cars (driving, AI racing, pursuit, vehicle.* API), and spaceflight (landed start, hover, touchdown, exiting and boarding, space.* API) passed.\n";
 }

@@ -1,0 +1,3588 @@
+{
+ "format": 1,
+ "name": "Pale Signal",
+ "entities": [
+  {
+   "name": "Space",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 40,
+      "z": 0
+     }
+    },
+    "SpaceSystem": {
+     "bodies": "Tethys - 1600000 5027 0 0 60000 9 9000 1.05 320 3200 7 #4f7a4a #87b6c8\nVell Tethys 230000 3850 20 7 18000 2.6 0 0 180 1800 3 #b9c6d4 #000000\nCinder - 900000 2120 40 2 44000 7 0 0 500 2500 5 #b35a3c #000000\nOssuary - 2400000 9230 126 -3 52000 6.4 5000 0.18 420 4000 11 #9a9385 #c0b49a",
+     "starGm": 6400000000000,
+     "starColor": {
+      "x": 1,
+      "y": 0.9450980392156862,
+      "z": 0.8470588235294118
+     },
+     "siteBody": "Tethys",
+     "siteLatitude": 30,
+     "siteLongitude": 40,
+     "siteRadius": 320,
+     "evaRange": 1200,
+     "startTime": 2600,
+     "landmarks": "Vell -12 35 #8ff7ff Pale Signal\nTethys 30 40 #ffd36e Kestra Station"
+    },
+    "Environment": {
+     "sky": "Color",
+     "skyColor": {
+      "x": 0.5294117647058824,
+      "y": 0.7137254901960784,
+      "z": 0.7843137254901961
+     },
+     "horizonColor": {
+      "x": 0.55,
+      "y": 0.7,
+      "z": 0.85
+     },
+     "groundColor": {
+      "x": 0.25,
+      "y": 0.31,
+      "z": 0.21
+     },
+     "sunElevation": 51.3,
+     "sunAzimuth": 38.7,
+     "sunIntensity": 2.6,
+     "sunColor": {
+      "x": 1,
+      "y": 0.9450980392156862,
+      "z": 0.8470588235294118
+     },
+     "ambientIntensity": 0.9,
+     "fog": "None",
+     "fogColor": {
+      "x": 0.063,
+      "y": 0.102,
+      "z": 0.149
+     },
+     "fogNear": 20,
+     "fogFar": 120,
+     "fogDensity": 0.015,
+     "shadows": true,
+     "exposure": 1
+    },
+    "PostProcessing": {
+     "antialias": "SMAA",
+     "ambientOcclusion": false,
+     "aoRadius": 0.5,
+     "aoIntensity": 1,
+     "bloom": 0.3,
+     "bloomRadius": 0.5,
+     "bloomThreshold": 0.88,
+     "exposure": 1,
+     "contrast": 0.12,
+     "saturation": -0.05,
+     "temperature": -0.08,
+     "vignette": 0.32,
+     "grain": 0.03,
+     "shadowQuality": "Medium"
+    },
+    "AudioSettings": {
+     "master": 1,
+     "sfx": 1,
+     "music": 0.7,
+     "ambient": 0.8,
+     "ui": 1,
+     "reverb": 0.15,
+     "occlusion": true
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Ship",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 2,
+      "z": 0
+     }
+    },
+    "Spaceship": {
+     "mass": 12000,
+     "thrust": 300000,
+     "liftThrust": 180000,
+     "rcs": 2.2,
+     "maxRate": 75,
+     "fuel": 100,
+     "burn": 1.2,
+     "hull": 100,
+     "gearClearance": 1.6,
+     "startPiloting": true,
+     "startOrbit": -1
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.6,
+      "y": 2.2,
+      "z": 11
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.788235294117647,
+      "y": 0.8,
+      "z": 0.8196078431372549
+     },
+     "metalness": 0.55,
+     "roughness": 0.45,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Canopy",
+   "parent": {
+    "index": 1,
+    "generation": 1
+   },
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0.5227272727272726,
+      "z": 0.21818181818181817
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6538461538461539,
+      "y": 0.36363636363636365,
+      "z": 0.2545454545454545
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.10196078431372549,
+      "y": 0.1568627450980392,
+      "z": 0.2196078431372549
+     },
+     "metalness": 0.8,
+     "roughness": 0.12,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Nose",
+   "parent": {
+    "index": 1,
+    "generation": 1
+   },
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -0.06818181818181818,
+      "z": 0.5545454545454546
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6923076923076923,
+      "y": 0.6818181818181818,
+      "z": 0.12727272727272726
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.7215686274509804,
+      "y": 0.7372549019607844,
+      "z": 0.7607843137254902
+     },
+     "metalness": 0.55,
+     "roughness": 0.45,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Wings",
+   "parent": {
+    "index": 1,
+    "generation": 1
+   },
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -0.15909090909090906,
+      "z": -0.10909090909090909
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 3.846153846153846,
+      "y": 0.1272727272727273,
+      "z": 0.32727272727272727
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5607843137254902,
+      "y": 0.5843137254901961,
+      "z": 0.615686274509804
+     },
+     "metalness": 0.5,
+     "roughness": 0.5,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Wing Stripe",
+   "parent": {
+    "index": 1,
+    "generation": 1
+   },
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -0.08636363636363635,
+      "z": -0.009090909090909092
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 3.538461538461538,
+      "y": 0.022727272727272728,
+      "z": 0.045454545454545456
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.9098039215686274,
+      "y": 0.7137254901960784,
+      "z": 0.16470588235294117
+     },
+     "metalness": 0,
+     "roughness": 0.6,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Engine Pod",
+   "parent": {
+    "index": 1,
+    "generation": 1
+   },
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -0.8846153846153845,
+      "y": -0.045454545454545456,
+      "z": -0.35454545454545455
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.4807692307692307,
+      "y": 0.5681818181818181,
+      "z": 0.3090909090909091
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.2901960784313726,
+      "y": 0.30980392156862746,
+      "z": 0.3411764705882353
+     },
+     "metalness": 0.6,
+     "roughness": 0.5,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Engine Glow",
+   "parent": {
+    "index": 1,
+    "generation": 1
+   },
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -0.8846153846153845,
+      "y": -0.045454545454545456,
+      "z": -0.5109090909090909
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.36538461538461536,
+      "y": 0.43181818181818177,
+      "z": 0.005454545454545454
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6235294117647059,
+      "y": 0.8627450980392157,
+      "z": 1
+     },
+     "metalness": 0,
+     "roughness": 0.8,
+     "emissive": {
+      "x": 0.37254901960784315,
+      "y": 0.7843137254901961,
+      "z": 1
+     },
+     "emissiveIntensity": 3,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Landing Leg",
+   "parent": {
+    "index": 1,
+    "generation": 1
+   },
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -0.5769230769230769,
+      "y": -0.6590909090909091,
+      "z": -0.2818181818181818
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.0846153846153846,
+      "y": 0.5,
+      "z": 0.02
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.22745098039215686,
+      "y": 0.24705882352941178,
+      "z": 0.27058823529411763
+     },
+     "metalness": 0,
+     "roughness": 0.8,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Landing Leg",
+   "parent": {
+    "index": 1,
+    "generation": 1
+   },
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -0.5769230769230769,
+      "y": -0.6590909090909091,
+      "z": 0.2818181818181818
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.0846153846153846,
+      "y": 0.5,
+      "z": 0.02
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.22745098039215686,
+      "y": 0.24705882352941178,
+      "z": 0.27058823529411763
+     },
+     "metalness": 0,
+     "roughness": 0.8,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Engine Pod",
+   "parent": {
+    "index": 1,
+    "generation": 1
+   },
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0.8846153846153845,
+      "y": -0.045454545454545456,
+      "z": -0.35454545454545455
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.4807692307692307,
+      "y": 0.5681818181818181,
+      "z": 0.3090909090909091
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.2901960784313726,
+      "y": 0.30980392156862746,
+      "z": 0.3411764705882353
+     },
+     "metalness": 0.6,
+     "roughness": 0.5,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Engine Glow",
+   "parent": {
+    "index": 1,
+    "generation": 1
+   },
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0.8846153846153845,
+      "y": -0.045454545454545456,
+      "z": -0.5109090909090909
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.36538461538461536,
+      "y": 0.43181818181818177,
+      "z": 0.005454545454545454
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6235294117647059,
+      "y": 0.8627450980392157,
+      "z": 1
+     },
+     "metalness": 0,
+     "roughness": 0.8,
+     "emissive": {
+      "x": 0.37254901960784315,
+      "y": 0.7843137254901961,
+      "z": 1
+     },
+     "emissiveIntensity": 3,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Landing Leg",
+   "parent": {
+    "index": 1,
+    "generation": 1
+   },
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0.5769230769230769,
+      "y": -0.6590909090909091,
+      "z": -0.2818181818181818
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.0846153846153846,
+      "y": 0.5,
+      "z": 0.02
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.22745098039215686,
+      "y": 0.24705882352941178,
+      "z": 0.27058823529411763
+     },
+     "metalness": 0,
+     "roughness": 0.8,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Landing Leg",
+   "parent": {
+    "index": 1,
+    "generation": 1
+   },
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0.5769230769230769,
+      "y": -0.6590909090909091,
+      "z": 0.2818181818181818
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.0846153846153846,
+      "y": 0.5,
+      "z": 0.02
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.22745098039215686,
+      "y": 0.24705882352941178,
+      "z": 0.27058823529411763
+     },
+     "metalness": 0,
+     "roughness": 0.8,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Tail Fin",
+   "parent": {
+    "index": 1,
+    "generation": 1
+   },
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0.7954545454545454,
+      "z": -0.3727272727272727
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.0846153846153846,
+      "y": 0.8636363636363635,
+      "z": 0.2
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5607843137254902,
+      "y": 0.5843137254901961,
+      "z": 0.615686274509804
+     },
+     "metalness": 0.5,
+     "roughness": 0.5,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Beacon",
+   "parent": {
+    "index": 1,
+    "generation": 1
+   },
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 1.25,
+      "z": -0.41818181818181815
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.09615384615384615,
+      "y": 0.11363636363636363,
+      "z": 0.022727272727272728
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 1,
+      "y": 0.25098039215686274,
+      "z": 0.25098039215686274
+     },
+     "metalness": 0,
+     "roughness": 0.8,
+     "emissive": {
+      "x": 1,
+      "y": 0.18823529411764706,
+      "z": 0.18823529411764706
+     },
+     "emissiveIntensity": 4,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Landing Pad",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0.2,
+      "z": 0
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 28,
+      "y": 0.4,
+      "z": 28
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.23921568627450981,
+      "y": 0.25882352941176473,
+      "z": 0.2823529411764706
+     },
+     "metalness": 0.3,
+     "roughness": 0.7,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Pad Light",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0.43000000000000005,
+      "z": 13.2
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 26,
+      "y": 0.06,
+      "z": 0.5
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.9098039215686274,
+      "y": 0.7137254901960784,
+      "z": 0.16470588235294117
+     },
+     "metalness": 0,
+     "roughness": 0.8,
+     "emissive": {
+      "x": 0.9098039215686274,
+      "y": 0.6470588235294118,
+      "z": 0.16470588235294117
+     },
+     "emissiveIntensity": 1.6,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Pad Light",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0.43000000000000005,
+      "z": -13.2
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 26,
+      "y": 0.06,
+      "z": 0.5
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.9098039215686274,
+      "y": 0.7137254901960784,
+      "z": 0.16470588235294117
+     },
+     "metalness": 0,
+     "roughness": 0.8,
+     "emissive": {
+      "x": 0.9098039215686274,
+      "y": 0.6470588235294118,
+      "z": 0.16470588235294117
+     },
+     "emissiveIntensity": 1.6,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Pad Light",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 13.2,
+      "y": 0.43000000000000005,
+      "z": 0
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.5,
+      "y": 0.06,
+      "z": 26
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.9098039215686274,
+      "y": 0.7137254901960784,
+      "z": 0.16470588235294117
+     },
+     "metalness": 0,
+     "roughness": 0.8,
+     "emissive": {
+      "x": 0.9098039215686274,
+      "y": 0.6470588235294118,
+      "z": 0.16470588235294117
+     },
+     "emissiveIntensity": 1.6,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Pad Light",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -13.2,
+      "y": 0.43000000000000005,
+      "z": 0
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.5,
+      "y": 0.06,
+      "z": 26
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.9098039215686274,
+      "y": 0.7137254901960784,
+      "z": 0.16470588235294117
+     },
+     "metalness": 0,
+     "roughness": 0.8,
+     "emissive": {
+      "x": 0.9098039215686274,
+      "y": 0.6470588235294118,
+      "z": 0.16470588235294117
+     },
+     "emissiveIntensity": 1.6,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Station Hangar",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -44,
+      "y": 4.5,
+      "z": -8
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 18,
+      "y": 9,
+      "z": 24
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6784313725490196,
+      "z": 0.7019607843137254
+     },
+     "metalness": 0.45,
+     "roughness": 0.55,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Hangar Roof",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -44,
+      "y": 9.3,
+      "z": -8
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 19.5,
+      "y": 0.6,
+      "z": 25.5
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.42745098039215684,
+      "y": 0.4549019607843137,
+      "z": 0.48627450980392156
+     },
+     "metalness": 0.5,
+     "roughness": 0.5,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Hangar Door",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -34.9,
+      "y": 3.8,
+      "z": -8
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.3,
+      "y": 7.2,
+      "z": 12
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.1803921568627451,
+      "y": 0.2,
+      "z": 0.2196078431372549
+     },
+     "metalness": 0.4,
+     "roughness": 0.6,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Hangar Light",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -34.7,
+      "y": 7.8,
+      "z": -8
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.2,
+      "y": 0.3,
+      "z": 12.4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 1,
+      "y": 0.9019607843137255,
+      "z": 0.6901960784313725
+     },
+     "metalness": 0,
+     "roughness": 0.8,
+     "emissive": {
+      "x": 1,
+      "y": 0.8470588235294118,
+      "z": 0.5647058823529412
+     },
+     "emissiveIntensity": 2,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Survey Office",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -36,
+      "y": 0,
+      "z": 30
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 16,
+      "y": 16,
+      "z": 16
+     }
+    },
+    "Renderable": {
+     "mesh": 10,
+     "material": 0,
+     "visible": true
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 1.5707963267948966,
+      "z": 0
+     }
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Pad Lamp",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -18,
+      "y": 0,
+      "z": -18
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 6.5,
+      "z": 2.2
+     }
+    },
+    "Renderable": {
+     "mesh": 35,
+     "material": 0,
+     "visible": true
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 0.7853981633974483,
+      "z": 0
+     }
+    }
+   }
+  },
+  {
+   "name": "Pad Lamp",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 18,
+      "y": 0,
+      "z": -18
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 6.5,
+      "z": 2.2
+     }
+    },
+    "Renderable": {
+     "mesh": 35,
+     "material": 0,
+     "visible": true
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": -0.7853981633974483,
+      "z": 0
+     }
+    }
+   }
+  },
+  {
+   "name": "Pad Lamp",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -18,
+      "y": 0,
+      "z": 18
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 6.5,
+      "z": 2.2
+     }
+    },
+    "Renderable": {
+     "mesh": 35,
+     "material": 0,
+     "visible": true
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 2.356194490192345,
+      "z": 0
+     }
+    }
+   }
+  },
+  {
+   "name": "Pad Lamp",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 18,
+      "y": 0,
+      "z": 18
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 6.5,
+      "z": 2.2
+     }
+    },
+    "Renderable": {
+     "mesh": 35,
+     "material": 0,
+     "visible": true
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": -2.356194490192345,
+      "z": 0
+     }
+    }
+   }
+  },
+  {
+   "name": "Antenna Mast",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -58,
+      "y": 0,
+      "z": 20
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.2,
+      "y": 11,
+      "z": 1.2
+     }
+    },
+    "Renderable": {
+     "mesh": 36,
+     "material": 0,
+     "visible": true
+    }
+   }
+  },
+  {
+   "name": "Antenna Mast",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -58,
+      "y": 0,
+      "z": -30
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.2,
+      "y": 11,
+      "z": 1.2
+     }
+    },
+    "Renderable": {
+     "mesh": 36,
+     "material": 0,
+     "visible": true
+    }
+   }
+  },
+  {
+   "name": "Fuel Tank",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -24,
+      "y": 2,
+      "z": -30
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 6,
+      "y": 4,
+      "z": 6
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.47843137254901963,
+      "y": 0.5019607843137255,
+      "z": 0.5254901960784314
+     },
+     "metalness": 0.5,
+     "roughness": 0.5,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Fuel Tank",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -16,
+      "y": 1.5,
+      "z": -32
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 4,
+      "y": 3,
+      "z": 4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.47843137254901963,
+      "y": 0.5019607843137255,
+      "z": 0.5254901960784314
+     },
+     "metalness": 0.5,
+     "roughness": 0.5,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Kestra Quarter",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "18 224.0 40.0 90 0.9 solid\n5 229.6 59.1 64 0.9 solid\n6 211.2 66.6 39 0.9 solid\n7 199.8 82.9 13 0.9 solid\n19 182.4 73.1 347 0.9 solid\n5 162.6 74.4 321 0.9 solid\n17 159.4 54.8 296 0.9 solid\n18 146.0 40.0 270 0.9 solid\n5 159.4 25.2 244 0.9 solid\n19 162.6 5.6 219 0.9 solid\n6 182.4 6.9 193 0.9 solid\n5 199.8 -2.9 167 0.9 solid\n19 211.2 13.4 141 0.9 solid\n5 229.6 20.9 116 0.9 solid"
+    }
+   }
+  },
+  {
+   "name": "Kestra Square",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 190,
+      "y": 0.05,
+      "z": 40
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 40,
+      "y": 0.1,
+      "z": 40
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.7176470588235294,
+      "y": 0.6509803921568628,
+      "z": 0.5098039215686274
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Talari",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 178.0006038766822,
+      "y": 0.9,
+      "z": 39.8796144705321
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.43529411764705883,
+      "y": 0.6039215686274509,
+      "z": 0.5843137254901961
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    }
+   }
+  },
+  {
+   "name": "Talari",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 190.8787768792619,
+      "y": 0.9,
+      "z": 28.03222028960782
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.788235294117647,
+      "y": 0.6431372549019608,
+      "z": 0.41568627450980394
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    }
+   }
+  },
+  {
+   "name": "Talari",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 191.87379613212667,
+      "y": 0.9,
+      "z": 28.147199147238354
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5411764705882353,
+      "y": 0.43529411764705883,
+      "z": 0.35294117647058826
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    }
+   }
+  },
+  {
+   "name": "Talari",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 191.03501228861592,
+      "y": 0.9,
+      "z": 51.95528124146036
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5411764705882353,
+      "y": 0.43529411764705883,
+      "z": 0.35294117647058826
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    }
+   }
+  },
+  {
+   "name": "Talari",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 186.40852920267483,
+      "y": 0.9,
+      "z": 28.550050763782377
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.7254901960784313,
+      "y": 0.5019607843137255,
+      "z": 0.35294117647058826
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    }
+   }
+  },
+  {
+   "name": "Talari",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 200.50122672125153,
+      "y": 0.9,
+      "z": 45.80725730004044
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.788235294117647,
+      "y": 0.6431372549019608,
+      "z": 0.41568627450980394
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    }
+   }
+  },
+  {
+   "name": "Ruin Core",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 20,
+      "y": 4.5,
+      "z": -170
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2.2,
+      "y": 9,
+      "z": 2.2
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.17254901960784313,
+      "y": 0.16470588235294117,
+      "z": 0.1568627450980392
+     },
+     "metalness": 0,
+     "roughness": 0.9,
+     "emissive": {
+      "x": 0.24705882352941178,
+      "y": 0.8470588235294118,
+      "z": 0.7843137254901961
+     },
+     "emissiveIntensity": 0.35,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Ruin Pillar",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 33.374710847758486,
+      "y": 2.87496339605421,
+      "z": -165.86271710674126
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.4,
+      "y": 5.74992679210842,
+      "z": 1.4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.22745098039215686,
+      "y": 0.20784313725490197,
+      "z": 0.18823529411764706
+     },
+     "metalness": 0,
+     "roughness": 0.95,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Ruin Pillar",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 25.104337798560678,
+      "y": 2.527794123290942,
+      "z": -156.96367629896432
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.4,
+      "y": 5.055588246581884,
+      "z": 1.4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.22745098039215686,
+      "y": 0.20784313725490197,
+      "z": 0.18823529411764706
+     },
+     "metalness": 0,
+     "roughness": 0.95,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Ruin Pillar",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 12.990294277530804,
+      "y": 1.6163628103054886,
+      "z": -157.88125313060866
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.4,
+      "y": 3.232725620610977,
+      "z": 1.4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.22745098039215686,
+      "y": 0.20784313725490197,
+      "z": 0.18823529411764706
+     },
+     "metalness": 0,
+     "roughness": 0.95,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Ruin Pillar",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 6.154702137458617,
+      "y": 1.4349005819228016,
+      "z": -167.92449353228977
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.4,
+      "y": 2.869801163845603,
+      "z": 1.4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.22745098039215686,
+      "y": 0.20784313725490197,
+      "z": 0.18823529411764706
+     },
+     "metalness": 0,
+     "roughness": 0.95,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Ruin Pillar",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 9.744901680487049,
+      "y": 2.1161805395345112,
+      "z": -179.530632636773
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.4,
+      "y": 4.2323610790690225,
+      "z": 1.4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.22745098039215686,
+      "y": 0.20784313725490197,
+      "z": 0.18823529411764706
+     },
+     "metalness": 0,
+     "roughness": 0.95,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Ruin Pillar",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 21.05739942399146,
+      "y": 3.103570581345619,
+      "z": -183.9600109762902
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.4,
+      "y": 6.207141162691238,
+      "z": 1.4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.22745098039215686,
+      "y": 0.20784313725490197,
+      "z": 0.18823529411764706
+     },
+     "metalness": 0,
+     "roughness": 0.95,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Ruin Pillar",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 31.573653834212898,
+      "y": 2.495930672272076,
+      "z": -177.87721631833284
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.4,
+      "y": 4.991861344544152,
+      "z": 1.4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.22745098039215686,
+      "y": 0.20784313725490197,
+      "z": 0.18823529411764706
+     },
+     "metalness": 0,
+     "roughness": 0.95,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Ruin Stones",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "42 25.1 -148.6 107 1.32\n43 23.2 -184.6 21 0.77\n43 39.8 -169.1 148 1.28\n43 37.6 -163.6 358 1.21\n42 5.9 -184.3 141 1.17\n43 -3.0 -172.8 188 0.78\n44 14.1 -178.4 56 0.96\n42 40.3 -179.4 240 0.95\n44 23.3 -160.2 61 1.32\n43 32.9 -185.6 82 1.18\n43 25.9 -155.0 312 1.39\n44 31.3 -179.1 261 0.64\n44 22.6 -187.7 208 1.03\n42 7.7 -183.5 312 0.97\n43 32.1 -166.0 286 1.19\n44 29.3 -175.0 32 0.77"
+    }
+   }
+  },
+  {
+   "name": "Volatile Ice 1",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 95,
+      "y": 0.9,
+      "z": -70
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.1,
+      "y": 1.8,
+      "z": 1.1
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.7490196078431373,
+      "y": 0.9098039215686274,
+      "z": 1
+     },
+     "metalness": 0.1,
+     "roughness": 0.2,
+     "emissive": {
+      "x": 0.43529411764705883,
+      "y": 0.7843137254901961,
+      "z": 1
+     },
+     "emissiveIntensity": 1.4,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Volatile Ice 2",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -110,
+      "y": 0.9,
+      "z": 95
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.1,
+      "y": 1.8,
+      "z": 1.1
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.7490196078431373,
+      "y": 0.9098039215686274,
+      "z": 1
+     },
+     "metalness": 0.1,
+     "roughness": 0.2,
+     "emissive": {
+      "x": 0.43529411764705883,
+      "y": 0.7843137254901961,
+      "z": 1
+     },
+     "emissiveIntensity": 1.4,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Volatile Ice 3",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 60,
+      "y": 0.9,
+      "z": 140
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.1,
+      "y": 1.8,
+      "z": 1.1
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.7490196078431373,
+      "y": 0.9098039215686274,
+      "z": 1
+     },
+     "metalness": 0.1,
+     "roughness": 0.2,
+     "emissive": {
+      "x": 0.43529411764705883,
+      "y": 0.7843137254901961,
+      "z": 1
+     },
+     "emissiveIntensity": 1.4,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    }
+   }
+  },
+  {
+   "name": "Forest",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "46 41.2 354.3 131 0.80\n50 -315.2 -489.5 347 0.81\n48 900.0 -426.3 183 1.14\n46 -357.7 -11.3 277 1.13\n49 -641.3 -523.5 150 0.94\n47 -592.4 -108.2 162 1.02\n49 456.1 265.3 154 1.23\n49 899.7 150.8 356 1.37\n47 4.7 -754.3 110 0.88\n50 697.7 -116.3 272 1.29\n50 77.7 538.4 218 1.33\n48 -119.5 511.9 291 1.07\n46 -476.9 831.6 274 0.87\n46 640.3 -16.4 125 1.19\n48 -659.4 -371.2 71 0.90\n46 -291.2 -908.4 298 1.22\n46 -513.3 -772.7 145 1.17\n46 80.9 719.6 124 0.95\n49 485.1 320.5 61 0.87\n46 -129.6 -437.3 63 0.88\n46 359.8 -766.6 167 1.30\n49 602.6 5.3 193 1.35\n47 432.4 677.4 56 1.31\n49 983.3 -144.1 210 1.15\n47 -93.3 -701.1 281 1.32\n48 407.2 533.2 67 1.08\n48 67.0 523.9 61 0.98\n49 271.5 -343.6 113 1.30\n49 -537.8 -566.2 207 0.83\n46 347.9 878.0 351 0.82\n48 491.6 -109.8 125 1.15\n49 209.2 -458.5 311 1.21\n46 -168.2 500.3 31 1.39\n46 648.9 560.4 283 0.98\n47 -772.3 497.5 177 0.88\n46 84.5 867.2 5 0.80\n46 -602.7 -147.5 93 1.23\n47 401.4 670.0 326 0.95\n50 -194.3 114.3 319 0.96\n49 538.9 -461.6 300 1.09\n46 -532.2 839.0 269 1.11\n47 719.8 -27.0 265 1.01\n48 97.5 -286.0 293 1.40\n46 147.0 502.9 18 1.11\n46 -976.9 157.8 71 1.34\n50 162.4 -744.0 96 1.38\n46 -163.6 819.3 312 1.20\n48 -101.2 619.7 211 1.10\n47 -110.2 -836.7 216 1.34\n49 -387.1 -584.9 83 0.91\n47 -111.9 -167.7 154 1.12\n46 -562.6 -448.4 350 1.30\n48 598.7 -146.4 309 0.90\n47 -417.0 -272.9 179 1.29\n47 -568.7 494.9 341 0.84\n46 -508.9 -175.7 164 0.87\n48 452.1 -752.7 154 0.89\n50 213.7 -124.8 289 0.81\n46 -411.8 -209.6 163 1.36\n50 723.4 171.0 332 1.02\n50 446.5 -166.7 294 0.86\n46 588.6 -105.2 225 1.21\n49 40.7 573.7 150 1.10\n48 291.5 -369.3 275 1.04\n48 350.0 686.5 336 0.98\n46 -322.4 -773.2 17 0.87\n48 311.3 518.7 132 1.00\n48 21.6 626.4 235 1.04\n49 975.9 6.6 227 0.90\n48 357.8 788.6 205 1.16\n49 711.9 555.6 181 1.03\n50 293.5 -837.3 189 0.94\n49 -418.4 266.4 131 0.94\n50 168.8 850.9 340 0.88\n49 255.3 -578.7 68 0.88\n49 -252.2 181.8 279 1.07\n50 -832.7 454.4 70 1.15\n46 -695.3 -192.9 39 1.38\n50 345.6 -224.8 175 1.33\n47 715.2 -460.9 229 0.86\n46 61.6 281.6 73 0.84\n49 -191.1 -801.7 86 0.90\n50 -572.7 84.0 358 0.86\n47 442.9 8.7 141 0.81\n49 264.0 798.6 111 1.17\n47 -585.0 801.6 283 0.99\n46 8.3 -203.3 22 1.36\n47 -67.2 927.0 342 1.30\n48 67.0 -128.6 15 0.82\n47 554.8 813.6 286 1.04\n48 175.3 655.3 255 1.34\n49 477.9 -697.1 86 0.82\n50 459.5 623.3 46 1.16\n46 744.1 348.5 257 0.99\n47 292.8 -734.0 104 1.18\n49 135.0 589.1 81 1.10\n48 -393.1 -789.5 287 1.36\n50 94.3 35.9 96 0.98\n47 -180.4 -580.1 340 1.16\n48 868.5 -451.2 152 1.14\n49 -767.4 -225.7 193 0.90\n49 -210.8 -476.6 235 0.85\n48 -17.0 -654.0 111 0.90\n49 -143.9 -366.6 277 0.97\n50 140.4 670.8 170 0.84\n48 -649.9 -589.3 326 0.81\n47 230.5 592.3 4 1.21\n48 458.8 884.2 85 1.09\n50 -780.5 440.0 111 0.92\n48 706.8 -161.3 113 0.94\n48 503.3 138.7 93 1.05\n50 656.3 691.7 249 0.82\n48 -815.5 179.5 131 1.24\n49 303.1 -0.7 57 0.97\n47 -565.5 -142.5 121 0.96\n50 -789.2 492.8 176 0.85\n48 354.8 363.7 38 1.08\n46 292.0 850.8 358 1.01\n49 889.3 -243.3 42 1.13\n47 -184.6 -732.0 130 1.33\n50 -41.2 -141.5 254 0.84\n48 -880.2 278.2 168 1.25\n47 539.6 679.9 93 1.15\n48 -306.9 396.4 198 1.22\n50 -410.3 177.7 223 0.92\n50 103.8 -85.9 268 1.33\n47 380.7 -854.9 49 1.30\n49 412.5 803.3 49 1.33\n48 -516.0 -66.3 18 1.31\n49 860.4 426.9 249 1.02\n47 -172.6 44.3 106 1.32\n46 -811.0 -459.1 16 1.39\n46 436.1 708.0 27 0.94\n46 -722.7 379.3 351 1.24\n50 -436.5 -110.8 191 0.83\n49 -789.1 -298.3 139 1.03\n49 622.5 183.0 318 1.20\n47 113.0 326.8 15 0.81\n46 -484.8 -21.6 104 1.10\n46 -340.0 501.7 232 1.37\n49 -224.9 604.1 234 1.32\n50 547.7 506.1 42 0.91\n49 100.7 743.5 5 0.97\n48 -40.8 66.1 285 1.31\n49 -511.9 278.3 255 1.09\n50 304.2 -717.0 258 1.22\n47 -848.9 82.0 310 1.29\n46 51.8 217.3 150 0.88\n48 461.8 -291.9 64 1.36\n47 -115.3 923.3 13 1.25\n50 122.9 -868.3 320 0.91\n47 310.6 -334.0 7 0.89\n50 719.2 322.1 33 1.29\n49 -734.3 -655.6 173 0.82\n46 -412.8 -277.9 168 0.85\n47 60.1 452.0 161 0.85\n46 -808.4 242.8 294 1.13\n49 -804.5 441.4 326 1.25\n49 -145.5 -324.5 83 1.09\n48 659.9 569.1 339 0.98\n46 -578.6 -90.5 12 1.01\n47 -55.8 642.8 65 1.36\n49 619.1 404.1 139 1.26\n50 -644.0 203.5 297 0.86\n50 -434.4 878.9 12 1.32\n47 -731.2 -510.5 66 1.02\n48 -533.0 419.8 229 0.98\n48 -813.4 -172.7 204 0.83\n48 333.0 -586.5 260 1.33\n49 -98.2 182.4 230 0.81\n47 -710.9 188.5 334 1.11\n48 -247.3 -611.2 297 1.21\n49 -294.9 -489.8 74 1.17\n48 -284.4 -168.4 176 1.05\n48 -784.3 -578.9 163 1.11\n47 917.1 -344.3 290 1.16\n48 458.1 199.5 356 1.07\n46 -293.2 -164.3 85 1.14\n50 692.7 563.0 204 1.36\n49 -525.7 -21.2 167 1.32\n47 -444.6 -863.4 334 0.88\n47 -180.4 -865.9 205 1.34\n46 -616.1 553.7 278 0.94\n47 -191.9 -589.7 252 1.22\n48 -438.0 786.8 186 0.82\n49 -203.2 821.9 312 0.99\n48 769.8 414.6 31 0.99\n48 420.4 864.1 154 0.96\n49 -128.6 -913.2 1 1.37\n47 -926.5 -72.4 116 0.98\n48 28.4 -226.4 324 0.82\n48 221.1 -610.3 337 1.23\n46 -30.9 -255.6 139 0.93\n49 -128.1 478.8 289 0.83\n50 647.4 -718.8 141 1.19\n46 -96.8 -710.5 245 1.16\n47 27.0 -570.5 9 1.07\n50 625.6 -290.7 133 1.22\n46 -104.0 -378.5 333 0.99\n49 289.6 -6.6 161 0.94\n49 -673.1 -656.0 92 0.86\n47 -4.2 435.4 210 1.20\n48 206.5 -49.2 65 0.93\n46 411.8 234.9 108 1.04\n47 422.3 398.4 156 0.98\n50 -441.6 -158.4 14 0.95\n46 -925.2 202.9 40 1.39\n46 -840.4 200.2 234 0.98\n47 -141.7 -111.1 206 1.04\n50 885.7 -249.2 74 1.32\n46 770.7 -372.2 133 1.26\n47 -11.0 -912.8 153 1.38\n48 856.4 -423.2 302 0.81\n50 -73.5 -658.0 325 0.84\n50 957.4 168.7 320 0.82\n50 538.6 -2.0 57 1.36\n49 -919.0 -74.0 185 1.10\n46 578.9 494.7 247 0.99\n46 24.0 -449.7 44 1.00\n48 -443.7 321.4 264 1.27\n46 -511.7 -395.7 342 1.02\n47 -114.3 -813.5 174 1.31\n46 623.2 115.0 36 1.25\n47 -205.2 -895.7 1 0.97\n50 -386.2 321.9 241 1.08\n46 160.7 -58.3 205 1.14\n48 -810.1 -409.7 101 0.87\n46 -102.7 -358.9 253 1.06\n46 112.1 837.1 95 1.04\n46 799.0 -6.2 43 1.10\n50 -490.9 617.2 265 1.27\n48 127.6 -196.7 78 1.38\n50 553.8 468.8 189 1.19\n48 -128.5 720.9 161 1.27\n47 -344.8 -267.8 281 0.93\n50 672.8 208.4 12 1.12\n49 941.7 -15.8 49 0.82\n48 -344.4 -888.4 217 0.81\n49 330.6 -34.5 354 1.34\n49 930.4 31.1 36 0.95\n47 29.5 -874.0 69 1.07\n50 134.1 -65.4 213 0.96\n48 -370.8 855.7 94 1.24\n47 -308.6 -500.9 35 1.05\n50 690.3 251.9 92 0.83\n50 -986.8 125.1 241 1.05\n50 11.4 212.1 114 1.26\n47 -114.6 -397.2 54 1.34\n49 -43.9 208.6 349 1.10\n49 408.4 -89.0 177 1.10\n49 33.2 -914.7 283 1.00\n49 -38.9 -909.4 60 1.17\n50 -851.7 270.3 44 1.03\n47 -482.5 -15.6 8 1.12\n46 -294.0 -388.0 299 1.29\n49 938.5 158.6 230 1.02\n47 -669.3 157.5 332 1.17\n46 480.0 -347.2 253 1.16\n47 669.1 377.4 79 1.11\n47 135.0 436.0 316 1.38\n49 -184.4 -137.4 332 0.90\n46 701.0 -366.7 84 1.36\n50 -840.8 255.9 247 1.15\n46 -320.9 -493.7 324 1.31\n47 755.8 -297.6 240 1.30\n48 -653.9 -21.1 287 1.19\n48 52.1 433.1 284 1.01\n48 -34.3 -138.2 297 1.39\n47 88.6 -221.5 328 1.36\n49 -400.3 -301.8 329 0.82\n49 -17.9 -112.1 259 1.28\n46 -346.3 386.2 163 0.89\n50 230.9 401.9 121 0.99\n46 -726.7 -628.3 355 0.83\n50 -99.4 758.5 55 1.39\n46 724.9 647.9 305 0.90\n50 798.3 18.7 55 0.83\n48 37.7 851.4 101 1.21\n47 218.6 369.6 201 1.01\n47 -899.4 363.6 43 1.36\n48 16.3 925.8 16 1.20\n46 -275.0 -471.9 157 1.36\n46 650.6 230.8 352 1.15\n48 -138.4 281.4 239 1.32\n50 -33.2 824.4 269 1.38\n50 -287.2 832.2 144 0.87\n49 -390.2 -366.5 125 1.21\n47 735.9 -527.8 223 0.84\n50 -933.2 254.5 254 1.03\n50 -702.5 66.5 127 1.39\n47 -951.1 264.8 53 1.35\n47 43.4 -104.7 59 0.85\n48 911.8 -357.6 350 1.10\n46 280.0 265.2 248 1.18\n46 -589.9 44.5 232 0.97\n46 511.9 327.5 188 0.85\n46 536.8 -360.3 164 0.83\n49 -745.1 -42.9 299 0.96\n49 578.7 -145.9 359 1.39\n47 22.7 508.1 127 1.02\n46 641.1 -149.7 76 0.84\n47 -8.6 -238.0 309 0.84\n49 677.0 496.5 87 0.85\n47 -616.9 -6.2 347 1.15\n50 507.4 -121.7 250 0.82\n50 709.1 -192.5 17 1.14\n48 -106.9 7.4 50 1.39\n49 -155.6 -804.8 197 0.91\n49 70.6 -363.1 65 0.83\n47 -124.0 -130.7 23 1.00\n48 269.3 -384.9 151 1.27\n50 -670.4 -230.8 305 1.02\n46 -54.2 -430.5 334 1.09\n50 814.4 -487.1 214 0.85\n48 41.0 874.4 87 0.99\n49 -424.9 900.5 130 1.36\n46 -706.9 49.0 166 1.16\n48 50.8 -573.1 136 1.34\n47 47.2 243.0 262 1.15\n49 -36.4 -117.2 217 1.16\n46 -853.7 -214.4 312 1.37\n50 -133.5 51.9 192 1.23\n48 502.6 251.9 228 0.98\n49 54.8 146.7 129 0.80\n49 -562.2 230.0 270 1.06\n47 -572.1 702.9 48 1.30\n50 482.6 197.3 331 1.22\n46 -336.4 847.0 228 0.96\n50 -940.6 -82.6 171 0.90\n50 950.6 -134.5 55 1.32\n47 880.3 -353.7 296 1.00\n48 673.9 -597.1 303 0.98\n46 -890.8 159.0 252 0.87\n48 386.8 -196.0 355 1.14\n49 37.3 321.2 36 1.29\n50 -659.2 -679.1 133 1.13\n47 501.6 185.8 202 1.04\n48 -294.7 -396.0 274 1.35\n49 -669.6 469.1 1 0.95\n47 356.3 -340.4 287 1.08\n50 -924.1 -227.3 285 1.12\n48 -412.8 -62.6 77 0.98\n48 470.2 839.4 143 1.17\n46 -812.9 -245.9 272 1.23\n48 -617.5 71.7 313 0.92\n47 -453.1 371.4 230 1.26\n48 -744.6 181.4 354 1.35\n48 -332.1 351.0 274 1.04\n50 120.5 710.4 277 1.08\n47 115.9 530.9 74 1.12\n47 -309.6 425.3 103 0.96\n48 664.2 669.6 104 0.89\n49 -355.4 -916.5 233 1.34\n48 -882.1 -56.0 32 1.10\n49 -746.0 -444.4 324 1.29\n49 -919.5 298.5 110 0.81\n50 -517.9 193.1 4 0.84\n50 517.0 -578.5 82 0.82\n47 325.5 740.9 46 1.09\n48 951.2 176.9 97 0.85\n50 51.4 347.5 44 0.92\n48 779.6 -322.3 336 0.95\n47 331.5 151.9 341 0.84\n49 -923.5 -6.6 108 0.90\n49 -754.3 368.8 299 1.34\n49 910.1 153.8 75 0.97\n49 562.4 -562.0 121 0.81\n49 432.5 -178.2 349 1.19\n48 958.6 213.2 186 1.37\n46 37.7 613.6 85 1.27\n50 423.7 672.9 124 0.92\n49 317.0 -794.5 299 1.05\n47 735.7 46.2 279 1.25\n46 294.1 376.3 15 1.35\n46 -135.0 -360.3 274 1.21\n47 -861.5 -66.2 63 1.36\n49 515.5 41.1 192 1.23\n50 -293.5 236.6 312 1.37\n50 -4.0 -519.1 335 1.19\n46 399.6 -104.6 118 1.06\n48 609.2 255.2 358 1.04\n48 -805.0 143.0 245 1.35\n48 -439.1 -773.7 10 1.28\n46 -156.7 -669.0 339 1.21\n47 718.8 277.2 296 0.88\n49 -746.5 240.2 348 1.31\n50 -633.3 -614.3 16 1.04\n50 655.3 601.5 354 1.18\n46 162.8 271.9 228 1.02\n49 295.4 -721.8 344 1.02\n46 -453.8 -13.0 198 1.35\n46 -256.8 -31.3 106 0.87\n47 -95.5 -390.3 134 1.20\n46 946.5 -302.6 23 0.90\n50 757.3 -354.2 352 0.86\n47 290.8 348.1 49 1.10\n50 -297.2 670.5 302 1.30\n50 -510.1 835.7 136 0.95\n50 -202.3 -921.4 68 0.89\n46 325.3 196.3 88 1.21\n48 -527.1 739.6 117 1.14\n47 -356.0 402.6 197 1.09\n50 -480.7 -547.1 231 1.13\n48 -649.3 -17.6 164 1.04\n48 -595.1 351.4 142 1.33\n49 924.9 266.4 321 1.12\n48 -67.3 890.8 6 1.22\n50 774.6 392.1 249 1.18\n50 368.6 -728.4 342 1.32\n46 -86.8 480.3 298 0.91"
+    }
+   }
+  },
+  {
+   "name": "Boulders",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "43 -215.4 -13.6 331 1.61\n43 -157.5 99.9 323 1.42\n43 -52.4 207.8 228 1.87\n42 361.6 747.2 41 0.77\n43 -29.9 283.3 190 1.29\n42 -598.7 792.7 311 2.04\n42 747.0 654.3 188 1.72\n43 -672.5 76.8 27 1.20\n42 108.6 -586.3 81 1.08\n42 230.2 -542.6 138 1.58\n42 -469.1 212.4 87 1.88\n42 -453.9 183.6 312 1.26\n42 -444.6 -497.5 235 2.00\n43 -856.0 338.0 17 0.80\n42 -82.6 -840.5 47 1.56\n42 -558.2 -73.0 115 1.20\n43 -155.0 -212.1 208 1.62\n42 165.4 -225.3 243 1.67\n43 445.8 468.1 239 1.53\n42 342.7 -341.1 250 1.98\n43 -215.2 761.7 288 2.09\n43 411.0 -838.8 279 0.73\n43 -729.1 423.3 225 1.53\n43 827.9 184.6 108 1.01\n43 420.7 -78.7 323 1.61\n42 -723.4 -285.9 330 1.98\n42 747.6 519.9 337 0.73\n43 741.0 -671.0 50 1.58\n42 822.2 -528.7 118 2.02\n43 851.7 39.5 188 1.07\n42 623.7 270.4 186 0.82\n43 -598.2 -268.6 87 1.25\n42 -370.8 -298.1 313 1.26\n42 15.0 756.0 101 1.20\n43 -491.2 -174.7 30 1.15\n42 441.1 -336.7 223 0.95\n43 -185.8 -568.8 199 0.81\n43 14.4 -679.2 342 1.04\n42 -457.7 422.0 207 1.78\n42 -50.0 519.3 306 1.54\n43 13.3 751.8 341 1.23\n42 -659.0 442.3 2 1.89\n42 -429.0 522.6 51 1.57\n43 135.3 -228.2 239 1.96\n43 534.1 600.8 359 0.89\n43 377.1 -156.2 130 1.02\n42 288.9 -211.1 8 1.27\n43 553.7 407.7 240 1.56\n43 -979.3 171.2 106 1.84\n43 -191.7 242.7 281 1.10\n43 986.7 19.7 137 1.42\n42 -503.0 -745.4 90 1.20\n42 181.2 407.3 144 1.46\n43 -742.1 -161.3 204 1.48\n42 -767.2 215.2 274 1.48\n43 -258.7 216.3 70 1.43\n43 -14.6 -266.3 296 1.62\n42 -154.8 -613.2 303 1.07\n42 12.2 -845.1 107 1.35\n43 -793.0 -340.4 286 1.56\n43 -832.9 23.0 156 0.76\n43 -522.8 771.2 142 1.60\n42 -364.3 -787.8 300 1.41\n43 106.0 -89.2 26 0.87\n42 774.8 394.3 55 1.56\n43 181.6 930.6 140 1.60\n42 -243.3 -496.5 114 1.68\n43 -715.6 403.2 57 0.75\n43 604.4 -58.0 313 1.32\n43 -152.2 643.4 46 1.91\n43 -118.8 526.3 283 0.85\n42 379.2 121.8 309 1.44\n42 562.6 187.0 268 1.48\n42 258.2 -74.3 133 1.58\n43 699.3 588.4 252 1.48\n42 -117.7 -756.4 79 1.24\n42 930.7 99.3 80 1.42\n43 -396.9 103.5 210 1.76\n42 883.7 -363.7 205 1.33\n42 -112.7 600.6 171 1.32\n43 -90.6 543.9 349 1.67\n42 381.7 -906.1 169 1.91\n43 -43.3 -729.2 146 0.82\n42 -312.2 515.6 309 1.99\n43 -72.7 -832.5 18 0.79\n43 -619.8 -286.9 213 0.86\n42 419.7 -394.7 252 1.46\n43 10.2 -880.5 2 1.85\n42 278.9 -159.6 64 1.57\n43 824.2 -323.9 56 0.72\n43 55.3 859.2 280 1.99\n42 -191.2 913.0 146 0.92\n42 -782.7 -36.5 4 1.76\n42 -92.4 105.7 128 0.98\n42 -473.1 155.9 43 1.16\n42 -293.3 -221.1 50 1.29\n42 442.3 -95.5 90 1.18\n43 -509.7 179.4 335 1.88\n43 67.6 -431.7 301 1.90\n43 84.4 366.7 246 1.26\n42 322.2 -712.7 349 1.81\n43 377.0 -105.7 103 1.00\n42 31.1 267.9 7 1.60\n42 -459.9 -233.4 31 1.33\n43 528.8 -337.9 31 0.97\n43 -729.5 -547.6 154 1.31\n42 69.1 595.4 334 1.09\n42 315.0 123.2 310 1.60"
+    }
+   }
+  },
+  {
+   "name": "Stag",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 161.4234447601056,
+      "y": 0.8,
+      "z": -61.296998606006454
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.7,
+      "y": 1.6,
+      "z": 1.8
+     }
+    },
+    "Renderable": {
+     "mesh": 135,
+     "material": 0,
+     "visible": true
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    }
+   }
+  },
+  {
+   "name": "Stag",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -112.83414058088097,
+      "y": 0.8,
+      "z": -164.82561836623466
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.7,
+      "y": 1.6,
+      "z": 1.8
+     }
+    },
+    "Renderable": {
+     "mesh": 135,
+     "material": 0,
+     "visible": true
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    }
+   }
+  },
+  {
+   "name": "Stag",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 148.73173196103087,
+      "y": 0.8,
+      "z": -29.603573760030546
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.7,
+      "y": 1.6,
+      "z": 1.8
+     }
+    },
+    "Renderable": {
+     "mesh": 135,
+     "material": 0,
+     "visible": true
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    }
+   }
+  },
+  {
+   "name": "Stag",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -1.6773081377188215,
+      "y": 0.8,
+      "z": -160.08530270851153
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.7,
+      "y": 1.6,
+      "z": 1.8
+     }
+    },
+    "Renderable": {
+     "mesh": 135,
+     "material": 0,
+     "visible": true
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    }
+   }
+  },
+  {
+   "name": "Stag",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -87.84005426088244,
+      "y": 0.8,
+      "z": -103.23806874432469
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.7,
+      "y": 1.6,
+      "z": 1.8
+     }
+    },
+    "Renderable": {
+     "mesh": 135,
+     "material": 0,
+     "visible": true
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    }
+   }
+  },
+  {
+   "name": "Player",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 6,
+      "y": 1.3,
+      "z": 8
+     }
+    },
+    "Player": {},
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.8431372549019608,
+      "y": 0.8235294117647058,
+      "z": 0.7764705882352941
+     },
+     "metalness": 0,
+     "roughness": 0.7,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": ""
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "CharacterController": {
+     "mode": "ThirdPerson",
+     "walkSpeed": 4.2,
+     "sprintSpeed": 7.5,
+     "crouchSpeed": 2.2,
+     "jumpHeight": 1.1,
+     "standHeight": 1.8,
+     "crouchHeight": 1.1,
+     "stepHeight": 0.4,
+     "acceleration": 45,
+     "airControl": 12,
+     "lookSensitivity": 1,
+     "invertY": false,
+     "fov": 75,
+     "headBob": 1
+    }
+   }
+  },
+  {
+   "name": "Camera",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 6,
+      "z": 12
+     }
+    },
+    "Camera": {
+     "projection": "Perspective",
+     "fov": 62,
+     "near": 0.2,
+     "far": 20000,
+     "orthoSize": 10,
+     "priority": 1
+    },
+    "CameraFollow": {
+     "target": "",
+     "offset": {
+      "x": 0,
+      "y": 2.2,
+      "z": -5.5
+     },
+     "smoothing": 0.03,
+     "lookHeight": 1.5,
+     "collision": true,
+     "orbit": true
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Director",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 60,
+      "z": 0
+     }
+    },
+    "Script": {
+     "source": "-- Pale Signal engine slice director: the run from Kestra Station on Tethys to\n-- the signal on Vell -- objectives, scanning, fuel gathering, the field\n-- journal, flight guidance, recovery after a lost ship, and the ending. See\n-- docs/space/PALE_SIGNAL_SLICE.md. The placeholder below is replaced by the\n-- level generator with the ruin, ice and signal coordinates.\nlocal RUIN = {20, 0, -170}\nlocal ICE = {{name = \"Volatile Ice 1\", x = 95, z = -70}, {name = \"Volatile Ice 2\", x = -110, z = 95}, {name = \"Volatile Ice 3\", x = 60, z = 140}}\nlocal SIGNAL = {body = \"Vell\", latitude = -12, longitude = 35}\nlocal SITE = {body = \"Tethys\", latitude = 30, longitude = 40}\nlocal START_FUEL = 45\n\nlocal phase = \"title\"\nlocal player\nlocal scan = 0\nlocal collected = 0\nlocal ice_left = {}\nlocal journal = {}\nlocal journal_open = false\nlocal banner_until = 0\nlocal hint_until = 0\nlocal lost_at = nil\nlocal reached_space = false\nlocal reached_orbit = false\n\nlocal function banner(text, seconds)\n  ui.set_text(\"Banner\", text)\n  ui.set_visible(\"Banner\", true)\n  banner_until = time.now + (seconds or 3)\nend\n\nlocal function hint(text, seconds)\n  ui.set_text(\"Hint\", text)\n  ui.set_visible(\"Hint\", true)\n  hint_until = time.now + (seconds or 5)\nend\n\nlocal function objective(text, detail)\n  ui.set_text(\"Objective\", text)\n  ui.set_text(\"Detail\", detail or \"\")\nend\n\nlocal function log_journal(title, body)\n  journal[#journal + 1] = title .. \"\\n\" .. body\n  local shown = {}\n  for i = math.max(1, #journal - 4), #journal do shown[#shown + 1] = journal[i] end\n  ui.set_text(\"JournalText\", table.concat(shown, \"\\n\\n\"))\n  hint(\"Field journal updated (J)\", 4)\nend\n\nlocal function km(m)\n  if m >= 10000 then return string.format(\"%.0f km\", m / 1000) end\n  if m >= 1000 then return string.format(\"%.1f km\", m / 1000) end\n  return string.format(\"%.0f m\", m)\nend\n\n-- Great-circle distance between two latitude/longitude points (degrees) on\n-- a sphere of radius r.\nlocal function arc(lat1, lon1, lat2, lon2, r)\n  local d = math.pi / 180\n  local a = math.sin(lat1 * d) * math.sin(lat2 * d) + math.cos(lat1 * d) * math.cos(lat2 * d) * math.cos((lon1 - lon2) * d)\n  return math.acos(math.max(-1, math.min(1, a))) * r\nend\n\nlocal function near(x, z, range)\n  local px, _, pz = world.position(player)\n  return px and math.sqrt((px - x) ^ 2 + (pz - z) ^ 2) < range\nend\n\nlocal function set_phase(name)\n  phase = name\n  if name == \"exit\" then\n    objective(\"Step out onto Tethys\", \"Press E to leave the ship.\")\n  elseif name == \"survey\" then\n    objective(\"Survey the Talari ruin\", \"North of the station. Hold F at the monolith.\")\n    ui.marker(\"goal\", RUIN[1], 10, RUIN[3], \"Ruin\")\n  elseif name == \"fuel\" then\n    ui.clear_marker(\"goal\")\n    objective(\"Gather volatile ice: 0/2\", \"Glowing outcrops around the station. F to collect.\")\n    for i, ice in ipairs(ICE) do\n      ui.marker(\"ice\" .. i, ice.x, 2.4, ice.z, \"Ice\")\n    end\n  elseif name == \"board\" then\n    for i = 1, #ICE do ui.clear_marker(\"ice\" .. i) end\n    objective(\"Return to your ship\", \"E to board.\")\n    ui.marker(\"goal\", 0, 4, 0, \"Ship\")\n  elseif name == \"launch\" then\n    ui.clear_marker(\"goal\")\n    space.set_target(SIGNAL.body)\n    objective(\"Lift off and climb out of the atmosphere\", \"SPACE lift · W/SHIFT throttle · pitch up with the arrows or I/K.\")\n  elseif name == \"orbit\" then\n    objective(\"Make orbit\", \"Raise your periapsis above 25 km. N cycles NAV modes; prograde helps.\")\n  elseif name == \"transfer\" then\n    objective(\"Cross to Vell\", \"NAV TARGET (press N until it shows) points you at the moon. Burn, then coast; 9/0 warps time.\")\n  elseif name == \"descent\" then\n    objective(\"Land at the signal\", \"Follow the beam. Kill your speed early; under 7 m/s at touchdown.\")\n  end\nend\n\nfunction on_ui(name)\n  if name == \"Begin\" and phase == \"title\" then\n    ui.set_visible(\"TitlePanel\", false)\n    ui.set_visible(\"Title\", false)\n    ui.set_visible(\"TitleSub\", false)\n    ui.set_visible(\"Begin\", false)\n    ui.set_visible(\"Controls\", false)\n    ui.set_visible(\"Controls2\", false)\n    ui.set_visible(\"Controls3\", false)\n    space.set_controls(true)\n    local s = space.state()\n    if s and s.piloting then set_phase(\"exit\") else set_phase(\"survey\") end\n    banner(\"TETHYS — KESTRA STATION\", 4)\n    log_journal(\"Landfall: Tethys\", \"Thin but breathable air, 14 C. The Talari built Kestra on older foundations than their own records admit.\")\n  end\nend\n\nlocal started = false\nfunction on_tick(dt)\n  if not started then\n    started = true\n    player = world.find(\"Player\")\n    space.set_fuel(START_FUEL)\n    space.set_controls(false)\n    for i, ice in ipairs(ICE) do ice_left[i] = world.find(ice.name) end\n    ui.set_visible(\"EndPanel\", false)\n    ui.set_visible(\"EndTitle\", false)\n    ui.set_visible(\"EndText\", false)\n    ui.set_visible(\"Again\", false)\n    ui.set_visible(\"JournalPanel\", false)\n    ui.set_visible(\"JournalTitle\", false)\n    ui.set_visible(\"JournalText\", false)\n    ui.set_visible(\"ScanBar\", false)\n    ui.set_visible(\"Banner\", false)\n    ui.set_visible(\"Hint\", false)\n    objective(\"\", \"\")\n  end\n  if banner_until > 0 and time.now > banner_until then ui.set_visible(\"Banner\", false) banner_until = 0 end\n  if hint_until > 0 and time.now > hint_until then ui.set_visible(\"Hint\", false) hint_until = 0 end\n  if input.pressed(\"p\") and phase ~= \"title\" then game.pause() end\n  if input.pressed(\"j\") then\n    journal_open = not journal_open\n    ui.set_visible(\"JournalPanel\", journal_open)\n    ui.set_visible(\"JournalTitle\", journal_open)\n    ui.set_visible(\"JournalText\", journal_open)\n  end\n\n  local s = space.state()\n  if not s then return end\n  for _, e in ipairs(space.events()) do\n    if e == \"rough_touchdown\" then banner(\"ROUGH TOUCHDOWN\", 2.5)\n    elseif e == \"touchdown\" and phase ~= \"title\" then banner(\"TOUCHDOWN\", 2)\n    elseif e == \"exited\" and phase == \"exit\" then set_phase(\"survey\")\n    elseif e == \"boarded\" and phase == \"board\" then set_phase(\"launch\")\n    elseif e == \"exit_blocked\" then hint(\"Outside the surveyed area: you can't walk here.\", 4)\n    elseif e == \"soi:\" .. SIGNAL.body then\n      banner(\"ENTERING \" .. string.upper(SIGNAL.body) .. \"'S INFLUENCE\", 3)\n      if phase == \"transfer\" or phase == \"orbit\" or phase == \"launch\" then set_phase(\"descent\") end\n    elseif e == \"destroyed\" then\n      banner(\"SHIP LOST\", 3)\n      lost_at = time.now\n    end\n  end\n\n  -- Recovery: back on the pad at Kestra, patched up.\n  if lost_at and time.now > lost_at + 3 then\n    lost_at = nil\n    space.place_landed(SITE.body, SITE.latitude, SITE.longitude, 0)\n    space.repair()\n    space.set_fuel(math.max(s.fuel, 60))\n    hint(\"Recovered to Kestra Station.\", 4)\n    if phase == \"descent\" or phase == \"transfer\" or phase == \"orbit\" then set_phase(\"launch\") end\n  end\n\n  if phase == \"survey\" then\n    local close = near(RUIN[1], RUIN[3], 7)\n    if close and not s.piloting then\n      if input.down(\"f\") then\n        scan = scan + dt / 1.6\n        ui.set_visible(\"ScanBar\", true)\n        ui.set_value(\"ScanBar\", math.min(scan, 1))\n      end\n      if scan >= 1 then\n        ui.set_visible(\"ScanBar\", false)\n        banner(\"SCAN COMPLETE\", 2.5)\n        log_journal(\"Talari ruin: the monolith\",\n          \"Talari glyphs over a lower layer in no known script. Dating puts the lower layer 40,000 years before the Talari arrived -- their histories say they found Tethys empty.\")\n        log_journal(\"A signal\",\n          \"The monolith answers a carrier wave from Vell, Tethys' moon. The source is a point on the surface. Volatile ice will fuel the crossing.\")\n        set_phase(\"fuel\")\n      elseif not input.down(\"f\") then\n        hint(\"Hold F to scan\", 1)\n      end\n    else\n      scan = 0\n      ui.set_visible(\"ScanBar\", false)\n    end\n  elseif phase == \"fuel\" then\n    for i, ice in ipairs(ICE) do\n      local id = ice_left[i]\n      if id and near(ice.x, ice.z, 3.2) then\n        if input.pressed(\"f\") then\n          world.destroy(id)\n          ice_left[i] = nil\n          ui.clear_marker(\"ice\" .. i)\n          collected = collected + 1\n          space.refuel(25)\n          sound.play(\"pickup\")\n          banner(\"VOLATILES +25\", 1.6)\n          objective(\"Gather volatile ice: \" .. collected .. \"/2\", \"Glowing outcrops around the station. F to collect.\")\n          if collected >= 2 then\n            log_journal(\"Fuel\", \"Enough volatile ice for the crossing to Vell and a landing.\")\n            set_phase(\"board\")\n          end\n        else\n          hint(\"F to collect\", 1)\n        end\n      end\n    end\n  elseif phase == \"launch\" then\n    if s.altitude > 21600 and not s.landed then\n      reached_space = true\n      banner(\"SPACE\", 2.5)\n      set_phase(\"orbit\")\n    end\n  elseif phase == \"orbit\" then\n    if s.orbit_closed and s.periapsis > 25000 then\n      reached_orbit = true\n      banner(\"STABLE ORBIT\", 2.5)\n      set_phase(\"transfer\")\n    end\n  elseif phase == \"transfer\" then\n    local vell = space.body(SIGNAL.body)\n    if vell then ui.set_text(\"Detail\", string.format(\"Vell: %s · NAV: %s\", km(vell.altitude), s.assist)) end\n  elseif phase == \"descent\" and s.body == SIGNAL.body then\n    local vell = space.body(SIGNAL.body)\n    local d = arc(s.latitude, s.longitude, SIGNAL.latitude, SIGNAL.longitude, vell and vell.radius or 18000)\n    ui.set_text(\"Detail\", string.format(\"Signal: %s across the surface · altitude %s\", km(d), km(math.max(s.altitude, 0))))\n    if s.landed then\n      if d < 2500 then\n        phase = \"end\"\n        space.set_controls(false)\n        log_journal(\"Vell: the signal\",\n          \"A structure of the same lower layer as the Kestra monolith, intact, under the ice. It is still transmitting -- not to Tethys. Outward.\")\n        objective(\"\", \"\")\n        ui.set_visible(\"EndPanel\", true)\n        ui.set_visible(\"EndTitle\", true)\n        ui.set_visible(\"EndText\", true)\n        ui.set_visible(\"Again\", true)\n        ui.set_text(\"EndTitle\", \"THE SIGNAL IS OLDER THAN THE TALARI\")\n        ui.set_text(\"EndText\", string.format(\"Surface to orbit to Vell in %d minutes, no loading screens.\\nThe structure under the ice is still transmitting -- outward.\", math.floor(time.now / 60)))\n      else\n        hint(string.format(\"Landed %s from the signal. Lift off and fly closer.\", km(d)), 2)\n      end\n    end\n  end\n\n  -- Context hints for flight.\n  if s.piloting and phase ~= \"title\" and phase ~= \"end\" then\n    if s.fuel <= 0 and not s.landed then hint(\"Out of fuel. Glide: STABILIZED holds you level; land gently.\", 2) end\n    if s.heat > 70 then hint(\"Hull heating: slow down in the thick air.\", 2) end\n  end\nend\n",
+     "props": {}
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Objective",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "top-left",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 24,
+     "offsetY": 22,
+     "width": 0,
+     "height": 0,
+     "fontSize": 17,
+     "color": {
+      "x": 0.9333333333333333,
+      "y": 0.9568627450980393,
+      "z": 0.9647058823529412
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Detail",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "top-left",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 24,
+     "offsetY": 48,
+     "width": 0,
+     "height": 0,
+     "fontSize": 13,
+     "color": {
+      "x": 0.9333333333333333,
+      "y": 0.9568627450980393,
+      "z": 0.9647058823529412
+     },
+     "opacity": 0.8,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Banner",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "top-center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 90,
+     "width": 0,
+     "height": 0,
+     "fontSize": 28,
+     "color": {
+      "x": 0.5607843137254902,
+      "y": 0.9686274509803922,
+      "z": 1
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Hint",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "bottom-center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": -64,
+     "width": 0,
+     "height": 0,
+     "fontSize": 15,
+     "color": {
+      "x": 0.9333333333333333,
+      "y": 0.9568627450980393,
+      "z": 0.9647058823529412
+     },
+     "opacity": 0.9,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "ScanBar",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Bar",
+     "text": "",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 60,
+     "width": 240,
+     "height": 8,
+     "fontSize": 16,
+     "color": {
+      "x": 0.5607843137254902,
+      "y": 0.9686274509803922,
+      "z": 1
+     },
+     "opacity": 0.9,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "JournalPanel",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Panel",
+     "text": "",
+     "anchor": "middle-right",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": -20,
+     "offsetY": 0,
+     "width": 380,
+     "height": 420,
+     "fontSize": 16,
+     "color": {
+      "x": 0.03137254901960784,
+      "y": 0.06274509803921569,
+      "z": 0.09411764705882353
+     },
+     "opacity": 0.82,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "JournalTitle",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "FIELD JOURNAL",
+     "anchor": "middle-right",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": -230,
+     "offsetY": -180,
+     "width": 0,
+     "height": 0,
+     "fontSize": 15,
+     "color": {
+      "x": 1,
+      "y": 0.8274509803921568,
+      "z": 0.43137254901960786
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "JournalText",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "middle-right",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": -30,
+     "offsetY": -150,
+     "width": 0,
+     "height": 0,
+     "fontSize": 13,
+     "color": {
+      "x": 0.9333333333333333,
+      "y": 0.9568627450980393,
+      "z": 0.9647058823529412
+     },
+     "opacity": 0.92,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "TitlePanel",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Panel",
+     "text": "",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 0,
+     "width": 640,
+     "height": 400,
+     "fontSize": 16,
+     "color": {
+      "x": 0.03137254901960784,
+      "y": 0.06274509803921569,
+      "z": 0.09411764705882353
+     },
+     "opacity": 0.88,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Title",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "PALE SIGNAL",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": -130,
+     "width": 0,
+     "height": 0,
+     "fontSize": 58,
+     "color": {
+      "x": 0.5607843137254902,
+      "y": 0.9686274509803922,
+      "z": 1
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "TitleSub",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "Engine slice: Tethys to Vell, surface to orbit, no loading screens.",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": -76,
+     "width": 0,
+     "height": 0,
+     "fontSize": 16,
+     "color": {
+      "x": 0.9333333333333333,
+      "y": 0.9568627450980393,
+      "z": 0.9647058823529412
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Begin",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Button",
+     "text": "BEGIN",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "script",
+     "offsetX": 0,
+     "offsetY": -10,
+     "width": 220,
+     "height": 50,
+     "fontSize": 20,
+     "color": {
+      "x": 0.12156862745098039,
+      "y": 0.43529411764705883,
+      "z": 0.47843137254901963
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Controls",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "On foot: WASD move · mouse look · E board/exit ship · F scan/collect · J journal",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 62,
+     "width": 0,
+     "height": 0,
+     "fontSize": 13,
+     "color": {
+      "x": 0.9333333333333333,
+      "y": 0.9568627450980393,
+      "z": 0.9647058823529412
+     },
+     "opacity": 0.75,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Controls2",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "Flight: W/S throttle · Shift full · X cut · arrows/IJKL pitch & yaw (A/D yaw) · Q/E roll",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 84,
+     "width": 0,
+     "height": 0,
+     "fontSize": 13,
+     "color": {
+      "x": 0.9333333333333333,
+      "y": 0.9568627450980393,
+      "z": 0.9647058823529412
+     },
+     "opacity": 0.75,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Controls3",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "Space/C lift & sink · T stabilized/manual · N NAV mode · 9/0 time warp · drag to look",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 106,
+     "width": 0,
+     "height": 0,
+     "fontSize": 13,
+     "color": {
+      "x": 0.9333333333333333,
+      "y": 0.9568627450980393,
+      "z": 0.9647058823529412
+     },
+     "opacity": 0.75,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "EndPanel",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Panel",
+     "text": "",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 0,
+     "width": 620,
+     "height": 260,
+     "fontSize": 16,
+     "color": {
+      "x": 0.03137254901960784,
+      "y": 0.06274509803921569,
+      "z": 0.09411764705882353
+     },
+     "opacity": 0.9,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "EndTitle",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": -70,
+     "width": 0,
+     "height": 0,
+     "fontSize": 36,
+     "color": {
+      "x": 0.5607843137254902,
+      "y": 0.9686274509803922,
+      "z": 1
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "EndText",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": -10,
+     "width": 0,
+     "height": 0,
+     "fontSize": 15,
+     "color": {
+      "x": 0.9333333333333333,
+      "y": 0.9568627450980393,
+      "z": 0.9647058823529412
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Again",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Button",
+     "text": "PLAY AGAIN",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 70,
+     "width": 220,
+     "height": 46,
+     "fontSize": 17,
+     "color": {
+      "x": 0.12156862745098039,
+      "y": 0.43529411764705883,
+      "z": 0.47843137254901963
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "PausePanel",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Panel",
+     "text": "",
+     "anchor": "center",
+     "visibleWhen": "pause",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 0,
+     "width": 300,
+     "height": 190,
+     "fontSize": 16,
+     "color": {
+      "x": 0.03137254901960784,
+      "y": 0.06274509803921569,
+      "z": 0.09411764705882353
+     },
+     "opacity": 0.85,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Resume",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Button",
+     "text": "Resume",
+     "anchor": "center",
+     "visibleWhen": "pause",
+     "action": "resume",
+     "offsetX": 0,
+     "offsetY": -18,
+     "width": 200,
+     "height": 40,
+     "fontSize": 16,
+     "color": {
+      "x": 0.12156862745098039,
+      "y": 0.43529411764705883,
+      "z": 0.47843137254901963
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  },
+  {
+   "name": "Restart",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Button",
+     "text": "Restart",
+     "anchor": "center",
+     "visibleWhen": "pause",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 34,
+     "width": 200,
+     "height": 40,
+     "fontSize": 16,
+     "color": {
+      "x": 0.2980392156862745,
+      "y": 0.3333333333333333,
+      "z": 0.3764705882352941
+     },
+     "opacity": 1,
+     "image": "",
+     "value": 0
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    }
+   }
+  }
+ ]
+}
