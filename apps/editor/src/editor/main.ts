@@ -63,6 +63,7 @@ import { applyMouseLook, applyStickLook, ViewEffects, type Look } from "./fpsVie
 import { Sfx } from "./sfx";
 import { AudioMixer, defaultMixerSettings, FootstepTracker, type Bus } from "./audioMixer";
 import { parseVisor, Visor } from "./visor";
+import { Music } from "./music";
 import { MAX_SPOTS, swayMaterial, swayUniforms } from "./scatterSway";
 import { crowdNear, FrameGovernor, governorTiers, presetFloor } from "./frameGovernor";
 import { defaultPostSettings, gradingActive, gradingShader, shadowQualities, type PostSettings } from "./postFx";
@@ -1660,6 +1661,17 @@ async function startEditor() {
   // trigger (a melee hit landing, a footstep) -- that needs the bridge to
   // expose which tick an event actually fired, which this round doesn't add.
   let audioContext: AudioContext | undefined;
+  // Generative music (0.75.0): scripts pick the mood (host.send("music", ...)).
+  let music: Music | undefined;
+  let musicMood = "off";
+  function updateMusic() {
+    if (musicMood !== "off" && !music && audioContext) {
+      music = new Music(audioContext, audioMixer().buses.music);
+      audioMixer().buses.music.gain.value = playerSettings.music;
+      music.setMood(musicMood);
+    }
+    music?.update();
+  }
   const soundBuffers = new Map<number, AudioBuffer>();
   const soundBufferPromises = new Map<number, Promise<AudioBuffer>>();
   function getAudioContext(): AudioContext {
@@ -1788,6 +1800,9 @@ async function startEditor() {
     activePanners.clear();
     stopCarSounds();
     spaceView?.stopAudio();
+    music?.dispose();
+    music = undefined;
+    musicMood = "off";
   }
   let runtime: Runtime;
   try {
@@ -2144,7 +2159,10 @@ async function startEditor() {
       scanner.tuning.time = Number.isFinite(time) && time > 0 ? time : 1;
       scanner.tuning.condition = Number.isFinite(condition) ? THREE.MathUtils.clamp(condition, 0, 1) : 1;
     } else if (kind === "sky_scan") scanner.skyKey = text;
-    else if (kind === "visor") visor.state = parseVisor(text);
+    else if (kind === "music") {
+      musicMood = text.trim();
+      music?.setMood(musicMood);
+    } else if (kind === "visor") visor.state = parseVisor(text);
     else if (kind === "suitlight") suitLightMode = text === "on" || text === "off" ? text : "auto";
     else if (kind === "dust" && explorerFx) {
       const [color = "#d8cfb8", density = "0.5"] = text.split(/\s+/);
@@ -2173,6 +2191,7 @@ async function startEditor() {
   function applyPlayerSettings() {
     governor.reset(presetFloor(playerSettings.quality));
     applyGovernor();
+    if (mixer) mixer.buses.music.gain.value = playerSettings.music;
     if (explorerFx) {
       explorerFx.reducedMotion = playerSettings.reducedMotion;
       explorerFx.footprints = playerSettings.footprints;
@@ -4980,6 +4999,7 @@ async function startEditor() {
     const dt = Math.min((now - previous) / 1000, 5 / 60);
     governFrame(now - previous);
     updateMouseStick(dt);
+    if (doc.mode === "play") updateMusic();
     previous = now;
     let steps = 0;
     const player = playerIndex >= 0 ? objects[playerIndex] : undefined;

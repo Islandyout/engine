@@ -835,16 +835,33 @@ local function controls_menu()
   })
 end
 
+-- What standing does to a price: -100 .. +100 standing is 1.6x .. 0.6x.
+local function price_factor(standing)
+  return math.max(0.6, math.min(1.6, 1 - standing / 100 * 0.4 - (standing < 0 and -standing / 100 * 0.2 or 0)))
+end
+
 local function workshop_menu(kind)
   open_menu({
     build = function(m)
       m.title = STATIONS[kind].name
       m.body = string.format("Ore %d · biomass %d · volatiles %d\nCommons standing %+d · Meridian standing %+d", S.res.ore, S.res.biomass, S.res.volatiles, S.civ.rep.commons, S.civ.rep.meridian)
       m.buttons = {}
+      -- Prices by standing (0.75.0): the Commons charge friends less and
+      -- strangers who wronged them more, and stop serving the worst.
+      local standing = S.civ.rep.commons
+      if (kind == "workshop" or kind == "market") and standing < -40 then
+        m.body = m.body .. "\n\nThe keepers turn away. Nobody here will trade with you until the Commons' trust is earned back."
+        return
+      end
+      local cost = function(base) return math.max(1, math.floor(base * price_factor(standing) + 0.5)) end
+      if standing ~= 0 then
+        m.body = m.body .. string.format("\nPrices %s (%+d%%)", standing > 0 and "eased for a friend" or "raised for a stranger", math.floor((price_factor(standing) - 1) * 100 + 0.5))
+      end
       if kind == "workshop" then
-        m.buttons[1] = { "Full service: 8 ore + 4 biomass", function()
-          if S.res.ore < 8 or S.res.biomass < 4 then return hint("The workshop needs 8 ore and 4 biomass.", 3) end
-          S.res.ore, S.res.biomass = S.res.ore - 8, S.res.biomass - 4
+        local ore, bio = cost(8), cost(4)
+        m.buttons[1] = { string.format("Full service: %d ore + %d biomass", ore, bio), function()
+          if S.res.ore < ore or S.res.biomass < bio then return hint(string.format("The workshop needs %d ore and %d biomass.", ore, bio), 3) end
+          S.res.ore, S.res.biomass = S.res.ore - ore, S.res.biomass - bio
           space.repair(32)
           for _, p in ipairs({ "engine", "rcs", "gear" }) do space.call("part", p, 18) end
           rep("commons", 2)
@@ -853,17 +870,19 @@ local function workshop_menu(kind)
         end }
       end
       if kind == "workshop" or kind == "market" then
-        m.buttons[#m.buttons + 1] = { "Trade 6 biomass -> 8 volatiles", function()
-          if S.res.biomass < 6 then return hint("Needs 6 biomass.", 3) end
-          S.res.biomass, S.res.volatiles = S.res.biomass - 6, S.res.volatiles + 8
+        local bio = cost(6)
+        m.buttons[#m.buttons + 1] = { string.format("Trade %d biomass -> 8 volatiles", bio), function()
+          if S.res.biomass < bio then return hint(string.format("Needs %d biomass.", bio), 3) end
+          S.res.biomass, S.res.volatiles = S.res.biomass - bio, S.res.volatiles + 8
           rep("commons", 1)
           banner("TRADE COMPLETE  +8 VOLATILES", 2, "good")
           refresh_meters()
           if S.step == "fuel" then set_step("fuel") end
         end }
-        m.buttons[#m.buttons + 1] = { "Trade 10 ore -> 6 biomass", function()
-          if S.res.ore < 10 then return hint("Needs 10 ore.", 3) end
-          S.res.ore, S.res.biomass = S.res.ore - 10, S.res.biomass + 6
+        local ore = cost(10)
+        m.buttons[#m.buttons + 1] = { string.format("Trade %d ore -> 6 biomass", ore), function()
+          if S.res.ore < ore then return hint(string.format("Needs %d ore.", ore), 3) end
+          S.res.ore, S.res.biomass = S.res.ore - ore, S.res.biomass + 6
           rep("commons", 1)
           banner("TRADE COMPLETE  +6 BIOMASS", 2, "good")
           refresh_meters()
@@ -1158,6 +1177,24 @@ end
 
 -- Ambience by context: wind (the view scales it by air), settlement murmur
 -- near people, wildlife in the wild, the signal hum near structures.
+-- Music (0.75.0): the generative score's mood follows what you're doing.
+local music_mood, music_clock = "", 0
+local function music(st, dt)
+  local mood
+  local hour = ((st.time - 3498) / 969 * 24 + 12) % 24
+  if S.ended then mood = "space"
+  elseif st.frame == "Nemesis" or st.body == "Nemesis" then mood = "signal"
+  elseif st.piloting and not st.landed then mood = (st.altitude or 0) > 25000 and "space" or "flight"
+  elseif storm.level > 0.5 and st.frame == "Tethys" then mood = "tension"
+  elseif st.frame == "Tethys" and (hour < 6 or hour > 19.5) then mood = "night"
+  else mood = "explore" end
+  music_clock = music_clock - dt
+  if mood ~= music_mood or music_clock <= 0 then
+    music_mood, music_clock = mood, 5
+    host.send("music", mood)
+  end
+end
+
 local function ambience(st)
   local here = current_site(st)
   local settlement = 0
@@ -1344,6 +1381,7 @@ function on_tick(dt)
     show_talk(nil)
     objective("", "")
     for _, el in ipairs(HUD) do ui.set_visible(el, false) end
+    host.send("music", "title")
     if load_save() then
       ui.set_text("Begin", "CONTINUE")
     else
@@ -1499,6 +1537,7 @@ function on_tick(dt)
     st.autopilot and ("  · AUTOPILOT " .. string.upper(st.autopilot_phase or "")) or ""))
   weather(st, step_dt)
   ambience(st)
+  music(st, step_dt)
   if menu and menu.build and (menu.key == "tab" or menu.key == "i") then render_menu() end
 
   -- Objectives that complete by state.

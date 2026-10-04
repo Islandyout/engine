@@ -40,7 +40,7 @@ test("Pale Signal has six worlds, nine landmarks, every site, NPC and evidence i
   assert.deepEqual([...new Set(landmarks.map((l) => l.kind))].sort(), ["array", "beacon", "camp", "monolith", "ruin"]);
   assert.equal(bodies[1]!.sea, -60);
   const species = parseSpecies(space.species, bodies);
-  assert.equal(species.length, 23, "all 22 prototype species plus the Kestra Spire");
+  assert.equal(species.length, 25, "all 22 prototype species, the Kestra Spire, and fauna for Vell and Nemesis");
   assert.equal(named("Ship").components.Spaceship.model, "Kestrel");
   // Every site beyond Kestra is a Site with its own people and evidence.
   const sites = scene.entities.filter((e: { components: { Site?: unknown } }) => e.components.Site);
@@ -54,7 +54,7 @@ test("Pale Signal has six worlds, nine landmarks, every site, NPC and evidence i
   const evidence = scene.entities.filter((e: { components: { Scannable?: { kind: string; id: string } } }) => e.components.Scannable?.kind === "Culture" && /^(te|os|ho)_/.test(e.components.Scannable.id));
   assert.equal(evidence.length, 16, "all 16 evidence items");
   assert.ok(scene.entities.some((e: { components: { Wildlife?: unknown } }) => e.components.Wildlife), "herds of wildlife");
-  assert.deepEqual(Object.keys(scene.prefabs).sort(), ["Crawler", "Drifter", "Grazer", "Husk", "Skimmer"]);
+  assert.deepEqual(Object.keys(scene.prefabs).sort(), ["Crawler", "Drifter", "Grazer", "Husk", "Skimmer", "Strider", "Watcher"]);
   const director = named("Director").components.Script.source;
   assert.ok(!director.includes("{{CONFIG}}") && director.includes("space.state()") && director.includes("save.set"));
 });

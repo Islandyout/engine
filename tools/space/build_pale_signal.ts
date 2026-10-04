@@ -163,6 +163,35 @@ function canal(x: number, z: number, w: number, d: number, yaw = 0) {
   add("Canal", [x, 0.06, z], { Scale: { value: vec(w, 0.1, d) }, Rotation: { euler: vec(0, yaw, 0) }, Renderable: { mesh: 0, material: 0, visible: true }, Material: material("#2b4549", { roughness: 0.18, metalness: 0.12 }) });
 }
 
+// An interior (0.75.0): floor, four walls with a doorway on one side, a
+// roof (shelter from storms), a warm vestibule glow over the door and a
+// light inside. `door` is the side the doorway faces.
+function interior(name: string, x: number, z: number, w: number, d: number, door: "n" | "s" | "e" | "w", wall: string, roof: string, glow = "#ffb860", lit = 2.6) {
+  const h = 4.2, t = 0.4, gap = 2.6;
+  box(`${name} Floor`, [x, 0.12, z], [w, 0.24, d], "#4a4640", solid(), { roughness: 0.85 });
+  const side = (s: "n" | "s" | "e" | "w") => {
+    const alongX = s === "n" || s === "s";
+    const length = alongX ? w : d;
+    const cx = s === "e" ? x + w / 2 : s === "w" ? x - w / 2 : x;
+    const cz = s === "n" ? z + d / 2 : s === "s" ? z - d / 2 : z;
+    const size = (l: number): V3 => (alongX ? [l, h, t] : [t, h, l]);
+    if (s !== door) return box(`${name} Wall`, [cx, h / 2, cz], size(length), wall, solid(), { roughness: 0.9 });
+    const piece = (length - gap) / 2;
+    for (const sign of [-1, 1]) {
+      const off = sign * (gap / 2 + piece / 2);
+      box(`${name} Wall`, [cx + (alongX ? off : 0), h / 2, cz + (alongX ? 0 : off)], size(piece), wall, solid(), { roughness: 0.9 });
+    }
+    box(`${name} Lintel`, [cx, h - 0.5, cz], alongX ? [gap, 1, t] : [t, 1, gap], wall, solid(), { roughness: 0.9 });
+    const out = 0.5;
+    const gx = cx + (s === "e" ? out : s === "w" ? -out : 0), gz = cz + (s === "n" ? out : s === "s" ? -out : 0);
+    box(`${name} Vestibule Glow`, [gx, h - 1.2, gz], alongX ? [gap + 0.8, 0.22, 0.5] : [0.5, 0.22, gap + 0.8], glow, {}, { emissive: rgb(glow), emissiveIntensity: 2 });
+    light(`${name} Vestibule Light`, [gx * 1 + (s === "e" ? 1 : s === "w" ? -1 : 0), h - 1, gz + (s === "n" ? 1 : s === "s" ? -1 : 0)], glow, 2.2, 8);
+  };
+  for (const s of ["n", "s", "e", "w"] as const) side(s);
+  box(`${name} Roof`, [x, h + 0.2, z], [w + 0.8, 0.4, d + 0.8], roof, solid(), { roughness: 0.7 });
+  light(`${name} Light`, [x, h - 0.8, z], "#ffdcaa", lit, Math.max(w, d) * 1.2);
+}
+
 // ------------------------------------------------------- people and life --
 // The Talari model (catalog 175): narrow-torsoed, crested, in tunic and
 // mantle, on the mannequin's rig (tools/models/make_talari.py).
@@ -227,6 +256,8 @@ const FAUNA: Record<string, { mesh: number; scale: V3; species: string; name: st
   Crawler: { mesh: 116, scale: [1.1, 0.8, 1.6], species: "ci_crawl", name: "Slag Crawler", tint: "#3a2018" },
   Husk: { mesh: 136, scale: [0.9, 1.3, 1.5], species: "os_husk", name: "Dust Husk", tint: "#6f6555" },
   Drifter: { mesh: 114, scale: [3.2, 1.6, 3.2], species: "ho_drift", name: "Mist Drifter", tint: "#3a6f8f" },
+  Strider: { mesh: 112, scale: [0.6, 0.9, 1.3], species: "ve_strider", name: "Rime Strider", tint: "#c9d8e6" },
+  Watcher: { mesh: 133, scale: [0.8, 1.2, 1.7], species: "ne_watcher", name: "Pale Watcher", tint: "#b9a6e6" },
 };
 for (const [prefab, f] of Object.entries(FAUNA))
   prefabs[prefab] = {
@@ -264,11 +295,15 @@ box("Station Hangar", [-44, 4.5, -8], [18, 9, 24], "#a7adb3", solid(), { roughne
 box("Hangar Roof", [-44, 9.3, -8], [19.5, 0.6, 25.5], "#6d747c", {}, { roughness: 0.5, metalness: 0.5 });
 box("Hangar Door", [-34.9, 3.8, -8], [0.3, 7.2, 12], "#2e3338", {}, { roughness: 0.6, metalness: 0.4 });
 box("Hangar Light", [-34.7, 7.8, -8], [0.2, 0.3, 12.4], "#ffe6b0", {}, { emissive: rgb("#ffd890"), emissiveIntensity: 2 });
-// The workshop: repairs and trade (E at the bench).
-box("Kestra Workshop", [-30, 0.6, 26], [5, 1.2, 2], "#5a4a3a", { ...solid(), Scannable: { id: "station:workshop", name: "Kestra Workshop", kind: "Culture", range: 4 } }, { roughness: 0.8 });
-model("Workshop Shelf", 155, [-33, 0, 28], [1, 1, 1], 0, solid());
-model("Workshop Crate", 145, [-27, 0, 28.5], [0.7, 0.7, 0.7], 0.4, solid());
-light("Workshop Lamp", [-30, 3.5, 26], "#ffcf8a", 3, 12);
+// The workshop: repairs and trade (E at the bench), in its own hall
+// (0.75.0) beside the field, doorway toward the pad.
+const [WX, WZ] = [-40, -40];
+interior("Workshop Hall", WX, WZ, 13, 10, "e", "#8a7f6e", "#5a5048");
+box("Kestra Workshop", [WX - 1, 0.6, WZ - 2.5], [5, 1.2, 2], "#5a4a3a", { ...solid(), Scannable: { id: "station:workshop", name: "Kestra Workshop", kind: "Culture", range: 4 } }, { roughness: 0.8 });
+model("Workshop Shelf", 155, [WX - 5, 0.24, WZ + 3], [1, 1, 1], Math.PI / 2, solid());
+model("Workshop Crate", 145, [WX + 3, 0.24, WZ + 3.5], [0.7, 0.7, 0.7], 0.4, solid());
+model("Workshop Crate", 145, [WX + 4.2, 0.24, WZ + 2.4], [0.6, 0.6, 0.6], 1.1, solid());
+light("Workshop Lamp", [WX - 1, 3.2, WZ - 2.5], "#ffcf8a", 2.4, 8);
 for (const [x, z] of [
   [-18, -18],
   [18, -18],
@@ -431,6 +466,10 @@ site("darsa_delta", () => {
   for (let i = 0; i < 4; i++) canal(-60 + i * 40, 0, 6, 220);
   for (let i = 0; i < 16; i++) terrace(-80 + (i % 4) * 40 + 15, -90 + Math.floor(i / 4) * 55, (i % 2) * Math.PI, 1);
   civicHall(40, 40, 9, "Darsa Water Court");
+  // The Water Court's chamber: benches where the canal rotas are argued.
+  interior("Water Court Chamber", 88, -20, 14, 10, "w", "#b7a682", "#5a6f6a");
+  for (let i = 0; i < 3; i++) box("Court Bench", [86 + i * 2.6, 0.45, -22], [1.8, 0.5, 4], "#6a5a3a", solid(), { roughness: 0.8 });
+  box("Water Ledger Desk", [93, 0.7, -20], [1.2, 1.4, 3], "#5a4a3a", solid(), { roughness: 0.8 });
   floodwall(-100, 120, 120, 120);
   stall(20, -40, 0);
   stall(30, -40, 0);
@@ -438,6 +477,11 @@ site("darsa_delta", () => {
 site("meridian_spur", () => {
   field(252, 54);
   civicHall(0, -60, 12, "Spur Observatory");
+  // The observatory's reading room: charts and an instrument bench.
+  interior("Reading Room", 42, -60, 12, 9, "w", "#c7c9c2", "#4a5560", "#ffd9a0", 2.2);
+  model("Chart Shelf", 155, [47, 0.24, -62], [1, 1, 1], -Math.PI / 2, solid());
+  model("Reading Terminal", 144, [44, 0.24, -63.5], [1, 1, 1], 0, solid());
+  box("Star Table", [41, 0.75, -59], [3, 0.12, 2], "#6a5a3a", solid(), { roughness: 0.7 });
   for (let i = 0; i < 3; i++) {
     box("Observatory Drum", [-40 + i * 40, 3, -120], [8, 6, 8], "#c7c9c2", solid(), { roughness: 0.5 });
     box("Telescope", [-40 + i * 40, 7, -120], [1.2, 1.2, 6], "#6a7078", {}, { metalness: 0.6 });
@@ -453,6 +497,11 @@ site("ossuary_archive", () => {
   }
   for (let i = 0; i < 8; i++) model("Archive Column", 141, [-30 + (i % 4) * 20, 0, -20 + Math.floor(i / 4) * 40], [1.6, 2, 1.6], 0, solid());
   model("Sealed Vault", 145, [0, 0, 0], [2, 2, 2], 0.3, solid());
+  // One records room still stands outside the ring: dark, dusty, its
+  // shelves still in rows (0.75.0).
+  interior("Records Room", 92, 0, 14, 10, "w", "#8a8274", "#6a6052", "#d8c8a0", 1.4);
+  for (let i = 0; i < 3; i++) model("Records Shelf", 155, [90 + i * 3, 0.24, 3], [1, 1, 1], 0, solid());
+  box("Fallen Shelf", [94, 0.4, -2.5], [3.5, 0.8, 1], "#5a5040", solid(), { roughness: 0.95 });
 });
 site("ossuary_transit", () => {
   // The causeway: a raised road pointing away from the basin, with markers.
@@ -470,7 +519,9 @@ site("hollow_enclave", () => {
   model("Mooring Anchor", 159, [0, 0, 0], [2, 2, 2], 0, solid());
   field(-160, 60);
   // The Resonance Exchange.
-  box("Resonance Exchange", [216, 3, -114], [16, 6, 12], "#2c5f8f", solid(), { emissive: rgb("#2a7fff"), emissiveIntensity: 0.2 });
+  // An enterable hall now (0.75.0), its resonance core inside.
+  interior("Resonance Exchange", 216, -114, 16, 12, "w", "#2c5f8f", "#234a5e", "#7fe6ff", 2);
+  box("Resonance Core", [218, 1.6, -114], [2, 3.2, 2], "#3a6f8f", solid(), { emissive: rgb("#7fe6ff"), emissiveIntensity: 0.9 });
   for (const c of CLADES)
     box(c.name, [c.at[0] * 0.6, 2.2, -c.at[1] * 0.6], [1.2, 4.4, 1.2], "#3a6f8f", { ...solid(), Scannable: { id: `clade:${c.id}`, name: c.name, kind: "Culture", range: 5 } }, { emissive: rgb("#7fe6ff"), emissiveIntensity: 0.8 });
 });
@@ -514,8 +565,8 @@ const config = [
   `local NPCS = ${lua(NPCS.map(({ id, name, role, inst, site, line }) => ({ id, name, role, inst, site, line })))}`,
   `local CLADES = ${lua(CLADES.map(({ id, name, role, inst, line }) => ({ id, name, role, inst, line })))}`,
   `local ACADEMY = ${lua(ACADEMY)}`,
-  `local STATIONS = ${lua({ workshop: { x: -30, z: 26, name: "Kestra Workshop" }, market: { x: MX + 10, z: MZ, name: "Reed Market Exchange" }, archive: { x: HX + 2, z: HZ + 3, name: "Bilingual Archive" } })}`,
-  `local FAUNA = ${lua({ Tethys: ["Grazer", "Skimmer"], Cinder: ["Crawler"], Ossuary: ["Husk"], Hollow: ["Drifter"] })}`,
+  `local STATIONS = ${lua({ workshop: { x: WX - 1, z: WZ - 2.5, name: "Kestra Workshop" }, market: { x: MX + 10, z: MZ, name: "Reed Market Exchange" }, archive: { x: HX + 2, z: HZ + 3, name: "Bilingual Archive" } })}`,
+  `local FAUNA = ${lua({ Tethys: ["Grazer", "Skimmer"], Cinder: ["Crawler"], Ossuary: ["Husk"], Hollow: ["Drifter"], Vell: ["Strider"], Nemesis: ["Watcher"] })}`,
 ].join("\n");
 add("Director", [0, 60, 0], {
   Script: { source: readFileSync(join(here, "lua/director.lua"), "utf8").replace("\n{{CONFIG}}\n", `\n${config}\n`), props: {} },
