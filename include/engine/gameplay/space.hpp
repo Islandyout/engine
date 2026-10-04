@@ -70,6 +70,15 @@ struct Body final {
     double sea_level{-1e9};
     // Not drawn or listed until revealed (0.73.0): Pale Signal's Nemesis.
     bool hidden{};
+    // Terrain features (0.74.0): impact craters (0..1 density), lava rifts
+    // (glowing channels) and dune fields.
+    double craters{};
+    bool rifts{};
+    bool dunes{};
+    // Seconds per turn about the body's +y axis (0.74.0); 0 doesn't turn.
+    // Surfaces, sites and landmarks are fixed to the body and turn with it;
+    // ships fly in the non-rotating frame.
+    double day{};
     std::uint32_t seed{1};
     std::vector<Flat> flats;
 
@@ -100,6 +109,12 @@ double surface_height(const Body& body, DVec3 direction);
 double terrain_height(const Body& body, DVec3 direction);
 double surface_radius(const Body& body, DVec3 direction);
 DVec3 surface_normal(const Body& body, DVec3 direction);
+// How much of a lava rift is under a direction (0..1), for drawing.
+double lava(const Body& body, DVec3 direction);
+// The body's turn at time t: body-fixed -> non-rotating (0.74.0).
+DQuat body_spin(const Body& body, double t);
+// The ground's own velocity at a non-rotating position (omega x r).
+DVec3 surface_velocity(const Body& body, DVec3 position);
 
 struct ShipSpec final {
     double mass{12000};          // kg, fuel included
@@ -183,8 +198,9 @@ struct ShipState final {
     double engine{100}, rcs_condition{100}, gear{100}, scanner{100};
 };
 
-// The terrain radius under a point (relative to body `index`'s centre).
-// The default is surface_radius; a host can raise it for structures.
+// The terrain radius under a point (relative to body `index`'s centre, in
+// the body-fixed frame). The default is surface_radius; a host can raise it
+// for structures.
 using SurfaceQuery = std::function<double(int index, DVec3 position)>;
 
 // Advances the ship by dt at system time t (the caller advances t). Steps
@@ -195,8 +211,9 @@ void step_ship(ShipState& state, const ShipSpec& spec, const ShipInput& input, c
 
 // Rests the ship on the ground of body `index` above `direction`, level with
 // the terrain and its nose along `heading` (projected onto the ground).
+// `direction` and `heading` are body-fixed; `t` is the time (for a turning body).
 void place_landed(ShipState& state, const ShipSpec& spec, const System& system, int index, DVec3 direction,
-                  DVec3 heading);
+                  DVec3 heading, double t = 0);
 // Puts the ship on a circular orbit `altitude` above body `index`'s radius.
 void place_in_orbit(ShipState& state, const System& system, int index, double altitude);
 

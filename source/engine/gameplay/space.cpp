@@ -85,9 +85,76 @@ double value_noise(std::uint32_t seed, DVec3 p) {
     return lerp(lerp(x00, x10, v), lerp(x01, x11, v), w);
 }
 
+// Impact craters: per cell of a lattice over the sphere, maybe one crater
+// (density `craters`) with a bowl and a raised rim. Two scales.
+double crater_height(const Body& body, DVec3 direction) {
+    double h = 0;
+    for (int level = 0; level < 2; ++level) {
+        const double cell = level == 0 ? std::max(body.terrain_scale * 1.6, 600.0) : std::max(body.terrain_scale * 0.35, 150.0);
+        const std::uint32_t seed = body.seed * 7919U + 31U + static_cast<std::uint32_t>(level) * 977U;
+        const DVec3 p = direction * (body.radius / cell);
+        const int cx = static_cast<int>(std::floor(p.x)), cy = static_cast<int>(std::floor(p.y)), cz = static_cast<int>(std::floor(p.z));
+        for (int dx = -1; dx <= 1; ++dx)
+            for (int dy = -1; dy <= 1; ++dy)
+                for (int dz = -1; dz <= 1; ++dz) {
+                    const int x = cx + dx, y = cy + dy, z = cz + dz;
+                    if ((lattice(seed, x, y, z) * 0.5 + 0.5) > body.craters)
+                        continue;
+                    // The crater's centre, projected onto the sphere.
+                    const DVec3 centre = normalized(DVec3{x + 0.5 + lattice(seed + 1, x, y, z) * 0.4, y + 0.5 + lattice(seed + 2, x, y, z) * 0.4,
+                                                          z + 0.5 + lattice(seed + 3, x, y, z) * 0.4});
+                    const double radius = cell * (0.18 + 0.22 * (lattice(seed + 4, x, y, z) * 0.5 + 0.5));
+                    const double arc = std::acos(clampd(dot(direction, centre), -1, 1)) * body.radius;
+                    const double t = arc / radius;
+                    if (t > 1.6)
+                        continue;
+                    const double depth = radius * 0.16, rim = radius * 0.05;
+                    if (t < 1)
+                        h += -depth * (1 - t * t) + rim * t * t * t * t;
+                    else
+                        h += rim * std::exp(-(t - 1) * (t - 1) / 0.08);
+                }
+    }
+    return h;
+}
+
+// Lava rifts: narrow channels along the zero lines of a broad noise field.
+double rift_amount(const Body& body, DVec3 direction) {
+    if (!body.rifts)
+        return 0;
+    const DVec3 p = direction * (body.radius / std::max(body.terrain_scale * 2.5, 1000.0));
+    const double n = value_noise(body.seed * 13U + 777U, p) + 0.35 * value_noise(body.seed * 13U + 778U, p * 2.7);
+    const double width = 0.06;
+    return clampd(1 - std::abs(n) / width, 0, 1);
+}
+
+// Dunes: crests along one wind direction, wandering with noise, only in
+// sand basins.
+double dune_height(const Body& body, DVec3 direction) {
+    if (!body.dunes)
+        return 0;
+    const DVec3 p = direction * (body.radius / 260.0);
+    const double wander = value_noise(body.seed * 17U + 5U, direction * (body.radius / 1500.0)) * 6.0;
+    const double s = std::sin(p.x * 0.8 + p.z * 0.6 + wander);
+    const double crest = std::pow(0.5 + 0.5 * s, 3.0);
+    const double basin = clampd(value_noise(body.seed * 17U + 9U, direction * (body.radius / 6000.0)) * 2.0 + 0.4, 0, 1);
+    return crest * 14.0 * basin;
+}
+
+double feature_height(const Body& body, DVec3 direction) {
+    double h = 0;
+    if (body.craters > 0)
+        h += crater_height(body, direction);
+    const double rift = rift_amount(body, direction);
+    if (rift > 0)
+        h -= rift * rift * std::max(body.terrain_amplitude * 0.35, 40.0);
+    h += dune_height(body, direction);
+    return h;
+}
+
 double natural_height(const Body& body, DVec3 direction) {
     if (!(body.terrain_amplitude > 0))
-        return 0;
+        return feature_height(body, direction);
     const double scale = body.radius / std::max(body.terrain_scale, 1.0);
     DVec3 p = direction * scale;
     double sum = 0, ridges = 0, amplitude = 1, norm = 0;
@@ -104,7 +171,7 @@ double natural_height(const Body& body, DVec3 direction) {
     ridges = ridges / norm * 2.0 - 1.0;
     // Mountains only where the broad shape is already high.
     const double mountains = std::max(0.0, sum + 0.15) * ridges;
-    return body.terrain_amplitude * (sum * 0.75 + mountains * 0.6);
+    return body.terrain_amplitude * (sum * 0.75 + mountains * 0.6) + feature_height(body, direction);
 }
 
 DVec3 gravity_at(const System& system, int ref, DVec3 position) {
@@ -113,13 +180,30 @@ DVec3 gravity_at(const System& system, int ref, DVec3 position) {
     return position * (-gm / (r * r * r));
 }
 
-double query_surface(const SurfaceQuery& surface, const System& system, int ref, DVec3 position) {
-    if (surface)
-        return surface(ref, position);
-    return surface_radius(system.bodies[static_cast<std::size_t>(ref)], normalized(position));
+// Non-rotating (body-centred) -> body-fixed, at time t.
+DVec3 to_fixed(const System& system, int ref, double t, DVec3 v) {
+    const auto& body = system.bodies[static_cast<std::size_t>(ref)];
+    return body.day > 0 ? rotate(conjugate(body_spin(body, t)), v) : v;
+}
+DVec3 from_fixed(const System& system, int ref, double t, DVec3 v) {
+    const auto& body = system.bodies[static_cast<std::size_t>(ref)];
+    return body.day > 0 ? rotate(body_spin(body, t), v) : v;
 }
 
-DVec3 query_normal(const SurfaceQuery& surface, const System& system, int ref, DVec3 position) {
+// The surface radius under a body-fixed point.
+double fixed_surface(const SurfaceQuery& surface, const System& system, int ref, DVec3 fixed) {
+    if (surface)
+        return surface(ref, fixed);
+    return surface_radius(system.bodies[static_cast<std::size_t>(ref)], normalized(fixed));
+}
+
+// The surface radius under a non-rotating position at time t.
+double query_surface(const SurfaceQuery& surface, const System& system, int ref, DVec3 position, double t) {
+    return fixed_surface(surface, system, ref, to_fixed(system, ref, t, position));
+}
+
+// The ground's normal under a body-fixed point, body-fixed.
+DVec3 fixed_normal(const SurfaceQuery& surface, const System& system, int ref, DVec3 position) {
     const DVec3 n = normalized(position);
     DVec3 a, b;
     tangents(n, a, b);
@@ -127,13 +211,18 @@ DVec3 query_normal(const SurfaceQuery& surface, const System& system, int ref, D
     const double e = 2.0 / r;
     const auto point = [&](DVec3 dir) {
         dir = normalized(dir);
-        return dir * query_surface(surface, system, ref, dir * r);
+        return dir * fixed_surface(surface, system, ref, dir * r);
     };
     const DVec3 p0 = point(n), p1 = point(n + a * e), p2 = point(n + b * e);
     DVec3 normal = normalized(cross(p1 - p0, p2 - p0));
     if (dot(normal, n) < 0)
         normal = -normal;
     return normal;
+}
+
+// The ground's normal under a non-rotating position at time t, non-rotating.
+DVec3 query_normal(const SurfaceQuery& surface, const System& system, int ref, DVec3 position, double t) {
+    return from_fixed(system, ref, t, fixed_normal(surface, system, ref, to_fixed(system, ref, t, position)));
 }
 
 // Rotates the angular velocity toward the rate that turns the attitude onto
@@ -160,13 +249,16 @@ void aim(ShipState& state, const ShipSpec& spec, DQuat desired, double h) {
     state.angular_velocity = d <= step ? want : state.angular_velocity + delta * (step / d);
 }
 
-void touchdown(ShipState& state, const ShipSpec& spec, const System& system, const SurfaceQuery& surface) {
+void touchdown(ShipState& state, const ShipSpec& spec, const System& system, const SurfaceQuery& surface, double t) {
     const DVec3 radial = normalized(state.position);
-    const DVec3 normal = query_normal(surface, system, state.ref, state.position);
-    const double vdot = dot(state.velocity, radial);
+    const DVec3 normal = query_normal(surface, system, state.ref, state.position, t);
+    // Speeds relative to the (turning) ground.
+    const DVec3 ground_velocity = surface_velocity(system.bodies[static_cast<std::size_t>(state.ref)], state.position);
+    const DVec3 relative = state.velocity - ground_velocity;
+    const double vdot = dot(relative, radial);
     Touchdown result;
     result.vertical = std::max(0.0, -vdot);
-    result.lateral = length(state.velocity - radial * vdot);
+    result.lateral = length(relative - radial * vdot);
     result.tilt = std::acos(clampd(dot(ship_up(state), normal), -1, 1));
     result.slope = std::acos(clampd(dot(normal, radial), -1, 1));
     const double deg = 180.0 / pi;
@@ -178,9 +270,9 @@ void touchdown(ShipState& state, const ShipSpec& spec, const System& system, con
                           std::max(result.slope - spec.land_slope, 0.0) * deg * 0.45;
     result.rough = excess > 0;
     result.damage = result.rough ? clampd(excess * 1.8, 2, 140) : 0;
-    const double ground = query_surface(surface, system, state.ref, state.position);
+    const double ground = query_surface(surface, system, state.ref, state.position, t);
     state.position = radial * (ground + spec.gear_clearance);
-    state.velocity = {};
+    state.velocity = surface_velocity(system.bodies[static_cast<std::size_t>(state.ref)], state.position);
     state.angular_velocity = {};
     state.attitude = level_attitude(normal, ship_forward(state));
     state.landed = true;
@@ -223,12 +315,12 @@ void check_sphere_of_influence(ShipState& state, const System& system, double t)
     }
 }
 
-void substep_ship(ShipState& state, const ShipSpec& spec, const ShipInput& input, const System& system, double h,
-                  const SurfaceQuery& surface) {
+void substep_ship(ShipState& state, const ShipSpec& spec, const ShipInput& input, const System& system, double t,
+                  double h, const SurfaceQuery& surface) {
     const Body* body = state.ref >= 0 ? &system.bodies[static_cast<std::size_t>(state.ref)] : nullptr;
     const DVec3 radial = normalized(state.position);
     const double altitude =
-        body ? length(state.position) - query_surface(surface, system, state.ref, state.position) - spec.gear_clearance
+        body ? length(state.position) - query_surface(surface, system, state.ref, state.position, t) - spec.gear_clearance
              : std::numeric_limits<double>::infinity();
     const double density = body ? air_density(*body, altitude) : 0.0;
 
@@ -336,7 +428,11 @@ void substep_ship(ShipState& state, const ShipSpec& spec, const ShipInput& input
         state.engine_on = true;
 
     // Drag and lift work on the air-relative velocity (wind, 0.73.0).
-    const DVec3 air_velocity = density > 1e-6 ? state.velocity - input.wind : state.velocity;
+    // The air turns with the body.
+    const DVec3 air_velocity =
+        density > 1e-6 && body
+            ? state.velocity - surface_velocity(*body, state.position) - from_fixed(system, state.ref, t, input.wind)
+            : state.velocity;
     const double air_speed = length(air_velocity);
     const double speed = length(state.velocity);
     if (density > 1e-6 && air_speed > 0.5) {
@@ -368,6 +464,12 @@ void substep_ship(ShipState& state, const ShipSpec& spec, const ShipInput& input
         if (dot(accel, radial) > 0.15) {
             state.landed = false;
             state.lifted_off = true;
+        } else if (body && body->day > 0) {
+            // Carried around by the turning ground.
+            const DQuat turn = axis_angle({0, 1, 0}, 2.0 * pi * h / body->day);
+            state.position = rotate(turn, state.position);
+            state.attitude = normalized(turn * state.attitude);
+            state.velocity = surface_velocity(*body, state.position);
         } else {
             state.velocity = {};
         }
@@ -380,11 +482,11 @@ void substep_ship(ShipState& state, const ShipSpec& spec, const ShipInput& input
     // ---- ground contact.
     if (body) {
         const DVec3 r = normalized(state.position);
-        const double ground = query_surface(surface, system, state.ref, state.position);
+        const double ground = query_surface(surface, system, state.ref, state.position, t + h);
         const double alt = length(state.position) - ground - spec.gear_clearance;
         const double vspeed = dot(state.velocity, r);
         if (!state.landed && alt <= 0 && vspeed <= 0) {
-            touchdown(state, spec, system, surface);
+            touchdown(state, spec, system, surface, t + h);
         } else if (!state.landed && alt < -1.0) {
             // Anti-tunnelling for a long step into a ridge.
             state.position = r * (ground + spec.gear_clearance);
@@ -499,7 +601,21 @@ DVec3 surface_normal(const Body& body, DVec3 direction) {
     const SurfaceQuery query = [&body](int, DVec3 p) { return surface_radius(body, normalized(p)); };
     System one;
     one.bodies.push_back(body);
-    return query_normal(query, one, 0, normalized(direction) * body.radius);
+    return fixed_normal(query, one, 0, normalized(direction) * body.radius);
+}
+
+double lava(const Body& body, DVec3 direction) { return rift_amount(body, normalized(direction)); }
+
+DQuat body_spin(const Body& body, double t) {
+    if (!(body.day > 0))
+        return {};
+    return axis_angle({0, 1, 0}, 2.0 * pi * std::fmod(t / body.day, 1.0));
+}
+
+DVec3 surface_velocity(const Body& body, DVec3 position) {
+    if (!(body.day > 0))
+        return {};
+    return cross(DVec3{0, 2.0 * pi / body.day, 0}, position);
 }
 
 void step_ship(ShipState& state, const ShipSpec& spec, const ShipInput& input, const System& system, double t,
@@ -509,16 +625,17 @@ void step_ship(ShipState& state, const ShipSpec& spec, const ShipInput& input, c
     const int steps = std::min(4000, std::max(1, static_cast<int>(std::ceil(dt / substep - 1e-9))));
     const double h = dt / steps;
     for (int i = 0; i < steps && !state.destroyed; ++i) {
-        substep_ship(state, spec, input, system, h, surface);
+        substep_ship(state, spec, input, system, t + h * i, h, surface);
         check_sphere_of_influence(state, system, t + h * (i + 1));
     }
     // Readouts.
     if (state.ref >= 0) {
         const DVec3 r = normalized(state.position);
         state.altitude =
-            length(state.position) - query_surface(surface, system, state.ref, state.position) - spec.gear_clearance;
-        state.vertical_speed = dot(state.velocity, r);
-        state.ground_speed = length(state.velocity - r * state.vertical_speed);
+            length(state.position) - query_surface(surface, system, state.ref, state.position, t + dt) - spec.gear_clearance;
+        const DVec3 relative = state.velocity - surface_velocity(system.bodies[static_cast<std::size_t>(state.ref)], state.position);
+        state.vertical_speed = dot(relative, r);
+        state.ground_speed = length(relative - r * state.vertical_speed);
         state.density = air_density(system.bodies[static_cast<std::size_t>(state.ref)], state.altitude);
     } else {
         state.altitude = std::numeric_limits<double>::infinity();
@@ -529,14 +646,15 @@ void step_ship(ShipState& state, const ShipSpec& spec, const ShipInput& input, c
 }
 
 void place_landed(ShipState& state, const ShipSpec& spec, const System& system, int index, DVec3 direction,
-                  DVec3 heading) {
+                  DVec3 heading, double t) {
     const auto& body = system.bodies[static_cast<std::size_t>(index)];
     direction = normalized(direction);
     state.ref = index;
-    state.position = direction * (surface_radius(body, direction) + spec.gear_clearance);
-    state.velocity = {};
+    const DQuat spin = body_spin(body, t);
+    state.position = rotate(spin, direction * (surface_radius(body, direction) + spec.gear_clearance));
+    state.velocity = surface_velocity(body, state.position);
     state.angular_velocity = {};
-    state.attitude = level_attitude(surface_normal(body, direction), heading);
+    state.attitude = level_attitude(rotate(spin, surface_normal(body, direction)), rotate(spin, heading));
     state.landed = true;
     state.destroyed = false;
     state.altitude = 0;

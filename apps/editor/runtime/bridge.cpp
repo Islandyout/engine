@@ -184,13 +184,22 @@ struct SpaceSim final {
     space::DVec3 wind_local{}; // m/s in the frame (x, z)
 
     [[nodiscard]] space::DVec3 site_position() const { return space::body_position(system, site_body, time); }
+    // The site body's turn now (0.74.0): body-fixed -> non-rotating.
+    [[nodiscard]] space::DQuat spin(int body = -1) const {
+        return space::body_spin(system.bodies[static_cast<std::size_t>(body < 0 ? site_body : body)], time);
+    }
+    // A non-rotating vector around `body` (default: the site's) in its
+    // body-fixed frame. The site, its axes and the terrain are body-fixed.
+    [[nodiscard]] space::DVec3 fixed(space::DVec3 v, int body = -1) const {
+        return space::rotate(space::conjugate(spin(body)), v);
+    }
     // Absolute (system frame) -> site frame, and back.
     [[nodiscard]] space::DVec3 to_local(space::DVec3 absolute) const {
-        const auto p = absolute - site_position() - site_origin;
+        const auto p = fixed(absolute - site_position()) - site_origin;
         return {space::dot(p, axis_x), space::dot(p, axis_y), space::dot(p, axis_z)};
     }
     [[nodiscard]] space::DVec3 from_local(space::DVec3 local) const {
-        return site_position() + site_origin + axis_x * local.x + axis_y * local.y + axis_z * local.z;
+        return site_position() + space::rotate(spin(), site_origin + axis_x * local.x + axis_y * local.y + axis_z * local.z);
     }
     [[nodiscard]] space::DVec3 ship_absolute() const {
         return (ship.ref >= 0 ? space::body_position(system, ship.ref, time) : space::DVec3{}) + ship.position;
@@ -817,11 +826,12 @@ struct Runtime {
         auto &sim = *space;
         if (!sim.ship.landed || sim.ship.ref < 0)
             return;
-        const int site = site_at(sim.ship.ref, sim.ship.position);
+        const auto ship_fixed = sim.fixed(sim.ship.position, sim.ship.ref);
+        const int site = site_at(sim.ship.ref, ship_fixed);
         if (site == sim.active_site && site != -2)
             return;
         if (site == -2 && sim.active_site == -2 && sim.ship.ref == sim.site_body) {
-            const auto local = sim.rotate_to_local(sim.ship.position - sim.site_origin);
+            const auto local = sim.rotate_to_local(ship_fixed - sim.site_origin);
             if (std::abs(local.x) < sim.eva_range - 30 && std::abs(local.z) < sim.eva_range - 30)
                 return; // still inside the current wilderness frame
         }
@@ -839,7 +849,7 @@ struct Runtime {
             const auto &info = sim.sites[static_cast<std::size_t>(site)];
             anchor_frame(info.body, info.up);
         } else {
-            anchor_frame(sim.ship.ref, sim.ship.position);
+            anchor_frame(sim.ship.ref, ship_fixed);
         }
         sim.active_site = site;
         sim.away = site != -1;
@@ -859,7 +869,7 @@ struct Runtime {
         if (!sp.ship.landed || sp.ship.ref < 0)
             return;
         const auto targets = engine::physics::raycast_targets(w);
-        const double ground = space_surface(sp.ship.ref, sp.ship.position, &targets);
+        const double ground = space_surface(sp.ship.ref, sp.fixed(sp.ship.position, sp.ship.ref), &targets);
         sp.ship.position = space::normalized(sp.ship.position) * (ground + sp.spec.gear_clearance);
         if (sp.ship_entity && w.alive(*sp.ship_entity)) {
             const auto local = sp.to_local(sp.ship_absolute());
@@ -905,7 +915,7 @@ struct Runtime {
         if (!sp.piloting || !sp.ship.landed || !sp.ship_entity || !sp.stowed || !w.alive(*sp.stowed))
             return false;
         const auto ship_box = *w.get<engine::Box>(*sp.ship_entity);
-        const auto left = sp.rotate_to_local(space::rotate(sp.ship.attitude, {1, 0, 0}));
+        const auto left = sp.rotate_to_local(sp.fixed(space::rotate(sp.ship.attitude, {1, 0, 0})));
         const double side = std::max(ship_box.size.x, ship_box.size.z) * 0.5 + 1.5;
         const float x = static_cast<float>(ship_box.center.x + left.x * side);
         const float z = static_cast<float>(ship_box.center.z + left.z * side);
@@ -2724,7 +2734,7 @@ bool BridgeHost::space(engine::World &world, const std::string &op, const std::v
                sp.ship.destroyed ? 1.0 : 0.0, local.x, local.y, local.z, orbit.valid && orbit.closed ? 1.0 : 0.0,
                sp.ship.g_force, space::length(local)};
         // Where the ship is over its reference body, in degrees.
-        const auto dir = space::normalized(sp.ship.position);
+        const auto dir = space::normalized(sp.ship.ref >= 0 ? sp.fixed(sp.ship.position, sp.ship.ref) : sp.ship.position);
         out.push_back(std::asin(std::clamp(dir.y, -1.0, 1.0)) * 180 / 3.14159265358979);
         out.push_back(std::atan2(dir.z, dir.x) * 180 / 3.14159265358979);
         text_out = (sp.ship.ref >= 0 ? sp.system.bodies[static_cast<std::size_t>(sp.ship.ref)].name : std::string{"star"}) +
@@ -2879,7 +2889,7 @@ bool BridgeHost::space(engine::World &world, const std::string &op, const std::v
             const auto east = space::cross(north, dir);
             const double heading = arg(2) * 3.14159265358979 / 180;
             space::place_landed(sp.ship, sp.spec, sp.system, index, dir,
-                                north * std::cos(heading) + east * std::sin(heading));
+                                north * std::cos(heading) + east * std::sin(heading), sp.time);
             runtime_.settle_landed(world);
             runtime_.reframe_after_landing(world);
         }
@@ -3867,6 +3877,17 @@ EXPORT void editor_space_body_sea(double sea_level) {
         return;
     staging->space->system.bodies.back().sea_level = sea_level;
 }
+// The last added body's terrain features and turn (0.74.0): crater density
+// (0..1), lava rifts and dunes (0/1), and seconds per turn (0: none).
+EXPORT void editor_space_body_features(double craters, int rifts, int dunes, double day) {
+    if (!staging || !staging->space || staging->space->system.bodies.empty())
+        return;
+    auto &b = staging->space->system.bodies.back();
+    b.craters = std::isfinite(craters) ? std::clamp(craters, 0.0, 1.0) : 0.0;
+    b.rifts = rifts != 0;
+    b.dunes = dunes != 0;
+    b.day = std::isfinite(day) && day > 0 ? day : 0.0;
+}
 // The last added body starts hidden (0.73.0): not drawn or listed until a
 // script reveals it (space.call("reveal", name)).
 EXPORT void editor_space_body_hidden(int hidden) {
@@ -4024,7 +4045,7 @@ bool finish_space(Runtime &rt) {
             const auto c = rt.world.get<engine::Box>(*sim.ship_entity)->center;
             const auto p = sim.site_origin + sim.axis_x * c.x + sim.axis_y * c.y + sim.axis_z * c.z;
             const auto forward = sim.axis_x * std::sin(heading) + sim.axis_z * std::cos(heading);
-            space::place_landed(sim.ship, sim.spec, sim.system, sim.site_body, p, forward);
+            space::place_landed(sim.ship, sim.spec, sim.system, sim.site_body, p, forward, sim.time);
         }
         const auto local = sim.to_local(sim.ship_absolute());
         rt.world.get<engine::Box>(*sim.ship_entity)->center = {static_cast<float>(local.x), static_cast<float>(local.y),
@@ -4078,7 +4099,7 @@ EXPORT double editor_space_value(int field) {
         return 0;
     const auto &sp = *active->space;
     const auto local = sp.to_local(sp.ship_absolute());
-    const auto frame = space::conjugate(space::from_axes(sp.axis_x, sp.axis_y, sp.axis_z));
+    const auto frame = space::conjugate(space::from_axes(sp.axis_x, sp.axis_y, sp.axis_z)) * space::conjugate(sp.spin());
     const auto attitude = space::normalized(frame * sp.ship.attitude);
     const auto orbit = space::orbit_elements(sp.ship, sp.system);
     const auto finite = [](double v) { return std::isfinite(v) ? v : 1e12; };
@@ -4167,8 +4188,23 @@ EXPORT double editor_space_frame(int field) {
     if (!active->space)
         return field == 3 ? 1 : 0;
     const auto &sp = *active->space;
-    const auto q = space::conjugate(space::from_axes(sp.axis_x, sp.axis_y, sp.axis_z));
+    const auto q = space::conjugate(space::from_axes(sp.axis_x, sp.axis_y, sp.axis_z)) * space::conjugate(sp.spin());
     return field == 0 ? q.x : field == 1 ? q.y : field == 2 ? q.z : q.w;
+}
+// Body `index`'s turn now, body-fixed -> non-rotating, as a quaternion
+// (field 0-3: x, y, z, w) (0.74.0). A planet's mesh and landmarks are
+// turned by editor_space_frame times this.
+EXPORT double editor_space_body_spin(int index, int field) {
+    if (!active->space || index < 0 || index >= static_cast<int>(active->space->system.bodies.size()))
+        return field == 3 ? 1 : 0;
+    const auto q = active->space->spin(index);
+    return field == 0 ? q.x : field == 1 ? q.y : field == 2 ? q.z : q.w;
+}
+// Lava under a body-fixed direction (0..1), for drawing rifts (0.74.0).
+EXPORT double editor_planet_lava(int index, double x, double y, double z) {
+    if (!active->space || index < 0 || index >= static_cast<int>(active->space->system.bodies.size()))
+        return 0;
+    return space::lava(active->space->system.bodies[static_cast<std::size_t>(index)], {x, y, z});
 }
 // A body's terrain height (m above its radius) under a direction from its
 // centre, in the body's frame -- the ground, under any sea: what the
@@ -4212,7 +4248,9 @@ EXPORT int editor_space_path(int count, double horizon) {
 EXPORT double editor_space_path_value(int i, int axis) {
     if (!active->space || i < 0 || static_cast<std::size_t>(i) >= active->space->path.size())
         return 0;
-    const auto p = active->space->path[static_cast<std::size_t>(i)];
+    const auto &sp = *active->space;
+    // Body-fixed: the path is drawn on the (turning) reference body.
+    const auto p = sp.ship.ref >= 0 ? sp.fixed(sp.path[static_cast<std::size_t>(i)], sp.ship.ref) : sp.path[static_cast<std::size_t>(i)];
     return axis == 0 ? p.x : axis == 1 ? p.y : p.z;
 }
 EXPORT void editor_tick() {

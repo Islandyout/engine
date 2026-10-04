@@ -77,8 +77,9 @@ add("Space", [0, 40, 0], {
     siteLongitude: SITE.longitude,
     siteRadius: 320,
     evaRange: 1200,
-    // Mid-morning at Kestra: the sun about 35 degrees up in the east.
-    startTime: 2600,
+    // Mid-morning at Kestra (Tethys turns every 1200 s; a solar day is
+    // about 969 s, noon at 3498): the sun about 32 degrees up in the east.
+    startTime: 2390,
     landmarks: LANDMARKS.map(([body, lat, lon, color, name, , kind]) => `${body} ${lat} ${lon} ${color} kind=${kind} ${name}`).join("\n"),
     species: SPECIES.map(([id, body, cls, mesh, weight, scale, name, , , , text]) => `${id} ${body} ${cls} ${mesh} ${weight} ${scale} ${name} | ${text}`).join("\n"),
   }),

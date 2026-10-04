@@ -1412,7 +1412,8 @@ function on_tick(dt)
   if tick_accum < 0.25 then return end
   local step_dt = tick_accum
   tick_accum = 0
-  world.set_clock(((st.time / 1200) * 24 + 6) % 24)
+  -- Kestra's solar time: Tethys' solar day is about 969 s, noon at t = 3498.
+  world.set_clock(((st.time - 3498) / 969 * 24 + 12) % 24)
   if not st.piloting then
     suit(st, step_dt)
   else

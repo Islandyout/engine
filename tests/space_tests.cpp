@@ -367,6 +367,65 @@ int main() {
             check(arrived && !ship.destroyed, "the autopilot brings the ship to Vell, slow");
             check(ship.ref == 1, "arrival is inside Vell's sphere of influence");
         }
+        {
+            // Terrain features (0.74.0): craters dent the ground; rifts carve
+            // glowing channels.
+            Body plain = system.bodies[1];
+            plain.flats.clear();
+            Body cratered = plain;
+            cratered.craters = 0.9;
+            double deepest = 0, changed = 0;
+            for (int i = 0; i < 400; ++i) {
+                const DVec3 d = normalized(DVec3{std::sin(i * 1.3), std::cos(i * 0.7), std::sin(i * 2.1 + 1)});
+                const double diff = terrain_height(cratered, d) - terrain_height(plain, d);
+                deepest = std::min(deepest, diff);
+                changed += std::abs(diff) > 0.5 ? 1 : 0;
+            }
+            check(deepest < -5 && changed > 20, "craters dent the terrain");
+            Body rifted = plain;
+            rifted.rifts = true;
+            double most = 0;
+            DVec3 at{};
+            for (int i = 0; i < 4000 && most < 0.5; ++i) {
+                const DVec3 d = normalized(DVec3{std::sin(i * 0.37), std::cos(i * 0.11), std::sin(i * 0.53 + 2)});
+                if (lava(rifted, d) > most) {
+                    most = lava(rifted, d);
+                    at = d;
+                }
+            }
+            check(most > 0.5, "a rift has lava in it");
+            check(terrain_height(rifted, at) < terrain_height(plain, at) - 1, "rifts are channels");
+            check(lava(plain, at) == 0, "no rifts unless asked");
+        }
+        {
+            // Turning bodies (0.74.0): a landed ship rides the turning ground,
+            // staying on the same body-fixed spot.
+            System turning = system;
+            turning.bodies[0].day = 600;
+            const auto &tethys = turning.bodies[0];
+            ShipState ship;
+            double t = 1000;
+            place_landed(ship, spec, turning, 0, {0, 1, 0.02}, {0, 0, 1}, t);
+            const DVec3 fixed0 = rotate(conjugate(body_spin(tethys, t)), ship.position);
+            ShipInput idle;
+            run(ship, spec, idle, turning, t, 30);
+            const DVec3 fixed1 = rotate(conjugate(body_spin(tethys, t)), ship.position);
+            check(ship.landed && length(fixed1 - fixed0) < 0.5, "a landed ship turns with the body");
+            check(length(ship.velocity - surface_velocity(tethys, ship.position)) < 1e-6, "and moves with the ground");
+            check(ship.ground_speed < 1e-6, "ground speed is relative to the ground");
+            // Hovering in air that turns with the body: no drift.
+            ShipInput hover;
+            hover.assist = Assist::stabilized;
+            hover.vertical = 0.6;
+            run(ship, spec, hover, turning, t, 3);
+            hover.vertical = 0;
+            run(ship, spec, hover, turning, t, 8);
+            const DVec3 fixed2 = rotate(conjugate(body_spin(tethys, t)), ship.position);
+            const DVec3 up = normalized(fixed0);
+            const DVec3 drift = (fixed2 - fixed0) - up * dot(fixed2 - fixed0, up);
+            check(!ship.landed && length(drift) < 30, "a hover over a turning world stays over its spot");
+            check(std::abs(body_spin(tethys, 0).w - 1) < 1e-12 && std::abs(body_spin(tethys, 300).w) < 1e-9, "half a turn in half a day");
+        }
         (void)pi;
         std::cout << "space tests passed\n";
         return 0;

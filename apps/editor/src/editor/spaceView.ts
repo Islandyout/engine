@@ -18,6 +18,8 @@ export interface SpaceRuntime {
   _editor_space_value(field: number): number;
   _editor_space_body_value(index: number, field: number): number;
   _editor_space_frame(field: number): number;
+  _editor_space_body_spin(index: number, field: number): number;
+  _editor_planet_lava(index: number, x: number, y: number, z: number): number;
   _editor_planet_height(index: number, x: number, y: number, z: number): number;
   _editor_space_path(count: number, horizon: number): number;
   _editor_space_path_value(index: number, axis: number): number;
@@ -49,6 +51,12 @@ export interface SpaceBody {
   snow: boolean;
   hidden: boolean;
   unlit: boolean;
+  // Terrain features and turn (0.74.0): craters (0..1 density), rifts and
+  // dunes (0/1), day (seconds per turn, 0: none).
+  craters: number;
+  rifts: boolean;
+  dunes: boolean;
+  day: number;
 }
 
 // One body per line (see SpaceSystemComponent.bodies). Blank lines and
@@ -153,6 +161,10 @@ function options(tokens: string[]) {
     snow: values.snow === 1,
     hidden: values.hidden === 1,
     unlit: values.unlit === 1,
+    craters: THREE.MathUtils.clamp(values.craters ?? 0, 0, 1),
+    rifts: values.rifts === 1,
+    dunes: values.dunes === 1,
+    day: Math.max(0, values.day ?? 0),
   };
 }
 
@@ -303,11 +315,13 @@ class Planet {
     // Water is glossy: a per-vertex "water" weight lowers the roughness.
     this.material.onBeforeCompile = (shader) => {
       shader.vertexShader = shader.vertexShader
-        .replace("#include <common>", "#include <common>\nattribute float water;\nvarying float vWater;")
-        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWater = water;");
+        .replace("#include <common>", "#include <common>\nattribute float water;\nattribute float lava;\nvarying float vWater;\nvarying float vLava;")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWater = water;\nvLava = lava;");
+      // Lava rifts (0.74.0) glow on their own, day or night.
       shader.fragmentShader = shader.fragmentShader
-        .replace("#include <common>", "#include <common>\nvarying float vWater;")
-        .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.12, vWater);");
+        .replace("#include <common>", "#include <common>\nvarying float vWater;\nvarying float vLava;")
+        .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.12, vWater);")
+        .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.32, 0.06) * smoothstep(0.35, 0.9, vLava) * 2.2;");
     };
     const base = new THREE.Color(body.color);
     const haze = new THREE.Color(body.haze);
@@ -406,6 +420,8 @@ class Planet {
     // tinted by depth -- with a little per-vertex variation so slopes read.
     const c = new THREE.Color();
     const water = new Float32Array(k);
+    const lavaAmount = new Float32Array(k);
+    const basalt = new THREE.Color("#1c1412");
     const shallow = new THREE.Color("#3f8a96"), deep = new THREE.Color("#0f2f44"), sand = new THREE.Color("#c9b98c");
     const snow = new THREE.Color("#eef3f6");
     for (let v = 0; v < k; v++) {
@@ -424,10 +440,17 @@ class Planet {
         if (this.body.snow && t > 0.5) c.lerp(snow, THREE.MathUtils.clamp((t - 0.5) * 4 - slope * 3, 0, 1));
         const jitter = (Math.sin(up.x * 91731.7 + up.y * 37211.3 + up.z * 51923.1) * 43758.5453) % 1;
         c.multiplyScalar(0.93 + Math.abs(jitter) * 0.14);
+        if (this.body.rifts) {
+          const l = this.rt._editor_planet_lava(this.index, up.x, up.y, up.z);
+          lavaAmount[v] = l;
+          // Cooled black crust around the channel, molten in it.
+          if (l > 0) c.lerp(basalt, THREE.MathUtils.clamp(l * 1.6, 0, 1));
+        }
       }
       colors.set([c.r, c.g, c.b], v * 3);
     }
     geometry.setAttribute("water", new THREE.BufferAttribute(water, 1));
+    geometry.setAttribute("lava", new THREE.BufferAttribute(lavaAmount, 1));
     geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     geometry.computeBoundingSphere();
     const mesh = new THREE.Mesh(geometry, this.material);
@@ -981,11 +1004,15 @@ export class SpaceView {
     const budget = { left: this.warm < 30 ? 24 : 8 };
     this.warm++;
     let nearest: { planet: Planet; altitude: number; up: THREE.Vector3 } | undefined;
-    const inverse = this.frame.clone().invert();
+    const spin = new THREE.Quaternion();
     this.planets.forEach((planet, i) => {
       const centre = new THREE.Vector3(this.rt._editor_space_body_value(i, 0), this.rt._editor_space_body_value(i, 1), this.rt._editor_space_body_value(i, 2));
       planet.group.position.copy(centre);
-      planet.group.quaternion.copy(this.frame);
+      // Turning bodies (0.74.0): the frame times the body's own turn.
+      const sp = (f: number) => this.rt._editor_space_body_spin(i, f);
+      spin.set(sp(0), sp(1), sp(2), sp(3));
+      planet.group.quaternion.copy(this.frame).multiply(spin);
+      const inverse = planet.group.quaternion.clone().invert();
       // Hidden bodies (0.73.0) aren't there until a script reveals them.
       planet.group.visible = this.rt._editor_space_body_value(i, 10) !== 1;
       if (!planet.group.visible) return;

@@ -21,12 +21,12 @@ export const BODY_INFO: Record<string, { temp: string; hazard: Hazard; rate: num
 // orbit period phase(deg) inclination(deg) radius gravity atmosphere density
 // relief scale seed colour haze options.
 export const BODIES = [
-  "Cinder - 900000 2120 40 2 44000 7 0 0 500 2500 5 #8a4a34 #000000",
-  "Tethys - 1600000 5027 0 0 60000 9 9000 1.05 320 3200 7 #4f7a4a #87b6c8 sea=-60 clouds=0.42 snow=1",
-  "Vell Tethys 230000 3850 20 7 18000 2.6 0 0 180 1800 3 #c3cfdc #000000 snow=1",
-  "Ossuary - 2400000 9230 126 -3 52000 6.4 5000 0.18 420 4000 11 #9a9385 #c0b49a clouds=0.25",
-  "Hollow - 3400000 15540 235 4 68000 11.2 16000 2.6 600 5000 13 #2f4a6b #3f7fa8 clouds=0.9",
-  "Nemesis - 4700000 25300 189 18 30000 4.2 0 0 400 2600 17 #2a2732 #000000 hidden=1 unlit=1",
+  "Cinder - 900000 2120 40 2 44000 7 0 0 500 2500 5 #8a4a34 #000000 craters=0.3 rifts=1 day=1800",
+  "Tethys - 1600000 5027 0 0 60000 9 9000 1.05 320 3200 7 #4f7a4a #87b6c8 sea=-60 clouds=0.42 snow=1 day=1200",
+  "Vell Tethys 230000 3850 20 7 18000 2.6 0 0 180 1800 3 #c3cfdc #000000 snow=1 craters=0.6",
+  "Ossuary - 2400000 9230 126 -3 52000 6.4 5000 0.18 420 4000 11 #9a9385 #c0b49a clouds=0.25 craters=0.15 dunes=1 day=2400",
+  "Hollow - 3400000 15540 235 4 68000 11.2 16000 2.6 600 5000 13 #2f4a6b #3f7fa8 clouds=0.9 day=3000",
+  "Nemesis - 4700000 25300 189 18 30000 4.2 0 0 400 2600 17 #2a2732 #000000 hidden=1 unlit=1 craters=0.5",
 ];
 
 // [id, body, class, model, scatter weight, scale, name, RP, yield, amount, description]
