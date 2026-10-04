@@ -34,6 +34,7 @@ local menu = nil
 local talking, talk_until = nil, 0
 local banner_until, hint_until, last_banner = 0, 0, "Banner"
 local near_harvest = ""
+local confidence = 1
 local helmet = true
 local prospect_mode = 0 -- 0 off, 1 volatiles, 2 ore, 3 biomass
 local PROSPECT = { "volatiles", "ore", "biomass" }
@@ -564,6 +565,8 @@ local function on_scan(key)
   if sp and not S.known[key] then
     S.known[key] = true
     S.rp = S.rp + sp.rp
+    -- A clean, confident scan is worth a little more.
+    if confidence >= 0.85 then S.rp = S.rp + 2 end
     lesson("specimen")
     host.send("catalogued", key)
     banner(string.upper(sp.name) .. "  +" .. sp.rp .. " RP  +" .. sp.y .. " " .. string.upper(sp.yield), 2.2, "good")
@@ -1229,7 +1232,7 @@ local function begin(from_save)
     set_step(S.step == "exit" and "air" or S.step)
   else
     banner("TETHYS -- KESTRA STATION", 4)
-    log_journal("Landfall: Tethys", "Thin air, 14 C. The suit holds its seal until the atmosphere is verified.", "note")
+    log_journal("Landfall: Tethys", "Second world of the star Aster. Thin air, 14 C. The suit holds its seal until the atmosphere is verified.", "note")
     S.visited.Tethys = true
     st = space.state()
     if st and st.piloting then set_step("exit") else set_step("air") end
@@ -1242,7 +1245,8 @@ local function begin(from_save)
 end
 
 function on_ui(name, value)
-  if name == "scan" then on_scan(value)
+  if name == "scan_confidence" then confidence = tonumber(value) or 1
+  elseif name == "scan" then on_scan(value)
   elseif name == "near_harvest" then near_harvest = value or ""
   elseif name == "harvested" then
     local sp = SPECIES[value]

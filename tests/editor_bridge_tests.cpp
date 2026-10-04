@@ -74,6 +74,11 @@ void editor_space_body(const char *, int, double, double, double, double, double
 void editor_set_spaceship(int, double, double, double, double, double, double, double, double, double, double, int,
                           double);
 double editor_space_value(int);
+void editor_space_site(int, const char *, int, double, double, double);
+void editor_space_member(int, int);
+void editor_set_routine(int, const char *, double);
+void editor_set_wildlife(int, double, double, double, double);
+int editor_wildlife_state(int);
 double editor_space_body_value(int, int);
 double editor_planet_height(int, double, double, double);
 int editor_space_path(int, double);
@@ -1668,11 +1673,66 @@ int main() {
         }
         check(saw_moon && saw_home);
 
+        // Sites (0.73.0): landing at a second site moves the frame there,
+        // wakes its own entities and parks home's; scripts see the site.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_add(20, 2, 0, 0, 0, 0, 6, 3, 9, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_add(5, 1, 30, 0, 0, 0, 4, 2, 4, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // home scenery
+        check(editor_add(-5, 1, -30, 0, 0, 0, 4, 2, 4, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // Darsa scenery
+        check(editor_add(0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // the Site
+        check(editor_add(0, 30, 40, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_script_source(5, "local t = 0 function on_tick(dt) t = t + 1 "
+                                    "if t == 2 then space.place_landed('Tethys', 52.6, 68.4, 0) end "
+                                    "if t == 3 then local s = space.state() log('site ' .. s.site .. ' ' .. tostring(s.away)) end "
+                                    "if t == 60 then space.place_landed('Tethys', 30, 40, 0) end "
+                                    "if t == 61 then local s = space.state() log('site [' .. s.site .. '] ' .. tostring(s.away)) end end");
+        editor_space_begin(6.4e12, 0, 30, 40, 300, 800, 0);
+        editor_space_body("Tethys", -1, 1.6e6, 5027, 0, 0, 60000, 9, 9000, 1.05, 250, 3000, 7);
+        editor_set_spaceship(1, 0, 12000, 300000, 180000, 2.2, 1.3, 100, 1.2, 100, 1.6, 1, -1);
+        editor_space_site(4, "Darsa", 0, 52.6, 68.4, 600);
+        editor_space_member(3, 0);
+        check(editor_commit() == 1);
+        check(editor_space_value(40) == -1); // home
+        for (int i = 0; i < 10; ++i)
+            editor_tick();
+        check(editor_space_value(40) == 0 && editor_space_value(37) == 1); // at Darsa
+        check(std::abs(editor_space_value(1)) < 2 && std::abs(editor_space_value(3)) < 2);
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(editor_space_value(40) == -1 && editor_space_value(37) == 0); // home again
+        bool saw_site = false, saw_back = false;
+        for (int n = editor_take_commands(), i = 0; i < n; ++i) {
+            const std::string text = editor_command_text(i, 1);
+            saw_site |= text == "site Darsa true";
+            saw_back |= text == "site [] false";
+        }
+        check(saw_site && saw_back);
+
         // A body with a bad parent fails the commit.
         editor_begin();
         editor_space_begin(6.4e12, 0, 0, 0, 0, 800, 0);
         editor_space_body("Lost", 3, 1000, 10, 0, 0, 100, 1, 0, 0, 0, 100, 1);
         check(editor_commit() == 0);
+    }
+    {
+        // Routines and wildlife (0.73.0): a walker heads for the stop the
+        // scene clock says; an animal flees a player inside its radius.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_add(10, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_wildlife(1, 44, 16, 7, 80);
+        check(editor_add(0, 0.9, -30, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_routine(2, "0 0 -30; 12 20 -30", 1.5);
+        check(editor_add(0, 30, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_script_source(3, "function on_tick(dt) world.set_clock(13) end");
+        check(editor_commit() == 1);
+        for (int i = 0; i < 120; ++i)
+            editor_tick();
+        check(editor_wildlife_state(1) == 2 || editor_value(1, 0) > 16); // fled
+        check(editor_value(1, 0) > 12);                                 // away from the player
+        check(editor_wildlife_state(0) == -1);                          // the player isn't wildlife
+        check(editor_value(2, 0) > 1.5);                                // walking to the 12:00 stop
     }
     {
         // A level-sized terrain (260 m, 131x131) under a player and a soldier.

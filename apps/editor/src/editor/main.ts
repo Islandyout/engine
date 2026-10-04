@@ -2365,7 +2365,11 @@ async function startEditor() {
     const forward = view.getWorldDirection(new THREE.Vector3());
     const moving = runtime._editor_controller_value(playerIndex, 4) > 2;
     const done = scanner.update(dt, scanHeld(), moving, player.position, forward, scanCandidates());
-    if (done) runtime.ccall("editor_ui_event", null, ["string", "string"], ["scan", done.key]);
+    if (done) {
+      // How sure the scan is (0..1), just before the scan itself.
+      runtime.ccall("editor_ui_event", null, ["string", "string"], ["scan_confidence", scanner.confidence.toFixed(2)]);
+      runtime.ccall("editor_ui_event", null, ["string", "string"], ["scan", done.key]);
+    }
   }
   // The player's authored scale at the moment Play started, and its y position
   // the moment before this frame's ticks ran — the jump squash/stretch effect

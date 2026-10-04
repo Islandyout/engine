@@ -524,7 +524,7 @@ ui("MenuClose", { kind: "Button", text: "CLOSE  (Esc)", action: "script", anchor
 // Title.
 ui("TitlePanel", { kind: "Panel", text: "", anchor: "center", width: 660, height: 420, color: DARK, opacity: 0.88 });
 text("Title", "PALE SIGNAL", "center", 0, -140, 58, CYAN);
-text("TitleSub", "Survey six worlds, meet the Talari, gather fuel and follow the signal to its source.", "center", 0, -82, 15, WHITE, 0.9, 600);
+text("TitleSub", "Survey the six worlds of Aster, meet the Talari, gather fuel and follow the signal to its source.", "center", 0, -82, 15, WHITE, 0.9, 600);
 ui("Begin", { kind: "Button", text: "BEGIN", action: "script", anchor: "center", offsetY: -20, width: 240, height: 48, fontSize: 19, color: rgb("#1f6f7a"), opacity: 1 });
 ui("NewGame", { kind: "Button", text: "NEW EXPEDITION", action: "script", anchor: "center", offsetY: 38, width: 240, height: 36, fontSize: 13, color: rgb("#4c5560"), opacity: 1 });
 text("Controls", "On foot: WASD · mouse look · E interact · hold F scan (look up to sample air) · H helmet · R prospect", "center", 0, 90, 12, WHITE, 0.75);

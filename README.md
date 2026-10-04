@@ -6,7 +6,9 @@
 
 **[Play HIGH HEAT](https://islandyout.github.io/engine/high-heat.html)**, an open-city street racer with police pursuits ([design document](docs/racing/GAME_DESIGN.md)).
 
-**[Play the Pale Signal slice](https://islandyout.github.io/engine/pale-signal.html)**: scan species and ruins, talk to the Talari, fly out of the atmosphere and walk on its moon, with no loading screens ([slice document](docs/space/PALE_SIGNAL_SLICE.md)).
+**[Play Pale Signal](https://islandyout.github.io/engine/pale-signal.html)**: six worlds, the Talari and two lost civilizations, gathering, survival, an autopilot, and seven signal fragments that lead to a hidden world, with no loading screens ([game document](docs/space/PALE_SIGNAL_SLICE.md)).
+
+**Games library**: the editor's **Games** button lists every game in [`games/`](games/README.md); add your own under `games/my-games/`.
 
 The integrated editor provides scene authoring, component inspection, undo/redo, JSON save/load and a Three.js viewport connected to the C++ fixed-step world through WebAssembly. See [the editor contract](docs/BTAI_EDITOR.md) for build instructions and supported behaviors.
 
@@ -313,6 +315,17 @@ Engine version 0.72.0 brings the Pale Signal prototype's exploration loop:
 - **Seas, clouds, sunsets, the Milky Way**, snow and shores on the planets, walk-up signal structures, and the built-in **Kestrel** ship model.
 
 See [F72](docs/IMPLEMENTATION_STATUS.md#f72--pale-signal-slice-2-walking-anywhere-the-scanner-seas-and-clouds-and-the-kestrel-0720).
+
+Engine version 0.73.0 brings the whole Pale Signal expedition, and a home for your games:
+
+- **A Games library** in the editor and a [`games/`](games/README.md) folder: every game is published and listed, with a `my-games` folder for your own and a section for scenes kept in the browser.
+- **Several sites per scene** (`Site`), **daily routines** (`Routine`), **wildlife** that grows wary and flees (`Wildlife`), and **`host.send`** for script-driven maps, weather and audio.
+- **Spaceflight**: ship components that wear and repair, wind, an **autopilot** with fuel-checked route plans, the emergency reserve and hidden worlds.
+- **Exploration presentation**: system and surface maps, minimaps, latitude/longitude waypoints, rain and fog, dust, footprints, ambience layers, harvesting and prospecting, scan confidence and air sampling.
+- **Player settings**: quality presets, look sensitivity, invert Y, reduced motion, touch controls, screen-reader announcements and a profile capture. UI text wraps and keeps its colour.
+- **CC0 models**: 11 Quaternius spaceships and 26 sci-fi props.
+
+See [F73](docs/IMPLEMENTATION_STATUS.md#f73--the-whole-pale-signal-expedition-the-games-library-and-cc0-ship-and-sci-fi-models-0730).
 
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
