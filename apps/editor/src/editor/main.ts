@@ -266,6 +266,7 @@ type Runtime = {
   _editor_space_body_value(index: number, field: number): number;
   _editor_space_frame(field: number): number;
   _editor_space_body_spin(index: number, field: number): number;
+  _editor_space_stick(yaw: number, pitch: number): void;
   _editor_planet_lava(index: number, x: number, y: number, z: number): number;
   _editor_planet_height(index: number, x: number, y: number, z: number): number;
   _editor_space_path(count: number, horizon: number): number;
@@ -3024,8 +3025,19 @@ async function startEditor() {
   });
   renderer.domElement.addEventListener("pointermove", (event) => {
     if (doc.mode !== "play") return;
-    // Flying: dragging looks around the ship (never steers it).
-    if (spaceView?.flight.piloting && event.buttons & 3)
+    // Flying with the mouse captured: it moves the virtual stick
+    // (0.75.0). Otherwise dragging looks around the ship.
+    if (spaceView?.stick.active && document.pointerLockElement === renderer.domElement) {
+      const gain = 0.0035 * playerSettings.sensitivity;
+      mouseStick.x += event.movementX * gain;
+      mouseStick.y += event.movementY * gain * (playerSettings.invertY ? -1 : 1);
+      const length = Math.hypot(mouseStick.x, mouseStick.y);
+      if (length > 1) {
+        mouseStick.x /= length;
+        mouseStick.y /= length;
+      }
+      mouseStick.idle = 0;
+    } else if (spaceView?.flight.piloting && event.buttons & 3)
       spaceView.look(event.movementX * playerSettings.sensitivity, event.movementY * playerSettings.sensitivity * (playerSettings.invertY ? -1 : 1));
     // Right-drag looks around in first person without capturing the mouse.
     const controller = playerController();
@@ -3036,6 +3048,9 @@ async function startEditor() {
   });
   renderer.domElement.addEventListener("pointerdown", (event) => {
     if (doc.mode !== "play" || event.button > 2) return;
+    // A left click while flying captures the mouse for steering.
+    if (event.button === 0 && spaceView?.stick.available && document.pointerLockElement !== renderer.domElement)
+      void renderer.domElement.requestPointerLock?.();
     const { x, y } = viewportPoint(event);
     pointerQueue.push(() => runtime._editor_input_mouse_button(event.button, 1, x, y));
   });
@@ -4744,6 +4759,41 @@ async function startEditor() {
     }
     if (doc.mode === "play" && governor.sample(intervalMs)) applyGovernor();
   }
+  // Mouse steering (0.75.0): while flying with the mouse captured, its
+  // motion moves a virtual stick (yaw right, pitch up for the mouse moving
+  // up) that eases back to centre once the mouse rests; keys still win.
+  const mouseStick = { x: 0, y: 0, idle: 0, sent: false, locked: false };
+  function updateMouseStick(dt: number) {
+    const f = spaceView?.flight;
+    const flying = !!f && doc.mode === "play" && f.piloting && !f.landed;
+    const available = flying && playerSettings.flightMouse === "steer" && !isTouchDevice();
+    const active = available && document.pointerLockElement === renderer.domElement;
+    if (spaceView) {
+      spaceView.stick.available = available;
+      spaceView.stick.active = active;
+    }
+    // Landing or leaving the pilot's seat hands the mouse back.
+    if (!available && mouseStick.locked && document.pointerLockElement === renderer.domElement) document.exitPointerLock();
+    mouseStick.locked = active;
+    if (!active) {
+      mouseStick.x = mouseStick.y = 0;
+      if (mouseStick.sent) runtime._editor_space_stick(0, 0);
+      mouseStick.sent = false;
+      return;
+    }
+    mouseStick.idle += dt;
+    if (mouseStick.idle > 0.25) {
+      const k = Math.exp(-dt * 1.2);
+      mouseStick.x *= k;
+      mouseStick.y *= k;
+    }
+    const dead = spaceView!.stick.deadzone;
+    const shape = (v: number) => (Math.abs(v) < dead ? 0 : Math.sign(v) * ((Math.abs(v) - dead) / (1 - dead)));
+    spaceView!.stick.x = mouseStick.x;
+    spaceView!.stick.y = mouseStick.y;
+    runtime._editor_space_stick(shape(mouseStick.x), -shape(mouseStick.y));
+    mouseStick.sent = true;
+  }
   // The status line's "unsaved" check serializes the whole scene; it runs
   // at most twice a second, and not at all while playing (the document
   // can't change then).
@@ -4761,6 +4811,7 @@ async function startEditor() {
     let tickMs = 0;
     const dt = Math.min((now - previous) / 1000, 5 / 60);
     governFrame(now - previous);
+    updateMouseStick(dt);
     previous = now;
     let steps = 0;
     const player = playerIndex >= 0 ? objects[playerIndex] : undefined;

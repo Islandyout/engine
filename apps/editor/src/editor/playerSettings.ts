@@ -14,6 +14,9 @@ export interface PlayerSettings {
   minimap: boolean;
   footprints: boolean;
   touch: "auto" | "on" | "off";
+  // Flying (0.75.0): the mouse steers the ship (a virtual stick, captured
+  // by a click) or only looks around it.
+  flightMouse: "steer" | "look";
 }
 
 const KEY = "game-engine-player:settings";
@@ -25,6 +28,7 @@ export const defaultSettings: PlayerSettings = {
   minimap: true,
   footprints: true,
   touch: "auto",
+  flightMouse: "steer",
 };
 
 export function parseSettings(text: string | null): PlayerSettings {
@@ -38,6 +42,7 @@ export function parseSettings(text: string | null): PlayerSettings {
       minimap: v.minimap !== false,
       footprints: v.footprints !== false,
       touch: v.touch === "on" || v.touch === "off" ? v.touch : "auto",
+      flightMouse: v.flightMouse === "look" ? "look" : "steer",
     };
   } catch {
     return { ...defaultSettings };
@@ -137,6 +142,11 @@ export function openSettingsPanel(root: HTMLElement, settings: PlayerSettings, o
   sensitivity.value = String(settings.sensitivity);
   sensitivity.oninput = () => update({ sensitivity: Number(sensitivity.value) });
   panel.append(row("Look sensitivity", sensitivity));
+  const flightMouse = document.createElement("select");
+  flightMouse.add(new Option("Steers the ship", "steer", false, settings.flightMouse === "steer"));
+  flightMouse.add(new Option("Looks around", "look", false, settings.flightMouse === "look"));
+  flightMouse.onchange = () => update({ flightMouse: flightMouse.value as "steer" | "look" });
+  panel.append(row("Mouse while flying", flightMouse));
   const check = (key: "invertY" | "reducedMotion" | "minimap" | "footprints", text: string) => {
     const box = document.createElement("input");
     box.type = "checkbox";

@@ -698,7 +698,7 @@ OrbitElements orbit_elements(const ShipState& state, const System& system) {
     return e;
 }
 
-std::vector<DVec3> predict_path(const ShipState& state, const System& system, double horizon, int count) {
+std::vector<DVec3> predict_path(const ShipState& state, const System& system, double horizon, int count, double t) {
     std::vector<DVec3> points;
     if (count <= 0 || !(horizon > 0))
         return points;
@@ -712,8 +712,13 @@ std::vector<DVec3> predict_path(const ShipState& state, const System& system, do
             v = v + gravity_at(system, state.ref, p) * h;
             p = p + v * h;
         }
-        points.push_back(p);
-        if (body && length(p) < surface_radius(*body, normalized(p)))
+        // Body-fixed (0.75.0): each point where it is over the turning
+        // ground at its own time, and the ground checked under it there.
+        const DVec3 fixed = body && t >= 0 && body->day > 0
+                                ? rotate(conjugate(body_spin(*body, t + h * per_point * (i + 1))), p)
+                                : p;
+        points.push_back(fixed);
+        if (body && length(p) < surface_radius(*body, normalized(fixed)))
             break;
     }
     return points;
@@ -743,6 +748,49 @@ double cruise_speed(const ShipSpec& spec, double distance) {
     // Slow enough to be cheap on fuel; time warp covers the coast.
     return clampd(0.2 * std::sqrt(accel * std::max(distance, 0.0)), 60.0, 1500.0);
 }
+// The first body (not `target`) whose clearance sphere -- its air or a
+// quarter of its radius, at least 5 km above the surface -- the straight
+// line from `from` to `to` crosses, and a waypoint around it (0.75.0): the
+// NAV clearance corridor. A body the ship is already inside the sphere of
+// is ignored (that's the climb's job).
+struct Obstacle final {
+    int index{-1};
+    DVec3 waypoint{};
+};
+Obstacle route_obstacle(const System& system, double t, const DVec3& from, const DVec3& to, int target) {
+    Obstacle found;
+    const DVec3 path = to - from;
+    const double span = length(path);
+    if (span < 1)
+        return found;
+    const DVec3 dir = path * (1.0 / span);
+    double nearest = span;
+    for (int i = 0; i < static_cast<int>(system.bodies.size()); ++i) {
+        const auto& body = system.bodies[static_cast<std::size_t>(i)];
+        if (i == target || body.hidden)
+            continue;
+        const double clear = body.radius + std::max({body.atmosphere_top(), body.radius * 0.25, 5000.0});
+        const DVec3 c = body_position(system, i, t);
+        if (length(from - c) < clear)
+            continue;
+        const double along = dot(c - from, dir);
+        if (along <= 0 || along >= span || along >= nearest)
+            continue;
+        const DVec3 closest = from + dir * along;
+        DVec3 off = closest - c;
+        if (length(off) >= clear)
+            continue;
+        if (length(off) < 1) {
+            DVec3 a, b;
+            tangents(dir, a, b);
+            off = a;
+        }
+        nearest = along;
+        found.index = i;
+        found.waypoint = c + normalized(off) * clear * 1.35;
+    }
+    return found;
+}
 } // namespace
 
 AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec, const System& system, double t,
@@ -771,12 +819,25 @@ AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec,
             return command;
         }
     }
-    const DVec3 to = body_position(system, target, t) - absolute_position(state, system, t);
+    const DVec3 here = absolute_position(state, system, t);
+    const DVec3 to = body_position(system, target, t) - here;
     const DVec3 rel = absolute_velocity(state, system, t) - body_velocity(system, target, t);
     const double centre = length(to);
     const DVec3 dir = normalized(to);
     const double distance = centre - goal.radius - arrival_altitude(goal);
     const double closing = dot(rel, dir);
+    // A moon or planet in the way: fly the corridor around it first, at
+    // cruise, without braking for the waypoint.
+    if (const auto obstacle = route_obstacle(system, t, here, here + to, target); obstacle.index >= 0) {
+        const DVec3 leg = obstacle.waypoint - here;
+        const DVec3 around = normalized(leg);
+        const DVec3 error = around * cruise_speed(spec, length(leg)) - rel;
+        command.direction = length(error) > 1e-6 ? normalized(error) : around;
+        const double facing = dot(ship_forward(state), command.direction);
+        command.throttle = length(error) < 6 ? 0.0 : facing > 0.985 ? clampd(length(error) / (accel * 1.5), 0.05, 1) : 0.0;
+        command.phase = "avoid";
+        return command;
+    }
     if (distance < 1500 && length(rel) < 40) {
         command.arrived = true;
         command.phase = "arrived";
@@ -825,6 +886,11 @@ RoutePlan plan_route(const ShipState& state, const ShipSpec& spec, const System&
     // Accelerate to cruise, cancel what we already have sideways, brake.
     const double cruise = cruise_speed(spec, plan.distance);
     dv += cruise * 2 + std::max(0.0, length(rel) - std::max(plan.closing_speed, 0.0));
+    // A clearance corridor around a body in the way: turning onto it and
+    // back off it.
+    const DVec3 here = absolute_position(state, system, t);
+    if (route_obstacle(system, t, here, here + to, target).index >= 0)
+        dv += cruise * 0.6;
     // Descend and land on the target.
     dv += std::sqrt(goal.gm() / (goal.radius + arrival_altitude(goal))) * 0.6 +
           std::sqrt(2 * goal.surface_gravity * 400);

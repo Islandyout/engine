@@ -1052,11 +1052,24 @@ local function frame_changed(st)
   end
 end
 
--- Landing near a Tethys settlement: on its field it's welcome; elsewhere
--- engine wash over houses is an offence.
-local FIELDS = { home = { 0, 0, 20 }, darsa_delta = { -216, -90, 20 }, meridian_spur = { 252, 54, 20 } }
+-- Landing near a settlement (Tethys, and the Third Mooring on Hollow): on
+-- its field it's welcome; elsewhere engine wash over houses is an offence.
+-- On Ossuary's archaeology sites, setting down on the ruins themselves
+-- damages them.
+local FIELDS = { home = { 0, 0, 20 }, darsa_delta = { -216, -90, 20 }, meridian_spur = { 252, 54, 20 }, hollow_enclave = { -160, 60, 20 } }
+local HERITAGE = { ossuary_archive = { 0, 0, 110 }, ossuary_transit = { 0, 0, 110 } }
 local function landing_law(st)
   local here = current_site(st)
+  local h = HERITAGE[here]
+  if h then
+    if math.sqrt((st.x - h[1]) ^ 2 + (st.z - h[2]) ^ 2) < h[3] then
+      S.civ.offences = S.civ.offences + 1
+      rep("preservation", -6)
+      banner("LANDING ON A HERITAGE SITE -- SET DOWN CLEAR OF THE RUINS", 3, "bad")
+      log_journal("Heritage damage", "The ship came down inside the archive's footprint. Engine wash and the gear's weight disturbed fallen masonry the Preservation Office had mapped stone by stone.", "warn")
+    end
+    return
+  end
   local f = FIELDS[here]
   if not f then return end
   local d = math.sqrt((st.x - f[1]) ^ 2 + (st.z - f[2]) ^ 2)
@@ -1072,7 +1085,7 @@ local function landing_law(st)
     rep("concord", -7)
     rep("commons", -3)
     banner("UNAUTHORIZED SETTLEMENT LANDING -- USE THE MARKED FIELD", 3, "bad")
-    log_journal("Landing violation", "Engine wash crossed an inhabited zone. Concord control logged the landing as unsafe. Public landing fields exist for a reason.", "warn")
+    log_journal("Landing violation", "Engine wash crossed an inhabited zone. " .. (here == "hollow_enclave" and "Mooring" or "Concord") .. " control logged the landing as unsafe. Public landing fields exist for a reason.", "warn")
   end
 end
 

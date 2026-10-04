@@ -787,6 +787,9 @@ export class SpaceView {
   private readonly chase = new THREE.Quaternion();
   private chasePlaced = false;
   private lookYaw = 0;
+  // The mouse's virtual stick (0.75.0), drawn by the HUD: x right, y down,
+  // -1..1; `available` when a click would capture it.
+  stick = { x: 0, y: 0, deadzone: 0.08, active: false, available: false };
   private lookPitch = 0;
   private lookIdle = 0;
   private decor?: ShipDecor;
@@ -1293,6 +1296,25 @@ export function drawFlightHud(ctx: CanvasRenderingContext2D, width: number, heig
     bar(ctx, x, y + 120, w, f.fuel, f.fuel < 0.2 ? "#ff9f43" : "#9be37a", `FUEL ${(f.fuel * 100).toFixed(0)}%`);
     bar(ctx, x, y + 144, w * 0.48, f.hull, f.hull < 0.35 ? "#ff5d5d" : "#d8e2ea", `HULL ${(f.hull * 100).toFixed(0)}%`);
     if (f.heat > 5) bar(ctx, x + w * 0.52, y + 144, w * 0.48, f.heat / 100, f.heat > 78 ? "#ff5d5d" : "#ffb347", "HEAT");
+    // Mouse steering (0.75.0): the virtual stick's ring and where it sits.
+    if (view.stick.active && !f.landed) {
+      const cx = width / 2, cy = height / 2, r = Math.min(width, height) * 0.09;
+      ctx.strokeStyle = "rgba(143,247,255,0.35)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * view.stick.deadzone, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(143,247,255,0.85)";
+      ctx.beginPath();
+      ctx.arc(cx + view.stick.x * r, cy + view.stick.y * r, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (view.stick.available && !f.landed) {
+      ctx.fillStyle = "rgba(207,231,245,0.55)";
+      ctx.fillText("CLICK TO STEER WITH THE MOUSE", width / 2 - ctx.measureText("CLICK TO STEER WITH THE MOUSE").width / 2, height - 24);
+    }
     // Landing radar below 400 m (0.74.0): a radar-altitude tape with the
     // sink rate, and the ground under the ship against the gear's limits.
     if (!f.landed && f.altitude < 400 && f.ref >= 0) drawLandingRadar(ctx, width, height, f);

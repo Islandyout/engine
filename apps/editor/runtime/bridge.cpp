@@ -139,6 +139,10 @@ struct SpaceSim final {
     space::ShipState ship;
     std::optional<engine::Entity> ship_entity;
     double throttle{};          // the pilot's held throttle level
+    // Mouse steering (0.75.0): the editor's virtual stick, -1..1 on each
+    // axis; keys override it.
+    double stick_pitch{};
+    double stick_yaw{};
     space::Assist assist{space::Assist::stabilized};
     int target{-1};             // NAV target body
     bool piloting{true};
@@ -146,6 +150,7 @@ struct SpaceSim final {
     double vertical_applied{};
     std::vector<std::string> events;
     std::vector<space::DVec3> path; // predicted, relative to the reference body
+    bool path_fixed{};              // path already body-fixed (it comes down)
     // Key levels last tick, for edges that survive multi-tick frames.
     bool previous_keys[8]{};
     // Walking anywhere (0.72.0): the frame the scene is drawn and walked in
@@ -985,6 +990,10 @@ struct Runtime {
                 sp.throttle = 0;
             control.pitch = axis({Key::up, Key::i}, {Key::down, Key::k});
             control.yaw = axis({Key::right, Key::l, Key::d}, {Key::left, Key::j, Key::a});
+            if (control.pitch == 0)
+                control.pitch = std::clamp(sp.stick_pitch, -1.0, 1.0);
+            if (control.yaw == 0)
+                control.yaw = std::clamp(sp.stick_yaw, -1.0, 1.0);
             if (!sp.ship.landed)
                 control.roll = axis({Key::e}, {Key::q});
             control.vertical = axis({Key::space}, {Key::c, Key::left_control});
@@ -3870,6 +3879,14 @@ EXPORT void editor_space_body(const char *name, int parent, double orbit_radius,
     body.seed = static_cast<std::uint32_t>(std::max(0.0, seed));
     bodies.push_back(std::move(body));
 }
+// The mouse's virtual stick (0.75.0): yaw and pitch, -1..1, held until the
+// next call; keys take over while pressed.
+EXPORT void editor_space_stick(double yaw, double pitch) {
+    if (!active || !active->space)
+        return;
+    active->space->stick_yaw = std::isfinite(yaw) ? yaw : 0;
+    active->space->stick_pitch = std::isfinite(pitch) ? pitch : 0;
+}
 // The last staged body's sea level (m relative to its radius): water is its
 // surface below that height (0.72.0).
 EXPORT void editor_space_body_sea(double sea_level) {
@@ -4255,7 +4272,16 @@ EXPORT int editor_space_path(int count, double horizon) {
         const auto orbit = space::orbit_elements(sp.ship, sp.system);
         horizon = orbit.valid && orbit.closed ? std::min(orbit.period, 40000.0) : 3000.0;
     }
-    sp.path = sp.ship.landed ? std::vector<space::DVec3>{} : space::predict_path(sp.ship, sp.system, horizon, std::clamp(count, 2, 512));
+    count = std::clamp(count, 2, 512);
+    // An orbit is drawn as the ellipse it is; a path that comes down
+    // (0.75.0) is drawn over the turning ground, so where it meets the
+    // surface is where the ship will land.
+    sp.path = sp.ship.landed ? std::vector<space::DVec3>{} : space::predict_path(sp.ship, sp.system, horizon, count);
+    sp.path_fixed = false;
+    if (!sp.ship.landed && sp.ship.ref >= 0 && static_cast<int>(sp.path.size()) < count) {
+        sp.path = space::predict_path(sp.ship, sp.system, horizon, count, sp.time);
+        sp.path_fixed = true;
+    }
     return static_cast<int>(sp.path.size());
 }
 // Point i of the last predicted path, relative to the reference body's
@@ -4265,7 +4291,8 @@ EXPORT double editor_space_path_value(int i, int axis) {
         return 0;
     const auto &sp = *active->space;
     // Body-fixed: the path is drawn on the (turning) reference body.
-    const auto p = sp.ship.ref >= 0 ? sp.fixed(sp.path[static_cast<std::size_t>(i)], sp.ship.ref) : sp.path[static_cast<std::size_t>(i)];
+    const auto &point = sp.path[static_cast<std::size_t>(i)];
+    const auto p = sp.path_fixed || sp.ship.ref < 0 ? point : sp.fixed(point, sp.ship.ref);
     return axis == 0 ? p.x : axis == 1 ? p.y : p.z;
 }
 EXPORT void editor_tick() {

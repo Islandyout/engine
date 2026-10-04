@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
+#include <algorithm>
 #include <string>
 
 namespace {
@@ -366,6 +367,55 @@ int main() {
             }
             check(arrived && !ship.destroyed, "the autopilot brings the ship to Vell, slow");
             check(ship.ref == 1, "arrival is inside Vell's sphere of influence");
+        }
+        {
+            // Body-fixed prediction (0.75.0): over a turning body, a path that
+            // comes down meets the ground where the ground will be.
+            System spinning = system;
+            spinning.bodies[0].day = 600;
+            ShipState ship;
+            ship.ref = 0;
+            const double r = spinning.bodies[0].radius + 3000;
+            ship.position = {r, 0, 0};
+            ship.velocity = {0, 0, 250};
+            const auto inertial = predict_path(ship, spinning, 600, 256);
+            const auto fixed = predict_path(ship, spinning, 600, 256, 0.0);
+            check(!inertial.empty() && !fixed.empty() && fixed.size() < 256, "a suborbital path ends at the ground");
+            const double turn = std::acos(std::clamp(dot(normalized(inertial.back()), normalized(fixed.back())), -1.0, 1.0));
+            check(turn > 0.05, "the fixed path's landing point is turned with the ground");
+        }
+        {
+            // Clearance corridors (0.75.0): with Tethys between the ship and
+            // Vell, the autopilot flies around it instead of into it.
+            ShipState ship;
+            double t = 0;
+            ShipSpec big = spec;
+            big.fuel = 400;
+            ship.fuel = 400;
+            const DVec3 tethys = body_position(system, 0, t), vell = body_position(system, 1, t);
+            ship.ref = -1;
+            ship.position = tethys + (tethys - vell) * 0.8;
+            ship.velocity = body_velocity(system, 0, t);
+            const DVec3 straight = normalized(vell - ship.position);
+            const AutopilotCommand first = autopilot_command(ship, big, system, t, 1);
+            check(std::string(first.phase) == "avoid", "a planet in the way puts the autopilot on a corridor");
+            check(dot(first.direction, straight) < 0.99, "the corridor heads off the straight line");
+            bool arrived = false;
+            double closest = 1e18;
+            for (int i = 0; i < 60 * 3600 && !arrived && !ship.destroyed; ++i) {
+                const AutopilotCommand command = autopilot_command(ship, big, system, t, 1);
+                arrived = command.arrived;
+                ShipInput input;
+                input.assist = Assist::autopilot;
+                input.target_direction = command.direction;
+                input.throttle = command.throttle;
+                step_ship(ship, big, input, system, t, 1.0 / 30.0);
+                t += 1.0 / 30.0;
+                const DVec3 at = (ship.ref >= 0 ? body_position(system, ship.ref, t) : DVec3{}) + ship.position;
+                closest = std::min(closest, length(at - body_position(system, 0, t)) - system.bodies[0].radius);
+            }
+            check(arrived && !ship.destroyed, "the corridor still arrives at Vell");
+            check(closest > system.bodies[0].atmosphere_top(), "and never dips into Tethys' air");
         }
         {
             // Terrain features (0.74.0): craters dent the ground; rifts carve

@@ -434,6 +434,7 @@ site("hollow_enclave", () => {
     box("Tower Bulb", [Math.cos(a) * r, 38, Math.sin(a) * r], [6, 5, 6], "#50f2ff", {}, { emissive: rgb("#50f2ff"), emissiveIntensity: 1.5 });
   }
   model("Mooring Anchor", 159, [0, 0, 0], [2, 2, 2], 0, solid());
+  field(-160, 60);
   // The Resonance Exchange.
   box("Resonance Exchange", [216, 3, -114], [16, 6, 12], "#2c5f8f", solid(), { emissive: rgb("#2a7fff"), emissiveIntensity: 0.2 });
   for (const c of CLADES)
