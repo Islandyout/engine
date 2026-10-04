@@ -106,6 +106,21 @@ int main() {
             check(dot(surface_normal(tethys, {0, 1, 0}), {0, 1, 0}) > 0.9999, "the flat's normal is straight up");
         }
         {
+            // Sea level: water is the surface; the seabed lies under it.
+            Body sea = system.bodies[0];
+            sea.sea_level = 50;
+            int wet = 0;
+            for (int i = 0; i < 200; ++i) {
+                const DVec3 d = normalized(DVec3{std::cos(i * 0.9), std::sin(i * 0.37), std::sin(i * 1.3)});
+                check(surface_height(sea, d) >= 50, "nothing is below sea level");
+                if (terrain_height(sea, d) < 50) {
+                    ++wet;
+                    check(surface_height(sea, d) == 50, "the sea surface is flat");
+                }
+            }
+            check(wet > 10, "some of the terrain is under water");
+        }
+        {
             // Landed at the site: an idle ship stays put; the belly thrusters
             // lift it off; STABILIZED then holds a hover.
             ShipState ship;

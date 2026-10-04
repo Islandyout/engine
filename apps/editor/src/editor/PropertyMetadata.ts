@@ -231,6 +231,11 @@ const metadata: Record<string, PropertyMetadata> = {
   "SpaceSystem.evaRange": { label: "Walkable range from site (m)" },
   "SpaceSystem.startTime": { label: "Start time (s)" },
   "SpaceSystem.landmarks": { label: "Landmarks (body lat lon #color label, one per line)", multiline: true },
+  "SpaceSystem.species": { label: "Species (id body class model weight scale Name | description)", multiline: true },
+  "Spaceship.model": { label: "Model (Kestrel, or blank for the authored look)" },
+  "Scannable.id": { label: "Scan id (sent to scripts)" },
+  "Scannable.kind": { options: choice(["Flora", "Fauna", "Mineral", "Culture", "Landmark"]) },
+  "Scannable.range": { label: "Scan range (m)" },
   "Spaceship.mass": { label: "Mass (kg)" },
   "Spaceship.thrust": { label: "Main thrust (N)" },
   "Spaceship.liftThrust": { label: "Belly thrust (N)" },
@@ -348,7 +353,7 @@ export const componentGroups: readonly ComponentGroup[] = [
   },
   {
     label: "Gameplay",
-    types: ["Health", "AIState", "AICombat", "Pedestrian", "Player", "CharacterController", "Weapons", "Vehicle", "Driver", "Spaceship"],
+    types: ["Health", "AIState", "AICombat", "Pedestrian", "Player", "CharacterController", "Weapons", "Vehicle", "Driver", "Spaceship", "Scannable"],
   },
   {
     label: "Appearance & Animation",

@@ -65,6 +65,9 @@ struct Body final {
     double atmosphere_density{}; // at the surface (1.2 is Earth's sea level)
     double terrain_amplitude{}; // m of relief either side of `radius`
     double terrain_scale{2000}; // m across the largest features
+    // Water fills the terrain below this height (m relative to `radius`):
+    // ships and walkers stand on its surface. Below -1e8 means no sea.
+    double sea_level{-1e9};
     std::uint32_t seed{1};
     std::vector<Flat> flats;
 
@@ -89,8 +92,10 @@ double air_density(const Body& body, double altitude);
 // Terrain: metres above (or below) the body's radius under a unit
 // direction from its centre, deterministic in the body's seed and smooth
 // enough to fly over and walk on. surface_radius adds the radius;
-// surface_normal is the terrain's unit normal there.
+// surface_normal is the terrain's unit normal there. Water counts as
+// surface; terrain_height is the ground under it (the seabed).
 double surface_height(const Body& body, DVec3 direction);
+double terrain_height(const Body& body, DVec3 direction);
 double surface_radius(const Body& body, DVec3 direction);
 DVec3 surface_normal(const Body& body, DVec3 direction);
 

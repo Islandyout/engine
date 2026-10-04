@@ -111,10 +111,13 @@ public:
     // density, warp, periapsis, apoapsis, time, destroyed 0/1, site-local x,
     // y, z, orbit closed 0/1, g-force, distance to the site, latitude and
     // longitude over the reference body in degrees; text_out:
-    // "reference body;assist;target"), "events" (text_out: newline-separated
+    // "reference body;assist;target;frame body"; out also ends with
+    // away 0/1 -- the walk frame has followed the ship off the site), "events" (text_out: newline-separated
     // events since the last call), "warp" (args: rate), "assist" (text),
     // "target" (text: a body name, empty for none), "refuel"/"repair" (args:
-    // amount, negative for full), "set_fuel" (args: units), "board", "exit", "controls" (args: 1/0),
+    // amount, negative for full), "set_fuel" (args: units), "tune" (text:
+    // thrust, lift, fuel, hull, heat, rcs, land_vertical or land_slope; args:
+    // the new value), "spec" (out: thrust, lift, fuel, hull, heat, rcs), "board", "exit", "controls" (args: 1/0),
     // "place_landed" (text: body; args: latitude, longitude, heading in
     // degrees), "place_orbit" (text: body; args: altitude) and "body" (text:
     // name; out: radius, surface gravity, atmosphere height, distance from

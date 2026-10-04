@@ -124,6 +124,17 @@ struct SpaceSim final {
     std::vector<space::DVec3> path; // predicted, relative to the reference body
     // Key levels last tick, for edges that survive multi-tick frames.
     bool previous_keys[8]{};
+    // Walking anywhere (0.72.0): the frame the scene is drawn and walked in
+    // moves to wherever the ship lands outside the authored site, and back
+    // on return. The authored site (home) is kept to restore.
+    int home_body{0};
+    space::DVec3 home_origin{}, home_x{1, 0, 0}, home_y{0, 1, 0}, home_z{0, 0, 1};
+    std::optional<engine::physics::Heightfield> home_ground;
+    float home_ground_y{};
+    bool away{};
+    int frame_generation{};
+    // Authored colliders made non-solid while away (their old trigger flag).
+    std::map<engine::Entity, bool> parked;
     // The stowed player's collider while piloting.
     std::optional<engine::Entity> stowed;
     bool stowed_trigger{};
@@ -664,6 +675,95 @@ struct Runtime {
         }
         return radius;
     }
+    // Puts the walk/draw frame on body `index` above `up`: axes, origin on
+    // the surface, and the walkable heightfield sampled from the body in
+    // frame coordinates (curvature included).
+    void anchor_frame(int index, space::DVec3 up) {
+        auto &sim = *space;
+        const auto &body = sim.system.bodies[static_cast<std::size_t>(index)];
+        up = space::normalized(up);
+        sim.site_body = index;
+        sim.axis_y = up;
+        const space::DVec3 helper = std::abs(up.y) < 0.99 ? space::DVec3{0, 1, 0} : space::DVec3{1, 0, 0};
+        sim.axis_x = space::normalized(space::cross(helper, up));
+        sim.axis_z = space::cross(sim.axis_x, up);
+        sim.site_origin = up * space::surface_radius(body, up);
+        const double size = sim.eva_range * 2;
+        const int resolution = std::clamp(static_cast<int>(size / 8.0) + 1, 65, 385);
+        engine::physics::Heightfield field;
+        field.center = {0, 0, 0};
+        field.size = static_cast<float>(size);
+        field.resolution = resolution;
+        field.heights.resize(static_cast<std::size_t>(resolution) * static_cast<std::size_t>(resolution));
+        float lowest = 0;
+        for (int row = 0; row < resolution; ++row)
+            for (int col = 0; col < resolution; ++col) {
+                const double x = -size / 2 + size * col / (resolution - 1), z = -size / 2 + size * row / (resolution - 1);
+                const auto p = space::normalized(sim.site_origin + sim.axis_x * x + sim.axis_z * z);
+                const auto surface = p * space::surface_radius(body, p);
+                const auto h = static_cast<float>(space::dot(surface - sim.site_origin, up));
+                field.heights[static_cast<std::size_t>(row) * static_cast<std::size_t>(resolution) +
+                              static_cast<std::size_t>(col)] = h;
+                lowest = std::min(lowest, h);
+            }
+        terrain = std::move(field);
+        physics_config.terrain = &*terrain;
+        physics_config.ground_y = lowest - 500.0F;
+        ++sim.frame_generation;
+    }
+    // After a touchdown: away from the authored site, the frame follows the
+    // ship so the pilot can step out anywhere; back at the site, it returns.
+    // Authored scenery is parked (non-solid; the editor hides it) while away.
+    void reframe_after_landing(engine::World &w) {
+        auto &sim = *space;
+        if (!sim.ship.landed || sim.ship.ref < 0)
+            return;
+        const auto at_home = [&] {
+            if (sim.ship.ref != sim.home_body)
+                return false;
+            const auto p = sim.ship.position - sim.home_origin;
+            return std::abs(space::dot(p, sim.home_x)) < sim.eva_range - 30 &&
+                   std::abs(space::dot(p, sim.home_z)) < sim.eva_range - 30 && space::dot(p, sim.home_y) < 500;
+        }();
+        if (at_home) {
+            if (!sim.away)
+                return;
+            sim.site_body = sim.home_body;
+            sim.site_origin = sim.home_origin;
+            sim.axis_x = sim.home_x;
+            sim.axis_y = sim.home_y;
+            sim.axis_z = sim.home_z;
+            terrain = sim.home_ground;
+            physics_config.terrain = terrain ? &*terrain : nullptr;
+            physics_config.ground_y = sim.home_ground_y;
+            ++sim.frame_generation;
+            for (const auto &[entity, trigger] : sim.parked)
+                if (w.alive(entity))
+                    if (auto *collider = w.get<engine::physics::Collider>(entity))
+                        collider->is_trigger = trigger;
+            sim.parked.clear();
+            sim.away = false;
+            sim.event("frame:home");
+        } else {
+            const auto local = sim.rotate_to_local(sim.ship.position - sim.site_origin);
+            const bool inside = sim.away && sim.ship.ref == sim.site_body && std::abs(local.x) < sim.eva_range - 30 &&
+                                std::abs(local.z) < sim.eva_range - 30;
+            if (inside)
+                return;
+            if (!sim.away)
+                for (const auto entity : w.query<engine::physics::Collider>()) {
+                    if (entity == sim.ship_entity || entity == sim.stowed || w.get<PlayerMarker>(entity))
+                        continue;
+                    auto &collider = *w.get<engine::physics::Collider>(entity);
+                    sim.parked[entity] = collider.is_trigger;
+                    collider.is_trigger = true;
+                }
+            sim.away = true;
+            anchor_frame(sim.ship.ref, sim.ship.position);
+            sim.event("frame:" + sim.system.bodies[static_cast<std::size_t>(sim.ship.ref)].name);
+        }
+        settle_landed(w);
+    }
     // A landed ship rests on whatever is under it: a pad or roof of the
     // site's colliders as well as the ground.
     void settle_landed(engine::World &w) {
@@ -845,6 +945,7 @@ struct Runtime {
         sp.vertical_applied = control.vertical;
         if (sp.ship.touched_down)
             sp.event(sp.ship.last_touchdown.rough ? "rough_touchdown" : "touchdown");
+        const bool reframe = sp.ship.touched_down && !sp.ship.destroyed;
         if (sp.ship.lifted_off)
             sp.event("liftoff");
         if (sp.ship.changed_ref && sp.ship.ref != before)
@@ -853,6 +954,8 @@ struct Runtime {
         if (sp.ship.destroyed && !was_destroyed)
             sp.event("destroyed");
         sp.ship.touched_down = sp.ship.lifted_off = sp.ship.changed_ref = false;
+        if (reframe)
+            reframe_after_landing(w);
         if (sp.ship_entity && w.alive(*sp.ship_entity)) {
             const auto local = sp.to_local(sp.ship_absolute());
             w.get<engine::Box>(*sp.ship_entity)->center = {static_cast<float>(local.x), static_cast<float>(local.y),
@@ -2371,7 +2474,9 @@ bool BridgeHost::space(engine::World &world, const std::string &op, const std::v
         out.push_back(std::atan2(dir.z, dir.x) * 180 / 3.14159265358979);
         text_out = (sp.ship.ref >= 0 ? sp.system.bodies[static_cast<std::size_t>(sp.ship.ref)].name : std::string{"star"}) +
                    ";" + assist_name(sp.assist) + ";" +
-                   (sp.target >= 0 ? sp.system.bodies[static_cast<std::size_t>(sp.target)].name : std::string{});
+                   (sp.target >= 0 ? sp.system.bodies[static_cast<std::size_t>(sp.target)].name : std::string{}) + ";" +
+                   sp.system.bodies[static_cast<std::size_t>(sp.site_body)].name;
+        out.push_back(sp.away ? 1.0 : 0.0);
         return true;
     }
     if (op == "events") {
@@ -2399,6 +2504,26 @@ bool BridgeHost::space(engine::World &world, const std::string &op, const std::v
     }
     if (op == "refuel") {
         sp.ship.fuel = arg(0) < 0 ? sp.spec.fuel : std::min(sp.spec.fuel, sp.ship.fuel + arg(0));
+        return true;
+    }
+    if (op == "tune") {
+        // Ship upgrades: the named spec field takes the value.
+        const double v = arg(0);
+        if (!(v > 0))
+            return false;
+        if (text == "thrust") sp.spec.thrust = v;
+        else if (text == "lift") sp.spec.lift_thrust = v;
+        else if (text == "fuel") { sp.spec.fuel = v; sp.ship.fuel = std::min(sp.ship.fuel, v); }
+        else if (text == "hull") { sp.ship.hull *= v / sp.spec.hull; sp.spec.hull = v; }
+        else if (text == "heat") sp.spec.heat_tolerance = v;
+        else if (text == "rcs") sp.spec.rcs = v;
+        else if (text == "land_vertical") sp.spec.land_vertical = v;
+        else if (text == "land_slope") sp.spec.land_slope = v;
+        else return false;
+        return true;
+    }
+    if (op == "spec") {
+        out = {sp.spec.thrust, sp.spec.lift_thrust, sp.spec.fuel, sp.spec.hull, sp.spec.heat_tolerance, sp.spec.rcs};
         return true;
     }
     if (op == "set_fuel") {
@@ -2436,6 +2561,7 @@ bool BridgeHost::space(engine::World &world, const std::string &op, const std::v
             space::place_landed(sp.ship, sp.spec, sp.system, index, dir,
                                 north * std::cos(heading) + east * std::sin(heading));
             runtime_.settle_landed(world);
+            runtime_.reframe_after_landing(world);
         }
         sp.ship.destroyed = false;
         sp.warp = 1;
@@ -3409,6 +3535,13 @@ EXPORT void editor_space_body(const char *name, int parent, double orbit_radius,
     body.seed = static_cast<std::uint32_t>(std::max(0.0, seed));
     bodies.push_back(std::move(body));
 }
+// The last staged body's sea level (m relative to its radius): water is its
+// surface below that height (0.72.0).
+EXPORT void editor_space_body_sea(double sea_level) {
+    if (!staging || !staging->space || staging->space->system.bodies.empty() || !std::isfinite(sea_level))
+        return;
+    staging->space->system.bodies.back().sea_level = sea_level;
+}
 // Ship tuning; `start_orbit` >= 0 starts in a circular orbit that high above
 // the site body instead of landed where the entity is authored. `heading` is
 // the entity's yaw (radians).
@@ -3459,33 +3592,15 @@ bool finish_space(Runtime &rt) {
     const double flat_radius = space::length(sim.site_origin);
     if (flat_radius > 0)
         site.flats.push_back({sim.axis_y, flat_radius});
-    const space::DVec3 up = sim.axis_y;
-    const space::DVec3 helper = std::abs(up.y) < 0.99 ? space::DVec3{0, 1, 0} : space::DVec3{1, 0, 0};
-    sim.axis_x = space::normalized(space::cross(helper, up));
-    sim.axis_z = space::cross(sim.axis_x, up);
-    sim.site_origin = up * space::surface_radius(site, up);
-    // The walkable ground: the body's surface in site coordinates, curvature included.
-    const double size = sim.eva_range * 2;
-    const int resolution = std::clamp(static_cast<int>(size / 8.0) + 1, 65, 513);
-    engine::physics::Heightfield field;
-    field.center = {0, 0, 0};
-    field.size = static_cast<float>(size);
-    field.resolution = resolution;
-    field.heights.resize(static_cast<std::size_t>(resolution) * static_cast<std::size_t>(resolution));
-    float lowest = 0;
-    for (int row = 0; row < resolution; ++row)
-        for (int col = 0; col < resolution; ++col) {
-            const double x = -size / 2 + size * col / (resolution - 1), z = -size / 2 + size * row / (resolution - 1);
-            const auto p = space::normalized(sim.site_origin + sim.axis_x * x + sim.axis_z * z);
-            const auto surface = p * space::surface_radius(site, p);
-            const auto h = static_cast<float>(space::dot(surface - sim.site_origin, up));
-            field.heights[static_cast<std::size_t>(row) * static_cast<std::size_t>(resolution) +
-                          static_cast<std::size_t>(col)] = h;
-            lowest = std::min(lowest, h);
-        }
-    rt.terrain = std::move(field);
-    rt.physics_config.terrain = &*rt.terrain;
-    rt.physics_config.ground_y = lowest - 500.0F;
+    rt.anchor_frame(sim.site_body, sim.axis_y);
+    sim.home_body = sim.site_body;
+    sim.home_origin = sim.site_origin;
+    sim.home_x = sim.axis_x;
+    sim.home_y = sim.axis_y;
+    sim.home_z = sim.axis_z;
+    sim.home_ground = rt.terrain;
+    sim.home_ground_y = rt.physics_config.ground_y;
+    sim.frame_generation = 0;
     // The ship: landed where it was authored, or in orbit.
     if (sim.ship_entity && rt.world.alive(*sim.ship_entity)) {
         // The space simulation moves the ship; physics only sees its collider.
@@ -3541,7 +3656,9 @@ EXPORT int editor_commit() {
 // g-force, 25 engine on, 26 belly thrust input, 27 system time, 28
 // destroyed, 29 target body, 30 distance to the target's surface, 31
 // distance to the site origin, 32 orbital period, 33 eccentricity, 34
-// reference body radius, 35 has a SpaceSystem, 36 body count. 0 without.
+// reference body radius, 35 has a SpaceSystem, 36 body count, 37 away from
+// the authored site (the frame follows the ship), 38 frame generation
+// (changes when the frame moves), 39 the frame's body. 0 without.
 EXPORT double editor_space_value(int field) {
     if (!active->space)
         return 0;
@@ -3592,6 +3709,9 @@ EXPORT double editor_space_value(int field) {
     case 34: return sp.ship.ref >= 0 ? sp.system.bodies[static_cast<std::size_t>(sp.ship.ref)].radius : 0;
     case 35: return 1;
     case 36: return static_cast<double>(sp.system.bodies.size());
+    case 37: return sp.away ? 1 : 0;
+    case 38: return sp.frame_generation;
+    case 39: return sp.site_body;
     default: return 0;
     }
 }
@@ -3629,11 +3749,12 @@ EXPORT double editor_space_frame(int field) {
     return field == 0 ? q.x : field == 1 ? q.y : field == 2 ? q.z : q.w;
 }
 // A body's terrain height (m above its radius) under a direction from its
-// centre, in the body's frame: what the editor meshes planets from.
+// centre, in the body's frame -- the ground, under any sea: what the
+// editor meshes planets from.
 EXPORT double editor_planet_height(int index, double x, double y, double z) {
     if (!active->space || index < 0 || index >= static_cast<int>(active->space->system.bodies.size()))
         return 0;
-    return space::surface_height(active->space->system.bodies[static_cast<std::size_t>(index)], {x, y, z});
+    return space::terrain_height(active->space->system.bodies[static_cast<std::size_t>(index)], {x, y, z});
 }
 // The walkable ground's site-frame height at x, z (the heightfield the
 // SpaceSystem built around the site).
@@ -3641,6 +3762,15 @@ EXPORT double editor_space_ground(double x, double z) {
     if (!active->space)
         return 0;
     return active->site_ground(static_cast<float>(x), static_cast<float>(z));
+}
+// 1 when the walk frame's point x, z is under the sea (0.72.0).
+EXPORT int editor_space_wet(double x, double z) {
+    if (!active->space)
+        return 0;
+    const auto &sp = *active->space;
+    const auto &body = sp.system.bodies[static_cast<std::size_t>(sp.site_body)];
+    const auto p = sp.site_origin + sp.axis_x * x + sp.axis_z * z;
+    return space::terrain_height(body, p) < body.sea_level ? 1 : 0;
 }
 // Predicts the ship's coasting path (see space::predict_path) over
 // `horizon` seconds (0: one orbital period, capped); returns the point count.

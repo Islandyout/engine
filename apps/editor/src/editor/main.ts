@@ -68,7 +68,8 @@ import { attachToHand, faceWeaponForward, splitForWeapon } from "./characterRig"
 import { instanceBox, parseModelInstances } from "./modelInstances";
 import { CarFx, type CarView, type MinimapBlip, type MinimapRoad } from "./carFx";
 import { EngineVoice, SirenVoice, TireVoice } from "./carAudio";
-import { SpaceView, drawFlightHud, parseLandmarks, parseSpaceBodies, type SpaceRuntime } from "./spaceView";
+import { SpaceView, drawFlightHud, parseLandmarks, parseSpaceBodies, parseSpecies, type SpaceRuntime, type Species } from "./spaceView";
+import { Scanner, type ScanTarget } from "./scanner";
 import {
   applyBrush,
   decodeSculpt,
@@ -254,6 +255,7 @@ type Runtime = {
   _editor_space_path(count: number, horizon: number): number;
   _editor_space_path_value(index: number, axis: number): number;
   _editor_space_ground(x: number, z: number): number;
+  _editor_space_wet(x: number, z: number): number;
   _editor_take_weapon_events(): number;
   _editor_weapon_event(index: number, field: number): number;
   // Catch-all for text calls added from 0.59.0 on.
@@ -1757,6 +1759,18 @@ async function startEditor() {
   let spaceView: SpaceView | undefined;
   let spaceGround: THREE.Mesh<THREE.BufferGeometry, THREE.ShadowMaterial> | undefined;
   let spacePass: RenderPass | undefined;
+  // Walking anywhere (0.72.0): the frame the scatter and ground were built
+  // for, the plants and rocks around it, and authored objects hidden while
+  // the frame is away from the site.
+  let spaceFrame = -1;
+  let spaceScatter: THREE.Object3D | undefined;
+  let spaceSpecies: Species[] = [];
+  let scatterTargets: ScanTarget[] = [];
+  let scatterModelsReady = false;
+  const hiddenAway = new Set<number>();
+  // The scanner (0.72.0), for any scene with Scannable entities or species.
+  const scanner = new Scanner();
+  let scannableIndices: number[] = [];
   function spaceComponent() {
     const entity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "SpaceSystem"));
     return entity ? doc.scene.resolve(entity, "SpaceSystem") : undefined;
@@ -1775,13 +1789,15 @@ async function startEditor() {
       ["number", "number", "number", "number", "number", "number", "number"],
       [space.starGm, Math.max(site, 0), space.siteLatitude, space.siteLongitude, space.siteRadius, space.evaRange, space.startTime],
     );
-    for (const b of bodies)
+    for (const b of bodies) {
       runtime.ccall(
         "editor_space_body",
         null,
         ["string", ...Array<"number">(12).fill("number")],
         [b.name, b.parent, b.orbitRadius, b.period, b.phase, b.inclination, b.radius, b.gravity, b.atmosphereHeight, b.atmosphereDensity, b.terrainAmplitude, b.terrainScale, b.seed],
       );
+      if (b.sea !== undefined) runtime.ccall("editor_space_body_sea", null, ["number"], [b.sea]);
+    }
   }
   // On Play: the system view, its render pass, and the site's ground as a
   // depth-and-shadow surface in the scene pass (hills hide what's behind
@@ -1791,9 +1807,37 @@ async function startEditor() {
     const space = spaceComponent();
     if (!space || !runtime._editor_space_value(35)) return;
     const { bodies } = parseSpaceBodies(space.bodies);
-    spaceView = new SpaceView(runtime as unknown as SpaceRuntime, bodies, colorOf(space.starColor), parseLandmarks(space.landmarks, bodies));
+    const shipEntity = shipIndex >= 0 ? doc.scene.eachAlive()[shipIndex] : undefined;
+    const shipModel = (shipEntity && doc.scene.resolve(shipEntity, "Spaceship")?.model) ?? "";
+    spaceView = new SpaceView(runtime as unknown as SpaceRuntime, bodies, colorOf(space.starColor), parseLandmarks(space.landmarks, bodies), shipModel);
     spaceView.sampleTick();
     grid.visible = false;
+    spaceSpecies = parseSpecies(space.species, bodies);
+    spaceFrame = -1;
+    scatterModelsReady = false;
+    const models = [...new Set(spaceSpecies.map((s) => s.model))];
+    void Promise.all(models.map((id) => loadCatalogModel(id)?.catch(() => undefined))).then(() => {
+      scatterModelsReady = true;
+      spaceFrame = -1; // rebuild with the models in
+    });
+    shadowGround.visible = false;
+    if (composer) {
+      spacePass = new RenderPass(spaceView.scene, spaceView.camera);
+      composer.insertPass(spacePass, 0);
+      renderPass.clear = false;
+      renderPass.clearDepth = true;
+    }
+  }
+  // The walk frame's ground (a depth-and-shadow surface in the scene pass)
+  // and the plants and rocks around it, rebuilt whenever the frame moves.
+  function rebuildSpaceFrame() {
+    const space = spaceComponent();
+    if (!spaceView || !space) return;
+    if (spaceGround) {
+      scene.remove(spaceGround);
+      spaceGround.geometry.dispose();
+      spaceGround.material.dispose();
+    }
     const n = 129;
     const size = space.evaRange * 2;
     const geometry = new THREE.PlaneGeometry(size, size, n - 1, n - 1);
@@ -1805,17 +1849,32 @@ async function startEditor() {
     spaceGround = new THREE.Mesh(geometry, new THREE.ShadowMaterial({ opacity: 0.4 }));
     spaceGround.receiveShadow = true;
     scene.add(spaceGround);
-    shadowGround.visible = false;
-    if (composer) {
-      spacePass = new RenderPass(spaceView.scene, spaceView.camera);
-      composer.insertPass(spacePass, 0);
-      renderPass.clear = false;
-      renderPass.clearDepth = true;
+    if (spaceScatter) scene.remove(spaceScatter);
+    spaceScatter = undefined;
+    scatterTargets = [];
+    if (!scatterModelsReady) return;
+    const away = runtime._editor_space_value(37) === 1;
+    const placed = spaceView.scatter(spaceSpecies, space.evaRange * 0.92, away ? 22 : 75);
+    const models = new Map<number, { scene: THREE.Object3D }>();
+    for (const p of placed) {
+      const cached = catalogCache.get(p.species.model);
+      if (cached) models.set(p.species.model, cached);
     }
+    spaceScatter = buildScatter(
+      placed.map((p) => ({ model: p.species.model, x: p.x, y: p.y, z: p.z, yaw: p.yaw, scale: p.scale, collide: false })),
+      models,
+    );
+    scene.add(spaceScatter);
+    const kind = (k: string) => k[0]!.toUpperCase() + k.slice(1);
+    scatterTargets = placed.map((p) => ({ key: p.species.id, name: p.species.name, kind: kind(p.species.kind), position: new THREE.Vector3(p.x, p.y + 0.4, p.z), range: 5 }));
   }
   function endSpaceView() {
     spaceView?.dispose();
     spaceView = undefined;
+    if (spaceScatter) scene.remove(spaceScatter);
+    spaceScatter = undefined;
+    scatterTargets = [];
+    hiddenAway.clear();
     if (spaceGround) {
       scene.remove(spaceGround);
       spaceGround.geometry.dispose();
@@ -1853,6 +1912,57 @@ async function startEditor() {
     if (skyMesh) skyMesh.visible = false;
     scene.fog = spaceView.air > 0.02 ? new THREE.FogExp2(spaceView.skyColor.clone().multiplyScalar(day * 0.9), 6e-5 * spaceView.air) : null;
     if (playerIndex >= 0 && objects[playerIndex]) objects[playerIndex]!.visible = !spaceView.flight.piloting;
+    // Warm light at sunrise and sunset.
+    sun.color.setRGB(1, 1 - spaceView.sunset * 0.35, 1 - spaceView.sunset * 0.6);
+    const frame = runtime._editor_space_value(38);
+    if (frame !== spaceFrame) {
+      spaceFrame = frame;
+      rebuildSpaceFrame();
+    }
+    // Away from the site, its authored objects are elsewhere on the planet.
+    const away = runtime._editor_space_value(37) === 1;
+    const entities = doc.scene.eachAlive();
+    if (away)
+      objects.forEach((object, i) => {
+        if (!object || i === shipIndex || i === playerIndex || !object.visible) return;
+        const entity = entities[i];
+        if (entity && doc.scene.effectiveHas(entity, "Parent")) return;
+        object.visible = false;
+        hiddenAway.add(i);
+      });
+    else if (hiddenAway.size) {
+      for (const i of hiddenAway) if (objects[i]) objects[i]!.visible = true;
+      hiddenAway.clear();
+    }
+  }
+  // Hold F to scan (0.72.0): Scannable entities, scattered species and
+  // landmarks; a finished scan calls on_ui("scan", key) in every script.
+  function scanCandidates(): ScanTarget[] {
+    const list: ScanTarget[] = [];
+    const entities = doc.scene.eachAlive();
+    for (const i of scannableIndices) {
+      const entity = entities[i];
+      const object = objects[i];
+      const scan = entity && doc.scene.resolve(entity, "Scannable");
+      if (!scan || !object || !object.visible || !runtime._editor_alive(i)) continue;
+      list.push({ key: scan.id || scan.name, name: scan.name, kind: scan.kind, position: object.position, range: scan.range });
+    }
+    for (const t of scatterTargets) list.push(t);
+    for (const landmark of spaceView?.landmarks ?? [])
+      list.push({ key: `landmark:${landmark.label}`, name: landmark.label, kind: "Landmark", position: landmark.anchor.getWorldPosition(new THREE.Vector3()), range: 70 });
+    return list;
+  }
+  function scanHeld() {
+    return heldKeys.has("KeyF") && !spaceView?.flight.piloting && playerIndex >= 0;
+  }
+  function updateScanner(dt: number, view: THREE.Camera) {
+    if (!scannableIndices.length && !scatterTargets.length && !spaceView?.landmarks.length) return;
+    const player = playerIndex >= 0 ? objects[playerIndex] : undefined;
+    if (!player) return;
+    const forward = view.getWorldDirection(new THREE.Vector3());
+    const moving = runtime._editor_controller_value(playerIndex, 4) > 2;
+    const done = scanner.update(dt, scanHeld(), moving, player.position, forward, scanCandidates());
+    if (done) runtime.ccall("editor_ui_event", null, ["string", "string"], ["scan", done.key]);
   }
   // The player's authored scale at the moment Play started, and its y position
   // the moment before this frame's ticks ran — the jump squash/stretch effect
@@ -3435,6 +3545,11 @@ async function startEditor() {
         prePlayTarget = controls.target.clone();
         syncRuntime();
         startSpaceView();
+        scanner.reset();
+        scannableIndices = doc.scene
+          .eachAlive()
+          .map((e, i) => (doc.scene.effectiveHas(e, "Scannable") ? i : -1))
+          .filter((i) => i >= 0);
         rig.placed = false;
         shake.remaining = 0;
         for (const animator of animators)
@@ -3818,6 +3933,9 @@ async function startEditor() {
       if (document.pointerLockElement !== renderer.domElement) void renderer.domElement.requestPointerLock?.();
       return;
     }
+    // Picking entities is for editing: during Play (and in exported games)
+    // a click in the world never selects anything.
+    if (doc.mode !== "edit") return;
     const pointer = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
       (-(e.clientY - rect.top) / rect.height) * 2 + 1,
@@ -4401,7 +4519,10 @@ async function startEditor() {
         if (object) mixer.place(panner, object.getWorldPosition(new THREE.Vector3()));
       }
     }
-    if (doc.mode !== "edit") updateSpace(viewCamera, dt);
+    if (doc.mode !== "edit") {
+      updateSpace(viewCamera, dt);
+      if (doc.mode === "play") updateScanner(dt, viewCamera);
+    }
     updateSunShadow();
     renderPass.camera = viewCamera;
     if (gtaoPass) gtaoPass.camera = viewCamera;
@@ -4749,6 +4870,11 @@ async function startEditor() {
       drawWaypoints();
     }
     if (firstPerson()) hudLines.push(...drawFirstPersonOverlay());
+    // Scanner reticle (0.72.0).
+    if (doc.mode === "play" && (scannableIndices.length || scatterTargets.length)) {
+      const text = scanner.draw(hudCtx, hud.width, hud.height, scanHeld());
+      if (text) hudLines.push(text);
+    }
     // Flight HUD (0.71.0).
     if (doc.mode !== "edit" && spaceView) {
       const ship = shipIndex >= 0 ? objects[shipIndex] : undefined;

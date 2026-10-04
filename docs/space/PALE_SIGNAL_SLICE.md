@@ -19,29 +19,55 @@
 | Data-driven content (system, sites, landmarks) | `SpaceSystem.bodies` and `.landmarks` are text; `Spaceship` tuning is a component; the whole slice is generated |
 | Distinct audio for atmosphere and vacuum | The engine note is filtered by air density: full in air, only what carries through the hull in vacuum |
 
-## 2. The slice
+## 2. The slice (0.72.0)
 
-1. **Kestra Station, Tethys**: start in the cockpit on the pad. E steps out onto the planet.
-2. **Survey**: walk to the Talari ruin north of the station and hold F at the monolith. The journal (J) records the contradiction: a script layer 40,000 years older than the Talari, who say they found Tethys empty. The monolith answers a signal from the moon Vell.
-3. **Fuel**: the tank is at 45%, not enough for the crossing. Collect volatile ice from two of three glowing outcrops (+25 each).
-4. **Launch**: board (E), lift off on the belly thrusters (Space), throttle up (W/Shift) and pitch over; climb out of the 21.6 km atmosphere.
-5. **Orbit**: raise periapsis above 25 km (NAV prograde helps).
-6. **Crossing**: NAV TARGET points the nose at Vell; burn, coast with time warp (9/0), and enter Vell's sphere of influence.
-7. **The signal**: land within 2.5 km of the beam on Vell. The structure is still transmitting, outward.
+The loop follows the prototype: **scan to learn, learn to unlock, fly to reach what you've learned about**.
 
-A lost ship is recovered to the pad, repaired, with at least 60% fuel.
+1. **Kestra Station, Tethys**: you start in the cockpit on the pad. E steps out onto the planet.
+2. **Survey Kestra**:
+   - Scan the **Black Foundation** at the ruin north of the station (hold F). It's a script layer 40,000 years older than the Talari, who say they found Tethys empty, and it answers a signal from the moon Vell.
+   - Talk to the **Talari** in the quarter east of the pad (E): Tal Ossin, Ena Vey, Maru Sen, Osen Kai and Veyra Tol, with lines from the prototype.
+   - **Translation** follows your language model, using the prototype's stages:
+     - UNPARSED: gestures only.
+     - PATTERNED: every third word.
+     - BASIC: function words bracketed.
+     - CONVERSATIONAL and FLUENT: full text.
+   - **Evidence** teaches the language: the Concord Memorial Wall, the Oral-History Listening Post, and the Flood Calendar Stone by the ruin.
+3. **Fuel**: the tank is at 45%. Scan two of three volatile ice outcrops (+25 fuel each).
+4. **Follow the signal**:
+   - Board, lift off, climb out of the 21.6 km atmosphere and make orbit.
+   - Optional: the **Kneeling Array** is a short hop from Kestra (about 15 km). Land anywhere near it, walk up and scan it.
+5. **Vell**: land near the **Under-Ice Relay** (follow its beam) and step out onto the airless moon. The suit's oxygen runs down; walk to the relay and scan it.
+
+A lost ship is recovered to the pad, repaired, with at least 60% fuel. Running out of suit oxygen pulls you back aboard.
+
+### Research and upgrades
+
+Every species, piece of evidence and landmark you scan pays research points (RP); U opens the upgrades. The costs are the prototype's:
+- Thrust Vectoring
+- Propellant Tanks
+- Hull Reinforcement: also softer landings
+- Ablative Shielding
+- Life Support: suit oxygen
+- Reaction Control
+
+### Species
+
+The catalogue has 14 species across Tethys, Vell, Cinder and Ossuary, from the prototype's list (Pale Reed, Lantern Cap, Banded Ironstone, Clathrate Pocket, Flat Grazer, Rime Spar, Frost Lichen, Vitrous Slag, Ember Lichen…).
+
+Plants and minerals are scattered wherever you walk on their world; Flat Grazers roam near Kestra. Scanning any one of a species catalogues it, with its research points and a journal entry.
 
 ## 3. Controls
 
 | | |
 |---|---|
-| On foot | WASD move · mouse look · E board/exit · F scan/collect · J journal · P pause |
+| On foot | WASD move · mouse look · E board/exit or talk · **hold F scan** · J journal · U upgrades · P pause |
 | Throttle | W/S up/down · Shift full · X cut |
 | Attitude | ↑/↓ or I/K pitch · ←/→, J/L or A/D yaw · Q/E roll |
 | Belly thrusters | Space lift · C or Ctrl sink (in STABILIZED: commanded climb/sink rate) |
 | Assist | T stabilized ↔ manual · N cycles NAV prograde → retrograde → target → off |
 | Time warp | 9 slower · 0 faster (coasting in space only) |
-| Camera | drag to look around the ship |
+| Camera | drag to look around the ship; in space it frames the world below |
 
 ## 4. Scale and numbers
 
@@ -56,13 +82,13 @@ The Kestrel masses 12 t with 300 kN main and 180 kN belly thrust: about 2,080 m/
 
 ## 5. Limits and next steps
 
-- **One site per scene**: walking is on the site's heightfield (2.4 km square here). The ship lands anywhere on any body, but leaving it is refused outside the surveyed area (`exit_blocked`). Several sites, or re-anchoring the frame at the landing point, are the next step.
+- **Walking anywhere**: you can step out wherever you land. Each landing re-centres a walkable area about 2.4 km across: any planet, any moon, any spot. Only the authored site (Kestra) has buildings and people; elsewhere you get the world's generated plants and rocks, its landmarks, and its air (or lack of it).
 - **Bodies don't rotate**, and orbits are circular.
-- **Placeholder art**: the ship is built from primitives and the Talari use the Mannequin; the presentation pipeline (authored meshes, rigs, materials) is Pale Signal's own Phase 4.
+- **Art**: the Kestrel and the signal structures are procedural; the Talari use the Mannequin, and species use catalog models (plants, rocks). Authored art is Pale Signal's own Phase 4.
 
 ## 6. Test plan
 
 - `tests/space_tests.cpp`: rails, air, terrain and flats, landed idle, lift-off and stabilized hover, a clean and a rough landing, a closed orbit with matching elements and path, thrust and fuel, NAV prograde/retrograde, manual pitch and yaw, drag and heating, sphere-of-influence handover both ways, and a climb from the site out of the atmosphere.
-- `tests/editor_bridge_tests.cpp`: a landed start where authored, hover, set-down, exiting onto the curved ground and boarding, and `space.*` from Lua.
-- `tests/browser/pale_signal.cjs`: the title, the landed flight HUD, a hover and set-down, stepping out, and scanning the ruin.
+- `tests/editor_bridge_tests.cpp`: a landed start where authored, hover, set-down, exiting onto the curved ground and boarding, walking anywhere (land on Vell, step out, return home), and `space.*` from Lua.
+- `tests/browser/pale_signal.cjs`: the title, the landed flight HUD, a hover and set-down, stepping out (ambient air), scanning the Black Foundation (research and language), and walking on Vell with suit oxygen running down.
 - `apps/editor/tests/paleSignal.test.ts`: the committed scene matches the generator; body and landmark parsing.

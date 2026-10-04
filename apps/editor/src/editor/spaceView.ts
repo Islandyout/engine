@@ -12,6 +12,7 @@
 // kept in doubles: three.js composes model-view matrices in doubles, so a
 // mesh far from the origin still renders steadily.
 import * as THREE from "three";
+import { buildKestrel, cloudShell, milkyWay, signalStructure } from "./spaceArt";
 
 export interface SpaceRuntime {
   _editor_space_value(field: number): number;
@@ -20,6 +21,8 @@ export interface SpaceRuntime {
   _editor_planet_height(index: number, x: number, y: number, z: number): number;
   _editor_space_path(count: number, horizon: number): number;
   _editor_space_path_value(index: number, axis: number): number;
+  _editor_space_ground(x: number, z: number): number;
+  _editor_space_wet(x: number, z: number): number;
 }
 
 export interface SpaceBody {
@@ -38,6 +41,11 @@ export interface SpaceBody {
   seed: number;
   color: string;
   haze: string;
+  // Options after the colours, "key=value": sea (m, relative to the
+  // radius), clouds (0..1 cover), snow (0/1).
+  sea?: number;
+  clouds: number;
+  snow: boolean;
 }
 
 // One body per line (see SpaceSystemComponent.bodies). Blank lines and
@@ -85,6 +93,7 @@ export function parseSpaceBodies(text: string): { bodies: SpaceBody[]; errors: s
       seed,
       color: /^#[0-9a-f]{6}$/i.test(tokens[13] ?? "") ? tokens[13]! : "#8a8a80",
       haze: /^#[0-9a-f]{6}$/i.test(tokens[14] ?? "") ? tokens[14]! : "#000000",
+      ...options(tokens.slice(13)),
     });
   });
   return { bodies, errors };
@@ -119,6 +128,42 @@ export function parseLandmarks(text: string, bodies: SpaceBody[]): Landmark[] {
 export function latLonDirection(latitude: number, longitude: number) {
   const lat = THREE.MathUtils.degToRad(latitude), lon = THREE.MathUtils.degToRad(longitude);
   return new THREE.Vector3(Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon));
+}
+
+function options(tokens: string[]) {
+  const values: Record<string, number> = {};
+  for (const token of tokens) {
+    const [key, value] = token.split("=");
+    if (key && value !== undefined && Number.isFinite(Number(value))) values[key] = Number(value);
+  }
+  return { sea: values.sea, clouds: THREE.MathUtils.clamp(values.clouds ?? 0, 0, 1), snow: values.snow === 1 };
+}
+
+export interface Species {
+  id: string;
+  body: number;
+  kind: "flora" | "mineral" | "fauna";
+  model: number;
+  weight: number;
+  scale: number;
+  name: string;
+  description: string;
+}
+
+// One per line: "id body class model weight scale Name words | description".
+export function parseSpecies(text: string, bodies: SpaceBody[]): Species[] {
+  const out: Species[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const [head, description = ""] = raw.split("|");
+    const tokens = (head ?? "").trim().split(/\s+/);
+    if (tokens.length < 7 || tokens[0]!.startsWith("#")) continue;
+    const body = bodies.findIndex((b) => b.name === tokens[1]);
+    const kind = tokens[2] as Species["kind"];
+    const [model, weight, scale] = tokens.slice(3, 6).map(Number) as [number, number, number];
+    if (body < 0 || !["flora", "mineral", "fauna"].includes(kind) || !Number.isInteger(model) || !(weight >= 0) || !(scale > 0)) continue;
+    out.push({ id: tokens[0]!, body, kind, model, weight, scale, name: tokens.slice(6).join(" "), description: description.trim() });
+  }
+  return out;
 }
 
 // The runtime's view of the flight, sampled once per frame.
@@ -228,6 +273,7 @@ class Planet {
   private readonly maxLevel: number;
   private readonly colors: { low: THREE.Color; mid: THREE.Color; high: THREE.Color; rock: THREE.Color };
   atmosphere?: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;
+  clouds?: THREE.Mesh<THREE.SphereGeometry, THREE.MeshLambertMaterial>;
 
   constructor(
     private readonly rt: SpaceRuntime,
@@ -235,6 +281,15 @@ class Planet {
     readonly body: SpaceBody,
   ) {
     this.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
+    // Water is glossy: a per-vertex "water" weight lowers the roughness.
+    this.material.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace("#include <common>", "#include <common>\nattribute float water;\nvarying float vWater;")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWater = water;");
+      shader.fragmentShader = shader.fragmentShader
+        .replace("#include <common>", "#include <common>\nvarying float vWater;")
+        .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.12, vWater);");
+    };
     const base = new THREE.Color(body.color);
     const haze = new THREE.Color(body.haze);
     this.colors = {
@@ -248,6 +303,10 @@ class Planet {
     this.roots = faces.map((_, face) => this.chunk(face, 0, -1, -1, 2));
     if (body.atmosphereHeight > 0 && body.atmosphereDensity > 0) this.atmosphere = atmosphereShell(body);
     if (this.atmosphere) this.group.add(this.atmosphere);
+    if (body.clouds > 0) {
+      this.clouds = cloudShell(body.radius, Math.min(Math.max(body.atmosphereHeight * 0.33, 1500), 4000), body.clouds, body.seed);
+      this.group.add(this.clouds);
+    }
   }
 
   private chunk(face: number, level: number, u: number, v: number, size: number): Chunk {
@@ -263,11 +322,15 @@ class Planet {
     const dir = new THREE.Vector3();
     const p = new THREE.Vector3();
     const heights = new Float32Array(n * n);
+    const seabed = new Float32Array(n * n);
+    const sea = this.body.sea ?? -Infinity;
     const amplitude = Math.max(this.body.terrainAmplitude, 1);
     for (let j = 0; j < n; j++)
       for (let i = 0; i < n; i++) {
         cubeToSphere(chunk.face, chunk.u + (chunk.size * i) / (n - 1), chunk.v + (chunk.size * j) / (n - 1), dir);
-        const h = this.rt._editor_planet_height(this.index, dir.x, dir.y, dir.z);
+        const ground = this.rt._editor_planet_height(this.index, dir.x, dir.y, dir.z);
+        seabed[j * n + i] = ground;
+        const h = Math.max(ground, sea);
         heights[j * n + i] = h;
         p.copy(dir).multiplyScalar(radius + h).sub(chunk.centre);
         positions.set([p.x, p.y, p.z], (j * n + i) * 3);
@@ -276,14 +339,14 @@ class Planet {
     // between chunks of different detail.
     const drop = (chunk.size / 2) * radius * 0.02 + 5;
     const vertexHeight = new Float32Array(n * n + 4 * n);
-    vertexHeight.set(heights);
+    vertexHeight.set(seabed);
     const source = new Int32Array(n * n + 4 * n);
     let k = n * n;
     const edge = (i: number, j: number) => {
       cubeToSphere(chunk.face, chunk.u + (chunk.size * i) / (n - 1), chunk.v + (chunk.size * j) / (n - 1), dir);
       p.copy(dir).multiplyScalar(radius + heights[j * n + i]! - drop).sub(chunk.centre);
       positions.set([p.x, p.y, p.z], k * 3);
-      vertexHeight[k] = heights[j * n + i]!;
+      vertexHeight[k] = seabed[j * n + i]!;
       source[k] = j * n + i;
       return k++;
     };
@@ -319,18 +382,33 @@ class Planet {
     const normals = geometry.getAttribute("normal") as THREE.BufferAttribute;
     for (let v = n * n; v < k; v++) normals.setXYZ(v, normals.getX(source[v]!), normals.getY(source[v]!), normals.getZ(source[v]!));
     geometry.setIndex(surface.concat(skirts));
-    // Colour by height and slope: lowlands, the body's colour, pale heights, rock on steep ground.
+    // Colour by height and slope: lowlands, the body's colour, pale heights,
+    // rock on steep ground, snow on high peaks, sand at the shore, and water
+    // tinted by depth -- with a little per-vertex variation so slopes read.
     const c = new THREE.Color();
+    const water = new Float32Array(k);
+    const shallow = new THREE.Color("#3f8a96"), deep = new THREE.Color("#0f2f44"), sand = new THREE.Color("#c9b98c");
+    const snow = new THREE.Color("#eef3f6");
     for (let v = 0; v < k; v++) {
       const h = vertexHeight[v]!;
       const up = p.set(positions[v * 3]!, positions[v * 3 + 1]!, positions[v * 3 + 2]!).add(chunk.centre).normalize();
-      const slope = 1 - Math.abs(normals.getX(v) * up.x + normals.getY(v) * up.y + normals.getZ(v) * up.z);
-      const t = THREE.MathUtils.clamp(h / amplitude, -1, 1);
-      if (t < 0) c.copy(this.colors.mid).lerp(this.colors.low, -t);
-      else c.copy(this.colors.mid).lerp(this.colors.high, t * t);
-      c.lerp(this.colors.rock, THREE.MathUtils.clamp((slope - 0.08) * 5, 0, 1));
+      if (h < sea) {
+        c.copy(shallow).lerp(deep, THREE.MathUtils.clamp((sea - h) / 80, 0, 1));
+        water[v] = 1;
+      } else {
+        const slope = 1 - Math.abs(normals.getX(v) * up.x + normals.getY(v) * up.y + normals.getZ(v) * up.z);
+        const t = THREE.MathUtils.clamp(h / amplitude, -1, 1);
+        if (t < 0) c.copy(this.colors.mid).lerp(this.colors.low, -t);
+        else c.copy(this.colors.mid).lerp(this.colors.high, t * t);
+        c.lerp(this.colors.rock, THREE.MathUtils.clamp((slope - 0.08) * 5, 0, 1));
+        if (h - sea < 5) c.lerp(sand, 1 - THREE.MathUtils.clamp((h - sea) / 5, 0, 1));
+        if (this.body.snow && t > 0.5) c.lerp(snow, THREE.MathUtils.clamp((t - 0.5) * 4 - slope * 3, 0, 1));
+        const jitter = (Math.sin(up.x * 91731.7 + up.y * 37211.3 + up.z * 51923.1) * 43758.5453) % 1;
+        c.multiplyScalar(0.93 + Math.abs(jitter) * 0.14);
+      }
       colors.set([c.r, c.g, c.b], v * 3);
     }
+    geometry.setAttribute("water", new THREE.BufferAttribute(water, 1));
     geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     geometry.computeBoundingSphere();
     const mesh = new THREE.Mesh(geometry, this.material);
@@ -411,6 +489,9 @@ class Planet {
     this.material.dispose();
     this.atmosphere?.geometry.dispose();
     this.atmosphere?.material.dispose();
+    this.clouds?.geometry.dispose();
+    this.clouds?.material.map?.dispose();
+    this.clouds?.material.dispose();
   }
 }
 
@@ -503,12 +584,13 @@ function skyDome() {
       haze: { value: new THREE.Color() },
       air: { value: 0 },
       day: { value: 1 },
+      sunset: { value: 0 },
     },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
       void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: /* glsl */ `
-      uniform vec3 up; uniform vec3 sun; uniform vec3 haze; uniform float air; uniform float day;
+      uniform vec3 up; uniform vec3 sun; uniform vec3 haze; uniform float air; uniform float day; uniform float sunset;
       varying vec3 vDir;
       void main() {
         vec3 d = normalize(vDir);
@@ -517,6 +599,8 @@ function skyDome() {
         vec3 zenith = haze * 0.42;
         vec3 col = mix(zenith, haze * 0.85, horizon);
         float s = max(dot(d, sun), 0.0);
+        // Low sun: an orange band along the horizon, strongest toward it.
+        col = mix(col, vec3(1.0, 0.52, 0.26) * 1.05, sunset * horizon * (0.35 + 0.65 * pow(s, 2.0)));
         col += vec3(1.0, 0.88, 0.68) * (pow(s, 32.0) * 0.22 + pow(s, 900.0) * 1.2);
         // Below the horizon the ground haze darkens toward the planet.
         col = mix(col, haze * 0.35, clamp(-h * 6.0, 0.0, 1.0));
@@ -540,8 +624,7 @@ function skyDome() {
 
 interface ShipDecor {
   holder: THREE.Group;
-  flame: THREE.Mesh<THREE.ConeGeometry, THREE.MeshBasicMaterial>;
-  flameCore: THREE.Mesh<THREE.ConeGeometry, THREE.MeshBasicMaterial>;
+  flames: Array<{ flame: THREE.Mesh<THREE.ConeGeometry, THREE.MeshBasicMaterial>; core: THREE.Mesh<THREE.ConeGeometry, THREE.MeshBasicMaterial> }>;
   lift: THREE.Sprite;
   plasma: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>;
   dust: THREE.Sprite;
@@ -614,6 +697,9 @@ export class SpaceView {
   private readonly ambient = new THREE.AmbientLight(0xffffff, 0.04);
   private readonly sunSprite: THREE.Sprite;
   private readonly stars = starField();
+  private readonly galaxy = milkyWay();
+  // 0..1: how low the sun is (for warm light and sky).
+  sunset = 0;
   private readonly sky = skyDome();
   private readonly path: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
   private pathTimer = 0;
@@ -646,11 +732,12 @@ export class SpaceView {
     bodies: SpaceBody[],
     starColor: THREE.Color,
     landmarks: Landmark[] = [],
+    private readonly shipModel = "",
   ) {
     this.bodies = bodies;
     this.starColor = starColor;
     this.scene.background = new THREE.Color(0x000000);
-    this.scene.add(this.stars, this.sky, this.sunLight, this.ambient);
+    this.scene.add(this.stars, this.galaxy, this.sky, this.sunLight, this.ambient);
     this.sunSprite = new THREE.Sprite(
       new THREE.SpriteMaterial({ map: glowTexture(), color: starColor, transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending }),
     );
@@ -680,7 +767,8 @@ export class SpaceView {
       const flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: landmark.color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
       flare.scale.setScalar(160);
       flare.position.y = 20;
-      anchor.add(beam, flare);
+      const structure = signalStructure(landmark.color);
+      anchor.add(beam, flare, structure);
       planet.group.add(anchor);
       this.landmarks.push({ ...landmark, anchor, beam, flare });
     }
@@ -737,14 +825,38 @@ export class SpaceView {
       holder.scale.set(1 / (scale.x || 1), 1 / (scale.y || 1), 1 / (scale.z || 1));
       ship.add(holder);
       const length = Math.max(size.z, 2);
-      const flameMaterial = new THREE.MeshBasicMaterial({ color: 0x7fc8ff, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false });
-      const flame = new THREE.Mesh(new THREE.ConeGeometry(Math.max(size.x, 1) * 0.16, length * 0.6, 16, 1, true), flameMaterial);
-      flame.rotation.x = -Math.PI / 2;
-      flame.position.z = -length * 0.5 - length * 0.3;
-      const coreMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
-      const flameCore = new THREE.Mesh(new THREE.ConeGeometry(Math.max(size.x, 1) * 0.08, length * 0.35, 12, 1, true), coreMaterial);
-      flameCore.rotation.x = -Math.PI / 2;
-      flameCore.position.z = -length * 0.5 - length * 0.18;
+      // The built-in Kestrel replaces the authored mesh; its flames sit on
+      // its two nacelles.
+      let exhausts = [new THREE.Vector3(0, 0, -length * 0.5)];
+      let radius = Math.max(size.x, 1) * 0.16;
+      if (this.shipModel === "Kestrel") {
+        // Hide the authored look (its mesh may be nested), keep its children's
+        // transforms; then add the model.
+        ship.traverse((o) => {
+          const mesh = o as THREE.Mesh;
+          if (mesh.isMesh && o !== holder) (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((m) => (m.visible = false));
+        });
+        const kestrel = buildKestrel();
+        holder.add(kestrel.group);
+        exhausts = kestrel.exhausts;
+        radius = 0.5;
+      }
+      const flames = exhausts.map((at) => {
+        const flame = new THREE.Mesh(
+          new THREE.ConeGeometry(radius, length * 0.5, 16, 1, true),
+          new THREE.MeshBasicMaterial({ color: 0x7fc8ff, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }),
+        );
+        flame.rotation.x = -Math.PI / 2;
+        flame.position.set(at.x, at.y, at.z - length * 0.25);
+        const core = new THREE.Mesh(
+          new THREE.ConeGeometry(radius * 0.5, length * 0.3, 12, 1, true),
+          new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }),
+        );
+        core.rotation.x = -Math.PI / 2;
+        core.position.set(at.x, at.y, at.z - length * 0.15);
+        holder.add(flame, core);
+        return { flame, core };
+      });
       const glow = glowTexture();
       const lift = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: 0x9fd4ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
       lift.position.y = -size.y * 0.5;
@@ -755,8 +867,8 @@ export class SpaceView {
       );
       plasma.scale.set(size.x * 0.75, size.y * 0.9, size.z * 0.75);
       const dust = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: 0xb8a888, transparent: true, depthWrite: false, opacity: 0 }));
-      holder.add(flame, flameCore, lift, plasma, dust);
-      this.decor = { holder, flame, flameCore, lift, plasma, dust, size };
+      holder.add(lift, plasma, dust);
+      this.decor = { holder, flames, lift, plasma, dust, size };
     }
     const d = this.decor;
     const f = this.flight;
@@ -764,10 +876,12 @@ export class SpaceView {
     const flicker = 0.94 + Math.sin(t * 43) * 0.04 + Math.sin(t * 71) * 0.02;
     const thrust = f.engineOn && !f.destroyed ? f.throttle : 0;
     const air = Math.min(1, f.density / 0.8);
-    d.flame.visible = d.flameCore.visible = thrust > 0.02;
-    d.flame.scale.set((0.7 + air * 0.5) * flicker, 0.4 + thrust * (1 + air * 0.6), (0.7 + air * 0.5) * flicker);
-    d.flame.material.opacity = 0.35 + thrust * 0.45;
-    d.flameCore.scale.set(flicker, 0.5 + thrust, flicker);
+    for (const { flame, core } of d.flames) {
+      flame.visible = core.visible = thrust > 0.02;
+      flame.scale.set((0.7 + air * 0.5) * flicker, 0.4 + thrust * (1 + air * 0.6), (0.7 + air * 0.5) * flicker);
+      flame.material.opacity = 0.35 + thrust * 0.45;
+      core.scale.set(flicker, 0.5 + thrust, flicker);
+    }
     const lift = Math.abs(f.vertical) > 0.02 || (f.engineOn && !f.landed && f.assist === 1) ? Math.max(Math.abs(f.vertical), 0.35) : 0;
     d.lift.visible = lift > 0 && !f.destroyed;
     d.lift.material.opacity = lift * 0.75 * flicker;
@@ -808,7 +922,10 @@ export class SpaceView {
       this.lookYaw += (0 - this.lookYaw) * k;
       this.lookPitch += (0 - this.lookPitch) * k;
     }
-    const orbit = new THREE.Quaternion().setFromEuler(new THREE.Euler(this.lookPitch, this.lookYaw, 0, "YXZ"));
+    // Out of the air, the camera rises and looks down past the ship so the
+    // world below stays in frame.
+    const spaceView = this.flight.landed ? 0 : (1 - this.air) * THREE.MathUtils.clamp(this.flight.altitude / 3000, 0, 1);
+    const orbit = new THREE.Quaternion().setFromEuler(new THREE.Euler(this.lookPitch + spaceView * 0.5, this.lookYaw, 0, "YXZ"));
     const q = this.chase.clone().multiply(orbit);
     const distance = span * 1.25 + 4 + Math.min(this.flight.speed / 60, 6);
     const offset = new THREE.Vector3(0, span * 0.32 + 1.5, -distance).applyQuaternion(q);
@@ -883,6 +1000,8 @@ export class SpaceView {
       sky.haze!.value.copy(this.skyColor);
       sky.air!.value = this.air;
       sky.day!.value = this.daylight;
+      this.sunset = THREE.MathUtils.clamp(1 - elevation / 0.3, 0, 1) * (elevation > -0.12 ? 1 : 0);
+      sky.sunset!.value = this.sunset;
       // Haze swallows distant terrain in thick air.
       this.scene.fog = this.air > 0.02 ? new THREE.FogExp2(this.skyColor.clone().multiplyScalar(this.daylight * 0.9), 2.2e-5 * this.air) : null;
     }
@@ -891,7 +1010,15 @@ export class SpaceView {
     this.sky.scale.setScalar(Math.max(near * 4, 10));
     this.stars.position.copy(cameraPosition);
     this.stars.scale.setScalar(far * 0.5);
-    (this.stars.material as THREE.PointsMaterial).opacity = 1 - this.air * this.daylight;
+    const night = 1 - this.air * this.daylight;
+    (this.stars.material as THREE.PointsMaterial).opacity = night;
+    this.galaxy.position.copy(cameraPosition);
+    this.galaxy.scale.setScalar(far * 0.48);
+    this.galaxy.traverse((o) => {
+      const m = (o as THREE.Points).material as THREE.Material | undefined;
+      if (m) m.opacity = night * (o instanceof THREE.Sprite ? 0.5 : 1);
+    });
+    for (const planet of this.planets) if (planet.clouds) planet.clouds.rotation.y += dt * 0.0006;
     this.ambient.intensity = 0.03 + this.air * 0.5 * this.daylight;
     this.sunLight.intensity = 2.6 + (1 - this.air) * 0.8;
     // The space camera: the view's pose and lens, with its own depth range.
@@ -911,7 +1038,7 @@ export class SpaceView {
       const k = THREE.MathUtils.smoothstep(distance, 400, 2500);
       landmark.beam.material.opacity = 0.32 * k;
       landmark.flare.material.opacity = k;
-      landmark.anchor.visible = k > 0.01;
+      landmark.beam.visible = landmark.flare.visible = k > 0.01;
     }
     this.updatePath(dt);
   }
@@ -942,6 +1069,32 @@ export class SpaceView {
     const p = planet.group.position.clone().project(view);
     if (p.z > 1) return undefined;
     return { x: (p.x * 0.5 + 0.5) * width, y: (-p.y * 0.5 + 0.5) * height };
+  }
+
+  // Plants and rocks around the walk frame (0.72.0): deterministic in the
+  // frame's position, weighted by the frame body's flora and mineral
+  // species, standing on the ground, clear of the origin (the ship or the
+  // site's buildings) and of the sea.
+  scatter(species: Species[], range: number, keepClear: number) {
+    const body = this.rt._editor_space_value(39);
+    const pool = species.filter((s) => s.body === body && s.kind !== "fauna" && s.weight > 0);
+    const out: Array<{ species: Species; x: number; y: number; z: number; yaw: number; scale: number }> = [];
+    if (!pool.length) return out;
+    const total = pool.reduce((sum, s) => sum + s.weight, 0);
+    let seed = (Math.floor(this.rt._editor_space_body_value(body, 0) * 7 + this.rt._editor_space_body_value(body, 2) * 13) >>> 0) || 7;
+    const random = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    for (let i = 0; i < 900 && out.length < 650; i++) {
+      // Denser near the middle, where you walk.
+      const r = keepClear + Math.pow(random(), 1.6) * (range - keepClear);
+      const a = random() * Math.PI * 2;
+      const x = Math.cos(a) * r, z = Math.sin(a) * r;
+      let pick = random() * total;
+      const chosen = pool.find((s) => (pick -= s.weight) <= 0) ?? pool[0]!;
+      if (this.rt._editor_space_wet(x, z)) continue;
+      const y = this.rt._editor_space_ground(x, z);
+      out.push({ species: chosen, x, y, z, yaw: random() * Math.PI * 2, scale: chosen.scale * (0.75 + random() * 0.5) });
+    }
+    return out;
   }
 
   dispose() {

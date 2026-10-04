@@ -126,6 +126,11 @@ export interface SpaceSystemComponent {
   // Surface landmarks, one per line: "body latitude longitude #color label"
   // -- beacons seen from orbit and marked on the flight HUD.
   landmarks: string;
+  // Species to find on the bodies (0.72.0), one per line: "id body class
+  // model weight scale Name | description" -- class flora, mineral or
+  // fauna; flora and minerals are scattered (catalog model, relative
+  // weight, size) around wherever you walk, and all can be scanned.
+  species: string;
 }
 // The ship the SpaceSystem flies (0.71.0). kg, N, rad/s^2 (rcs), degrees/s
 // (maxRate), tank units and units/s (burn). startOrbit >= 0 starts in orbit
@@ -142,6 +147,18 @@ export interface SpaceshipComponent {
   gearClearance: number;
   startPiloting: boolean;
   startOrbit: number;
+  // "Kestrel" draws the built-in survey ship over the entity (its own mesh
+  // is hidden); "" keeps the authored look.
+  model: string;
+}
+// Something the scanner can study (0.72.0): hold F facing it within range
+// and a scan completes, calling on_ui("scan", id) in every script.
+export type ScanKind = "Flora" | "Fauna" | "Mineral" | "Culture" | "Landmark";
+export interface ScannableComponent {
+  id: string;
+  name: string;
+  kind: ScanKind;
+  range: number;
 }
 // clip names a clip on the entity's own animated Renderable model (e.g.
 // "idle"/"walk"/"wave") -- "" means no authored override, so main.ts's

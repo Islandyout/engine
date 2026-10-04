@@ -224,6 +224,7 @@ const componentNames = [
   "ModelInstances",
   "SpaceSystem",
   "Spaceship",
+  "Scannable",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -441,6 +442,7 @@ export function normalizeComponent(
         evaRange: positiveNumber(value.evaRange, "SpaceSystem.evaRange"),
         startTime: number(value.startTime, "SpaceSystem.startTime"),
         landmarks: value.landmarks === undefined ? "" : string(value.landmarks, "SpaceSystem.landmarks"),
+        species: value.species === undefined ? "" : string(value.species, "SpaceSystem.species"),
       };
     case "Spaceship":
       return {
@@ -455,7 +457,18 @@ export function normalizeComponent(
         gearClearance: nonNegativeNumber(value.gearClearance, "Spaceship.gearClearance"),
         startPiloting: boolean(value.startPiloting, "Spaceship.startPiloting"),
         startOrbit: number(value.startOrbit, "Spaceship.startOrbit"),
+        model: value.model === undefined ? "" : string(value.model, "Spaceship.model"),
       };
+    case "Scannable": {
+      const kinds = ["Flora", "Fauna", "Mineral", "Culture", "Landmark"];
+      if (!kinds.includes(value.kind as string)) throw new Error("Scannable.kind must be Flora, Fauna, Mineral, Culture or Landmark.");
+      return {
+        id: string(value.id, "Scannable.id"),
+        name: string(value.name, "Scannable.name"),
+        kind: value.kind as "Flora",
+        range: positiveNumber(value.range, "Scannable.range"),
+      };
+    }
     case "AnimationState":
       return {
         clip: string(value.clip, "AnimationState.clip"),
