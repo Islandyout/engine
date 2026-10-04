@@ -70,6 +70,7 @@ import { CarFx, type CarView, type MinimapBlip, type MinimapRoad } from "./carFx
 import { EngineVoice, SirenVoice, TireVoice } from "./carAudio";
 import { SpaceView, drawFlightHud, parseLandmarks, parseSpaceBodies, parseSpecies, type SpaceRuntime, type Species } from "./spaceView";
 import { Scanner, type ScanTarget } from "./scanner";
+import { openGamesLibrary } from "./gamesLibrary";
 import {
   applyBrush,
   decodeSculpt,
@@ -338,6 +339,9 @@ async function startEditor() {
     <button id="new" class="btn" title="New scene">${iconHtml("plus")}<span>New</span></button>
     <button id="save" class="btn" title="Save JSON">${iconHtml("save")}<span>Save</span></button>
     <label class="btn" title="Open JSON">${iconHtml("open")}<span>Open</span><input id="open" type="file" accept=".json" hidden></label>
+  </div>
+  <div class="btn-group">
+    <button id="games" class="btn" title="Games library: engine games, your games folder, scenes saved in this browser">${iconHtml("cube")}<span>Games</span></button>
   </div>
   <div class="btn-group">
     <button id="undo" class="btn btn-icon" title="Undo" aria-label="Undo">${iconHtml("undo")}</button>
@@ -3527,6 +3531,24 @@ async function startEditor() {
     doc.markSaved();
     updatePanels();
   };
+  el("games").onclick = () =>
+    openGamesLibrary(app, {
+      currentScene: () => JSON.stringify(doc.save(), null, 2),
+      projectName: () => doc.project,
+      openScene: (text, name) => {
+        if (doc.mode !== "edit") el("stop").click();
+        if (doc.dirty && !confirm("Discard unsaved scene?")) return;
+        try {
+          doc.load(JSON.parse(text));
+          doc.project = name;
+          el<HTMLInputElement>("project").value = name;
+          rebuild();
+        } catch (e) {
+          log(String(e));
+        }
+      },
+      log,
+    });
   el<HTMLInputElement>("open").onchange = async () => {
     try {
       const file = el<HTMLInputElement>("open").files?.[0];

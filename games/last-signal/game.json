@@ -1,0 +1,8 @@
+{
+  "name": "LAST SIGNAL",
+  "genre": "First-person shooter",
+  "description": "Hold the relay station against waves of drones. Weapons, cover, combat AI.",
+  "scene": "../../examples/fps/last-signal.json",
+  "accent": "#e2574c",
+  "builtin": true
+}

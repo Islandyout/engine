@@ -211,7 +211,12 @@ function insertCatalogEntry(catalogText, entry) {
       newCategory: false,
     };
   }
-  return { text: catalogText.replace(/\n\];\n/, `\n${line}\n];\n`), newCategory: true };
+  // The modelCatalog array's own closing bracket, not retiredCatalogIds'
+  // (which comes first in the file and would otherwise match).
+  const start = catalogText.indexOf("export const modelCatalog");
+  const close = catalogText.indexOf("\n];\n", start);
+  if (start < 0 || close < 0) fail("could not find the end of modelCatalog in modelCatalog.ts");
+  return { text: `${catalogText.slice(0, close)}\n${line}${catalogText.slice(close)}`, newCategory: true };
 }
 
 function creditsDraft({ name, category, destRel, hash, animated, nativeSize }) {

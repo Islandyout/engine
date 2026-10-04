@@ -36,10 +36,7 @@ cp -r assets/source/kit build/site/kit
 cp -r assets/source/audio build/site/audio
 cp assets/CREDITS.md build/site/ASSET-CREDITS.txt
 cp third_party/aether/LICENSE build/site/AETHER-LICENSE.txt
-# The FPS built on the engine (docs/fps/GAME_DESIGN.md), playable at
-# last-signal.html next to the editor.
-node tools/export_build.mjs examples/fps/last-signal.json --page last-signal.html --name "LAST SIGNAL"
-# The street racer (docs/racing/GAME_DESIGN.md), at high-heat.html.
-node tools/export_build.mjs examples/racing/high-heat.json --page high-heat.html --name "HIGH HEAT"
-# The Pale Signal engine slice (docs/space/PALE_SIGNAL_SLICE.md), at pale-signal.html.
-node tools/export_build.mjs examples/space/pale-signal.json --page pale-signal.html --name "Pale Signal"
+# Every game under games/ (LAST SIGNAL, HIGH HEAT, Pale Signal and any you add;
+# see games/README.md) as <folder>.html next to the editor, plus games.json for
+# the editor's Games library.
+node tools/build_games.mjs
