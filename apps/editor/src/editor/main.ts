@@ -62,6 +62,7 @@ import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGrap
 import { applyMouseLook, applyStickLook, ViewEffects, type Look } from "./fpsView";
 import { Sfx } from "./sfx";
 import { AudioMixer, defaultMixerSettings, FootstepTracker, type Bus } from "./audioMixer";
+import { crowdNear, FrameGovernor, governorTiers, presetFloor } from "./frameGovernor";
 import { defaultPostSettings, gradingActive, gradingShader, shadowQualities, type PostSettings } from "./postFx";
 import { EventFlag, EventKind, WeaponFx } from "./weaponFx";
 import { buildViewmodel } from "./viewmodels";
@@ -195,6 +196,8 @@ type Runtime = {
   _editor_count(): number;
   _editor_value(index: number, field: number): number;
   _editor_alive(index: number): number;
+  _editor_snapshot(): number;
+  HEAPF64: Float64Array;
   _editor_input_begin_frame(): void;
   _editor_set_camera_forward(x: number, z: number): void;
   _editor_key(code: number, down: number): void;
@@ -805,7 +808,22 @@ async function startEditor() {
       rigRaycaster.far = length;
       // Sprites (car light glows) need a camera to be raycast.
       rigRaycaster.camera = view;
-      const blockers = objects.filter((o) => o !== target && o.visible);
+      // Only objects whose bounds reach the camera's line are raycast (a
+      // town is hundreds of objects; most are nowhere near it).
+      const blockers = objects.filter((o) => {
+        if (o === target || !o.visible) return false;
+        let radius = o.userData.blockRadius as number | undefined;
+        if (radius === undefined) {
+          new THREE.Box3().setFromObject(o).getBoundingSphere(blockSphere);
+          radius = blockSphere.radius + blockSphere.center.distanceTo(o.position);
+          o.userData.blockRadius = Number.isFinite(radius) ? radius / Math.max(o.scale.x, o.scale.y, o.scale.z, 1e-6) : Infinity;
+          radius = o.userData.blockRadius as number;
+        }
+        radius *= Math.max(o.scale.x, o.scale.y, o.scale.z);
+        blockSegment.set(focus, desired);
+        blockSegment.closestPointToPoint(o.position, true, blockPoint);
+        return blockPoint.distanceTo(o.position) < radius + 1;
+      });
       const hit = rigRaycaster.intersectObjects(blockers, true)[0];
       if (hit) desired.copy(focus).addScaledVector(toCamera, Math.max(0.3, hit.distance - 0.3));
     }
@@ -815,6 +833,9 @@ async function startEditor() {
     view.position.copy(rig.position);
     view.lookAt(focus);
   }
+  const blockSphere = new THREE.Sphere(),
+    blockSegment = new THREE.Line3(),
+    blockPoint = new THREE.Vector3();
   // Orbit: dragging on the viewport during Play turns the rig.
   let orbitDrag: { x: number; y: number } | undefined;
   renderer.domElement.addEventListener("pointerdown", (event) => {
@@ -912,6 +933,9 @@ async function startEditor() {
   const animatorErrors: string[] = [];
   interface AnimState {
     mixer: THREE.AnimationMixer;
+    // Seconds not yet applied while the frame governor skips this
+    // (distant) character's frames.
+    skipped?: number;
     actions: Map<string, THREE.AnimationAction>;
     current?: string;
     prevPosition: THREE.Vector3;
@@ -937,6 +961,8 @@ async function startEditor() {
   // Parallel to `objects`; index i holds the animation state for objects[i], or
   // undefined for a non-animated (static) entity. Reset alongside objects on every rebuild().
   const animStates: (AnimState | undefined)[] = [];
+  const governor = new FrameGovernor();
+  let crowdFrame = 0;
   interface ParticleState {
     emitter: EmitterState;
     points: THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>;
@@ -1067,8 +1093,10 @@ async function startEditor() {
       gtaoPass.updateGtaoMaterial({ radius: settings.aoRadius });
     }
     const quality = shadowQualities[settings.shadowQuality];
-    if (sun.shadow.mapSize.x !== quality.mapSize) {
-      sun.shadow.mapSize.set(quality.mapSize, quality.mapSize);
+    // The frame governor halves the map under load.
+    const mapSize = quality.mapSize / (governorTier().shadows === 1 ? 2 : 1);
+    if (sun.shadow.mapSize.x !== mapSize) {
+      sun.shadow.mapSize.set(mapSize, mapSize);
       sun.shadow.map?.dispose();
       sun.shadow.map = null;
     }
@@ -1834,6 +1862,7 @@ async function startEditor() {
     const shipEntity = shipIndex >= 0 ? doc.scene.eachAlive()[shipIndex] : undefined;
     const shipModel = (shipEntity && doc.scene.resolve(shipEntity, "Spaceship")?.model) ?? "";
     spaceView = new SpaceView(runtime as unknown as SpaceRuntime, bodies, colorOf(space.starColor), parseLandmarks(space.landmarks, bodies), shipModel);
+    spaceView.chunkMs = governorTier().chunkMs;
     spaceView.sampleTick();
     grid.visible = false;
     spaceSpecies = parseSpecies(space.species, bodies);
@@ -1902,6 +1931,7 @@ async function startEditor() {
       models,
     );
     scene.add(spaceScatter);
+    applyScatterDensity(governorTier().scatter);
     scatterPlacements = placed.map((p) => ({ x: p.x, y: p.y, z: p.z, key: p.species.id, kind: p.species.kind, scale: p.scale }));
     harvested.clear();
     explorerFx?.clearPrints();
@@ -2096,13 +2126,8 @@ async function startEditor() {
     });
   }
   function applyPlayerSettings() {
-    const profile = qualityProfile(playerSettings.quality);
-    if (renderer instanceof THREE.WebGLRenderer) {
-      const ratio = Math.min(devicePixelRatio, profile.pixelRatio);
-      renderer.setPixelRatio(ratio);
-      composer?.setPixelRatio(ratio);
-      renderer.shadowMap.enabled = profile.shadows;
-    }
+    governor.reset(presetFloor(playerSettings.quality));
+    applyGovernor();
     if (explorerFx) {
       explorerFx.reducedMotion = playerSettings.reducedMotion;
       explorerFx.footprints = playerSettings.footprints;
@@ -2906,6 +2931,12 @@ async function startEditor() {
     currentYaw: number;
   }
   const tickStates: TickState[] = [];
+  // The last tick's bulk snapshot (editor_snapshot): six doubles per index
+  // after a count; undefined until play's first tick.
+  let tickSnapshot: Float64Array | undefined;
+  const tickSnapshotAlive = (i: number) =>
+    tickSnapshot && i < tickSnapshot[0]! ? tickSnapshot[1 + i * 6] === 1 : runtime._editor_alive(i) === 1;
+  const tickSnapshotFlags = (i: number) => (tickSnapshot && i < tickSnapshot[0]! ? tickSnapshot[1 + i * 6 + 5]! : -1);
   let tickAlpha = 1;
   // Arcade car sounds and HUD state (0.70.0; see updateCars), declared
   // before the player-mode bootstrap, which rebuilds and starts Play.
@@ -3582,6 +3613,14 @@ async function startEditor() {
       child.receiveShadow = true;
       if (materialOverride) applyMaterial(child, materialOverride);
     });
+    // A still model (no rig, nothing scripted on it) never moves inside its
+    // anchor: its nodes' local matrices are composed once, not every frame
+    // (0.75.0; a town is thousands of nodes).
+    if (cached && !animState && !get("Script") && !get("Spaceship") && !loadout)
+      object.traverse((node) => {
+        node.updateMatrix();
+        node.matrixAutoUpdate = false;
+      });
     const particles = get("Particles");
     let particleState: ParticleState | undefined;
     if (particles) particleState = createParticles(particles, anchor);
@@ -4065,6 +4104,7 @@ async function startEditor() {
         carFx.reset();
         playerCarSpeed = 0;
         tickStates.length = 0;
+        tickSnapshot = undefined;
         tickAlpha = 1;
         zoomBlend = 0;
         weaponFx.equip(playerWeaponModel());
@@ -4291,6 +4331,7 @@ async function startEditor() {
       `Frame        ${(stats.frameMs / stats.frames).toFixed(2)} ms`,
       `C++ ticks    ${(stats.tickMs / stats.frames).toFixed(2)} ms/frame`,
       `Draw calls   ${info?.render.calls ?? "-"}`,
+      `Governor     tier ${governorTier() === governor.settings ? governor.tier : governor.floor} (${(governorTier().scale * 100).toFixed(0)}% res)`,
       `Triangles    ${info?.render.triangles ?? "-"}`,
       `Entities     ${doc.scene.entityCount} (+${Math.max(0, objects.length - doc.scene.eachAlive().length)} spawned)`,
       ...(systems.length ? ["Systems (last tick):", ...systems] : []),
@@ -4567,8 +4608,27 @@ async function startEditor() {
     }
     return state;
   }
+  // Every object's tick state from one bulk read (editor_snapshot).
   function sampleTickStates() {
-    for (let i = 0; i < objects.length; i++) if (runtime._editor_alive(i)) sampleTickState(i);
+    const base = runtime._editor_snapshot() / 8;
+    const heap = (tickSnapshot = runtime.HEAPF64.slice(base, base + 1 + runtime.HEAPF64[base]! * 6));
+    const count = Math.min(objects.length, heap[0]!);
+    for (let i = 0; i < count; i++) {
+      const row = 1 + i * 6;
+      if (heap[row] !== 1) continue;
+      const state = (tickStates[i] ??= {
+        previous: new THREE.Vector3(),
+        current: new THREE.Vector3(),
+        previousYaw: 0,
+        currentYaw: 0,
+      });
+      state.current.set(heap[row + 1]!, heap[row + 2]!, heap[row + 3]!);
+      state.currentYaw = heap[row + 4]!;
+      if (!state.previous.lengthSq() && !state.previousYaw) {
+        state.previous.copy(state.current);
+        state.previousYaw = state.currentYaw;
+      }
+    }
   }
   // -- Arcade cars (0.70.0): effects, sounds and the HUD's car ------------
   function stopCarSounds() {
@@ -4637,48 +4697,70 @@ async function startEditor() {
       }
     carFx.update(dt);
   }
-  // Dynamic resolution: while playing, a GPU that can't hold
-  // ~55 fps renders fewer pixels (down to half the display's ratio) instead
-  // of dropping frames, and climbs back once frames are fast again -- what
-  // console and PC games do so input stays responsive on weaker hardware.
-  const fullPixelRatio = renderer instanceof THREE.WebGLRenderer ? renderer.getPixelRatio() : 1;
-  const resolution = { scale: 1, frames: 0, total: 0, fastSeconds: 0 };
-  function adaptResolution(intervalMs: number) {
-    if (!(renderer instanceof THREE.WebGLRenderer)) return;
-    if (doc.mode === "edit" && resolution.scale < 1) {
-      resolution.scale = 1;
-      renderer.setPixelRatio(fullPixelRatio);
-      composer?.setPixelRatio(fullPixelRatio);
-      resizeAntialias();
+  // Frame governor (0.75.0): while playing, holds 45-60 fps by stepping
+  // through quality tiers (resolution, shadows, bloom, scatter, terrain
+  // streaming, distant animation) -- see frameGovernor.ts. Edit mode always
+  // draws at the best tier the player's preset allows.
+  function governorTier() {
+    return doc.mode === "play" ? governor.settings : governorTiers[governor.floor]!;
+  }
+  function applyGovernor() {
+    const tier = governorTier();
+    const profile = qualityProfile(playerSettings.quality);
+    if (renderer instanceof THREE.WebGLRenderer) {
+      const ratio = Math.min(devicePixelRatio, profile.pixelRatio) * tier.scale;
+      if (Math.abs(renderer.getPixelRatio() - ratio) > 1e-3) {
+        renderer.setPixelRatio(ratio);
+        composer?.setPixelRatio(ratio);
+        resizeAntialias();
+      }
+      renderer.shadowMap.enabled = profile.shadows && tier.shadows > 0;
     }
-    if (doc.mode !== "play") return;
-    if (!(intervalMs > 0 && intervalMs < 250)) return;
-    resolution.frames++;
-    resolution.total += intervalMs;
-    if (resolution.total < 500) return;
-    const average = resolution.total / resolution.frames;
-    resolution.frames = 0;
-    resolution.total = 0;
-    let scale = resolution.scale;
-    if (average > 18.5) {
-      scale = Math.max(0.5, scale * Math.sqrt(16.7 / average));
-      resolution.fastSeconds = 0;
-    } else if (average < 17.5 && scale < 1) {
-      resolution.fastSeconds += 0.5;
-      if (resolution.fastSeconds >= 2) scale = Math.min(1, scale + 0.1);
+    if (bloomPass) bloomPass.enabled = tier.bloom;
+    const mapSize = shadowQualities[postSettings.shadowQuality].mapSize / (tier.shadows === 1 ? 2 : 1);
+    if (sun.shadow.mapSize.x !== mapSize) {
+      sun.shadow.mapSize.set(mapSize, mapSize);
+      sun.shadow.map?.dispose();
+      sun.shadow.map = null;
     }
-    if (Math.abs(scale - resolution.scale) < 0.02) return;
-    resolution.scale = scale;
-    resolution.fastSeconds = 0;
-    renderer.setPixelRatio(fullPixelRatio * scale);
-    composer?.setPixelRatio(fullPixelRatio * scale);
-    resizeAntialias();
+    if (spaceView) spaceView.chunkMs = tier.chunkMs;
+    applyScatterDensity(tier.scatter);
+  }
+  // Draws the first `fraction` of each scatter chunk's instances (their
+  // order is random, so this thins evenly).
+  function applyScatterDensity(fraction: number) {
+    spaceScatter?.traverse((child) => {
+      if (!(child instanceof THREE.InstancedMesh)) return;
+      const all = (child.userData.instances as unknown[] | undefined)?.length ?? child.count;
+      child.count = Math.max(0, Math.round(all * fraction));
+    });
+  }
+  let governedMode = doc.mode;
+  function governFrame(intervalMs: number) {
+    if (doc.mode !== governedMode) {
+      governedMode = doc.mode;
+      if (doc.mode === "edit") governor.reset(presetFloor(playerSettings.quality));
+      applyGovernor();
+    }
+    if (doc.mode === "play" && governor.sample(intervalMs)) applyGovernor();
+  }
+  // The status line's "unsaved" check serializes the whole scene; it runs
+  // at most twice a second, and not at all while playing (the document
+  // can't change then).
+  const dirtyCheck = { at: -Infinity, value: false, mode: doc.mode };
+  function statusDirty() {
+    const now = performance.now();
+    if ((doc.mode !== "edit" && dirtyCheck.mode === doc.mode) || now - dirtyCheck.at < 500) return dirtyCheck.value;
+    dirtyCheck.at = now;
+    dirtyCheck.mode = doc.mode;
+    dirtyCheck.value = doc.dirty;
+    return dirtyCheck.value;
   }
   function frame(now: number) {
     const frameStart = performance.now();
     let tickMs = 0;
     const dt = Math.min((now - previous) / 1000, 5 / 60);
-    adaptResolution(now - previous);
+    governFrame(now - previous);
     previous = now;
     let steps = 0;
     const player = playerIndex >= 0 ? objects[playerIndex] : undefined;
@@ -4749,7 +4831,7 @@ async function startEditor() {
         // already set each object's visibility from its own authored
         // Renderable.visible, and an entity that's still alive never needs
         // that touched here.
-        if (!runtime._editor_alive(i)) {
+        if (!tickSnapshotAlive(i)) {
           const state = (deathStates[i] ??= startDeath(object, animStates[i]));
           state.elapsed += dt;
           const progress = Math.max(0, 1 - state.elapsed / deathFadeDuration);
@@ -4770,20 +4852,22 @@ async function startEditor() {
       // mid-turn, where a real heading is exact every tick.
       // Soldiers face where their AI is looking (bridge.cpp's Soldier::yaw).
       objects.forEach((object, i) => {
-        if (!runtime._editor_alive(i)) return;
+        if (!tickSnapshotAlive(i)) return;
         const state = tickStates[i];
-        if (runtime._editor_soldier_value(i, 0) < 0 || !state) return;
+        const flags = tickSnapshotFlags(i);
+        if (!state || (flags >= 0 ? !(flags & 1) : runtime._editor_soldier_value(i, 0) < 0)) return;
         const turn = Math.atan2(Math.sin(state.currentYaw - state.previousYaw), Math.cos(state.currentYaw - state.previousYaw));
         object.rotation.y = state.previousYaw + turn * tickAlpha;
       });
       const authored = doc.scene.eachAlive();
       objects.forEach((object, i) => {
-        if (!runtime._editor_alive(i)) return;
+        if (!tickSnapshotAlive(i)) return;
         const entity = authored[i];
         // Arcade cars (any driver, spawned ones too), drawn between ticks
         // like positions.
         const state = tickStates[i];
-        if (runtime._editor_vehicle_value(i, 11) && state) {
+        const flags = tickSnapshotFlags(i);
+        if ((flags >= 0 ? flags & 2 : runtime._editor_vehicle_value(i, 11)) && state) {
           const turn = Math.atan2(Math.sin(state.currentYaw - state.previousYaw), Math.cos(state.currentYaw - state.previousYaw));
           object.rotation.y = state.previousYaw + turn * tickAlpha;
         } else if (entity && doc.scene.effectiveHas(entity, "Vehicle") && doc.scene.effectiveHas(entity, "Player"))
@@ -4850,7 +4934,24 @@ async function startEditor() {
     }
     // Always advance mixers, even in edit mode: a rigged model sitting
     // perfectly still reads as a broken rig, and an idle clip is meant to loop.
-    animStates.forEach((state) => state?.mixer.update(dt));
+    // Beyond crowdNear, characters animate every few frames under load (the
+    // frame governor's crowd stride), each catching up its skipped time.
+    const stride = governorTier().crowdStride;
+    crowdFrame++;
+    const eye = viewCamera.position;
+    animStates.forEach((state, i) => {
+      if (!state) return;
+      const object = objects[i];
+      if (stride > 1 && object && object.position.distanceToSquared(eye) > crowdNear * crowdNear) {
+        state.skipped = (state.skipped ?? 0) + dt;
+        if ((crowdFrame + i) % stride !== 0) return;
+        state.mixer.update(state.skipped);
+        state.skipped = 0;
+        return;
+      }
+      state.mixer.update(dt + (state.skipped ?? 0));
+      state.skipped = 0;
+    });
     // Same reasoning as mixers above -- a Particles emitter is as "always on"
     // as a Light, not gated to Play mode like Script/Sound.
     particleScale.value = viewport.clientHeight / 2;
@@ -5079,7 +5180,7 @@ async function startEditor() {
             return error ? ` · Script error: ${error}` : "";
           })()
         : "";
-    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${spawnedReadout}${playerReadout}${selectedHealthReadout}${selectedAiReadout}${selectedScriptErrorReadout} · ${doc.dirty ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider box/sphere collision, Health-based combat (F melee, G blast), Vehicle driving (W/S/A/D), AIState/Pedestrian wander/chase/flee, Script (Lua callbacks and world API), and Sound (Web Audio) are simulated`;
+    status.textContent = `${doc.mode.toUpperCase()} · ${backend} · ${doc.scene.entityCount} entities · ${ticks} C++ fixed ticks${spawnedReadout}${playerReadout}${selectedHealthReadout}${selectedAiReadout}${selectedScriptErrorReadout} · ${statusDirty() ? "Unsaved changes" : "Saved"} · Gravity, ground, Collider box/sphere collision, Health-based combat (F melee, G blast), Vehicle driving (W/S/A/D), AIState/Pedestrian wander/chase/flee, Script (Lua callbacks and world API), and Sound (Web Audio) are simulated`;
     requestAnimationFrame(frame);
   }
   const cameraForwardScratch = new THREE.Vector3();

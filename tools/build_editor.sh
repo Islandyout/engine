@@ -29,7 +29,7 @@ em++ -std=c++20 -O2 -fexceptions -Wall -Wextra -Werror -Iinclude -Ithird_party/l
   build/lua-obj/liblua.a \
   -sMODULARIZE=1 -sEXPORT_NAME=createEditorRuntime -sSINGLE_FILE=1 \
   -sENVIRONMENT=web,node -sALLOW_MEMORY_GROWTH=1 -sDISABLE_EXCEPTION_CATCHING=0 \
-  -sWASM_ASYNC_COMPILATION=0 -sEXPORTED_RUNTIME_METHODS=ccall -sSTACK_SIZE=8MB \
+  -sWASM_ASYNC_COMPILATION=0 -sEXPORTED_RUNTIME_METHODS=ccall,HEAPF64 -sSTACK_SIZE=8MB \
   -o build/site/runtime.js
 cp assets/source/bench.glb build/site/bench.glb
 cp -r assets/source/kit build/site/kit

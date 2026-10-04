@@ -281,6 +281,13 @@ const faces: Array<[THREE.Vector3, THREE.Vector3, THREE.Vector3]> = [
 ];
 const grid = 17; // vertices per chunk side
 
+// Chunks a frame may build: a count and a deadline (performance.now()).
+interface ChunkBudget {
+  left: number;
+  built: number;
+  until: number;
+}
+
 interface Chunk {
   face: number;
   level: number;
@@ -484,14 +491,14 @@ class Planet {
 
   // Refines toward the camera (in the body frame), building at most
   // `budget` chunks; a chunk stays drawn until all its children are ready.
-  update(cameraBody: THREE.Vector3, budget: { left: number }) {
+  update(cameraBody: THREE.Vector3, budget: ChunkBudget) {
     for (const root of this.roots) this.visit(root, cameraBody, budget);
   }
 
   // Coarse first: a chunk builds itself before its children, so there is
   // always a surface to draw while detail streams in; it hands over to its
   // children once all four are ready.
-  private visit(chunk: Chunk, camera: THREE.Vector3, budget: { left: number }): boolean {
+  private visit(chunk: Chunk, camera: THREE.Vector3, budget: ChunkBudget): boolean {
     const arc = (chunk.size / 2) * this.body.radius * 1.15;
     const distance = camera.distanceTo(chunk.centre);
     // Back of the planet: skip detail but keep a mesh.
@@ -521,10 +528,13 @@ class Planet {
     return self;
   }
 
-  private ensure(chunk: Chunk, budget: { left: number }) {
+  private ensure(chunk: Chunk, budget: ChunkBudget) {
     if (chunk.mesh) return true;
-    if (budget.left <= 0) return false;
+    // A count and a time budget (0.75.0): detail streams in over frames
+    // instead of costing one frame a spike; the first build always runs.
+    if (budget.left <= 0 || (budget.built > 0 && performance.now() > budget.until)) return false;
     budget.left--;
+    budget.built++;
     this.build(chunk);
     return true;
   }
@@ -758,6 +768,9 @@ export class SpaceView {
   private readonly path: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
   private pathTimer = 0;
   private warm = 0;
+  // Milliseconds a frame may spend building terrain once warm (the frame
+  // governor lowers it under load).
+  chunkMs = 4;
   private readonly starColor: THREE.Color;
   flight: FlightState;
   // In the site frame, toward the star.
@@ -1013,7 +1026,7 @@ export class SpaceView {
     this.sunLight.color.copy(this.starColor);
     // Bodies.
     // More chunks per frame until the first surface is complete.
-    const budget = { left: this.warm < 30 ? 24 : 8 };
+    const budget: ChunkBudget = { left: this.warm < 30 ? 24 : 8, built: 0, until: performance.now() + (this.warm < 30 ? 14 : this.chunkMs) };
     this.warm++;
     let nearest: { planet: Planet; altitude: number; up: THREE.Vector3 } | undefined;
     const spin = new THREE.Quaternion();

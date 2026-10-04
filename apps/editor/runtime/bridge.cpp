@@ -4506,6 +4506,39 @@ EXPORT int editor_alive(int index) {
     return active->world.alive(active->entities[static_cast<std::size_t>(index)]) ? 1 : 0;
 }
 EXPORT int editor_count() { return static_cast<int>(active->world.size()); }
+// Every entity's tick state in one call (0.75.0): the index count, then six
+// doubles per index -- alive (0/1), position x, y, z, the yaw the renderer
+// faces it along (a soldier's look, else its Heading), and flags (1 a
+// soldier, 2 an arcade car). Returns a pointer into the module's
+// heap (read as HEAPF64[pointer / 8 ...]); valid until the next call. One
+// call instead of six per entity per tick.
+EXPORT std::uintptr_t editor_snapshot() {
+    static std::vector<double> out;
+    const auto count = active->entities.size();
+    out.assign(1 + count * 6, 0.0);
+    out[0] = static_cast<double>(count);
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto entity = active->entities[i];
+        if (!active->world.alive(entity))
+            continue;
+        double *row = out.data() + 1 + i * 6;
+        row[0] = 1;
+        if (const auto *box = active->world.get<engine::Box>(entity)) {
+            row[1] = box->center.x;
+            row[2] = box->center.y;
+            row[3] = box->center.z;
+        }
+        const auto *heading = active->world.get<Heading>(entity);
+        if (const auto *soldier = active->world.get<Soldier>(entity)) {
+            row[4] = soldier->yaw;
+            row[5] += 1;
+        } else if (heading)
+            row[4] = heading->yaw;
+        if (heading && heading->arcade)
+            row[5] += 2;
+    }
+    return reinterpret_cast<std::uintptr_t>(out.data());
+}
 // The most recent compile/runtime error recorded for the entity at this
 // index's script (Runtime::script_errors, populated once per entity by
 // engine::script::Runtime's own error handler — see the Runtime constructor),
