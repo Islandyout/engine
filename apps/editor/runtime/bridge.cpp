@@ -887,9 +887,9 @@ struct Runtime {
             ++sim.frame_generation;
         } else if (site >= 0) {
             const auto &info = sim.sites[static_cast<std::size_t>(site)];
-            anchor_frame(info.body, info.up);
+            anchor_prebuilt(info.body, info.up, site);
         } else {
-            anchor_frame(sim.ship.ref, ship_fixed);
+            anchor_prebuilt(sim.ship.ref, ship_fixed, -2);
         }
         sim.active_site = site;
         sim.away = site != -1;
@@ -901,6 +901,47 @@ struct Runtime {
         else
             sim.event("frame:" + sim.system.bodies[static_cast<std::size_t>(sim.ship.ref)].name);
         settle_landed(w);
+    }
+    // Descending somewhere new (0.75.0): the ground the frame will need at
+    // touchdown is built a few rows a tick on the way down, so landing on a
+    // cratered world doesn't stall the frame it happens in.
+    void prebuild_landing_field() {
+        auto &sim = *space;
+        if (!sim.piloting || sim.ship.landed || sim.ship.ref < 0)
+            return;
+        const auto &body = sim.system.bodies[static_cast<std::size_t>(sim.ship.ref)];
+        const auto fixed = sim.fixed(sim.ship.position, sim.ship.ref);
+        if (space::length(fixed) - body.radius > 4000)
+            return;
+        const int site = site_at(sim.ship.ref, fixed);
+        if (site == -1 || (site == sim.active_site && site != -2))
+            return;
+        if (site == -2 && sim.active_site == -2 && sim.ship.ref == sim.site_body) {
+            const auto local = sim.rotate_to_local(fixed - sim.site_origin);
+            if (std::abs(local.x) < sim.eva_range - 30 && std::abs(local.z) < sim.eva_range - 30)
+                return;
+        }
+        const auto up = site >= 0 ? sim.sites[static_cast<std::size_t>(site)].up : space::normalized(fixed);
+        const int on = site >= 0 ? sim.sites[static_cast<std::size_t>(site)].body : sim.ship.ref;
+        const bool stale = !pending_field || pending_field->site != site || pending_field->body != on ||
+                           (site == -2 && space::length(pending_field->up - up) * body.radius > sim.eva_range * 0.3);
+        if (stale)
+            pending_field = begin_field(on, up, site);
+        step_field(*pending_field, 24);
+    }
+    // The prebuilt field if it suits a frame anchored at (`index`, `up`) for
+    // `site`, finished; else a fresh one.
+    void anchor_prebuilt(int index, space::DVec3 up, int site) {
+        auto &sim = *space;
+        const auto &body = sim.system.bodies[static_cast<std::size_t>(index)];
+        if (pending_field && pending_field->body == index && pending_field->site == site &&
+            space::length(pending_field->up - space::normalized(up)) * body.radius < sim.eva_range * 0.3) {
+            step_field(*pending_field, pending_field->field.resolution);
+            apply_field(std::move(*pending_field));
+            pending_field.reset();
+            return;
+        }
+        anchor_frame(index, up);
     }
     // A landed ship rests on whatever is under it: a pad or roof of the
     // site's colliders as well as the ground.
@@ -1138,6 +1179,8 @@ struct Runtime {
         sp.ship.touched_down = sp.ship.lifted_off = sp.ship.changed_ref = false;
         if (reframe)
             reframe_after_landing(w);
+        else
+            prebuild_landing_field();
         if (sp.ship_entity && w.alive(*sp.ship_entity)) {
             const auto local = sp.to_local(sp.ship_absolute());
             w.get<engine::Box>(*sp.ship_entity)->center = {static_cast<float>(local.x), static_cast<float>(local.y),

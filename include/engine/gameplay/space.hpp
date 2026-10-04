@@ -252,7 +252,7 @@ struct AutopilotCommand final {
     DVec3 direction{};    // nose direction, system frame
     double throttle{};    // 0..1
     bool arrived{};       // close and slow: hand back to the pilot
-    const char* phase{""}; // "climb", "avoid", "burn", "coast", "brake", "arrived"
+    const char* phase{""}; // "climb", "avoid", "transfer", "burn", "coast", "brake", "arrived"
 };
 AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec, const System& system, double t,
                                    int target);

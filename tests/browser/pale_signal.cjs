@@ -102,7 +102,7 @@ function ruinVariant(scene) {
       const { page, errors, context } = await open();
       saved = context;
       await waitHud(page, /PALE SIGNAL.*BEGIN/, "title");
-      await waitHud(page, /ALT 0 m.*FUEL 45%.*LANDED/, "landed flight HUD");
+      await waitHud(page, /ALT 0 m.*FUEL 55%.*LANDED/, "landed flight HUD");
       await clickCenter(page, -20); // BEGIN
       await waitHud(page, /Step out onto Tethys/, "first objective");
       await page.keyboard.down("Space");

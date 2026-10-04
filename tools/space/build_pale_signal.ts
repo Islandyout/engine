@@ -111,7 +111,9 @@ add("Space", [0, 40, 0], {
 const HULL: V3 = [2.6, 2.2, 11];
 const PAD_TOP = 0.4;
 add("Ship", [0, PAD_TOP + 1.6, 0], {
-  Spaceship: component("Spaceship", { fuel: 100, model: "Kestrel" }),
+  // An efficient engine (0.75.0, tuned on flown routes): Vell is a refuel
+  // away at the start, Cinder needs bigger tanks.
+  Spaceship: component("Spaceship", { fuel: 100, burn: 0.32, model: "Kestrel" }),
   Rotation: { euler: vec(0, 0, 0) },
   Scale: { value: vec(...HULL) },
   Renderable: { mesh: 0, material: 0, visible: true },
@@ -554,7 +556,7 @@ const siteTable = Object.fromEntries(
 const config = [
   `local ICE = ${lua(ICE.map((p, i) => ({ name: `Volatile Ice ${i + 1}`, x: p[0], z: p[2] })))}`,
   `local SITE = ${lua(SITE)}`,
-  `local START_FUEL = 45`,
+  `local START_FUEL = 55`,
   `local BODY_INFO = ${lua(BODY_INFO)}`,
   `local SPECIES = ${lua(Object.fromEntries(SPECIES.map(([id, body, cls, , , , name, rp, yieldOf, amount, text]) => [id, { name, body, cls, rp, yield: yieldOf, y: amount, text }])))}`,
   `local LANDMARKS = ${lua(Object.fromEntries(LANDMARKS.map(([body, lat, lon, , name, frag, kind, rp, text]) => [`landmark:${name}`, { name, body, lat, lon, frag, kind, rp, text }])))}`,

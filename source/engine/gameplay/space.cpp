@@ -98,13 +98,21 @@ double crater_height(const Body& body, DVec3 direction) {
             for (int dy = -1; dy <= 1; ++dy)
                 for (int dz = -1; dz <= 1; ++dz) {
                     const int x = cx + dx, y = cy + dy, z = cz + dz;
+                    // Cheap rejections first (0.75.0, craters were 8x the cost of
+                    // plain terrain): a cell whose crater can't reach this point,
+                    // judged from the cell's middle before any jitter.
+                    const DVec3 middle{x + 0.5, y + 0.5, z + 0.5};
+                    if (length(normalized(middle) - direction) * body.radius > cell * 1.25)
+                        continue;
                     if ((lattice(seed, x, y, z) * 0.5 + 0.5) > body.craters)
                         continue;
                     // The crater's centre, projected onto the sphere.
                     const DVec3 centre = normalized(DVec3{x + 0.5 + lattice(seed + 1, x, y, z) * 0.4, y + 0.5 + lattice(seed + 2, x, y, z) * 0.4,
                                                           z + 0.5 + lattice(seed + 3, x, y, z) * 0.4});
                     const double radius = cell * (0.18 + 0.22 * (lattice(seed + 4, x, y, z) * 0.5 + 0.5));
-                    const double arc = std::acos(clampd(dot(direction, centre), -1, 1)) * body.radius;
+                    // The chord stands in for the arc: craters are small next
+                    // to the planet, so they differ by well under a percent.
+                    const double arc = length(direction - centre) * body.radius;
                     const double t = arc / radius;
                     if (t > 1.6)
                         continue;
@@ -791,6 +799,56 @@ Obstacle route_obstacle(const System& system, double t, const DVec3& from, const
     }
     return found;
 }
+// Coasting under one central body (gm) for `seconds` from (r, v): where it
+// ends up. Velocity Verlet in fixed steps; good to a few hundred metres over
+// a transfer, which is all the shooting below needs.
+DVec3 coast_to(double gm, DVec3 r, DVec3 v, double seconds, int steps = 240) {
+    const double h = seconds / steps;
+    const auto accel = [gm](DVec3 p) {
+        const double d = std::max(length(p), 1.0);
+        return p * (-gm / (d * d * d));
+    };
+    DVec3 a = accel(r);
+    for (int i = 0; i < steps; ++i) {
+        r = r + v * h + a * (0.5 * h * h);
+        const DVec3 next = accel(r);
+        v = v + (a + next) * (0.5 * h);
+        a = next;
+    }
+    return r;
+}
+// The velocity that coasts from r0 to `goal` in `seconds` around a body of
+// `gm` (0.75.0): Lambert's problem by shooting -- Newton steps on the miss,
+// with a finite-difference Jacobian. `guess` seeds it (the current velocity
+// is a good one). Returns false if it doesn't converge.
+bool intercept_velocity(double gm, DVec3 r0, DVec3 goal, double seconds, DVec3 guess, DVec3& out) {
+    DVec3 v = guess;
+    for (int iteration = 0; iteration < 8; ++iteration) {
+        const DVec3 miss = coast_to(gm, r0, v, seconds) - goal;
+        if (length(miss) < 200) {
+            out = v;
+            return true;
+        }
+        // Columns: how the end point moves per m/s along each axis.
+        constexpr double dv = 1.0;
+        const DVec3 cx = (coast_to(gm, r0, v + DVec3{dv, 0, 0}, seconds) - goal - miss) * (1 / dv);
+        const DVec3 cy = (coast_to(gm, r0, v + DVec3{0, dv, 0}, seconds) - goal - miss) * (1 / dv);
+        const DVec3 cz = (coast_to(gm, r0, v + DVec3{0, 0, dv}, seconds) - goal - miss) * (1 / dv);
+        const double det = dot(cx, cross(cy, cz));
+        if (std::abs(det) < 1e-9)
+            return false;
+        // Cramer's rule for J * step = -miss.
+        const DVec3 b = -miss;
+        const DVec3 step{dot(b, cross(cy, cz)) / det, dot(cx, cross(b, cz)) / det, dot(cx, cross(cy, b)) / det};
+        // Damped: never more than 2 km/s per step.
+        const double size = length(step);
+        v = v + (size > 2000 ? step * (2000 / size) : step);
+    }
+    const bool close = length(coast_to(gm, r0, v, seconds) - goal) < 2000;
+    if (close)
+        out = v;
+    return close;
+}
 } // namespace
 
 AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec, const System& system, double t,
@@ -807,14 +865,26 @@ AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec,
         const double altitude = length(state.position) - here.radius;
         if (altitude < clear) {
             const DVec3 up = normalized(state.position);
-            // Pitch over gradually as the air thins.
             DVec3 a, b;
             tangents(up, a, b);
             DVec3 along = state.velocity - up * dot(state.velocity, up);
             along = length(along) > 1 ? normalized(along) : a;
-            const double k = clampd(altitude / clear, 0, 1) * 0.6;
-            command.direction = normalized(up * (1 - k) + along * k);
-            command.throttle = 1;
+            // Burn only until the coast will carry the ship clear of the air
+            // (0.75.0): burning all the way up fights gravity for nothing.
+            const auto elements = orbit_elements(state, system);
+            const bool carried = elements.valid && dot(state.velocity, up) > 0 &&
+                                 (!elements.closed || elements.apoapsis > clear * 1.12);
+            // A gravity turn: pitch over steadily as the climb goes on.
+            const double k = clampd(altitude / clear * 1.4 + 0.12, 0, 0.8);
+            command.direction = carried && length(state.velocity) > 1 ? normalized(state.velocity)
+                                                                       : normalized(up * (1 - k) + along * k);
+            command.throttle = carried ? 0.0 : 1.0;
+            // Thick air heats a fast hull: ease off and stand up straighter
+            // until the heat drops (Hollow's air would burn the ship).
+            if (!carried && state.heat > spec.heat_tolerance * 0.5) {
+                command.throttle = state.heat > spec.heat_tolerance * 0.7 ? 0.0 : 0.35;
+                command.direction = normalized(up * 0.9 + along * 0.1);
+            }
             command.phase = "climb";
             return command;
         }
@@ -826,6 +896,108 @@ AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec,
     const DVec3 dir = normalized(to);
     const double distance = centre - goal.radius - arrival_altitude(goal);
     const double closing = dot(rel, dir);
+    // Far from the target (0.75.0): a transfer -- the coast that meets the
+    // target, found by shooting around the body both orbit (the star, or
+    // the planet for one of its moons), with escape from the departure body
+    // folded in. Burn to that velocity, then coast; the pursuit law below
+    // only takes over for the approach. Fighting the star's pull with a
+    // straight-line pursuit cost several tanks of fuel.
+    const int central = goal.parent;
+    const bool to_parent = state.ref >= 0 && system.bodies[static_cast<std::size_t>(state.ref)].parent == target;
+    // The approach starts early enough to brake from the speed we close at.
+    const double approach = std::max({goal.radius * 5, sphere_of_influence(system, target) * 0.6,
+                                      dot(rel, rel) / (2 * accel * 0.45) + arrival_altitude(goal)});
+    if (central < 0 && !to_parent && state.ref != target && distance > approach) {
+        const double gm = central >= 0 ? system.bodies[static_cast<std::size_t>(central)].gm() : system.star_gm;
+        const DVec3 origin = central >= 0 ? body_position(system, central, t) : DVec3{};
+        const DVec3 frame_velocity = central >= 0 ? body_velocity(system, central, t) : DVec3{};
+        const DVec3 r0 = here - origin;
+        const DVec3 v_now = absolute_velocity(state, system, t) - frame_velocity;
+        // The arrival point: the target's arrival shell, on our side, at
+        // the time we get there.
+        const auto aim_at = [&](double seconds) {
+            const DVec3 end = body_position(system, target, t + seconds) - origin;
+            return end - normalized(end - r0) * (goal.radius + arrival_altitude(goal));
+        };
+        // How long to take: the flight time that costs least (departure plus
+        // arrival speed), chosen among a few and kept for a while -- the
+        // shooting is cheap, the search less so.
+        // Per-thread memory of the current transfer (the one flown ship):
+        // its flight time, and when a coast is next checked.
+        static thread_local struct {
+            int target{-1};
+            double arrive{-1};  // when the transfer meets the target
+            double check{-1};   // coasting until this time
+            double made{-1};    // when it was planned
+        } plan;
+        // A plan holds until it's flown (or the clock jumps back, a reload).
+        if (plan.target != target || t > plan.arrive - 30 || t < plan.made) {
+            const double base = clampd(distance / std::max(cruise_speed(spec, distance), 1.0), 240, 9000);
+            double best = 1e18;
+            for (const double k : {0.5, 0.75, 1.0, 1.5, 2.2, 3.2}) {
+                const double seconds = clampd(base * k, 200, 20000);
+                DVec3 v;
+                if (!intercept_velocity(gm, r0, aim_at(seconds), seconds, v_now, v))
+                    continue;
+                // Arrival speed relative to the target, from a coast's end.
+                const double h = 1.0;
+                const DVec3 end = coast_to(gm, r0, v, seconds), before = coast_to(gm, r0, v, seconds - h);
+                const DVec3 arrive = (end - before) * (1 / h) - (body_velocity(system, target, t + seconds) - (central >= 0 ? body_velocity(system, central, t + seconds) : DVec3{}));
+                const double cost = length(v - v_now) + length(arrive);
+                if (cost < best) {
+                    best = cost;
+                    plan.arrive = t + seconds;
+                }
+            }
+            if (best > 1e17)
+                plan.arrive = t + base;
+            plan.target = target;
+            plan.made = t;
+            plan.check = -1;
+        }
+        // Coasting on a solved transfer: trust it until the next check.
+        if (plan.check > t && t > plan.check - 600) {
+            command.throttle = 0;
+            command.phase = "coast";
+            command.direction = length(state.velocity) > 1 ? normalized(state.velocity) : dir;
+            return command;
+        }
+        const double seconds = std::max(60.0, plan.arrive - t);
+        const DVec3 aim = aim_at(seconds);
+        DVec3 wanted;
+        if (intercept_velocity(gm, r0, aim, seconds, v_now, wanted)) {
+            DVec3 error = wanted - v_now;
+            // Still inside the departure body's pull: what we need is the
+            // speed far from it, so climb out with escape speed added.
+            if (state.ref >= 0 && state.ref != central) {
+                const auto& from = system.bodies[static_cast<std::size_t>(state.ref)];
+                const DVec3 from_velocity = body_velocity(system, state.ref, t) - frame_velocity;
+                const DVec3 excess = wanted - from_velocity;
+                const double r = std::max(length(state.position), from.radius);
+                const DVec3 depart = normalized(excess) * std::sqrt(dot(excess, excess) + 2 * from.gm() / r);
+                error = depart - state.velocity;
+            }
+            const double err = length(error);
+            command.direction = err > 1e-6 ? normalized(error) : normalized(v_now);
+            // On course (more slack on a check than mid-burn): coast, and
+            // look again in a while -- a quarter of the time left.
+            const bool checking = plan.check > 0;
+            if (err < std::max(checking ? 15.0 : 4.0, length(wanted) * (checking ? 0.012 : 0.004))) {
+                plan.check = t + clampd(seconds * 0.25, 30, 600);
+                command.throttle = 0;
+                command.phase = "coast";
+                command.direction = length(state.velocity) > 1 ? normalized(state.velocity) : dir;
+                return command;
+            }
+            const double facing = dot(ship_forward(state), command.direction);
+            command.throttle = facing > 0.985 ? clampd(err / (accel * 1.5), 0.05, 1) : 0.0;
+            command.phase = "transfer";
+            plan.check = -1;
+            return command;
+        }
+        // No coast meets the target in the time left: plan again next tick.
+        plan.target = -1;
+    }
     // A moon or planet in the way: fly the corridor around it first, at
     // cruise, without braking for the waypoint.
     if (const auto obstacle = route_obstacle(system, t, here, here + to, target); obstacle.index >= 0) {
@@ -846,14 +1018,19 @@ AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec,
     }
     // Wanted velocity: straight at the target, as fast as we can still stop
     // in the distance left (with a margin), capped at cruise.
-    const double stop = std::sqrt(2 * accel * 0.7 * std::max(distance, 0.0));
+    // The target's own pull fights the braking, more the closer it gets
+    // (0.75.0): without it the brake runs late and long.
+    const double pull = goal.gm() / std::max(centre * centre, 1.0);
+    const double stop = std::sqrt(2 * std::max(accel * 0.7 - pull, accel * 0.2) * std::max(distance, 0.0));
     const double want = std::min(cruise_speed(spec, distance), stop);
     // Gravity of the target near arrival is absorbed by the margin; the
     // error between wanted and actual velocity is what the engine fixes.
     const DVec3 error = dir * want - rel;
     const double err = length(error);
     command.direction = err > 1e-6 ? normalized(error) : dir;
-    if (err < 6) {
+    // Drift is allowed in proportion to speed (0.75.0): chasing every
+    // metre per second that gravity bends the path burns the tank away.
+    if (err < std::max(6.0, want * 0.12)) {
         command.throttle = 0;
         command.phase = "coast";
         command.direction = closing > want * 0.9 ? normalized(-rel) : dir;
@@ -885,7 +1062,61 @@ RoutePlan plan_route(const ShipState& state, const ShipSpec& spec, const System&
     }
     // Accelerate to cruise, cancel what we already have sideways, brake.
     const double cruise = cruise_speed(spec, plan.distance);
-    dv += cruise * 2 + std::max(0.0, length(rel) - std::max(plan.closing_speed, 0.0));
+    // Between planets (0.75.0): the transfer the autopilot will fly -- the
+    // cheapest coast around the star (speed away from where we are plus
+    // speed to lose on arrival), with escape and capture folded in. A
+    // straight-line guess got inward trips (toward the star) badly wrong.
+    double transfer = -1;
+    if (goal.parent < 0 && state.ref != target) {
+        // Cached per route for a few seconds of game time: the System Board
+        // asks for every body each refresh.
+        static thread_local struct {
+            int from{-2}, to{-1};
+            double at{-1e18}, cost{0};
+        } cache;
+        const int from = state.ref;
+        if (cache.from == from && cache.to == target && std::abs(t - cache.at) < 20) {
+            transfer = cache.cost;
+        } else {
+            const bool inside = from >= 0 && system.bodies[static_cast<std::size_t>(from)].parent < 0;
+            const DVec3 r0 = inside ? body_position(system, from, t) : absolute_position(state, system, t);
+            const DVec3 v0 = inside ? body_velocity(system, from, t) : absolute_velocity(state, system, t);
+            const double base = clampd(plan.distance / std::max(cruise, 1.0), 240, 9000);
+            double best = 1e18;
+            for (const double k : {0.5, 0.75, 1.0, 1.5, 2.2, 3.2}) {
+                const double seconds = clampd(base * k, 200, 20000);
+                const DVec3 end = body_position(system, target, t + seconds);
+                const DVec3 aim = end - normalized(end - r0) * (goal.radius + arrival_altitude(goal));
+                DVec3 v;
+                if (!intercept_velocity(system.star_gm, r0, aim, seconds, v0, v))
+                    continue;
+                const DVec3 last = coast_to(system.star_gm, r0, v, seconds), before = coast_to(system.star_gm, r0, v, seconds - 1);
+                const double arrive = length(last - before - body_velocity(system, target, t + seconds));
+                double depart = length(v - v0);
+                if (inside) {
+                    // From orbit around the departure body: escape at that excess.
+                    const auto& here = system.bodies[static_cast<std::size_t>(from)];
+                    const double r = here.radius + std::max(here.atmosphere_top(), 2500.0);
+                    depart = std::max(0.0, std::sqrt(depart * depart + 2 * here.gm() / r) - std::sqrt(here.gm() / r));
+                }
+                // Capture: the arrival excess, falling into the target's well.
+                const double rc = goal.radius + arrival_altitude(goal);
+                const double capture = std::sqrt(arrive * arrive + 2 * goal.gm() / rc) - std::sqrt(goal.gm() / rc);
+                best = std::min(best, depart + capture);
+            }
+            if (best < 1e17) {
+                // What the autopilot actually spends, flying it: course
+                // corrections and braking losses (measured on Pale Signal's
+                // routes).
+                transfer = best * 1.3;
+                cache = {from, target, t, transfer};
+            }
+        }
+    }
+    if (transfer >= 0)
+        dv += transfer;
+    else
+        dv += cruise * 2 + std::max(0.0, length(rel) - std::max(plan.closing_speed, 0.0));
     // A clearance corridor around a body in the way: turning onto it and
     // back off it.
     const DVec3 here = absolute_position(state, system, t);
@@ -896,7 +1127,10 @@ RoutePlan plan_route(const ShipState& state, const ShipSpec& spec, const System&
           std::sqrt(2 * goal.surface_gravity * 400);
     plan.delta_v = dv;
     const double accel = spec.thrust / spec.mass;
-    plan.fuel_needed = dv / accel * spec.burn;
+    // Flown, not ideal: climbing through air, course corrections and the
+    // approach cost the autopilot about this much more (measured on Pale
+    // Signal's routes, 0.75.0).
+    plan.fuel_needed = dv / accel * spec.burn * 1.8;
     plan.status = state.fuel >= plan.fuel_needed * 1.25 ? 0 : state.fuel >= plan.fuel_needed ? 1 : 2;
     return plan;
 }
