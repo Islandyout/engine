@@ -68,9 +68,13 @@ import { attachToHand, faceWeaponForward, splitForWeapon } from "./characterRig"
 import { instanceBox, parseModelInstances } from "./modelInstances";
 import { CarFx, type CarView, type MinimapBlip, type MinimapRoad } from "./carFx";
 import { EngineVoice, SirenVoice, TireVoice } from "./carAudio";
-import { SpaceView, drawFlightHud, parseLandmarks, parseSpaceBodies, parseSpecies, type SpaceRuntime, type Species } from "./spaceView";
+import { SpaceView, drawFlightHud, latLonDirection, parseLandmarks, parseSpaceBodies, parseSpecies, type SpaceRuntime, type Species } from "./spaceView";
 import { Scanner, type ScanTarget } from "./scanner";
 import { openGamesLibrary } from "./gamesLibrary";
+import { drawLocalMinimap, drawSurface, drawSystem, parseMapSite, surfaceImage, type LocalBlip, type MapBody, type MapSite } from "./explorerHud";
+import { ExplorerFx, parseWeather } from "./explorerFx";
+import { Ambience, ambienceLayers, playCue, type AmbienceLayer } from "./ambience";
+import { Announcer, createTouchControls, isTouchDevice, loadSettings, openSettingsPanel, qualityProfile, summarizeFrames } from "./playerSettings";
 import {
   applyBrush,
   decodeSculpt,
@@ -250,6 +254,11 @@ type Runtime = {
   // Spaceflight (0.71.0): see editor_space_* and editor_set_spaceship.
   _editor_set_spaceship(index: number, heading: number, ...spec: number[]): void;
   _editor_space_value(field: number): number;
+  _editor_space_member(index: number, site: number): void;
+  _editor_space_body_hidden(hidden: number): void;
+  _editor_set_wildlife(index: number, wary: number, flee: number, speed: number, leash: number): void;
+  _editor_wildlife_state(index: number): number;
+  _editor_push(index: number, dx: number, dz: number): void;
   _editor_space_body_value(index: number, field: number): number;
   _editor_space_frame(field: number): number;
   _editor_planet_height(index: number, x: number, y: number, z: number): number;
@@ -811,8 +820,9 @@ async function startEditor() {
   window.addEventListener("pointerup", () => (orbitDrag = undefined));
   window.addEventListener("pointermove", (event) => {
     if (!orbitDrag) return;
-    rig.yaw -= (event.clientX - orbitDrag.x) * 0.005;
-    rig.pitch = THREE.MathUtils.clamp(rig.pitch + (event.clientY - orbitDrag.y) * 0.005, -0.2, 1.4);
+    const look = 0.005 * playerSettings.sensitivity;
+    rig.yaw -= (event.clientX - orbitDrag.x) * look;
+    rig.pitch = THREE.MathUtils.clamp(rig.pitch + (event.clientY - orbitDrag.y) * look * (playerSettings.invertY ? -1 : 1), -0.2, 1.4);
     orbitDrag = { x: event.clientX, y: event.clientY };
   });
   function applyShake(view: THREE.Camera, dt: number) {
@@ -1772,6 +1782,10 @@ async function startEditor() {
   let scatterTargets: ScanTarget[] = [];
   let scatterModelsReady = false;
   const hiddenAway = new Set<number>();
+  // Sites (0.73.0): the Site entities' indices, and each entity's site
+  // (-1: the home site).
+  let siteIndices: number[] = [];
+  let memberSite: number[] = [];
   // The scanner (0.72.0), for any scene with Scannable entities or species.
   const scanner = new Scanner();
   let scannableIndices: number[] = [];
@@ -1801,6 +1815,7 @@ async function startEditor() {
         [b.name, b.parent, b.orbitRadius, b.period, b.phase, b.inclination, b.radius, b.gravity, b.atmosphereHeight, b.atmosphereDensity, b.terrainAmplitude, b.terrainScale, b.seed],
       );
       if (b.sea !== undefined) runtime.ccall("editor_space_body_sea", null, ["number"], [b.sea]);
+      if (b.hidden) runtime._editor_space_body_hidden(1);
     }
   }
   // On Play: the system view, its render pass, and the site's ground as a
@@ -1831,6 +1846,8 @@ async function startEditor() {
       renderPass.clear = false;
       renderPass.clearDepth = true;
     }
+    startExplorer();
+    prospect = undefined;
   }
   // The walk frame's ground (a depth-and-shadow surface in the scene pass)
   // and the plants and rocks around it, rebuilt whenever the frame moves.
@@ -1869,10 +1886,14 @@ async function startEditor() {
       models,
     );
     scene.add(spaceScatter);
+    scatterPlacements = placed.map((p) => ({ x: p.x, y: p.y, z: p.z, key: p.species.id, kind: p.species.kind, scale: p.scale }));
+    harvested.clear();
+    explorerFx?.clearPrints();
     const kind = (k: string) => k[0]!.toUpperCase() + k.slice(1);
     scatterTargets = placed.map((p) => ({ key: p.species.id, name: p.species.name, kind: kind(p.species.kind), position: new THREE.Vector3(p.x, p.y + 0.4, p.z), range: 5 }));
   }
   function endSpaceView() {
+    endExplorer();
     spaceView?.dispose();
     spaceView = undefined;
     if (spaceScatter) scene.remove(spaceScatter);
@@ -1923,21 +1944,388 @@ async function startEditor() {
       spaceFrame = frame;
       rebuildSpaceFrame();
     }
-    // Away from the site, its authored objects are elsewhere on the planet.
-    const away = runtime._editor_space_value(37) === 1;
+    // Weather fog (0.73.0) thickens the haze.
+    const fog = explorerFx?.weather.fog ?? 0;
+    if (fog > 0.01) scene.fog = new THREE.FogExp2(spaceView.skyColor.clone().multiplyScalar(day * 0.8), 6e-5 * spaceView.air + fog * 0.012);
+    updateExplorer(dt, view);
+    // Only the active site's objects are here; the rest are elsewhere on
+    // the planet (or another world).
+    const activeSite = runtime._editor_space_value(37) === 1 ? runtime._editor_space_value(40) : -1;
     const entities = doc.scene.eachAlive();
-    if (away)
-      objects.forEach((object, i) => {
-        if (!object || i === shipIndex || i === playerIndex || !object.visible) return;
-        const entity = entities[i];
-        if (entity && doc.scene.effectiveHas(entity, "Parent")) return;
+    objects.forEach((object, i) => {
+      if (!object || i === shipIndex || i === playerIndex) return;
+      const entity = entities[i];
+      const site = memberSite[i] ?? -1;
+      // Plain children follow their parent's visibility.
+      if (entity && site < 0 && doc.scene.effectiveHas(entity, "Parent")) return;
+      const here = siteIndices.includes(i) ? activeSite === siteIndices.indexOf(i) : site === activeSite;
+      if (!here && object.visible) {
         object.visible = false;
         hiddenAway.add(i);
-      });
-    else if (hiddenAway.size) {
-      for (const i of hiddenAway) if (objects[i]) objects[i]!.visible = true;
-      hiddenAway.clear();
+      } else if (here && hiddenAway.has(i)) {
+        object.visible = true;
+        hiddenAway.delete(i);
+      }
+    });
+  }
+
+  // -- Exploration (0.73.0): maps, weather, harvesting, settings ----------
+  // Scripts drive these through host.send(kind, text); see handleHost.
+  const playerSettings = loadSettings();
+  const announcer = new Announcer(app);
+  let explorerFx: ExplorerFx | undefined;
+  let ambience: Ambience | undefined;
+  let explorerBodies: ReturnType<typeof parseSpaceBodies>["bodies"] = [];
+  let mapMode: "off" | "system" | "surface" = "off";
+  let minimapAllowed = true;
+  const mapSites = new Map<string, MapSite & { body: string }>();
+  const latLonWaypoints = new Map<string, { body: string; latitude: number; longitude: number; label: string }>();
+  const surfaceImages = new Map<number, HTMLCanvasElement>();
+  const catalogued = new Set<string>();
+  let scatterPlacements: Array<{ x: number; y: number; z: number; key: string; kind: string; scale: number }> = [];
+  const harvested = new Set<number>();
+  let nearHarvest = "";
+  let softGround = true;
+  // Prospecting: species keys to find and the marker label ("" = off).
+  let prospect: { keys: Set<string>; label: string; range: number } | undefined;
+  let touchControls: { dispose(): void } | undefined;
+  let profileCapture: { frames: number[]; until: number } | undefined;
+  let wasLanded = true;
+  function frameQuaternion() {
+    return new THREE.Quaternion(
+      runtime._editor_space_frame(0),
+      runtime._editor_space_frame(1),
+      runtime._editor_space_frame(2),
+      runtime._editor_space_frame(3),
+    );
+  }
+  function bodyCentre(index: number) {
+    return new THREE.Vector3(
+      runtime._editor_space_body_value(index, 0),
+      runtime._editor_space_body_value(index, 1),
+      runtime._editor_space_body_value(index, 2),
+    );
+  }
+  // A latitude/longitude on a body, as a point in the walk frame.
+  function latLonToFrame(index: number, latitude: number, longitude: number, lift = 2) {
+    const dir = latLonDirection(latitude, longitude);
+    const radius = runtime._editor_space_body_value(index, 3) + Math.max(runtime._editor_planet_height(index, dir.x, dir.y, dir.z), explorerBodies[index]?.sea ?? -1e9) + lift;
+    return dir.multiplyScalar(radius).applyQuaternion(frameQuaternion()).add(bodyCentre(index));
+  }
+  function frameToLatLon(index: number, p: THREE.Vector3) {
+    const dir = p.clone().sub(bodyCentre(index)).applyQuaternion(frameQuaternion().invert()).normalize();
+    return { latitude: THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1))), longitude: THREE.MathUtils.radToDeg(Math.atan2(dir.z, dir.x)) };
+  }
+  function cue(name: string) {
+    if (!audioContext) return;
+    playCue(audioContext, audioMixer().buses.ui, name);
+  }
+  function handleHost(kind: string, text: string) {
+    if (kind === "weather") {
+      const weather = parseWeather(text);
+      if (explorerFx) explorerFx.weather = weather;
+      scanner.tuning.interference = Math.min(1, weather.rain * 0.7 + weather.fog * 0.5);
+      ambience?.set("rain", weather.rain);
+    } else if (kind === "map_site") {
+      const site = parseMapSite(text);
+      if (site) mapSites.set(site.id, site);
+    } else if (kind === "map_site_clear") mapSites.delete(text);
+    else if (kind === "waypoint") {
+      const [id, body, lat, lon, label = ""] = text.split("|");
+      if (id && body && Number.isFinite(Number(lat)) && Number.isFinite(Number(lon)))
+        latLonWaypoints.set(id, { body, latitude: Number(lat), longitude: Number(lon), label });
+    } else if (kind === "waypoint_clear") latLonWaypoints.delete(text);
+    else if (kind === "map") mapMode = text === "toggle" ? (mapMode === "off" ? "system" : mapMode === "system" ? "surface" : "off") : text === "system" || text === "surface" ? text : "off";
+    else if (kind === "minimap") minimapAllowed = text !== "0";
+    else if (kind === "catalogued") catalogued.add(text);
+    else if (kind === "harvest") harvest(text);
+    else if (kind === "scanner") {
+      const [range = 1, time = 1, condition = 1] = text.split(/\s+/).map(Number);
+      scanner.tuning.range = Number.isFinite(range) && range > 0 ? range : 1;
+      scanner.tuning.time = Number.isFinite(time) && time > 0 ? time : 1;
+      scanner.tuning.condition = Number.isFinite(condition) ? THREE.MathUtils.clamp(condition, 0, 1) : 1;
+    } else if (kind === "sky_scan") scanner.skyKey = text;
+    else if (kind === "dust" && explorerFx) {
+      const [color = "#d8cfb8", density = "0.5"] = text.split(/\s+/);
+      if (/^#[0-9a-fA-F]{6}$/.test(color)) explorerFx.dustColor.set(color);
+      explorerFx.dustDensity = THREE.MathUtils.clamp(Number(density) || 0, 0, 1);
+    } else if (kind === "soft") softGround = text !== "0";
+    else if (kind === "audio") {
+      const [layer = "", level = "0"] = text.split(/\s+/);
+      if ((ambienceLayers as readonly string[]).includes(layer)) ambience?.set(layer as AmbienceLayer, Number(level));
+    } else if (kind === "cue") cue(text);
+    else if (kind === "announce") announcer.say(text);
+    else if (kind === "settings") openPlayerSettings();
+    else if (kind === "prospect") {
+      // "label|range|key,key,..." -- empty to stop.
+      const [label = "", range = "300", keys = ""] = text.split("|");
+      prospect = label ? { label, range: Number(range) || 300, keys: new Set(keys.split(",").filter(Boolean)) } : undefined;
+      if (!prospect) uiMarkers.delete("prospect");
     }
+  }
+  function openPlayerSettings() {
+    openSettingsPanel(app, playerSettings, applyPlayerSettings, () => {
+      profileCapture = { frames: [], until: performance.now() + 60000 };
+      announcer.say("Profiling for 60 seconds");
+    });
+  }
+  function applyPlayerSettings() {
+    const profile = qualityProfile(playerSettings.quality);
+    if (renderer instanceof THREE.WebGLRenderer) {
+      const ratio = Math.min(devicePixelRatio, profile.pixelRatio);
+      renderer.setPixelRatio(ratio);
+      composer?.setPixelRatio(ratio);
+      renderer.shadowMap.enabled = profile.shadows;
+    }
+    if (explorerFx) {
+      explorerFx.reducedMotion = playerSettings.reducedMotion;
+      explorerFx.footprints = playerSettings.footprints;
+    }
+    const wantTouch = doc.mode !== "edit" && (playerSettings.touch === "on" || (playerSettings.touch === "auto" && isTouchDevice()));
+    if (wantTouch && !touchControls)
+      touchControls = createTouchControls(app, (code, key, down) => {
+        keyQueue.push([code, down ? 1 : 0]);
+        if (down) heldKeys.add(code);
+        else heldKeys.delete(code);
+        if (key) {
+          scriptKeyQueue.push([key, down ? 1 : 0]);
+          if (down) heldScriptKeys.add(key);
+          else heldScriptKeys.delete(key);
+        }
+      });
+    else if (!wantTouch && touchControls) {
+      touchControls.dispose();
+      touchControls = undefined;
+    }
+  }
+  function startExplorer() {
+    endExplorer();
+    const space = spaceComponent();
+    explorerBodies = space ? parseSpaceBodies(space.bodies).bodies : [];
+    explorerFx = new ExplorerFx();
+    scene.add(explorerFx.group);
+    if (audioContext) ambience = new Ambience(audioContext, audioMixer().buses.ambient);
+    mapMode = "off";
+    minimapAllowed = true;
+    mapSites.clear();
+    latLonWaypoints.clear();
+    catalogued.clear();
+    harvested.clear();
+    nearHarvest = "";
+    softGround = true;
+    wasLanded = true;
+    scanner.tuning = { range: 1, time: 1, interference: 0, condition: 1 };
+    scanner.skyKey = "";
+    applyPlayerSettings();
+  }
+  function endExplorer() {
+    if (explorerFx) {
+      scene.remove(explorerFx.group);
+      explorerFx.dispose();
+      explorerFx = undefined;
+    }
+    ambience?.stop();
+    ambience = undefined;
+    touchControls?.dispose();
+    touchControls = undefined;
+    document.getElementById("player-settings")?.remove();
+  }
+  // Takes the nearest catalogued specimen of `key` within reach out of the
+  // world and tells scripts (on_ui("harvested", key)).
+  function harvest(key: string) {
+    const player = playerIndex >= 0 ? objects[playerIndex] : undefined;
+    if (!player || !spaceScatter) return;
+    let best = -1,
+      bestDistance = 3.5;
+    scatterPlacements.forEach((p, i) => {
+      if (p.key !== key || harvested.has(i)) return;
+      const d = Math.hypot(p.x - player.position.x, p.z - player.position.z);
+      if (d < bestDistance) {
+        best = i;
+        bestDistance = d;
+      }
+    });
+    if (best < 0) return;
+    harvested.add(best);
+    const placement = scatterPlacements[best]!;
+    const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+    spaceScatter.traverse((o) => {
+      const list = (o as THREE.InstancedMesh).userData?.instances as Array<{ x: number; z: number }> | undefined;
+      if (!(o instanceof THREE.InstancedMesh) || !list) return;
+      const i = list.findIndex((instance) => instance.x === placement.x && instance.z === placement.z);
+      if (i >= 0) {
+        o.setMatrixAt(i, zero);
+        o.instanceMatrix.needsUpdate = true;
+      }
+    });
+    scatterTargets = scatterTargets.filter((t) => !(t.position.x === placement.x && t.position.z === placement.z));
+    uiEvent("harvested", key);
+  }
+  // Per frame while playing a SpaceSystem scene.
+  function updateExplorer(dt: number, view: THREE.Camera) {
+    if (!spaceView || !explorerFx) return;
+    const player = playerIndex >= 0 ? objects[playerIndex] : undefined;
+    const walking = !spaceView.flight.piloting;
+    const moving = walking && playerIndex >= 0 && runtime._editor_controller_value(playerIndex, 4) > 0.5;
+    explorerFx.update(dt, view, walking ? player : undefined, moving, (x, z) => runtime._editor_space_ground(x, z), softGround);
+    ambience?.update(spaceView.air);
+    // Touchdown: the settle bob and a thump.
+    const landed = spaceView.flight.landed;
+    if (landed && !wasLanded) {
+      explorerFx.touchdown(Math.abs(spaceView.flight.verticalSpeed));
+      cue("thump");
+    }
+    wasLanded = landed;
+    const ship = shipIndex >= 0 ? objects[shipIndex] : undefined;
+    if (ship) ship.position.y -= explorerFx.settleOffset();
+    // Large minerals are solid: the walker is pushed back out of them.
+    if (walking && player && playerIndex >= 0)
+      for (const p of scatterPlacements) {
+        if (p.kind !== "mineral" || p.scale < 1) continue;
+        const dx = player.position.x - p.x, dz = player.position.z - p.z;
+        const reach = 0.6 * p.scale + 0.35;
+        const d = Math.hypot(dx, dz);
+        if (d < reach && d > 1e-3) runtime._editor_push(playerIndex, (dx / d) * (reach - d), (dz / d) * (reach - d));
+      }
+    // The nearest catalogued specimen within reach, for scripts' prompts.
+    let near = "";
+    if (walking && player) {
+      let best = 3;
+      scatterPlacements.forEach((p, i) => {
+        if (harvested.has(i) || !catalogued.has(p.key)) return;
+        const d = Math.hypot(p.x - player.position.x, p.z - player.position.z);
+        if (d < best) {
+          best = d;
+          near = p.key;
+        }
+      });
+    }
+    if (near !== nearHarvest) {
+      nearHarvest = near;
+      uiEvent("near_harvest", near);
+    }
+    if (profileCapture) {
+      profileCapture.frames.push(dt * 1000);
+      if (performance.now() > profileCapture.until) {
+        const summary = summarizeFrames(profileCapture.frames);
+        profileCapture = undefined;
+        const text = JSON.stringify({ title: document.title, at: new Date().toISOString(), ...summary }, null, 2);
+        log(text);
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+        a.download = "profile.json";
+        a.click();
+        announcer.say(`Profile done: ${summary.fps.toFixed(0)} fps average`);
+      }
+    }
+  }
+  function mapBodies(): MapBody[] {
+    const star = bodyCentre(-1);
+    const inverse = frameQuaternion().invert();
+    const ref = runtime._editor_space_value(23), target = runtime._editor_space_value(29);
+    return explorerBodies.map((b, i) => {
+      const p = bodyCentre(i).sub(star).applyQuaternion(inverse);
+      return { name: b.name, x: p.x, z: p.z, radius: b.radius, color: b.color, parent: b.parent, target: i === target, current: i === ref };
+    });
+  }
+  function drawExplorerHud(lines: string[]) {
+    if (!spaceView) return;
+    const ctx = hudCtx;
+    const hidden = (i: number) => runtime._editor_space_body_value(i, 10) === 1;
+    const star = bodyCentre(-1);
+    const inverse = frameQuaternion().invert();
+    const shipFrame = new THREE.Vector3(runtime._editor_space_value(1), runtime._editor_space_value(2), runtime._editor_space_value(3));
+    const ship = shipFrame.clone().sub(star).applyQuaternion(inverse);
+    const all = mapBodies();
+    const bodies = all.filter((_, i) => !hidden(i));
+    const visibleIndex = all.map((_, i) => i).filter((i) => !hidden(i));
+    const reindexed = bodies.map((b) => ({ ...b, parent: b.parent >= 0 ? visibleIndex.indexOf(b.parent) : -1 }));
+    const frameBody = runtime._editor_space_value(39);
+    // Prospecting: the nearest matching deposit as a marker.
+    if (prospect) {
+      const me = playerIndex >= 0 ? objects[playerIndex] : undefined;
+      let best: (typeof scatterPlacements)[number] | undefined, bestDistance = prospect.range;
+      if (me && !spaceView.flight.piloting)
+        scatterPlacements.forEach((p, i) => {
+          if (harvested.has(i) || !prospect!.keys.has(p.key)) return;
+          const d = Math.hypot(p.x - me.position.x, p.z - me.position.z);
+          if (d < bestDistance) {
+            bestDistance = d;
+            best = p;
+          }
+        });
+      if (best) uiMarkers.set("prospect", { position: new THREE.Vector3(best.x, best.y + 1.2, best.z), label: prospect.label });
+      else uiMarkers.delete("prospect");
+    }
+    // Latitude/longitude waypoints, drawn like script markers.
+    for (const [id, w] of latLonWaypoints) {
+      const index = explorerBodies.findIndex((b) => b.name === w.body);
+      if (index < 0 || hidden(index)) continue;
+      uiMarkers.set(`ll:${id}`, { position: latLonToFrame(index, w.latitude, w.longitude, 4), label: w.label });
+    }
+    if (mapMode === "system") {
+      const span = Math.max(...bodies.filter((b) => b.parent < 0).map((b) => Math.hypot(b.x, b.z))) * 2.3;
+      drawSystem(ctx, 40, 60, hud.width - 80, hud.height - 120, reindexed, ship, { x: 0, z: 0 }, span, "SYSTEM MAP  ·  M: surface map");
+      lines.push("MAP system");
+    } else if (mapMode === "surface") {
+      const body = explorerBodies[frameBody];
+      if (body) {
+        let image = surfaceImages.get(frameBody);
+        if (!image) {
+          image = surfaceImage(256, 128, (x, y, z) => runtime._editor_planet_height(frameBody, x, y, z), body.terrainAmplitude, body.color, body.sea, body.snow);
+          surfaceImages.set(frameBody, image);
+        }
+        const sites: MapSite[] = [...mapSites.values()].filter((s) => s.body === body.name);
+        for (const landmark of spaceView.landmarks)
+          if (landmark.body === frameBody) sites.push({ id: landmark.label, label: landmark.label, latitude: landmark.latitude, longitude: landmark.longitude, kind: "landmark" });
+        for (const [id, w] of latLonWaypoints) if (w.body === body.name) sites.push({ id, label: w.label, latitude: w.latitude, longitude: w.longitude, kind: "waypoint" });
+        const me = spaceView.flight.piloting ? shipFrame : (playerIndex >= 0 ? objects[playerIndex]?.position : undefined) ?? shipFrame;
+        const at = frameToLatLon(frameBody, me);
+        sites.push({ id: "you", label: "You", ...at, kind: spaceView.flight.piloting ? "ship" : "player" });
+        drawSurface(ctx, 40, 60, hud.width - 80, hud.height - 120, image, sites, `${body.name.toUpperCase()} SURVEY MAP  ·  M: close`);
+        lines.push(`MAP surface ${body.name}`);
+      }
+    } else if (playerSettings.minimap && minimapAllowed) {
+      const size = Math.min(180, hud.height * 0.24);
+      if (spaceView.flight.piloting && !spaceView.flight.landed) {
+        // Flight: the reference body's neighbourhood.
+        const ref = runtime._editor_space_value(23);
+        const focus = ref >= 0 ? all[ref]! : { x: 0, z: 0 };
+        const near = ref >= 0 ? all[ref]!.radius * 14 : 4e6;
+        drawSystem(ctx, hud.width - size - 24, hud.height - size - 24, size, size, reindexed, ship, focus, near, "NAV");
+      } else {
+        const me = playerIndex >= 0 && !spaceView.flight.piloting ? objects[playerIndex] : shipIndex >= 0 ? objects[shipIndex] : undefined;
+        if (me) {
+          const blips: LocalBlip[] = [];
+          const shipObject = shipIndex >= 0 ? objects[shipIndex] : undefined;
+          if (shipObject && shipObject !== me) blips.push({ x: shipObject.position.x - me.position.x, z: shipObject.position.z - me.position.z, kind: "ship" });
+          for (const [, m] of uiMarkers) blips.push({ x: m.position.x - me.position.x, z: m.position.z - me.position.z, kind: "marker", label: m.label });
+          scatterPlacements.forEach((p, i) => {
+            if (harvested.has(i)) return;
+            const dx = p.x - me.position.x, dz = p.z - me.position.z;
+            // Only what's catalogued (and so harvestable) -- the map isn't omniscient.
+            if (Math.abs(dx) > 170 || Math.abs(dz) > 170 || !catalogued.has(p.key)) return;
+            blips.push({ x: dx, z: dz, kind: "resource" });
+          });
+          const entities = doc.scene.eachAlive();
+          objects.forEach((o, i) => {
+            if (!o?.visible || i === playerIndex || i === shipIndex || !runtime._editor_alive(i)) return;
+            const e = entities[i];
+            if (!e) return;
+            const wild = runtime._editor_wildlife_state(i);
+            const kind = wild === 2 ? "fleeing" : wild >= 0 ? "fauna" : doc.scene.effectiveHas(e, "Routine") ? "npc" : undefined;
+            if (kind) blips.push({ x: o.position.x - me.position.x, z: o.position.z - me.position.z, kind });
+          });
+          const heading = view_heading();
+          drawLocalMinimap(ctx, hud.width - size - 24, hud.height - size - 24, size, heading, blips);
+        }
+      }
+    }
+  }
+  // The view's heading on the minimap (0 = facing -z, "north").
+  function view_heading() {
+    const forward = viewCamera.getWorldDirection(new THREE.Vector3());
+    return Math.atan2(forward.x, -forward.z);
   }
   // Hold F to scan (0.72.0): Scannable entities, scattered species and
   // landmarks; a finished scan calls on_ui("scan", key) in every script.
@@ -1949,7 +2337,7 @@ async function startEditor() {
       const object = objects[i];
       const scan = entity && doc.scene.resolve(entity, "Scannable");
       if (!scan || !object || !object.visible || !runtime._editor_alive(i)) continue;
-      list.push({ key: scan.id || scan.name, name: scan.name, kind: scan.kind, position: object.position, range: scan.range });
+      list.push({ key: scan.id || scan.name, name: scan.name, kind: scan.kind, position: object.position, range: scan.range, fleeing: runtime._editor_wildlife_state(i) === 2 });
     }
     for (const t of scatterTargets) list.push(t);
     for (const landmark of spaceView?.landmarks ?? [])
@@ -2040,6 +2428,11 @@ async function startEditor() {
   }
   window.addEventListener("keydown", (event) => {
     if (doc.mode !== "play" || event.repeat) return;
+    if (event.code === "F10") {
+      event.preventDefault();
+      openPlayerSettings();
+      return;
+    }
     // Keep Space/arrows from scrolling the page while a game has the keys --
     // unless the user is typing into a field.
     const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
@@ -2406,6 +2799,13 @@ async function startEditor() {
         ship.startPiloting ? 1 : 0,
         ship.startOrbit,
       );
+    // Routine and Wildlife (0.73.0): see editor_set_routine/editor_set_wildlife.
+    const routine = get("Routine");
+    if (routine && !isChild && index >= 0)
+      runtime.ccall("editor_set_routine", null, ["number", "string", "number"], [index, routine.stops, routine.speed]);
+    const wildlife = get("Wildlife");
+    if (wildlife && !isChild && index >= 0)
+      runtime._editor_set_wildlife(index, wildlife.wary, wildlife.flee, wildlife.speed, wildlife.leash);
     // Weapons (0.61.0): see editor_set_weapons (bridge.cpp).
     const weapons = get("Weapons");
     if (weapons && !isChild) runtime.ccall("editor_set_weapons", null, ["number", "string"], [index, weapons.loadout]);
@@ -2556,11 +2956,12 @@ async function startEditor() {
   renderer.domElement.addEventListener("pointermove", (event) => {
     if (doc.mode !== "play") return;
     // Flying: dragging looks around the ship (never steers it).
-    if (spaceView?.flight.piloting && event.buttons & 3) spaceView.look(event.movementX, event.movementY);
+    if (spaceView?.flight.piloting && event.buttons & 3)
+      spaceView.look(event.movementX * playerSettings.sensitivity, event.movementY * playerSettings.sensitivity * (playerSettings.invertY ? -1 : 1));
     // Right-drag looks around in first person without capturing the mouse.
     const controller = playerController();
     if (controller?.mode === "FirstPerson" && event.buttons & 2 && document.pointerLockElement !== renderer.domElement)
-      applyMouseLook(fps.look, event.movementX, event.movementY, controller.lookSensitivity, controller.invertY);
+      applyMouseLook(fps.look, event.movementX, event.movementY, controller.lookSensitivity * playerSettings.sensitivity, controller.invertY !== playerSettings.invertY);
     const { x, y } = viewportPoint(event);
     pointerQueue.push(() => runtime._editor_input_mouse_move(x, y, event.movementX, event.movementY));
   });
@@ -2589,7 +2990,7 @@ async function startEditor() {
     if (doc.mode !== "play" || document.pointerLockElement !== renderer.domElement) return;
     const controller = playerController();
     if (controller?.mode === "FirstPerson")
-      applyMouseLook(fps.look, event.movementX, event.movementY, controller.lookSensitivity, controller.invertY);
+      applyMouseLook(fps.look, event.movementX, event.movementY, controller.lookSensitivity * playerSettings.sensitivity, controller.invertY !== playerSettings.invertY);
     pointerQueue.push(() => runtime._editor_input_mouse_move(0, 0, event.movementX, event.movementY));
   });
   function flushPointerInput() {
@@ -2641,7 +3042,11 @@ async function startEditor() {
         const bus = a.toLowerCase();
         if (["master", "sfx", "music", "ambient", "ui"].includes(bus)) audioMixer().setBusVolume(bus as Bus | "master", Number(b) || 0);
       }
-      else if (kind === "ui_text") uiTextOverrides.set(a, b);
+      else if (kind === "ui_text") {
+        uiTextOverrides.set(a, b);
+        // Banners and objectives are read out to screen readers.
+        if (a === "Banner" || a === "Objective") announcer.say(b);
+      } else if (kind === "host") handleHost(a, b);
       else if (kind === "particles_burst" || kind === "particles_emitting") {
         const state = particleStates[runtime._editor_command_entity(i)];
         if (state && kind === "particles_burst") burst(state.emitter, Math.max(0, Math.min(1000, Number(a) || 0)));
@@ -2659,7 +3064,7 @@ async function startEditor() {
         if (a === "1") void renderer.domElement.requestPointerLock?.();
         else if (document.pointerLockElement) document.exitPointerLock();
       } else if (kind === "camera_shake") {
-        shake.intensity = Math.max(0, Number(a) || 0);
+        shake.intensity = playerSettings.reducedMotion ? 0 : Math.max(0, Number(a) || 0);
         shake.duration = Math.max(0.01, Number(b) || 0.01);
         shake.remaining = shake.duration;
       }
@@ -2692,20 +3097,52 @@ async function startEditor() {
       const components = definition.components as Partial<SceneComponents>;
       addToRuntime((type) => components[type], 0, -1, name);
     }
-    doc.scene.eachAlive().forEach((entity, index) => {
-      const isChild = doc.scene.effectiveHas(entity, "Parent") ? 1 : 0;
+    // Sites (0.73.0): a Site's direct children are simulated like top-level
+    // entities, at their site-local positions (the Site itself sits at the
+    // origin while playing).
+    const alive = doc.scene.eachAlive();
+    const sites = spaceComponent() ? alive.filter((e) => doc.scene.effectiveHas(e, "Site")) : [];
+    siteIndices = sites.map((e) => alive.indexOf(e));
+    const siteOf = (entity: (typeof alive)[number]) => {
+      const parent = doc.scene.resolve(entity, "Parent")?.entity;
+      return parent ? sites.findIndex((s) => s.index === parent.index && s.generation === parent.generation) : -1;
+    };
+    memberSite = alive.map((e) => siteOf(e));
+    alive.forEach((entity, index) => {
+      const isChild = doc.scene.effectiveHas(entity, "Parent") && memberSite[index]! < 0 ? 1 : 0;
       // First Player-tagged entity wins if more than one is authored — the
       // bridge itself would happily drive every one of them from the same
       // input, but only one can sensibly own the camera and status readout.
       if (doc.scene.effectiveHas(entity, "Player") && playerIndex < 0) playerIndex = index;
       if (doc.scene.effectiveHas(entity, "Spaceship") && !isChild && shipIndex < 0 && spaceComponent()) shipIndex = index;
+      const isSite = doc.scene.effectiveHas(entity, "Site");
       addToRuntime(
-        (type) => doc.scene.resolve(entity, type),
+        (type) =>
+          isSite && type === "Transform"
+            ? ({ position: { x: 0, y: 0, z: 0 } } as SceneComponents[typeof type])
+            : doc.scene.resolve(entity, type),
         isChild,
         index,
         doc.scene.resolve(entity, "Name")?.value,
       );
     });
+    if (sites.length) {
+      const { bodies } = parseSpaceBodies(spaceComponent()!.bodies);
+      sites.forEach((entity, n) => {
+        const site = doc.scene.resolve(entity, "Site")!;
+        const body = bodies.findIndex((b) => b.name === site.body);
+        if (body < 0) log(`Site "${site.name}": no body "${site.body}"`);
+        runtime.ccall(
+          "editor_space_site",
+          null,
+          ["number", "string", "number", "number", "number", "number"],
+          [siteIndices[n]!, site.name, Math.max(body, 0), site.latitude, site.longitude, site.radius],
+        );
+      });
+      memberSite.forEach((site, index) => {
+        if (site >= 0) runtime._editor_space_member(index, site);
+      });
+    }
     // The first Terrain is the simulated one (editor_set_terrain), plus its
     // colliding scatter as static obstacles.
     const terrainEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "Terrain"));
@@ -4637,6 +5074,26 @@ async function startEditor() {
   }
   // Paints one UI element in its box. Text and Button look exactly as they
   // did before layout options existed when those options are left default.
+  // A Text element's lines: "\n" breaks, then word wrap within `width` (0: none).
+  function textLines(text: string, width: number): string[] {
+    const out: string[] = [];
+    for (const paragraph of text.split("\n")) {
+      if (!(width > 0) || hudCtx.measureText(paragraph).width <= width) {
+        out.push(paragraph);
+        continue;
+      }
+      let line = "";
+      for (const word of paragraph.split(" ")) {
+        const next = line ? `${line} ${word}` : word;
+        if (line && hudCtx.measureText(next).width > width) {
+          out.push(line);
+          line = word;
+        } else line = next;
+      }
+      out.push(line);
+    }
+    return out;
+  }
   function drawUIElement(ui: UIComponent, rect: UIRect, value: number) {
     const { left, top, width, height } = rect;
     const label = (x: number, y: number, align: CanvasTextAlign) => {
@@ -4649,16 +5106,23 @@ async function startEditor() {
       hudCtx.fillText(ui.text, x, y);
     };
     switch (ui.kind) {
-      case "Text":
+      case "Text": {
         // A stroke outline instead of a backdrop -- legible over any scene.
+        // Lines break at "\n" and wrap to the authored width (0.73.0); the
+        // authored colour is used unless it's the dark default.
         hudCtx.textAlign = "left";
         hudCtx.textBaseline = "top";
         hudCtx.lineWidth = 3;
         hudCtx.strokeStyle = "rgba(10, 16, 24, 0.85)";
-        hudCtx.strokeText(ui.text, left, top);
-        hudCtx.fillStyle = "#eaf6ff";
-        hudCtx.fillText(ui.text, left, top);
+        const dark = ui.color.x === 0.118 && ui.color.y === 0.165 && ui.color.z === 0.22;
+        hudCtx.fillStyle = dark ? "#eaf6ff" : css(ui.color, Math.max(ui.opacity, 0.35));
+        const lineHeight = Math.round(ui.fontSize * 1.3);
+        textLines(ui.text, ui.width).forEach((line, i) => {
+          hudCtx.strokeText(line, left, top + i * lineHeight);
+          hudCtx.fillText(line, left, top + i * lineHeight);
+        });
         return;
+      }
       case "Button":
       case "Panel":
         hudCtx.fillStyle = css(ui.color, ui.opacity);
@@ -4904,6 +5368,7 @@ async function startEditor() {
       const nearShip =
         !!ship && !!me && !spaceView.flight.piloting && spaceView.flight.landed && me.position.distanceTo(ship.position) < 9;
       drawFlightHud(hudCtx, hud.width, hud.height, spaceView, viewCamera, nearShip);
+      drawExplorerHud(hudLines);
       // The same readout as text, for screen readers and tests.
       const f = spaceView.flight;
       if (f.piloting)
@@ -4945,7 +5410,14 @@ async function startEditor() {
       if (playing && uiVisibility.get(uiName) === false) continue;
       const value = playing ? (uiValues.get(uiName) ?? ui.value) : ui.value;
       hudCtx.font = `600 ${ui.fontSize}px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif`;
-      const auto = autoSize(ui.kind, ui.text ? hudCtx.measureText(ui.text).width : 0, ui.fontSize);
+      let auto = autoSize(ui.kind, ui.text ? hudCtx.measureText(ui.text).width : 0, ui.fontSize);
+      if (ui.kind === "Text" && ui.text) {
+        const lines = textLines(ui.text, ui.width);
+        auto = {
+          width: Math.max(...lines.map((l) => hudCtx.measureText(l).width)),
+          height: lines.length * Math.round(ui.fontSize * 1.3),
+        };
+      }
       const rect = layoutRect(
         ui.anchor,
         hud.width,

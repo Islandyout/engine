@@ -815,3 +815,75 @@ input[readonly] {
   background: var(--accent-strong);
   border-color: var(--accent);
 }
+
+/* Player settings, screen-reader text and touch controls (playerSettings.ts). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.settings-panel {
+  width: min(460px, 100%);
+}
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 13px;
+}
+.settings-panel .game-actions {
+  margin-top: 14px;
+  justify-content: flex-end;
+}
+.touch-controls {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+}
+.touch-stick {
+  position: absolute;
+  left: 28px;
+  bottom: 28px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(143, 247, 255, 0.12);
+  border: 1px solid rgba(143, 247, 255, 0.4);
+  pointer-events: auto;
+  touch-action: none;
+}
+.touch-knob {
+  position: absolute;
+  left: 38px;
+  top: 38px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(143, 247, 255, 0.45);
+}
+.touch-buttons {
+  position: absolute;
+  right: 16px;
+  bottom: 20px;
+  display: grid;
+  grid-template-columns: repeat(5, 56px);
+  gap: 8px;
+  pointer-events: auto;
+}
+.touch-button {
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(143, 247, 255, 0.45);
+  background: rgba(6, 12, 18, 0.6);
+  color: #cfe7f5;
+  font-size: 11px;
+  font-weight: 700;
+  touch-action: none;
+}

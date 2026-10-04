@@ -225,6 +225,9 @@ const componentNames = [
   "SpaceSystem",
   "Spaceship",
   "Scannable",
+  "Site",
+  "Routine",
+  "Wildlife",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -469,6 +472,23 @@ export function normalizeComponent(
         range: positiveNumber(value.range, "Scannable.range"),
       };
     }
+    case "Site":
+      return {
+        name: string(value.name, "Site.name"),
+        body: string(value.body, "Site.body"),
+        latitude: number(value.latitude, "Site.latitude"),
+        longitude: number(value.longitude, "Site.longitude"),
+        radius: positiveNumber(value.radius, "Site.radius"),
+      };
+    case "Routine":
+      return { stops: string(value.stops, "Routine.stops"), speed: positiveNumber(value.speed, "Routine.speed") };
+    case "Wildlife":
+      return {
+        wary: positiveNumber(value.wary, "Wildlife.wary"),
+        flee: positiveNumber(value.flee, "Wildlife.flee"),
+        speed: positiveNumber(value.speed, "Wildlife.speed"),
+        leash: positiveNumber(value.leash, "Wildlife.leash"),
+      };
     case "AnimationState":
       return {
         clip: string(value.clip, "AnimationState.clip"),

@@ -12,15 +12,34 @@ export interface ScanTarget {
   kind: string;
   position: THREE.Vector3;
   range: number;
+  // A fleeing animal (0.73.0) can't be scanned: the scan resets.
+  fleeing?: boolean;
 }
 
-const seconds: Record<string, number> = { Landmark: 3, Culture: 2.4, Fauna: 2, Flora: 1.6, Mineral: 1.6 };
+const seconds: Record<string, number> = { Landmark: 3, Culture: 2.4, Fauna: 2, Flora: 1.6, Mineral: 1.6, Atmosphere: 2.5 };
+
+// What scripts tune (0.73.0, host.send("scanner", "range time interference
+// condition")): Survey Optics' range and speed, weather interference and
+// the scanner component's condition, all of which shape confidence.
+export interface ScannerTuning {
+  range: number; // multiplier
+  time: number; // multiplier on scan time (lower is faster)
+  interference: number; // 0..1
+  condition: number; // 0..1
+}
 
 export class Scanner {
   target?: ScanTarget;
   progress = 0; // 0..1
   quality = 0;
   readonly done = new Set<string>();
+  tuning: ScannerTuning = { range: 1, time: 1, interference: 0, condition: 1 };
+  // Looking up at open sky with nothing else in view scans the air (0.73.0):
+  // the key reported for it, "" when there's no air scan here.
+  skyKey = "";
+  // How sure the last finished scan is, 0..1.
+  confidence = 0;
+  private fleeingName?: string;
   private lastCompleted?: { name: string; until: number };
 
   // The best target in front of `from` (looking along `forward`, flattened
@@ -32,7 +51,7 @@ export class Scanner {
     for (const candidate of candidates) {
       to.copy(candidate.position).sub(from);
       const distance = to.length();
-      if (distance > candidate.range) continue;
+      if (distance > candidate.range * this.tuning.range) continue;
       to.y = 0;
       const aim = distance < 1.5 ? 1 : to.normalize().dot(flat);
       if (aim < 0.6) continue;
@@ -50,7 +69,17 @@ export class Scanner {
       this.progress = 0;
       return undefined;
     }
-    const best = this.pick(from, forward, candidates);
+    let best = this.pick(from, forward, candidates);
+    this.fleeingName = undefined;
+    if (best?.target.fleeing) {
+      // It bolted: the scan starts over.
+      this.fleeingName = best.target.name;
+      this.target = undefined;
+      this.progress = 0;
+      return undefined;
+    }
+    if (!best && this.skyKey && forward.clone().normalize().y > 0.55)
+      best = { target: { key: this.skyKey, name: "Atmosphere", kind: "Atmosphere", position: from.clone(), range: 1 }, score: 0, aim: 1 };
     if (!best) {
       this.target = undefined;
       this.progress = Math.max(0, this.progress - dt);
@@ -60,8 +89,10 @@ export class Scanner {
     this.target = best.target;
     if (this.done.has(best.target.key)) return undefined;
     this.quality = THREE.MathUtils.clamp((best.aim - 0.6) / 0.4, 0.2, 1) * (moving ? 0.6 : 1);
-    this.progress += (dt * (0.4 + 0.85 * this.quality)) / (seconds[best.target.kind] ?? 1.6);
+    const slow = (1 + this.tuning.interference * 0.8) / (0.4 + 0.6 * this.tuning.condition);
+    this.progress += (dt * (0.4 + 0.85 * this.quality)) / ((seconds[best.target.kind] ?? 1.6) * this.tuning.time * slow);
     if (this.progress < 1) return undefined;
+    this.confidence = THREE.MathUtils.clamp(this.quality * (1 - this.tuning.interference * 0.6) * (0.5 + 0.5 * this.tuning.condition), 0, 1);
     this.done.add(best.target.key);
     this.progress = 0;
     this.lastCompleted = { name: best.target.name, until: performance.now() + 2500 };
@@ -82,6 +113,12 @@ export class Scanner {
       ctx.fillStyle = catalogued ? "rgba(207,231,245,0.75)" : "#8ff7ff";
       ctx.fillText(`${this.target.name.toUpperCase()} · ${this.target.kind.toUpperCase()}`, x, y);
       if (!catalogued) {
+        const live = THREE.MathUtils.clamp(this.quality * (1 - this.tuning.interference * 0.6) * (0.5 + 0.5 * this.tuning.condition), 0, 1);
+        ctx.fillStyle = live > 0.75 ? "#9be37a" : live > 0.45 ? "#ffd36e" : "#ff8a6a";
+        ctx.fillText(`CONFIDENCE ${Math.round(live * 100)}%${this.tuning.interference > 0.2 ? " · INTERFERENCE" : ""}`, x, y + 34);
+        ctx.fillStyle = "#8ff7ff";
+      }
+      if (!catalogued) {
         ctx.strokeStyle = "rgba(143,247,255,0.25)";
         ctx.lineWidth = 3;
         ctx.beginPath();
@@ -94,6 +131,10 @@ export class Scanner {
       } else {
         ctx.fillText("CATALOGUED", x, y + 17);
       }
+    } else if (holding && this.fleeingName) {
+      ctx.fillStyle = "#ff8a6a";
+      ctx.fillText(`${this.fleeingName.toUpperCase()} FLEEING -- SCAN LOST`, x, y);
+      text = "SCAN target fleeing";
     } else if (holding) {
       ctx.fillStyle = "rgba(207,231,245,0.6)";
       ctx.fillText("NO SCAN TARGET", x, y);

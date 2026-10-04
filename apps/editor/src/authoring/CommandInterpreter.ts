@@ -92,6 +92,9 @@ const componentNames = [
   "SpaceSystem",
   "Spaceship",
   "Scannable",
+  "Site",
+  "Routine",
+  "Wildlife",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -640,6 +643,12 @@ export function defaultComponent(
       };
     case "Scannable":
       return { id: "", name: "", kind: "Mineral", range: 6 };
+    case "Site":
+      return { name: "Site", body: "", latitude: 0, longitude: 0, radius: 400 };
+    case "Routine":
+      return { stops: "8 0 0; 18 10 0", speed: 1.4 };
+    case "Wildlife":
+      return { wary: 44, flee: 16, speed: 7, leash: 80 };
     case "AnimationState":
       return { clip: "", time: 0, looping: true };
     case "Renderable":

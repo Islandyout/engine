@@ -22,6 +22,9 @@ import type {
   SpaceSystemComponent,
   SpaceshipComponent,
   ScannableComponent,
+  SiteComponent,
+  RoutineComponent,
+  WildlifeComponent,
   TerrainComponent,
   AudioSettingsComponent,
   PostProcessingComponent,
@@ -81,6 +84,9 @@ export interface SceneComponents {
   SpaceSystem: SpaceSystemComponent;
   Spaceship: SpaceshipComponent;
   Scannable: ScannableComponent;
+  Site: SiteComponent;
+  Routine: RoutineComponent;
+  Wildlife: WildlifeComponent;
   Terrain: TerrainComponent;
   AudioSettings: AudioSettingsComponent;
   PostProcessing: PostProcessingComponent;
@@ -129,6 +135,9 @@ export const prefabableComponentNames = [
   "SpaceSystem",
   "Spaceship",
   "Scannable",
+  "Site",
+  "Routine",
+  "Wildlife",
 ] as const satisfies readonly (keyof SceneComponents)[];
 export type PrefabableComponent = (typeof prefabableComponentNames)[number];
 const prefabableComponentSet: ReadonlySet<string> = new Set(
@@ -196,6 +205,9 @@ export class Scene {
     SpaceSystem: new Map(),
     Spaceship: new Map(),
     Scannable: new Map(),
+    Site: new Map(),
+    Routine: new Map(),
+    Wildlife: new Map(),
     Terrain: new Map(),
     AudioSettings: new Map(),
     PostProcessing: new Map(),

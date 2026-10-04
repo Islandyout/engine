@@ -236,6 +236,14 @@ const metadata: Record<string, PropertyMetadata> = {
   "Scannable.id": { label: "Scan id (sent to scripts)" },
   "Scannable.kind": { options: choice(["Flora", "Fauna", "Mineral", "Culture", "Landmark"]) },
   "Scannable.range": { label: "Scan range (m)" },
+  "Site.body": { label: "Body (SpaceSystem)" },
+  "Site.radius": { label: "Landing radius (m)" },
+  "Routine.stops": { label: "Stops (hour x z; ...)" },
+  "Routine.speed": { label: "Walk speed (m/s)" },
+  "Wildlife.wary": { label: "Wary within (m)" },
+  "Wildlife.flee": { label: "Flee within (m)" },
+  "Wildlife.speed": { label: "Run speed (m/s)" },
+  "Wildlife.leash": { label: "Leash from home (m)" },
   "Spaceship.mass": { label: "Mass (kg)" },
   "Spaceship.thrust": { label: "Main thrust (N)" },
   "Spaceship.liftThrust": { label: "Belly thrust (N)" },
@@ -353,7 +361,7 @@ export const componentGroups: readonly ComponentGroup[] = [
   },
   {
     label: "Gameplay",
-    types: ["Health", "AIState", "AICombat", "Pedestrian", "Player", "CharacterController", "Weapons", "Vehicle", "Driver", "Spaceship", "Scannable"],
+    types: ["Health", "AIState", "AICombat", "Pedestrian", "Player", "CharacterController", "Weapons", "Vehicle", "Driver", "Spaceship", "Scannable", "Site", "Routine", "Wildlife"],
   },
   {
     label: "Appearance & Animation",

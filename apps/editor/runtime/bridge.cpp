@@ -3931,6 +3931,18 @@ EXPORT void editor_set_wildlife(int index, double wary, double flee, double spee
     animal.leash = static_cast<float>(leash);
     target->first->set(target->second, animal);
 }
+// Moves entity `index` by (dx, dz) on the ground (0.73.0): the editor's
+// solid scatter (large minerals) pushes the walker out of itself.
+EXPORT void editor_push(int index, double dx, double dz) {
+    if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size() || !std::isfinite(dx) ||
+        !std::isfinite(dz) || std::abs(dx) > 5 || std::abs(dz) > 5)
+        return;
+    const auto entity = active->entities[static_cast<std::size_t>(index)];
+    if (auto *box = active->world.alive(entity) ? active->world.get<engine::Box>(entity) : nullptr) {
+        box->center.x += static_cast<float>(dx);
+        box->center.z += static_cast<float>(dz);
+    }
+}
 // 0 calm, 1 wary, 2 fleeing; -1 not wildlife.
 EXPORT int editor_wildlife_state(int index) {
     if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())

@@ -42,10 +42,13 @@ export interface SpaceBody {
   color: string;
   haze: string;
   // Options after the colours, "key=value": sea (m, relative to the
-  // radius), clouds (0..1 cover), snow (0/1).
+  // radius), clouds (0..1 cover), snow (0/1), hidden (0/1: not drawn or
+  // listed until a script reveals it), unlit (0/1: barely reflects light).
   sea?: number;
   clouds: number;
   snow: boolean;
+  hidden: boolean;
+  unlit: boolean;
 }
 
 // One body per line (see SpaceSystemComponent.bodies). Blank lines and
@@ -136,7 +139,13 @@ function options(tokens: string[]) {
     const [key, value] = token.split("=");
     if (key && value !== undefined && Number.isFinite(Number(value))) values[key] = Number(value);
   }
-  return { sea: values.sea, clouds: THREE.MathUtils.clamp(values.clouds ?? 0, 0, 1), snow: values.snow === 1 };
+  return {
+    sea: values.sea,
+    clouds: THREE.MathUtils.clamp(values.clouds ?? 0, 0, 1),
+    snow: values.snow === 1,
+    hidden: values.hidden === 1,
+    unlit: values.unlit === 1,
+  };
 }
 
 export interface Species {
@@ -281,6 +290,8 @@ class Planet {
     readonly body: SpaceBody,
   ) {
     this.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
+    // An unlit body (0.73.0) reflects almost nothing: a shape against the stars.
+    if (body.unlit) this.material.color.setScalar(0.08);
     // Water is glossy: a per-vertex "water" weight lowers the roughness.
     this.material.onBeforeCompile = (shader) => {
       shader.vertexShader = shader.vertexShader
@@ -966,6 +977,9 @@ export class SpaceView {
       const centre = new THREE.Vector3(this.rt._editor_space_body_value(i, 0), this.rt._editor_space_body_value(i, 1), this.rt._editor_space_body_value(i, 2));
       planet.group.position.copy(centre);
       planet.group.quaternion.copy(this.frame);
+      // Hidden bodies (0.73.0) aren't there until a script reveals them.
+      planet.group.visible = this.rt._editor_space_body_value(i, 10) !== 1;
+      if (!planet.group.visible) return;
       const relative = cameraPosition.clone().sub(centre);
       const altitude = relative.length() - planet.body.radius;
       if (!nearest || altitude < nearest.altitude) nearest = { planet, altitude, up: relative.clone().normalize() };
