@@ -14,7 +14,7 @@ local function fresh()
     res = { ore = 0, biomass = 0, volatiles = 0 },
     known = {}, landmarks = {}, frags = {}, visited = {}, completed = {},
     upg = { thrust = 0, fuel = 0, scan = 0, hull = 0, life = 0, heat = 0, rcs = 0 },
-    journal = {}, atmo = {}, lessons = {}, ice = {},
+    journal = {}, atmo = {}, lessons = {}, ice = {}, spots = {},
     civ = {
       discovered = {}, evidence = {}, contacts = {}, artifacts = {}, investigations = {},
       lang = { talari = 0, ossuary = 0, hollow = 0 },
@@ -141,6 +141,8 @@ local function save_now(reason)
   end
   S.fuel = st and st.fuel or S.fuel
   if st then S.parts = { engine = st.engine, rcs = st.rcs, gear = st.gear, scanner = st.scanner } end
+  -- The hull exactly and the system clock (0.75.0).
+  if st then S.hull, S.time = st.hull, st.time end
   local text = encode(S)
   save.set("expedition", text)
   save.set("expedition_hash", tostring(hash(text)))
@@ -1300,8 +1302,16 @@ local function begin(from_save)
   apply_upgrades()
   local st = space.state()
   if from_save then
+    -- The clock first: the planets (and the town's day) where they were.
+    if S.time then
+      space.call("time", "", S.time)
+      world.set_clock(((S.time - 3498) / 969 * 24 + 12) % 24)
+      space.call("settle")
+    end
     if S.ship and S.ship.body then space.place_landed(S.ship.body, S.ship.lat, S.ship.lon, 0) end
     if S.fuel then space.set_fuel(S.fuel) end
+    if S.hull then space.call("hull", "", S.hull) end
+    for spot in pairs(S.spots or {}) do host.send("harvest_spot", spot) end
     if S.parts then for p, v in pairs(S.parts) do space.call("part", p, v - 100) end end
     if S.reserve then space.call("reserve") end
     if S.nemesis then space.call("reveal", "Nemesis") end
@@ -1336,6 +1346,12 @@ function on_ui(name, value)
   if name == "scan_confidence" then confidence = tonumber(value) or 1
   elseif name == "scan" then on_scan(value)
   elseif name == "near_harvest" then near_harvest = value or ""
+  elseif name == "harvest_spot" then
+    -- Remembered so it stays harvested after a reload (a few hundred).
+    S.spots = S.spots or {}
+    local n = 0
+    for _ in pairs(S.spots) do n = n + 1 end
+    if n < 400 then S.spots[value] = true end
   elseif name == "harvested" then
     local sp = SPECIES[value]
     if sp then

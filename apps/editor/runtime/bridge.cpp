@@ -2884,6 +2884,33 @@ std::optional<engine::Entity> BridgeHost::spawn(engine::World &world, const std:
 bool BridgeHost::space(engine::World &world, const std::string &op, const std::vector<double> &args,
                        const std::string &text, std::vector<double> &out, std::string &text_out) {
     // The scene clock (world.set_clock) works with or without a SpaceSystem.
+    // space.call("settle"): everyone with a Routine stands at the stop the
+    // clock says, now (0.75.0: a loaded save doesn't watch the town walk
+    // back from their homes).
+    if (op == "settle") {
+        for (const auto entity : world.query<engine::Box, Routine>()) {
+            auto &routine = *world.get<Routine>(entity);
+            if (routine.stops.empty())
+                continue;
+            int stop = static_cast<int>(routine.stops.size()) - 1;
+            for (std::size_t i = 0; i < routine.stops.size(); ++i)
+                if (routine.stops[i].hour <= runtime_.clock_hours)
+                    stop = static_cast<int>(i);
+            routine.current = stop;
+            const auto &goal = routine.stops[static_cast<std::size_t>(stop)];
+            auto &box = *world.get<engine::Box>(entity);
+            box.center.x = goal.x;
+            box.center.z = goal.z;
+            if (auto *body = world.get<engine::physics::RigidBody>(entity))
+                body->velocity = {};
+            if (runtime_.space)
+                if (const auto pinned = runtime_.space->pinned.find(entity); pinned != runtime_.space->pinned.end()) {
+                    pinned->second.x = goal.x;
+                    pinned->second.z = goal.z;
+                }
+        }
+        return true;
+    }
     if (op == "clock") {
         if (!args.empty() && std::isfinite(args[0]))
             runtime_.clock_hours = static_cast<float>(std::fmod(std::fmod(args[0], 24.0) + 24.0, 24.0));
@@ -2900,6 +2927,14 @@ bool BridgeHost::space(engine::World &world, const std::string &op, const std::v
     if (!runtime_.space)
         return false;
     auto &sp = *runtime_.space;
+    // space.call("time", "", seconds): the system clock (0.75.0, a loaded
+    // save puts the planets back where they were).
+    if (op == "time") {
+        if (!args.empty() && std::isfinite(args[0]) && args[0] >= 0)
+            sp.time = args[0];
+        out = {sp.time};
+        return true;
+    }
     const auto arg = [&](std::size_t i) { return i < args.size() && std::isfinite(args[i]) ? args[i] : 0.0; };
     const auto body_index = [&](const std::string &name) {
         for (std::size_t i = 0; i < sp.system.bodies.size(); ++i)
@@ -3042,6 +3077,13 @@ bool BridgeHost::space(engine::World &world, const std::string &op, const std::v
     }
     if (op == "set_fuel") {
         sp.ship.fuel = std::clamp(arg(0), 0.0, sp.spec.fuel);
+        return true;
+    }
+    // space.call("hull", "", value): sets the hull exactly (0.75.0, a
+    // loaded save restores it).
+    if (op == "hull") {
+        sp.ship.hull = std::clamp(arg(0), 1.0, sp.spec.hull);
+        sp.ship.destroyed = false;
         return true;
     }
     if (op == "repair") {
@@ -4314,7 +4356,8 @@ EXPORT int editor_commit() {
 // slope under the ship (degrees), 48-50 the landing limits (sink m/s, slope
 // degrees, drift m/s), 51 water under the ship; 52-54 the walker's shift in
 // the latest on-foot re-anchor (0.75.0, x y z; 0 once the frame changes
-// otherwise). 0 without.
+// otherwise); 55/56 the frame origin's latitude and longitude (degrees,
+// body-fixed). 0 without.
 EXPORT double editor_space_value(int field) {
     if (!active->space)
         return 0;
@@ -4369,6 +4412,10 @@ EXPORT double editor_space_value(int field) {
     case 38: return sp.frame_generation;
     case 39: return sp.site_body;
     case 40: return sp.active_site;
+    // 55/56 the frame origin's latitude/longitude on its body (0.75.0):
+    // where the frame is, for anything that must be the same next visit.
+    case 55: return std::asin(std::clamp(space::normalized(sp.site_origin).y, -1.0, 1.0)) * 180 / 3.14159265358979;
+    case 56: return std::atan2(space::normalized(sp.site_origin).z, space::normalized(sp.site_origin).x) * 180 / 3.14159265358979;
     case 52: return sp.reframe_generation == sp.frame_generation ? sp.reframe_shift.x : 0;
     case 53: return sp.reframe_generation == sp.frame_generation ? sp.reframe_shift.y : 0;
     case 54: return sp.reframe_generation == sp.frame_generation ? sp.reframe_shift.z : 0;

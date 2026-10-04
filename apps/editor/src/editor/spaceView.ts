@@ -1139,7 +1139,10 @@ export class SpaceView {
     const out: Array<{ species: Species; x: number; y: number; z: number; yaw: number; scale: number }> = [];
     if (!pool.length) return out;
     const total = pool.reduce((sum, s) => sum + s.weight, 0);
-    let seed = (Math.floor(this.rt._editor_space_body_value(body, 0) * 7 + this.rt._editor_space_body_value(body, 2) * 13) >>> 0) || 7;
+    // Seeded by where the frame is on its body (0.75.0), so the same place
+    // grows the same plants every visit (and what was harvested stays gone).
+    let seed = (Math.round(this.rt._editor_space_value(55) * 100) * 73856093) ^ (Math.round(this.rt._editor_space_value(56) * 100) * 19349663) ^ ((body + 1) * 83492791);
+    seed = seed >>> 0 || 7;
     const random = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
     for (let i = 0; i < 900 && out.length < 650 * density; i++) {
       // Denser near the middle, where you walk.

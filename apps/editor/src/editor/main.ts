@@ -1971,6 +1971,7 @@ async function startEditor() {
     explorerFx?.clearPrints();
     const kind = (k: string) => k[0]!.toUpperCase() + k.slice(1);
     scatterTargets = placed.map((p) => ({ key: p.species.id, name: p.species.name, kind: kind(p.species.kind), position: new THREE.Vector3(p.x, p.y + 0.4, p.z), range: 5 }));
+    hideHarvestedHere();
   }
   function endSpaceView() {
     endExplorer();
@@ -2153,6 +2154,10 @@ async function startEditor() {
     else if (kind === "minimap") minimapAllowed = text !== "0";
     else if (kind === "catalogued") catalogued.add(text);
     else if (kind === "harvest") harvest(text);
+    else if (kind === "harvest_spot") {
+      harvestedSpots.add(text);
+      if (text.startsWith(`${scatterFrameKey()}|`)) hideScatter(Number(text.split("|")[1]));
+    }
     else if (kind === "scanner") {
       const [range = 1, time = 1, condition = 1] = text.split(/\s+/).map(Number);
       scanner.tuning.range = Number.isFinite(range) && range > 0 ? range : 1;
@@ -2226,6 +2231,7 @@ async function startEditor() {
     latLonWaypoints.clear();
     catalogued.clear();
     harvested.clear();
+    harvestedSpots.clear();
     nearHarvest = "";
     softGround = true;
     wasLanded = true;
@@ -2261,8 +2267,23 @@ async function startEditor() {
       }
     });
     if (best < 0) return;
-    harvested.add(best);
-    const placement = scatterPlacements[best]!;
+    hideScatter(best);
+    // Remembered by place (and saved by scripts), so it stays harvested.
+    const spot = `${scatterFrameKey()}|${best}`;
+    harvestedSpots.add(spot);
+    uiEvent("harvested", key);
+    uiEvent("harvest_spot", spot);
+  }
+  // Harvested specimens by place: "<body>:<lat>:<lon>|<index>".
+  const harvestedSpots = new Set<string>();
+  function scatterFrameKey() {
+    return `${runtime._editor_space_value(39)}:${runtime._editor_space_value(55).toFixed(2)}:${runtime._editor_space_value(56).toFixed(2)}`;
+  }
+  // Hides scatter placement `index` (harvested).
+  function hideScatter(index: number) {
+    if (!spaceScatter || harvested.has(index) || !scatterPlacements[index]) return;
+    harvested.add(index);
+    const placement = scatterPlacements[index]!;
     const zero = new THREE.Matrix4().makeScale(0, 0, 0);
     spaceScatter.traverse((o) => {
       const list = (o as THREE.InstancedMesh).userData?.instances as Array<{ x: number; z: number }> | undefined;
@@ -2274,7 +2295,11 @@ async function startEditor() {
       }
     });
     scatterTargets = scatterTargets.filter((t) => !(t.position.x === placement.x && t.position.z === placement.z));
-    uiEvent("harvested", key);
+  }
+  // After a frame's scatter is built: hide what was harvested there before.
+  function hideHarvestedHere() {
+    const prefix = `${scatterFrameKey()}|`;
+    for (const spot of harvestedSpots) if (spot.startsWith(prefix)) hideScatter(Number(spot.slice(prefix.length)));
   }
   const sway = swayUniforms();
   const swayCache = new Map<THREE.Material, THREE.Material>();

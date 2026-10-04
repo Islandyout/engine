@@ -1812,6 +1812,19 @@ int main() {
         check(editor_routine_stop(2) == 1 && editor_routine_stop(0) == -1);
     }
     {
+        // Settling (0.75.0): after a load, everyone with a Routine stands at
+        // the stop the clock says at once.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_routine(0, "0 0 0 sit; 12 30 -20 talk", 1.5);
+        check(editor_add(0, 30, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_script_source(1, "local t = 0 function on_tick(dt) t = t + 1 if t == 1 then world.set_clock(13) space.call('settle') end end");
+        check(editor_commit() == 1);
+        for (int i = 0; i < 3; ++i)
+            editor_tick();
+        check(std::abs(editor_value(0, 0) - 30) < 0.5 && std::abs(editor_value(0, 2) + 20) < 0.5);
+    }
+    {
         // Soft radii (0.75.0): the walker and a big animal ease apart.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
