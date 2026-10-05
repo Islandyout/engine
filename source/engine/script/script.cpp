@@ -1,4 +1,5 @@
 #include "engine/script/script.hpp"
+#include "api_prelude.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -1319,7 +1320,7 @@ void Runtime::step(World &world, float dt) {
             lua_newtable(instance->L);
             lua_setglobal(instance->L, "time");
             push_props(instance->L, script);
-            if (luaL_dostring(instance->L, prelude) != LUA_OK ||
+            if (luaL_dostring(instance->L, prelude) != LUA_OK || luaL_dostring(instance->L, api_prelude) != LUA_OK ||
                 luaL_dostring(instance->L, script.source.c_str()) != LUA_OK) {
                 if (on_error_)
                     on_error_(entity, error_text(instance->L, -1));

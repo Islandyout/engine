@@ -212,7 +212,7 @@ local function banner(text, seconds, kind)
   ui.set_text(last_banner, text)
   ui.set_visible(last_banner, true)
   banner_until = time.now + (seconds or 3)
-  host.send("cue", kind or "info")
+  hud.cue(kind or "info")
 end
 
 local function hint(text, seconds)
@@ -410,7 +410,7 @@ local function recommended_body()
 end
 
 local function set_waypoint_for_step()
-  host.send("waypoint_clear", "goal")
+  hud.clear_waypoint("goal")
   local target
   if S.step == "relay" then target = LANDMARKS["landmark:Under-Ice Relay"]
   elseif S.step == "fragments" then target = next_fragment()
@@ -517,13 +517,13 @@ local function finish()
     "It is a receiver, older than every civilization that inherited its relays -- Talari, Ossuary, the Clades. Still listening.\n\nPlay time %d min · worlds visited %d · species %d · evidence %d · fragments %d/7 · %d RP · recoveries %d",
     math.floor(S.play / 60), worlds, species, evidence, fragments(), S.rp, S.deaths))
   save.set("expedition", "")
-  host.send("announce", "Expedition complete.")
+  hud.announce("Expedition complete.")
 end
 
 local function reveal_nemesis()
   if S.nemesis then return end
   S.nemesis = true
-  space.call("reveal", "Nemesis")
+  space.reveal("Nemesis")
   log_journal("Seven voices", "All seven fragments resolve into one carrier. It points beyond Hollow, at a world no survey has charted: Nemesis. The receiver is there.", "anomaly")
   banner("NEMESIS PLOTTED", 4, "anomaly")
   set_step("nemesis")
@@ -597,7 +597,7 @@ local function on_scan(key)
     -- A clean, confident scan is worth a little more.
     if confidence >= 0.85 then S.rp = S.rp + 2 end
     lesson("specimen")
-    host.send("catalogued", key)
+    scanner.catalogued(key)
     banner(string.upper(sp.name) .. "  +" .. sp.rp .. " RP  +" .. sp.y .. " " .. string.upper(sp.yield), 2.2, "good")
     log_journal(sp.name .. " (" .. sp.body .. ", " .. sp.cls .. ")", sp.text, "species")
     gain(sp.yield, sp.y)
@@ -725,7 +725,7 @@ local function ship_menu()
         { "Analyse 18 volatiles -> 6 RP", function() if need("volatiles", 18) then S.rp = S.rp + 6 banner("VOLATILE ANALYSIS  +6 RP", 2, "good") end end },
         { "Repair hull: 6 ore -> +20", function() if need("ore", 6) then space.repair(20) banner("HULL REPAIRED", 2, "good") end end },
         { "Service parts: 8 ore -> +25", function()
-          if need("ore", 8) then for _, p in ipairs({ "engine", "rcs", "gear", "scanner" }) do space.call("part", p, 25) end
+          if need("ore", 8) then for _, p in ipairs({ "engine", "rcs", "gear", "scanner" }) do space.repair_part(p, 25) end
             apply_scanner() banner("COMPONENTS SERVICED", 2, "good") end end },
       }
     end,
@@ -822,9 +822,9 @@ local function board_menu()
         { "Engage autopilot (G)", function()
           local name = names[board_index]
           if name then space.set_target(name) end
-          if space.call("autopilot", "", 1) then banner("NAV AUTOPILOT ENGAGED", 2, "good") close_menu()
+          if space.autopilot(true) then banner("NAV AUTOPILOT ENGAGED", 2, "good") close_menu()
           else hint("Autopilot: lift off first, with a target set.", 3) end end },
-        { "System map (M)", function() host.send("map", "system") close_menu() end },
+        { "System map (M)", function() hud.map("system") close_menu() end },
       }
     end,
   })
@@ -899,7 +899,7 @@ local function workshop_menu(kind)
           if S.res.ore < ore or S.res.biomass < bio then return hint(string.format("The workshop needs %d ore and %d biomass.", ore, bio), 3) end
           S.res.ore, S.res.biomass = S.res.ore - ore, S.res.biomass - bio
           space.repair(32)
-          for _, p in ipairs({ "engine", "rcs", "gear" }) do space.call("part", p, 18) end
+          for _, p in ipairs({ "engine", "rcs", "gear" }) do space.repair_part(p, 18) end
           rep(inst, 2)
           banner("LOCAL WORKSHOP REPAIRS COMPLETE", 2.5, "good")
           refresh_meters()
@@ -1127,9 +1127,9 @@ end
 
 local function frame_changed(st)
   local info = BODY_INFO[st.frame] or {}
-  host.send("dust", (info.dust or "#d8cfb8") .. " " .. (info.dustDensity or 0.4))
-  host.send("soft", info.soft and "1" or "0")
-  host.send("sky_scan", "atmosphere:" .. st.frame)
+  fx.dust(info.dust or "#d8cfb8", info.dustDensity or 0.4)
+  fx.soft_ground(info.soft)
+  scanner.sky_key("atmosphere:" .. st.frame)
   local here = current_site(st)
   home_markers(here == "home")
   if here == "" then release_fauna(st.frame) else despawn() end
@@ -1183,9 +1183,9 @@ local function weather(st, dt)
   if not tethys then
     if storm.level > 0 then
       storm.level = 0
-      host.send("weather", "0 0 0 0")
-      space.call("wind", "", 0, 0, 0)
-      host.send("audio", "rain 0")
+      fx.weather(0, 0, 0, 0)
+      space.set_wind(0, 0, 0)
+      audio.ambience("rain", 0)
     end
     return
   end
@@ -1232,9 +1232,9 @@ local function weather(st, dt)
     hint(roof and "Sheltered: under cover the rain can't reach the suit or the scanner." or "Sheltered: out of the wind behind cover.", 3)
   end
   local rain = roof and l * 0.12 or l
-  host.send("weather", string.format("%.2f %.2f %.1f %.1f", rain, l * 0.6, wind, wind * 0.4))
-  space.call("wind", "", wind, 0, wind * 0.4)
-  host.send("audio", string.format("rain %.2f", roof and l * 0.45 or l))
+  fx.weather(rain, l * 0.6, wind, wind * 0.4)
+  space.set_wind(wind, 0, wind * 0.4)
+  audio.ambience("rain", roof and l * 0.45 or l)
   -- The crosswind leans on a walker in the open.
   if not st.piloting and player and l > 0.2 and not sheltered then
     local x, y, z = world.position(player)
@@ -1258,7 +1258,7 @@ local function music(st, dt)
   music_clock = music_clock - dt
   if mood ~= music_mood or music_clock <= 0 then
     music_mood, music_clock = mood, 5
-    host.send("music", mood)
+    audio.music(mood)
   end
 end
 
@@ -1309,10 +1309,10 @@ local function ambience(st)
     local d = dist2d(player, SITES.kestra.x, SITES.kestra.z)
     settlement = clamp(1 - d / 260, 0, 1)
   elseif here == "darsa_delta" or here == "meridian_spur" or here == "hollow_enclave" then settlement = 0.8 end
-  host.send("audio", string.format("settlement %.2f", settlement))
-  host.send("audio", string.format("wind %.2f", st.piloting and 0.2 or 0.7))
+  audio.ambience("settlement", settlement)
+  audio.ambience("wind", st.piloting and 0.2 or 0.7)
   local alive = (st.frame == "Tethys" or st.frame == "Hollow") and settlement < 0.5 and not st.piloting
-  host.send("audio", string.format("wildlife %.2f", alive and 0.6 or 0))
+  audio.ambience("wildlife", alive and 0.6 or 0)
   local hum = 0
   local body = BODY_INFO[st.frame] and st.frame
   if body then
@@ -1324,7 +1324,7 @@ local function ambience(st)
       end
     end
   end
-  host.send("audio", string.format("signal %.2f", hum))
+  audio.ambience("signal", hum)
 end
 
 -- -------------------------------------------------------- the suit --
@@ -1363,7 +1363,7 @@ local function suit(st, dt)
     visor_clock = 0.2
     local cold = info.hazard == "cryo" and 0.35 + 0.5 * (1 - s.integrity / 100) or 0
     local hot = info.hazard == "thermal" and 0.3 + 0.5 * (1 - s.integrity / 100) or 0
-    host.send("visor", string.format("%d %.2f %.2f %.2f", (helmet and not st.piloting) and 1 or 0, s.integrity / 100, cold, hot))
+    hud.visor(helmet and not st.piloting, s.integrity / 100, cold, hot)
   end
   ui.set_value("O2Bar", math.max(0, s.o2))
   ui.set_value("SuitBar", s.integrity / 100)
@@ -1409,13 +1409,13 @@ local function begin(from_save)
   if from_save then
     -- The clock first: the planets (and the town's day) where they were.
     if S.time then
-      space.call("time", "", S.time)
+      space.set_time(S.time)
       world.set_clock(((S.time - 3498) / 969 * 24 + 12) % 24)
-      space.call("settle")
+      space.settle()
     end
     if S.ship and S.ship.body then space.place_landed(S.ship.body, S.ship.lat, S.ship.lon, 0) end
     if S.fuel then space.set_fuel(S.fuel) end
-    if S.hull then space.call("hull", "", S.hull) end
+    if S.hull then space.set_hull(S.hull) end
     if S.herds and (not S.ship or S.ship.body == "Tethys") then
       for i, p in pairs(S.herds) do
         local id = world.find("Herd " .. i)
@@ -1423,10 +1423,10 @@ local function begin(from_save)
       end
     end
     for spot in pairs(S.spots or {}) do host.send("harvest_spot", spot) end
-    if S.parts then for p, v in pairs(S.parts) do space.call("part", p, v - 100) end end
-    if S.reserve then space.call("reserve") end
-    if S.nemesis then space.call("reveal", "Nemesis") end
-    for k in pairs(S.known) do host.send("catalogued", k) end
+    if S.parts then for p, v in pairs(S.parts) do space.repair_part(p, v - 100) end end
+    if S.reserve then space.use_reserve() end
+    if S.nemesis then space.reveal("Nemesis") end
+    for k in pairs(S.known) do scanner.catalogued(k) end
     for i in pairs(S.ice) do
       local id = ICE[i] and world.find(ICE[i].name)
       if id then world.destroy(id) end
@@ -1449,8 +1449,8 @@ local function begin(from_save)
   publish_sites()
   refresh_meters()
   apply_scanner()
-  host.send("sky_scan", "atmosphere:Tethys")
-  host.send("announce", "Expedition started. Press F1 for controls.")
+  scanner.sky_key("atmosphere:Tethys")
+  hud.announce("Expedition started. Press F1 for controls.")
 end
 
 function on_ui(name, value)
@@ -1489,7 +1489,7 @@ function on_ui(name, value)
     save.set("expedition", "")
     S = fresh()
     begin(false)
-  elseif name == "SettingsBtn" then host.send("settings", "")
+  elseif name == "SettingsBtn" then hud.open_settings()
   elseif name == "MenuClose" then close_menu()
   elseif name:sub(1, 7) == "MenuBtn" then press_menu(tonumber(name:sub(8)) or 0)
   end
@@ -1502,13 +1502,13 @@ function on_tick(dt)
     player = world.find("Player")
     space.set_fuel(START_FUEL)
     space.set_controls(false)
-    space.call("board_key", "", 0)
+    space.allow_boarding(false)
     for _, el in ipairs({ "EndPanel", "EndTitle", "EndText", "Again", "Banner", "BannerGood", "BannerWarn", "BannerBad", "BannerAnomaly", "Hint", "Prompt" }) do ui.set_visible(el, false) end
     show_menu_ui(false)
     show_talk(nil)
     objective("", "")
     for _, el in ipairs(HUD) do ui.set_visible(el, false) end
-    host.send("music", "title")
+    audio.music("title")
     if load_save() then
       ui.set_text("Begin", "CONTINUE")
     else
@@ -1532,7 +1532,7 @@ function on_tick(dt)
       if menu and menu.key == key then close_menu() else fn() if menu then menu.key = key end end
     end
   end
-  if input.pressed("m") then host.send("map", "toggle") end
+  if input.pressed("m") then hud.map("toggle") end
 
   local st = space.state()
   if not st then return end
@@ -1591,13 +1591,13 @@ function on_tick(dt)
 
   -- Keys that act in the world.
   if input.pressed("b") then
-    if space.call("reserve") then
+    if space.use_reserve() then
       S.reserve = true
       banner("EMERGENCY RESERVE RELEASED", 2.5, "warn")
     elseif not S.reserve then hint("The reserve unlocks below 35% fuel.", 2) end
   end
   if input.pressed("g") then
-    if space.call("autopilot", "", st.autopilot and 0 or 1) then
+    if space.autopilot(not st.autopilot) then
       banner(st.autopilot and "AUTOPILOT OFF" or "NAV AUTOPILOT ENGAGED", 2, "good")
     else hint("Autopilot: set a target on the System Board (TAB) and lift off first.", 3) end
   end
@@ -1613,7 +1613,7 @@ function on_tick(dt)
   -- The suit light (0.75.0): automatic in the dark, or forced on or off.
   if input.pressed("l") and not st.piloting then
     suit_light = suit_light == "auto" and "on" or suit_light == "on" and "off" or "auto"
-    host.send("suitlight", suit_light)
+    hud.suit_light(suit_light)
     banner("SUIT LIGHT " .. string.upper(suit_light), 1.5)
   end
   if input.pressed("r") and not st.piloting then

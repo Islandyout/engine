@@ -24,7 +24,7 @@ emar rcs build/lua-obj/liblua.a "${lua_objects[@]}"
 # terrain's base64 heights reach 5.6 MB at the 1025 resolution limit
 # (editor_set_terrain); the 64 KB default overflowed at about 110x110.
 em++ -std=c++20 -O2 -fexceptions -Wall -Wextra -Werror -Iinclude -Ithird_party/lua \
-  apps/editor/runtime/bridge.cpp source/engine/world/world.cpp source/engine/world/fixed_systems.cpp \
+  apps/editor/runtime/bridge.cpp apps/editor/runtime/bridge_combat.cpp apps/editor/runtime/bridge_space.cpp source/engine/world/world.cpp source/engine/world/fixed_systems.cpp \
   source/engine/physics/physics.cpp source/engine/nav/nav.cpp source/engine/gameplay/character.cpp source/engine/gameplay/weapons.cpp source/engine/gameplay/car.cpp source/engine/gameplay/space.cpp source/engine/input/input.cpp source/engine/input/actions.cpp source/engine/script/script.cpp \
   build/lua-obj/liblua.a \
   -sMODULARIZE=1 -sEXPORT_NAME=createEditorRuntime -sSINGLE_FILE=1 \
