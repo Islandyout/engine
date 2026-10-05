@@ -595,6 +595,36 @@ int main() {
             check(host.emitted[3] == "log:1 1 9 2 0.48", "one start, one after, nine every, stage 2, time.now");
         }
         {
+            // The named helpers (0.77.0) send the same host messages as the
+            // raw string protocol they wrap.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            const auto entity = world.create();
+            world.set(entity, Box{{0, 0, 0}, {1, 1, 1}});
+            world.set(entity, RigidBody{});
+            world.set(entity, Script{R"lua(
+                function on_start()
+                  hud.announce("Hello")
+                  audio.music("explore")
+                  audio.ambience("wind", 0.5)
+                  hud.waypoint("w1", "Tethys", 10, 20, "Camp")
+                end
+            )lua"});
+            TestHost host;
+            Runtime runtime;
+            runtime.set_host(&host);
+            for (int i = 0; i < 3; ++i)
+                runtime.step(world, 1.0F / 60);
+            check(host.emitted.size() == 4, "four host messages");
+            check(host.emitted[0] == "host:announce:Hello", "hud.announce");
+            check(host.emitted[1] == "host:music:explore", "audio.music");
+            check(host.emitted[2] == "host:audio:wind 0.50", "audio.ambience");
+            check(host.emitted[3] == "host:waypoint:w1|Tethys|10|20|Camp", "hud.waypoint");
+        }
+        {
             // Collision and trigger callbacks receive the other entity's id,
             // and world.name/find/send/spawn/destroy/health/damage work.
             World world;

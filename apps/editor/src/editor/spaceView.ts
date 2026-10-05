@@ -12,6 +12,7 @@
 // kept in doubles: three.js composes model-view matrices in doubles, so a
 // mesh far from the origin still renders steadily.
 import * as THREE from "three";
+import { SpaceField } from "./bridgeFields";
 import {
   atmosphereParams,
   scatterColor,
@@ -258,36 +259,36 @@ export const assistNames = ["MANUAL", "STABILIZED", "NAV PROGRADE", "NAV RETROGR
 function readFlight(rt: SpaceRuntime): FlightState {
   const v = (f: number) => rt._editor_space_value(f);
   return {
-    piloting: v(0) === 1,
-    altitude: v(8),
-    speed: v(9),
-    verticalSpeed: v(10),
-    groundSpeed: v(11),
-    throttle: v(12),
-    fuel: v(13),
-    hull: v(14),
-    heat: v(15),
-    density: v(16),
-    warp: v(17),
-    assist: v(18),
-    landed: v(19) === 1,
-    periapsis: v(20),
-    apoapsis: v(21),
-    orbitClosed: v(22) === 1,
-    ref: v(23),
-    g: v(24),
-    engineOn: v(25) === 1,
-    vertical: v(26),
-    destroyed: v(28) === 1,
-    target: v(29),
-    targetDistance: v(30),
-    siteDistance: v(31),
-    period: v(32),
-    slope: v(47),
-    sinkLimit: v(48),
-    slopeLimit: v(49),
-    driftLimit: v(50),
-    overWater: v(51) === 1,
+    piloting: v(SpaceField.piloting) === 1,
+    altitude: v(SpaceField.altitude),
+    speed: v(SpaceField.speed),
+    verticalSpeed: v(SpaceField.verticalSpeed),
+    groundSpeed: v(SpaceField.groundSpeed),
+    throttle: v(SpaceField.throttle),
+    fuel: v(SpaceField.fuel),
+    hull: v(SpaceField.hull),
+    heat: v(SpaceField.heat),
+    density: v(SpaceField.airDensity),
+    warp: v(SpaceField.warp),
+    assist: v(SpaceField.assist),
+    landed: v(SpaceField.landed) === 1,
+    periapsis: v(SpaceField.periapsis),
+    apoapsis: v(SpaceField.apoapsis),
+    orbitClosed: v(SpaceField.orbitClosed) === 1,
+    ref: v(SpaceField.referenceBody),
+    g: v(SpaceField.gForce),
+    engineOn: v(SpaceField.engineOn) === 1,
+    vertical: v(SpaceField.bellyThrust),
+    destroyed: v(SpaceField.destroyed) === 1,
+    target: v(SpaceField.targetBody),
+    targetDistance: v(SpaceField.targetDistance),
+    siteDistance: v(SpaceField.siteDistance),
+    period: v(SpaceField.orbitPeriod),
+    slope: v(SpaceField.groundSlope),
+    sinkLimit: v(SpaceField.landSink),
+    slopeLimit: v(SpaceField.landSlope),
+    driftLimit: v(SpaceField.landDrift),
+    overWater: v(SpaceField.waterBelow) === 1,
   };
 }
 
@@ -863,8 +864,8 @@ export class SpaceView {
     this.previous.position.copy(this.current.position);
     this.previous.quaternion.copy(this.current.quaternion);
     const v = (f: number) => this.rt._editor_space_value(f);
-    this.current.position.set(v(1), v(2), v(3));
-    this.current.quaternion.set(v(4), v(5), v(6), v(7));
+    this.current.position.set(v(SpaceField.shipX), v(SpaceField.shipY), v(SpaceField.shipZ));
+    this.current.quaternion.set(v(SpaceField.attitudeX), v(SpaceField.attitudeY), v(SpaceField.attitudeZ), v(SpaceField.attitudeW));
     if (!this.sampled) {
       this.previous.position.copy(this.current.position);
       this.previous.quaternion.copy(this.current.quaternion);
@@ -1208,7 +1209,7 @@ export class SpaceView {
   // site's buildings) and of the sea.
   // `keep`: circles kept clear (around buildings); `density` scales the count.
   scatter(species: Species[], range: number, keepClear: number, keep: Array<{ x: number; z: number; r: number }> = [], density = 1) {
-    const body = this.rt._editor_space_value(39);
+    const body = this.rt._editor_space_value(SpaceField.frameBody);
     const pool = species.filter((s) => s.body === body && s.kind !== "fauna" && s.weight > 0);
     const out: Array<{ species: Species; x: number; y: number; z: number; yaw: number; scale: number }> = [];
     if (!pool.length) return out;
@@ -1216,7 +1217,9 @@ export class SpaceView {
     // Seeded by where the frame is on its body (0.75.0), so the same place
     // grows the same plants every visit (and what was harvested stays gone).
     let seed =
-      (Math.round(this.rt._editor_space_value(55) * 100) * 73856093) ^ (Math.round(this.rt._editor_space_value(56) * 100) * 19349663) ^ ((body + 1) * 83492791);
+      (Math.round(this.rt._editor_space_value(SpaceField.frameLatitude) * 100) * 73856093) ^
+      (Math.round(this.rt._editor_space_value(SpaceField.frameLongitude) * 100) * 19349663) ^
+      ((body + 1) * 83492791);
     seed = seed >>> 0 || 7;
     const random = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
     for (let i = 0; i < 900 && out.length < 650 * density; i++) {

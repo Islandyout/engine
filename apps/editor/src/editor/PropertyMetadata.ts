@@ -1,5 +1,6 @@
 import { modelCatalog } from "../scene/modelCatalog";
 import { soundCatalog } from "../scene/soundCatalog";
+import { componentHelp, fieldHelp } from "./componentHelp";
 
 export interface PropertyMetadata {
   label?: string;
@@ -10,6 +11,8 @@ export interface PropertyMetadata {
   // whose value is expected to span multiple lines (currently just
   // Script.source), not a general "long string" hint.
   multiline?: boolean;
+  // A sentence explaining the field (0.77.0), shown as its tooltip.
+  help?: string;
 }
 const choice = (values: readonly string[]) =>
   values.map((value) => ({ label: value, value }));
@@ -322,7 +325,14 @@ export function propertyMetadata(
   component: string,
   path: string,
 ): PropertyMetadata {
-  return metadata[`${component}.${path}`] ?? {};
+  const key = `${component}.${path}`;
+  const meta = metadata[key] ?? {};
+  return fieldHelp[key] ? { ...meta, help: fieldHelp[key] } : meta;
+}
+
+// What a component is for (0.77.0), under its card's title.
+export function componentDescription(type: string): string | undefined {
+  return componentHelp[type];
 }
 
 // Friendlier display names for the inspector's "Add component" list and each

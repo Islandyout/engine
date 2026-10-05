@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-  FrameGovernor,
-  governorTiers,
-  presetFloor,
-} from "../src/editor/frameGovernor";
+import { FrameGovernor, governorTiers, presetFloor } from "../src/editor/frameGovernor";
 
 const run = (g: FrameGovernor, ms: number, seconds: number) => {
   let changed = 0;
@@ -55,4 +51,12 @@ test("frame governor: tiers only ever get cheaper", () => {
     assert.ok(b.scatter <= a.scatter);
     assert.ok(b.crowdStride >= a.crowdStride);
   }
+});
+
+test("the stats panel says what limits the frame rate", async () => {
+  const { limitReason } = await import("../src/editor/frameGovernor");
+  assert.match(limitReason(16, 8, 3), /nothing/);
+  assert.match(limitReason(33, 10, 4), /GPU/);
+  assert.match(limitReason(33, 30, 20), /simulation/);
+  assert.match(limitReason(33, 30, 5), /CPU/);
 });

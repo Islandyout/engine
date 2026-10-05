@@ -181,3 +181,13 @@ export class FrameGovernor {
 export function presetFloor(preset: "low" | "medium" | "high") {
   return preset === "high" ? 0 : preset === "medium" ? 2 : 4;
 }
+
+// What holds the frame rate back (0.77.0), for the Stats panel: a frame's
+// interval is the CPU's work (the C++ simulation ticks, then everything else
+// the editor does) or, when the CPU finishes well inside it, the GPU.
+export function limitReason(intervalMs: number, cpuFrameMs: number, tickMs: number): string {
+  if (!(intervalMs > 0)) return "-";
+  if (intervalMs < 17.5) return "nothing (holding 60 fps)";
+  if (cpuFrameMs < intervalMs * 0.6) return "the GPU (resolution, shadows, draw calls)";
+  return tickMs > cpuFrameMs * 0.5 ? "the simulation (physics, AI, scripts)" : "scene work on the CPU (animation, particles, HUD)";
+}

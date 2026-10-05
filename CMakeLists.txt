@@ -297,7 +297,8 @@ if(ENGINE_BUILD_TESTS)
 endif()
 
 if(ENGINE_BUILD_TESTS)
-    add_executable(engine_editor_bridge_tests tests/editor_bridge_tests.cpp apps/editor/runtime/bridge.cpp)
+    add_executable(engine_editor_bridge_tests tests/editor_bridge_tests.cpp apps/editor/runtime/bridge.cpp
+        apps/editor/runtime/bridge_combat.cpp apps/editor/runtime/bridge_space.cpp)
     target_link_libraries(engine_editor_bridge_tests PRIVATE GameEngine::World GameEngine::Physics GameEngine::Nav GameEngine::Script GameEngine::Gameplay)
     engine_set_project_warnings(engine_editor_bridge_tests)
     add_test(NAME engine_editor_bridge_tests COMMAND engine_editor_bridge_tests)

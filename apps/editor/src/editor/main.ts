@@ -19,8 +19,14 @@ import type {
   TerrainComponent,
   ScannableComponent,
 } from "../scene/Components";
-import { propertyMetadata, componentLabel, componentGroups } from "./PropertyMetadata";
-import { defaultComponent } from "../authoring/CommandInterpreter";
+import { formatIssue } from "./contentCheck";
+import { ProblemsPanel } from "./problemsPanel";
+import { iconEl, textSpan } from "./dom";
+import { editorLayoutHtml } from "./editorLayout";
+import { UIPainter } from "./uiDraw";
+import { openTemplatePicker } from "./templatePicker";
+import { templateScene } from "./sceneTemplates";
+import { renderInspector } from "./inspector";
 import { CanvasRenderer } from "./CanvasRenderer";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -55,12 +61,14 @@ import { parseVisor, Visor } from "./visor";
 import { version as editorVersion } from "../../package.json";
 import { Music } from "./music";
 import { StaticBatcher } from "./staticBatcher";
+import { EntityField, SpaceField } from "./bridgeFields";
+import type { RuntimeExports } from "./runtimeExports";
 import { ReflectionProbe } from "./reflectionProbe";
 import { nextSiteView } from "./siteView";
 import { activityAliases, routineActivity } from "./routineActivity";
 import { applyGesture, findGestureBones, gestureFor, type GestureBones } from "./gestures";
 import { MAX_SPOTS, swayDepthMaterial, swayMaterial, swayUniforms } from "./scatterSway";
-import { crowdNear, FrameGovernor, governorTiers, presetFloor } from "./frameGovernor";
+import { crowdNear, FrameGovernor, governorTiers, limitReason, presetFloor } from "./frameGovernor";
 import { defaultPostSettings, gradingActive, gradingShader, shadowQualities, type PostSettings } from "./postFx";
 import { EventFlag, EventKind, WeaponFx } from "./weaponFx";
 import { buildViewmodel } from "./viewmodels";
@@ -105,53 +113,6 @@ const PARTICLE_PRESETS: Record<ParticlePreset, { direction: THREE.Vector3; sprea
   Confetti: { direction: new THREE.Vector3(0, 1, 0), spread: 0.85, gravity: -4 },
 };
 
-// Small, hand-drawn, dependency-free icon set (no external icon font/CDN,
-// consistent with this project's zero-external-asset constraints for the
-// editor chrome). Each entry is the inner markup of a 0 0 16 16 viewBox svg.
-const ICONS = {
-  play: '<path d="M4 3l9 5-9 5V3z"/>',
-  pause: '<rect x="4" y="3" width="3" height="10"/><rect x="9" y="3" width="3" height="10"/>',
-  stop: '<rect x="4" y="4" width="8" height="8"/>',
-  plus: '<path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
-  copy: '<rect x="3" y="6" width="7" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M6 6V4.5A1.5 1.5 0 0 1 7.5 3H12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-1.5" fill="none" stroke="currentColor" stroke-width="1.2"/>',
-  trash:
-    '<path d="M3 4h10M6.3 4V2.6h3.4V4M4.6 4l.6 9a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9l.6-9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>',
-  undo: '<path d="M5 4L2 7l3 3M2 7h7a4 4 0 1 1 0 8h-1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>',
-  redo: '<path d="M11 4l3 3-3 3M14 7H7a4 4 0 1 0 0 8h1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>',
-  save: '<path d="M3 3h7.4L13 5.6V13H3V3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M5 3v3.6h4.4V3M5 10h6" fill="none" stroke="currentColor" stroke-width="1.1"/>',
-  open: '<path d="M2 5.4A1.4 1.4 0 0 1 3.4 4h2.3l1 1.3h5.9A1.4 1.4 0 0 1 14 6.7v4.9A1.4 1.4 0 0 1 12.6 13H3.4A1.4 1.4 0 0 1 2 11.6V5.4z" fill="none" stroke="currentColor" stroke-width="1.15"/>',
-  search:
-    '<circle cx="6.6" cy="6.6" r="3.8" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M9.6 9.6L13.5 13.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>',
-  grid: '<path d="M2 2h12v12H2z M2 6.4h12M2 10.6h12M6.4 2v12M10.6 2v12" fill="none" stroke="currentColor" stroke-width="1"/>',
-  target:
-    '<circle cx="8" cy="8" r="4.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 1.2v2.4M8 12.4v2.4M1.2 8h2.4M12.4 8h2.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
-  cube: '<path d="M8 1.6l5.6 3v6.8L8 14.4l-5.6-3V4.6L8 1.6z" fill="none" stroke="currentColor" stroke-width="1.05"/><path d="M2.4 4.6L8 7.6l5.6-3M8 7.6v6.8" fill="none" stroke="currentColor" stroke-width="1.05"/>',
-  child:
-    '<path d="M4.2 2v5.4a2 2 0 0 0 2 2h5.4M9 7l2.6 2.4L9 11.8" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>',
-  external:
-    '<path d="M4.6 11.4L11.4 4.6M6.6 4.6h4.8v4.8" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>',
-} as const;
-type IconName = keyof typeof ICONS;
-// For static template strings (trusted, hardcoded content only).
-function iconHtml(name: IconName, extraClass = ""): string {
-  return `<svg class="icon ${extraClass}" viewBox="0 0 16 16" aria-hidden="true" focusable="false">${ICONS[name]}</svg>`;
-}
-// For DOM built at runtime, so user-provided text never flows through innerHTML.
-function iconEl(name: IconName, extraClass = ""): SVGSVGElement {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 16 16");
-  svg.setAttribute("class", `icon ${extraClass}`.trim());
-  svg.setAttribute("aria-hidden", "true");
-  svg.setAttribute("focusable", "false");
-  svg.innerHTML = ICONS[name];
-  return svg;
-}
-function textSpan(text: string, className = ""): HTMLSpanElement {
-  const span = document.createElement("span");
-  if (className) span.className = className;
-  span.textContent = text;
-  return span;
-}
 // Drag-to-resize a docked panel, matching mainstream engine editors. Reads
 // and writes a CSS custom property on the document root; the stylesheet
 // consumes that property in the relevant grid-template-columns/rows track.
@@ -180,36 +141,13 @@ function wireResizer(handle: HTMLElement, axis: "x" | "y", cssVar: string, min: 
   });
 }
 
-type Runtime = {
-  _editor_begin(): void;
-  _editor_add(...values: number[]): number;
-  _editor_commit(): number;
-  _editor_tick(): void;
-  _editor_count(): number;
-  _editor_value(index: number, field: number): number;
-  _editor_alive(index: number): number;
-  _editor_snapshot(): number;
+// The C++ runtime's exports, typed from bridge.cpp itself (0.77.0:
+// runtimeExports.ts, generated by tools/bridge/gen_exports.mjs).
+type Runtime = RuntimeExports & {
   HEAPF64: Float64Array;
-  _editor_input_begin_frame(): void;
-  _editor_set_camera_forward(x: number, z: number): void;
-  _editor_key(code: number, down: number): void;
-  _editor_input_mouse_move(x: number, y: number, dx: number, dy: number): void;
-  _editor_input_mouse_button(button: number, down: number, x: number, y: number): void;
-  _editor_input_wheel(dx: number, dy: number): void;
-  _editor_input_gamepad_connected(connected: number): void;
-  _editor_input_gamepad_button(button: number, down: number): void;
-  _editor_input_gamepad_axis(axis: number, value: number): void;
   ccall(name: "editor_input_key", returnType: null, argTypes: ["string", "number"], args: [string, number]): void;
   ccall(name: "editor_set_input_bindings", returnType: null, argTypes: ["string"], args: [string]): void;
   ccall(name: "editor_bindings_error", returnType: "string", argTypes: [], args: []): string;
-  _editor_projectile_count(): number;
-  _editor_projectile_value(index: number, field: number): number;
-  _editor_take_dirty_saves(): number;
-  _editor_set_body(index: number, authored: number, mass: number, dynamic: number): void;
-  _editor_set_sim_stride(stride: number): void;
-  _editor_entity_count(): number;
-  _editor_take_commands(): number;
-  _editor_command_entity(index: number): number;
   // Text-in/text-out calls added with the 0.51.0 script host (bridge.cpp):
   // names, props, prefab templates, spawned-prefab lookup, command text.
   ccall(name: "editor_set_name" | "editor_set_script_props", returnType: null, argTypes: ["number", "string"], args: [number, string]): void;
@@ -219,44 +157,10 @@ type Runtime = {
   ccall(name: "editor_script_notify", returnType: null, argTypes: ["number", "string", "string"], args: [number, string, string]): void;
   ccall(name: "editor_spawned_prefab", returnType: "string", argTypes: ["number"], args: [number]): string;
   ccall(name: "editor_command_text", returnType: "string", argTypes: ["number", "number"], args: [number, number]): string;
-  _editor_set_rotation(index: number, x: number, y: number, z: number): void;
-  _editor_set_controller(index: number, mode: number, ...settings: number[]): void;
-  _editor_set_look(yaw: number, pitch: number): void;
-  _editor_controller_value(index: number, field: number): number;
-  _editor_weapon_value(index: number, field: number): number;
-  _editor_set_soldier(index: number, ...settings: number[]): void;
-  _editor_add_obstacle(x: number, y: number, z: number, sx: number, sy: number, sz: number): void;
-  _editor_terrain_height(x: number, z: number): number;
-  _editor_line_blocked(x1: number, y1: number, z1: number, x2: number, y2: number, z2: number): number;
-  _editor_soldier_value(index: number, field: number): number;
   // Arcade cars and AI drivers (0.70.0): see editor_set_car/editor_set_driver/editor_vehicle_value.
-  _editor_set_car(index: number, yaw: number, ...spec: number[]): void;
-  _editor_set_driver(index: number, mode: number, loop: number, skill: number, aggression: number, speedScale: number): void;
-  _editor_vehicle_value(index: number, field: number): number;
   // Spaceflight (0.71.0): see editor_space_* and editor_set_spaceship.
-  _editor_set_spaceship(index: number, heading: number, ...spec: number[]): void;
-  _editor_space_value(field: number): number;
-  _editor_space_member(index: number, site: number): void;
-  _editor_space_body_hidden(hidden: number): void;
-  _editor_set_wildlife(index: number, wary: number, flee: number, speed: number, leash: number): void;
-  _editor_wildlife_state(index: number): number;
-  _editor_push(index: number, dx: number, dz: number): void;
-  _editor_space_body_value(index: number, field: number): number;
-  _editor_space_frame(field: number): number;
-  _editor_space_body_spin(index: number, field: number): number;
-  _editor_space_stick(yaw: number, pitch: number): void;
-  _editor_routine_stop(index: number): number;
-  _editor_planet_lava(index: number, x: number, y: number, z: number): number;
-  _editor_planet_height(index: number, x: number, y: number, z: number): number;
-  _editor_space_path(count: number, horizon: number): number;
-  _editor_space_path_value(index: number, axis: number): number;
-  _editor_space_ground(x: number, z: number): number;
-  _editor_space_wet(x: number, z: number): number;
-  _editor_take_weapon_events(): number;
-  _editor_weapon_event(index: number, field: number): number;
   // Catch-all for text calls added from 0.59.0 on.
   ccall(name: string, returnType: "string" | "number" | null, argTypes: Array<"string" | "number">, args: Array<string | number>): any;
-  _editor_set_collider(index: number, isTrigger: number, layer: number, mask: number, bounciness: number): void;
   // editor_set_script_source/editor_script_error/editor_seed_save/
   // editor_dirty_save_key/editor_dirty_save_value's own doc comments
   // (bridge.cpp) explain why these go through ccall instead of a direct
@@ -276,124 +180,26 @@ declare const createEditorRuntime: () => Runtime | Promise<Runtime>;
 async function startEditor() {
   const doc = new EditorDocument(new LocalStorageSceneStore("game-engine-editor:command-scene:"));
   const app = document.querySelector<HTMLDivElement>("#app")!;
-  app.innerHTML = `<header>
-  <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
-  <span class="brand-sub">BTAI Editor <span class="version">${editorVersion}</span></span>
-  <a class="link-external" href="https://github.com/Islandyout/engine">View source${iconHtml("external")}</a>
-</header>
-<nav>
-  <div class="btn-group">
-    <button id="new" class="btn" title="New scene">${iconHtml("plus")}<span>New</span></button>
-    <button id="save" class="btn" title="Save JSON">${iconHtml("save")}<span>Save</span></button>
-    <label class="btn" title="Open JSON">${iconHtml("open")}<span>Open</span><input id="open" type="file" accept=".json" hidden></label>
-  </div>
-  <div class="btn-group">
-    <button id="games" class="btn" title="Games library: engine games, your games folder, scenes saved in this browser">${iconHtml("cube")}<span>Games</span></button>
-  </div>
-  <div class="btn-group">
-    <button id="undo" class="btn btn-icon" title="Undo" aria-label="Undo">${iconHtml("undo")}</button>
-    <button id="redo" class="btn btn-icon" title="Redo" aria-label="Redo">${iconHtml("redo")}</button>
-  </div>
-  <div class="btn-group btn-group-transport">
-    <button id="play" class="btn btn-icon btn-play" title="Play" aria-label="Play">${iconHtml("play")}</button>
-    <button id="pause" class="btn btn-icon btn-pause" title="Pause" aria-label="Pause">${iconHtml("pause")}</button>
-    <button id="stop" class="btn btn-icon btn-stop" title="Stop" aria-label="Stop">${iconHtml("stop")}</button>
-  </div>
-  <span id="document" class="doc-badge"></span>
-</nav>
-<main id="workspace">
-  <aside id="panel-hierarchy" class="panel">
-    <div class="panel-header">${iconHtml("cube")}<h2>Scene Hierarchy</h2></div>
-    <div class="panel-body">
-      <div class="search-box">${iconHtml("search")}<input id="search" placeholder="Search entities"></div>
-      <div class="tools">
-        <button id="add" class="btn btn-sm">${iconHtml("plus")}<span>Entity</span></button>
-        <button id="duplicate" class="btn btn-sm">${iconHtml("copy")}<span>Duplicate</span></button>
-        <button id="delete" class="btn btn-sm btn-danger-hover">${iconHtml("trash")}<span>Delete</span></button>
-      </div>
-      <div id="tree" class="tree" role="tree"></div>
-    </div>
-    <div class="panel-header panel-header-secondary"><h2>Runtime</h2></div>
-    <div class="panel-body panel-body-secondary">
-      <p id="runtime" class="status-line">Loading C++ WebAssembly…</p>
-      <p class="hint">Editor: BTAI authoring<br>Preview: Three.js<br>Simulation: C++ World / FixedSystems</p>
-    </div>
-  </aside>
-  <div class="resizer resizer-v" id="resize-left" role="separator" aria-orientation="vertical" aria-label="Resize hierarchy panel"></div>
-  <section class="panel panel-viewport" id="panel-viewport">
-    <div class="viewport-toolbar">
-      <div class="btn-group" role="group" aria-label="Transform tool">
-        <button id="translate" class="btn btn-sm" aria-pressed="true">${iconHtml("target")}<span>Move</span></button>
-        <button id="rotate" class="btn btn-sm" aria-pressed="false"><span>Rotate</span></button>
-        <button id="scale" class="btn btn-sm" aria-pressed="false"><span>Scale</span></button>
-      </div>
-      <select id="space" class="select-sm" aria-label="Transform space"><option value="world">World</option><option value="local">Local</option></select>
-      <label class="snap-toggle"><input type="checkbox" id="snap"> Snap</label>
-      <select id="snap-size" class="select-sm" aria-label="Move snap distance"><option value="0.25">0.25 m</option><option value="0.5">0.5 m</option><option value="1" selected>1 m</option></select>
-      <button id="frame" class="btn btn-sm btn-ghost">${iconHtml("target")}<span>Frame selected</span></button>
-      <button id="grid" class="btn btn-sm btn-ghost">${iconHtml("grid")}<span>Grid</span></button>
-      <button id="stats" class="btn btn-sm btn-ghost" aria-pressed="false">${iconHtml("target")}<span>Stats</span></button>
-      <select id="site-view" class="select-sm" aria-label="Show site" hidden></select>
-      <span id="sculpt-bar" class="sculpt-bar" hidden>
-        <select id="sculpt" class="select-sm" aria-label="Terrain sculpt tool">
-          <option value="off">Sculpt: off</option><option value="raise">Raise</option><option value="lower">Lower</option><option value="smooth">Smooth</option><option value="flatten">Flatten</option>
-        </select>
-        <label class="sculpt-slider">Radius <input id="sculpt-radius" type="range" min="1" max="30" step="0.5" value="6" aria-label="Brush radius"></label>
-        <label class="sculpt-slider">Strength <input id="sculpt-strength" type="range" min="0.05" max="2" step="0.05" value="0.5" aria-label="Brush strength"></label>
-      </span>
-      <span class="viewport-hint">Drag to orbit · right-drag to pan · scroll to zoom</span>
-    </div>
-    <div id="viewport"></div>
-  </section>
-  <div class="resizer resizer-v" id="resize-right" role="separator" aria-orientation="vertical" aria-label="Resize inspector panel"></div>
-  <aside id="panel-inspector" class="panel">
-    <div class="panel-header">${iconHtml("target")}<h2>Inspector</h2></div>
-    <div id="inspector" class="panel-body">Select an entity.</div>
-  </aside>
-</main>
-<div class="resizer resizer-h" id="resize-bottom" role="separator" aria-orientation="horizontal" aria-label="Resize bottom panel"></div>
-<section class="dock" id="dock">
-  <div class="dock-panel" id="dock-project">
-    <div class="panel-header"><h2>Project / Content</h2></div>
-    <div class="panel-body">
-      <label class="field-row"><span>Project</span><input id="project" value="Untitled project" aria-label="Project name"></label>
-      <div class="field-row">
-        <select id="catalog-category" aria-label="Model category">
-          ${catalogCategories.map((c) => `<option value="${c}">${c.charAt(0).toUpperCase()}${c.slice(1)}</option>`).join("")}
-        </select>
-        <select id="catalog-model" aria-label="Model"></select>
-      </div>
-      <button id="catalog-add" class="btn btn-sm">${iconHtml("cube")}<span>Add from catalog</span></button>
-      <p class="hint">${modelCatalog.length} bundled CC0 models · Aether kit + Quaternius</p>
-      <a class="link-external" href="./ASSET-CREDITS.txt">Asset credits</a>
-      <label class="btn btn-sm" id="import-label">${iconHtml("open")}<span>Import asset…</span>
-        <input id="import-asset" type="file" multiple hidden aria-label="Import asset"
-          accept=".glb,.png,.jpg,.jpeg,.webp,.gif,.ogg,.mp3,.wav,.m4a">
-      </label>
-      <p class="hint" id="import-hint">.glb models, images and audio · kept in this browser</p>
-      <div class="field-row">
-        <select id="prefab-select" aria-label="Prefab"></select>
-      </div>
-      <button id="prefab-place" class="btn btn-sm">${iconHtml("copy")}<span>Place instance</span></button>
-      <p class="hint" id="prefab-hint">No prefabs yet — select an entity and use "Make prefab…" in the Inspector.</p>
-    </div>
-  </div>
-  <div class="resizer resizer-v" id="resize-dock" role="separator" aria-orientation="vertical" aria-label="Resize console panel"></div>
-  <div class="dock-panel" id="dock-console">
-    <div class="panel-header"><h2>Authoring Console</h2></div>
-    <div class="panel-body">
-      <form id="command" class="command-row"><input id="json" aria-label="JSON command" placeholder='{"command":"list_entities"}'><button class="btn btn-sm">Execute</button></form>
-      <pre id="log" role="log"></pre>
-    </div>
-  </div>
-</section>
-<footer id="status" data-mode="edit">Starting editor…</footer>`;
+  app.innerHTML = editorLayoutHtml({ editorVersion, catalogCategories, modelCount: modelCatalog.length });
   function el<T extends HTMLElement = HTMLElement>(id: string) {
     return document.getElementById(id) as T;
   }
   function log(value: unknown) {
     el("log").textContent = JSON.stringify(value, null, 2);
   }
+  // Content checks (0.77.0): the scene's authoring mistakes, by entity
+  // (problemsPanel.ts).
+  const problems = new ProblemsPanel(el("problems"), {
+    scene: () => doc.scene,
+    modelExists: (id) => !!catalogEntry(id),
+    select: (ref) => {
+      doc.selection = ref;
+      updatePanels();
+    },
+  });
+  const runContentCheck = () => problems.run();
+  const scheduleContentCheck = () => problems.schedule();
+  const inspectorIssues = (entity: EntityRef, type: string) => problems.issuesFor(entity, type);
   const viewport = el("viewport");
   let renderer: THREE.WebGLRenderer | CanvasRenderer;
   let backend = "WebGL";
@@ -577,7 +383,11 @@ async function startEditor() {
     return doc.mode !== "edit" && playerController()?.mode === "FirstPerson" && runtime._editor_alive(playerIndex) === 1;
   }
   function playerFeet(target: THREE.Vector3) {
-    return target.set(runtime._editor_value(playerIndex, 0), runtime._editor_controller_value(playerIndex, 6), runtime._editor_value(playerIndex, 2));
+    return target.set(
+      runtime._editor_value(playerIndex, EntityField.x),
+      runtime._editor_controller_value(playerIndex, 6),
+      runtime._editor_value(playerIndex, EntityField.z),
+    );
   }
   function placeFirstPerson(dt: number): THREE.PerspectiveCamera {
     const settings = playerController()!;
@@ -1064,8 +874,8 @@ async function startEditor() {
       const grounded = runtime._editor_controller_value(playerIndex, 2) === 1;
       const crouched = runtime._editor_controller_value(playerIndex, 1) === 1;
       const feet = runtime._editor_controller_value(playerIndex, 6);
-      const x = runtime._editor_value(playerIndex, 0),
-        z = runtime._editor_value(playerIndex, 2);
+      const x = runtime._editor_value(playerIndex, EntityField.x),
+        z = runtime._editor_value(playerIndex, EntityField.z);
       if (playerSteps.step(dt, speed, grounded)) {
         const voice = firstPerson() ? sounds() : soundsAt(new THREE.Vector3(x, feet, z));
         voice.footstep(surfaceAt(x, feet, z), (crouched ? 0.35 : 0.8) * Math.min(1.3, speed / 4.5));
@@ -1776,7 +1586,7 @@ async function startEditor() {
   function startSpaceView() {
     endSpaceView();
     const space = spaceComponent();
-    if (!space || !runtime._editor_space_value(35)) return;
+    if (!space || !runtime._editor_space_value(SpaceField.hasSpaceSystem)) return;
     const { bodies } = parseSpaceBodies(space.bodies);
     const shipEntity = shipIndex >= 0 ? doc.scene.eachAlive()[shipIndex] : undefined;
     const shipModel = (shipEntity && doc.scene.resolve(shipEntity, "Spaceship")?.model) ?? "";
@@ -1826,10 +1636,10 @@ async function startEditor() {
     spaceScatter = undefined;
     scatterTargets = [];
     if (!scatterModelsReady) return;
-    const away = runtime._editor_space_value(37) === 1;
+    const away = runtime._editor_space_value(SpaceField.away) === 1;
     // Plants and rocks keep clear of the active site's solid structures; the
     // quality preset thins them on weaker devices (the mobile governor).
-    const activeSite = away ? runtime._editor_space_value(40) : -1;
+    const activeSite = away ? runtime._editor_space_value(SpaceField.activeSite) : -1;
     const keep: Array<{ x: number; z: number; r: number }> = [];
     if (activeSite !== -2)
       doc.scene.eachAlive().forEach((entity, i) => {
@@ -1931,12 +1741,16 @@ async function startEditor() {
     if (playerIndex >= 0 && objects[playerIndex]) objects[playerIndex]!.visible = !spaceView.flight.piloting;
     // Warm light at sunrise and sunset.
     sun.color.setRGB(1, 1 - spaceView.sunset * 0.35, 1 - spaceView.sunset * 0.6);
-    const frame = runtime._editor_space_value(38);
+    const frame = runtime._editor_space_value(SpaceField.frameGeneration);
     if (frame !== spaceFrame) {
       spaceFrame = frame;
       // Re-anchored on foot (0.75.0): what moved with the walker, the
       // camera included, shifts by the same amount, so nothing visibly jumps.
-      const shift = new THREE.Vector3(runtime._editor_space_value(52), runtime._editor_space_value(53), runtime._editor_space_value(54));
+      const shift = new THREE.Vector3(
+        runtime._editor_space_value(SpaceField.reframeShiftX),
+        runtime._editor_space_value(SpaceField.reframeShiftY),
+        runtime._editor_space_value(SpaceField.reframeShiftZ),
+      );
       if (shift.lengthSq() > 1) {
         const step = shift.length();
         tickStates.forEach((state) => {
@@ -1947,7 +1761,7 @@ async function startEditor() {
         controls.target.add(shift);
         // The new frame's axes turn too (0.76.0): the camera swings round
         // the walker by the same angle and the look keeps its heading.
-        const turn = runtime._editor_space_value(57);
+        const turn = runtime._editor_space_value(SpaceField.reframeYaw);
         const walker = playerIndex >= 0 ? objects[playerIndex] : undefined;
         if (Math.abs(turn) > 1e-5 && walker) {
           const pivot = rig.position.clone();
@@ -1984,7 +1798,7 @@ async function startEditor() {
     updateExplorer(dt, view);
     // Only the active site's objects are here; the rest are elsewhere on
     // the planet (or another world).
-    const activeSite = runtime._editor_space_value(37) === 1 ? runtime._editor_space_value(40) : -1;
+    const activeSite = runtime._editor_space_value(SpaceField.away) === 1 ? runtime._editor_space_value(SpaceField.activeSite) : -1;
     const entities = doc.scene.eachAlive();
     objects.forEach((object, i) => {
       if (!object || i === shipIndex || i === playerIndex) return;
@@ -2213,7 +2027,7 @@ async function startEditor() {
   // Harvested specimens by place: "<body>:<lat>:<lon>|<index>".
   const harvestedSpots = new Set<string>();
   function scatterFrameKey() {
-    return `${runtime._editor_space_value(39)}:${runtime._editor_space_value(55).toFixed(2)}:${runtime._editor_space_value(56).toFixed(2)}`;
+    return `${runtime._editor_space_value(SpaceField.frameBody)}:${runtime._editor_space_value(SpaceField.frameLatitude).toFixed(2)}:${runtime._editor_space_value(SpaceField.frameLongitude).toFixed(2)}`;
   }
   // Hides scatter placement `index` (harvested).
   function hideScatter(index: number) {
@@ -2366,8 +2180,8 @@ async function startEditor() {
   function mapBodies(): MapBody[] {
     const star = bodyCentre(-1);
     const inverse = frameQuaternion().invert();
-    const ref = runtime._editor_space_value(23),
-      target = runtime._editor_space_value(29);
+    const ref = runtime._editor_space_value(SpaceField.referenceBody),
+      target = runtime._editor_space_value(SpaceField.targetBody);
     return explorerBodies.map((b, i) => {
       const p = bodyCentre(i).sub(star).applyQuaternion(inverse);
       return { name: b.name, x: p.x, z: p.z, radius: b.radius, color: b.color, parent: b.parent, target: i === target, current: i === ref };
@@ -2379,13 +2193,17 @@ async function startEditor() {
     const hidden = (i: number) => runtime._editor_space_body_value(i, 10) === 1;
     const star = bodyCentre(-1);
     const inverse = frameQuaternion().invert();
-    const shipFrame = new THREE.Vector3(runtime._editor_space_value(1), runtime._editor_space_value(2), runtime._editor_space_value(3));
+    const shipFrame = new THREE.Vector3(
+      runtime._editor_space_value(SpaceField.shipX),
+      runtime._editor_space_value(SpaceField.shipY),
+      runtime._editor_space_value(SpaceField.shipZ),
+    );
     const ship = shipFrame.clone().sub(star).applyQuaternion(inverse);
     const all = mapBodies();
     const bodies = all.filter((_, i) => !hidden(i));
     const visibleIndex = all.map((_, i) => i).filter((i) => !hidden(i));
     const reindexed = bodies.map((b) => ({ ...b, parent: b.parent >= 0 ? visibleIndex.indexOf(b.parent) : -1 }));
-    const frameBody = runtime._editor_space_value(39);
+    const frameBody = runtime._editor_space_value(SpaceField.frameBody);
     // Prospecting: the nearest matching deposit as a marker.
     if (prospect) {
       const me = playerIndex >= 0 ? objects[playerIndex] : undefined;
@@ -2445,7 +2263,7 @@ async function startEditor() {
       const size = Math.min(180, hud.height * 0.24);
       if (spaceView.flight.piloting && !spaceView.flight.landed) {
         // Flight: the reference body's neighbourhood.
-        const ref = runtime._editor_space_value(23);
+        const ref = runtime._editor_space_value(SpaceField.referenceBody);
         const focus = ref >= 0 ? all[ref]! : { x: 0, z: 0 };
         const near = ref >= 0 ? all[ref]!.radius * 14 : 4e6;
         drawSystem(ctx, hud.width - size - 24, hud.height - size - 24, size, size, reindexed, ship, focus, near, "NAV");
@@ -3053,9 +2871,9 @@ async function startEditor() {
       const prefab = runtime.ccall("editor_spawned_prefab", "string", ["number"], [index]);
       const components = (doc.scene.getPrefab(prefab)?.components ?? {}) as Partial<SceneComponents>;
       const position = {
-        x: runtime._editor_value(index, 0),
-        y: runtime._editor_value(index, 1),
-        z: runtime._editor_value(index, 2),
+        x: runtime._editor_value(index, EntityField.x),
+        y: runtime._editor_value(index, EntityField.y),
+        z: runtime._editor_value(index, EntityField.z),
       };
       createEntityObject((type) => (type === "Transform" ? ({ position } as SceneComponents[typeof type]) : components[type]));
       // Spawned scannables (0.73.0: wildlife a script releases) can be scanned too.
@@ -3887,6 +3705,7 @@ async function startEditor() {
     });
   }
   function updatePanels() {
+    if (doc.mode === "edit") scheduleContentCheck();
     applySiteView();
     updateSculptBar();
     gizmo.detach();
@@ -3928,190 +3747,13 @@ async function startEditor() {
       selection.setFromObject(object);
       selection.visible = true;
     }
-    const header = document.createElement("div");
-    header.className = "inspector-header";
-    const name = document.createElement("input");
-    name.value = doc.scene.resolve(entity, "Name")?.value ?? "Entity";
-    name.setAttribute("aria-label", "Entity name");
-    name.onchange = () => execute({ command: "rename_entity", entity, name: name.value });
-    const nameRow = document.createElement("label");
-    nameRow.className = "field-row";
-    nameRow.append(textSpan("Name"), name);
-    header.append(nameRow);
-    const parent = document.createElement("select");
-    parent.setAttribute("aria-label", "Parent");
-    parent.add(new Option("No parent", ""));
-    for (const ref of doc.scene.eachAlive())
-      if (ref.index !== entity.index) parent.add(new Option(doc.scene.resolve(ref, "Name")?.value ?? String(ref.index), String(ref.index)));
-    parent.value = String(doc.scene.resolve(entity, "Parent")?.entity.index ?? "");
-    parent.onchange = () =>
-      execute({
-        command: "reparent_entity",
-        entity,
-        parent: parent.value === "" ? null : doc.scene.eachAlive().find((e) => e.index === Number(parent.value)),
-      });
-    const parentRow = document.createElement("label");
-    parentRow.className = "field-row";
-    parentRow.append(textSpan("Parent"), parent);
-    header.append(parentRow);
-    inspector.append(header);
-    const prefabInstance = doc.scene.resolve(entity, "PrefabInstance");
-    if (prefabInstance) {
-      const banner = document.createElement("div");
-      banner.className = "prefab-banner";
-      banner.append(textSpan(`Instance of prefab "${prefabInstance.prefab}" — editing a shared component updates every instance.`));
-      const unlink = document.createElement("button");
-      unlink.className = "btn btn-sm btn-ghost";
-      unlink.textContent = "Unlink from prefab";
-      unlink.onclick = () => execute({ command: "unlink_instance", entity });
-      banner.append(unlink);
-      inspector.append(banner);
-    } else {
-      const makePrefab = document.createElement("button");
-      makePrefab.className = "btn btn-sm btn-ghost";
-      makePrefab.textContent = "Make prefab…";
-      makePrefab.onclick = () => {
-        const name = prompt("Prefab name (used to place further instances):");
-        if (name) execute({ command: "create_prefab", entity, name });
-      };
-      inspector.append(makePrefab);
-    }
-    for (const type of doc.scene.effectiveComponentNames(entity)) {
-      if (type === "Parent" || type === "Name" || type === "PrefabInstance") continue;
-      const section = document.createElement("details");
-      section.className = "component-card";
-      section.open = true;
-      const legend = document.createElement("summary");
-      legend.append(iconEl("cube", "icon-component"), textSpan(componentLabel(type), "component-title"));
-      section.append(legend);
-      // Generate fields from the component's serializable property shape; validation stays in authoring.
-      const value = structuredClone(doc.scene.resolve(entity, type)) as unknown as Record<string, unknown>;
-      function fields(record: Record<string, unknown>, host: HTMLElement, prefix = "") {
-        for (const [key, v] of Object.entries(record)) {
-          if (v && typeof v === "object") {
-            fields(v as Record<string, unknown>, host, prefix + key + ".");
-            continue;
-          }
-          const label = document.createElement("label");
-          const meta = propertyMetadata(type, prefix + key);
-          label.textContent = meta.label ?? prefix + key;
-          const dynamicOptions = type === "AnimationState" && prefix === "" && key === "clip" ? animationClipOptions(entity!) : undefined;
-          const options = meta.options ?? dynamicOptions;
-          if (options) {
-            const choice = document.createElement("select");
-            choice.setAttribute("aria-label", `${type}.${prefix}${key}`);
-            for (const option of options) choice.add(new Option(option.label, String(option.value)));
-            // A model with no clips loaded yet (still fetching, or not an
-            // animated catalog entry at all) offers only "(Automatic)" --
-            // disable rather than let a choice silently fail to apply.
-            choice.disabled = dynamicOptions !== undefined && dynamicOptions.length === 1;
-            choice.value = String(v);
-            choice.onchange = () => {
-              record[key] = typeof v === "number" ? Number(choice.value) : choice.value;
-              execute({ command: "set_component", entity, type, value });
-            };
-            label.append(choice);
-            host.append(label);
-            continue;
-          }
-          if (meta.multiline) {
-            label.className = "field-row-multiline";
-            const textarea = document.createElement("textarea");
-            textarea.setAttribute("aria-label", `${type}.${prefix}${key}`);
-            textarea.className = "field-multiline";
-            textarea.readOnly = meta.readOnly ?? false;
-            textarea.value = String(v);
-            textarea.onchange = () => {
-              record[key] = textarea.value;
-              execute({ command: "set_component", entity, type, value });
-            };
-            label.append(textarea);
-            host.append(label);
-            continue;
-          }
-          const input = document.createElement("input");
-          input.setAttribute("aria-label", `${type}.${prefix}${key}`);
-          input.type = typeof v === "number" ? "number" : typeof v === "boolean" ? "checkbox" : "text";
-          input.step = meta.step ?? "any";
-          input.readOnly = meta.readOnly ?? false;
-          input.value = String(v);
-          input.checked = v === true;
-          input.onchange = () => {
-            record[key] = typeof v === "number" ? Number(input.value) : typeof v === "boolean" ? input.checked : input.value;
-            execute({ command: "set_component", entity, type, value });
-          };
-          label.append(input);
-          host.append(label);
-        }
-      }
-      fields(value, section);
-      // The common path for playing a clip: right in the Renderable card,
-      // next to the Model it belongs to, no separate "Add component ->
-      // Animation (advanced)" detour needed -- that card (AnimationState)
-      // still exists below when it's attached, for time/looping.
-      if (type === "Renderable" && catalogEntry((value as { mesh: number }).mesh)?.animated) {
-        const clipOptions = animationClipOptions(entity);
-        const clipLabel = document.createElement("label");
-        clipLabel.textContent = "Animation clip";
-        const clipSelect = document.createElement("select");
-        clipSelect.setAttribute("aria-label", "Renderable.animationClip");
-        for (const option of clipOptions) clipSelect.add(new Option(option.label, String(option.value)));
-        clipSelect.disabled = clipOptions.length === 1;
-        clipSelect.value = doc.scene.resolve(entity, "AnimationState")?.clip ?? "";
-        clipSelect.onchange = () => {
-          const current = doc.scene.resolve(entity, "AnimationState") ?? {
-            clip: "",
-            time: 0,
-            looping: true,
-          };
-          execute({
-            command: "set_component",
-            entity,
-            type: "AnimationState",
-            value: { ...current, clip: clipSelect.value },
-          });
-        };
-        clipLabel.append(clipSelect);
-        section.append(clipLabel);
-      }
-      const reset = document.createElement("button");
-      reset.textContent = "Reset " + type;
-      reset.onclick = () =>
-        execute({
-          command: "set_component",
-          entity,
-          type,
-          value: defaultComponent(type),
-        });
-      section.append(reset);
-      const remove = document.createElement("button");
-      remove.className = "btn btn-sm btn-ghost btn-danger-hover";
-      remove.append(iconEl("trash"), textSpan("Remove " + type));
-      remove.onclick = () => execute({ command: "remove_component", entity, type });
-      section.append(remove);
-      inspector.append(section);
-    }
-    const add = document.createElement("select");
-    add.setAttribute("aria-label", "Add component");
-    add.add(new Option("Add component…", ""));
-    // Grouped by componentGroups (PropertyMetadata.ts) so components that
-    // only make sense together (AIState/Pedestrian, Player/Vehicle,
-    // Renderable/AnimationState, the movement-and-collision chain) stay next
-    // to each other instead of one flat, alphabetical-ish list of 16.
-    for (const group of componentGroups) {
-      const available = group.types.filter((type) => !doc.scene.effectiveHas(entity, type as keyof SceneComponents));
-      if (available.length === 0) continue;
-      const optgroup = document.createElement("optgroup");
-      optgroup.label = group.label;
-      for (const type of available) optgroup.append(new Option(componentLabel(type), type));
-      add.add(optgroup);
-    }
-    add.onchange = () => {
-      if (add.value) execute({ command: "attach_component", entity, type: add.value });
-    };
-    inspector.append(add);
-    for (const input of inspector.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>("input,select,button"))
-      input.disabled = doc.mode !== "edit";
+    renderInspector(inspector, entity, {
+      doc,
+      execute,
+      animationClipOptions,
+      catalogEntry,
+      inspectorIssues,
+    });
   }
   el("add").onclick = () =>
     execute({
@@ -4132,11 +3774,15 @@ async function startEditor() {
     doc.redo();
     rebuild();
   };
+  // New (0.77.0): pick a starting point -- empty, or a small playable
+  // starter for a kind of game (sceneTemplates.ts).
   el("new").onclick = () => {
-    if (doc.mode === "edit" && (!doc.dirty || confirm("Discard unsaved scene?"))) {
-      doc.load({ format: 1, entities: [] });
+    if (doc.mode !== "edit") return;
+    openTemplatePicker(document.body, (template) => {
+      if (doc.dirty && !confirm("Discard unsaved scene?")) return;
+      doc.load(templateScene(template));
       rebuild();
-    }
+    });
   };
   el<HTMLInputElement>("search").oninput = updatePanels;
   el<HTMLInputElement>("project").onchange = () => {
@@ -4204,6 +3850,9 @@ async function startEditor() {
     }
     try {
       if (doc.mode === "edit") {
+        // Content checks before Play (0.77.0): warn, never block.
+        const issues = runContentCheck();
+        if (issues.length) log(`Playing with ${issues.length} content problem${issues.length > 1 ? "s" : ""} (see Problems): ${formatIssue(issues[0]!)}`);
         prePlayTarget = controls.target.clone();
         syncRuntime();
         startSpaceView();
@@ -4450,6 +4099,7 @@ async function startEditor() {
       `Draw calls   ${info?.render.calls ?? "-"}`,
       `Batched      ${staticBatcher.size} objects in ${staticBatcher.drawn} meshes`,
       `Governor     tier ${governorTier() === governor.settings ? governor.tier : governor.floor} (${(governorTier().scale * 100).toFixed(0)}% res)`,
+      `Limited by   ${limitReason((now - stats.since) / stats.frames, stats.frameMs / stats.frames, stats.tickMs / stats.frames)}`,
       `Triangles    ${info?.render.triangles ?? "-"}`,
       `Entities     ${doc.scene.entityCount} (+${Math.max(0, objects.length - doc.scene.eachAlive().length)} spawned)`,
       ...(systems.length ? ["Systems (last tick):", ...systems] : []),
@@ -4459,6 +4109,10 @@ async function startEditor() {
     stats.tickMs = 0;
     stats.since = now;
   }
+  el("check").onclick = () => {
+    const issues = runContentCheck();
+    log(issues.length ? `${issues.length} problem${issues.length > 1 ? "s" : ""}: ${issues.slice(0, 5).map(formatIssue).join(" | ")}` : "No problems found.");
+  };
   el("grid").onclick = () => {
     grid.visible = !grid.visible;
   };
@@ -4704,9 +4358,9 @@ async function startEditor() {
       previousYaw: 0,
       currentYaw: 0,
     });
-    state.current.set(runtime._editor_value(i, 0), runtime._editor_value(i, 1), runtime._editor_value(i, 2));
+    state.current.set(runtime._editor_value(i, EntityField.x), runtime._editor_value(i, EntityField.y), runtime._editor_value(i, EntityField.z));
     // Soldiers face where they look; cars along their heading.
-    state.currentYaw = runtime._editor_soldier_value(i, 0) >= 0 ? runtime._editor_soldier_value(i, 1) : runtime._editor_value(i, 4);
+    state.currentYaw = runtime._editor_soldier_value(i, 0) >= 0 ? runtime._editor_soldier_value(i, 1) : runtime._editor_value(i, EntityField.headingYaw);
     if (!state.previous.lengthSq() && !state.previousYaw) {
       state.previous.copy(state.current);
       state.previousYaw = state.currentYaw;
@@ -5105,7 +4759,7 @@ async function startEditor() {
           const turn = Math.atan2(Math.sin(state.currentYaw - state.previousYaw), Math.cos(state.currentYaw - state.previousYaw));
           object.rotation.y = state.previousYaw + turn * tickAlpha;
         } else if (entity && doc.scene.effectiveHas(entity, "Vehicle") && doc.scene.effectiveHas(entity, "Player"))
-          object.rotation.y = runtime._editor_value(i, 4);
+          object.rotation.y = runtime._editor_value(i, EntityField.headingYaw);
       });
       // Jump/flight squash-and-stretch: a cheap "weight" cue so a jump doesn't
       // read as a flat vertical translation — stretches tall while rising,
@@ -5378,7 +5032,7 @@ async function startEditor() {
     const selectedHealthReadout =
       doc.mode === "play" && selectedIndex >= 0 && doc.scene.effectiveHas(doc.selection!, "Health")
         ? runtime._editor_alive(selectedIndex)
-          ? ` · Selected health: ${Math.round(runtime._editor_value(selectedIndex, 3) * 100)}%`
+          ? ` · Selected health: ${Math.round(runtime._editor_value(selectedIndex, EntityField.health) * 100)}%`
           : " · Selected: defeated"
         : "";
     // A live companion to selectedHealthReadout for an AIState entity: field 5 is
@@ -5387,7 +5041,7 @@ async function startEditor() {
     // position tick by tick without eyeballing the viewport.
     const selectedAiReadout =
       doc.mode === "play" && selectedIndex >= 0 && doc.scene.effectiveHas(doc.selection!, "AIState") && runtime._editor_alive(selectedIndex)
-        ? ` · Selected AI: ${aiStateNames[runtime._editor_value(selectedIndex, 5)] ?? "Idle"} (${runtime._editor_value(selectedIndex, 0).toFixed(1)}, ${runtime._editor_value(selectedIndex, 2).toFixed(1)})`
+        ? ` · Selected AI: ${aiStateNames[runtime._editor_value(selectedIndex, EntityField.aiState)] ?? "Idle"} (${runtime._editor_value(selectedIndex, EntityField.x).toFixed(1)}, ${runtime._editor_value(selectedIndex, EntityField.z).toFixed(1)})`
         : "";
     // A script author's only feedback that something's wrong: a compile or
     // runtime error is otherwise a silently inert entity with no visible
@@ -5422,123 +5076,9 @@ async function startEditor() {
     action: UIAction;
     value: number;
   }
-  const uiImages = new Map<string, HTMLImageElement>();
-  const css = (c: Vec3, alpha: number) => `rgba(${Math.round(c.x * 255)}, ${Math.round(c.y * 255)}, ${Math.round(c.z * 255)}, ${alpha})`;
-  function uiImage(url: string) {
-    let image = uiImages.get(url);
-    if (!image) {
-      image = new Image();
-      image.src = url;
-      uiImages.set(url, image);
-    }
-    return image;
-  }
-  // Paints one UI element in its box. Text and Button look exactly as they
-  // did before layout options existed when those options are left default.
-  // A Text element's lines: "\n" breaks, then word wrap within `width` (0: none).
-  function textLines(text: string, width: number): string[] {
-    const out: string[] = [];
-    for (const paragraph of text.split("\n")) {
-      if (!(width > 0) || hudCtx.measureText(paragraph).width <= width) {
-        out.push(paragraph);
-        continue;
-      }
-      let line = "";
-      for (const word of paragraph.split(" ")) {
-        const next = line ? `${line} ${word}` : word;
-        if (line && hudCtx.measureText(next).width > width) {
-          out.push(line);
-          line = word;
-        } else line = next;
-      }
-      out.push(line);
-    }
-    return out;
-  }
-  function drawUIElement(ui: UIComponent, rect: UIRect, value: number) {
-    const { left, top, width, height } = rect;
-    const label = (x: number, y: number, align: CanvasTextAlign) => {
-      hudCtx.textAlign = align;
-      hudCtx.textBaseline = "middle";
-      hudCtx.lineWidth = 3;
-      hudCtx.strokeStyle = "rgba(10, 16, 24, 0.85)";
-      hudCtx.strokeText(ui.text, x, y);
-      hudCtx.fillStyle = "#eaf6ff";
-      hudCtx.fillText(ui.text, x, y);
-    };
-    switch (ui.kind) {
-      case "Text": {
-        // A stroke outline instead of a backdrop -- legible over any scene.
-        // Lines break at "\n" and wrap to the authored width (0.73.0); the
-        // authored colour is used unless it's the dark default.
-        hudCtx.textAlign = "left";
-        hudCtx.textBaseline = "top";
-        hudCtx.lineWidth = 3;
-        hudCtx.strokeStyle = "rgba(10, 16, 24, 0.85)";
-        const dark = ui.color.x === 0.118 && ui.color.y === 0.165 && ui.color.z === 0.22;
-        hudCtx.fillStyle = dark ? "#eaf6ff" : css(ui.color, Math.max(ui.opacity, 0.35));
-        const lineHeight = Math.round(ui.fontSize * 1.3);
-        textLines(ui.text, ui.width).forEach((line, i) => {
-          hudCtx.strokeText(line, left, top + i * lineHeight);
-          hudCtx.fillText(line, left, top + i * lineHeight);
-        });
-        return;
-      }
-      case "Button":
-      case "Panel":
-        hudCtx.fillStyle = css(ui.color, ui.opacity);
-        hudCtx.fillRect(left, top, width, height);
-        hudCtx.strokeStyle = "rgba(140, 190, 220, 0.6)";
-        hudCtx.strokeRect(left + 0.5, top + 0.5, width - 1, height - 1);
-        if (ui.text) {
-          // A Button's label is centered; a Panel's is its title.
-          hudCtx.fillStyle = "#eaf6ff";
-          hudCtx.textAlign = "center";
-          hudCtx.textBaseline = "middle";
-          hudCtx.fillText(ui.text, left + width / 2, ui.kind === "Button" ? top + height / 2 : top + 8 + ui.fontSize / 2);
-        }
-        return;
-      case "Image": {
-        const imageUrl = resolveAssetUrl(ui.image, importedImages);
-        const image = imageUrl ? uiImage(imageUrl) : undefined;
-        hudCtx.globalAlpha = ui.opacity;
-        if (image?.complete && image.naturalWidth > 0) hudCtx.drawImage(image, left, top, width, height);
-        else {
-          hudCtx.fillStyle = css(ui.color, 1);
-          hudCtx.fillRect(left, top, width, height);
-        }
-        hudCtx.globalAlpha = 1;
-        if (ui.text) label(left + width / 2, top + height / 2, "center");
-        return;
-      }
-      case "Bar":
-      case "Slider": {
-        hudCtx.fillStyle = "rgba(10, 16, 24, 0.75)";
-        hudCtx.fillRect(left, top, width, height);
-        hudCtx.fillStyle = css(ui.kind === "Bar" && ui.color.x === 0.118 ? { x: 0.3, y: 0.69, z: 0.31 } : ui.color, 1);
-        hudCtx.fillRect(left, top, width * value, height);
-        if (ui.kind === "Slider") {
-          hudCtx.fillStyle = "#eaf6ff";
-          hudCtx.fillRect(left + width * value - 3, top - 2, 6, height + 4);
-        }
-        if (ui.text) label(left + width / 2, top + height / 2, "center");
-        return;
-      }
-      case "Toggle": {
-        const box = Math.min(height, ui.fontSize + 8);
-        hudCtx.fillStyle = css(ui.color, ui.opacity);
-        hudCtx.fillRect(left, top, box, box);
-        hudCtx.strokeStyle = "rgba(140, 190, 220, 0.8)";
-        hudCtx.strokeRect(left + 0.5, top + 0.5, box - 1, box - 1);
-        if (value >= 0.5) {
-          hudCtx.fillStyle = "#7fd4ff";
-          hudCtx.fillRect(left + 4, top + 4, box - 8, box - 8);
-        }
-        if (ui.text) label(left + box + 8, top + box / 2, "left");
-        return;
-      }
-    }
-  }
+  // Paints UI components on the HUD canvas (uiDraw.ts).
+  const uiPainter = new UIPainter(hudCtx, (url) => resolveAssetUrl(url, importedImages));
+  const drawUIElement = (ui: UIComponent, rect: UIRect, value: number) => uiPainter.draw(ui, rect, value);
   const uiButtonHits: UIButtonHit[] = [];
   // Screen-space Health bars (Play mode only, matches the player readout's
   // own scoping) and authored UI Text/Button elements (main.ts's own
@@ -5624,7 +5164,7 @@ async function startEditor() {
     const cx = hud.width / 2,
       cy = hud.height / 2;
     const weaponCount = runtime._editor_weapon_value(playerIndex, 5);
-    if (weaponCount > 0 || runtime._editor_value(playerIndex, 3) >= 0) {
+    if (weaponCount > 0 || runtime._editor_value(playerIndex, EntityField.health) >= 0) {
       const names: string[] = [];
       for (let slot = 0; slot < weaponCount; slot++)
         names.push(runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [playerIndex, slot, 0]));
@@ -5637,7 +5177,7 @@ async function startEditor() {
         spread: runtime._editor_weapon_value(playerIndex, 4),
         aiming: runtime._editor_weapon_value(playerIndex, 7) === 1,
         fov: fps.camera.fov,
-        health: runtime._editor_value(playerIndex, 3),
+        health: runtime._editor_value(playerIndex, EntityField.health),
         slot,
         weaponNames: names,
       });
@@ -5648,7 +5188,7 @@ async function startEditor() {
         lines.push(`${names[slot]} ${runtime._editor_weapon_value(playerIndex, 1)}/${reserve < 0 ? "∞" : reserve}`);
         if (runtime._editor_weapon_value(playerIndex, 3) >= 0) lines.push("Reloading");
       }
-      const health = runtime._editor_value(playerIndex, 3);
+      const health = runtime._editor_value(playerIndex, EntityField.health);
       if (health >= 0) lines.push(`Health ${Math.round(health * 100)}`);
       return lines;
     }
@@ -5694,7 +5234,7 @@ async function startEditor() {
         if (index === playerIndex && firstPerson()) return; // no bar over your own head
         const object = objects[index];
         if (!object) return;
-        const ratio = runtime._editor_value(index, 3);
+        const ratio = runtime._editor_value(index, EntityField.health);
         if (ratio < 0) return;
         // In first person a bar is feedback on your own hits, not a radar:
         // only damaged targets within 40 m get one.
@@ -5774,7 +5314,7 @@ async function startEditor() {
       hudCtx.font = `600 ${ui.fontSize}px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif`;
       let auto = autoSize(ui.kind, ui.text ? hudCtx.measureText(ui.text).width : 0, ui.fontSize);
       if (ui.kind === "Text" && ui.text) {
-        const lines = textLines(ui.text, ui.width);
+        const lines = uiPainter.lines(ui.text, ui.width);
         auto = {
           width: Math.max(...lines.map((l) => hudCtx.measureText(l).width)),
           height: lines.length * Math.round(ui.fontSize * 1.3),

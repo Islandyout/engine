@@ -16,7 +16,7 @@ engine-level was lost. The decisions and provenance below are left as recorded.
 
 0.19.0/0.20.0 follow-up: the "Generated GLB kit" and "Fox model" rows below only ever
 covered the kit's 103 static props; 0.19.0 imported those, and 0.20.0 (see
-[F20](IMPLEMENTATION_STATUS.md#f20)) imported the remaining 27 rigged/animated
+[F20](changelog/F20.md)) imported the remaining 27 rigged/animated
 `animals/**` and `people/**` models too, each playing its own embedded animation
 clips through Three.js's `AnimationMixer` — the "animation" row below is now partially
 addressed in the editor (not the native renderer, and not the archive's own custom
@@ -93,18 +93,18 @@ reset. Desktop/mobile browser tests exercise a generated field before recording 
 3. Assets: a real model and textures, including credits and loader validation. Done (F7).
 4. Physics: collision, gravity and a controllable character. Done (F10) — native AABB
    collision, gravity and a Shift-to-jump controllable character in the native playground.
-   See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md#f10--physics-gravity-collision-and-a-controllable-character-0100)
+   See [IMPLEMENTATION_STATUS.md](changelog/F10.md)
    and [NATIVE_PLAYGROUND.md](NATIVE_PLAYGROUND.md#physics).
 5. Scene workflow: save/load and basic property editing. Done — the editor already had
    load, save, and property editing (gizmos, component inspector: F8/F9); F11 added the
    missing native-side save/export, completing the loop between the native playground and
    the editor's scene format in both directions.
-   See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md#f11--native-scene-export-0110).
+   See [IMPLEMENTATION_STATUS.md](changelog/F11.md).
 6. Playable slice: one small environment demonstrating the intended game experience.
    Done (F12) — a minimal 3D platformer: a short ascending platform path to a goal marker
    in the native playground, using only what F6–F11 already built (movement, gravity,
    jump, collision, a win condition).
-   See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md#f12--playable-slice-platform-path-and-goal-0120).
+   See [IMPLEMENTATION_STATUS.md](changelog/F12.md).
 
 Every milestone must have something visible or usable and automated verification.
 Keep any ECS performance evaluation bounded and measurement-driven; it must not
