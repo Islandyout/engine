@@ -668,4 +668,3 @@ function every(seconds, fn) end
 --- Runs fn as a coroutine that can wait(seconds).
 ---@param fn function
 function start(fn) end
-

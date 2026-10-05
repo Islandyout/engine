@@ -225,4 +225,3 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `scanner.sky_key(key: string)` | What scanning the sky identifies. |
 | `scanner.catalogued(id: string)` | Marks a scan id as already known. |
 | `scanner.prospect(label: string, range: number, keys: string)` | Highlights scatter of these species keys (comma-separated); empty label stops. |
-

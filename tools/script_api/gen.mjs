@@ -53,8 +53,7 @@ const stub = [
   ...builtins.map(([t, n, sig, doc]) => stubFn(t, n, sig, doc)),
   ...helpers.map(([t, n, p, , doc]) => stubFn(t, n, `(${p})`, doc)),
   ...callbacks.map(([n, sig, doc]) => stubFn("", n, sig, doc)),
-  "",
-].join("\n\n");
+].join("\n\n") + "\n";
 
 // Markdown reference.
 const md = [
@@ -79,7 +78,9 @@ const md = [
     ...helpers.filter(([ht]) => ht === t).map(([, n, p, , doc]) => `| \`${t}.${n}(${p})\` | ${doc} |`),
     "",
   ]),
-].join("\n");
+]
+  .join("\n")
+  .trimEnd();
 
 // The editor's list.
 const entries = [
