@@ -496,6 +496,20 @@ async function main() {
     table.push({ name, duration: clip.duration, travel, hit: strike?.time, reach: strike?.reach, split });
     out.push(clip);
   }
+  // The fighting stance: every UAL strike starts and ends in this boxing
+  // guard (the jab's first frame), held still.
+  const jab = find("Punch_Jab", ual);
+  const guard = new THREE.AnimationClip(
+    "guard",
+    1,
+    trimTracks(jab).tracks.map((track) => {
+      const size = track.getValueSize();
+      const first = Array.from(track.values.slice(0, size));
+      return new track.constructor(track.name, [0, 1], [...first, ...first]);
+    }),
+  );
+  out.push(quantize(guard));
+  table.push({ name: "guard", duration: 1, travel: 0 });
   for (const [name, file, cut] of CMU_CUTS) {
     const source = readFileSync(path.join(args.cmu, file), "utf8");
     const { clip, travel } = retargetCmu(name, source, cut, rig.children[0].clone(true));

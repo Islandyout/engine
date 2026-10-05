@@ -778,6 +778,14 @@ FighterInput think(BrainState &brain, const BrainSettings &settings, const Brain
         input.move_x = brain.strafe * 0.5F;
         return input;
     }
+    if (view.wait_turn) {
+        // Someone else's turn: hold a little outside striking range and circle.
+        const float ring = engage + 1.2F;
+        input.move_x = brain.strafe * 0.6F;
+        input.move_y = view.distance > ring + 0.5F ? 0.8F : view.distance < ring - 0.4F ? -0.6F : 0.0F;
+        brain.chain_left = 0;
+        return input;
+    }
     if (view.distance > engage) {
         input.move_y = 1;
     } else {

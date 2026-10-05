@@ -50,6 +50,8 @@ import type { SceneComponents } from "../scene/Scene";
 import { encodeProps, reconcileProps } from "../scene/scriptProps";
 import { burst, createEmitter, stepEmitter, type EmitterSettings, type EmitterState } from "./particles";
 import { buildRibbon, updateTrail, type TrailPoint } from "./trail";
+import { CombatView, loadCombatClips } from "./combatView";
+import { FighterField } from "./bridgeFields";
 import { assetKind, assignId, displayName, loadStoredAssets, resolveAssetUrl, storeAsset, type StoredAsset } from "./userAssets";
 import { autoSize, contains, layoutRect, sliderValue, type UIRect } from "./uiLayout";
 import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGraph } from "./animator";
@@ -506,7 +508,17 @@ async function startEditor() {
       view.fov += rig.fovExtra;
       view.updateProjectionMatrix();
     }
-    if (!rig.placed) {
+    // Melee lock-on (0.78.0): the rig swings behind the Player toward its
+    // locked-on opponent and frames both.
+    const lock = target === objects[playerIndex] ? combat.lockTarget() : -1;
+    const opponent = lock >= 0 && runtime._editor_alive(lock) ? objects[lock] : undefined;
+    if (opponent && rig.placed) {
+      const behind = Math.atan2(target.position.x - opponent.position.x, target.position.z - opponent.position.z);
+      const turn = Math.atan2(Math.sin(behind - rig.yaw), Math.cos(behind - rig.yaw));
+      rig.yaw += turn * (1 - Math.exp(-rig.frameDt * 5));
+      focus.lerp(opponent.position.clone().setY(focus.y), 0.15);
+      distance *= 1 + Math.min(0.35, target.position.distanceTo(opponent.position) / 14);
+    } else if (!rig.placed) {
       // Start from the authored offset, in the target's frame.
       rig.yaw = Math.atan2(follow.offset.x, follow.offset.z) + target.rotation.y;
       rig.pitch = Math.asin(THREE.MathUtils.clamp(follow.offset.y / Math.max(distance, 1e-6), -1, 1));
@@ -861,6 +873,38 @@ async function startEditor() {
       audioMixer().occlusion && runtime._editor_line_blocked(listenerPosition.x, listenerPosition.y, listenerPosition.z, point.x, point.y + 0.3, point.z) === 1;
     return sounds().at(audioMixer().source("sfx", point, { occluded, volume }).input);
   }
+  // Melee (0.78.0): fighters' bodies, impacts and the fighter HUD (combatView.ts).
+  const combat = new CombatView(scene, {
+    value: (i, field) => runtime._editor_fighter_value(i, field),
+    text: (i, move, field) => runtime.ccall("editor_fighter_text", "string", ["number", "number", "number"], [i, move, field]),
+    takeEvents: () => runtime._editor_take_melee_events(),
+    event: (i, field) => runtime._editor_melee_event(i, field),
+    playerIndex: () => playerIndex,
+    health: (i) => (runtime._editor_alive(i) ? runtime._editor_value(i, EntityField.health) : 0),
+    sound: (at) => (audioContext ? (at ? soundsAt(at) : sounds()) : undefined),
+    shake: (intensity, seconds) => {
+      shake.intensity = Math.max(shake.intensity, intensity);
+      shake.duration = shake.remaining = Math.max(shake.remaining, seconds);
+    },
+  });
+  // The clip library once loaded, and the fighters waiting for it.
+  let combatClips: THREE.AnimationClip[] | undefined;
+  const waitingFighters: { index: number; object: THREE.Object3D; state: AnimState }[] = [];
+  function attachFighter(index: number, object: THREE.Object3D, state: AnimState) {
+    if (combatClips) {
+      combat.attach(index, object, state.mixer, state.actions, combatClips, state.current);
+      return;
+    }
+    waitingFighters.push({ index, object, state });
+    loadCombatClips((path) => gltfLoader.loadAsync(path)).then(
+      (clips) => {
+        combatClips = clips;
+        for (const waiting of waitingFighters.splice(0)) if (animStates[waiting.index] === waiting.state) combat.attach(waiting.index, waiting.object, waiting.state.mixer, waiting.state.actions, clips, waiting.state.current);
+      },
+      (error) => log(`Combat clips failed to load: ${String(error)}`),
+    );
+  }
+  const fighterVelocity = new THREE.Vector3();
   const playerSteps = new FootstepTracker();
   const soldierSteps = new Map<number, { tracker: FootstepTracker; previous: THREE.Vector3 }>();
   function surfaceAt(x: number, feetY: number, z: number): "grass" | "hard" {
@@ -3463,7 +3507,11 @@ async function startEditor() {
       } else animatorErrors.push(...parsed.errors);
     }
     animators.push(animator);
-    object.visible = renderable?.visible ?? true;
+    // Scene-wide settings (a UI label, the Environment) have no body of
+    // their own: their stand-in box shows only while editing (0.78.0).
+    const settingsOnly = !renderable && !!(get("UI") || get("Environment") || get("PostProcessing") || get("AudioSettings") || get("InputActions"));
+    object.visible = renderable?.visible ?? !(settingsOnly && doc.mode === "play");
+    if (settingsOnly) object.userData.settingsOnly = true;
     // `anchor` -- not `object` -- carries this entity's Transform/Rotation/
     // Scale and is what's pushed into `objects` (gizmo attach, raycast
     // picking, parent-child reattachment below, and every runtime-driven
@@ -3560,6 +3608,7 @@ async function startEditor() {
     scene.add(anchor);
     objects.push(anchor);
     animStates.push(animState);
+    if (get("Melee") && animState) attachFighter(objects.length - 1, object, animState);
     particleStates.push(particleState);
     deathStates.push(undefined);
   }
@@ -3589,6 +3638,8 @@ async function startEditor() {
     objects.length = 0;
     terrainMeshes.clear();
     animStates.length = 0;
+    combat.reset();
+    waitingFighters.length = 0;
     animators.length = 0;
     animatorErrors.length = 0;
     // Unlike a mesh (which reuses catalogCache's shared geometry/material --
@@ -3905,6 +3956,8 @@ async function startEditor() {
         // its own "is this session still running" guard checks doc.mode --
         // checking it while still "edit" would silence every already-cached
         // clip on the second and later Plays.
+        // Settings-only entities' stand-in boxes leave the stage.
+        for (const anchor of objects) anchor.traverse((node) => node.userData.settingsOnly && (node.visible = false));
         doc.mode = "play";
         batchAt = performance.now() + 2500; // once models have loaded
         const mixEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "AudioSettings"));
@@ -4692,7 +4745,7 @@ async function startEditor() {
         applyStickLook(fps.look, padSnapshot.axes[2] ?? 0, padSnapshot.axes[3] ?? 0, dt, controller.lookSensitivity, controller.invertY);
       for (const [key, down] of scriptKeyQueue) runtime.ccall("editor_script_key", null, ["string", "number"], [key, down]);
       scriptKeyQueue.length = 0;
-      accumulator += dt;
+      accumulator += dt * combat.timeScale;
       const tickStart = performance.now();
       const firstPersonTicks = firstPerson();
       if (firstPersonTicks) runtime._editor_set_look(fps.look.yaw, fps.look.pitch);
@@ -4720,6 +4773,7 @@ async function startEditor() {
       adoptSpawnedEntities();
       runScriptCommands();
       processCombatEvents();
+      combat.events(objects);
       if (steps > 0) playMovementSounds(steps / 60);
       objects.forEach((object, i) => {
         // Combat/AI can destroy an authored entity (Health reaching 0) mid-session;
@@ -4732,7 +4786,7 @@ async function startEditor() {
         // Renderable.visible, and an entity that's still alive never needs
         // that touched here.
         if (!tickSnapshotAlive(i)) {
-          const state = (deathStates[i] ??= startDeath(object, animStates[i]));
+          const state = (deathStates[i] ??= startDeath(object, combat.diedInCombat(i) ? undefined : animStates[i]));
           state.elapsed += dt;
           const progress = Math.max(0, 1 - state.elapsed / deathFadeDuration);
           for (const { material, baseOpacity } of state.materials) material.opacity = baseOpacity * progress;
@@ -4824,17 +4878,20 @@ async function startEditor() {
     const stride = governorTier().crowdStride;
     crowdFrame++;
     const eye = viewCamera.position;
+    if (doc.mode === "play") combat.frame(dt, tickAlpha, viewCamera);
+    // Slow motion (a finisher, a parry) slows every body with the game clock.
+    const animDt = doc.mode === "play" ? dt * combat.timeScale : dt;
     animStates.forEach((state, i) => {
       if (!state) return;
       const object = objects[i];
       if (stride > 1 && object && object.position.distanceToSquared(eye) > crowdNear * crowdNear) {
-        state.skipped = (state.skipped ?? 0) + dt;
+        state.skipped = (state.skipped ?? 0) + animDt;
         if ((crowdFrame + i) % stride !== 0) return;
         state.mixer.update(state.skipped);
         state.skipped = 0;
         return;
       }
-      state.mixer.update(dt + (state.skipped ?? 0));
+      state.mixer.update(animDt + (state.skipped ?? 0));
       state.skipped = 0;
       // Each near character's own gestures over a shared clip (0.76.0).
       const kind = doc.mode === "play" && object && object.position.distanceToSquared(eye) < 40 * 40 ? gestureFor(state.current) : undefined;
@@ -4881,6 +4938,12 @@ async function startEditor() {
         const speed = groundSpeed(at, state.prevPosition, tickDt);
         const verticalSpeed = (at.y - state.prevPosition.y) / tickDt;
         state.prevPosition.copy(at);
+        // A fighter's body follows its fight (combatView.ts); it faces where
+        // the simulation says (editor_snapshot).
+        if (combat.has(i)) {
+          combat.tick(i, speed, verticalSpeed, fighterVelocity.set(dx / tickDt, 0, dz / tickDt));
+          return;
+        }
         // Face the direction actually traveled — not for a Vehicle, whose
         // facing already comes from its own steered heading above, which is
         // exact every tick where this would lag and wobble mid-turn.
@@ -5269,6 +5332,20 @@ async function startEditor() {
       drawWaypoints();
     }
     if (firstPerson()) hudLines.push(...drawFirstPersonOverlay());
+    // Melee (0.78.0): health, energy, guard, combo and lock-on.
+    if (doc.mode === "play")
+      hudLines.push(
+        ...combat.drawHud(
+          hudCtx,
+          hud.width,
+          hud.height,
+          (point) => {
+            hudScratch.copy(point).project(viewCamera);
+            return hudScratch.z > 1 ? undefined : { x: ((hudScratch.x + 1) / 2) * hud.width, y: ((1 - hudScratch.y) / 2) * hud.height };
+          },
+          objects,
+        ),
+      );
     // Scanner reticle (0.72.0).
     if (doc.mode === "play" && (scannableIndices.length || scatterTargets.length)) {
       const text = scanner.draw(hudCtx, hud.width, hud.height, scanHeld());

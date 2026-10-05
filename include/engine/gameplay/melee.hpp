@@ -240,6 +240,7 @@ struct BrainView final {
     bool target_down{false};
     bool target_airborne{false};
     float reach{1.0F};          // this fighter's own typical reach
+    bool wait_turn{false};      // another fighter is on the target: circle, don't start a string
 };
 
 // Decides this tick's buttons and stick (relative to the facing).

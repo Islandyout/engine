@@ -230,7 +230,9 @@ void Runtime::step_melee(engine::World &w) {
                         const auto &their_box = *w.get<engine::Box>(other);
                         const float distance = flat_distance(box.center, their_box.center);
                         const float off = std::abs(wrap_angle(yaw_to(box.center, their_box.center) - fighter.yaw));
-                        const float score = distance + off * 4.0F;
+                        // Fighters and soldiers before dummies and props.
+                        const bool rival = w.get<Fighter>(other) || w.get<Soldier>(other);
+                        const float score = distance + off * 4.0F + (rival ? 0.0F : 6.0F);
                         if (distance < 15.0F && score < best) {
                             best = score;
                             fighter.lock = other;
@@ -247,6 +249,18 @@ void Runtime::step_melee(engine::World &w) {
             wish_z = -std::sin(yaw) * move_x - std::cos(yaw) * move_y;
         } else if (fighter.ai) {
             engine::gameplay::BrainView view;
+            // One attacker at a time per target: the others wait their turn.
+            if (fighter.target && fighter.brain.chain_left == 0 && state.mode != FighterMode::move)
+                for (const auto other : w.query<Fighter>()) {
+                    if (other == self)
+                        continue;
+                    const auto &rival = *w.get<Fighter>(other);
+                    if (rival.ai && rival.target == fighter.target && rival.team == fighter.team &&
+                        (rival.brain.chain_left > 0 || rival.state.mode == FighterMode::move)) {
+                        view.wait_turn = true;
+                        break;
+                    }
+                }
             if (target_box) {
                 view.has_target = true;
                 view.distance = flat_distance(box.center, target_box->center);
