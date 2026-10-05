@@ -4,6 +4,12 @@
 // the keyboard and drawn by the CPU box renderer as an orrery -- planet,
 // moon, ship and its predicted path -- with throttle, fuel and altitude
 // bars. `engine_playground --space`.
+//
+// Down to the ground (0.76.0): under 2.5 km the view switches to the surface
+// -- a patch of the body's real terrain (space::terrain_height) as columns
+// around the point below the ship -- and the ship can set down on it: L
+// engages the landing assist (stabilized, sinking at a speed that eases off
+// near the ground), a green bar shows it has landed, Space lifts off again.
 #include "engine/gameplay/space.hpp"
 #include "engine/graphics/box_view.hpp"
 #include "engine/input/input.hpp"
@@ -22,6 +28,7 @@ public:
     double time{};
     double throttle{};
     bool autopilot{};
+    bool landing{};
 
     SpaceDemo() {
         namespace sp = engine::gameplay::space;
@@ -55,7 +62,7 @@ public:
     }
 
     // One fixed step of 1/60 s: W/S throttle, X cut, arrows pitch and yaw,
-    // Q/E roll, Space/C lift and sink, G autopilot to the moon.
+    // Q/E roll, Space/C lift and sink, G autopilot to the moon, L land.
     void step(const engine::InputState &input) {
         namespace sp = engine::gameplay::space;
         using engine::Key;
@@ -76,6 +83,21 @@ public:
         control.throttle = throttle;
         if (control.pitch != 0 || control.yaw != 0 || input.key_down(Key::w) || input.key_down(Key::s))
             autopilot = false;
+        if (input.key_pressed(Key::l))
+            landing = !landing;
+        if (input.key_down(Key::space) || input.key_down(Key::w))
+            landing = false;
+        if (landing && !ship.landed) {
+            // Level, engines idle, sinking at a tenth of the height (2-40
+            // m/s) so the touchdown is soft.
+            autopilot = false;
+            throttle = 0;
+            control.assist = sp::Assist::stabilized;
+            control.throttle = 0;
+            const double up_speed = sp::dot(ship.velocity, sp::normalized(ship.position));
+            const double wanted = -std::clamp(ground_clearance() * 0.1, 2.0, 40.0);
+            control.vertical = std::clamp((wanted - up_speed) * 0.5, -1.0, 1.0);
+        }
         if (autopilot) {
             const auto command = sp::autopilot_command(ship, spec, system, time, 1);
             control.assist = sp::Assist::autopilot;
@@ -86,6 +108,8 @@ public:
         }
         sp::step_ship(ship, spec, control, system, time, dt);
         time += dt;
+        // The surface view centres between the ground and the ship.
+        camera.target = {0, surface_view() ? static_cast<float>(std::clamp(ground_clearance() / 25 * 0.5, 0.0, 50.0)) : 0.0F, 0};
     }
 
     // Distance from the reference body's surface (m).
@@ -96,8 +120,64 @@ public:
         return sp::length(ship.position) - system.bodies[static_cast<std::size_t>(ship.ref)].radius;
     }
 
-    // The orrery around the planet: a world unit is 4 km.
+    // Height over the terrain right below (m); the altitude above the
+    // body's mean radius without one.
+    [[nodiscard]] double ground_clearance() const {
+        namespace sp = engine::gameplay::space;
+        if (ship.ref < 0)
+            return altitude();
+        const auto &body = system.bodies[static_cast<std::size_t>(ship.ref)];
+        const auto fixed = sp::rotate(sp::conjugate(sp::body_spin(body, time)), sp::normalized(ship.position));
+        return sp::length(ship.position) - body.radius - sp::terrain_height(body, fixed);
+    }
+
+    // Close to the ground the view is the surface instead of the orrery.
+    [[nodiscard]] bool surface_view() const { return ship.ref >= 0 && altitude() < 2500; }
+
     [[nodiscard]] std::vector<engine::Box> boxes() const {
+        return surface_view() ? surface_boxes() : orrery_boxes();
+    }
+
+    // The ground around the point below the ship: 17 x 17 columns 150 m
+    // apart, their tops at the terrain's height; a world unit is 25 m.
+    [[nodiscard]] std::vector<engine::Box> surface_boxes() const {
+        namespace sp = engine::gameplay::space;
+        constexpr double scale = 25, spacing = 150;
+        constexpr int half = 8;
+        const auto &body = system.bodies[static_cast<std::size_t>(ship.ref)];
+        const auto unspin = sp::conjugate(sp::body_spin(body, time));
+        const auto up = sp::normalized(ship.position);
+        const auto east = sp::normalized(sp::cross(std::abs(up.y) > 0.9 ? sp::DVec3{1, 0, 0} : sp::DVec3{0, 1, 0}, up));
+        const auto north = sp::cross(up, east);
+        const auto ground = [&](sp::DVec3 direction) {
+            return body.radius + sp::terrain_height(body, sp::rotate(unspin, direction));
+        };
+        const double base = ground(up);
+        std::vector<engine::Box> out;
+        for (int i = -half; i <= half; ++i)
+            for (int j = -half; j <= half; ++j) {
+                const auto direction = sp::normalized(up * body.radius + east * (i * spacing) + north * (j * spacing));
+                // The curve of the world drops the far columns a little.
+                const double drop = (i * i + j * j) * spacing * spacing / (2 * body.radius);
+                const double top = (ground(direction) - base - drop) / scale;
+                const float depth = 6.0F;
+                const auto shade = static_cast<engine::u8>(std::clamp(110.0 + top * 4.0, 60.0, 200.0));
+                out.push_back({{static_cast<float>(i * spacing / scale), static_cast<float>(top) - depth / 2,
+                                static_cast<float>(j * spacing / scale)},
+                               {static_cast<float>(spacing / scale) * 0.96F, depth, static_cast<float>(spacing / scale) * 0.96F},
+                               {static_cast<engine::u8>(shade * 0.75), shade, static_cast<engine::u8>(shade * 0.65)}});
+            }
+        const double height = (sp::length(ship.position) - base) / scale;
+        out.push_back({{0, static_cast<float>(height) + 0.6F, 0}, {1.6F, 1.2F, 2.4F},
+                       ship.landed ? std::array<engine::u8, 3>{155, 227, 122} : std::array<engine::u8, 3>{255, 214, 120}});
+        // A plumb line from the ship to the ground.
+        for (double h = height - 2; h > 0.5; h -= 2)
+            out.push_back({{0, static_cast<float>(h), 0}, {0.25F, 0.25F, 0.25F}, {143, 247, 255}});
+        return out;
+    }
+
+    // The orrery around the planet: a world unit is 4 km.
+    [[nodiscard]] std::vector<engine::Box> orrery_boxes() const {
         namespace sp = engine::gameplay::space;
         constexpr double scale = 4000; // metres per world unit
         const auto planet = sp::body_position(system, 0, time);
@@ -128,6 +208,10 @@ public:
         view.draw_bar(20, 60, 200, 12, static_cast<float>(std::clamp(altitude() / 60000.0, 0.0, 1.0)), {216, 207, 184});
         if (autopilot)
             view.draw_bar(20, 80, 200, 6, 1.0F, {255, 180, 71});
+        if (landing)
+            view.draw_bar(20, 90, 200, 6, 1.0F, {127, 200, 255});
+        if (ship.landed)
+            view.draw_bar(20, 100, 200, 6, 1.0F, {155, 227, 122});
     }
 };
 

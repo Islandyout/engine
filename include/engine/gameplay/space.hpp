@@ -196,6 +196,15 @@ struct ShipState final {
     // their efficiency scales thrust, turning and landing tolerance. The
     // scanner's condition is the game's to use.
     double engine{100}, rcs_condition{100}, gear{100}, scanner{100};
+    // The autopilot's memory of the transfer it is flying (0.76.0): its
+    // target, when it meets it, when a coast is next checked and when it
+    // was planned. Each ship keeps its own; autopilot_command updates it.
+    struct AutopilotMemory final {
+        int target{-1};
+        double arrive{-1}, check{-1}, made{-1};
+        DVec3 wanted{}; // the last solved velocity: the next solve starts there
+    };
+    mutable AutopilotMemory autopilot{};
 };
 
 // The terrain radius under a point (relative to body `index`'s centre, in

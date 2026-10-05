@@ -5149,3 +5149,65 @@ Holds play at 45–60 fps (in place of PWA/Android packaging) and closes everyth
 - `tests/playground_tests.cpp`: the playground's spaceflight.
 - `apps/editor/tests/frameGovernor.test.ts`: the governor's tiers, hold-off and floor.
 - `tests/browser/pale_signal.cjs`: the settings panel.
+
+## F76 — Fewer draw calls, smarter autopilot, towns that use their buildings (0.76.0)
+
+Works through the list of what was still missing after 0.75.0.
+
+### Frame rate
+
+- **Scatter chunks size themselves** (`buildScatter`): a model's chunks double from 64 m (up to 512 m) until they hold about 32 instances each, so sparse forests and boulder fields stop costing one draw call per handful of trees. The Pale Signal start went from about 614 draw calls to 356.
+- **Static batching** (`staticBatcher.ts`): while playing, scenery with no moving component is merged per look (material colour, roughness, textures and so on, not material instance), per site and per shadow setting. The originals stay in the scene, hidden, for picking. A member that moves or dies leaves its batch. In Pale Signal this merges 360 objects into 105 meshes. The stats panel shows the count.
+- **The governor reaches further**:
+  - from tier 3 the sky and the air seen from space take half the scattering samples (`SKY_LOW`);
+  - routines and wildlife more than 60 m from the walker decide only every 2–3 ticks, staggered (`editor_set_sim_stride`).
+- **Craters**: the craters around a lattice cell are worked out once and kept between neighbouring samples. Cratered terrain fell from 3.8× to 1.7× the cost of plain terrain, with identical heights.
+- **Shadows sway with the plants** (`swayDepthMaterial`).
+- **Suit light shadows** at full shadow tiers (a 512 map).
+
+### Autopilot
+
+- **Per-ship memory**: `ShipState::autopilot` replaces the solver's static state. Each solve warm-starts from the last one, which cut a tick from 206 µs to 34 µs natively. In wasm it is 43 µs mean, with a 2.2 ms worst case for a replan.
+- **Moon legs** fly a Hohmann transfer. The ship circularizes, waits for the phase angle, raises its orbit and coasts to apoapsis, then the approach law takes over. Tethys→Vell now takes 49 fuel (it was 107).
+- **Plans** price moon legs as Hohmann transfers, add 25% for inward legs, and key their cache on the departure point. Over the 12-route matrix, plans now range from 0.77× to 4× the fuel actually flown, mostly erring high; the worst underestimate is Hollow→Cinder (165 planned, 215 flown).
+
+### On foot and in towns
+
+- **Reframes turn the camera too**: field 57 gives the turn about the vertical, so the camera, the look and the walker keep their heading.
+- **Routines walk around walls**: a nav-grid path is found once per stop (at most 3 searches a tick). Routines and wildlife no longer block the grid themselves.
+- **Indoor work and sliding doors** (Pale Signal): about 60% of desk and craft workers at a site with a hall work inside it. Each hall's doorway has a door that slides aside for the walker or a townsperson.
+- **Gestures** (`gestures.ts`): over the shared talk, work and sit clips, each character within 40 m adds its own small motions on its own beat:
+  - nods, head turns and a hand that rises to make a point;
+  - a back bending into the work;
+  - a reader's glances.
+- **Reflections** (`reflectionProbe.ts`): canals and other glossy flats reflect their banks and the sky's colours. A 128 px cube map is re-rendered every 3 s while shadows are on.
+- **Wildlife after a reframe** comes in behind the walker, 160–240 m back, instead of appearing in view.
+
+### Saves, economy, music, tools
+
+- **Animals are saved** (Pale Signal): the home herds (`Herd 1`–`Herd 11`) where they grazed to, and herds out in the wilds relative to the walker.
+- **Prices by institution**: each station charges by its own keepers' standing:
+  - the Commons at Kestra;
+  - the Concord at the Darsa Water Court;
+  - the Meridian at the archive and the Spur's reading room;
+  - the Hollow clades at the Resonance Exchange.
+
+  Archive sessions come sooner for friends.
+- **Composed motifs** (`music.ts`): every mood has a phrase, played as a lead voice every few chords in place of the random bells. Music still starts on the first key or click, because browsers block audio before any user input.
+- **`engine_playground --space` lands**: under 2.5 km the view is the body's real terrain around the ship, L sets the ship down softly, and Space lifts off again.
+- **Site view**: a scene with Sites opens on home, and selecting something at a site shows that site.
+- **main.ts**: routine activities and site-view logic moved into their own tested modules. The editor has a `.prettierrc.json` (width 160), and the files this release touched are formatted with it. main.ts is still about 6,000 lines.
+
+### Not done here
+
+- A real device's frame rate, a hand-played full run, and touch on a phone all need hardware. Runs here use software rendering, and full playthroughs are simulated (`autopilot` route matrix, scripted browser runs).
+- CI quotas for code scanning are outside the repository.
+
+### Tests
+
+- `tests/space_tests.cpp`: the moon transfer raises its orbit and flies within 1.3× the plan; a fresh ship's autopilot memory is empty.
+- `tests/editor_bridge_tests.cpp`: a walker goes round a wall to a stop behind it.
+- `tests/playground_tests.cpp`: the surface view, and L landing the playground ship.
+- `apps/editor/tests`:
+  - `staticBatcher.test.ts`, `gestures.test.ts`, `music.test.ts`, `siteView.test.ts`, `routineActivity.test.ts`;
+  - in `terrainMesh.test.ts`, adaptive chunks.

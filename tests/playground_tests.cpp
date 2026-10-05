@@ -471,6 +471,33 @@ int main() {
             space.step(flight);
             check(space.autopilot, "G engages the autopilot");
         }
+        {
+            // Down to the ground (0.76.0): low over the planet the view is
+            // its terrain, and L sets the ship down softly.
+            namespace sp = engine::gameplay::space;
+            playground::SpaceDemo space;
+            sp::place_landed(space.ship, space.spec, space.system, 0, sp::normalized(sp::DVec3{0.3, 1, 0.2}), sp::DVec3{1, 0, 0}, 0);
+            space.ship.position = space.ship.position + sp::normalized(space.ship.position) * 1500.0;
+            space.ship.velocity = {};
+            space.ship.landed = false;
+            InputState flight;
+            space.step(flight);
+            check(space.surface_view(), "low flight shows the surface");
+            check(space.boxes().size() > 280, "a patch of terrain under the ship");
+            key(flight, Key::l, true);
+            space.step(flight);
+            flight.begin_frame();
+            key(flight, Key::l, false);
+            check(space.landing, "L engages the landing assist");
+            for (int i = 0; i < 60 * 240 && !space.ship.landed; ++i) {
+                space.step(flight);
+                flight.begin_frame();
+            }
+            check(space.ship.landed && !space.ship.destroyed, "the ship sets down in one piece");
+            BoxView frame;
+            frame.draw(space.boxes(), space.camera);
+            space.hud(frame);
+        }
         std::cout << "Playground actions, lifecycle, camera, raster repeatability, depth and "
                      "validation passed.\n";
     } catch (const std::exception &e) {

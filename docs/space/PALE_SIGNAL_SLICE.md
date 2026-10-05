@@ -101,6 +101,17 @@ The expedition **autosaves** every 45 s and checkpoints on discoveries; the titl
 - **Music**: a generative score by mood (title, exploring, night, flight, space, the signal, storms), with its own volume in settings.
 - **Saves** keep the hull exactly, the system clock (the planets and Kestra's hour), where everyone is in their day, and what you harvested.
 
+### 0.76.0: towns that use their buildings
+
+- **People go indoors**: many of Darsa's, the Spur's and the Mooring's desk and craft workers work inside the halls. They walk around walls to get there, and the hall doors slide aside for them and for you.
+- **Their own gestures**: nods, glances and a hand raised to make a point, so a square of talkers isn't in step.
+- **Canals reflect** their banks and the sky, sunsets included.
+- **Each institution prices its own services**: the Water Court ledger (Concord), the Spur's reading room (Meridian) and the Resonance Exchange (Hollow) join Kestra's workshop and market (Commons) and the archive (Meridian). Friends get archive sessions sooner.
+- **Herds are saved** where they grazed to. Wildlife after a long walk comes in from behind you.
+- **The autopilot** flies Tethys→Vell as a Hohmann transfer on about half the fuel, and its plans now err high.
+- **Each mood of the score has its own phrase.**
+- **Smoother**: about 42% fewer draw calls, and suit-light and swaying-plant shadows.
+
 ### The living world
 
 - **Wildlife**: Flat Grazer herds and Ridge Skimmers near Kestra, plus Slag Crawlers, Dust Husks and Mist Drifters released around you on their worlds. They grow wary and flee from you or a running ship, which ruins a scan.

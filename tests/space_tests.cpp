@@ -354,10 +354,12 @@ int main() {
             check(plan_route(empty, big, system, t, 1).status == 2, "half the fuel needed is INSUFFICIENT");
             empty.fuel = plan.fuel_needed * 1.1;
             check(plan_route(empty, big, system, t, 1).status == 1, "a little over is MARGINAL");
-            bool arrived = false;
-            for (int i = 0; i < 60 * 1800 && !arrived && !ship.destroyed; ++i) {
+            bool arrived = false, raised = false;
+            const double fuel_before = ship.fuel;
+            for (int i = 0; i < 60 * 6000 && !arrived && !ship.destroyed; ++i) {
                 const AutopilotCommand command = autopilot_command(ship, big, system, t, 1);
                 arrived = command.arrived;
+                raised |= std::string(command.phase) == "raise";
                 ShipInput input;
                 input.assist = Assist::autopilot;
                 input.target_direction = command.direction;
@@ -367,6 +369,14 @@ int main() {
             }
             check(arrived && !ship.destroyed, "the autopilot brings the ship to Vell, slow");
             check(ship.ref == 1, "arrival is inside Vell's sphere of influence");
+            // A moon is reached by a Hohmann raise from orbit (0.76.0), near
+            // the route plan's estimate.
+            check(raised, "the moon transfer raises the orbit to meet it");
+            // (From 15 km, inside the air, the plan under-prices the climb a little.)
+            check(fuel_before - ship.fuel < plan.fuel_needed * 1.3, "and spends about what was planned");
+            // Each ship keeps its own transfer memory.
+            ShipState other;
+            check(other.autopilot.target == -1, "a fresh ship has no transfer planned");
         }
         {
             // Body-fixed prediction (0.75.0): over a turning body, a path that

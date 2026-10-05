@@ -18,10 +18,15 @@ export interface GovernorTier {
   chunkMs: number;
   // Characters beyond `crowdNear` metres animate every `crowdStride` frames.
   crowdStride: number;
+  // Half the sky's scattering samples.
+  skyLow: boolean;
+  // The C++ simulation of far wildlife and routines runs every `simStride`
+  // ticks (each catching up the time it skipped).
+  simStride: number;
 }
 
 export const governorTiers: GovernorTier[] = [
-  { scale: 1, shadows: 2, bloom: true, scatter: 1, chunkMs: 4, crowdStride: 1 },
+  { scale: 1, shadows: 2, bloom: true, scatter: 1, chunkMs: 4, crowdStride: 1, skyLow: false, simStride: 1 },
   {
     scale: 0.85,
     shadows: 2,
@@ -29,6 +34,8 @@ export const governorTiers: GovernorTier[] = [
     scatter: 1,
     chunkMs: 4,
     crowdStride: 1,
+    skyLow: false,
+    simStride: 1,
   },
   {
     scale: 0.75,
@@ -37,6 +44,8 @@ export const governorTiers: GovernorTier[] = [
     scatter: 0.85,
     chunkMs: 3,
     crowdStride: 2,
+    skyLow: false,
+    simStride: 1,
   },
   {
     scale: 0.7,
@@ -45,6 +54,8 @@ export const governorTiers: GovernorTier[] = [
     scatter: 0.7,
     chunkMs: 3,
     crowdStride: 2,
+    skyLow: true,
+    simStride: 2,
   },
   {
     scale: 0.6,
@@ -53,6 +64,8 @@ export const governorTiers: GovernorTier[] = [
     scatter: 0.55,
     chunkMs: 2,
     crowdStride: 3,
+    skyLow: true,
+    simStride: 2,
   },
   {
     scale: 0.5,
@@ -61,6 +74,8 @@ export const governorTiers: GovernorTier[] = [
     scatter: 0.4,
     chunkMs: 2,
     crowdStride: 4,
+    skyLow: true,
+    simStride: 3,
   },
 ];
 
@@ -95,10 +110,7 @@ export class FrameGovernor {
   constructor(options: GovernorOptions = {}) {
     this.slowMs = options.slowMs ?? 20;
     this.fastMs = options.fastMs ?? 17.5;
-    this.floor = Math.max(
-      0,
-      Math.min(governorTiers.length - 1, options.floor ?? 0),
-    );
+    this.floor = Math.max(0, Math.min(governorTiers.length - 1, options.floor ?? 0));
     this.tier = this.floor;
   }
 
@@ -124,26 +136,19 @@ export class FrameGovernor {
     this.frames = 0;
     this.total = 0;
     this.worst = 0;
-    for (let i = 0; i < this.holdOff.length; i++)
-      this.holdOff[i] = Math.max(0, this.holdOff[i]! - seconds);
+    for (let i = 0; i < this.holdOff.length; i++) this.holdOff[i] = Math.max(0, this.holdOff[i]! - seconds);
     if (this.settle > 0) {
       // Just changed: give the new tier a moment before judging it.
       this.settle = Math.max(0, this.settle - seconds);
       return false;
     }
     // Slow on average, or a run of long hitches.
-    if (
-      this.average > this.slowMs ||
-      (worst > 45 && this.average > this.fastMs)
-    ) {
+    if (this.average > this.slowMs || (worst > 45 && this.average > this.fastMs)) {
       this.fastSeconds = 0;
       if (this.tier >= governorTiers.length - 1) return false;
       // The tier that just failed waits longer each time it fails.
       this.failures[this.tier]!++;
-      this.holdOff[this.tier] = Math.min(
-        120,
-        8 * 2 ** (this.failures[this.tier]! - 1),
-      );
+      this.holdOff[this.tier] = Math.min(120, 8 * 2 ** (this.failures[this.tier]! - 1));
       this.tier++;
       this.settle = 1;
       return true;

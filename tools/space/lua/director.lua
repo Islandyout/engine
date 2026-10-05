@@ -42,6 +42,8 @@ local prospect_mode = 0 -- 0 off, 1 volatiles, 2 ore, 3 biomass
 local PROSPECT = { "volatiles", "ore", "biomass" }
 local board_index = 1
 local spawned = {}
+local HERD_COUNT = 11 -- the home herds, "Herd 1".."Herd 11" (build_pale_signal.ts)
+local spawned_prefab = {} -- by id, for the save (0.76.0)
 local storm = { next = 240, until_t = 0, level = 0 }
 local idle_since = 0
 local autosave_at = 60
@@ -143,6 +145,29 @@ local function save_now(reason)
   if st then S.parts = { engine = st.engine, rcs = st.rcs, gear = st.gear, scanner = st.scanner } end
   -- The hull exactly and the system clock (0.75.0).
   if st then S.hull, S.time = st.hull, st.time end
+  -- Animals (0.76.0): the home herds where they grazed to, and any herds
+  -- out in the wilds relative to the walker.
+  if st and st.frame == "Tethys" and not st.away then
+    S.herds = {}
+    for i = 1, HERD_COUNT do
+      local id = world.find("Herd " .. i)
+      local x, y, z
+      if id then x, y, z = world.position(id) end
+      if x then S.herds[i] = { x = x, y = y, z = z } end
+    end
+  end
+  S.fauna = nil
+  local px, _, pz
+  if player then px, _, pz = world.position(player) end
+  if st and px and #spawned > 0 then
+    S.fauna = { body = st.frame, list = {} }
+    for _, id in ipairs(spawned) do
+      local x, _, z = world.position(id)
+      if x and spawned_prefab[id] then
+        S.fauna.list[#S.fauna.list + 1] = { prefab = spawned_prefab[id], dx = x - px, dz = z - pz }
+      end
+    end
+  end
   local text = encode(S)
   save.set("expedition", text)
   save.set("expedition_hash", tostring(hash(text)))
@@ -842,41 +867,50 @@ local function price_factor(standing)
   return math.max(0.6, math.min(1.6, 1 - standing / 100 * 0.4 - (standing < 0 and -standing / 100 * 0.2 or 0)))
 end
 
+local INSTITUTION = { commons = "Commons", concord = "Concord", meridian = "Meridian", hollow = "Hollow clades", preservation = "Preservation" }
+local function has(list, x)
+  for _, v in ipairs(list or {}) do if v == x then return true end end
+  return false
+end
+
+-- A station's services, priced by the standing of the institution that runs
+-- it (0.76.0; the Commons alone before).
 local function workshop_menu(kind)
+  local station = STATIONS[kind]
+  local inst = station.inst or "commons"
   open_menu({
     build = function(m)
-      m.title = STATIONS[kind].name
-      m.body = string.format("Ore %d · biomass %d · volatiles %d\nCommons standing %+d · Meridian standing %+d", S.res.ore, S.res.biomass, S.res.volatiles, S.civ.rep.commons, S.civ.rep.meridian)
+      local standing = S.civ.rep[inst] or 0
+      m.title = station.name
+      m.body = string.format("Ore %d · biomass %d · volatiles %d\n%s standing %+d", S.res.ore, S.res.biomass, S.res.volatiles, INSTITUTION[inst] or inst, standing)
       m.buttons = {}
-      -- Prices by standing (0.75.0): the Commons charge friends less and
-      -- strangers who wronged them more, and stop serving the worst.
-      local standing = S.civ.rep.commons
-      if (kind == "workshop" or kind == "market") and standing < -40 then
-        m.body = m.body .. "\n\nThe keepers turn away. Nobody here will trade with you until the Commons' trust is earned back."
+      local trades = has(station.services, "trade") or has(station.services, "repair")
+      if trades and standing < -40 then
+        m.body = m.body .. "\n\nThe keepers turn away. Nobody here will trade with you until the " .. (INSTITUTION[inst] or inst) .. "' trust is earned back."
         return
       end
       local cost = function(base) return math.max(1, math.floor(base * price_factor(standing) + 0.5)) end
       if standing ~= 0 then
         m.body = m.body .. string.format("\nPrices %s (%+d%%)", standing > 0 and "eased for a friend" or "raised for a stranger", math.floor((price_factor(standing) - 1) * 100 + 0.5))
       end
-      if kind == "workshop" then
+      if has(station.services, "repair") then
         local ore, bio = cost(8), cost(4)
-        m.buttons[1] = { string.format("Full service: %d ore + %d biomass", ore, bio), function()
+        m.buttons[#m.buttons + 1] = { string.format("Full service: %d ore + %d biomass", ore, bio), function()
           if S.res.ore < ore or S.res.biomass < bio then return hint(string.format("The workshop needs %d ore and %d biomass.", ore, bio), 3) end
           S.res.ore, S.res.biomass = S.res.ore - ore, S.res.biomass - bio
           space.repair(32)
           for _, p in ipairs({ "engine", "rcs", "gear" }) do space.call("part", p, 18) end
-          rep("commons", 2)
+          rep(inst, 2)
           banner("LOCAL WORKSHOP REPAIRS COMPLETE", 2.5, "good")
           refresh_meters()
         end }
       end
-      if kind == "workshop" or kind == "market" then
+      if has(station.services, "trade") then
         local bio = cost(6)
         m.buttons[#m.buttons + 1] = { string.format("Trade %d biomass -> 8 volatiles", bio), function()
           if S.res.biomass < bio then return hint(string.format("Needs %d biomass.", bio), 3) end
           S.res.biomass, S.res.volatiles = S.res.biomass - bio, S.res.volatiles + 8
-          rep("commons", 1)
+          rep(inst, 1)
           banner("TRADE COMPLETE  +8 VOLATILES", 2, "good")
           refresh_meters()
           if S.step == "fuel" then set_step("fuel") end
@@ -885,16 +919,18 @@ local function workshop_menu(kind)
         m.buttons[#m.buttons + 1] = { string.format("Trade %d ore -> 6 biomass", ore), function()
           if S.res.ore < ore then return hint(string.format("Needs %d ore.", ore), 3) end
           S.res.ore, S.res.biomass = S.res.ore - ore, S.res.biomass + 6
-          rep("commons", 1)
+          rep(inst, 1)
           banner("TRADE COMPLETE  +6 BIOMASS", 2, "good")
           refresh_meters()
         end }
       end
-      if kind == "archive" then
-        m.buttons[1] = { "Bilingual archive session", function()
-          if S.civ.rep.meridian < -10 then return hint("Meridian archive access restricted.", 3) end
+      if has(station.services, "archive") then
+        -- Friends get the archivists' time sooner (72 s at best, 192 s at worst).
+        local wait = math.floor(120 * price_factor(standing) + 0.5)
+        m.buttons[#m.buttons + 1] = { string.format("Bilingual archive session (every %d s)", wait), function()
+          if standing < -10 then return hint("Meridian archive access restricted.", 3) end
           if (S.archive_at or 0) > S.play then return hint("The archivists are busy. Come back later.", 3) end
-          S.archive_at = S.play + 120
+          S.archive_at = S.play + wait
           learn("talari", 5)
           S.rp = S.rp + 4
           banner("ARCHIVE SESSION  +5 LANGUAGE  +4 RP", 2.5, "good")
@@ -1003,8 +1039,8 @@ local function interaction(st)
       end
     end
   end
-  if here == "home" then
-    for kind, s in pairs(STATIONS) do consider("station", "Use the " .. s.name, dist2d(player, s.x, s.z), 4, kind, 2) end
+  for kind, s in pairs(STATIONS) do
+    if s.site == here then consider("station", "Use the " .. s.name, dist2d(player, s.x, s.z), 4, kind, 2) end
   end
   for id, ev in pairs(EVIDENCE) do
     if ev.movable and S.civ.evidence[id] and not S.civ.artifacts[id] and site_active(ev.site, st) then
@@ -1034,11 +1070,14 @@ end
 -- ------------------------------------------------------------ the world --
 local function despawn()
   for _, id in ipairs(spawned) do if world.alive(id) then world.destroy(id) end end
-  spawned = {}
+  spawned, spawned_prefab = {}, {}
 end
 
 -- Wildlife for whatever world the frame is on (away from home and sites).
-local function release_fauna(body)
+-- `behind` (0.76.0, after a reframe while walking): the herds come in out of
+-- sight -- well back and to the sides of the way the walker is heading --
+-- instead of appearing in view.
+local function release_fauna(body, behind)
   despawn()
   local kinds = FAUNA[body]
   if not kinds or not player then return end
@@ -1048,14 +1087,40 @@ local function release_fauna(body)
     px, py, pz = world.position(ship)
   end
   if not px then return end
+  -- A reload on the same world brings back the herds that were there,
+  -- where they stood relative to the walker (0.76.0).
+  local kept = S.fauna
+  S.fauna = nil
+  if kept and kept.body == body and not behind then
+    for _, f in ipairs(kept.list or {}) do
+      local id = world.spawn(f.prefab, px + f.dx, py + 3, pz + f.dz)
+      if id then
+        spawned[#spawned + 1] = id
+        spawned_prefab[id] = f.prefab
+      end
+    end
+    if #spawned > 0 then return end
+  end
+  local heading
+  if behind then
+    local vx, _, vz = world.velocity(player)
+    if vx and vx * vx + vz * vz > 0.25 then heading = math.atan(vz, vx) end
+  end
   for h = 1, 2 do
     local prefab = kinds[(h - 1) % #kinds + 1]
     local a = math.random() * math.pi * 2
     local r = 70 + math.random() * 80
+    if behind then
+      r = 160 + math.random() * 80
+      if heading then a = heading + math.pi + (h == 1 and -1 or 1) * (0.5 + math.random() * 0.7) end
+    end
     local cx, cz = px + math.cos(a) * r, pz + math.sin(a) * r
     for _ = 1, (prefab == "Drifter" and 2 or 4) do
       local id = world.spawn(prefab, cx + (math.random() - 0.5) * 12, py + 3, cz + (math.random() - 0.5) * 12)
-      if id then spawned[#spawned + 1] = id end
+      if id then
+        spawned[#spawned + 1] = id
+        spawned_prefab[id] = prefab
+      end
     end
   end
 end
@@ -1197,6 +1262,46 @@ local function music(st, dt)
   end
 end
 
+-- Sliding doors (0.76.0): a hall's door slides aside while the walker or
+-- one of the town's people is near it, and closes behind them. Closed
+-- positions are read in the frame the site is in, so they're forgotten when
+-- the frame changes.
+local PEOPLE = { Talari = true, ["Stall Keeper"] = true, Neighbour = true }
+for _, n in ipairs(NPCS) do PEOPLE[n.name] = true end
+local door_state = { frame = nil, at = {}, open = {}, check = 0 }
+local function doors(st, dt)
+  local here = current_site(st)
+  local frame = (st.frame or "") .. ":" .. here
+  if door_state.frame ~= frame then door_state = { frame = frame, at = {}, open = {}, check = 0 } end
+  door_state.check = door_state.check - dt
+  if door_state.check > 0 then return end
+  door_state.check = 0.15
+  for _, d in ipairs(DOORS) do
+    if d.site == here then
+      local id = world.find(d.name)
+      if id then
+        local at = door_state.at[d.name]
+        if not at then
+          local x, y, z = world.position(id)
+          if x then at = { x = x, y = y, z = z }; door_state.at[d.name] = at end
+        end
+        if at then
+          local near = false
+          for _, other in ipairs(world.overlap(at.x, at.y, at.z, 3.2)) do
+            if other == player or PEOPLE[world.name(other) or ""] then near = true break end
+          end
+          local open = door_state.open[d.name] or 0
+          open = math.max(0, math.min(1, open + (near and 1 or -1) * 0.3))
+          if open ~= door_state.open[d.name] then
+            door_state.open[d.name] = open
+            world.set_position(id, at.x + d.dx * open, at.y, at.z + d.dz * open)
+          end
+        end
+      end
+    end
+  end
+end
+
 local function ambience(st)
   local here = current_site(st)
   local settlement = 0
@@ -1311,6 +1416,12 @@ local function begin(from_save)
     if S.ship and S.ship.body then space.place_landed(S.ship.body, S.ship.lat, S.ship.lon, 0) end
     if S.fuel then space.set_fuel(S.fuel) end
     if S.hull then space.call("hull", "", S.hull) end
+    if S.herds and (not S.ship or S.ship.body == "Tethys") then
+      for i, p in pairs(S.herds) do
+        local id = world.find("Herd " .. i)
+        if id then world.set_position(id, p.x, p.y, p.z) end
+      end
+    end
     for spot in pairs(S.spots or {}) do host.send("harvest_spot", spot) end
     if S.parts then for p, v in pairs(S.parts) do space.call("part", p, v - 100) end end
     if S.reserve then space.call("reserve") end
@@ -1454,7 +1565,7 @@ function on_tick(dt)
         local x, _, z = world.position(id)
         if x and px and math.sqrt((x - px) ^ 2 + (z - pz) ^ 2) < 350 then near = true break end
       end
-      if not near and current_site(fs) == "" then release_fauna(fs.frame) end
+      if not near and current_site(fs) == "" then release_fauna(fs.frame, true) end
     elseif e == "autopilot_arrived" then
       banner("ARRIVED -- AUTOPILOT DISENGAGED", 2.5, "good")
       lesson("autopilot")
@@ -1553,6 +1664,7 @@ function on_tick(dt)
     st.autopilot and ("  · AUTOPILOT " .. string.upper(st.autopilot_phase or "")) or ""))
   weather(st, step_dt)
   ambience(st)
+  doors(st, step_dt)
   music(st, step_dt)
   if menu and menu.build and (menu.key == "tab" or menu.key == "i") then render_menu() end
 

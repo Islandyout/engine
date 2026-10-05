@@ -12,7 +12,15 @@
 // kept in doubles: three.js composes model-view matrices in doubles, so a
 // mesh far from the origin still renders steadily.
 import * as THREE from "three";
-import { atmosphereParams, scatterColor, scatterShellMaterial, scatterSkyMaterial, setScatterUniforms, type AtmosphereParams } from "./atmosphere";
+import {
+  atmosphereParams,
+  scatterColor,
+  setScatterLow,
+  scatterShellMaterial,
+  scatterSkyMaterial,
+  setScatterUniforms,
+  type AtmosphereParams,
+} from "./atmosphere";
 import { buildKestrel, cloudShell, milkyWay, signalStructure } from "./spaceArt";
 
 export interface SpaceRuntime {
@@ -83,8 +91,19 @@ export function parseSpaceBodies(text: string): { bodies: SpaceBody[]; errors: s
       errors.push(`line ${line + 1}: parent "${parentName}" must be listed before ${name}`);
       return;
     }
-    const [orbitRadius, period, phase, inclination, radius, gravity, atmosphereHeight, atmosphereDensity, terrainAmplitude, terrainScale, seed] =
-      numbers as [number, number, number, number, number, number, number, number, number, number, number];
+    const [orbitRadius, period, phase, inclination, radius, gravity, atmosphereHeight, atmosphereDensity, terrainAmplitude, terrainScale, seed] = numbers as [
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+    ];
     if (!(radius > 0) || !(gravity > 0) || !(period > 0) || !(terrainScale > 0)) {
       errors.push(`line ${line + 1}: radius, gravity, period and terrain scale must be positive`);
       return;
@@ -128,7 +147,8 @@ export function parseLandmarks(text: string, bodies: SpaceBody[]): Landmark[] {
     const tokens = raw.trim().split(/\s+/);
     if (tokens.length < 3 || tokens[0]!.startsWith("#")) continue;
     const body = bodies.findIndex((b) => b.name === tokens[0]);
-    const latitude = Number(tokens[1]), longitude = Number(tokens[2]);
+    const latitude = Number(tokens[1]),
+      longitude = Number(tokens[2]);
     if (body < 0 || !Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
     const color = /^#[0-9a-f]{6}$/i.test(tokens[3] ?? "") ? tokens[3]! : "#9fe8ff";
     let rest = tokens.slice(/^#/.test(tokens[3] ?? "") ? 4 : 3);
@@ -146,7 +166,8 @@ export function parseLandmarks(text: string, bodies: SpaceBody[]): Landmark[] {
 // A latitude/longitude (degrees) to a unit direction in a body's frame --
 // the same convention as the runtime's site and space.place_landed.
 export function latLonDirection(latitude: number, longitude: number) {
-  const lat = THREE.MathUtils.degToRad(latitude), lon = THREE.MathUtils.degToRad(longitude);
+  const lat = THREE.MathUtils.degToRad(latitude),
+    lon = THREE.MathUtils.degToRad(longitude);
   return new THREE.Vector3(Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon));
 }
 
@@ -306,7 +327,9 @@ function cubeToSphere(face: number, u: number, v: number, out: THREE.Vector3) {
   const x = n.x + a.x * u + b.x * v;
   const y = n.y + a.y * u + b.y * v;
   const z = n.z + a.z * u + b.z * v;
-  const x2 = x * x, y2 = y * y, z2 = z * z;
+  const x2 = x * x,
+    y2 = y * y,
+    z2 = z * z;
   out.set(
     x * Math.sqrt(1 - y2 / 2 - z2 / 2 + (y2 * z2) / 3),
     y * Math.sqrt(1 - z2 / 2 - x2 / 2 + (z2 * x2) / 3),
@@ -343,7 +366,10 @@ class Planet {
       shader.fragmentShader = shader.fragmentShader
         .replace("#include <common>", "#include <common>\nvarying float vWater;\nvarying float vLava;")
         .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.12, vWater);")
-        .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.32, 0.06) * smoothstep(0.35, 0.9, vLava) * 2.2;");
+        .replace(
+          "#include <emissivemap_fragment>",
+          "#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.32, 0.06) * smoothstep(0.35, 0.9, vLava) * 2.2;",
+        );
     };
     const base = new THREE.Color(body.color);
     const haze = new THREE.Color(body.haze);
@@ -388,7 +414,9 @@ class Planet {
         seabed[j * n + i] = ground;
         const h = Math.max(ground, sea);
         heights[j * n + i] = h;
-        p.copy(dir).multiplyScalar(radius + h).sub(chunk.centre);
+        p.copy(dir)
+          .multiplyScalar(radius + h)
+          .sub(chunk.centre);
         positions.set([p.x, p.y, p.z], (j * n + i) * 3);
       }
     // Skirts: each edge repeated, dropped below the surface, hiding cracks
@@ -400,7 +428,9 @@ class Planet {
     let k = n * n;
     const edge = (i: number, j: number) => {
       cubeToSphere(chunk.face, chunk.u + (chunk.size * i) / (n - 1), chunk.v + (chunk.size * j) / (n - 1), dir);
-      p.copy(dir).multiplyScalar(radius + heights[j * n + i]! - drop).sub(chunk.centre);
+      p.copy(dir)
+        .multiplyScalar(radius + heights[j * n + i]! - drop)
+        .sub(chunk.centre);
       positions.set([p.x, p.y, p.z], k * 3);
       vertexHeight[k] = seabed[j * n + i]!;
       source[k] = j * n + i;
@@ -409,7 +439,10 @@ class Planet {
     const surface: number[] = [];
     for (let j = 0; j < n - 1; j++)
       for (let i = 0; i < n - 1; i++) {
-        const a = j * n + i, b = a + 1, c = a + n, d = c + 1;
+        const a = j * n + i,
+          b = a + 1,
+          c = a + n,
+          d = c + 1;
         // Counter-clockwise seen from outside (each face's u x v is its normal).
         surface.push(a, b, c, b, d, c);
       }
@@ -418,8 +451,12 @@ class Planet {
     const skirt = (cells: Array<[number, number]>) => {
       const low = cells.map(([i, j]) => edge(i, j));
       for (let s = 0; s < cells.length - 1; s++) {
-        const [i0, j0] = cells[s]!, [i1, j1] = cells[s + 1]!;
-        const a = j0 * n + i0, b = j1 * n + i1, c = low[s]!, d = low[s + 1]!;
+        const [i0, j0] = cells[s]!,
+          [i1, j1] = cells[s + 1]!;
+        const a = j0 * n + i0,
+          b = j1 * n + i1,
+          c = low[s]!,
+          d = low[s + 1]!;
         skirts.push(a, b, c, b, d, c, a, c, b, b, c, d);
       }
     };
@@ -445,11 +482,16 @@ class Planet {
     const water = new Float32Array(k);
     const lavaAmount = new Float32Array(k);
     const basalt = new THREE.Color("#1c1412");
-    const shallow = new THREE.Color("#3f8a96"), deep = new THREE.Color("#0f2f44"), sand = new THREE.Color("#c9b98c");
+    const shallow = new THREE.Color("#3f8a96"),
+      deep = new THREE.Color("#0f2f44"),
+      sand = new THREE.Color("#c9b98c");
     const snow = new THREE.Color("#eef3f6");
     for (let v = 0; v < k; v++) {
       const h = vertexHeight[v]!;
-      const up = p.set(positions[v * 3]!, positions[v * 3 + 1]!, positions[v * 3 + 2]!).add(chunk.centre).normalize();
+      const up = p
+        .set(positions[v * 3]!, positions[v * 3 + 1]!, positions[v * 3 + 2]!)
+        .add(chunk.centre)
+        .normalize();
       if (h < sea) {
         c.copy(shallow).lerp(deep, THREE.MathUtils.clamp((sea - h) / 80, 0, 1));
         water[v] = 1;
@@ -595,10 +637,12 @@ function starField() {
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   let seed = 12345;
-  const random = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296);
+  const random = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296;
   const c = new THREE.Color();
   for (let i = 0; i < count; i++) {
-    const z = random() * 2 - 1, a = random() * Math.PI * 2, r = Math.sqrt(1 - z * z);
+    const z = random() * 2 - 1,
+      a = random() * Math.PI * 2,
+      r = Math.sqrt(1 - z * z);
     positions.set([r * Math.cos(a), z, r * Math.sin(a)], i * 3);
     const brightness = 0.25 + Math.pow(random(), 6) * 1.6;
     c.setHSL(0.55 + random() * 0.15 - (random() < 0.3 ? 0.5 : 0), 0.35, 0.6).multiplyScalar(brightness);
@@ -718,6 +762,8 @@ export class SpaceView {
   // Milliseconds a frame may spend building terrain once warm (the frame
   // governor lowers it under load).
   chunkMs = 4;
+  // The frame governor's cheap sky (half the scattering samples).
+  skyLow = false;
   private readonly starColor: THREE.Color;
   flight: FlightState;
   // In the site frame, toward the star.
@@ -744,7 +790,9 @@ export class SpaceView {
   private decor?: ShipDecor;
   private voice?: ThrusterVoice;
 
-  readonly landmarks: Array<Landmark & { anchor: THREE.Object3D; beam: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>; flare: THREE.Sprite; rings: THREE.Mesh[] }> = [];
+  readonly landmarks: Array<
+    Landmark & { anchor: THREE.Object3D; beam: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>; flare: THREE.Sprite; rings: THREE.Mesh[] }
+  > = [];
   // The Pale Signal grammar's shared clock (seconds): rings and the grass
   // near structures move on it.
   grammarTime = 0;
@@ -783,10 +831,20 @@ export class SpaceView {
       const height = Math.min(planet.body.radius * 0.08, 4000);
       const beam = new THREE.Mesh(
         new THREE.CylinderGeometry(6, 14, height, 16, 1, true),
-        new THREE.MeshBasicMaterial({ color: landmark.color, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }),
+        new THREE.MeshBasicMaterial({
+          color: landmark.color,
+          transparent: true,
+          opacity: 0.32,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          fog: false,
+        }),
       );
       beam.position.y = height / 2;
-      const flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: landmark.color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+      const flare = new THREE.Sprite(
+        new THREE.SpriteMaterial({ map: glow, color: landmark.color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }),
+      );
       flare.scale.setScalar(160);
       flare.position.y = 20;
       const structure = signalStructure(landmark.color, landmark.kind);
@@ -825,7 +883,12 @@ export class SpaceView {
     if (this.voice) {
       const f = this.flight;
       if (f.destroyed) this.voice.silence();
-      else this.voice.update(Math.max(f.engineOn ? f.throttle : 0, Math.abs(f.vertical) * 0.6, f.engineOn && !f.landed ? 0.25 : 0), Math.min(1, f.density / 0.6), f.speed);
+      else
+        this.voice.update(
+          Math.max(f.engineOn ? f.throttle : 0, Math.abs(f.vertical) * 0.6, f.engineOn && !f.landed ? 0.25 : 0),
+          Math.min(1, f.density / 0.6),
+          f.speed,
+        );
     }
   }
 
@@ -880,12 +943,21 @@ export class SpaceView {
         return { flame, core };
       });
       const glow = glowTexture();
-      const lift = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: 0x9fd4ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      const lift = new THREE.Sprite(
+        new THREE.SpriteMaterial({ map: glow, color: 0x9fd4ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }),
+      );
       lift.position.y = -size.y * 0.5;
       lift.scale.setScalar(size.x * 1.2);
       const plasma = new THREE.Mesh(
         new THREE.SphereGeometry(1, 24, 16),
-        new THREE.MeshBasicMaterial({ color: 0xff7a3a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide }),
+        new THREE.MeshBasicMaterial({
+          color: 0xff7a3a,
+          transparent: true,
+          opacity: 0,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.BackSide,
+        }),
       );
       plasma.scale.set(size.x * 0.75, size.y * 0.9, size.z * 0.75);
       const dust = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: 0xb8a888, transparent: true, depthWrite: false, opacity: 0 }));
@@ -1002,6 +1074,7 @@ export class SpaceView {
       const cameraBody = relative.applyQuaternion(inverse);
       planet.update(cameraBody, budget);
       if (planet.atmosphere) {
+        setScatterLow(planet.atmosphere.material, this.skyLow);
         const params = planet.atmosphere.userData.params as AtmosphereParams;
         const outside = relative.length() > planet.body.radius * params.top * 1.0005;
         planet.atmosphere.visible = outside;
@@ -1054,6 +1127,7 @@ export class SpaceView {
       } else this.scene.fog = null;
     }
     this.sky.visible = skyInside && this.air > 0.003;
+    setScatterLow(this.sky.material, this.skyLow);
     this.sky.position.copy(cameraPosition);
     this.sky.scale.setScalar(Math.max(near * 4, 10));
     this.stars.position.copy(cameraPosition);
@@ -1141,14 +1215,16 @@ export class SpaceView {
     const total = pool.reduce((sum, s) => sum + s.weight, 0);
     // Seeded by where the frame is on its body (0.75.0), so the same place
     // grows the same plants every visit (and what was harvested stays gone).
-    let seed = (Math.round(this.rt._editor_space_value(55) * 100) * 73856093) ^ (Math.round(this.rt._editor_space_value(56) * 100) * 19349663) ^ ((body + 1) * 83492791);
+    let seed =
+      (Math.round(this.rt._editor_space_value(55) * 100) * 73856093) ^ (Math.round(this.rt._editor_space_value(56) * 100) * 19349663) ^ ((body + 1) * 83492791);
     seed = seed >>> 0 || 7;
-    const random = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const random = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
     for (let i = 0; i < 900 && out.length < 650 * density; i++) {
       // Denser near the middle, where you walk.
       const r = keepClear + Math.pow(random(), 1.6) * (range - keepClear);
       const a = random() * Math.PI * 2;
-      const x = Math.cos(a) * r, z = Math.sin(a) * r;
+      const x = Math.cos(a) * r,
+        z = Math.sin(a) * r;
       let pick = random() * total;
       const chosen = pool.find((s) => (pick -= s.weight) <= 0) ?? pool[0]!;
       if (this.rt._editor_space_wet(x, z) || keep.some((k) => Math.hypot(x - k.x, z - k.z) < k.r)) continue;
@@ -1191,7 +1267,10 @@ function bar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, val
 // that turn red past the gear's limits; SAFE when all are inside.
 function drawLandingRadar(ctx: CanvasRenderingContext2D, width: number, height: number, f: FlightState) {
   // Right of centre, clear of the ship and of HUD columns.
-  const x = width / 2 + Math.min(220, width * 0.2), top = height * 0.4, h = height * 0.3, scale = 400;
+  const x = width / 2 + Math.min(220, width * 0.2),
+    top = height * 0.4,
+    h = height * 0.3,
+    scale = 400;
   ctx.save();
   ctx.fillStyle = "rgba(6,12,18,0.55)";
   ctx.fillRect(x - 14, top - 26, 140, h + 40);
@@ -1245,11 +1324,13 @@ export function drawFlightHud(ctx: CanvasRenderingContext2D, width: number, heig
   ctx.font = "12px ui-monospace, Menlo, Consolas, monospace";
   ctx.textBaseline = "alphabetic";
   if (f.piloting) {
-    const x = 18, y = height - 168, w = 230;
+    const x = 18,
+      y = height - 168,
+      w = 230;
     ctx.fillStyle = "rgba(6,12,18,0.55)";
     ctx.fillRect(x - 10, y - 22, w + 20, 176);
     ctx.fillStyle = "#cfe7f5";
-    const ref = f.ref >= 0 ? view.bodies[f.ref]?.name ?? "" : "STAR";
+    const ref = f.ref >= 0 ? (view.bodies[f.ref]?.name ?? "") : "STAR";
     ctx.fillText(`${assistNames[f.assist] ?? ""}${f.warp > 1 ? `   WARP x${f.warp}` : ""}`, x, y - 6);
     ctx.fillStyle = "rgba(207,231,245,0.7)";
     ctx.fillText(ref.toUpperCase(), x + w - ctx.measureText(ref.toUpperCase()).width, y - 6);
@@ -1264,14 +1345,20 @@ export function drawFlightHud(ctx: CanvasRenderingContext2D, width: number, heig
     ctx.fillText(`${vs >= 0 ? "▲" : "▼"} ${Math.abs(vs).toFixed(1)} m/s`, x, y + 40);
     ctx.fillText(`${f.groundSpeed.toFixed(0)} m/s GND   ${f.speed.toFixed(0)} m/s ORB`, x, y + 58);
     if (!f.landed && f.altitude > 1000 && f.ref >= 0)
-      ctx.fillText(`PE ${f.orbitClosed || f.periapsis > -1e6 ? distanceText(f.periapsis) : "--"}  AP ${f.orbitClosed ? distanceText(f.apoapsis) : "ESCAPE"}`, x, y + 76);
+      ctx.fillText(
+        `PE ${f.orbitClosed || f.periapsis > -1e6 ? distanceText(f.periapsis) : "--"}  AP ${f.orbitClosed ? distanceText(f.apoapsis) : "ESCAPE"}`,
+        x,
+        y + 76,
+      );
     bar(ctx, x, y + 96, w, f.throttle, "#7fc8ff", `THROTTLE ${(f.throttle * 100).toFixed(0)}%`);
     bar(ctx, x, y + 120, w, f.fuel, f.fuel < 0.2 ? "#ff9f43" : "#9be37a", `FUEL ${(f.fuel * 100).toFixed(0)}%`);
     bar(ctx, x, y + 144, w * 0.48, f.hull, f.hull < 0.35 ? "#ff5d5d" : "#d8e2ea", `HULL ${(f.hull * 100).toFixed(0)}%`);
     if (f.heat > 5) bar(ctx, x + w * 0.52, y + 144, w * 0.48, f.heat / 100, f.heat > 78 ? "#ff5d5d" : "#ffb347", "HEAT");
     // Mouse steering (0.75.0): the virtual stick's ring and where it sits.
     if (view.stick.active && !f.landed) {
-      const cx = width / 2, cy = height / 2, r = Math.min(width, height) * 0.09;
+      const cx = width / 2,
+        cy = height / 2,
+        r = Math.min(width, height) * 0.09;
       ctx.strokeStyle = "rgba(143,247,255,0.35)";
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -1299,7 +1386,11 @@ export function drawFlightHud(ctx: CanvasRenderingContext2D, width: number, heig
       ctx.textAlign = "center";
       ctx.font = "bold 14px ui-monospace, Menlo, Consolas, monospace";
       ctx.fillStyle = color;
-      ctx.fillText(`${f.altitude.toFixed(1)} m   ${sink > 0 ? "SINK" : "CLIMB"} ${Math.abs(sink).toFixed(1)} m/s   DRIFT ${f.groundSpeed.toFixed(1)} m/s`, width / 2, height * 0.72);
+      ctx.fillText(
+        `${f.altitude.toFixed(1)} m   ${sink > 0 ? "SINK" : "CLIMB"} ${Math.abs(sink).toFixed(1)} m/s   DRIFT ${f.groundSpeed.toFixed(1)} m/s`,
+        width / 2,
+        height * 0.72,
+      );
       ctx.textAlign = "left";
     }
     // Target.
@@ -1328,7 +1419,8 @@ export function drawFlightHud(ctx: CanvasRenderingContext2D, width: number, heig
       if (distance < 400) continue; // standing at it
       const p = world.clone().project(camera);
       if (p.z > 1) continue;
-      const sx = (p.x * 0.5 + 0.5) * width, sy = (-p.y * 0.5 + 0.5) * height;
+      const sx = (p.x * 0.5 + 0.5) * width,
+        sy = (-p.y * 0.5 + 0.5) * height;
       if (sx < 0 || sy < 0 || sx > width || sy > height) continue;
       ctx.strokeStyle = landmark.color;
       ctx.lineWidth = 1.5;

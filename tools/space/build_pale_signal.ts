@@ -168,8 +168,14 @@ function canal(x: number, z: number, w: number, d: number, yaw = 0) {
 // An interior (0.75.0): floor, four walls with a doorway on one side, a
 // roof (shelter from storms), a warm vestibule glow over the door and a
 // light inside. `door` is the side the doorway faces.
+// Interiors by site (0.76.0): where indoor workers' desks are, and the
+// sliding doors the director opens for whoever comes near.
+const interiors: Record<string, Array<{ x: number; z: number; w: number; d: number }>> = {};
+const DOORS: Array<{ name: string; site: string; dx: number; dz: number }> = [];
+let currentSite = "home";
 function interior(name: string, x: number, z: number, w: number, d: number, door: "n" | "s" | "e" | "w", wall: string, roof: string, glow = "#ffb860", lit = 2.6) {
   const h = 4.2, t = 0.4, gap = 2.6;
+  (interiors[currentSite] ??= []).push({ x, z, w, d });
   box(`${name} Floor`, [x, 0.12, z], [w, 0.24, d], "#4a4640", solid(), { roughness: 0.85 });
   const side = (s: "n" | "s" | "e" | "w") => {
     const alongX = s === "n" || s === "s";
@@ -184,6 +190,10 @@ function interior(name: string, x: number, z: number, w: number, d: number, door
       box(`${name} Wall`, [cx + (alongX ? off : 0), h / 2, cz + (alongX ? 0 : off)], size(piece), wall, solid(), { roughness: 0.9 });
     }
     box(`${name} Lintel`, [cx, h - 0.5, cz], alongX ? [gap, 1, t] : [t, 1, gap], wall, solid(), { roughness: 0.9 });
+    // A sliding door (no collider: it's always open for whoever walks in;
+    // the director slides it aside as they come near).
+    box(`${name} Door`, [cx, (h - 1) / 2, cz], alongX ? [gap, h - 1, t * 0.4] : [t * 0.4, h - 1, gap], "#3a3430", {}, { roughness: 0.5, metalness: 0.3 });
+    DOORS.push({ name: `${name} Door`, site: currentSite, dx: alongX ? gap * 0.95 : 0, dz: alongX ? 0 : gap * 0.95 });
     const out = 0.5;
     const gx = cx + (s === "e" ? out : s === "w" ? -out : 0), gz = cz + (s === "n" ? out : s === "s" ? -out : 0);
     box(`${name} Vestibule Glow`, [gx, h - 1.2, gz], alongX ? [gap + 0.8, 0.22, 0.5] : [0.5, 0.22, gap + 0.8], glow, {}, { emissive: rgb(glow), emissiveIntensity: 2 });
@@ -237,9 +247,13 @@ const JOBS: Array<[RegExp, string]> = [
 // A day: work from early morning, lunch at the market, back to work, the
 // market again in the evening, home. Everyone's hours drift a little, so
 // the town never empties or fills all at once.
-function routine(role: string, home: [number, number], work: [number, number], market: [number, number], to: (e: number, n: number) => [number, number]) {
-  const p = (q: [number, number]) => to(q[0], q[1]).map((v) => v.toFixed(1)).join(" ");
+function routine(role: string, home: [number, number], work: [number, number], market: [number, number], to: (e: number, n: number) => [number, number], rooms: Array<{ x: number; z: number; w: number; d: number }> = []) {
   const job = JOBS.find(([re]) => re.test(role))?.[1] ?? "talk";
+  // Desk and craft workers at a site with a hall work inside it (0.76.0),
+  // somewhere across the floor.
+  const room = job !== "talk" && rooms.length && random() < 0.6 ? pick(rooms) : undefined;
+  const inside: [number, number] | undefined = room ? [room.x + (random() - 0.5) * room.w * 0.5, room.z + (random() - 0.5) * room.d * 0.5] : undefined;
+  const p = (q: [number, number]) => (q === work && inside ? inside : to(q[0], q[1])).map((v) => v.toFixed(1)).join(" ");
   const h = (base: number, spread: number) => (base + random() * spread).toFixed(2);
   const lunch = 11.5 + random() * 1.5;
   return [
@@ -273,11 +287,14 @@ for (const [prefab, f] of Object.entries(FAUNA))
       Wildlife: { wary: 44, flee: 16, speed: prefab === "Husk" ? 2.5 : 7, leash: 90 },
     } as never,
   };
+// Home herd animals are "Herd 1".."Herd n" so the save can find each one
+// (0.76.0; the director's HERD_COUNT).
+let herdAnimals = 0;
 function herd(prefab: string, x: number, z: number, count: number) {
   const f = FAUNA[prefab]!;
   for (let i = 0; i < count; i++) {
     const a = random() * Math.PI * 2, r = 3 + random() * 7;
-    add(f.name, [x + Math.cos(a) * r, 0.8, z + Math.sin(a) * r], {
+    add(`Herd ${++herdAnimals}`, [x + Math.cos(a) * r, 0.8, z + Math.sin(a) * r], {
       ...(prefabs[prefab]!.components as Components),
       Wildlife: { wary: 44, flee: 16, speed: 7, leash: 80 },
     });
@@ -445,17 +462,20 @@ add("Boulders", [0, 0, 0], { ModelInstances: { instances: rocks.join("\n") } });
 herd("Grazer", 140, -140, 5);
 herd("Grazer", -150, 160, 4);
 herd("Skimmer", 260, 220, 2);
+if (herdAnimals !== 11) throw new Error("the director's HERD_COUNT is 11");
 
 // --------------------------------------------------------- the other sites --
 function site(id: string, build: () => void) {
   const row = SITES.find((s) => s.id === id)!;
   siteParent = add(row.name, [0, 0, 0], { Site: { name: row.name, body: row.body, latitude: row.lat!, longitude: row.lon!, radius: row.radius! } }, undefined);
+  currentSite = id;
   build();
   // Its evidence and people.
   for (const ev of EVIDENCE.filter((e) => e[1] === id)) evidenceEntity(ev);
   for (const n of NPCS.filter((n) => n.site === id))
-    talari(n.name, [n.home[0] * 0.6, -n.home[1] * 0.6], routine(n.role, n.home, n.work, n.market, (e, nn) => [e * 0.6, -nn * 0.6]), n.role);
+    talari(n.name, [n.home[0] * 0.6, -n.home[1] * 0.6], routine(n.role, n.home, n.work, n.market, (e, nn) => [e * 0.6, -nn * 0.6], interiors[id]), n.role);
   siteParent = undefined;
+  currentSite = "home";
 }
 // A landing field: a pad with lit edges (landing elsewhere is an offence).
 function field(x: number, z: number) {
@@ -567,7 +587,19 @@ const config = [
   `local NPCS = ${lua(NPCS.map(({ id, name, role, inst, site, line }) => ({ id, name, role, inst, site, line })))}`,
   `local CLADES = ${lua(CLADES.map(({ id, name, role, inst, line }) => ({ id, name, role, inst, line })))}`,
   `local ACADEMY = ${lua(ACADEMY)}`,
-  `local STATIONS = ${lua({ workshop: { x: WX - 1, z: WZ - 2.5, name: "Kestra Workshop" }, market: { x: MX + 10, z: MZ, name: "Reed Market Exchange" }, archive: { x: HX + 2, z: HZ + 3, name: "Bilingual Archive" } })}`,
+  // Stations by institution (0.76.0): each charges by its own keepers'
+  // standing with you -- the Commons at Kestra's workshop and market, the
+  // Concord at the Darsa Water Court, the Meridian at the archive and the
+  // Spur's reading room, the Hollow clades at the Resonance Exchange.
+  `local STATIONS = ${lua({
+    workshop: { x: WX - 1, z: WZ - 2.5, name: "Kestra Workshop", site: "home", inst: "commons", services: ["repair", "trade"] },
+    market: { x: MX + 10, z: MZ, name: "Reed Market Exchange", site: "home", inst: "commons", services: ["trade"] },
+    archive: { x: HX + 2, z: HZ + 3, name: "Bilingual Archive", site: "home", inst: "meridian", services: ["archive"] },
+    court: { x: 93, z: -20, name: "Water Court Ledger", site: "darsa_delta", inst: "concord", services: ["trade", "repair"] },
+    reading: { x: 44, z: -63.5, name: "Spur Reading Room", site: "meridian_spur", inst: "meridian", services: ["archive"] },
+    exchange: { x: 218, z: -114, name: "Resonance Exchange", site: "hollow_enclave", inst: "hollow", services: ["trade"] },
+  })}`,
+  `local DOORS = ${lua(DOORS)}`,
   `local FAUNA = ${lua({ Tethys: ["Grazer", "Skimmer"], Cinder: ["Crawler"], Ossuary: ["Husk"], Hollow: ["Drifter"], Vell: ["Strider"], Nemesis: ["Watcher"] })}`,
 ].join("\n");
 add("Director", [0, 60, 0], {
