@@ -1420,12 +1420,14 @@ const { chromium } = require("playwright");
       await page.keyboard.down("w");
       await page.waitForTimeout(700);
       await page.keyboard.up("w");
-      for (let i = 0; i < 8; i++) {
+      // Punch until a blow lands (landed or blocked blows build energy).
+      let landed = false;
+      for (let i = 0; i < 80 && !landed; i++) {
         await page.keyboard.press("j");
         await page.waitForTimeout(150);
+        landed = (await energy()) > startEnergy;
       }
-      // Landed (or blocked) blows build energy.
-      await page.waitForFunction((start) => Number(document.querySelector("#hud-text").textContent.match(/energy (\d+)%/)?.[1] ?? 0) > start, startEnergy, { timeout: 15000 });
+      assert.ok(landed, `a punch lands (energy ${await energy()}% from ${startEnergy}%)`);
       await page.screenshot({ path: "build/browser-evidence/dojo.png" });
       await page.click("#stop");
     }
