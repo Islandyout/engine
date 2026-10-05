@@ -4185,7 +4185,23 @@ async function startEditor() {
       log(String(e));
     }
   };
-  el("play").onclick = () => {
+  let playStarting = false;
+  el("play").onclick = async () => {
+    // Models still loading when Play is pressed would stay placeholder boxes
+    // for the whole session (they're swapped in by an edit-mode rebuild), so
+    // their clips and Animators would never run: wait for them first, up to
+    // 10 s (0.76.1). Nothing pending, nothing awaited: Play starts at once.
+    if (doc.mode === "edit" && pendingCatalogRebuilds.size) {
+      if (playStarting) return;
+      playStarting = true;
+      try {
+        const loading = [...pendingCatalogRebuilds].map((id) => catalogPromises.get(id)?.catch(() => undefined));
+        await Promise.race([Promise.all(loading), new Promise((resolve) => setTimeout(resolve, 10000))]);
+      } finally {
+        playStarting = false;
+      }
+      if (doc.mode !== "edit") return;
+    }
     try {
       if (doc.mode === "edit") {
         prePlayTarget = controls.target.clone();

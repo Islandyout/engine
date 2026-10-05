@@ -3,6 +3,7 @@
 // event (one checkpoint, no rivals) through countdown, racing HUD, the win
 // screen and on to the next event.
 const assert = require("node:assert/strict");
+const { saveFailure } = require("./evidence.cjs");
 const http = require("node:http");
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -121,6 +122,9 @@ function raceVariant(scene) {
       await page.close();
     }
     console.log("HIGH HEAT: title, free roam with the driving HUD, a race through countdown to the win screen, and progression passed.");
+  } catch (error) {
+    await saveFailure("high_heat", error, browser);
+    throw error;
   } finally {
     await browser?.close();
     server.close();
