@@ -162,6 +162,11 @@ struct FighterTick final {
 FighterTick update_fighter(FighterState &state, const std::vector<MoveDef> &moves, const FighterSettings &settings,
                            const FighterInput &input, float dt);
 
+// Starts `move` by name's index regardless of its button (scripts: melee.perform):
+// from idle or block, or once the current move reaches its cancel point.
+// False when the fighter can't act yet or lacks the energy/cooldown.
+bool force_move(FighterState &state, const std::vector<MoveDef> &moves, int move);
+
 // Invulnerable right now: a dodge's i-frames, getting up, or down/dead.
 [[nodiscard]] bool invulnerable(const FighterState &state, const std::vector<MoveDef> &moves);
 

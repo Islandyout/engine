@@ -2788,6 +2788,17 @@ async function startEditor() {
     // Weapons (0.61.0): see editor_set_weapons (bridge.cpp).
     const weapons = get("Weapons");
     if (weapons && !isChild) runtime.ccall("editor_set_weapons", null, ["number", "string"], [index, weapons.loadout]);
+    // Melee (0.78.0): see editor_set_melee (bridge_melee.cpp).
+    const melee = get("Melee");
+    if (melee && !isChild) {
+      runtime.ccall(
+        "editor_set_melee",
+        null,
+        ["number", "number", "string", "number", "number", "number", "number", "number", "number", "number"],
+        [index, { "Martial arts": 0, Sword: 1, Custom: 2 }[melee.style], melee.moves, melee.team, melee.ai ? 1 : 0, melee.aggression, melee.skill, melee.reaction, melee.energy, melee.guard],
+      );
+      runtime._editor_set_melee_yaw(index, get("Rotation")?.euler.y ?? 0);
+    }
     // A Terrain entity's own body must never fall or move.
     if (get("Terrain")) runtime._editor_set_body(index, 1, 1, 0);
     // AICombat (0.62.0): see editor_set_soldier (bridge.cpp).

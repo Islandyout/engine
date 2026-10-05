@@ -578,6 +578,22 @@ FighterTick update_fighter(FighterState &state, const std::vector<MoveDef> &move
     return tick;
 }
 
+bool force_move(FighterState &state, const std::vector<MoveDef> &moves, int index) {
+    if (index < 0 || static_cast<std::size_t>(index) >= moves.size() || state.hitstop > 0)
+        return false;
+    const auto &move = moves[static_cast<std::size_t>(index)];
+    const bool ready = state.mode == FighterMode::idle || state.mode == FighterMode::block ||
+                       (state.mode == FighterMode::move &&
+                        state.time >= moves[static_cast<std::size_t>(state.move)].cancel);
+    if (state.cooldowns.size() != moves.size())
+        state.cooldowns.assign(moves.size(), 0.0F);
+    if (!ready || state.energy + 1e-4F < move.energy || state.cooldowns[static_cast<std::size_t>(index)] > 0)
+        return false;
+    FighterTick tick;
+    start_move(state, moves, index, tick);
+    return true;
+}
+
 bool invulnerable(const FighterState &state, const std::vector<MoveDef> &moves) {
     switch (state.mode) {
     case FighterMode::down:

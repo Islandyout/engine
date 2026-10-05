@@ -2,7 +2,7 @@
 // `--check` fails (exit 1) if either file is out of date.
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { spaceFields, entityFields } from "./fields.mjs";
+import { spaceFields, entityFields, fighterFields, meleeEventFields } from "./fields.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const snake = (name) => name.replace(/[A-Z]/g, (c) => "_" + c.toLowerCase());
@@ -14,8 +14,8 @@ const ts = (constName, fields) =>
   `export const ${constName} = {\n${fields.map(([name, n, doc]) => `${doc ? `  // ${doc}\n` : ""}  ${name}: ${n},`).join("\n")}\n} as const;\n`;
 
 const outputs = {
-  "apps/editor/runtime/bridge_fields.hpp": `${header}#pragma once\n\n${cpp("SpaceField", spaceFields)}\n${cpp("EntityField", entityFields)}`,
-  "apps/editor/src/editor/bridgeFields.ts": `${header}\n// editor_space_value(field)\n${ts("SpaceField", spaceFields)}\n// editor_value(index, field)\n${ts("EntityField", entityFields)}`,
+  "apps/editor/runtime/bridge_fields.hpp": `${header}#pragma once\n\n${cpp("SpaceField", spaceFields)}\n${cpp("EntityField", entityFields)}\n${cpp("FighterField", fighterFields)}\n${cpp("MeleeEventField", meleeEventFields)}`,
+  "apps/editor/src/editor/bridgeFields.ts": `${header}\n// editor_space_value(field)\n${ts("SpaceField", spaceFields)}\n// editor_value(index, field)\n${ts("EntityField", entityFields)}\n// editor_fighter_value(index, field)\n${ts("FighterField", fighterFields)}\n// editor_melee_event(index, field)\n${ts("MeleeEventField", meleeEventFields)}`,
 };
 let stale = false;
 for (const [path, text] of Object.entries(outputs)) {

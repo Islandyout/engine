@@ -6,6 +6,7 @@
 #include "bindings.hpp"
 #include "engine/gameplay/character.hpp"
 #include "engine/gameplay/car.hpp"
+#include "engine/gameplay/melee.hpp"
 #include "engine/gameplay/space.hpp"
 #include "engine/gameplay/weapons.hpp"
 #include "engine/nav/nav.hpp"
@@ -596,6 +597,43 @@ struct WeaponEvent final {
 };
 // WeaponEvent::flags bits.
 constexpr int event_headshot = 1, event_killed = 2, event_flesh = 4;
+
+// Melee (0.78.0): a fighter's moves and engine::gameplay state, the
+// target it faces and strikes, and the slide a hit leaves it with. The
+// Player fights from the light/heavy/kick/special/dodge/block/lock actions;
+// with `ai` set, a melee brain drives it (any other entity).
+struct Fighter final {
+    std::vector<engine::gameplay::MoveDef> moves;
+    engine::gameplay::FighterSettings settings;
+    engine::gameplay::FighterState state;
+    int team{1};
+    bool ai{false};
+    engine::gameplay::BrainSettings brain_settings;
+    engine::gameplay::BrainState brain;
+    float reach{1.0F};                 // its strikes' typical reach, for the brain
+    float yaw{0};                      // facing (sin yaw, 0, cos yaw)
+    std::optional<engine::Entity> lock;   // the Player's locked-on target
+    std::optional<engine::Entity> target; // who it faces and fights this tick
+    std::vector<engine::Entity> struck;   // already hit by the current move
+    engine::Vec3 lunge_dir{0, 0, 1};
+    engine::Vec3 slide{};              // knockback, decaying
+    float pending_launch{0};           // upward m/s applied once hit-stop ends
+    float dying{0};                    // > 0 once defeated: seconds until it's removed
+    std::string script_move;           // melee.perform() for the next tick
+};
+// What the editor hears about melee each frame (editor_take_melee_events).
+enum class MeleeEventKind : int { start, hit, blocked, parried, dodged, guard_break, fire, land, ko };
+struct MeleeEvent final {
+    MeleeEventKind kind{};
+    int attacker{-1};
+    int target{-1};
+    engine::Vec3 point{};
+    float value{};
+    int move{-1};
+    int flags{};
+};
+// MeleeEvent::flags bits.
+constexpr int melee_finisher = 1, melee_launch = 2, melee_knockdown = 4, melee_heavy = 8, melee_killed = 16;
 
 // Authored Name, so scripts can world.find()/world.name() entities.
 struct EntityName final {

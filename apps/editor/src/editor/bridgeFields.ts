@@ -99,3 +99,56 @@ export const EntityField = {
   // AIState order (Idle, Walking, ...), -1 without an AI
   aiState: 5,
 } as const;
+
+// editor_fighter_value(index, field)
+export const FighterField = {
+  // 1 with a Melee fighter
+  has: 0,
+  // 0 idle, 1 move, 2 block, 3 stun, 4 airborne, 5 down, 6 getup, 7 dead
+  mode: 1,
+  // the move playing, -1 none
+  move: 2,
+  // 0..1 through the move
+  progress: 3,
+  // facing, radians (sin, 0, cos)
+  yaw: 4,
+  // 0..1
+  energy: 5,
+  // hits in the current string
+  combo: 6,
+  // seconds frozen
+  hitstop: 7,
+  // 0 none, 1 light, 2 heavy, 3 launched, 4 knockdown, 5 guard_break, 6 parried
+  stunKind: 8,
+  // the Player's locked-on entity index, -1 none
+  lockTarget: 9,
+  // 0..1
+  guard: 10,
+  invulnerable: 11,
+  // seconds into the move / stun / down / getup
+  time: 12,
+  // the entity it faces and fights, -1 none
+  target: 13,
+  // 1 while the move's blow is live
+  active: 14,
+  team: 15,
+  // seconds of hit-stun left
+  stunLeft: 16,
+} as const;
+
+// editor_melee_event(index, field)
+export const MeleeEventField = {
+  // 0 start, 1 hit, 2 blocked, 3 parried, 4 dodged, 5 guard_break, 6 fire, 7 land, 8 ko
+  kind: 0,
+  attacker: 1,
+  target: 2,
+  // where it landed
+  x: 3,
+  y: 4,
+  z: 5,
+  // damage; start: the move's seconds; fire: speed
+  value: 6,
+  move: 7,
+  // 1 finisher, 2 launch, 4 knockdown, 8 heavy, 16 killed
+  flags: 8,
+} as const;

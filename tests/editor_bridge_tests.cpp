@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <cmath>
 #include <iostream>
 #include <limits>
@@ -57,6 +58,13 @@ double editor_weapon_value(int, int);
 const char *editor_weapon_text(int, int, int);
 int editor_take_weapon_events();
 double editor_weapon_event(int, int);
+void editor_set_melee(int, int, const char *, double, int, double, double, double, double, double);
+const char *editor_melee_error();
+void editor_set_melee_yaw(int, double);
+double editor_fighter_value(int, int);
+const char *editor_fighter_text(int, int, int);
+int editor_take_melee_events();
+double editor_melee_event(int, int);
 void editor_set_soldier(int, double, double, double, double, double, double, double, double, double, double, double,
                         int, double, double);
 void editor_set_soldier_patrol(int, const char *);
@@ -1933,6 +1941,161 @@ int main() {
         check(marker && paused);
     }
 
+
+    {
+        // Melee (0.78.0). A Player fighter facing a training dummy: a light
+        // press throws the jab, which lands inside its active window; mashing
+        // chains jab -> cross -> hook; the hits build a combo and energy.
+        const auto melee_events = [&](int kind) {
+            int found = 0;
+            const int n = editor_take_melee_events();
+            for (int e = 0; e < n; ++e)
+                if (static_cast<int>(editor_melee_event(e, 0)) == kind)
+                    ++found;
+            return found;
+        };
+        const auto settle = [&] {
+            for (int i = 0; i < 3; ++i)
+                editor_tick();
+        };
+        const auto add_player = [&](double z) {
+            check(editor_add(0, 0.9, z, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            editor_set_controller(0, 0, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+            editor_set_melee(0, 0, "", 0, 0, 0.5, 0.5, 0.25, 0, 60);
+        };
+        const auto press = [&](const char *key, int ticks = 1) {
+            editor_input_begin_frame();
+            editor_input_key(key, 1);
+            editor_tick();
+            editor_input_begin_frame();
+            editor_input_key(key, 0);
+            for (int i = 1; i < ticks; ++i)
+                editor_tick();
+        };
+        editor_begin();
+        add_player(0);
+        check(editor_add(0, 0.9, 1.25, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 500, 500, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_commit() == 1);
+        check(std::string(editor_melee_error()).empty());
+        check(editor_fighter_value(0, 0) == 1 && editor_fighter_value(1, 0) == 0);
+        settle();
+        editor_take_melee_events();
+        press("KeyJ");
+        check(editor_fighter_value(0, 1) == 1 && std::string(editor_fighter_text(0, -1, 0)) == "jab" &&
+              std::string(editor_fighter_text(0, -1, 1)) == "jab");
+        check(melee_events(0) == 1); // start
+        for (int i = 0; i < 12; ++i)
+            editor_tick();
+        check(editor_value(1, 3) < 1);
+        check(melee_events(1) == 1); // hit
+        std::vector<std::string> chain;
+        for (int i = 0; i < 90; ++i) {
+            if (i % 8 == 0)
+                press("KeyJ");
+            else
+                editor_tick();
+            const std::string move = editor_fighter_text(0, -1, 0);
+            if (!move.empty() && (chain.empty() || chain.back() != move))
+                chain.push_back(move);
+        }
+        check(chain.size() >= 3 && chain[0] == "jab" && chain[1] == "cross" && chain[2] == "hook");
+        check(editor_fighter_value(0, 6) >= 2 && editor_fighter_value(0, 5) > 0); // combo, energy
+
+        // A kick (F) knocks the dummy back; the F key no longer does the old
+        // overlap punch for a fighter.
+        editor_begin();
+        add_player(0);
+        check(editor_add(0, 0.9, 1.4, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 500, 500, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_commit() == 1);
+        settle();
+        editor_input_begin_frame();
+        editor_key(5, 1); // F
+        editor_input_key("KeyF", 1);
+        editor_tick();
+        editor_input_begin_frame();
+        editor_key(5, 0);
+        editor_input_key("KeyF", 0);
+        check(std::string(editor_fighter_text(0, -1, 0)) == "front_kick");
+        for (int i = 0; i < 40; ++i)
+            editor_tick();
+        check(editor_value(1, 3) * 500 > 485 && editor_value(1, 3) * 500 < 495); // one kick (10), no extra punch
+        check(editor_value(1, 2) > 1.45); // pushed back
+
+        // Block and parry: an enemy fighter's scripted jab meets the Player's
+        // block raised just in time -- parried, and the enemy staggers. Held
+        // longer, the block takes chip damage instead.
+        const auto duel = [&](int block_at) {
+            editor_begin();
+            add_player(0);
+            check(editor_add(0, 0.9, 1.2, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            editor_set_melee(1, 0, "", 1, 0, 0.5, 0.5, 0.25, 0, 60);
+            editor_set_melee_yaw(1, 3.14159265);
+            editor_set_script_source(1, "t = 0\nfunction on_tick(dt) t = t + 1 if t == 20 then melee.perform('jab') end end\n"
+                                        "function on_melee_hit(target, move, damage, outcome) log(move .. ' ' .. outcome) end");
+            check(editor_commit() == 1);
+            for (int i = 0; i < 60; ++i) {
+                editor_input_begin_frame();
+                editor_input_key("KeyR", i >= block_at ? 1 : 0);
+                editor_tick();
+            }
+            std::string logs;
+            const int commands = editor_take_commands();
+            for (int c = 0; c < commands; ++c)
+                if (std::string(editor_command_text(c, 0)) == "log")
+                    logs += std::string(editor_command_text(c, 1)) + ";";
+            editor_input_begin_frame();
+            editor_input_key("KeyR", 0);
+            editor_tick();
+            return logs;
+        };
+        check(duel(23) == "jab parried;");
+        check(duel(0) == "jab blocked;");
+        check(editor_value(0, 3) < 1 && editor_value(0, 3) > 0.95); // chip damage only
+
+        // Launch, land, lie down, get up: the Player's scripted uppercut
+        // throws an enemy fighter into the air.
+        editor_begin();
+        add_player(0);
+        editor_set_script_source(0, "t = 0\nfunction on_tick(dt) t = t + 1 if t == 2 then melee.perform('uppercut') end end");
+        check(editor_add(0, 0.9, 1.1, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_melee(1, 0, "", 1, 0, 0.5, 0.5, 0.25, 0, 60);
+        check(editor_commit() == 1);
+        bool airborne = false, down = false, getup = false;
+        double highest = 0;
+        for (int i = 0; i < 240; ++i) {
+            editor_tick();
+            const int mode = static_cast<int>(editor_fighter_value(1, 1));
+            airborne = airborne || mode == 4;
+            down = down || (airborne && mode == 5);
+            getup = getup || (down && mode == 6);
+            highest = std::max(highest, editor_value(1, 1));
+        }
+        check(airborne && down && getup && highest > 2.0);
+        check(editor_fighter_value(1, 1) == 0); // back on its feet
+
+        // An AI fighter closes in and beats an idle Player; when its health
+        // runs out it falls (mode dead) and is removed a few seconds later.
+        editor_begin();
+        add_player(0);
+        check(editor_add(0, 0.9, 6, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 30, 30, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_melee(1, 0, "", 1, 1, 1, 0, 0.2, 0, 60);
+        editor_set_script_source(1, "function on_tick(dt) local mode = melee.state() if mode ~= 'idle' and mode ~= 'move' "
+                                    "and mode ~= 'block' then log(mode) end end");
+        check(editor_commit() == 1);
+        for (int i = 0; i < 600 && editor_value(0, 3) > 0.7; ++i)
+            editor_tick();
+        check(editor_value(0, 3) <= 0.7);              // the AI did real damage
+        check(editor_fighter_value(1, 13) == 0);         // fighting the Player
+        editor_set_script_source(0, "");
+        for (int i = 0; i < 30 && editor_fighter_value(1, 1) != 7; ++i) {
+            press("KeyJ", 10);
+        }
+        check(editor_fighter_value(1, 1) == 7 && editor_alive(1)); // down for good, still there
+        for (int i = 0; i < 260; ++i)
+            editor_tick();
+        check(!editor_alive(1));
+    }
+
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
                  "movement, jump/sustained-flight, Collider box and sphere obstacle blocking, "
@@ -1950,5 +2113,5 @@ int main() {
                  "(crouch/sit) freezing Player WASD input while held, authored "
                  "RigidBody mass/kinematic and Collider trigger/layer settings, the script host "
                  "(prefab templates for world.spawn, names, props, sound/ui/log commands), and native "
-                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill), and combat soldiers (sight, bursts, hearing, investigating around cover, reloading in cover, melee hunters, patrols), terrain (walking up a hill, scripted raycasts, obstacles), and game-support script APIs (heal, give_ammo, markers, pause), and arcade cars (driving, AI racing, pursuit, vehicle.* API), and spaceflight (landed start, hover, touchdown, exiting and boarding, walking anywhere, space.* API) passed.\n";
+                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill), and combat soldiers (sight, bursts, hearing, investigating around cover, reloading in cover, melee hunters, patrols), terrain (walking up a hill, scripted raycasts, obstacles), and game-support script APIs (heal, give_ammo, markers, pause), and arcade cars (driving, AI racing, pursuit, vehicle.* API), and spaceflight (landed start, hover, touchdown, exiting and boarding, walking anywhere, space.* API), and melee (jab/cross/hook chains, kicks and knockback, block and parry, launch/land/get up, an AI fighter, defeat) passed.\n";
 }
