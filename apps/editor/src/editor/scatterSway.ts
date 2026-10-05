@@ -21,10 +21,8 @@ export function swayUniforms(): SwayUniforms {
   };
 }
 
-// A copy of `material` whose vertices sway (instanced meshes only).
-export function swayMaterial(material: THREE.Material, uniforms: SwayUniforms): THREE.Material {
-  const copy = material.clone();
-  copy.onBeforeCompile = (shader) => {
+function patchSway(material: THREE.Material, uniforms: SwayUniforms) {
+  material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
       .replace(
@@ -54,6 +52,21 @@ export function swayMaterial(material: THREE.Material, uniforms: SwayUniforms): 
         gl_Position = projectionMatrix * mvPosition;`,
       );
   };
+}
+
+// A copy of `material` whose vertices sway (instanced meshes only).
+export function swayMaterial(material: THREE.Material, uniforms: SwayUniforms): THREE.Material {
+  const copy = material.clone();
+  patchSway(copy, uniforms);
   copy.customProgramCacheKey = () => `sway-${material.uuid}`;
   return copy;
+}
+
+// The shadow pass's matching depth material (0.76.0), so shadows sway
+// with the plants that cast them.
+export function swayDepthMaterial(uniforms: SwayUniforms): THREE.MeshDepthMaterial {
+  const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+  patchSway(depth, uniforms);
+  depth.customProgramCacheKey = () => "sway-depth";
+  return depth;
 }

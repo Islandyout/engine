@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <vector>
 
 namespace engine::gameplay::space {
 
@@ -87,6 +88,47 @@ double value_noise(std::uint32_t seed, DVec3 p) {
 
 // Impact craters: per cell of a lattice over the sphere, maybe one crater
 // (density `craters`) with a bowl and a raised rim. Two scales.
+//
+// Terrain is sampled a chunk of neighbouring vertices at a time, so the
+// craters around a lattice cell (its 27 neighbours, after the density test)
+// are worked out once and kept (0.76.0): a sample then costs a few dot
+// products per nearby crater instead of four hashes and two square roots
+// per neighbour cell.
+namespace {
+struct Crater final {
+    DVec3 centre;
+    double radius;
+};
+struct CraterCell final {
+    bool valid{};
+    std::uint32_t seed{};
+    int x{}, y{}, z{};
+    double cell{}, planet{}, density{};
+    std::vector<Crater> craters;
+};
+const std::vector<Crater>& craters_near(const Body& body, int level, double cell, std::uint32_t seed, int cx, int cy, int cz) {
+    thread_local CraterCell cache[2];
+    auto& entry = cache[level];
+    if (entry.valid && entry.seed == seed && entry.x == cx && entry.y == cy && entry.z == cz && entry.cell == cell &&
+        entry.planet == body.radius && entry.density == body.craters)
+        return entry.craters;
+    entry = {true, seed, cx, cy, cz, cell, body.radius, body.craters, std::move(entry.craters)};
+    entry.craters.clear();
+    for (int dx = -1; dx <= 1; ++dx)
+        for (int dy = -1; dy <= 1; ++dy)
+            for (int dz = -1; dz <= 1; ++dz) {
+                const int x = cx + dx, y = cy + dy, z = cz + dz;
+                if ((lattice(seed, x, y, z) * 0.5 + 0.5) > body.craters)
+                    continue;
+                // The crater's centre, projected onto the sphere.
+                const DVec3 centre = normalized(DVec3{x + 0.5 + lattice(seed + 1, x, y, z) * 0.4, y + 0.5 + lattice(seed + 2, x, y, z) * 0.4,
+                                                      z + 0.5 + lattice(seed + 3, x, y, z) * 0.4});
+                entry.craters.push_back({centre, cell * (0.18 + 0.22 * (lattice(seed + 4, x, y, z) * 0.5 + 0.5))});
+            }
+    return entry.craters;
+}
+} // namespace
+
 double crater_height(const Body& body, DVec3 direction) {
     double h = 0;
     for (int level = 0; level < 2; ++level) {
@@ -94,34 +136,21 @@ double crater_height(const Body& body, DVec3 direction) {
         const std::uint32_t seed = body.seed * 7919U + 31U + static_cast<std::uint32_t>(level) * 977U;
         const DVec3 p = direction * (body.radius / cell);
         const int cx = static_cast<int>(std::floor(p.x)), cy = static_cast<int>(std::floor(p.y)), cz = static_cast<int>(std::floor(p.z));
-        for (int dx = -1; dx <= 1; ++dx)
-            for (int dy = -1; dy <= 1; ++dy)
-                for (int dz = -1; dz <= 1; ++dz) {
-                    const int x = cx + dx, y = cy + dy, z = cz + dz;
-                    // Cheap rejections first (0.75.0, craters were 8x the cost of
-                    // plain terrain): a cell whose crater can't reach this point,
-                    // judged from the cell's middle before any jitter.
-                    const DVec3 middle{x + 0.5, y + 0.5, z + 0.5};
-                    if (length(normalized(middle) - direction) * body.radius > cell * 1.25)
-                        continue;
-                    if ((lattice(seed, x, y, z) * 0.5 + 0.5) > body.craters)
-                        continue;
-                    // The crater's centre, projected onto the sphere.
-                    const DVec3 centre = normalized(DVec3{x + 0.5 + lattice(seed + 1, x, y, z) * 0.4, y + 0.5 + lattice(seed + 2, x, y, z) * 0.4,
-                                                          z + 0.5 + lattice(seed + 3, x, y, z) * 0.4});
-                    const double radius = cell * (0.18 + 0.22 * (lattice(seed + 4, x, y, z) * 0.5 + 0.5));
-                    // The chord stands in for the arc: craters are small next
-                    // to the planet, so they differ by well under a percent.
-                    const double arc = length(direction - centre) * body.radius;
-                    const double t = arc / radius;
-                    if (t > 1.6)
-                        continue;
-                    const double depth = radius * 0.16, rim = radius * 0.05;
-                    if (t < 1)
-                        h += -depth * (1 - t * t) + rim * t * t * t * t;
-                    else
-                        h += rim * std::exp(-(t - 1) * (t - 1) / 0.08);
-                }
+        for (const auto& crater : craters_near(body, level, cell, seed, cx, cy, cz)) {
+            // The chord stands in for the arc: craters are small next to the
+            // planet, so they differ by well under a percent.
+            const DVec3 d = direction - crater.centre;
+            const double reach = crater.radius * 1.6 / body.radius;
+            const double chord2 = dot(d, d);
+            if (chord2 > reach * reach)
+                continue;
+            const double t = std::sqrt(chord2) * body.radius / crater.radius;
+            const double depth = crater.radius * 0.16, rim = crater.radius * 0.05;
+            if (t < 1)
+                h += -depth * (1 - t * t) + rim * t * t * t * t;
+            else
+                h += rim * std::exp(-(t - 1) * (t - 1) / 0.08);
+        }
     }
     return h;
 }
@@ -849,6 +878,11 @@ bool intercept_velocity(double gm, DVec3 r0, DVec3 goal, double seconds, DVec3 g
         out = v;
     return close;
 }
+// Once a Hohmann raise has started it continues until done (the angle
+// drifts past the window while burning).
+bool plan_raising(const ShipState& state) {
+    return state.autopilot.target == -2;
+}
 } // namespace
 
 AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec, const System& system, double t,
@@ -907,6 +941,67 @@ AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec,
     // The approach starts early enough to brake from the speed we close at.
     const double approach = std::max({goal.radius * 5, sphere_of_influence(system, target) * 0.6,
                                       dot(rel, rel) / (2 * accel * 0.45) + arrival_altitude(goal)});
+    // To a moon of the body we orbit (0.76.0): park in orbit, wait for the
+    // moon to come round to the right angle, then one prograde burn raises
+    // the far side of the orbit to meet it -- a Hohmann transfer. Chasing a
+    // moon straight across its planet's pull cost nearly twice the fuel.
+    if (central >= 0 && central == state.ref && distance > approach) {
+        const auto& planet = system.bodies[static_cast<std::size_t>(central)];
+        const double gm = planet.gm();
+        const auto elements = orbit_elements(state, system);
+        const double clear = std::max(planet.atmosphere_top(), 2500.0) * 1.1;
+        const double r_moon = goal.orbit_radius;
+        const DVec3 up = normalized(state.position);
+        const double vertical = dot(state.velocity, up);
+        const DVec3 prograde = length(state.velocity) > 1 ? normalized(state.velocity) : dir;
+        const auto burn = [&](DVec3 direction, double throttle, const char* phase) {
+            command.direction = direction;
+            command.throttle = dot(ship_forward(state), direction) > 0.985 ? throttle : 0.0;
+            command.phase = phase;
+            return command;
+        };
+        const bool raised = elements.valid && (!elements.closed || elements.apoapsis + planet.radius > r_moon * 0.97);
+        if (!raised) {
+            // Circularize first: burn prograde near the top of the climb's arc.
+            if (!elements.valid || elements.periapsis < clear) {
+                if (std::abs(vertical) < 60 || length(state.position) - planet.radius > clear * 1.5)
+                    return burn(prograde, 1.0, "circularize");
+                command.direction = prograde;
+                command.throttle = 0;
+                command.phase = "coast";
+                return command;
+            }
+            // Parked: burn when the moon leads by the transfer's angle.
+            const double r = length(state.position);
+            const double a = (r + r_moon) / 2;
+            const double flight = 3.14159265358979 * std::sqrt(a * a * a / gm);
+            const double moon_rate = 2 * 3.14159265358979 / std::max(goal.period, 1.0);
+            const double lead = 3.14159265358979 - moon_rate * flight;
+            const DVec3 moon = body_position(system, target, t) - body_position(system, central, t);
+            const DVec3 normal = normalized(cross(state.position, state.velocity));
+            const DVec3 moon_flat = normalized(moon - normal * dot(moon, normal));
+            const double angle = std::atan2(dot(cross(up, moon_flat), normal), dot(up, moon_flat));
+            const double off = std::remainder(angle - lead, 2 * 3.14159265358979);
+            if (std::abs(off) < 0.06 || plan_raising(state))
+            {
+                state.autopilot.target = -2;
+                return burn(prograde, 1.0, "raise");
+            }
+            command.direction = prograde;
+            command.throttle = 0;
+            command.phase = "wait";
+            return command;
+        }
+        // Raised: coast up to the far side, where the approach below takes
+        // over; a ship that didn't get here by a raise goes straight to it.
+        if (plan_raising(state) && vertical > 0) {
+            command.direction = prograde;
+            command.throttle = 0;
+            command.phase = "coast";
+            return command;
+        }
+        state.autopilot.target = -1;
+    }
     if (central < 0 && !to_parent && state.ref != target && distance > approach) {
         const double gm = central >= 0 ? system.bodies[static_cast<std::size_t>(central)].gm() : system.star_gm;
         const DVec3 origin = central >= 0 ? body_position(system, central, t) : DVec3{};
@@ -922,14 +1017,8 @@ AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec,
         // How long to take: the flight time that costs least (departure plus
         // arrival speed), chosen among a few and kept for a while -- the
         // shooting is cheap, the search less so.
-        // Per-thread memory of the current transfer (the one flown ship):
-        // its flight time, and when a coast is next checked.
-        static thread_local struct {
-            int target{-1};
-            double arrive{-1};  // when the transfer meets the target
-            double check{-1};   // coasting until this time
-            double made{-1};    // when it was planned
-        } plan;
+        // This ship's memory of its transfer (ShipState::autopilot).
+        auto& plan = state.autopilot;
         // A plan holds until it's flown (or the clock jumps back, a reload).
         if (plan.target != target || t > plan.arrive - 30 || t < plan.made) {
             const double base = clampd(distance / std::max(cruise_speed(spec, distance), 1.0), 240, 9000);
@@ -954,6 +1043,7 @@ AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec,
             plan.target = target;
             plan.made = t;
             plan.check = -1;
+            plan.wanted = {};
         }
         // Coasting on a solved transfer: trust it until the next check.
         if (plan.check > t && t > plan.check - 600) {
@@ -965,7 +1055,9 @@ AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec,
         const double seconds = std::max(60.0, plan.arrive - t);
         const DVec3 aim = aim_at(seconds);
         DVec3 wanted;
-        if (intercept_velocity(gm, r0, aim, seconds, v_now, wanted)) {
+        const DVec3 guess = length(plan.wanted) > 0 ? plan.wanted : v_now;
+        if (intercept_velocity(gm, r0, aim, seconds, guess, wanted)) {
+            plan.wanted = wanted;
             DVec3 error = wanted - v_now;
             // Still inside the departure body's pull: what we need is the
             // speed far from it, so climb out with escape speed added.
@@ -1070,12 +1162,15 @@ RoutePlan plan_route(const ShipState& state, const ShipSpec& spec, const System&
     if (goal.parent < 0 && state.ref != target) {
         // Cached per route for a few seconds of game time: the System Board
         // asks for every body each refresh.
+        // Keyed by route and, in open space, roughly where the ship is.
         static thread_local struct {
             int from{-2}, to{-1};
             double at{-1e18}, cost{0};
+            DVec3 where{};
         } cache;
         const int from = state.ref;
-        if (cache.from == from && cache.to == target && std::abs(t - cache.at) < 20) {
+        const DVec3 where = from < 0 ? absolute_position(state, system, t) : DVec3{};
+        if (cache.from == from && cache.to == target && std::abs(t - cache.at) < 20 && length(where - cache.where) < 20000) {
             transfer = cache.cost;
         } else {
             const bool inside = from >= 0 && system.bodies[static_cast<std::size_t>(from)].parent < 0;
@@ -1107,11 +1202,25 @@ RoutePlan plan_route(const ShipState& state, const ShipSpec& spec, const System&
             if (best < 1e17) {
                 // What the autopilot actually spends, flying it: course
                 // corrections and braking losses (measured on Pale Signal's
-                // routes).
-                transfer = best * 1.3;
-                cache = {from, target, t, transfer};
+                // routes); falling inward toward the star costs more than
+                // the ideal coast suggests.
+                const double origin_orbit = inside ? system.bodies[static_cast<std::size_t>(from)].orbit_radius : length(r0);
+                transfer = best * 1.3 * (goal.orbit_radius < origin_orbit ? 1.25 : 1.0);
+                cache = {from, target, t, transfer, where};
             }
         }
+    }
+    // To a moon of the body we're at (0.76.0): the Hohmann raise from a
+    // parking orbit, and capture at the moon.
+    if (goal.parent >= 0 && goal.parent == state.ref) {
+        const auto& planet = system.bodies[static_cast<std::size_t>(goal.parent)];
+        const double gm = planet.gm();
+        const double r1 = planet.radius + std::max(planet.atmosphere_top(), 2500.0) * 1.1;
+        const double r2 = goal.orbit_radius;
+        const double raise = std::sqrt(gm / r1) * (std::sqrt(2 * r2 / (r1 + r2)) - 1);
+        const double arrive = std::abs(std::sqrt(gm / r2) - std::sqrt(gm / r2) * std::sqrt(2 * r1 / (r1 + r2)));
+        const double rc = goal.radius + arrival_altitude(goal);
+        transfer = raise + std::sqrt(arrive * arrive + 2 * goal.gm() / rc) - std::sqrt(goal.gm() / rc);
     }
     if (transfer >= 0)
         dv += transfer;
@@ -1129,8 +1238,9 @@ RoutePlan plan_route(const ShipState& state, const ShipSpec& spec, const System&
     const double accel = spec.thrust / spec.mass;
     // Flown, not ideal: climbing through air, course corrections and the
     // approach cost the autopilot about this much more (measured on Pale
-    // Signal's routes, 0.75.0).
-    plan.fuel_needed = dv / accel * spec.burn * 1.8;
+    // Signal's routes, 0.75.0; with the 0.76.0 moon transfers, plans land
+    // within about 0.9-1.5x of the fuel flown, more on a few outward legs).
+    plan.fuel_needed = dv / accel * spec.burn * 2.0;
     plan.status = state.fuel >= plan.fuel_needed * 1.25 ? 0 : state.fuel >= plan.fuel_needed ? 1 : 2;
     return plan;
 }

@@ -109,6 +109,11 @@ struct Routine final {
     std::vector<Stop> stops;
     float speed{1.4F};
     int current{-1};
+    // The way to the current stop around walls and through doorways
+    // (0.76.0): nav-grid waypoints, found once per stop.
+    std::vector<engine::Vec3> path;
+    int path_stop{-1};
+    float path_frame{-1};
 };
 // Wildlife (0.73.0): calm (its own wander, if it has an AIAgent) -> wary
 // (stops and watches) inside `wary` metres of a threat -> flees inside
@@ -166,6 +171,10 @@ struct SpaceSim final {
     // minus old, and the generation it belongs to: the editor shifts its
     // camera and interpolation by it.
     space::DVec3 reframe_shift{};
+    // How far the new frame turned the walker's surroundings about the
+    // vertical (radians, three.js Y rotation; 0.76.0), so the camera and
+    // the walker's facing turn with them.
+    double reframe_yaw{};
     int reframe_generation{-1};
     // Authored colliders made non-solid while away (their old trigger flag).
     std::map<engine::Entity, bool> parked;
@@ -1307,6 +1316,8 @@ struct Runtime {
                 wild->home = {static_cast<float>(h.x), static_cast<float>(h.y), static_cast<float>(h.z)};
             }
             if (m.entity == *player) {
+                const auto east = sp.rotate_to_local(to_fixed({1, 0, 0}));
+                sp.reframe_yaw = std::atan2(-east.z, east.x);
                 sp.reframe_shift = p - local;
                 sp.reframe_generation = sp.frame_generation;
             }
@@ -1327,11 +1338,34 @@ struct Runtime {
         settle_landed(w);
     }
     bool parked(engine::Entity entity) const { return space && space->pinned.count(entity) > 0; }
+    // The frame governor's sim stride (0.76.0): routines and wildlife
+    // farther than 60 m from the walker (or the ship) decide every
+    // `sim_stride` ticks, staggered so the work spreads evenly; their last
+    // velocity carries them in between.
+    int sim_stride{1};
+    std::uint64_t sim_tick{};
+    std::optional<engine::Vec3> sim_focus;
+    void update_sim_focus(engine::World &w) {
+        sim_focus.reset();
+        if (const auto player = player_entity(w); player && !stowed(*player))
+            sim_focus = w.get<engine::Box>(*player)->center;
+        else if (space && space->ship_entity && w.alive(*space->ship_entity))
+            sim_focus = w.get<engine::Box>(*space->ship_entity)->center;
+    }
+    bool sim_skip(engine::Vec3 at, std::size_t n) const {
+        if (sim_stride <= 1 || !sim_focus || (sim_tick + n) % static_cast<std::uint64_t>(sim_stride) == 0)
+            return false;
+        return std::hypot(at.x - sim_focus->x, at.z - sim_focus->z) > 60.0F;
+    }
     void step_routines(engine::World &w) {
+        ++sim_tick;
+        update_sim_focus(w);
+        std::size_t n = 0;
+        int searches = 0;
         for (const auto entity : w.query<engine::Box, Routine, engine::physics::RigidBody>()) {
             auto &routine = *w.get<Routine>(entity);
             auto &body = *w.get<engine::physics::RigidBody>(entity);
-            if (routine.stops.empty() || parked(entity))
+            if (routine.stops.empty() || parked(entity) || sim_skip(w.get<engine::Box>(entity)->center, n++))
                 continue;
             // The latest stop whose hour has passed, wrapping to the last.
             int stop = static_cast<int>(routine.stops.size()) - 1;
@@ -1341,13 +1375,36 @@ struct Runtime {
             routine.current = stop;
             const auto &goal = routine.stops[static_cast<std::size_t>(stop)];
             const auto at = w.get<engine::Box>(entity)->center;
-            const float dx = goal.x - at.x, dz = goal.z - at.z;
-            const float distance = std::hypot(dx, dz);
+            // Around buildings (0.76.0): a straight walk when nothing is in
+            // the way, else the nav grid's path -- a few searches a tick,
+            // the rest walk straight until their turn.
+            const float frame = space ? static_cast<float>(space->frame_generation) : 0.0F;
+            if ((routine.path_stop != stop || routine.path_frame != frame) && nav_grid.width() > 0) {
+                const engine::Vec3 target{goal.x, at.y, goal.z};
+                if (nav_grid.line_of_sight(at, target)) {
+                    routine.path.clear();
+                    routine.path_stop = stop;
+                    routine.path_frame = frame;
+                } else if (searches < 3) {
+                    ++searches;
+                    const auto found = nav_grid.find_path(at, target, 6000);
+                    routine.path = found ? *found : std::vector<engine::Vec3>{};
+                    routine.path_stop = stop;
+                    routine.path_frame = frame;
+                }
+            }
+            while (!routine.path.empty() && std::hypot(routine.path.front().x - at.x, routine.path.front().z - at.z) < 0.6F)
+                routine.path.erase(routine.path.begin());
+            const float distance = std::hypot(goal.x - at.x, goal.z - at.z);
+            const bool via = !routine.path.empty() && routine.path.size() > 1;
+            const float dx = (via ? routine.path.front().x : goal.x) - at.x;
+            const float dz = (via ? routine.path.front().z : goal.z) - at.z;
+            const float leg = std::max(std::hypot(dx, dz), 1e-3F);
             if (auto *agent = w.get<AIAgent>(entity))
                 agent->state = distance > 1.2F ? AIState::Walking : AIState::Idle;
             if (distance > 1.2F) {
-                body.velocity.x = dx / distance * routine.speed;
-                body.velocity.z = dz / distance * routine.speed;
+                body.velocity.x = dx / leg * routine.speed;
+                body.velocity.z = dz / leg * routine.speed;
             } else {
                 body.velocity.x = body.velocity.z = 0;
             }
@@ -1366,6 +1423,7 @@ struct Runtime {
         std::optional<engine::Entity> walker = player_entity(w);
         if (walker && stowed(*walker))
             walker.reset();
+        std::size_t n = 0;
         for (const auto entity : w.query<engine::Box, Wildlife, engine::physics::RigidBody>()) {
             auto &animal = *w.get<Wildlife>(entity);
             auto &body = *w.get<engine::physics::RigidBody>(entity);
@@ -1374,6 +1432,8 @@ struct Runtime {
                 animal.home = at;
                 animal.homed = true;
             }
+            if (sim_skip(at, n++))
+                continue;
             if (parked(entity)) {
                 animal.state = 0;
                 continue;
@@ -2221,6 +2281,10 @@ struct Runtime {
                         for (const auto entity : w.query<AIAgent>())
                             movers.push_back(entity);
                         for (const auto entity : w.query<Soldier>())
+                            movers.push_back(entity);
+                        for (const auto entity : w.query<Routine>())
+                            movers.push_back(entity);
+                        for (const auto entity : w.query<Wildlife>())
                             movers.push_back(entity);
                         nav_grid.bake(w, movers, terrain ? &*terrain : nullptr);
                     });
@@ -4400,7 +4464,8 @@ EXPORT int editor_commit() {
 // degrees, drift m/s), 51 water under the ship; 52-54 the walker's shift in
 // the latest on-foot re-anchor (0.75.0, x y z; 0 once the frame changes
 // otherwise); 55/56 the frame origin's latitude and longitude (degrees,
-// body-fixed). 0 without.
+// body-fixed); 57 the turn about the vertical in that re-anchor (radians,
+// 0.76.0). 0 without.
 EXPORT double editor_space_value(int field) {
     if (!active->space)
         return 0;
@@ -4462,6 +4527,7 @@ EXPORT double editor_space_value(int field) {
     case 52: return sp.reframe_generation == sp.frame_generation ? sp.reframe_shift.x : 0;
     case 53: return sp.reframe_generation == sp.frame_generation ? sp.reframe_shift.y : 0;
     case 54: return sp.reframe_generation == sp.frame_generation ? sp.reframe_shift.z : 0;
+    case 57: return sp.reframe_generation == sp.frame_generation ? sp.reframe_yaw : 0;
     case 41: return sp.assist == space::Assist::autopilot ? 1 : 0;
     case 42: return sp.ship.engine;
     case 43: return sp.ship.rcs_condition;
@@ -4982,6 +5048,9 @@ EXPORT int editor_command_entity(int index) {
                ? pending_commands[static_cast<std::size_t>(index)].entity_index
                : -1;
 }
+// The frame governor's sim stride (0.76.0): far routines and wildlife
+// decide every `stride` ticks.
+EXPORT void editor_set_sim_stride(int stride) { active->sim_stride = std::clamp(stride, 1, 8); }
 // "system=ms;system=ms" for the most recent tick (Stats overlay).
 EXPORT const char *editor_profile_text() {
     static std::string result;

@@ -1,6 +1,6 @@
-# Pale Signal — gap map (prototype → engine, 0.75.0)
+# Pale Signal — gap map (prototype → engine, 0.76.0)
 
-What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has, compared with what the game on this engine has as of 0.75.0 ([PALE_SIGNAL_SLICE.md](PALE_SIGNAL_SLICE.md)). The first version of this map (0.72.0) listed 53 gaps. 0.73.0 worked through all seven phases it proposed, 0.74.0 closed the terrain, rotation, landing and Talari gaps, and 0.75.0 closed the rest; PWA/Android packaging was replaced by holding 45–60 fps everywhere (the frame governor).
+What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has, compared with what the game on this engine has as of 0.76.0 ([PALE_SIGNAL_SLICE.md](PALE_SIGNAL_SLICE.md)). The first version of this map (0.72.0) listed 53 gaps. 0.73.0 worked through all seven phases it proposed, 0.74.0 closed the terrain, rotation, landing and Talari gaps, and 0.75.0 closed the rest; PWA/Android packaging was replaced by holding 45–60 fps everywhere (the frame governor).
 
 **Sources inventoried:**
 - `prototype/pale-signal.html.html`: 17 source modules, 249 functions, and these data tables: 6 bodies, 22 species, 13 civilization sites, 24 NPCs, 16 evidence items, 9 landmarks, 7 upgrades and 12 tutorial pages.
@@ -195,3 +195,21 @@ What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has,
 ## What's left
 
 Nothing from the prototype. PWA/Android packaging was dropped in favour of the frame governor. The fuel economy was tuned on simulated autopilot flights between every pair of worlds the expedition uses; a hand-flown expedition from title to ending hasn't been timed.
+
+0.76.0 worked through the follow-up list from 0.75.0:
+
+- batching and adaptive scatter chunks;
+- the governor's sky and simulation tiers;
+- cheaper craters;
+- swaying and suit-light shadows;
+- per-ship autopilot memory, Hohmann moon legs and conservative plans;
+- reframe heading;
+- wildlife arriving out of sight;
+- routines pathing indoors through sliding doors;
+- gestures and canal reflections;
+- saved herds and institution prices;
+- composed motifs;
+- landing in the native playground;
+- the site view's defaults.
+
+Still open, and needing hardware: frame rates on real phones and GPUs, touch on a real device, and a timed hand-played run.

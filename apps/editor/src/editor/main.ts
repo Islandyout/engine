@@ -1,10 +1,6 @@
 import * as THREE from "three";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
-import {
-  transformCommand,
-  type TransformMode,
-  type TransformSnapshot,
-} from "./TransformEdit";
+import { transformCommand, type TransformMode, type TransformSnapshot } from "./TransformEdit";
 import type {
   AIStateName,
   CameraComponent,
@@ -48,15 +44,7 @@ import type { SceneComponents } from "../scene/Scene";
 import { encodeProps, reconcileProps } from "../scene/scriptProps";
 import { burst, createEmitter, stepEmitter, type EmitterSettings, type EmitterState } from "./particles";
 import { buildRibbon, updateTrail, type TrailPoint } from "./trail";
-import {
-  assetKind,
-  assignId,
-  displayName,
-  loadStoredAssets,
-  resolveAssetUrl,
-  storeAsset,
-  type StoredAsset,
-} from "./userAssets";
+import { assetKind, assignId, displayName, loadStoredAssets, resolveAssetUrl, storeAsset, type StoredAsset } from "./userAssets";
 import { autoSize, contains, layoutRect, sliderValue, type UIRect } from "./uiLayout";
 import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGraph } from "./animator";
 import { applyMouseLook, applyStickLook, ViewEffects, type Look } from "./fpsView";
@@ -66,7 +54,12 @@ import { parseVisor, Visor } from "./visor";
 // The header shows the version package.json records (bump.sh keeps it current).
 import { version as editorVersion } from "../../package.json";
 import { Music } from "./music";
-import { MAX_SPOTS, swayMaterial, swayUniforms } from "./scatterSway";
+import { StaticBatcher } from "./staticBatcher";
+import { ReflectionProbe } from "./reflectionProbe";
+import { nextSiteView } from "./siteView";
+import { activityAliases, routineActivity } from "./routineActivity";
+import { applyGesture, findGestureBones, gestureFor, type GestureBones } from "./gestures";
+import { MAX_SPOTS, swayDepthMaterial, swayMaterial, swayUniforms } from "./scatterSway";
 import { crowdNear, FrameGovernor, governorTiers, presetFloor } from "./frameGovernor";
 import { defaultPostSettings, gradingActive, gradingShader, shadowQualities, type PostSettings } from "./postFx";
 import { EventFlag, EventKind, WeaponFx } from "./weaponFx";
@@ -105,10 +98,7 @@ import "./style.css";
 // added to every particle's velocity each frame -- negative falls
 // (Confetti), a small positive value stands in for buoyancy so Smoke/Fire
 // visibly rise, not real buoyancy physics.
-const PARTICLE_PRESETS: Record<
-  ParticlePreset,
-  { direction: THREE.Vector3; spread: number; gravity: number }
-> = {
+const PARTICLE_PRESETS: Record<ParticlePreset, { direction: THREE.Vector3; spread: number; gravity: number }> = {
   Sparkle: { direction: new THREE.Vector3(0, 1, 0), spread: 1, gravity: 0 },
   Smoke: { direction: new THREE.Vector3(0, 1, 0), spread: 0.3, gravity: 0.6 },
   Fire: { direction: new THREE.Vector3(0, 1, 0), spread: 0.55, gravity: 1.1 },
@@ -124,17 +114,22 @@ const ICONS = {
   stop: '<rect x="4" y="4" width="8" height="8"/>',
   plus: '<path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   copy: '<rect x="3" y="6" width="7" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M6 6V4.5A1.5 1.5 0 0 1 7.5 3H12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-1.5" fill="none" stroke="currentColor" stroke-width="1.2"/>',
-  trash: '<path d="M3 4h10M6.3 4V2.6h3.4V4M4.6 4l.6 9a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9l.6-9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  trash:
+    '<path d="M3 4h10M6.3 4V2.6h3.4V4M4.6 4l.6 9a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9l.6-9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>',
   undo: '<path d="M5 4L2 7l3 3M2 7h7a4 4 0 1 1 0 8h-1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>',
   redo: '<path d="M11 4l3 3-3 3M14 7H7a4 4 0 1 0 0 8h1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>',
   save: '<path d="M3 3h7.4L13 5.6V13H3V3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M5 3v3.6h4.4V3M5 10h6" fill="none" stroke="currentColor" stroke-width="1.1"/>',
   open: '<path d="M2 5.4A1.4 1.4 0 0 1 3.4 4h2.3l1 1.3h5.9A1.4 1.4 0 0 1 14 6.7v4.9A1.4 1.4 0 0 1 12.6 13H3.4A1.4 1.4 0 0 1 2 11.6V5.4z" fill="none" stroke="currentColor" stroke-width="1.15"/>',
-  search: '<circle cx="6.6" cy="6.6" r="3.8" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M9.6 9.6L13.5 13.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>',
+  search:
+    '<circle cx="6.6" cy="6.6" r="3.8" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M9.6 9.6L13.5 13.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>',
   grid: '<path d="M2 2h12v12H2z M2 6.4h12M2 10.6h12M6.4 2v12M10.6 2v12" fill="none" stroke="currentColor" stroke-width="1"/>',
-  target: '<circle cx="8" cy="8" r="4.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 1.2v2.4M8 12.4v2.4M1.2 8h2.4M12.4 8h2.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+  target:
+    '<circle cx="8" cy="8" r="4.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 1.2v2.4M8 12.4v2.4M1.2 8h2.4M12.4 8h2.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
   cube: '<path d="M8 1.6l5.6 3v6.8L8 14.4l-5.6-3V4.6L8 1.6z" fill="none" stroke="currentColor" stroke-width="1.05"/><path d="M2.4 4.6L8 7.6l5.6-3M8 7.6v6.8" fill="none" stroke="currentColor" stroke-width="1.05"/>',
-  child: '<path d="M4.2 2v5.4a2 2 0 0 0 2 2h5.4M9 7l2.6 2.4L9 11.8" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>',
-  external: '<path d="M4.6 11.4L11.4 4.6M6.6 4.6h4.8v4.8" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>',
+  child:
+    '<path d="M4.2 2v5.4a2 2 0 0 0 2 2h5.4M9 7l2.6 2.4L9 11.8" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>',
+  external:
+    '<path d="M4.6 11.4L11.4 4.6M6.6 4.6h4.8v4.8" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>',
 } as const;
 type IconName = keyof typeof ICONS;
 // For static template strings (trusted, hardcoded content only).
@@ -160,20 +155,12 @@ function textSpan(text: string, className = ""): HTMLSpanElement {
 // Drag-to-resize a docked panel, matching mainstream engine editors. Reads
 // and writes a CSS custom property on the document root; the stylesheet
 // consumes that property in the relevant grid-template-columns/rows track.
-function wireResizer(
-  handle: HTMLElement,
-  axis: "x" | "y",
-  cssVar: string,
-  min: number,
-  max: number,
-  invert = false,
-) {
+function wireResizer(handle: HTMLElement, axis: "x" | "y", cssVar: string, min: number, max: number, invert = false) {
   const root = document.documentElement;
   handle.addEventListener("pointerdown", (down) => {
     down.preventDefault();
     const startPos = axis === "x" ? down.clientX : down.clientY;
-    const startValue =
-      parseFloat(getComputedStyle(root).getPropertyValue(cssVar)) || min;
+    const startValue = parseFloat(getComputedStyle(root).getPropertyValue(cssVar)) || min;
     handle.setPointerCapture(down.pointerId);
     handle.classList.add("dragging");
     const move = (moveEvent: PointerEvent) => {
@@ -219,33 +206,19 @@ type Runtime = {
   _editor_projectile_value(index: number, field: number): number;
   _editor_take_dirty_saves(): number;
   _editor_set_body(index: number, authored: number, mass: number, dynamic: number): void;
+  _editor_set_sim_stride(stride: number): void;
   _editor_entity_count(): number;
   _editor_take_commands(): number;
   _editor_command_entity(index: number): number;
   // Text-in/text-out calls added with the 0.51.0 script host (bridge.cpp):
   // names, props, prefab templates, spawned-prefab lookup, command text.
-  ccall(
-    name: "editor_set_name" | "editor_set_script_props",
-    returnType: null,
-    argTypes: ["number", "string"],
-    args: [number, string],
-  ): void;
+  ccall(name: "editor_set_name" | "editor_set_script_props", returnType: null, argTypes: ["number", "string"], args: [number, string]): void;
   ccall(name: "editor_template_begin", returnType: null, argTypes: ["string"], args: [string]): void;
   ccall(name: "editor_profile_text", returnType: "string", argTypes: [], args: []): string;
   ccall(name: "editor_ui_event", returnType: null, argTypes: ["string", "string"], args: [string, string]): void;
-  ccall(
-    name: "editor_script_notify",
-    returnType: null,
-    argTypes: ["number", "string", "string"],
-    args: [number, string, string],
-  ): void;
+  ccall(name: "editor_script_notify", returnType: null, argTypes: ["number", "string", "string"], args: [number, string, string]): void;
   ccall(name: "editor_spawned_prefab", returnType: "string", argTypes: ["number"], args: [number]): string;
-  ccall(
-    name: "editor_command_text",
-    returnType: "string",
-    argTypes: ["number", "number"],
-    args: [number, number],
-  ): string;
+  ccall(name: "editor_command_text", returnType: "string", argTypes: ["number", "number"], args: [number, number]): string;
   _editor_set_rotation(index: number, x: number, y: number, z: number): void;
   _editor_set_controller(index: number, mode: number, ...settings: number[]): void;
   _editor_set_look(yaw: number, pitch: number): void;
@@ -282,19 +255,8 @@ type Runtime = {
   _editor_take_weapon_events(): number;
   _editor_weapon_event(index: number, field: number): number;
   // Catch-all for text calls added from 0.59.0 on.
-  ccall(
-    name: string,
-    returnType: "string" | "number" | null,
-    argTypes: Array<"string" | "number">,
-    args: Array<string | number>,
-  ): any;
-  _editor_set_collider(
-    index: number,
-    isTrigger: number,
-    layer: number,
-    mask: number,
-    bounciness: number,
-  ): void;
+  ccall(name: string, returnType: "string" | "number" | null, argTypes: Array<"string" | "number">, args: Array<string | number>): any;
+  _editor_set_collider(index: number, isTrigger: number, layer: number, mask: number, bounciness: number): void;
   // editor_set_script_source/editor_script_error/editor_seed_save/
   // editor_dirty_save_key/editor_dirty_save_value's own doc comments
   // (bridge.cpp) explain why these go through ccall instead of a direct
@@ -302,54 +264,17 @@ type Runtime = {
   // message, and a save key/value are text, which can't travel through the
   // all-double ABI the rest of this type uses. Exported via
   // -sEXPORTED_RUNTIME_METHODS=ccall in tools/build_editor.sh.
-  ccall(
-    name: "editor_set_script_source",
-    returnType: null,
-    argTypes: ["number", "string"],
-    args: [number, string],
-  ): void;
-  ccall(
-    name: "editor_script_error",
-    returnType: "string",
-    argTypes: ["number"],
-    args: [number],
-  ): string;
-  ccall(
-    name: "editor_seed_save",
-    returnType: null,
-    argTypes: ["string", "string"],
-    args: [string, string],
-  ): void;
-  ccall(
-    name: "editor_dirty_save_key",
-    returnType: "string",
-    argTypes: ["number"],
-    args: [number],
-  ): string;
-  ccall(
-    name: "editor_dirty_save_value",
-    returnType: "string",
-    argTypes: ["number"],
-    args: [number],
-  ): string;
-  ccall(
-    name: "editor_script_key",
-    returnType: null,
-    argTypes: ["string", "number"],
-    args: [string, number],
-  ): void;
-  ccall(
-    name: "editor_take_animation_request",
-    returnType: "string",
-    argTypes: ["number"],
-    args: [number],
-  ): string;
+  ccall(name: "editor_set_script_source", returnType: null, argTypes: ["number", "string"], args: [number, string]): void;
+  ccall(name: "editor_script_error", returnType: "string", argTypes: ["number"], args: [number]): string;
+  ccall(name: "editor_seed_save", returnType: null, argTypes: ["string", "string"], args: [string, string]): void;
+  ccall(name: "editor_dirty_save_key", returnType: "string", argTypes: ["number"], args: [number]): string;
+  ccall(name: "editor_dirty_save_value", returnType: "string", argTypes: ["number"], args: [number]): string;
+  ccall(name: "editor_script_key", returnType: null, argTypes: ["string", "number"], args: [string, number]): void;
+  ccall(name: "editor_take_animation_request", returnType: "string", argTypes: ["number"], args: [number]): string;
 };
 declare const createEditorRuntime: () => Runtime | Promise<Runtime>;
 async function startEditor() {
-  const doc = new EditorDocument(
-    new LocalStorageSceneStore("game-engine-editor:command-scene:"),
-  );
+  const doc = new EditorDocument(new LocalStorageSceneStore("game-engine-editor:command-scene:"));
   const app = document.querySelector<HTMLDivElement>("#app")!;
   app.innerHTML = `<header>
   <span class="brand"><span class="brand-mark" aria-hidden="true"></span><b>GAME ENGINE</b></span>
@@ -434,9 +359,7 @@ async function startEditor() {
       <label class="field-row"><span>Project</span><input id="project" value="Untitled project" aria-label="Project name"></label>
       <div class="field-row">
         <select id="catalog-category" aria-label="Model category">
-          ${catalogCategories
-            .map((c) => `<option value="${c}">${c.charAt(0).toUpperCase()}${c.slice(1)}</option>`)
-            .join("")}
+          ${catalogCategories.map((c) => `<option value="${c}">${c.charAt(0).toUpperCase()}${c.slice(1)}</option>`).join("")}
         </select>
         <select id="catalog-model" aria-label="Model"></select>
       </div>
@@ -504,8 +427,7 @@ async function startEditor() {
   const hudText = document.createElement("div");
   hudText.id = "hud-text";
   hudText.setAttribute("aria-live", "polite");
-  hudText.style.cssText =
-    "position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap";
+  hudText.style.cssText = "position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap";
   viewport.appendChild(hudText);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#101a26");
@@ -536,10 +458,7 @@ async function startEditor() {
   const sunDirection = new THREE.Vector3(4, 8, 5).normalize();
   // The physics ground plane (y = 0) had no visible surface; this one only
   // shows shadows, so the look is otherwise unchanged.
-  const shadowGround = new THREE.Mesh(
-    new THREE.PlaneGeometry(400, 400),
-    new THREE.ShadowMaterial({ opacity: 0.35 }),
-  );
+  const shadowGround = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.ShadowMaterial({ opacity: 0.35 }));
   shadowGround.rotation.x = -Math.PI / 2;
   shadowGround.receiveShadow = true;
   scene.add(shadowGround);
@@ -576,11 +495,7 @@ async function startEditor() {
   function applyEnvironment(env: EnvironmentComponent) {
     const elevation = THREE.MathUtils.degToRad(env.sunElevation);
     const azimuth = THREE.MathUtils.degToRad(env.sunAzimuth);
-    sunDirection.set(
-      Math.cos(elevation) * Math.sin(azimuth),
-      Math.sin(elevation),
-      Math.cos(elevation) * Math.cos(azimuth),
-    );
+    sunDirection.set(Math.cos(elevation) * Math.sin(azimuth), Math.sin(elevation), Math.cos(elevation) * Math.cos(azimuth));
     sun.color.copy(colorOf(env.sunColor));
     sun.intensity = env.sunIntensity;
     sun.castShadow = env.shadows;
@@ -662,11 +577,7 @@ async function startEditor() {
     return doc.mode !== "edit" && playerController()?.mode === "FirstPerson" && runtime._editor_alive(playerIndex) === 1;
   }
   function playerFeet(target: THREE.Vector3) {
-    return target.set(
-      runtime._editor_value(playerIndex, 0),
-      runtime._editor_controller_value(playerIndex, 6),
-      runtime._editor_value(playerIndex, 2),
-    );
+    return target.set(runtime._editor_value(playerIndex, 0), runtime._editor_controller_value(playerIndex, 6), runtime._editor_value(playerIndex, 2));
   }
   function placeFirstPerson(dt: number): THREE.PerspectiveCamera {
     const settings = playerController()!;
@@ -700,12 +611,7 @@ async function startEditor() {
   // sinking toward the ground and rolling over (0.66.0).
   let deathRoll = 0;
   function deathView() {
-    return (
-      doc.mode !== "edit" &&
-      playerController()?.mode === "FirstPerson" &&
-      playerIndex >= 0 &&
-      runtime._editor_alive(playerIndex) === 0
-    );
+    return doc.mode !== "edit" && playerController()?.mode === "FirstPerson" && playerIndex >= 0 && runtime._editor_alive(playerIndex) === 0;
   }
   function placeDeathView(dt: number): THREE.PerspectiveCamera {
     const view = fps.camera;
@@ -802,11 +708,7 @@ async function startEditor() {
         rig.yaw += turn * (1 - Math.exp(-rig.frameDt * 7));
       } else rig.yaw = behind;
     }
-    const desired = new THREE.Vector3(
-      Math.sin(rig.yaw) * Math.cos(rig.pitch),
-      Math.sin(rig.pitch),
-      Math.cos(rig.yaw) * Math.cos(rig.pitch),
-    )
+    const desired = new THREE.Vector3(Math.sin(rig.yaw) * Math.cos(rig.pitch), Math.sin(rig.pitch), Math.cos(rig.yaw) * Math.cos(rig.pitch))
       .multiplyScalar(distance)
       .add(target.position);
     if (follow.collision) {
@@ -921,8 +823,7 @@ async function startEditor() {
   // compatibility fallback below has no render-target/shader pipeline for
   // EffectComposer to drive, so frame() falls back to a plain renderer.render
   // for it, same as before this round.
-  const composer =
-    renderer instanceof THREE.WebGLRenderer ? new EffectComposer(renderer) : undefined;
+  const composer = renderer instanceof THREE.WebGLRenderer ? new EffectComposer(renderer) : undefined;
   const renderPass = new RenderPass(scene, camera);
   // The camera the last frame rendered with: the editor camera, or a game
   // Camera entity during Play. HUD projection and WASD use the same one.
@@ -970,6 +871,13 @@ async function startEditor() {
   // undefined for a non-animated (static) entity. Reset alongside objects on every rebuild().
   const animStates: (AnimState | undefined)[] = [];
   const governor = new FrameGovernor();
+  const gestureBones = new WeakMap<AnimState, GestureBones>();
+  const probe = new ReflectionProbe();
+  let probeScanAt = 0;
+  // Static batching (0.76.0): still scenery merged per material while playing.
+  const staticBatcher = new StaticBatcher();
+  let batchAt = Infinity;
+  let batchCheckAt = 0;
   let crowdFrame = 0;
   // Characters who can talk, and which of them stood still last tick.
   let talkerIndices: number[] = [];
@@ -1140,8 +1048,7 @@ async function startEditor() {
   // A synthesized voice played at a world position.
   function soundsAt(point: THREE.Vector3, volume = 1): Sfx {
     const occluded =
-      audioMixer().occlusion &&
-      runtime._editor_line_blocked(listenerPosition.x, listenerPosition.y, listenerPosition.z, point.x, point.y + 0.3, point.z) === 1;
+      audioMixer().occlusion && runtime._editor_line_blocked(listenerPosition.x, listenerPosition.y, listenerPosition.z, point.x, point.y + 0.3, point.z) === 1;
     return sounds().at(audioMixer().source("sfx", point, { occluded, volume }).input);
   }
   const playerSteps = new FootstepTracker();
@@ -1221,15 +1128,10 @@ async function startEditor() {
     const listener = viewCamera.getWorldPosition(new THREE.Vector3());
     const distanceVolume = (point: THREE.Vector3) => 1 / (1 + point.distanceTo(listener) / 10);
     const muzzleOf = (shooter: number, origin: THREE.Vector3, direction: THREE.Vector3) =>
-      shooter === playerIndex && firstPerson()
-        ? weaponFx.muzzleWorld(fps.camera, new THREE.Vector3())
-        : origin.clone().addScaledVector(direction, 0.5);
+      shooter === playerIndex && firstPerson() ? weaponFx.muzzleWorld(fps.camera, new THREE.Vector3()) : origin.clone().addScaledVector(direction, 0.5);
     const finishShot = () => {
       if (pending && pending.hits === 0)
-        weaponFx.tracer(
-          muzzleOf(pending.shooter, pending.origin, pending.direction),
-          pending.origin.clone().addScaledVector(pending.direction, 80),
-        );
+        weaponFx.tracer(muzzleOf(pending.shooter, pending.origin, pending.direction), pending.origin.clone().addScaledVector(pending.direction, 80));
       pending = undefined;
     };
     for (let i = 0; i < count; i++) {
@@ -1413,10 +1315,7 @@ async function startEditor() {
   // that was previously alive -- starts its death sequence (a clip, if its
   // model has one, plus a fade-out) instead of the object just vanishing
   // the instant combat/AI damage brings its Health to 0.
-  function startDeath(
-    anchor: THREE.Object3D,
-    animState: AnimState | undefined,
-  ): DeathState {
+  function startDeath(anchor: THREE.Object3D, animState: AnimState | undefined): DeathState {
     // "death"/"die" are the two conventional clip names this project's own
     // kits already use elsewhere (see animationClips.ts's pickClipName for
     // the same "look for a conventional name, fall back gracefully if this
@@ -1428,14 +1327,10 @@ async function startEditor() {
     // looked up in `actions` by its own original-case key, which is the
     // only key that's actually in that Map.
     if (animState) {
-      const deathClip = [...animState.actions.keys()].find((name) =>
-        ["death", "die"].includes(name.toLowerCase()),
-      );
+      const deathClip = [...animState.actions.keys()].find((name) => ["death", "die"].includes(name.toLowerCase()));
       if (deathClip) {
         const action = animState.actions.get(deathClip)!;
-        const previous = animState.current
-          ? animState.actions.get(animState.current)
-          : undefined;
+        const previous = animState.current ? animState.actions.get(animState.current) : undefined;
         action.reset().setLoop(THREE.LoopOnce, 1);
         action.clampWhenFinished = true;
         action.fadeIn(0.15).play();
@@ -1470,9 +1365,7 @@ async function startEditor() {
         }
         return result;
       };
-      child.material = Array.isArray(child.material)
-        ? child.material.map(clone)
-        : clone(child.material);
+      child.material = Array.isArray(child.material) ? child.material.map(clone) : clone(child.material);
     });
     return { elapsed: 0, materials };
   }
@@ -1548,12 +1441,7 @@ async function startEditor() {
       current.before.scale = toLiteralScale(current.entity, current.before.scale);
       after.scale = toLiteralScale(current.entity, after.scale);
     }
-    const command = transformCommand(
-      current.entity,
-      current.mode,
-      current.before,
-      after,
-    );
+    const command = transformCommand(current.entity, current.mode, current.before, after);
     queueMicrotask(() => {
       if (command) execute(command);
       rebuild();
@@ -1563,16 +1451,12 @@ async function startEditor() {
     el(mode).onclick = () => {
       if (doc.mode !== "edit" || gizmo.dragging) return;
       gizmo.setMode(mode);
-      for (const id of ["translate", "rotate", "scale"])
-        el(id).setAttribute("aria-pressed", String(mode === id));
+      for (const id of ["translate", "rotate", "scale"]) el(id).setAttribute("aria-pressed", String(mode === id));
     };
-  el<HTMLSelectElement>("space").onchange = () =>
-    gizmo.setSpace(el<HTMLSelectElement>("space").value as "world" | "local");
+  el<HTMLSelectElement>("space").onchange = () => gizmo.setSpace(el<HTMLSelectElement>("space").value as "world" | "local");
   function configureSnap() {
     const enabled = el<HTMLInputElement>("snap").checked;
-    gizmo.setTranslationSnap(
-      enabled ? Number(el<HTMLSelectElement>("snap-size").value) : null,
-    );
+    gizmo.setTranslationSnap(enabled ? Number(el<HTMLSelectElement>("snap-size").value) : null);
     gizmo.setRotationSnap(enabled ? Math.PI / 12 : null);
     gizmo.setScaleSnap(enabled ? 0.1 : null);
   }
@@ -1627,10 +1511,7 @@ async function startEditor() {
   function animationClipOptions(entity: EntityRef) {
     const meshId = doc.scene.resolve(entity, "Renderable")?.mesh ?? 0;
     const clips = catalogCache.get(meshId)?.clips ?? [];
-    return [
-      { label: "(Automatic)", value: "" },
-      ...clips.map((clip) => ({ label: clip.name, value: clip.name })),
-    ];
+    return [{ label: "(Automatic)", value: "" }, ...clips.map((clip) => ({ label: clip.name, value: clip.name }))];
   }
   function loadCatalogModel(meshId: number): Promise<CachedModel> | undefined {
     const entry = catalogEntry(meshId);
@@ -1745,10 +1626,7 @@ async function startEditor() {
       };
       const cached = soundBuffers.get(sound.clip);
       if (cached) play(cached);
-      else
-        loadSoundBuffer(sound.clip)?.then(play, (error) =>
-          log(`Sound clip ${sound.clip} failed to load: ${String(error)}`),
-        );
+      else loadSoundBuffer(sound.clip)?.then(play, (error) => log(`Sound clip ${sound.clip} failed to load: ${String(error)}`));
     });
   }
   // A one-shot from a script's sound.play(clip): `clip` is a catalog id
@@ -1870,7 +1748,21 @@ async function startEditor() {
         "editor_space_body",
         null,
         ["string", ...Array<"number">(12).fill("number")],
-        [b.name, b.parent, b.orbitRadius, b.period, b.phase, b.inclination, b.radius, b.gravity, b.atmosphereHeight, b.atmosphereDensity, b.terrainAmplitude, b.terrainScale, b.seed],
+        [
+          b.name,
+          b.parent,
+          b.orbitRadius,
+          b.period,
+          b.phase,
+          b.inclination,
+          b.radius,
+          b.gravity,
+          b.atmosphereHeight,
+          b.atmosphereDensity,
+          b.terrainAmplitude,
+          b.terrainScale,
+          b.seed,
+        ],
       );
       if (b.sea !== undefined) runtime.ccall("editor_space_body_sea", null, ["number"], [b.sea]);
       if (b.hidden) runtime._editor_space_body_hidden(1);
@@ -1925,8 +1817,7 @@ async function startEditor() {
     const geometry = new THREE.PlaneGeometry(size, size, n - 1, n - 1);
     geometry.rotateX(-Math.PI / 2);
     const position = geometry.getAttribute("position") as THREE.BufferAttribute;
-    for (let i = 0; i < position.count; i++)
-      position.setY(i, runtime._editor_space_ground(position.getX(i), position.getZ(i)) + 0.02);
+    for (let i = 0; i < position.count; i++) position.setY(i, runtime._editor_space_ground(position.getX(i), position.getZ(i)) + 0.02);
     geometry.computeVertexNormals();
     spaceGround = new THREE.Mesh(geometry, new THREE.ShadowMaterial({ opacity: 0.4 }));
     spaceGround.receiveShadow = true;
@@ -1966,6 +1857,7 @@ async function startEditor() {
       let swayed = swayCache.get(child.material);
       if (!swayed) swayCache.set(child.material, (swayed = swayMaterial(child.material, sway)));
       child.material = swayed;
+      child.customDepthMaterial = swayDepth;
     });
     scene.add(spaceScatter);
     applyScatterDensity(governorTier().scatter);
@@ -1973,7 +1865,13 @@ async function startEditor() {
     harvested.clear();
     explorerFx?.clearPrints();
     const kind = (k: string) => k[0]!.toUpperCase() + k.slice(1);
-    scatterTargets = placed.map((p) => ({ key: p.species.id, name: p.species.name, kind: kind(p.species.kind), position: new THREE.Vector3(p.x, p.y + 0.4, p.z), range: 5 }));
+    scatterTargets = placed.map((p) => ({
+      key: p.species.id,
+      name: p.species.name,
+      kind: kind(p.species.kind),
+      position: new THREE.Vector3(p.x, p.y + 0.4, p.z),
+      range: 5,
+    }));
     hideHarvestedHere();
   }
   function endSpaceView() {
@@ -2022,7 +1920,10 @@ async function startEditor() {
     sun.shadow.normalBias = 0.12;
     sun.intensity = 2.6 * THREE.MathUtils.clamp(elevation * 4 + 0.15, 0, 1);
     hemisphere.intensity = 0.35 + 1.3 * spaceView.air * day;
-    hemisphere.color.copy(spaceView.skyColor).lerp(new THREE.Color(1, 1, 1), 0.4).multiplyScalar(0.35 + 0.65 * day);
+    hemisphere.color
+      .copy(spaceView.skyColor)
+      .lerp(new THREE.Color(1, 1, 1), 0.4)
+      .multiplyScalar(0.35 + 0.65 * day);
     scene.background = null;
     if (skyMesh) skyMesh.visible = false;
     // The scattered horizon (atmosphere.ts) colours the haze.
@@ -2044,12 +1945,42 @@ async function startEditor() {
         rig.position.add(shift);
         view.position.add(shift);
         controls.target.add(shift);
+        // The new frame's axes turn too (0.76.0): the camera swings round
+        // the walker by the same angle and the look keeps its heading.
+        const turn = runtime._editor_space_value(57);
+        const walker = playerIndex >= 0 ? objects[playerIndex] : undefined;
+        if (Math.abs(turn) > 1e-5 && walker) {
+          const pivot = rig.position.clone();
+          const spin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), turn);
+          for (const p of [view.position, controls.target]) p.sub(pivot).applyQuaternion(spin).add(pivot);
+          view.quaternion.premultiply(spin);
+          rig.yaw += turn;
+          fps.look.yaw += turn;
+          walker.rotation.y += turn;
+        }
       }
       rebuildSpaceFrame();
     }
+    // Canals and glossy floors reflect their surroundings (0.76.0), while
+    // the governor still has shadows to spare.
+    if (doc.mode === "play" && renderer instanceof THREE.WebGLRenderer && governorTier().shadows > 0) {
+      const now = performance.now();
+      if (now > probeScanAt) {
+        probeScanAt = now + 5000;
+        probe.attach(scene);
+      }
+      probe.update(renderer, scene, view.position, now, spaceView.skyColor, spaceView.horizonColor);
+    }
     // Weather fog (0.73.0) thickens the haze.
     const fog = explorerFx?.weather.fog ?? 0;
-    if (fog > 0.01) scene.fog = new THREE.FogExp2(spaceView.horizonColor.clone().lerp(spaceView.skyColor.clone().multiplyScalar(day * 0.8), 0.5).getHex(), 6e-5 * spaceView.air + fog * 0.012);
+    if (fog > 0.01)
+      scene.fog = new THREE.FogExp2(
+        spaceView.horizonColor
+          .clone()
+          .lerp(spaceView.skyColor.clone().multiplyScalar(day * 0.8), 0.5)
+          .getHex(),
+        6e-5 * spaceView.air + fog * 0.012,
+      );
     updateExplorer(dt, view);
     // Only the active site's objects are here; the rest are elsewhere on
     // the planet (or another world).
@@ -2100,12 +2031,7 @@ async function startEditor() {
   let profileCapture: { frames: number[]; until: number } | undefined;
   let wasLanded = true;
   function frameQuaternion() {
-    return new THREE.Quaternion(
-      runtime._editor_space_frame(0),
-      runtime._editor_space_frame(1),
-      runtime._editor_space_frame(2),
-      runtime._editor_space_frame(3),
-    );
+    return new THREE.Quaternion(runtime._editor_space_frame(0), runtime._editor_space_frame(1), runtime._editor_space_frame(2), runtime._editor_space_frame(3));
   }
   function bodyCentre(index: number) {
     return new THREE.Vector3(
@@ -2127,12 +2053,18 @@ async function startEditor() {
   // A latitude/longitude on a body, as a point in the walk frame.
   function latLonToFrame(index: number, latitude: number, longitude: number, lift = 2) {
     const dir = latLonDirection(latitude, longitude);
-    const radius = runtime._editor_space_body_value(index, 3) + Math.max(runtime._editor_planet_height(index, dir.x, dir.y, dir.z), explorerBodies[index]?.sea ?? -1e9) + lift;
+    const radius =
+      runtime._editor_space_body_value(index, 3) +
+      Math.max(runtime._editor_planet_height(index, dir.x, dir.y, dir.z), explorerBodies[index]?.sea ?? -1e9) +
+      lift;
     return dir.multiplyScalar(radius).applyQuaternion(bodyQuaternion(index)).add(bodyCentre(index));
   }
   function frameToLatLon(index: number, p: THREE.Vector3) {
     const dir = p.clone().sub(bodyCentre(index)).applyQuaternion(bodyQuaternion(index).invert()).normalize();
-    return { latitude: THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1))), longitude: THREE.MathUtils.radToDeg(Math.atan2(dir.z, dir.x)) };
+    return {
+      latitude: THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1))),
+      longitude: THREE.MathUtils.radToDeg(Math.atan2(dir.z, dir.x)),
+    };
   }
   function cue(name: string) {
     if (!audioContext) return;
@@ -2153,15 +2085,16 @@ async function startEditor() {
       if (id && body && Number.isFinite(Number(lat)) && Number.isFinite(Number(lon)))
         latLonWaypoints.set(id, { body, latitude: Number(lat), longitude: Number(lon), label });
     } else if (kind === "waypoint_clear") latLonWaypoints.delete(text);
-    else if (kind === "map") mapMode = text === "toggle" ? (mapMode === "off" ? "system" : mapMode === "system" ? "surface" : "off") : text === "system" || text === "surface" ? text : "off";
+    else if (kind === "map")
+      mapMode =
+        text === "toggle" ? (mapMode === "off" ? "system" : mapMode === "system" ? "surface" : "off") : text === "system" || text === "surface" ? text : "off";
     else if (kind === "minimap") minimapAllowed = text !== "0";
     else if (kind === "catalogued") catalogued.add(text);
     else if (kind === "harvest") harvest(text);
     else if (kind === "harvest_spot") {
       harvestedSpots.add(text);
       if (text.startsWith(`${scatterFrameKey()}|`)) hideScatter(Number(text.split("|")[1]));
-    }
-    else if (kind === "scanner") {
+    } else if (kind === "scanner") {
       const [range = 1, time = 1, condition = 1] = text.split(/\s+/).map(Number);
       scanner.tuning.range = Number.isFinite(range) && range > 0 ? range : 1;
       scanner.tuning.time = Number.isFinite(time) && time > 0 ? time : 1;
@@ -2306,6 +2239,7 @@ async function startEditor() {
   }
   const sway = swayUniforms();
   const swayCache = new Map<THREE.Material, THREE.Material>();
+  const swayDepth = swayDepthMaterial(sway);
   // The grass clock and the structures it falls into step near.
   function updateSway(dt: number) {
     if (!spaceView) return;
@@ -2336,13 +2270,25 @@ async function startEditor() {
     }
     if (!suitLight) {
       suitLight = new THREE.SpotLight(0xf4f2ea, 0, 30, 0.45, 0.6, 1.6);
+      // Shadows from the suit light (0.76.0): a small map, near range.
+      suitLight.shadow.mapSize.set(512, 512);
+      suitLight.shadow.camera.near = 0.3;
+      suitLight.shadow.camera.far = 30;
+      suitLight.shadow.bias = -0.002;
+      suitLight.shadow.normalBias = 0.05;
       scene.add(suitLight, suitLight.target);
     }
     suitLight.visible = true;
     suitLight.intensity = 14 * suitLightLevel;
+    // Only while the governor still runs full shadows: one more shadow
+    // pass a frame isn't free.
+    suitLight.castShadow = governorTier().shadows === 2 && suitLightLevel > 0.05;
     const yaw = walker.rotation.y;
     const forward = new THREE.Vector3(Math.sin(yaw), -0.18, Math.cos(yaw)).normalize();
-    suitLight.position.copy(walker.position).add(new THREE.Vector3(0, 0.75, 0)).addScaledVector(forward, 0.35);
+    suitLight.position
+      .copy(walker.position)
+      .add(new THREE.Vector3(0, 0.75, 0))
+      .addScaledVector(forward, 0.35);
     suitLight.target.position.copy(suitLight.position).addScaledVector(forward, 10);
   }
   // Per frame while playing a SpaceSystem scene.
@@ -2369,13 +2315,18 @@ async function startEditor() {
     wasLanded = landed;
     // Belly thrusters low over water kick up spray.
     if (ship && f.piloting && !landed && f.overWater && f.altitude < 25 && (f.engineOn || f.vertical > 0))
-      explorerFx.splash(ship.position.clone().setY(runtime._editor_space_ground(ship.position.x, ship.position.z)), Math.ceil(dt * 160 * (1 - f.altitude / 25)), 4);
+      explorerFx.splash(
+        ship.position.clone().setY(runtime._editor_space_ground(ship.position.x, ship.position.z)),
+        Math.ceil(dt * 160 * (1 - f.altitude / 25)),
+        4,
+      );
     if (ship) ship.position.y -= explorerFx.settleOffset();
     // Large minerals are solid: the walker is pushed back out of them.
     if (walking && player && playerIndex >= 0)
       for (const p of scatterPlacements) {
         if (p.kind !== "mineral" || p.scale < 1) continue;
-        const dx = player.position.x - p.x, dz = player.position.z - p.z;
+        const dx = player.position.x - p.x,
+          dz = player.position.z - p.z;
         const reach = 0.6 * p.scale + 0.35;
         const d = Math.hypot(dx, dz);
         if (d < reach && d > 1e-3) runtime._editor_push(playerIndex, (dx / d) * (reach - d), (dz / d) * (reach - d));
@@ -2415,7 +2366,8 @@ async function startEditor() {
   function mapBodies(): MapBody[] {
     const star = bodyCentre(-1);
     const inverse = frameQuaternion().invert();
-    const ref = runtime._editor_space_value(23), target = runtime._editor_space_value(29);
+    const ref = runtime._editor_space_value(23),
+      target = runtime._editor_space_value(29);
     return explorerBodies.map((b, i) => {
       const p = bodyCentre(i).sub(star).applyQuaternion(inverse);
       return { name: b.name, x: p.x, z: p.z, radius: b.radius, color: b.color, parent: b.parent, target: i === target, current: i === ref };
@@ -2437,7 +2389,8 @@ async function startEditor() {
     // Prospecting: the nearest matching deposit as a marker.
     if (prospect) {
       const me = playerIndex >= 0 ? objects[playerIndex] : undefined;
-      let best: (typeof scatterPlacements)[number] | undefined, bestDistance = prospect.range;
+      let best: (typeof scatterPlacements)[number] | undefined,
+        bestDistance = prospect.range;
       if (me && !spaceView.flight.piloting)
         scatterPlacements.forEach((p, i) => {
           if (harvested.has(i) || !prospect!.keys.has(p.key)) return;
@@ -2465,14 +2418,24 @@ async function startEditor() {
       if (body) {
         let image = surfaceImages.get(frameBody);
         if (!image) {
-          image = surfaceImage(256, 128, (x, y, z) => runtime._editor_planet_height(frameBody, x, y, z), body.terrainAmplitude, body.color, body.sea, body.snow);
+          image = surfaceImage(
+            256,
+            128,
+            (x, y, z) => runtime._editor_planet_height(frameBody, x, y, z),
+            body.terrainAmplitude,
+            body.color,
+            body.sea,
+            body.snow,
+          );
           surfaceImages.set(frameBody, image);
         }
         const sites: MapSite[] = [...mapSites.values()].filter((s) => s.body === body.name);
         for (const landmark of spaceView.landmarks)
-          if (landmark.body === frameBody) sites.push({ id: landmark.label, label: landmark.label, latitude: landmark.latitude, longitude: landmark.longitude, kind: "landmark" });
-        for (const [id, w] of latLonWaypoints) if (w.body === body.name) sites.push({ id, label: w.label, latitude: w.latitude, longitude: w.longitude, kind: "waypoint" });
-        const me = spaceView.flight.piloting ? shipFrame : (playerIndex >= 0 ? objects[playerIndex]?.position : undefined) ?? shipFrame;
+          if (landmark.body === frameBody)
+            sites.push({ id: landmark.label, label: landmark.label, latitude: landmark.latitude, longitude: landmark.longitude, kind: "landmark" });
+        for (const [id, w] of latLonWaypoints)
+          if (w.body === body.name) sites.push({ id, label: w.label, latitude: w.latitude, longitude: w.longitude, kind: "waypoint" });
+        const me = spaceView.flight.piloting ? shipFrame : ((playerIndex >= 0 ? objects[playerIndex]?.position : undefined) ?? shipFrame);
         const at = frameToLatLon(frameBody, me);
         sites.push({ id: "you", label: "You", ...at, kind: spaceView.flight.piloting ? "ship" : "player" });
         drawSurface(ctx, 40, 60, hud.width - 80, hud.height - 120, image, sites, `${body.name.toUpperCase()} SURVEY MAP  ·  M: close`);
@@ -2495,7 +2458,8 @@ async function startEditor() {
           for (const [, m] of uiMarkers) blips.push({ x: m.position.x - me.position.x, z: m.position.z - me.position.z, kind: "marker", label: m.label });
           scatterPlacements.forEach((p, i) => {
             if (harvested.has(i)) return;
-            const dx = p.x - me.position.x, dz = p.z - me.position.z;
+            const dx = p.x - me.position.x,
+              dz = p.z - me.position.z;
             // Only what's catalogued (and so harvestable) -- the map isn't omniscient.
             if (Math.abs(dx) > 170 || Math.abs(dz) > 170 || !catalogued.has(p.key)) return;
             blips.push({ x: dx, z: dz, kind: "resource" });
@@ -2529,11 +2493,24 @@ async function startEditor() {
       const object = objects[i];
       const scan = (entity && doc.scene.resolve(entity, "Scannable")) || spawnedScans.get(i);
       if (!scan || !object || !object.visible || !runtime._editor_alive(i)) continue;
-      list.push({ key: scan.id || scan.name, name: scan.name, kind: scan.kind, position: object.position, range: scan.range, fleeing: runtime._editor_wildlife_state(i) === 2 });
+      list.push({
+        key: scan.id || scan.name,
+        name: scan.name,
+        kind: scan.kind,
+        position: object.position,
+        range: scan.range,
+        fleeing: runtime._editor_wildlife_state(i) === 2,
+      });
     }
     for (const t of scatterTargets) list.push(t);
     for (const landmark of spaceView?.landmarks ?? [])
-      list.push({ key: `landmark:${landmark.label}`, name: landmark.label, kind: "Landmark", position: landmark.anchor.getWorldPosition(new THREE.Vector3()), range: 70 });
+      list.push({
+        key: `landmark:${landmark.label}`,
+        name: landmark.label,
+        kind: "Landmark",
+        position: landmark.anchor.getWorldPosition(new THREE.Vector3()),
+        range: 70,
+      });
     return list;
   }
   function scanHeld() {
@@ -2573,15 +2550,7 @@ async function startEditor() {
   // relative order every native InputState consumer already assumes.
   // editor_value's field 5 own contract (apps/editor/runtime/bridge.cpp): a plain int
   // matching AIStateName's declared order in ../scene/Components.
-  const aiStateNames: readonly AIStateName[] = [
-    "Idle",
-    "Walking",
-    "Running",
-    "Driving",
-    "Fleeing",
-    "Chasing",
-    "Dead",
-  ];
+  const aiStateNames: readonly AIStateName[] = ["Idle", "Walking", "Running", "Driving", "Fleeing", "Chasing", "Dead"];
   // Every key by KeyboardEvent.code, for the native InputState (movement,
   // F/G combat and named actions -- see editor_input_key, bridge.cpp).
   const keyQueue: Array<[code: string, down: number]> = [];
@@ -2697,13 +2666,7 @@ async function startEditor() {
         const fullKey = localStorage.key(i);
         if (!fullKey || !fullKey.startsWith(prefix)) continue;
         const value = localStorage.getItem(fullKey);
-        if (value !== null)
-          runtime.ccall(
-            "editor_seed_save",
-            null,
-            ["string", "string"],
-            [decodeURIComponent(fullKey.slice(prefix.length)), value],
-          );
+        if (value !== null) runtime.ccall("editor_seed_save", null, ["string", "string"], [decodeURIComponent(fullKey.slice(prefix.length)), value]);
       }
     } catch {
       // Storage access denied -- see this function's own doc comment above.
@@ -2902,33 +2865,37 @@ async function startEditor() {
     const hpMax = health?.maximum ?? 0;
     if (
       !runtime._editor_add(
-        p.x, p.y, p.z, v.x, v.y, v.z, s.x, s.y, s.z, isChild, isPlayer,
-        isCollider, hpCurrent, hpMax, isVehicle, isAi, isPedestrian,
-        colliderShape, colliderRadius, vehicleArchetype, pedestrianArchetype,
+        p.x,
+        p.y,
+        p.z,
+        v.x,
+        v.y,
+        v.z,
+        s.x,
+        s.y,
+        s.z,
+        isChild,
+        isPlayer,
+        isCollider,
+        hpCurrent,
+        hpMax,
+        isVehicle,
+        isAi,
+        isPedestrian,
+        colliderShape,
+        colliderRadius,
+        vehicleArchetype,
+        pedestrianArchetype,
       )
     ) {
       runtime._editor_commit();
-      throw new Error(
-        "Runtime rejects coordinates/velocity outside ±1,000,000",
-      );
+      throw new Error("Runtime rejects coordinates/velocity outside ±1,000,000");
     }
     // Mass/dynamic and trigger/layer/mask/bounciness: see editor_set_body
     // and editor_set_collider (bridge.cpp) for what each one means.
     const body = get("RigidBody");
-    runtime._editor_set_body(
-      index,
-      body ? 1 : 0,
-      body?.mass ?? 1,
-      body?.dynamic === false ? 0 : 1,
-    );
-    if (collider)
-      runtime._editor_set_collider(
-        index,
-        collider.isTrigger ? 1 : 0,
-        collider.layer,
-        collider.mask,
-        collider.bounciness,
-      );
+    runtime._editor_set_body(index, body ? 1 : 0, body?.mass ?? 1, body?.dynamic === false ? 0 : 1);
+    if (collider) runtime._editor_set_collider(index, collider.isTrigger ? 1 : 0, collider.layer, collider.mask, collider.bounciness);
     // CharacterController (0.60.0): see editor_set_controller (bridge.cpp).
     const controller = get("CharacterController");
     if (controller && !isChild)
@@ -2997,11 +2964,9 @@ async function startEditor() {
       );
     // Routine and Wildlife (0.73.0): see editor_set_routine/editor_set_wildlife.
     const routine = get("Routine");
-    if (routine && !isChild && index >= 0)
-      runtime.ccall("editor_set_routine", null, ["number", "string", "number"], [index, routine.stops, routine.speed]);
+    if (routine && !isChild && index >= 0) runtime.ccall("editor_set_routine", null, ["number", "string", "number"], [index, routine.stops, routine.speed]);
     const wildlife = get("Wildlife");
-    if (wildlife && !isChild && index >= 0)
-      runtime._editor_set_wildlife(index, wildlife.wary, wildlife.flee, wildlife.speed, wildlife.leash);
+    if (wildlife && !isChild && index >= 0) runtime._editor_set_wildlife(index, wildlife.wary, wildlife.flee, wildlife.speed, wildlife.leash);
     // Weapons (0.61.0): see editor_set_weapons (bridge.cpp).
     const weapons = get("Weapons");
     if (weapons && !isChild) runtime.ccall("editor_set_weapons", null, ["number", "string"], [index, weapons.loadout]);
@@ -3031,28 +2996,16 @@ async function startEditor() {
     }
     // A rotated Box collider collides as an oriented box (0.59.0).
     const rotation = get("Rotation")?.euler;
-    if (collider && rotation && (rotation.x || rotation.y || rotation.z))
-      runtime._editor_set_rotation(index, rotation.x, rotation.y, rotation.z);
-    if (name !== undefined)
-      runtime.ccall("editor_set_name", null, ["number", "string"], [index, name]);
+    if (collider && rotation && (rotation.x || rotation.y || rotation.z)) runtime._editor_set_rotation(index, rotation.x, rotation.y, rotation.z);
+    if (name !== undefined) runtime.ccall("editor_set_name", null, ["number", "string"], [index, name]);
     // editor_add's own all-double ABI has no way to carry a Lua source
     // string, so a scripted entity's source is set through this companion
     // call instead (see editor_set_script_source's own doc comment,
     // bridge.cpp) — same index editor_add just placed this entity at.
     const script = get("Script");
     if (script) {
-      runtime.ccall(
-        "editor_set_script_source",
-        null,
-        ["number", "string"],
-        [index, script.source],
-      );
-      runtime.ccall(
-        "editor_set_script_props",
-        null,
-        ["number", "string"],
-        [index, encodeProps(reconcileProps(script.source, script.props))],
-      );
+      runtime.ccall("editor_set_script_source", null, ["number", "string"], [index, script.source]);
+      runtime.ccall("editor_set_script_props", null, ["number", "string"], [index, encodeProps(reconcileProps(script.source, script.props))]);
     }
   }
   // Script-set UI text (ui.set_text), keyed by the UI entity's Name.
@@ -3070,8 +3023,7 @@ async function startEditor() {
   // The last tick's bulk snapshot (editor_snapshot): six doubles per index
   // after a count; undefined until play's first tick.
   let tickSnapshot: Float64Array | undefined;
-  const tickSnapshotAlive = (i: number) =>
-    tickSnapshot && i < tickSnapshot[0]! ? tickSnapshot[1 + i * 6] === 1 : runtime._editor_alive(i) === 1;
+  const tickSnapshotAlive = (i: number) => (tickSnapshot && i < tickSnapshot[0]! ? tickSnapshot[1 + i * 6] === 1 : runtime._editor_alive(i) === 1);
   const tickSnapshotFlags = (i: number) => (tickSnapshot && i < tickSnapshot[0]! ? tickSnapshot[1 + i * 6 + 5]! : -1);
   let tickAlpha = 1;
   // Arcade car sounds and HUD state (0.70.0; see updateCars), declared
@@ -3105,11 +3057,7 @@ async function startEditor() {
         y: runtime._editor_value(index, 1),
         z: runtime._editor_value(index, 2),
       };
-      createEntityObject((type) =>
-        type === "Transform"
-          ? ({ position } as SceneComponents[typeof type])
-          : components[type],
-      );
+      createEntityObject((type) => (type === "Transform" ? ({ position } as SceneComponents[typeof type]) : components[type]));
       // Spawned scannables (0.73.0: wildlife a script releases) can be scanned too.
       if (components.Scannable) spawnedScans.set(index, components.Scannable);
     }
@@ -3117,21 +3065,13 @@ async function startEditor() {
   const spawnedScans = new Map<number, ScannableComponent>();
   // One Animator step for entity i: built-in parameters, events to the
   // entity's script, and a crossfade when the state changes.
-  function runAnimator(
-    i: number,
-    state: AnimState,
-    animator: AnimatorRuntime,
-    speed: number,
-    verticalSpeed: number,
-    dt: number,
-  ) {
+  function runAnimator(i: number, state: AnimState, animator: AnimatorRuntime, speed: number, verticalSpeed: number, dt: number) {
     animator.set("speed", speed);
     animator.set("vy", verticalSpeed);
     animator.set("grounded", Math.abs(verticalSpeed) < 0.2);
     const clip = state.actions.get(animator.current.clip)?.getClip();
     const result = animator.step(dt, clip?.duration);
-    for (const name of result.events)
-      runtime.ccall("editor_script_notify", null, ["number", "string", "string"], [i, "on_anim_event", name]);
+    for (const name of result.events) runtime.ccall("editor_script_notify", null, ["number", "string", "string"], [i, "on_anim_event", name]);
     if (!result.entered) return;
     const next = state.actions.get(result.entered.state.clip);
     if (next) {
@@ -3177,7 +3117,13 @@ async function startEditor() {
     // Right-drag looks around in first person without capturing the mouse.
     const controller = playerController();
     if (controller?.mode === "FirstPerson" && event.buttons & 2 && document.pointerLockElement !== renderer.domElement)
-      applyMouseLook(fps.look, event.movementX, event.movementY, controller.lookSensitivity * playerSettings.sensitivity, controller.invertY !== playerSettings.invertY);
+      applyMouseLook(
+        fps.look,
+        event.movementX,
+        event.movementY,
+        controller.lookSensitivity * playerSettings.sensitivity,
+        controller.invertY !== playerSettings.invertY,
+      );
     const { x, y } = viewportPoint(event);
     pointerQueue.push(() => runtime._editor_input_mouse_move(x, y, event.movementX, event.movementY));
   });
@@ -3209,7 +3155,13 @@ async function startEditor() {
     if (doc.mode !== "play" || document.pointerLockElement !== renderer.domElement) return;
     const controller = playerController();
     if (controller?.mode === "FirstPerson")
-      applyMouseLook(fps.look, event.movementX, event.movementY, controller.lookSensitivity * playerSettings.sensitivity, controller.invertY !== playerSettings.invertY);
+      applyMouseLook(
+        fps.look,
+        event.movementX,
+        event.movementY,
+        controller.lookSensitivity * playerSettings.sensitivity,
+        controller.invertY !== playerSettings.invertY,
+      );
     pointerQueue.push(() => runtime._editor_input_mouse_move(0, 0, event.movementX, event.movementY));
   });
   function flushPointerInput() {
@@ -3218,7 +3170,21 @@ async function startEditor() {
   }
   // Standard-mapping gamepad button index -> engine::GamepadButton.
   const gamepadButtonMap: Record<number, number> = {
-    0: 0, 1: 1, 2: 2, 3: 3, 4: 9, 5: 10, 8: 4, 9: 6, 10: 7, 11: 8, 12: 11, 13: 12, 14: 13, 15: 14, 16: 5,
+    0: 0,
+    1: 1,
+    2: 2,
+    3: 3,
+    4: 9,
+    5: 10,
+    8: 4,
+    9: 6,
+    10: 7,
+    11: 8,
+    12: 11,
+    13: 12,
+    14: 13,
+    15: 14,
+    16: 5,
   };
   let padSnapshot: { buttons: boolean[]; axes: number[] } | undefined;
   function pollGamepad() {
@@ -3260,8 +3226,7 @@ async function startEditor() {
       } else if (kind === "sound_volume") {
         const bus = a.toLowerCase();
         if (["master", "sfx", "music", "ambient", "ui"].includes(bus)) audioMixer().setBusVolume(bus as Bus | "master", Number(b) || 0);
-      }
-      else if (kind === "ui_text") {
+      } else if (kind === "ui_text") {
         uiTextOverrides.set(a, b);
         // Banners and objectives are read out to screen readers.
         if (a === "Banner" || a === "Objective") announcer.say(b);
@@ -3286,8 +3251,7 @@ async function startEditor() {
         shake.intensity = playerSettings.reducedMotion ? 0 : Math.max(0, Number(a) || 0);
         shake.duration = Math.max(0.01, Number(b) || 0.01);
         shake.remaining = shake.duration;
-      }
-      else if (kind === "anim_set" || kind === "anim_trigger") {
+      } else if (kind === "anim_set" || kind === "anim_trigger") {
         const animator = animators[runtime._editor_command_entity(i)]?.runtime;
         if (kind === "anim_trigger") animator?.trigger(a);
         else {
@@ -3337,10 +3301,7 @@ async function startEditor() {
       if (doc.scene.effectiveHas(entity, "Spaceship") && !isChild && shipIndex < 0 && spaceComponent()) shipIndex = index;
       const isSite = doc.scene.effectiveHas(entity, "Site");
       addToRuntime(
-        (type) =>
-          isSite && type === "Transform"
-            ? ({ position: { x: 0, y: 0, z: 0 } } as SceneComponents[typeof type])
-            : doc.scene.resolve(entity, type),
+        (type) => (isSite && type === "Transform" ? ({ position: { x: 0, y: 0, z: 0 } } as SceneComponents[typeof type]) : doc.scene.resolve(entity, type)),
         isChild,
         index,
         doc.scene.resolve(entity, "Name")?.value,
@@ -3400,8 +3361,7 @@ async function startEditor() {
     const bindingsEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "InputActions"));
     const bindings = bindingsEntity && doc.scene.resolve(bindingsEntity, "InputActions");
     if (bindings) runtime.ccall("editor_set_input_bindings", null, ["string"], [bindings.bindings]);
-    if (!runtime._editor_commit())
-      throw new Error("Runtime scene commit failed");
+    if (!runtime._editor_commit()) throw new Error("Runtime scene commit failed");
     const bindingsError = runtime.ccall("editor_bindings_error", "string", [], []);
     if (bindingsError) log(`Input bindings: ${bindingsError} (using the defaults)`);
     const weaponsError = runtime.ccall("editor_weapons_error", "string", [], []);
@@ -3430,17 +3390,17 @@ async function startEditor() {
   // Always a new material, never an edit of the shared/cached one.
   // Material.parts: only meshes whose material is named for one of them.
   function materialAppliesTo(mesh: THREE.Mesh, m: MaterialComponent) {
-    const parts = (m.parts ?? "").split(",").map((p) => p.trim().toLowerCase()).filter(Boolean);
+    const parts = (m.parts ?? "")
+      .split(",")
+      .map((p) => p.trim().toLowerCase())
+      .filter(Boolean);
     if (!parts.length) return true;
     const names = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((x) => x.name.toLowerCase());
     return names.some((name) => parts.some((part) => name.includes(part)));
   }
   function applyMaterial(mesh: THREE.Mesh, m: MaterialComponent) {
     const build = (base: THREE.Material): THREE.Material => {
-      const standard =
-        m.keepTextures && base !== material && base instanceof THREE.MeshStandardMaterial
-          ? base.clone()
-          : new THREE.MeshStandardMaterial();
+      const standard = m.keepTextures && base !== material && base instanceof THREE.MeshStandardMaterial ? base.clone() : new THREE.MeshStandardMaterial();
       standard.color.copy(colorOf(m.color));
       standard.metalness = m.metalness;
       standard.roughness = m.roughness;
@@ -3454,8 +3414,7 @@ async function startEditor() {
       return standard;
     };
     mesh.material = Array.isArray(mesh.material) ? mesh.material.map(build) : build(mesh.material);
-    for (const created of Array.isArray(mesh.material) ? mesh.material : [mesh.material])
-      materialOverrides.push(created);
+    for (const created of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) materialOverrides.push(created);
   }
   // Textures by URL, shared by every material that uses them.
   const textureCache = new Map<string, THREE.Texture>();
@@ -3535,10 +3494,7 @@ async function startEditor() {
     };
   }
   // Live terrain meshes by objects[] index, for sculpting.
-  const terrainMeshes = new Map<
-    number,
-    { mesh: THREE.Mesh; params: TerrainParams; look: TerrainLook; offsets: Int16Array }
-  >();
+  const terrainMeshes = new Map<number, { mesh: THREE.Mesh; params: TerrainParams; look: TerrainLook; offsets: Int16Array }>();
   function buildInstancesObject(text: string): THREE.Object3D {
     const { instances, errors } = parseModelInstances(text);
     if (errors.length) log(`ModelInstances: ${errors.slice(0, 3).join("; ")}`);
@@ -3592,9 +3548,7 @@ async function startEditor() {
     terrainMeshes.set(index, { mesh, params, look, offsets });
     return group;
   }
-  function createEntityObject(
-    get: <K extends keyof SceneComponents>(type: K) => SceneComponents[K] | undefined,
-  ) {
+  function createEntityObject(get: <K extends keyof SceneComponents>(type: K) => SceneComponents[K] | undefined) {
     const renderable = get("Renderable");
     const meshId = renderable?.mesh ?? 0;
     const catalog = meshId >= 1 ? catalogEntry(meshId) : undefined;
@@ -3608,9 +3562,7 @@ async function startEditor() {
         // An armed soldier (0.69.0): locomotion on the legs, a weapon-holding
         // clip on the upper body, so its own arms hold the gun it carries.
         const armed = get("AICombat") && get("Weapons") ? splitForWeapon(object, cached.clips) : undefined;
-        const actions = new Map(
-          (armed?.lower ?? cached.clips).map((clip) => [clip.name, mixer.clipAction(clip)]),
-        );
+        const actions = new Map((armed?.lower ?? cached.clips).map((clip) => [clip.name, mixer.clipAction(clip)]));
         animState = { mixer, actions, prevPosition: new THREE.Vector3() };
         if (armed) {
           animState.upper = mixer.clipAction(armed.upper);
@@ -3631,10 +3583,7 @@ async function startEditor() {
         if (resting) {
           const action = actions.get(resting)!;
           if (overridden) {
-            action.setLoop(
-              override!.looping ? THREE.LoopRepeat : THREE.LoopOnce,
-              Infinity,
-            );
+            action.setLoop(override!.looping ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
             action.clampWhenFinished = !override!.looping;
             if (Number.isFinite(override!.time)) action.time = override!.time;
           }
@@ -3713,12 +3662,7 @@ async function startEditor() {
       // rig's bind pose (arms out) says nothing about its collision width.
       const character = catalog?.animated && (get("AICombat") || get("CharacterController"));
       if (character && n.y > 1e-6) anchor.scale.setScalar(s.y / n.y);
-      else
-        anchor.scale.set(
-          n.x > 1e-6 ? s.x / n.x : s.x,
-          n.y > 1e-6 ? s.y / n.y : s.y,
-          n.z > 1e-6 ? s.z / n.z : s.z,
-        );
+      else anchor.scale.set(n.x > 1e-6 ? s.x / n.x : s.x, n.y > 1e-6 ? s.y / n.y : s.y, n.z > 1e-6 ? s.z / n.z : s.z);
     } else if (s) anchor.scale.set(s.x, s.y, s.z);
     // Center a catalog model on the box rather than standing its feet at
     // the box's center.
@@ -3792,11 +3736,13 @@ async function startEditor() {
   }
   function rebuild() {
     talkerScan = -1;
+    staticBatcher.clear();
+    probe.detach();
+    probeScanAt = 0;
+    batchAt = doc.mode === "play" ? performance.now() + 2500 : Infinity;
     gizmo.detach();
     const environmentEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "Environment"));
-    applyEnvironment(
-      (environmentEntity && doc.scene.resolve(environmentEntity, "Environment")) ?? defaultEnvironment(),
-    );
+    applyEnvironment((environmentEntity && doc.scene.resolve(environmentEntity, "Environment")) ?? defaultEnvironment());
     // The flat shadow catcher at y = 0 would cut through a terrain's valleys.
     if (doc.scene.eachAlive().some((e) => doc.scene.effectiveHas(e, "Terrain"))) shadowGround.visible = false;
     const postEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "PostProcessing"));
@@ -3808,8 +3754,7 @@ async function startEditor() {
       if (!mi) continue;
       const at = doc.scene.resolve(entity, "Transform")?.position ?? { x: 0, y: 0, z: 0 };
       for (const instance of parseModelInstances(mi.instances).instances)
-        if (catalogEntry(instance.model)?.category === "roads")
-          minimapRoads.push({ x: at.x + instance.x, z: at.z + instance.z, size: 16 * instance.scale });
+        if (catalogEntry(instance.model)?.category === "roads") minimapRoads.push({ x: at.x + instance.x, z: at.z + instance.z, size: 16 * instance.scale });
     }
     for (const object of objects) object.removeFromParent();
     objects.length = 0;
@@ -3871,12 +3816,23 @@ async function startEditor() {
   // "Show" picks everything, home, or one site; selecting an entity that
   // lives elsewhere switches to it.
   let siteView = "all";
+  let siteViewDefaulted = false;
+  let siteViewSelection: EntityRef | undefined;
+  let siteViewScene: unknown;
   function applySiteView() {
     const select = el("site-view") as HTMLSelectElement;
+    // A newly opened scene gets its own default.
+    if (siteViewScene !== doc.scene) {
+      siteViewScene = doc.scene;
+      siteViewDefaulted = false;
+    }
     const refs = doc.scene.eachAlive();
     const sites = refs.flatMap((e, i) => (doc.scene.effectiveHas(e, "Site") ? [i] : []));
     select.hidden = sites.length === 0;
-    if (!sites.length) return;
+    if (!sites.length) {
+      ({ view: siteView, defaulted: siteViewDefaulted } = nextSiteView({ view: siteView, defaulted: siteViewDefaulted }, false, undefined, []));
+      return;
+    }
     const siteOfEntity = (index: number): string => {
       let ref = refs[index];
       for (let guard = 0; ref && guard < 64; guard++) {
@@ -3887,15 +3843,28 @@ async function startEditor() {
       }
       return "home";
     };
-    if (doc.selection && siteView !== "all") {
-      const i = refs.findIndex((e) => e.index === doc.selection!.index && e.generation === doc.selection!.generation);
-      if (i >= 0) siteView = siteOfEntity(i);
+    // Only a new selection moves the view (a manual pick stays put).
+    let selectedSite: string | undefined;
+    const selection = doc.selection;
+    if (selection && (selection.index !== siteViewSelection?.index || selection.generation !== siteViewSelection?.generation)) {
+      const i = refs.findIndex((e) => e.index === selection.index && e.generation === selection.generation);
+      if (i >= 0) selectedSite = siteOfEntity(i);
     }
-    const options = [["all", "Show: everything"], ["home", "Show: home"], ...sites.map((i) => [String(i), `Show: ${doc.scene.resolve(refs[i]!, "Site")?.name || "site"}`])];
+    siteViewSelection = selection ?? undefined;
+    const options = [
+      ["all", "Show: everything"],
+      ["home", "Show: home"],
+      ...sites.map((i) => [String(i), `Show: ${doc.scene.resolve(refs[i]!, "Site")?.name || "site"}`]),
+    ];
     if (select.options.length !== options.length || [...select.options].some((o, k) => o.value !== options[k]![0] || o.text !== options[k]![1])) {
       select.replaceChildren(...options.map(([value, text]) => new Option(text, value)));
     }
-    if (!options.some(([value]) => value === siteView)) siteView = "all";
+    ({ view: siteView, defaulted: siteViewDefaulted } = nextSiteView(
+      { view: siteView, defaulted: siteViewDefaulted },
+      true,
+      selectedSite,
+      options.map(([value]) => value!),
+    ));
     select.value = siteView;
     refs.forEach((entity, i) => {
       const object = objects[i];
@@ -3922,44 +3891,23 @@ async function startEditor() {
     updateSculptBar();
     gizmo.detach();
     populatePrefabSelect();
-    for (const id of [
-      "translate",
-      "rotate",
-      "scale",
-      "space",
-      "snap",
-      "snap-size",
-    ])
-      (el(id) as HTMLButtonElement).disabled = doc.mode !== "edit";
-    el("document").textContent =
-      `${doc.project} / ${doc.name}${doc.dirty ? " • unsaved" : ""}`;
-    el<HTMLButtonElement>("undo").disabled =
-      !doc.canUndo || doc.mode !== "edit";
-    el<HTMLButtonElement>("redo").disabled =
-      !doc.canRedo || doc.mode !== "edit";
+    for (const id of ["translate", "rotate", "scale", "space", "snap", "snap-size"]) (el(id) as HTMLButtonElement).disabled = doc.mode !== "edit";
+    el("document").textContent = `${doc.project} / ${doc.name}${doc.dirty ? " • unsaved" : ""}`;
+    el<HTMLButtonElement>("undo").disabled = !doc.canUndo || doc.mode !== "edit";
+    el<HTMLButtonElement>("redo").disabled = !doc.canRedo || doc.mode !== "edit";
     const tree = el("tree");
     tree.replaceChildren();
     for (const entity of doc.scene.eachAlive()) {
-      const name =
-        doc.scene.resolve(entity, "Name")?.value ?? `Entity ${entity.index}`;
-      if (
-        !name
-          .toLowerCase()
-          .includes(el<HTMLInputElement>("search").value.toLowerCase())
-      )
-        continue;
+      const name = doc.scene.resolve(entity, "Name")?.value ?? `Entity ${entity.index}`;
+      if (!name.toLowerCase().includes(el<HTMLInputElement>("search").value.toLowerCase())) continue;
       const button = document.createElement("button");
       button.className = "entity";
       // Keep the exact "↳ "/"□ " text prefix (not just a decorative icon):
       // it is part of this button's accessible name, matched verbatim by
       // the browser test suite (getByRole("button", { name: "□ ..." })).
       const hasParent = doc.scene.effectiveHas(entity, "Parent");
-      button.append(
-        iconEl(hasParent ? "child" : "cube", "icon-tree"),
-        textSpan((hasParent ? "↳ " : "□ ") + name, "entity-name"),
-      );
-      if (doc.selection?.index === entity.index)
-        button.classList.add("selected");
+      button.append(iconEl(hasParent ? "child" : "cube", "icon-tree"), textSpan((hasParent ? "↳ " : "□ ") + name, "entity-name"));
+      if (doc.selection?.index === entity.index) button.classList.add("selected");
       button.onclick = () => {
         doc.selection = entity;
         updatePanels();
@@ -3974,8 +3922,7 @@ async function startEditor() {
       selection.visible = false;
       return;
     }
-    const object =
-      objects[doc.scene.eachAlive().findIndex((e) => e.index === entity.index)];
+    const object = objects[doc.scene.eachAlive().findIndex((e) => e.index === entity.index)];
     if (object) {
       if (doc.mode === "edit") gizmo.attach(object);
       selection.setFromObject(object);
@@ -3986,8 +3933,7 @@ async function startEditor() {
     const name = document.createElement("input");
     name.value = doc.scene.resolve(entity, "Name")?.value ?? "Entity";
     name.setAttribute("aria-label", "Entity name");
-    name.onchange = () =>
-      execute({ command: "rename_entity", entity, name: name.value });
+    name.onchange = () => execute({ command: "rename_entity", entity, name: name.value });
     const nameRow = document.createElement("label");
     nameRow.className = "field-row";
     nameRow.append(textSpan("Name"), name);
@@ -3996,24 +3942,13 @@ async function startEditor() {
     parent.setAttribute("aria-label", "Parent");
     parent.add(new Option("No parent", ""));
     for (const ref of doc.scene.eachAlive())
-      if (ref.index !== entity.index)
-        parent.add(
-          new Option(
-            doc.scene.resolve(ref, "Name")?.value ?? String(ref.index),
-            String(ref.index),
-          ),
-        );
+      if (ref.index !== entity.index) parent.add(new Option(doc.scene.resolve(ref, "Name")?.value ?? String(ref.index), String(ref.index)));
     parent.value = String(doc.scene.resolve(entity, "Parent")?.entity.index ?? "");
     parent.onchange = () =>
       execute({
         command: "reparent_entity",
         entity,
-        parent:
-          parent.value === ""
-            ? null
-            : doc.scene
-                .eachAlive()
-                .find((e) => e.index === Number(parent.value)),
+        parent: parent.value === "" ? null : doc.scene.eachAlive().find((e) => e.index === Number(parent.value)),
       });
     const parentRow = document.createElement("label");
     parentRow.className = "field-row";
@@ -4024,9 +3959,7 @@ async function startEditor() {
     if (prefabInstance) {
       const banner = document.createElement("div");
       banner.className = "prefab-banner";
-      banner.append(
-        textSpan(`Instance of prefab "${prefabInstance.prefab}" — editing a shared component updates every instance.`),
-      );
+      banner.append(textSpan(`Instance of prefab "${prefabInstance.prefab}" — editing a shared component updates every instance.`));
       const unlink = document.createElement("button");
       unlink.className = "btn btn-sm btn-ghost";
       unlink.textContent = "Unlink from prefab";
@@ -4052,14 +3985,8 @@ async function startEditor() {
       legend.append(iconEl("cube", "icon-component"), textSpan(componentLabel(type), "component-title"));
       section.append(legend);
       // Generate fields from the component's serializable property shape; validation stays in authoring.
-      const value = structuredClone(
-        doc.scene.resolve(entity, type),
-      ) as unknown as Record<string, unknown>;
-      function fields(
-        record: Record<string, unknown>,
-        host: HTMLElement,
-        prefix = "",
-      ) {
+      const value = structuredClone(doc.scene.resolve(entity, type)) as unknown as Record<string, unknown>;
+      function fields(record: Record<string, unknown>, host: HTMLElement, prefix = "") {
         for (const [key, v] of Object.entries(record)) {
           if (v && typeof v === "object") {
             fields(v as Record<string, unknown>, host, prefix + key + ".");
@@ -4068,24 +3995,19 @@ async function startEditor() {
           const label = document.createElement("label");
           const meta = propertyMetadata(type, prefix + key);
           label.textContent = meta.label ?? prefix + key;
-          const dynamicOptions =
-            type === "AnimationState" && prefix === "" && key === "clip"
-              ? animationClipOptions(entity!)
-              : undefined;
+          const dynamicOptions = type === "AnimationState" && prefix === "" && key === "clip" ? animationClipOptions(entity!) : undefined;
           const options = meta.options ?? dynamicOptions;
           if (options) {
             const choice = document.createElement("select");
             choice.setAttribute("aria-label", `${type}.${prefix}${key}`);
-            for (const option of options)
-              choice.add(new Option(option.label, String(option.value)));
+            for (const option of options) choice.add(new Option(option.label, String(option.value)));
             // A model with no clips loaded yet (still fetching, or not an
             // animated catalog entry at all) offers only "(Automatic)" --
             // disable rather than let a choice silently fail to apply.
             choice.disabled = dynamicOptions !== undefined && dynamicOptions.length === 1;
             choice.value = String(v);
             choice.onchange = () => {
-              record[key] =
-                typeof v === "number" ? Number(choice.value) : choice.value;
+              record[key] = typeof v === "number" ? Number(choice.value) : choice.value;
               execute({ command: "set_component", entity, type, value });
             };
             label.append(choice);
@@ -4109,23 +4031,13 @@ async function startEditor() {
           }
           const input = document.createElement("input");
           input.setAttribute("aria-label", `${type}.${prefix}${key}`);
-          input.type =
-            typeof v === "number"
-              ? "number"
-              : typeof v === "boolean"
-                ? "checkbox"
-                : "text";
+          input.type = typeof v === "number" ? "number" : typeof v === "boolean" ? "checkbox" : "text";
           input.step = meta.step ?? "any";
           input.readOnly = meta.readOnly ?? false;
           input.value = String(v);
           input.checked = v === true;
           input.onchange = () => {
-            record[key] =
-              typeof v === "number"
-                ? Number(input.value)
-                : typeof v === "boolean"
-                  ? input.checked
-                  : input.value;
+            record[key] = typeof v === "number" ? Number(input.value) : typeof v === "boolean" ? input.checked : input.value;
             execute({ command: "set_component", entity, type, value });
           };
           label.append(input);
@@ -4143,8 +4055,7 @@ async function startEditor() {
         clipLabel.textContent = "Animation clip";
         const clipSelect = document.createElement("select");
         clipSelect.setAttribute("aria-label", "Renderable.animationClip");
-        for (const option of clipOptions)
-          clipSelect.add(new Option(option.label, String(option.value)));
+        for (const option of clipOptions) clipSelect.add(new Option(option.label, String(option.value)));
         clipSelect.disabled = clipOptions.length === 1;
         clipSelect.value = doc.scene.resolve(entity, "AnimationState")?.clip ?? "";
         clipSelect.onchange = () => {
@@ -4176,8 +4087,7 @@ async function startEditor() {
       const remove = document.createElement("button");
       remove.className = "btn btn-sm btn-ghost btn-danger-hover";
       remove.append(iconEl("trash"), textSpan("Remove " + type));
-      remove.onclick = () =>
-        execute({ command: "remove_component", entity, type });
+      remove.onclick = () => execute({ command: "remove_component", entity, type });
       section.append(remove);
       inspector.append(section);
     }
@@ -4189,9 +4099,7 @@ async function startEditor() {
     // Renderable/AnimationState, the movement-and-collision chain) stay next
     // to each other instead of one flat, alphabetical-ish list of 16.
     for (const group of componentGroups) {
-      const available = group.types.filter(
-        (type) => !doc.scene.effectiveHas(entity, type as keyof SceneComponents),
-      );
+      const available = group.types.filter((type) => !doc.scene.effectiveHas(entity, type as keyof SceneComponents));
       if (available.length === 0) continue;
       const optgroup = document.createElement("optgroup");
       optgroup.label = group.label;
@@ -4199,13 +4107,10 @@ async function startEditor() {
       add.add(optgroup);
     }
     add.onchange = () => {
-      if (add.value)
-        execute({ command: "attach_component", entity, type: add.value });
+      if (add.value) execute({ command: "attach_component", entity, type: add.value });
     };
     inspector.append(add);
-    for (const input of inspector.querySelectorAll<
-      HTMLInputElement | HTMLSelectElement | HTMLButtonElement
-    >("input,select,button"))
+    for (const input of inspector.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>("input,select,button"))
       input.disabled = doc.mode !== "edit";
   }
   el("add").onclick = () =>
@@ -4218,8 +4123,7 @@ async function startEditor() {
     log(doc.duplicate());
     rebuild();
   };
-  el("delete").onclick = () =>
-    execute({ command: "destroy_entity", entity: doc.selection });
+  el("delete").onclick = () => execute({ command: "destroy_entity", entity: doc.selection });
   el("undo").onclick = () => {
     doc.undo();
     rebuild();
@@ -4229,10 +4133,7 @@ async function startEditor() {
     rebuild();
   };
   el("new").onclick = () => {
-    if (
-      doc.mode === "edit" &&
-      (!doc.dirty || confirm("Discard unsaved scene?"))
-    ) {
+    if (doc.mode === "edit" && (!doc.dirty || confirm("Discard unsaved scene?"))) {
       doc.load({ format: 1, entities: [] });
       rebuild();
     }
@@ -4244,9 +4145,7 @@ async function startEditor() {
   };
   el("save").onclick = () => {
     const text = JSON.stringify(doc.save(), null, 2);
-    const url = URL.createObjectURL(
-      new Blob([text], { type: "application/json" }),
-    );
+    const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
     const a = document.createElement("a");
     a.href = url;
     a.download = "scene.json";
@@ -4300,8 +4199,7 @@ async function startEditor() {
           .filter((i) => i >= 0);
         rig.placed = false;
         shake.remaining = 0;
-        for (const animator of animators)
-          if (animator) animator.runtime = new AnimatorRuntime(animator.graph);
+        for (const animator of animators) if (animator) animator.runtime = new AnimatorRuntime(animator.graph);
         for (const state of particleStates) if (state?.burstOnPlay) burst(state.emitter, state.burstOnPlay);
         if (animatorErrors.length) log(`Animator: ${animatorErrors.join("; ")}`);
         const playerObject = playerIndex >= 0 ? objects[playerIndex] : undefined;
@@ -4332,6 +4230,7 @@ async function startEditor() {
         // checking it while still "edit" would silence every already-cached
         // clip on the second and later Plays.
         doc.mode = "play";
+        batchAt = performance.now() + 2500; // once models have loaded
         const mixEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "AudioSettings"));
         audioMixer().apply((mixEntity && doc.scene.resolve(mixEntity, "AudioSettings")) ?? defaultMixerSettings);
         soldierSteps.clear();
@@ -4402,10 +4301,7 @@ async function startEditor() {
   const sculptRay = new THREE.Raycaster();
   function terrainPoint(event: PointerEvent, index: number): THREE.Vector3 | undefined {
     const rect = renderer.domElement.getBoundingClientRect();
-    sculptRay.setFromCamera(
-      new THREE.Vector2(((event.clientX - rect.left) / rect.width) * 2 - 1, (-(event.clientY - rect.top) / rect.height) * 2 + 1),
-      camera,
-    );
+    sculptRay.setFromCamera(new THREE.Vector2(((event.clientX - rect.left) / rect.width) * 2 - 1, (-(event.clientY - rect.top) / rect.height) * 2 + 1), camera);
     const hit = sculptRay.intersectObject(terrainMeshes.get(index)!.mesh, false)[0];
     return hit ? objects[index]!.worldToLocal(hit.point.clone()) : undefined;
   }
@@ -4415,15 +4311,7 @@ async function startEditor() {
     const point = terrainPoint(event, sculptStroke.index);
     const live = terrainMeshes.get(sculptStroke.index);
     if (!point || !live) return;
-    applyBrush(
-      live.params,
-      live.offsets,
-      sculptTool.value as BrushMode,
-      point.x,
-      point.z,
-      Number(sculptRadius.value),
-      Number(sculptStrength.value) * 0.2,
-    );
+    applyBrush(live.params, live.offsets, sculptTool.value as BrushMode, point.x, point.z, Number(sculptRadius.value), Number(sculptStrength.value) * 0.2);
     shapeTerrain(live.mesh.geometry, generateHeights(live.params, live.offsets), live.look, live.params.seed);
   }
   renderer.domElement.addEventListener("pointerdown", (event) => {
@@ -4484,9 +4372,7 @@ async function startEditor() {
         log(`Import: ${file.name} could not be saved in this browser (${String(error)}); it lasts until reload`);
       }
       registerAsset(asset);
-      imported.push(
-        kind === "image" ? `${file.name} (use asset:${file.name})` : `${file.name} (${kind} ${asset.id})`,
-      );
+      imported.push(kind === "image" ? `${file.name} (use asset:${file.name})` : `${file.name} (${kind} ${asset.id})`);
     }
     if (imported.length) {
       log(`Imported ${imported.join(", ")}`);
@@ -4546,6 +4432,7 @@ async function startEditor() {
       `Frame        ${(stats.frameMs / stats.frames).toFixed(2)} ms`,
       `C++ ticks    ${(stats.tickMs / stats.frames).toFixed(2)} ms/frame`,
       `Draw calls   ${info?.render.calls ?? "-"}`,
+      `Batched      ${staticBatcher.size} objects in ${staticBatcher.drawn} meshes`,
       `Governor     tier ${governorTier() === governor.settings ? governor.tier : governor.floor} (${(governorTier().scale * 100).toFixed(0)}% res)`,
       `Triangles    ${info?.render.triangles ?? "-"}`,
       `Entities     ${doc.scene.entityCount} (+${Math.max(0, objects.length - doc.scene.eachAlive().length)} spawned)`,
@@ -4561,12 +4448,7 @@ async function startEditor() {
   };
   el("frame").onclick = () => {
     if (doc.selection) {
-      const object =
-        objects[
-          doc.scene
-            .eachAlive()
-            .findIndex((e) => e.index === doc.selection!.index)
-        ];
+      const object = objects[doc.scene.eachAlive().findIndex((e) => e.index === doc.selection!.index)];
       if (object) {
         object.getWorldPosition(controls.target);
         camera.position.copy(controls.target).add(new THREE.Vector3(5, 4, 6));
@@ -4690,13 +4572,13 @@ async function startEditor() {
     // Picking entities is for editing: during Play (and in exported games)
     // a click in the world never selects anything.
     if (doc.mode !== "edit") return;
-    const pointer = new THREE.Vector2(
-      ((e.clientX - rect.left) / rect.width) * 2 - 1,
-      (-(e.clientY - rect.top) / rect.height) * 2 + 1,
-    );
+    const pointer = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, (-(e.clientY - rect.top) / rect.height) * 2 + 1);
     const ray = new THREE.Raycaster();
     ray.setFromCamera(pointer, camera);
-    const hit = ray.intersectObjects(objects.filter((o) => o.visible), true)[0];
+    const hit = ray.intersectObjects(
+      objects.filter((o) => o.visible),
+      true,
+    )[0];
     if (hit) {
       let object = hit.object;
       while (!objects.includes(object) && object.parent) object = object.parent;
@@ -4751,16 +4633,9 @@ async function startEditor() {
         const mi = doc.scene.resolve(entity, "ModelInstances");
         if (mi) for (const instance of parseModelInstances(mi.instances).instances) meshIds.add(instance.model);
         // The first-person arms' fallback character (holdFirstPersonWeapons).
-        if (doc.scene.effectiveHas(entity, "Player") && doc.scene.effectiveHas(entity, "Weapons"))
-          meshIds.add(firstPersonBodyFallback);
+        if (doc.scene.effectiveHas(entity, "Player") && doc.scene.effectiveHas(entity, "Weapons")) meshIds.add(firstPersonBodyFallback);
       }
-      await Promise.all(
-        [...meshIds].map((id) =>
-          loadCatalogModel(id)?.catch((error) =>
-            log(`Catalog model ${id} failed to load: ${String(error)}`),
-          ),
-        ),
-      );
+      await Promise.all([...meshIds].map((id) => loadCatalogModel(id)?.catch((error) => log(`Catalog model ${id} failed to load: ${String(error)}`))));
     } else {
       const saved = localStorage.getItem("game-engine-editor:scene");
       if (saved) doc.load(JSON.parse(saved));
@@ -4815,8 +4690,7 @@ async function startEditor() {
     });
     state.current.set(runtime._editor_value(i, 0), runtime._editor_value(i, 1), runtime._editor_value(i, 2));
     // Soldiers face where they look; cars along their heading.
-    state.currentYaw =
-      runtime._editor_soldier_value(i, 0) >= 0 ? runtime._editor_soldier_value(i, 1) : runtime._editor_value(i, 4);
+    state.currentYaw = runtime._editor_soldier_value(i, 0) >= 0 ? runtime._editor_soldier_value(i, 1) : runtime._editor_value(i, 4);
     if (!state.previous.lengthSq() && !state.previousYaw) {
       state.previous.copy(state.current);
       state.previousYaw = state.currentYaw;
@@ -4938,7 +4812,11 @@ async function startEditor() {
       sun.shadow.map?.dispose();
       sun.shadow.map = null;
     }
-    if (spaceView) spaceView.chunkMs = tier.chunkMs;
+    if (spaceView) {
+      spaceView.chunkMs = tier.chunkMs;
+      spaceView.skyLow = tier.skyLow;
+    }
+    runtime._editor_set_sim_stride(tier.simStride);
     applyScatterDensity(tier.scatter);
   }
   // Draws the first `fraction` of each scatter chunk's instances (their
@@ -4959,39 +4837,58 @@ async function startEditor() {
     }
     if (doc.mode === "play" && governor.sample(intervalMs)) applyGovernor();
   }
+  // Which entities never move while playing: no script, rig, AI, body or
+  // effect of their own (they can still be destroyed or moved by a script;
+  // the batcher notices and lets them go).
+  const movingComponents = [
+    "Script",
+    "AIState",
+    "Pedestrian",
+    "Routine",
+    "Wildlife",
+    "Vehicle",
+    "Player",
+    "Spaceship",
+    "Particles",
+    "Trail",
+    "Health",
+    "Terrain",
+    "ModelInstances",
+    "AICombat",
+    "CharacterController",
+    "Animator",
+    "Site",
+  ] as const;
+  function updateStaticBatches() {
+    const now = performance.now();
+    if (doc.mode !== "play") {
+      if (staticBatcher.size) staticBatcher.clear();
+      if (probe.count) probe.detach();
+      return;
+    }
+    if (now > batchAt) {
+      batchAt = Infinity;
+      const entities = doc.scene.eachAlive();
+      staticBatcher.build(
+        objects,
+        (i) => {
+          const entity = entities[i];
+          if (!entity || i === playerIndex || i === shipIndex || animStates[i] || particleStates[i]) return false;
+          return !movingComponents.some((type) => doc.scene.effectiveHas(entity, type as never));
+        },
+        (i) => String(memberSite[i] ?? -1),
+      );
+      if (!scene.children.includes(staticBatcher.group)) scene.add(staticBatcher.group);
+    }
+    if (staticBatcher.size && now > batchCheckAt) {
+      batchCheckAt = now + 500;
+      staticBatcher.check((i) => !tickSnapshotAlive(i));
+    } else staticBatcher.syncVisibility();
+  }
   // Resting activities (0.75.0). A Routine stop may name one ("6 120 40
   // sit"): the clip to play once there, if the model has it (a few
   // aliases help). Two people standing close turn to each other and talk.
   // Calm animals graze, on and off.
-  const routineActivities = new Map<string, string[]>();
-  const activityAliases: Record<string, string[]> = {
-    sit: ["sit"],
-    talk: ["talk"],
-    work: ["punching", "talk"],
-    hammer: ["punching"],
-    graze: ["graze", "Eating", "peck", "Idle_Headlow", "Idle_2_HeadLow"],
-  };
-  function routineActivity(stops: string, stop: number) {
-    let list = routineActivities.get(stops);
-    if (!list) {
-      // Same order the simulation uses: stops sorted by hour.
-      const parsed: Array<{ hour: number; activity: string }> = [];
-      let numbers: number[] = [];
-      const flush = (activity: string) => {
-        for (let k = 0; k + 2 < numbers.length; k += 3) parsed.push({ hour: numbers[k]!, activity: k + 5 >= numbers.length ? activity : "" });
-        numbers = [];
-      };
-      for (const token of stops.split(/[\s;,]+/).filter(Boolean)) {
-        const v = Number(token);
-        if (Number.isFinite(v)) numbers.push(v);
-        else flush(token);
-      }
-      flush("");
-      list = parsed.sort((a, b) => a.hour - b.hour).map((p) => p.activity);
-      routineActivities.set(stops, list);
-    }
-    return list[stop] ?? "";
-  }
   function firstClip(state: AnimState, wanted: string[]) {
     return wanted.find((name) => state.actions.has(name));
   }
@@ -5105,16 +5002,14 @@ async function startEditor() {
       // wherever the camera is pointed right now, including mid-orbit.
       viewCamera.getWorldDirection(cameraForwardScratch);
       runtime._editor_set_camera_forward(cameraForwardScratch.x, cameraForwardScratch.z);
-      for (const [code, down] of keyQueue)
-        runtime.ccall("editor_input_key", null, ["string", "number"], [code, down]);
+      for (const [code, down] of keyQueue) runtime.ccall("editor_input_key", null, ["string", "number"], [code, down]);
       keyQueue.length = 0;
       flushPointerInput();
       pollGamepad();
       const controller = playerController();
       if (controller?.mode === "FirstPerson" && padSnapshot)
         applyStickLook(fps.look, padSnapshot.axes[2] ?? 0, padSnapshot.axes[3] ?? 0, dt, controller.lookSensitivity, controller.invertY);
-      for (const [key, down] of scriptKeyQueue)
-        runtime.ccall("editor_script_key", null, ["string", "number"], [key, down]);
+      for (const [key, down] of scriptKeyQueue) runtime.ccall("editor_script_key", null, ["string", "number"], [key, down]);
       scriptKeyQueue.length = 0;
       accumulator += dt;
       const tickStart = performance.now();
@@ -5159,8 +5054,7 @@ async function startEditor() {
           const state = (deathStates[i] ??= startDeath(object, animStates[i]));
           state.elapsed += dt;
           const progress = Math.max(0, 1 - state.elapsed / deathFadeDuration);
-          for (const { material, baseOpacity } of state.materials)
-            material.opacity = baseOpacity * progress;
+          for (const { material, baseOpacity } of state.materials) material.opacity = baseOpacity * progress;
           if (state.elapsed >= deathFadeDuration) object.visible = false;
           return;
         }
@@ -5225,29 +5119,15 @@ async function startEditor() {
       ) {
         const verticalDelta = player.position.y - playerPrevY;
         const stretch = Math.max(-0.18, Math.min(0.18, verticalDelta * 6));
-        player.scale.set(
-          playerBaseScale.x * (1 - stretch * 0.5),
-          playerBaseScale.y * (1 + stretch),
-          playerBaseScale.z * (1 - stretch * 0.5),
-        );
+        player.scale.set(playerBaseScale.x * (1 - stretch * 0.5), playerBaseScale.y * (1 + stretch), playerBaseScale.z * (1 - stretch * 0.5));
       }
       if (steps > 0 && player) playerPrevY = player.position.y;
       const projectileCount = runtime._editor_projectile_count();
       while (projectileMeshes.length < projectileCount)
-        scene.add(
-          (projectileMeshes[projectileMeshes.length] = new THREE.Mesh(
-            projectileGeometry,
-            projectileMaterial,
-          )),
-        );
-      while (projectileMeshes.length > projectileCount)
-        scene.remove(projectileMeshes.pop()!);
+        scene.add((projectileMeshes[projectileMeshes.length] = new THREE.Mesh(projectileGeometry, projectileMaterial)));
+      while (projectileMeshes.length > projectileCount) scene.remove(projectileMeshes.pop()!);
       projectileMeshes.forEach((mesh, i) =>
-        mesh.position.set(
-          runtime._editor_projectile_value(i, 0),
-          runtime._editor_projectile_value(i, 1),
-          runtime._editor_projectile_value(i, 2),
-        ),
+        mesh.position.set(runtime._editor_projectile_value(i, 0), runtime._editor_projectile_value(i, 1), runtime._editor_projectile_value(i, 2)),
       );
       updateCars(dt);
       if (spaceView && shipIndex >= 0 && objects[shipIndex]) {
@@ -5275,11 +5155,19 @@ async function startEditor() {
       }
       state.mixer.update(dt + (state.skipped ?? 0));
       state.skipped = 0;
+      // Each near character's own gestures over a shared clip (0.76.0).
+      const kind = doc.mode === "play" && object && object.position.distanceToSquared(eye) < 40 * 40 ? gestureFor(state.current) : undefined;
+      if (kind && object) {
+        let bones = gestureBones.get(state);
+        if (!bones) gestureBones.set(state, (bones = findGestureBones(object)));
+        applyGesture(bones, kind, now / 1000, i);
+      }
     });
     // Same reasoning as mixers above -- a Particles emitter is as "always on"
     // as a Light, not gated to Play mode like Script/Sound.
     particleScale.value = viewport.clientHeight / 2;
     particleStates.forEach((state) => state && stepParticles(state, dt));
+    updateStaticBatches();
     stepTrails(dt);
     // Ground-speed clip selection runs on the fixed-step cadence (steps/60),
     // not every render frame — see groundSpeed()'s own comment for why.
@@ -5327,10 +5215,7 @@ async function startEditor() {
             : runtime._editor_soldier_value(i, 0) < 0)
         ) {
           const targetYaw = Math.atan2(dx, dz);
-          const diff = Math.atan2(
-            Math.sin(targetYaw - object.rotation.y),
-            Math.cos(targetYaw - object.rotation.y),
-          );
+          const diff = Math.atan2(Math.sin(targetYaw - object.rotation.y), Math.cos(targetYaw - object.rotation.y));
           const maxTurn = 10 * tickDt; // rad; generous enough not to lag a sharp turn
           object.rotation.y += Math.max(-maxTurn, Math.min(maxTurn, diff));
         }
@@ -5368,13 +5253,10 @@ async function startEditor() {
         // Standing still (0.75.0): an activity -- a job at a routine's
         // stop, talking with whoever stands close, grazing -- before plain idle.
         const resting = !sitClip && !overridden && speed < 0.15 && i !== playerIndex ? restingClip(i, state, entities[i], object, tickDt) : undefined;
-        const clipName =
-          sitClip ?? (overridden ? override!.clip : resting ?? pickClipName([...state.actions.keys()], speed));
+        const clipName = sitClip ?? (overridden ? override!.clip : (resting ?? pickClipName([...state.actions.keys()], speed)));
         if (clipName && clipName !== state.current) {
           const next = state.actions.get(clipName);
-          const previous = state.current
-            ? state.actions.get(state.current)
-            : undefined;
+          const previous = state.current ? state.actions.get(state.current) : undefined;
           if (next) {
             if (restoringPin) {
               // Crouch just released (or an authored pin is regaining
@@ -5472,19 +5354,13 @@ async function startEditor() {
     const status = el("status");
     status.dataset.mode = doc.mode;
     const playerReadout =
-      doc.mode === "play" && player
-        ? ` · Player (${player.position.x.toFixed(1)}, ${player.position.y.toFixed(1)}, ${player.position.z.toFixed(1)})`
-        : "";
+      doc.mode === "play" && player ? ` · Player (${player.position.x.toFixed(1)}, ${player.position.y.toFixed(1)}, ${player.position.z.toFixed(1)})` : "";
     // Text companion to the HUD's own bar for whatever's selected — lets a
     // precise numeric value (or the "defeated" transition) be read/watched
     // without eyeballing bar width in the viewport.
-    const selectedIndex = doc.selection
-      ? doc.scene.eachAlive().findIndex((e) => e.index === doc.selection!.index)
-      : -1;
+    const selectedIndex = doc.selection ? doc.scene.eachAlive().findIndex((e) => e.index === doc.selection!.index) : -1;
     const selectedHealthReadout =
-      doc.mode === "play" &&
-      selectedIndex >= 0 &&
-      doc.scene.effectiveHas(doc.selection!, "Health")
+      doc.mode === "play" && selectedIndex >= 0 && doc.scene.effectiveHas(doc.selection!, "Health")
         ? runtime._editor_alive(selectedIndex)
           ? ` · Selected health: ${Math.round(runtime._editor_value(selectedIndex, 3) * 100)}%`
           : " · Selected: defeated"
@@ -5494,10 +5370,7 @@ async function startEditor() {
     // editor_value doc comment) — watch an NPC's wander/chase/flee decisions and
     // position tick by tick without eyeballing the viewport.
     const selectedAiReadout =
-      doc.mode === "play" &&
-      selectedIndex >= 0 &&
-      doc.scene.effectiveHas(doc.selection!, "AIState") &&
-      runtime._editor_alive(selectedIndex)
+      doc.mode === "play" && selectedIndex >= 0 && doc.scene.effectiveHas(doc.selection!, "AIState") && runtime._editor_alive(selectedIndex)
         ? ` · Selected AI: ${aiStateNames[runtime._editor_value(selectedIndex, 5)] ?? "Idle"} (${runtime._editor_value(selectedIndex, 0).toFixed(1)}, ${runtime._editor_value(selectedIndex, 2).toFixed(1)})`
         : "";
     // A script author's only feedback that something's wrong: a compile or
@@ -5534,8 +5407,7 @@ async function startEditor() {
     value: number;
   }
   const uiImages = new Map<string, HTMLImageElement>();
-  const css = (c: Vec3, alpha: number) =>
-    `rgba(${Math.round(c.x * 255)}, ${Math.round(c.y * 255)}, ${Math.round(c.z * 255)}, ${alpha})`;
+  const css = (c: Vec3, alpha: number) => `rgba(${Math.round(c.x * 255)}, ${Math.round(c.y * 255)}, ${Math.round(c.z * 255)}, ${alpha})`;
   function uiImage(url: string) {
     let image = uiImages.get(url);
     if (!image) {
@@ -5767,7 +5639,12 @@ async function startEditor() {
     hudCtx.strokeStyle = "rgba(255, 255, 255, 0.9)";
     hudCtx.lineWidth = 2;
     hudCtx.beginPath();
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
       hudCtx.moveTo(cx + dx * 4, cy + dy * 4);
       hudCtx.lineTo(cx + dx * 11, cy + dy * 11);
     }
@@ -5817,14 +5694,8 @@ async function startEditor() {
           barHeight = 5;
         hudCtx.fillStyle = "rgba(10, 16, 24, 0.75)";
         hudCtx.fillRect(x - barWidth / 2, y - barHeight / 2, barWidth, barHeight);
-        hudCtx.fillStyle =
-          ratio > 0.5 ? "#4caf50" : ratio > 0.25 ? "#ffb300" : "#e53935";
-        hudCtx.fillRect(
-          x - barWidth / 2,
-          y - barHeight / 2,
-          barWidth * Math.max(0, Math.min(1, ratio)),
-          barHeight,
-        );
+        hudCtx.fillStyle = ratio > 0.5 ? "#4caf50" : ratio > 0.25 ? "#ffb300" : "#e53935";
+        hudCtx.fillRect(x - barWidth / 2, y - barHeight / 2, barWidth * Math.max(0, Math.min(1, ratio)), barHeight);
       });
     if (doc.mode !== "edit") {
       drawSoldierMarkers();
@@ -5840,8 +5711,7 @@ async function startEditor() {
     if (doc.mode !== "edit" && spaceView) {
       const ship = shipIndex >= 0 ? objects[shipIndex] : undefined;
       const me = playerIndex >= 0 ? objects[playerIndex] : undefined;
-      const nearShip =
-        !!ship && !!me && !spaceView.flight.piloting && spaceView.flight.landed && me.position.distanceTo(ship.position) < 9;
+      const nearShip = !!ship && !!me && !spaceView.flight.piloting && spaceView.flight.landed && me.position.distanceTo(ship.position) < 9;
       // A game with its own interaction prompt (a "Prompt" UI text) owns the hint.
       drawFlightHud(hudCtx, hud.width, hud.height, spaceView, viewCamera, nearShip && !uiTextOverrides.has("Prompt"));
       drawExplorerHud(hudLines);
@@ -5894,15 +5764,7 @@ async function startEditor() {
           height: lines.length * Math.round(ui.fontSize * 1.3),
         };
       }
-      const rect = layoutRect(
-        ui.anchor,
-        hud.width,
-        hud.height,
-        ui.width || auto.width,
-        ui.height || auto.height,
-        ui.offsetX,
-        ui.offsetY,
-      );
+      const rect = layoutRect(ui.anchor, hud.width, hud.height, ui.width || auto.width, ui.height || auto.height, ui.offsetX, ui.offsetY);
       drawUIElement(ui, rect, value);
       // Clickable only outside Edit mode -- see UIComponent's own doc
       // comment (Components.ts) for why authoring a scene must never be
@@ -5910,8 +5772,7 @@ async function startEditor() {
       if (playing && (ui.kind === "Button" || ui.kind === "Slider" || ui.kind === "Toggle"))
         uiButtonHits.push({ ...rect, kind: ui.kind, name: uiName, action: ui.action, value });
       if (ui.text) hudLines.push(ui.text);
-      if (ui.kind === "Bar" || ui.kind === "Slider" || ui.kind === "Toggle")
-        hudLines.push(`${uiName || ui.kind}=${Math.round(value * 100) / 100}`);
+      if (ui.kind === "Bar" || ui.kind === "Slider" || ui.kind === "Toggle") hudLines.push(`${uiName || ui.kind}=${Math.round(value * 100) / 100}`);
     }
     const hudSummary = hudLines.join(" · ");
     if (hudText.textContent !== hudSummary) hudText.textContent = hudSummary;
@@ -5920,6 +5781,5 @@ async function startEditor() {
 }
 void startEditor().catch((error) => {
   console.error(error);
-  document.getElementById("status")!.textContent =
-    "Editor failed: " + String(error);
+  document.getElementById("status")!.textContent = "Editor failed: " + String(error);
 });

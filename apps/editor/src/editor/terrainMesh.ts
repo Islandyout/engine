@@ -100,6 +100,17 @@ export interface ScatterModel {
 // World units per side of a scatter chunk (see buildScatter).
 export const scatterChunkSize = 64;
 
+function chunkInstances(all: ScatterInstance[], size: number) {
+  const chunks = new Map<string, ScatterInstance[]>();
+  for (const instance of all) {
+    const key = `${Math.floor(instance.x / size)},${Math.floor(instance.z / size)}`;
+    let chunk = chunks.get(key);
+    if (!chunk) chunks.set(key, (chunk = []));
+    chunk.push(instance);
+  }
+  return chunks;
+}
+
 export function buildScatter(instances: ScatterInstance[], models: Map<number, ScatterModel>): THREE.Group {
   const group = new THREE.Group();
   group.name = "terrain-scatter";
@@ -125,18 +136,18 @@ export function buildScatter(instances: ScatterInstance[], models: Map<number, S
     // Instances are grouped into square chunks so frustum culling can drop
     // what's off screen (one InstancedMesh for the whole map is always
     // drawn, and drawn again for shadows).
-    const chunks = new Map<string, ScatterInstance[]>();
-    for (const instance of all) {
-      const key = `${Math.floor(instance.x / scatterChunkSize)},${Math.floor(instance.z / scatterChunkSize)}`;
-      let chunk = chunks.get(key);
-      if (!chunk) chunks.set(key, (chunk = []));
-      chunk.push(instance);
-    }
+    // A chunk is a draw call per mesh of the model (and another for
+    // shadows), so sparse scatter gets bigger chunks: they double until
+    // they hold a few dozen instances each on average.
+    let size = scatterChunkSize;
+    let chunks = chunkInstances(all, size);
+    while (all.length / chunks.size < 32 && size < scatterChunkSize * 8) chunks = chunkInstances(all, (size *= 2));
     for (const list of chunks.values()) {
       root.traverse((child) => {
         if (!(child instanceof THREE.Mesh)) return;
         const instanced = new THREE.InstancedMesh(child.geometry, child.material, list.length);
         instanced.userData.instances = list;
+        instanced.userData.chunkSize = size;
         instanced.castShadow = castShadow;
         instanced.receiveShadow = true;
         list.forEach((instance, i) => {

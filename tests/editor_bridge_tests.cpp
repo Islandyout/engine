@@ -1812,6 +1812,18 @@ int main() {
         check(editor_routine_stop(2) == 1 && editor_routine_stop(0) == -1);
     }
     {
+        // Around walls (0.76.0): a walker whose stop is behind a wall goes
+        // round it on the nav grid instead of pressing into it.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_routine(0, "0 0 -24", 2.0);
+        check(editor_add(0, 1.5, -12, 0, 0, 0, 14, 3, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 60 * 30; ++i)
+            editor_tick();
+        check(editor_value(0, 2) < -20); // past the wall
+    }
+    {
         // Settling (0.75.0): after a load, everyone with a Routine stands at
         // the stop the clock says at once.
         editor_begin();

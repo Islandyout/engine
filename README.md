@@ -347,6 +347,15 @@ Engine version 0.75.0 holds games at 45–60 fps and closes the last Pale Signal
 
 See [F75](docs/IMPLEMENTATION_STATUS.md#f75--4560-fps-and-the-last-pale-signal-gaps-0750).
 
+Engine version 0.76.0 cuts draw calls and makes the towns use their buildings:
+
+- **Rendering**: scatter chunks size themselves and static scenery is batched (about 42% fewer draw calls at the Pale Signal start). The governor also thins the sky and far simulation. Craters are 2× cheaper, and shadows sway with the plants.
+- **The autopilot**: memory per ship, Hohmann moon transfers (half the fuel) and plans that err high.
+- **Towns**: people path around walls to desks inside halls through sliding doors, with their own gestures. Canals reflect their surroundings.
+- **Also**: animals are saved, prices follow each institution's standing, music has composed motifs, the native playground lands, and the site view defaults to home.
+
+See [F76](docs/IMPLEMENTATION_STATUS.md#f76--fewer-draw-calls-smarter-autopilot-towns-that-use-their-buildings-0760).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

@@ -89,8 +89,14 @@ export const scatterGLSL = /* glsl */ `
     vec2 p = raySphere(o, d, 1.0);
     if (p.x < p.y && p.x > 0.0) t1 = min(t1, p.x);
     if (t1 <= t0) return vec3(0.0);
+    // The frame governor's low sky tier halves the samples (SKY_LOW).
+    #ifdef SKY_LOW
+    const int N = 6;
+    const int M = 2;
+    #else
     const int N = 12;
     const int M = 4;
+    #endif
     // Sunlight crossing the air reddens faster than the sky scatters: the
     // planets' air is thick for their size, so a physical airmass alone
     // can't turn a sunset orange.
@@ -132,6 +138,15 @@ export const scatterGLSL = /* glsl */ `
 
 // The sky from inside the air: drawn first, behind everything, at the
 // camera.
+// Switches a scattering material between full and half sampling.
+export function setScatterLow(material: THREE.ShaderMaterial, low: boolean) {
+  if (!!material.defines?.SKY_LOW === low) return;
+  material.defines = { ...material.defines };
+  if (low) material.defines.SKY_LOW = 1;
+  else delete material.defines.SKY_LOW;
+  material.needsUpdate = true;
+}
+
 export function scatterSkyMaterial() {
   return new THREE.ShaderMaterial({
     uniforms: { ...scatterUniforms(), uSunDisc: { value: 1 }, uGround: { value: new THREE.Color(0.1, 0.1, 0.1) } },
@@ -201,7 +216,9 @@ export function scatterShellMaterial() {
 // The same model on the CPU (fewer samples), for the fog and light colours.
 export function scatterColor(params: AtmosphereParams, o: THREE.Vector3, d: THREE.Vector3, sun: THREE.Vector3, out = new THREE.Color()) {
   const raySphere = (p: THREE.Vector3, dir: THREE.Vector3, r: number): [number, number] => {
-    const b = p.dot(dir), c = p.lengthSq() - r * r, h = b * b - c;
+    const b = p.dot(dir),
+      c = p.lengthSq() - r * r,
+      h = b * b - c;
     if (h < 0) return [1e9, -1e9];
     const s = Math.sqrt(h);
     return [-b - s, -b + s];
@@ -214,17 +231,25 @@ export function scatterColor(params: AtmosphereParams, o: THREE.Vector3, d: THRE
   const p = raySphere(o, d, 1);
   if (p[0] < p[1] && p[0] > 0) t1 = Math.min(t1, p[0]);
   if (t1 <= t0) return out;
-  const N = 8, M = 3, ds = (t1 - t0) / N, mu = d.dot(sun), g = 0.76;
+  const N = 8,
+    M = 3,
+    ds = (t1 - t0) / N,
+    mu = d.dot(sun),
+    g = 0.76;
   const phaseR = 0.0596831 * (1 + mu * mu);
   const phaseM = (0.1193662 * ((1 - g * g) * (1 + mu * mu))) / ((2 + g * g) * Math.pow(Math.max(1 + g * g - 2 * g * mu, 1e-4), 1.5));
   const b = params.betaR;
-  let odR = 0, odM = 0;
-  const sum = [0, 0, 0], sumM = [0, 0, 0];
-  const pos = new THREE.Vector3(), lpos = new THREE.Vector3();
+  let odR = 0,
+    odM = 0;
+  const sum = [0, 0, 0],
+    sumM = [0, 0, 0];
+  const pos = new THREE.Vector3(),
+    lpos = new THREE.Vector3();
   for (let i = 0; i < N; i++) {
     pos.copy(o).addScaledVector(d, t0 + ds * (i + 0.5));
     const h = Math.max(pos.length() - 1, 0);
-    const hr = Math.exp(-h / params.hR) * ds, hm = Math.exp(-h / params.hM) * ds;
+    const hr = Math.exp(-h / params.hR) * ds,
+      hm = Math.exp(-h / params.hM) * ds;
     odR += hr;
     odM += hm;
     const up = pos.clone().normalize().dot(sun);
@@ -233,7 +258,8 @@ export function scatterColor(params: AtmosphereParams, o: THREE.Vector3, d: THRE
     if (lit <= 0) continue;
     const l = raySphere(pos, sun, params.top);
     const ls = Math.max(l[1], 0) / M;
-    let lodR = 0, lodM = 0;
+    let lodR = 0,
+      lodM = 0;
     for (let j = 0; j < M; j++) {
       lpos.copy(pos).addScaledVector(sun, ls * (j + 0.5));
       const lh = Math.max(lpos.length() - 1, 0);
@@ -242,7 +268,9 @@ export function scatterColor(params: AtmosphereParams, o: THREE.Vector3, d: THRE
     }
     const m = params.betaM * 1.1 * (odM + lodM);
     const EXT = params.ext;
-    const att = [Math.exp(-(b.x * (odR + EXT * lodR) + m)), Math.exp(-(b.y * (odR + EXT * lodR) + m)), Math.exp(-(b.z * (odR + EXT * lodR) + m))].map((v) => v * lit);
+    const att = [Math.exp(-(b.x * (odR + EXT * lodR) + m)), Math.exp(-(b.y * (odR + EXT * lodR) + m)), Math.exp(-(b.z * (odR + EXT * lodR) + m))].map(
+      (v) => v * lit,
+    );
     for (let k = 0; k < 3; k++) {
       sum[k]! += att[k]! * hr;
       sumM[k]! += att[k]! * hm;
