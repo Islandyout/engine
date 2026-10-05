@@ -5,6 +5,7 @@
 // saving and continuing; then (variants) scanning the Vey Gate foundation on
 // foot, and walking on Vell where the cold wears the suit.
 const assert = require("node:assert/strict");
+const { saveFailure } = require("./evidence.cjs");
 const http = require("node:http");
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -193,6 +194,9 @@ function ruinVariant(scene) {
       await context.close();
     }
     console.log("Pale Signal: title, flight HUD, hover and set-down, stepping out on the suit reserve, the prompt and journal, the air sample, the settings panel, save and continue, scanning the Vey Gate foundation, and walking on Vell passed.");
+  } catch (error) {
+    await saveFailure("pale_signal", error, browser);
+    throw error;
   } finally {
     await browser?.close();
     server.close();

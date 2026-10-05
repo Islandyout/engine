@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 65
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install WebAssembly compiler
         run: |
           git clone --depth 1 --branch 3.1.64 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
@@ -22,7 +22,7 @@ jobs:
         run: |
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
           bash tools/build_editor.sh
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
       - name: Install browser test tools
@@ -39,13 +39,13 @@ jobs:
           node tests/browser/pale_signal.cjs
       - name: Upload browser evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: editor-browser-evidence
           path: build/browser-evidence/
           if-no-files-found: warn
       - name: Upload built site
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: editor-site
           path: build/site/

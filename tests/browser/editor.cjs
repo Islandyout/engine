@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const { saveFailure } = require("./evidence.cjs");
 const http = require("node:http");
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -1244,7 +1245,9 @@ const { chromium } = require("playwright");
       },
     });
     await page.click("#play");
-    await page.waitForFunction(() => document.querySelector("#log").textContent.includes("[script] animator hop>midway>idle>"), null, { timeout: 15000 });
+    // Generous: on a loaded 2-core runner Play waits for the model, then the
+    // clip plays out in real time at a few frames a second.
+    await page.waitForFunction(() => document.querySelector("#log").textContent.includes("[script] animator hop>midway>idle>"), null, { timeout: 60000 });
     await page.click("#stop");
 
     // F55: real keyboard and mouse events reach the native InputState and the
@@ -1410,6 +1413,9 @@ const { chromium } = require("playwright");
     console.log(
       "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), a CameraFollow rig with shake, keyboard/mouse input through native actions, and interactive UI (script Button, Toggle, Slider, Bar), shaped/world-space particles with bursts plus a Trail, and asset import (model/image/sound, IndexedDB) with the Stats overlay passed.",
     );
+  } catch (error) {
+    await saveFailure("editor", error, browser);
+    throw error;
   } finally {
     if (browser) await browser.close();
     await new Promise((r) => server.close(r));

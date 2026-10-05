@@ -3,6 +3,7 @@
 // (sabotage -> uplink -> extraction -> mission complete) on a trimmed copy of
 // the level, served the way tools/export_build.mjs bakes a scene in.
 const assert = require("node:assert/strict");
+const { saveFailure } = require("./evidence.cjs");
 const http = require("node:http");
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -133,6 +134,9 @@ function flowVariant(scene) {
       await page.close();
     }
     console.log("LAST SIGNAL: title, deploy, pause menu, sabotage, uplink, extraction and the win screen passed.");
+  } catch (error) {
+    await saveFailure("last_signal", error, browser);
+    throw error;
   } finally {
     await browser?.close();
     server.close();

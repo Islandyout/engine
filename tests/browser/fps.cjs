@@ -1,6 +1,7 @@
 // FPS features (0.60.0+): first-person controller, weapons and combat, run
 // against the built editor (build/site) in a fresh browser.
 const assert = require("node:assert/strict");
+const { saveFailure } = require("./evidence.cjs");
 const http = require("node:http");
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -314,6 +315,9 @@ const { chromium } = require("playwright");
     console.log(
       "FPS browser: first-person CharacterController (camera, look, walk, step climbing) and weapons (hold-to-fire kill with on_death, reload from reserve, switching, HUD) and combat AI (a soldier spots and shoots the player, dies to return fire, on_kill) and terrain (standing on it, sculpting with undo) and audio (positional play_at, mixer settings, footsteps) and post-processing passed.",
     );
+  } catch (error) {
+    await saveFailure("fps", error, browser);
+    throw error;
   } finally {
     if (browser) await browser.close();
     await new Promise((r) => server.close(r));
