@@ -82,3 +82,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F75](changelog/F75.md) | 45–60 fps, and the last Pale Signal gaps (0.75.0) |
 | [F76](changelog/F76.md) | Fewer draw calls, smarter autopilot, towns that use their buildings (0.76.0) |
 | [F77](changelog/F77.md) | Easier to use and easier to work on (0.77.0) |
+| [F78](changelog/F78.md) | Martial arts: the Melee component, motion-captured kicks, combat feel and AI fighters (0.78.0) |

@@ -365,6 +365,15 @@ Engine version 0.77.0 makes the engine easier to use and easier to work on:
 
 See [F77](docs/changelog/F77.md).
 
+Engine version 0.78.0 adds hand-to-hand combat:
+
+- **Martial arts from real motion**: punches, knees and reactions from Quaternius's CC0 animation libraries, and front, roundhouse and side kicks retargeted from CMU motion capture (55 clips, loaded only when a scene fights).
+- **A Melee component**: combo chains with an input buffer and cancel windows, heavies, air and dash attacks, rolls with invulnerable frames, block, parry and guard breaks, launches, juggles and knockdowns, and energy-fuelled specials (forward, back and back-forward). Moves are text you can edit.
+- **Feel**: hit-stop, sparks and limb trails, camera shake, slow motion on parries and finishers, lock-on with a camera that frames both fighters, and a fighter HUD with a combo counter.
+- **AI fighters** that close in, circle, take turns, string combos, block, parry and dodge. Try the new **Martial-arts dojo** starter; [COMBAT.md](docs/COMBAT.md) explains it all.
+
+See [F78](docs/changelog/F78.md).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

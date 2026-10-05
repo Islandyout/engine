@@ -28,6 +28,8 @@ space = {}
 
 particles = {}
 
+melee = {}
+
 weapon = {}
 
 input = {}
@@ -368,6 +370,37 @@ function particles.burst(count) end
 ---@param on boolean
 function particles.set_emitting(on) end
 
+--- Starts a move of this fighter's Melee list by name (when it can act).
+---@param move string
+---@return boolean
+function melee.perform(move) end
+
+--- Mode (idle, move, block, stun, airborne, down, getup, dead), combo, energy, energy max, guard 0-1.
+---@return string, integer, number, number, number
+function melee.state() end
+
+--- The move playing, or "".
+---@return string
+function melee.move() end
+
+--- Sets its energy (specials spend it).
+---@param amount number
+function melee.set_energy(amount) end
+
+--- Locks onto a target; no argument releases.
+---@param id? integer
+function melee.lock(id) end
+
+--- Who it faces and fights.
+---@return integer?
+function melee.target() end
+
+--- Hands the fighter to (or takes it from) its melee brain.
+---@param on boolean
+---@param aggression? number
+---@param skill? number
+function melee.set_ai(on, aggression, skill) end
+
 --- Fires the current weapon (optionally along a direction).
 ---@param dx? number
 ---@param dy? number
@@ -636,6 +669,13 @@ function on_death(attacker) end
 --- This entity defeated another.
 ---@param victim integer
 function on_kill(victim) end
+
+--- This fighter's blow met someone: hit, blocked, parried, dodged or guard_break.
+---@param target integer
+---@param move string
+---@param damage number
+---@param outcome string
+function on_melee_hit(target, move, damage, outcome) end
 
 --- Started touching (also _stay, _exit).
 ---@param other integer

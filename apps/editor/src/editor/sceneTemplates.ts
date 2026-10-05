@@ -195,6 +195,8 @@ export const sceneTemplates: SceneTemplate[] = [
           components: {
             ...at(0, 0.9, 4),
             ...size(0.6, 1.8, 0.6),
+            // Facing the opponents (-z).
+            Rotation: { euler: { x: 0, y: Math.PI, z: 0 } },
             Renderable: { mesh: 132, material: 0, visible: true },
             Player: {},
             RigidBody: { mass: 70, dynamic: true },
@@ -204,7 +206,8 @@ export const sceneTemplates: SceneTemplate[] = [
             Melee: { team: 0, ai: false, energy: 40 },
           },
         },
-        followCamera({ x: 0, y: 1.9, z: 4.2 }, { orbit: true, lookHeight: 1.1 }),
+        // The offset turns with the Player: -z is behind one facing -z.
+        followCamera({ x: 0, y: 1.9, z: -4.2 }, { orbit: true, lookHeight: 1.1 }),
         ...[
           { name: "Sparring Partner", x: -2.5, aggression: 0.45, skill: 0.3 },
           { name: "Sensei", x: 2.5, aggression: 0.7, skill: 0.75 },

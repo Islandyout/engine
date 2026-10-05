@@ -51,7 +51,6 @@ import { encodeProps, reconcileProps } from "../scene/scriptProps";
 import { burst, createEmitter, stepEmitter, type EmitterSettings, type EmitterState } from "./particles";
 import { buildRibbon, updateTrail, type TrailPoint } from "./trail";
 import { CombatView, loadCombatClips } from "./combatView";
-import { FighterField } from "./bridgeFields";
 import { assetKind, assignId, displayName, loadStoredAssets, resolveAssetUrl, storeAsset, type StoredAsset } from "./userAssets";
 import { autoSize, contains, layoutRect, sliderValue, type UIRect } from "./uiLayout";
 import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGraph } from "./animator";
