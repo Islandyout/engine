@@ -829,6 +829,7 @@ async function startEditor() {
     toonUniforms.toonRim.value = manhwa ? settings.rim : 0;
     inkPass.enabled = !!composer && manhwa && settings.ink > 0;
     inkPass.ink = settings.ink;
+    combat.comic.enabled = manhwa;
     gradingPass.enabled = !!composer && gradingActive(settings);
     const uniforms = gradingPass.uniforms as Record<string, { value: number }>;
     uniforms.contrast!.value = settings.contrast;
@@ -5112,6 +5113,7 @@ async function startEditor() {
       renderer.info.autoReset = false;
       renderer.info.reset();
     }
+    inkPass.impact = combat.comic.impact;
     if (composer) composer.render();
     else renderer.render(scene, viewCamera);
     drawHud();

@@ -435,3 +435,20 @@ Combat clip library SHA-256:
   `b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07`
   (`addons/kaykit_dungeon_remastered/Assets/gltf/<name>.gltf.glb`). Copied
   unmodified, renamed to kebab case (`torch_mounted.gltf.glb` → `torch-mounted.glb`).
+
+## GATEBREAKER hand weapons (M0)
+
+`source/kit/weapons/*.glb`: **Quaternius, Ultimate RPG Items Bundle**, CC0 1.0
+(https://quaternius.com; https://poly.pizza/bundle/Ultimate-RPG-Items-Bundle-h8mhlZ0dG8),
+from the copy in https://github.com/VitexSoftware/ishtaria-client @
+`10eda49074e8763f09b39dc1d45cd77170aa83e3`
+(`assets/quaternius/ultimate-rpg-items/Models/`, with its `License.txt`).
+Copied unmodified, renamed to kebab case. SHA-256:
+- `dagger.glb`: `59cdd0eeec26f70a43ed754b26dce9dae51fe3d1eee846d36fec92b951dd982c`
+- `knife.glb`: `d3f6af0b5b7192cbaf785cabce58df68d85166470ce9616f87f166980f064068`
+- `sword.glb`: `eca13ae89d844d32ccc639c55e9d5c6077217c885bd5b0b3cf6b96d7ca0470b8`
+- `sword-2.glb`: `ebf6a37a1570d3c01822f3e65ae3dca76a76fcc1943ed33bdcd90dc75329218a`
+- `claymore.glb`: `a3ea019a6ac39dfdffd90f115e480122deffea802a120a5a842c165085f5be89`
+- `spear.glb`: `782d0df743960a7e5151e646be151272a30d3ed3698af4b7d1b713c41cc445f0`
+- `scythe.glb`: `e3c710901b23224e5dd7b6555e40d2c3e6f044f1c67e5cd0afe66549408a198b`
+- `axe-double.glb`: `f403f3940042ac2579b88c032d5a3b3efc5d9c55b6a8586d9538bd4a6e525af2`

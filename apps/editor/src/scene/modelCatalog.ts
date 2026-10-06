@@ -239,6 +239,15 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 200, category: "dungeon", name: "Wall doorway", path: "./kit/dungeon/wall-doorway.glb" },
   { id: 201, category: "dungeon", name: "Wall gated", path: "./kit/dungeon/wall-gated.glb" },
   { id: 202, category: "dungeon", name: "Wall pillar", path: "./kit/dungeon/wall-pillar.glb" },
+  // Hand weapons (Quaternius Ultimate RPG Items, CC0): GATEBREAKER's melee arms.
+  { id: 203, category: "weapons", name: "Dagger", path: "./kit/weapons/dagger.glb" },
+  { id: 204, category: "weapons", name: "Knife", path: "./kit/weapons/knife.glb" },
+  { id: 205, category: "weapons", name: "Sword", path: "./kit/weapons/sword.glb" },
+  { id: 206, category: "weapons", name: "Sword 2", path: "./kit/weapons/sword-2.glb" },
+  { id: 207, category: "weapons", name: "Claymore", path: "./kit/weapons/claymore.glb" },
+  { id: 208, category: "weapons", name: "Spear", path: "./kit/weapons/spear.glb" },
+  { id: 209, category: "weapons", name: "Scythe", path: "./kit/weapons/scythe.glb" },
+  { id: 210, category: "weapons", name: "Double axe", path: "./kit/weapons/axe-double.glb" },
 ];
 
 export const catalogCategories = Array.from(

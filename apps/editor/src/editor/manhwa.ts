@@ -103,6 +103,7 @@ const inkShader = {
     near: { value: 0.1 },
     far: { value: 1000 },
     ink: { value: 1 },
+    impact: { value: 0 },
     inkColor: { value: new THREE.Color(0.012, 0.01, 0.018) },
   },
   vertexShader: /* glsl */ `
@@ -114,7 +115,7 @@ const inkShader = {
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse, tDepth;
     uniform vec2 texel;
-    uniform float near, far, ink;
+    uniform float near, far, ink, impact;
     uniform vec3 inkColor;
     varying vec2 vUv;
     float viewZ(float z) { return near * far / (far - z * (far - near)); }
@@ -122,7 +123,7 @@ const inkShader = {
     void main() {
       vec4 source = texture2D(tDiffuse, vUv);
       float zc = texture2D(tDepth, vUv).x;
-      if (zc >= 0.99999) { gl_FragColor = source; return; }
+      if (zc >= 0.99999) { gl_FragColor = vec4(mix(source.rgb, vec3(0.012, 0.01, 0.018), impact), source.a); return; }
       vec2 dx = vec2(texel.x, 0.0), dy = vec2(0.0, texel.y);
       float zl = texture2D(tDepth, vUv - dx).x, zr = texture2D(tDepth, vUv + dx).x;
       float zd = texture2D(tDepth, vUv - dy).x, zu = texture2D(tDepth, vUv + dy).x;
@@ -142,7 +143,10 @@ const inkShader = {
       float fill = smoothstep(0.35, 0.7, max(abs(tl - tr), abs(td - tu)) + 0.5 * max(abs(tl + tr - 2.0 * t), abs(td + tu - 2.0 * t)));
       float line = max(silhouette, max(crease * 0.85, fill * 0.55));
       float fade = 1.0 - smoothstep(25.0, 60.0, c);
-      gl_FragColor = vec4(mix(source.rgb, inkColor, clamp(line * ink * fade, 0.0, 1.0)), source.a);
+      vec3 inked = mix(source.rgb, inkColor, clamp(line * ink * fade, 0.0, 1.0));
+      // An impact frame: the panel inverted to ink and paper, lines in white.
+      vec3 inverted = mix(t > 0.75 ? inkColor : vec3(0.96, 0.95, 0.92), vec3(0.96, 0.95, 0.92), clamp(line * 1.5, 0.0, 1.0));
+      gl_FragColor = vec4(mix(inked, inverted, impact), source.a);
     }`,
 };
 
@@ -164,6 +168,11 @@ export class InkPass extends Pass {
 
   set ink(value: number) {
     this.material.uniforms.ink!.value = value;
+  }
+
+  // 1 during an impact frame (ComicFx.impact).
+  set impact(value: number) {
+    this.material.uniforms.impact!.value = value;
   }
 
   override render(renderer: THREE.WebGLRenderer, writeBuffer: THREE.WebGLRenderTarget, readBuffer: THREE.WebGLRenderTarget) {

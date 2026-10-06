@@ -20,6 +20,7 @@ import * as THREE from "three";
 import { boneSubtree, filterClip, upperBodyBone } from "./characterRig";
 import { FighterField, MeleeEventField } from "./bridgeFields";
 import { buildRibbon, updateTrail, type TrailPoint } from "./trail";
+import { ComicFx } from "./comicFx";
 
 export const combatClipsPath = "./kit/people/combat_clips.glb";
 
@@ -166,6 +167,8 @@ export class CombatView {
   private readonly bursts: Burst[] = [];
   private readonly glow = glowTexture();
   private comboShown = 0;
+  // Manhwa lettering, speed lines and impact frames (on with the Manhwa style).
+  readonly comic = new ComicFx();
   private comboAge = 9;
 
   constructor(
@@ -272,6 +275,7 @@ export class CombatView {
     this.timeScale = 1;
     this.slowLeft = 0;
     this.comboShown = 0;
+    this.comic.clear();
   }
 
   // True once the fighter has played its own death (the caller skips its
@@ -445,6 +449,7 @@ export class CombatView {
           const killed = (flags & MeleeFlag.killed) !== 0;
           const finisher = (flags & MeleeFlag.finisher) !== 0;
           this.impact(point, heavy ? 1.6 : 1, new THREE.Color(1, 0.85, 0.55));
+          this.comic.hit(finisher || killed ? "finisher" : heavy ? "heavy" : "light", point);
           host.sound(point)?.punch(heavy, 1);
           if (involved) host.shake(finisher || killed ? 0.12 : heavy ? 0.07 : 0.035, finisher ? 0.35 : 0.18);
           if (finisher || killed) {
@@ -468,11 +473,13 @@ export class CombatView {
         }
         case MeleeEvent.blocked:
           this.impact(point, 0.7, new THREE.Color(0.55, 0.75, 1));
+          this.comic.hit("block", point);
           host.sound(point)?.block();
           if (involved) host.shake(0.025, 0.12);
           break;
         case MeleeEvent.parried:
           this.ring(point, new THREE.Color(1, 0.85, 0.3), 1.4);
+          this.comic.hit("parry", point);
           host.sound(point)?.parry();
           this.slow(0.35, 0.4);
           if (involved) host.shake(0.05, 0.2);
@@ -481,17 +488,20 @@ export class CombatView {
           // A perfect dodge: the Player slips a blow in its i-frames.
           if (target === player) {
             this.slow(0.45, 0.35);
+            this.comic.hit("dodge", objects[player]?.position.clone().add(new THREE.Vector3(0, 1.2, 0)) ?? point);
             host.sound(point)?.whoosh(false, 0.5);
           }
           break;
         case MeleeEvent.guardBreak:
           this.ring(point, new THREE.Color(1, 1, 1), 1.8);
+          this.comic.hit("guardBreak", point);
           this.impact(point, 1.4, new THREE.Color(0.7, 0.85, 1));
           host.sound(point)?.punch(true);
           if (involved) host.shake(0.08, 0.25);
           break;
         case MeleeEvent.fire:
           this.ring(point, new THREE.Color(0.5, 0.8, 1), 0.8);
+          this.comic.hit("blast", point);
           host.sound(point)?.energy();
           break;
         case MeleeEvent.land: {
@@ -509,6 +519,7 @@ export class CombatView {
   // frame is; `realDt` is unscaled by slow motion.
   frame(realDt: number, alpha: number, camera: THREE.Camera) {
     const host = this.host;
+    this.comic.update(realDt);
     // Slow motion eases back to full speed.
     if (this.slowLeft > 0) {
       this.slowLeft -= realDt;
@@ -656,6 +667,7 @@ export class CombatView {
   // screen-reader mirror.
   drawHud(ctx: CanvasRenderingContext2D, width: number, height: number, project: (point: THREE.Vector3) => { x: number; y: number } | undefined, objects: readonly (THREE.Object3D | undefined)[]): string[] {
     const host = this.host;
+    this.comic.draw(ctx, width, height, project);
     const player = host.playerIndex();
     if (player < 0 || !this.isFighter(player)) return [];
     const lines: string[] = [];
