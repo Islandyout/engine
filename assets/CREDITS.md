@@ -426,8 +426,8 @@ Combat clip library SHA-256:
   the bone that moves it most. The hunter adds the buzzed hair. The goblin
   drops the hair, gives the eyes a yellow glow, and adds pointed ears that the
   script generates and binds to the head. The results are CC0 like their source.
-  SHA-256: hunter `d789dcc9441ca4b9feb97c7d5395f4e01a45ac894d7492a6476c2a125c6cc19a`,
-  goblin `2015a487136a9cce0ca5c477574a654d3432f81143031faf2913c24fd110db95`.
+  SHA-256: hunter `2f6618160a9210f2b5976ee117be3659767c9f0a6aec56c98f4a46639503afa0`,
+  goblin `373fe1fbc57edd76e33f41e164aa809dfa693b3d61d3c0415e48c647a39d81af`.
 
 - `source/kit/dungeon/*.glb` (24 pieces): **Kay Lousberg, KayKit Dungeon
   Remastered 1.0**, CC0 1.0 (`LICENSE.txt` in the pack; https://www.kaylousberg.com),
