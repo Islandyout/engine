@@ -1,7 +1,7 @@
 // The editor runtime itself (0.77.0, split from bridge.cpp): BridgeHost, the
 // script host, and Runtime, the world and every fixed system it ticks, in
-// namespace editor_bridge. Shared by bridge.cpp, bridge_combat.cpp and
-// bridge_space.cpp.
+// namespace editor_bridge. Shared by bridge.cpp, bridge_combat.cpp,
+// bridge_space.cpp and bridge_melee.cpp.
 #pragma once
 #include "bridge_components.hpp"
 
@@ -25,6 +25,9 @@ public:
                  const std::string &text, std::optional<engine::Entity> other, std::vector<double> &out) override;
     bool space(engine::World &world, const std::string &op, const std::vector<double> &args, const std::string &text,
                std::vector<double> &out, std::string &text_out) override;
+    bool melee(engine::World &world, engine::Entity self, const std::string &op, const std::vector<double> &args,
+               const std::string &text, std::optional<engine::Entity> other, std::vector<double> &out,
+               std::string &text_out, std::optional<engine::Entity> &other_out) override; // bridge_melee.cpp
 
 private:
     Runtime &runtime_;
@@ -91,12 +94,16 @@ struct Runtime {
     std::string bindings_error;
     std::vector<WeaponEvent> weapon_events;
     std::string weapons_error;
+    std::vector<MeleeEvent> melee_events;
+    std::string melee_error;
     std::vector<Noise> noises;
     int team_of(const engine::World &w, engine::Entity entity) const {
         if (w.get<PlayerMarker>(entity))
             return 0;
         if (const auto *soldier = w.get<Soldier>(entity))
             return soldier->team;
+        if (const auto *fighter = w.get<Fighter>(entity))
+            return fighter->team;
         return -1;
     }
     int index_of(engine::Entity entity) const {
@@ -109,6 +116,14 @@ struct Runtime {
         if (weapon_events.size() < 1024)
             weapon_events.push_back(event);
     }
+    void push_melee(MeleeEvent event) {
+        if (melee_events.size() < 1024)
+            melee_events.push_back(event);
+    }
+    // Melee (0.78.0): every Fighter's tick -- input or brain, moves, facing,
+    // lunges, hits, knockback and launches (bridge_melee.cpp).
+    void step_melee(engine::World &w);
+    void melee_strike(engine::World &w, engine::Entity self, Fighter &fighter);
     // ---- Spaceflight (0.71.0): see SpaceSim.
     std::optional<SpaceSim> space;
     std::optional<engine::Entity> player_entity(const engine::World &w) const {
@@ -1130,8 +1145,14 @@ struct Runtime {
             return;
         health->current = std::max(0.0F, health->current - amount);
         const bool killed = health->current <= 0;
-        if (killed)
+        // A defeated fighter falls and lies there a moment (its death clip)
+        // before it's removed; anything else goes at once.
+        if (auto *fighter = w.get<Fighter>(target); killed && fighter) {
+            fighter->state.mode = engine::gameplay::FighterMode::dead;
+            fighter->dying = 4.0F;
+        } else if (killed) {
             w.defer_destroy(target);
+        }
         WeaponEvent event{WeaponEventKind::damaged, attacker ? index_of(*attacker) : -1, index_of(target)};
         const auto *source = attacker ? w.get<engine::Box>(*attacker) : nullptr;
         event.point = source ? source->center : w.get<engine::Box>(target)->center;
@@ -1896,6 +1917,10 @@ struct Runtime {
                   [this](engine::World &w, const engine::FixedUpdateContext &) { step_routines(w); });
         add_timed("editor.wildlife", engine::FixedPhase::update, 7,
                   [this](engine::World &w, const engine::FixedUpdateContext &) { step_wildlife(w); });
+        // After the Player's input (0), scripts (2) and the other brains,
+        // before physics (10) integrates the lunges and knockback it sets.
+        add_timed("editor.melee", engine::FixedPhase::update, 8,
+                  [this](engine::World &w, const engine::FixedUpdateContext &) { step_melee(w); });
         add_timed("editor.soldiers", engine::FixedPhase::update, 3,
                   [this](engine::World &w, const engine::FixedUpdateContext &) {
                       time_now += 1.0F / 60.0F;
@@ -1927,6 +1952,22 @@ struct Runtime {
                         intent.jump_pressed = actions.state(engine::ActionId{"jump"}).pressed;
                         intent.sprint = actions.state(engine::ActionId{"sprint"}).down();
                         intent.crouch = actions.state(engine::ActionId{"crouch"}).down();
+                        if (const auto *fighter = w.get<Fighter>(entity)) {
+                            // A fighter mid-move, hurt or down doesn't walk (its
+                            // move or the hit moves it); blocking shuffles.
+                            using engine::gameplay::FighterMode;
+                            const auto mode = fighter->state.mode;
+                            if (mode == FighterMode::block) {
+                                intent.move_x *= 0.35F;
+                                intent.move_y *= 0.35F;
+                                intent.sprint = false;
+                                intent.jump_pressed = false;
+                            } else if (mode != FighterMode::idle) {
+                                intent.move_x = intent.move_y = 0;
+                                intent.sprint = false;
+                                intent.jump_pressed = false;
+                            }
+                        }
                         if (const auto *arsenal = w.get<Arsenal>(entity)) {
                             // Aiming down sights slows you and, like firing, stops a sprint.
                             if (arsenal->aiming) {
@@ -2236,6 +2277,9 @@ struct Runtime {
                     return;
                 pending_attack = false; // consumed by this tick, not every tick this frame
                 for (const auto entity : w.query<engine::Box, PlayerMarker>()) {
+                    // A Melee fighter kicks with F instead (editor.melee).
+                    if (w.get<Fighter>(entity))
+                        continue;
                     // Plays a punch/attack clip on every F press, whether or not it
                     // actually connects with a Health entity below -- the animation is
                     // tied to the action (a real game plays a swing animation on a miss
@@ -2324,6 +2368,7 @@ inline void register_components(engine::World &w) {
     w.register_component<Controller>("editor.controller");
     w.register_component<Arsenal>("editor.arsenal");
     w.register_component<Soldier>("editor.soldier");
+    w.register_component<Fighter>("editor.fighter");
 }
 
 template <typename T> void copy_component(const engine::World &from, engine::Entity source, engine::World &to,
@@ -2372,6 +2417,7 @@ inline std::optional<engine::Entity> BridgeHost::spawn(engine::World &world, con
     copy_component<Controller>(from, source, world, entity);
     copy_component<Arsenal>(from, source, world, entity);
     copy_component<Soldier>(from, source, world, entity);
+    copy_component<Fighter>(from, source, world, entity);
     copy_component<Driver>(from, source, world, entity);
     world.defer_set(entity, EntityName{prefab});
     world.defer_set(entity, SpawnedFrom{prefab});

@@ -217,6 +217,7 @@ const componentNames = [
   "CharacterController",
   "Weapons",
   "AICombat",
+  "Melee",
   "Terrain",
   "AudioSettings",
   "PostProcessing",
@@ -644,6 +645,31 @@ export function normalizeComponent(
     }
     case "Weapons":
       return { loadout: string(value.loadout, "Weapons.loadout") };
+    case "Melee": {
+      const style = value.style;
+      if (style !== "Martial arts" && style !== "Sword" && style !== "Custom")
+        throw new Error("Melee.style must be Martial arts, Sword, or Custom.");
+      const team = number(value.team, "Melee.team");
+      if (!Number.isInteger(team) || team < 0 || team > 15) throw new Error("Melee.team must be an integer from 0 to 15.");
+      const unit = (v: unknown, label: string) => {
+        const n = number(v, label);
+        if (n < 0 || n > 1) throw new Error(`${label} must be from 0 to 1.`);
+        return n;
+      };
+      const energy = nonNegativeNumber(value.energy, "Melee.energy");
+      if (energy > 100) throw new Error("Melee.energy must be from 0 to 100.");
+      return {
+        style,
+        moves: string(value.moves, "Melee.moves"),
+        team,
+        ai: boolean(value.ai, "Melee.ai"),
+        aggression: unit(value.aggression, "Melee.aggression"),
+        skill: unit(value.skill, "Melee.skill"),
+        reaction: nonNegativeNumber(value.reaction, "Melee.reaction"),
+        energy,
+        guard: positiveNumber(value.guard, "Melee.guard"),
+      };
+    }
     case "CharacterController": {
       const mode = value.mode;
       if (mode !== "FirstPerson" && mode !== "ThirdPerson")

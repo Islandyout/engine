@@ -1,4 +1,5 @@
 import type { CharacterControllerComponent, EnvironmentComponent } from "../scene/Components";
+import { martialArtsMoves } from "../scene/meleeMoves";
 import {
   deserializeScene,
   normalizeComponent,
@@ -84,6 +85,7 @@ const componentNames = [
   "CharacterController",
   "Weapons",
   "AICombat",
+  "Melee",
   "Terrain",
   "AudioSettings",
   "PostProcessing",
@@ -770,6 +772,13 @@ export function defaultComponent(
           "reload: r, pad_rb",
           "next_weapon: q, pad_up",
           "weapon_scroll: wheel",
+          "light: mouse_left, j, pad_x",
+          "heavy: mouse_right, k, pad_y",
+          "kick: f, l, pad_b",
+          "special: q, u, pad_rb",
+          "dodge: x, alt, pad_ls",
+          "block: r, pad_lt",
+          "lock: mouse_middle, t, pad_rs",
         ].join("\n") + "\n",
       };
     case "CharacterController":
@@ -791,6 +800,18 @@ export function defaultComponent(
         snowHeight: 9,
         rockSlope: 0.82,
         scatter: "",
+      };
+    case "Melee":
+      return {
+        style: "Martial arts",
+        moves: martialArtsMoves,
+        team: 1,
+        ai: true,
+        aggression: 0.5,
+        skill: 0.5,
+        reaction: 0.25,
+        energy: 0,
+        guard: 60,
       };
     case "AICombat":
       return {

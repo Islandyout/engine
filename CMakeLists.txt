@@ -175,7 +175,7 @@ target_link_libraries(engine_nav PUBLIC GameEngine::World GameEngine::Graphics G
 engine_set_project_warnings(engine_nav)
 
 add_library(engine_gameplay STATIC source/engine/gameplay/character.cpp source/engine/gameplay/weapons.cpp source/engine/gameplay/car.cpp
-            source/engine/gameplay/space.cpp)
+            source/engine/gameplay/space.cpp source/engine/gameplay/melee.cpp)
 add_library(GameEngine::Gameplay ALIAS engine_gameplay)
 target_link_libraries(engine_gameplay PUBLIC GameEngine::World GameEngine::Graphics GameEngine::Physics)
 engine_set_project_warnings(engine_gameplay)
@@ -269,6 +269,11 @@ if(ENGINE_BUILD_TESTS)
     engine_set_project_warnings(engine_weapon_tests)
     add_test(NAME engine_weapon_tests COMMAND engine_weapon_tests)
 
+    add_executable(engine_melee_tests tests/melee_tests.cpp)
+    target_link_libraries(engine_melee_tests PRIVATE GameEngine::Gameplay)
+    engine_set_project_warnings(engine_melee_tests)
+    add_test(NAME engine_melee_tests COMMAND engine_melee_tests)
+
     add_executable(engine_nav_tests tests/nav_tests.cpp)
     target_link_libraries(engine_nav_tests PRIVATE GameEngine::Nav)
     engine_set_project_warnings(engine_nav_tests)
@@ -298,7 +303,7 @@ endif()
 
 if(ENGINE_BUILD_TESTS)
     add_executable(engine_editor_bridge_tests tests/editor_bridge_tests.cpp apps/editor/runtime/bridge.cpp
-        apps/editor/runtime/bridge_combat.cpp apps/editor/runtime/bridge_space.cpp)
+        apps/editor/runtime/bridge_combat.cpp apps/editor/runtime/bridge_space.cpp apps/editor/runtime/bridge_melee.cpp)
     target_link_libraries(engine_editor_bridge_tests PRIVATE GameEngine::World GameEngine::Physics GameEngine::Nav GameEngine::Script GameEngine::Gameplay)
     engine_set_project_warnings(engine_editor_bridge_tests)
     add_test(NAME engine_editor_bridge_tests COMMAND engine_editor_bridge_tests)

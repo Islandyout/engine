@@ -502,6 +502,28 @@ export interface WeaponsComponent {
   loadout: string;
 }
 
+// Melee (0.78.0): martial-arts fighting. `style` picks a built-in move
+// list (Martial arts: punches, kicks, heavies, air and dash attacks, rolls
+// and four specials; Sword) or Custom, which uses `moves`: one move per line
+// as `name: key=value ...` (see engine::gameplay::parse_moves in
+// include/engine/gameplay/melee.hpp; invalid text falls back to Martial
+// arts). The Player fights with the light/heavy/kick/special/dodge/block/
+// lock actions; with `ai` on, a melee brain drives any other entity against
+// other teams (the Player is team 0). Hits build `energy` (0-100) for
+// specials; blocking drains `guard` until it breaks.
+export type MeleeStyle = "Martial arts" | "Sword" | "Custom";
+export interface MeleeComponent {
+  style: MeleeStyle;
+  moves: string;
+  team: number;
+  ai: boolean;
+  aggression: number; // 0..1
+  skill: number; // 0..1: blocking, parrying, dodging, longer strings
+  reaction: number; // seconds
+  energy: number; // starting energy, 0..100
+  guard: number;
+}
+
 // Combat AI (0.62.0): a soldier on `team` (the Player is team 0) that
 // perceives hostiles (a sight cone with line of sight, gunfire within
 // hearingRange, being shot), patrols its comma-separated `patrol` waypoint

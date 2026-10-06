@@ -24,11 +24,20 @@ const box = (name: string, p: [number, number, number], s: [number, number, numb
   name,
   components: { ...at(...p), ...size(...s), Renderable: { mesh: 0, material: 0, visible: true }, ...color(...c), ...solid, ...extra },
 });
+// A game camera following the Player (CameraFollow only drives an entity
+// that has a Camera).
+const followCamera = (offset: { x: number; y: number; z: number }, extra: Components = {}): Entity => ({
+  name: "Camera",
+  components: { Camera: { fov: 55 }, CameraFollow: { offset, ...extra } },
+});
 const environment: Entity = {
   name: "Environment",
   components: { Environment: { sky: "Procedural", shadows: true, sunElevation: 40, sunAzimuth: 135 } },
 };
-const ground = (half = 30): Entity => box("Ground", [0, -0.5, 0], [half * 2, 1, half * 2], [0.35, 0.45, 0.32]);
+// Below y = 0 a body would be lifted onto the ground plane; a kinematic body
+// stays put and is still solid.
+const fixed = { RigidBody: { dynamic: false } };
+const ground = (half = 30): Entity => box("Ground", [0, -0.5, 0], [half * 2, 1, half * 2], [0.35, 0.45, 0.32], fixed);
 const crates = (count: number): Entity[] =>
   Array.from({ length: count }, (_, i) => box(`Crate ${i + 1}`, [-8 + i * 4, 0.5, -6 - (i % 2) * 3], [1, 1, 1], [0.6, 0.45, 0.3]));
 
@@ -55,9 +64,9 @@ export const sceneTemplates: SceneTemplate[] = [
             RigidBody: { mass: 70, dynamic: true },
             Collider: { type: "AABB" },
             CharacterController: { mode: "ThirdPerson" },
-            CameraFollow: { offset: { x: 0, y: 3, z: 6 }, orbit: true },
           },
         },
+        followCamera({ x: 0, y: 3, z: 6 }, { orbit: true }),
       ],
     },
   },
@@ -82,12 +91,12 @@ export const sceneTemplates: SceneTemplate[] = [
             Collider: { type: "AABB" },
             CharacterController: { mode: "FirstPerson" },
             Weapons: {},
-            Health: { current: 100, max: 100 },
+            Health: { current: 100, maximum: 100 },
           },
         },
         ...[-4, 0, 4].map((x, i) =>
           box(`Target ${i + 1}`, [x, 1, -10], [1, 2, 0.3], [0.8, 0.25, 0.2], {
-            Health: { current: 50, max: 50 },
+            Health: { current: 50, maximum: 50 },
             Script: { source: 'function on_death() log("Target down") end', props: {} },
           }),
         ),
@@ -112,9 +121,9 @@ export const sceneTemplates: SceneTemplate[] = [
             Renderable: { mesh: 98, material: 0, visible: true },
             Player: {},
             Vehicle: { archetype: 0 },
-            CameraFollow: { offset: { x: 0, y: 3, z: 8 } },
           },
         },
+        followCamera({ x: 0, y: 3, z: 8 }),
         ...Array.from({ length: 12 }, (_, i) => {
           const a = (i / 12) * Math.PI * 2;
           return box(`Barrier ${i + 1}`, [Math.cos(a) * 45, 1, Math.sin(a) * 45], [10, 2, 0.6], [0.85, 0.85, 0.85], {
@@ -148,7 +157,84 @@ export const sceneTemplates: SceneTemplate[] = [
             RigidBody: { mass: 70, dynamic: true },
             Collider: { type: "AABB" },
             CharacterController: { mode: "ThirdPerson" },
-            CameraFollow: { offset: { x: 0, y: 3, z: 6 }, orbit: true },
+          },
+        },
+        followCamera({ x: 0, y: 3, z: 6 }, { orbit: true }),
+      ],
+    },
+  },
+  {
+    id: "dojo",
+    name: "Martial-arts dojo",
+    description: "Hand-to-hand combat: you against two AI fighters, with combos, kicks, specials, dodges, blocks and parries.",
+    scene: {
+      format: 1,
+      name: "Dojo",
+      entities: [
+        { name: "Environment", components: { Environment: { sky: "Procedural", shadows: true, sunElevation: 32, sunAzimuth: 120 } } },
+        box("Floor", [0, -0.5, 0], [24, 1, 24], [0.55, 0.4, 0.26], fixed),
+        { name: "Mat", components: { ...at(0, 0.03, 0), ...size(12, 0.06, 12), ...fixed, Renderable: { mesh: 0, material: 0, visible: true }, ...color(0.7, 0.15, 0.12) } },
+        ...[
+          [-12, 0, 0, 24],
+          [12, 0, 0, 24],
+          [0, -12, 24, 0],
+          [0, 12, 24, 0],
+        ].map(([x, z, w, d], i) => box(`Wall ${i + 1}`, [x!, 1, z!], [w ? w : 0.4, 2, d ? d : 0.4], [0.82, 0.76, 0.62])),
+        ...[
+          [-6.5, -6.5],
+          [6.5, -6.5],
+          [-6.5, 6.5],
+          [6.5, 6.5],
+        ].map(([x, z], i) => box(`Pillar ${i + 1}`, [x!, 1.5, z!], [0.5, 3, 0.5], [0.35, 0.12, 0.08])),
+        box("Training Dummy", [-4, 0.9, 3], [0.6, 1.8, 0.6], [0.75, 0.6, 0.4], {
+          Health: { current: 9999, maximum: 9999 },
+          Script: { source: "function on_damaged(amount) world.heal(self.id, amount) end", props: {} },
+        }),
+        {
+          name: "Player",
+          components: {
+            ...at(0, 0.9, 4),
+            ...size(0.6, 1.8, 0.6),
+            // Facing the opponents (-z).
+            Rotation: { euler: { x: 0, y: Math.PI, z: 0 } },
+            Renderable: { mesh: 132, material: 0, visible: true },
+            Player: {},
+            RigidBody: { mass: 70, dynamic: true },
+            Collider: { type: "AABB" },
+            CharacterController: { mode: "ThirdPerson" },
+            Health: { current: 200, maximum: 200 },
+            Melee: { team: 0, ai: false, energy: 40 },
+          },
+        },
+        // The offset turns with the Player: -z is behind one facing -z.
+        followCamera({ x: 0, y: 1.9, z: -4.2 }, { orbit: true, lookHeight: 1.1 }),
+        ...[
+          { name: "Sparring Partner", x: -2.5, aggression: 0.45, skill: 0.3 },
+          { name: "Sensei", x: 2.5, aggression: 0.7, skill: 0.75 },
+        ].map(({ name, x, aggression, skill }) => ({
+          name,
+          components: {
+            ...at(x, 0.9, -3),
+            ...size(0.6, 1.8, 0.6),
+            Rotation: { euler: { x: 0, y: Math.PI, z: 0 } },
+            Renderable: { mesh: 175, material: 0, visible: true },
+            RigidBody: { mass: 70, dynamic: true },
+            Collider: { type: "AABB" },
+            Health: { current: 120, maximum: 120 },
+            Melee: { team: 1, ai: true, aggression, skill },
+          },
+        })),
+        {
+          name: "Controls",
+          components: {
+            UI: {
+              text: "J / click punch · K / right-click heavy · F kick · Q special (+W, +S, S then W) · X dodge · R block · T lock on · Shift run",
+              anchor: "bottom-center",
+              offsetY: -16,
+              fontSize: 14,
+              color: { x: 1, y: 1, z: 1 },
+              opacity: 0.8,
+            },
           },
         },
       ],

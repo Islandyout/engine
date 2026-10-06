@@ -15,6 +15,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `on_damaged(amount: number, attacker: integer?)` | This entity was hurt. |
 | `on_death(attacker: integer?)` | Health reached 0. |
 | `on_kill(victim: integer)` | This entity defeated another. |
+| `on_melee_hit(target: integer, move: string, damage: number, outcome: string)` | This fighter's blow met someone: hit, blocked, parried, dodged or guard_break. |
 | `on_collision_enter(other: integer)` | Started touching (also _stay, _exit). |
 | `on_trigger_enter(other: integer)` | Something entered this trigger (also _stay, _exit). |
 | `on_anim_state(state: string)` | The Animator entered a state. |
@@ -150,6 +151,18 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 |---|---|
 | `particles.burst(count: integer)` | A burst from this entity's emitter. |
 | `particles.set_emitting(on: boolean)` | Starts or stops this entity's emitter. |
+
+## melee
+
+| Function | What it does |
+|---|---|
+| `melee.perform(move: string): boolean` | Starts a move of this fighter's Melee list by name (when it can act). |
+| `melee.state(): string, integer, number, number, number` | Mode (idle, move, block, stun, airborne, down, getup, dead), combo, energy, energy max, guard 0-1. |
+| `melee.move(): string` | The move playing, or "". |
+| `melee.set_energy(amount: number)` | Sets its energy (specials spend it). |
+| `melee.lock(id?: integer)` | Locks onto a target; no argument releases. |
+| `melee.target(): integer?` | Who it faces and fights. |
+| `melee.set_ai(on: boolean, aggression?: number, skill?: number)` | Hands the fighter to (or takes it from) its melee brain. |
 
 ## weapon
 

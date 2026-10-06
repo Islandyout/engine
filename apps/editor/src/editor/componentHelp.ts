@@ -29,7 +29,8 @@ export const componentHelp: Record<string, string> = {
   Animator: "A state machine that picks clips: states, transitions on triggers or the clip's end, and events.",
   CameraFollow: "A third-person camera rig that follows a target, with smoothing, collision and orbit.",
   CharacterController: "First- or third-person walking: speeds, jump, crouch, step height and look.",
-  Weapons: "Guns and melee the entity carries.",
+  Weapons: "Guns the entity carries.",
+  Melee: "Martial-arts fighting: punch and kick combos, specials, dodges, blocks and parries, for the Player or an AI fighter.",
   AICombat: "A soldier brain: patrol, guard or hunt; sight, hearing, cover and accuracy.",
   Driver: "An AI driver that races a route, pursues a target or drives in traffic.",
   ModelInstances: "Many copies of catalog models placed cheaply (forests, rocks): one line per copy.",
@@ -62,6 +63,11 @@ export const fieldHelp: Record<string, string> = {
   "AICombat.patrol": "Entity names to walk between, comma-separated.",
   "CameraFollow.target": "The name of the entity to follow; empty follows the Player.",
   "Weapons.loadout": "One weapon per line: name: key=value ... (damage, rate, range, magazine, ...).",
+  "Melee.style": "Martial arts and Sword are built-in move lists; Custom uses the Moves text below.",
+  "Melee.moves":
+    "One move per line: name: clip=... input=light|heavy|kick|special|dodge after=a|b seq=bf dur= hit=a-b cancel= dmg= reach= knock= launch= stun= lunge= cost= ... (see docs/COMBAT.md).",
+  "Melee.aggression": "How often an AI fighter attacks.",
+  "Melee.skill": "How often an AI fighter blocks, parries and dodges, and how long its combos run.",
   "Collider.mask": "Which layers this collides with, as a bitmask (4294967295 = all).",
   "Material.parts": "Only tint the model's parts with these names, e.g. TunicCloth,MantleCloth.",
   "Script.source":

@@ -50,6 +50,12 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "callbacks"
   },
   {
+    "name": "on_melee_hit",
+    "signature": "on_melee_hit(target: integer, move: string, damage: number, outcome: string)",
+    "doc": "This fighter's blow met someone: hit, blocked, parried, dodged or guard_break.",
+    "group": "callbacks"
+  },
+  {
     "name": "on_collision_enter",
     "signature": "on_collision_enter(other: integer)",
     "doc": "Started touching (also _stay, _exit).",
@@ -456,6 +462,48 @@ export const scriptApi: ScriptApiEntry[] = [
     "signature": "particles.set_emitting(on: boolean)",
     "doc": "Starts or stops this entity's emitter.",
     "group": "particles"
+  },
+  {
+    "name": "melee.perform",
+    "signature": "melee.perform(move: string): boolean",
+    "doc": "Starts a move of this fighter's Melee list by name (when it can act).",
+    "group": "melee"
+  },
+  {
+    "name": "melee.state",
+    "signature": "melee.state(): string, integer, number, number, number",
+    "doc": "Mode (idle, move, block, stun, airborne, down, getup, dead), combo, energy, energy max, guard 0-1.",
+    "group": "melee"
+  },
+  {
+    "name": "melee.move",
+    "signature": "melee.move(): string",
+    "doc": "The move playing, or \"\".",
+    "group": "melee"
+  },
+  {
+    "name": "melee.set_energy",
+    "signature": "melee.set_energy(amount: number)",
+    "doc": "Sets its energy (specials spend it).",
+    "group": "melee"
+  },
+  {
+    "name": "melee.lock",
+    "signature": "melee.lock(id?: integer)",
+    "doc": "Locks onto a target; no argument releases.",
+    "group": "melee"
+  },
+  {
+    "name": "melee.target",
+    "signature": "melee.target(): integer?",
+    "doc": "Who it faces and fights.",
+    "group": "melee"
+  },
+  {
+    "name": "melee.set_ai",
+    "signature": "melee.set_ai(on: boolean, aggression?: number, skill?: number)",
+    "doc": "Hands the fighter to (or takes it from) its melee brain.",
+    "group": "melee"
   },
   {
     "name": "weapon.fire",

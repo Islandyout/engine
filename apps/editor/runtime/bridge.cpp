@@ -688,6 +688,9 @@ EXPORT std::uintptr_t editor_snapshot() {
         if (const auto *soldier = active->world.get<Soldier>(entity)) {
             row[4] = soldier->yaw;
             row[5] += 1;
+        } else if (const auto *fighter = active->world.get<Fighter>(entity)) {
+            row[4] = fighter->yaw; // faces where it fights (bridge_melee.cpp)
+            row[5] += 1;
         } else if (heading)
             row[4] = heading->yaw;
         if (heading && heading->arcade)

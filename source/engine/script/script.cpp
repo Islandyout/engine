@@ -643,6 +643,51 @@ struct LuaApi final {
         return weapon_call(L, "give_ammo",
                            {static_cast<double>(luaL_checkinteger(L, 1)), static_cast<double>(luaL_optinteger(L, 2, 0) - 1)});
     }
+    // melee.*(...) on this entity: see Host::melee.
+    static int melee_call(lua_State *L, const char *op, std::vector<double> args, const std::string &text = {},
+                          std::optional<Entity> other = std::nullopt) {
+        auto &self = runtime(L);
+        std::vector<double> out;
+        std::string text_out;
+        std::optional<Entity> other_out;
+        if (!self.host_ || !self.world_ ||
+            !self.host_->melee(*self.world_, self_entity(L), op, args, text, other, out, text_out, other_out))
+            return lua_pushnil(L), 1;
+        if (std::string_view(op) == "perform")
+            return lua_pushboolean(L, !out.empty() && out[0] != 0), 1;
+        if (std::string_view(op) == "target") {
+            if (other_out)
+                lua_pushinteger(L, self.id_of(*other_out));
+            else
+                lua_pushnil(L);
+            return 1;
+        }
+        int count = 0;
+        if (!text_out.empty() || std::string_view(op) == "state" || std::string_view(op) == "move") {
+            lua_pushstring(L, text_out.c_str());
+            ++count;
+        }
+        for (const double value : out) {
+            lua_pushnumber(L, value);
+            ++count;
+        }
+        return count;
+    }
+    // melee.perform(name) -> started
+    static int melee_perform(lua_State *L) { return melee_call(L, "perform", {}, luaL_checkstring(L, 1)); }
+    // melee.state() -> mode, combo, energy, energy max, guard
+    static int melee_state(lua_State *L) { return melee_call(L, "state", {}); }
+    // melee.move() -> the current move's name ("" when none)
+    static int melee_move(lua_State *L) { return melee_call(L, "move", {}); }
+    static int melee_set_energy(lua_State *L) { return melee_call(L, "set_energy", {number_arg(L, 1)}); }
+    // melee.lock(id) / melee.lock() releases
+    static int melee_lock(lua_State *L) { return melee_call(L, "lock", {}, {}, entity_arg(L, 1)); }
+    static int melee_target(lua_State *L) { return melee_call(L, "target", {}); }
+    // melee.set_ai(on, aggression?, skill?)
+    static int melee_set_ai(lua_State *L) {
+        return melee_call(L, "set_ai",
+                          {lua_toboolean(L, 1) ? 1.0 : 0.0, number_arg(L, 2, -1.0F), number_arg(L, 3, -1.0F)});
+    }
     // vehicle.*(id, ...): see Host::vehicle.
     static int vehicle_call(lua_State *L, const char *op, std::vector<double> args, const std::string &text = {},
                             std::optional<Entity> other = std::nullopt) {
@@ -1150,6 +1195,14 @@ struct LuaApi final {
                {"body", space_body},
                {"call", space_generic}});
         table(L, self, "particles", {{"burst", particles_burst}, {"set_emitting", particles_emitting}});
+        table(L, self, "melee",
+              {{"perform", melee_perform},
+               {"state", melee_state},
+               {"move", melee_move},
+               {"set_energy", melee_set_energy},
+               {"lock", melee_lock},
+               {"target", melee_target},
+               {"set_ai", melee_set_ai}});
         table(L, self, "weapon",
               {{"fire", weapon_fire},
                {"reload", weapon_reload},
@@ -1350,6 +1403,24 @@ void Runtime::notify(World &world, Entity entity, const std::string &function_na
         return;
     call(world, entity, *found->second, function_name.c_str(),
          [&argument](lua_State *L) { lua_pushlstring(L, argument.data(), argument.size()); }, 1);
+}
+
+void Runtime::notify_melee_hit(World &world, Entity attacker, Entity target, const std::string &move, float damage,
+                               const std::string &outcome, const std::string &target_name) {
+    (void)target_name;
+    world_ = &world;
+    const auto found = instances_.find(attacker);
+    if (found == instances_.end() || !found->second || !found->second->started)
+        return;
+    const auto target_id = id_of(target);
+    call(world, attacker, *found->second, "on_melee_hit",
+         [&](lua_State *L) {
+             lua_pushinteger(L, target_id);
+             lua_pushstring(L, move.c_str());
+             lua_pushnumber(L, damage);
+             lua_pushstring(L, outcome.c_str());
+         },
+         4);
 }
 
 void Runtime::notify_damage(World &world, Entity entity, float amount, std::optional<Entity> attacker, bool headshot,

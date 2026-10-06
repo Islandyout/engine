@@ -17,6 +17,7 @@ import type {
   CharacterControllerComponent,
   WeaponsComponent,
   AICombatComponent,
+  MeleeComponent,
   DriverComponent,
   ModelInstancesComponent,
   SpaceSystemComponent,
@@ -79,6 +80,7 @@ export interface SceneComponents {
   CharacterController: CharacterControllerComponent;
   Weapons: WeaponsComponent;
   AICombat: AICombatComponent;
+  Melee: MeleeComponent;
   Driver: DriverComponent;
   ModelInstances: ModelInstancesComponent;
   SpaceSystem: SpaceSystemComponent;
@@ -129,6 +131,7 @@ export const prefabableComponentNames = [
   "CharacterController",
   "Weapons",
   "AICombat",
+  "Melee",
   "Terrain",
   "Driver",
   "ModelInstances",
@@ -200,6 +203,7 @@ export class Scene {
     CharacterController: new Map(),
     Weapons: new Map(),
     AICombat: new Map(),
+    Melee: new Map(),
     Driver: new Map(),
     ModelInstances: new Map(),
     SpaceSystem: new Map(),

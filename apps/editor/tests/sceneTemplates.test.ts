@@ -24,3 +24,31 @@ test("every template loads, and none has content problems", () => {
   const players = sceneTemplates.filter((t) => t.scene.entities.some((e) => "Player" in e.components));
   assert.equal(players.length, sceneTemplates.length - 1, "every starter but the empty one has a player");
 });
+
+test("templates use real component fields, cameras that follow, and nothing solid below the ground plane", async () => {
+  const { defaultComponent } = await import("../src/authoring/CommandInterpreter");
+  const plain = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+  for (const template of sceneTemplates)
+    for (const entity of template.scene.entities) {
+      const components = entity.components as Record<string, unknown>;
+      for (const [type, value] of Object.entries(components)) {
+        let base: unknown;
+        try {
+          base = defaultComponent(type as never);
+        } catch {
+          continue;
+        }
+        // A misspelt field (Health.max for maximum) would load silently and do nothing.
+        if (plain(base) && plain(value)) for (const key of Object.keys(value)) assert.ok(key in base, `${template.id} / ${entity.name}: ${type}.${key}`);
+      }
+      // CameraFollow only steers an entity that has a Camera.
+      if (components.CameraFollow) assert.ok(components.Camera, `${template.id} / ${entity.name}: CameraFollow without a Camera`);
+      // Every entity is a body unless kinematic, and a body below y = 0 is
+      // lifted onto the ground plane on the first tick, shoving whatever
+      // stands on it (0.78.0: the starters' ground did exactly that).
+      const position = (components.Transform as { position: { y: number } } | undefined)?.position.y ?? 0;
+      const height = (components.Scale as { value: { y: number } } | undefined)?.value.y ?? 1;
+      const kinematic = (components.RigidBody as { dynamic?: boolean } | undefined)?.dynamic === false;
+      if (components.Collider && !kinematic) assert.ok(position - height / 2 > -0.01, `${template.id} / ${entity.name} starts below the ground`);
+    }
+});

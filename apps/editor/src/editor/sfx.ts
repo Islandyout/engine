@@ -180,4 +180,49 @@ export class Sfx {
     this.burst(t, "lowpass", 400, 0.5 * volume, 0.2);
     this.tone(t, "sine", 110, 60, 0.4 * volume, 0.25);
   }
+
+  // Melee (0.78.0): air cut by a fast limb, heavier and lower for big moves.
+  whoosh(heavy = false, volume = 1) {
+    const t = this.now;
+    this.burst(t, "bandpass", heavy ? 700 : 1300, (heavy ? 0.22 : 0.14) * volume, heavy ? 0.26 : 0.16, 1.4);
+    this.burst(t + 0.03, "bandpass", heavy ? 1100 : 2100, 0.08 * volume, 0.12, 2);
+  }
+
+  // A blow landing on a body: a dull thud, a sharper slap on top, and a low
+  // boom for heavy hits.
+  punch(heavy = false, volume = 1) {
+    const t = this.now;
+    this.burst(t, "lowpass", heavy ? 380 : 520, (heavy ? 0.9 : 0.6) * volume, heavy ? 0.2 : 0.11);
+    this.burst(t, "bandpass", 1800 + Math.random() * 600, 0.28 * volume, 0.035, 1.5);
+    this.tone(t, "sine", heavy ? 95 : 140, heavy ? 40 : 70, (heavy ? 0.7 : 0.35) * volume, heavy ? 0.28 : 0.14);
+  }
+
+  // Forearms meeting a blow.
+  block(volume = 1) {
+    const t = this.now;
+    this.burst(t, "bandpass", 900, 0.45 * volume, 0.06, 1.2);
+    this.tone(t, "triangle", 320, 220, 0.12 * volume, 0.08);
+  }
+
+  // A perfect parry: a bright ring.
+  parry(volume = 1) {
+    const t = this.now;
+    this.burst(t, "highpass", 4000, 0.25 * volume, 0.05);
+    this.tone(t, "sine", 1760, 1700, 0.3 * volume, 0.5);
+    this.tone(t, "sine", 2637, 2600, 0.18 * volume, 0.45);
+  }
+
+  // A body hitting the floor.
+  bodyFall(volume = 1) {
+    const t = this.now;
+    this.burst(t, "lowpass", 260, 0.9 * volume, 0.3);
+    this.tone(t, "sine", 70, 35, 0.5 * volume, 0.3);
+  }
+
+  // An energy blast leaving the hands.
+  energy(volume = 1) {
+    const t = this.now;
+    this.tone(t, "sawtooth", 220, 880, 0.12 * volume, 0.25);
+    this.burst(t, "bandpass", 2500, 0.2 * volume, 0.3, 3);
+  }
 }

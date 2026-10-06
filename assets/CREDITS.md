@@ -348,3 +348,59 @@ Each pack's own `addons/*/License.txt` (by Quaternius) grants CC0 1.0 Universal.
   head crest, all skinned to the same bones. The added geometry is generated
   by the script, and the result is CC0 like its source.
   SHA-256 `bdb2bb3b993b892afb425442b2ded47ea47b68ff5bec2f555aa8ce08fe177596`.
+
+## Combat clip library (0.78.0)
+
+`assets/source/kit/people/combat_clips.glb` holds a bare copy of Mannequin F's
+65-bone Quaternius skeleton (no mesh) and 55 martial-arts animation clips, built
+by `tools/models/import_combat_clips.mjs`. The editor binds them by bone name to
+any model on that skeleton (Mannequin F, the Talari) when it has a Melee component.
+
+Sources:
+
+- **Quaternius, Universal Animation Library (UAL1, Standard tier) and Universal
+  Animation Library 2 (UAL2, Source tier and its root-motion export)**,
+  CC0 1.0 Universal (`License.txt` in each pack; https://quaternius.com). Taken
+  from the copies in the public repository https://github.com/Arod231/monomachia
+  @ `9a345c4ed12f73186efc7c29d47237ed07ca4bac`
+  (`game/assets/quaternius/animations/UAL1_Standard.glb`, `UAL2_Source.glb`,
+  `UAL2_Source_RM.glb`; that repository's own `game/assets/CREDITS.md` records
+  the packs and their CC0 licence). Source SHA-256:
+  - `UAL1_Standard.glb`: `69591853d817488edaa8fd9bf8fc1d821eaeaf789f8627b3cd23b41c4ed67997`
+  - `UAL2_Source.glb`: `ad3ae049c7d3d4846133b59dba6218fdabebe05d3aec646caef6665f6c540684`
+  - `UAL2_Source_RM.glb`: `a295ddb1fe171ed225517e88aa1baeaa3939cd00c775b39c75745c3e6a57060d`
+
+  Used: the punches, hook, uppercut, knee, combo, hit reactions, knockback,
+  launch/air/fall/get-up/kip-up, death, roll, slide, flip, jumps, 180° turns, the
+  four walk directions (strafing), the sword block, shield break, shoulder dash,
+  transformation, ground pound, rising strike, dash strike, throw, spell cast and
+  the sword light/heavy sets, renamed for this engine. Each strike is joined to its
+  `_Rec` recovery. Scale tracks and bone translations below the pelvis are
+  dropped, and values are rounded to 5 decimals. `guard` is the jab's first
+  frame held still. The root-motion export is only measured, for each clip's
+  travel; it isn't shipped.
+
+- **CMU Graphics Lab Motion Capture Database** (http://mocap.cs.cmu.edu), in
+  Bruce Hahne's BVH conversion, from the public mirror
+  https://github.com/una-dinosauria/cmu-mocap @
+  `09a07f54f3bbb58797325f009282d0b2048a2871`. The data is free for use in
+  research and commercial projects worldwide (CMU), with no further restrictions
+  on the conversion (READMEFIRST.txt). "The data used in this project was obtained
+  from mocap.cs.cmu.edu. The database was created with funding from NSF
+  EIA-0196217."
+
+  Used, from subject 135 (martial arts):
+  - `135_04` (front kick), `135_07` (roundhouse) and `135_11` (side kick): one
+    right- and one left-leg kick each, cut from the kicking foot leaving the floor
+    to it landing (0.25 s / 0.3 s padding), found by foot height;
+  - `135_10` (knife-hand block): 1.75-2.45 s.
+
+  Each cut is turned so its strike points ahead, made to play in place (the hips'
+  straight-line travel removed and measured), and retargeted onto the skeleton.
+  The retarget transfers each bone's world-space rotation from rest, with a
+  per-bone rest-pose alignment (CMU's rest legs splay outward), and scales the
+  hips by leg length. It is resampled at 30 fps.
+
+Combat clip library SHA-256:
+
+- `assets/source/kit/people/combat_clips.glb`: `f7eb7aed6b2aa2a1647324796463d34a98e88d0be9bfe9b3479332b234616009`

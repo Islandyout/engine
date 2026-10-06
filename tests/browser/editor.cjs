@@ -1402,6 +1402,36 @@ const { chromium } = require("playwright");
     await page.screenshot({ path: "build/browser-evidence/f50-play.png" });
     await page.click("#stop");
 
+    // Melee (0.78.0): the Martial-arts dojo starter fights. The Player keeps
+    // its ground (starter grounds used to fling it), gets the fighter HUD,
+    // locks on and lands a punch.
+    if (!process.env.EDITOR_NO_WEBGL) {
+      await page.click("#new");
+      page.once("dialog", (dialog) => dialog.accept());
+      await page.click('[aria-label="Martial-arts dojo"]');
+      await page.click("#play");
+      await page.waitForFunction(() => /Health \d+%, energy \d+%/.test(document.querySelector("#hud-text").textContent), null, { timeout: 30000 });
+      const energy = () => page.evaluate(() => Number(document.querySelector("#hud-text").textContent.match(/energy (\d+)%/)[1]));
+      const startEnergy = await energy();
+      await page.keyboard.press("t");
+      await page.waitForFunction(() => document.querySelector("#hud-text").textContent.includes("Locked on"));
+      const at = await page.evaluate(() => document.querySelector("#status").textContent.match(/Player \((-?[\d.]+), (-?[\d.]+), (-?[\d.]+)\)/).slice(1).map(Number));
+      assert.ok(Math.abs(at[0]) < 11 && Math.abs(at[2]) < 11 && Math.abs(at[1] - 0.9) < 0.3, `player stays in the dojo: ${at}`);
+      await page.keyboard.down("w");
+      await page.waitForTimeout(700);
+      await page.keyboard.up("w");
+      // Punch until a blow lands (landed or blocked blows build energy).
+      let landed = false;
+      for (let i = 0; i < 80 && !landed; i++) {
+        await page.keyboard.press("j");
+        await page.waitForTimeout(150);
+        landed = (await energy()) > startEnergy;
+      }
+      assert.ok(landed, `a punch lands (energy ${await energy()}% from ${startEnergy}%)`);
+      await page.screenshot({ path: "build/browser-evidence/dojo.png" });
+      await page.click("#stop");
+    }
+
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -1411,7 +1441,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), a CameraFollow rig with shake, keyboard/mouse input through native actions, and interactive UI (script Button, Toggle, Slider, Bar), shaped/world-space particles with bursts plus a Trail, and asset import (model/image/sound, IndexedDB) with the Stats overlay passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), a CameraFollow rig with shake, keyboard/mouse input through native actions, and interactive UI (script Button, Toggle, Slider, Bar), shaped/world-space particles with bursts plus a Trail, and asset import (model/image/sound, IndexedDB) with the Stats overlay, and the Martial-arts dojo (fighter HUD, lock-on, a landed punch) passed.",
     );
   } catch (error) {
     await saveFailure("editor", error, browser);

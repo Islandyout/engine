@@ -148,11 +148,27 @@ First- or third-person walking: speeds, jump, crouch, step height and look.
 
 ### Weapons
 
-Guns and melee the entity carries.
+Guns the entity carries.
 
 | Field | Default | Notes |
 |---|---|---|
 | `loadout` | "rifle: model=rifle mode=auto rpm=620 da… | Loadout (name: key=value ...). One weapon per line: name: key=value ... (damage, rate, range, magazine, ...). |
+
+### Melee
+
+Martial-arts fighting: punch and kick combos, specials, dodges, blocks and parries, for the Player or an AI fighter.
+
+| Field | Default | Notes |
+|---|---|---|
+| `style` | "Martial arts" | Martial arts and Sword are built-in move lists; Custom uses the Moves text below.. one of Martial arts, Sword, Custom |
+| `moves` | "# Punches (light): jab, cross, hook, up… | Moves (Custom style; name: key=value ...). One move per line: name: clip=... input=light\|heavy\|kick\|special\|dodge after=a\|b seq=bf dur= hit=a-b cancel= dmg= reach= knock= launch= stun= lunge= cost= ... (see docs/COMBAT.md). |
+| `team` | 1 | Team (Player is 0) |
+| `ai` | true | AI fighter (not the Player) |
+| `aggression` | 0.5 | Aggression (0-1). How often an AI fighter attacks. |
+| `skill` | 0.5 | Skill (0-1). How often an AI fighter blocks, parries and dodges, and how long its combos run. |
+| `reaction` | 0.25 | Reaction time (seconds) |
+| `energy` | 0 | Starting energy (0-100) |
+| `guard` | 60 | Guard |
 
 ### Vehicle
 

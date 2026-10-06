@@ -133,6 +133,27 @@ public:
         (void)text_out;
         return false;
     }
+    // Melee (0.78.0), for the Lua `melee` table on the running entity: `op`
+    // is "perform" (text: a move name; out: 1 started, 0 not), "state"
+    // (text_out: the mode; out: combo, energy, energy max, guard 0..1),
+    // "move" (text_out: the current move, "" none), "set_energy" (args:
+    // amount), "lock" (other: the entity, none to release), "target"
+    // (other_out: who it fights) and "set_ai" (args: 1/0, aggression, skill).
+    // Returns false when `self` isn't a fighter. The default host has none.
+    virtual bool melee(World &world, Entity self, const std::string &op, const std::vector<double> &args,
+                       const std::string &text, std::optional<Entity> other, std::vector<double> &out,
+                       std::string &text_out, std::optional<Entity> &other_out) {
+        (void)world;
+        (void)self;
+        (void)op;
+        (void)args;
+        (void)text;
+        (void)other;
+        (void)out;
+        (void)text_out;
+        (void)other_out;
+        return false;
+    }
 };
 
 // Owns one Lua VM per (Box, physics::RigidBody, Script) entity, created the
@@ -346,6 +367,11 @@ public:
     // script.
     void notify_damage(World &world, Entity entity, float amount, std::optional<Entity> attacker, bool headshot,
                        bool killed, const std::string &victim_name, const std::string &attacker_name);
+    // Calls on_melee_hit(target, move, damage, outcome) in the attacker's
+    // script (0.78.0): outcome is "hit", "blocked", "parried", "dodged" or
+    // "guard_break".
+    void notify_melee_hit(World &world, Entity attacker, Entity target, const std::string &move, float damage,
+                          const std::string &outcome, const std::string &target_name);
     // Seconds of simulated time this Runtime has stepped (`time.now`).
     [[nodiscard]] double now() const { return now_; }
     // Queues a one-shot animation request for `entity`, exactly as if that
