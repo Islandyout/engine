@@ -180,7 +180,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 
 | Function | What it does |
 |---|---|
-| `input.down(key: string): boolean` | A key held this tick (KeyW, Space, ...). |
+| `input.down(key: string): boolean` | A key held this tick, by its code (KeyW, Space, Enter) or its lowercase name (w, enter). |
 | `input.pressed(key: string): boolean` | A key pressed this tick. |
 | `input.action(name: string): number` | An action's value (axes -1..1, buttons 0/1). |
 | `input.action_down(name: string): boolean` | An action held. |

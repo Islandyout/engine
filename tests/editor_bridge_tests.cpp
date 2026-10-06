@@ -881,6 +881,16 @@ int main() {
     check(editor_value(0, 0) > 0.4); // moved from spawn under its own script, no input at all
     check(std::string(editor_script_error(0)).empty()); // a working script reports no error
 
+    // A bodiless entity (is_child, e.g. a director with no model) still runs its script and can
+    // read and move itself.
+    editor_begin();
+    check(editor_add(1, 2, 3, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+    editor_set_script_source(0, "function on_tick(dt) if self.vx == 0 then self.x = self.x + 1 end end");
+    check(editor_commit() == 1);
+    editor_tick();
+    check(std::string(editor_script_error(0)).empty());
+    check(std::abs(editor_value(0, 0) - 2) < 1e-6);
+
     // A script that fails to compile is surfaced through editor_script_error instead of being a
     // silently inert entity with no visible cause — the whole point of exposing it at all.
     editor_begin();

@@ -27,7 +27,7 @@ export const combatClipsPath = "./kit/people/combat_clips.glb";
 // The simulation's fighter modes and hit kinds (engine::gameplay).
 export const FighterMode = { idle: 0, move: 1, block: 2, stun: 3, airborne: 4, down: 5, getup: 6, dead: 7 } as const;
 export const StunKind = { none: 0, light: 1, heavy: 2, launched: 3, knockdown: 4, guardBreak: 5, parried: 6 } as const;
-export const MeleeEvent = { start: 0, hit: 1, blocked: 2, parried: 3, dodged: 4, guardBreak: 5, fire: 6, land: 7, ko: 8 } as const;
+export const MeleeEvent = { start: 0, hit: 1, blocked: 2, parried: 3, dodged: 4, guardBreak: 5, fire: 6, land: 7, ko: 8, broken: 9 } as const;
 export const MeleeFlag = { finisher: 1, launch: 2, knockdown: 4, heavy: 8, killed: 16 } as const;
 
 // What the view reads from the runtime.
@@ -115,6 +115,16 @@ interface Fighter {
   trail: TrailPoint[];
   trailMesh: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
   dead: boolean;
+  // Foot planting: its foot and toe bones, the model's own height and where
+  // its lowest foot stands at rest (model units), and the lift applied.
+  feet: THREE.Object3D[];
+  baseY: number;
+  restFoot: number;
+  lift: number;
+  grounded: boolean;
+  // Its attacks' tells (GATEBREAKER M1): a glint before the blow, red for
+  // unblockable, a ground circle for an area attack.
+  tell: { ring?: THREE.Mesh<THREE.CircleGeometry, THREE.MeshBasicMaterial>; glint: number; glinted: boolean; red: boolean; serial: number; base: number };
 }
 
 interface Spark {
@@ -136,6 +146,14 @@ const maxSparks = 400;
 const trailLife = 0.16;
 const fade = 0.1; // seconds between poses
 const scratch = new THREE.Vector3();
+
+function collectFeet(object: THREE.Object3D): THREE.Object3D[] {
+  const feet: THREE.Object3D[] = [];
+  object.traverse((node) => {
+    if ((node as THREE.Bone).isBone && /foot|toe/i.test(node.name)) feet.push(node);
+  });
+  return feet;
+}
 
 function glowTexture(): THREE.Texture {
   const canvas = document.createElement("canvas");
@@ -254,6 +272,12 @@ export class CombatView {
       trail: [],
       trailMesh,
       dead: false,
+      feet: collectFeet(object),
+      baseY: object.position.y,
+      restFoot: typeof object.userData.restFoot === "number" ? object.userData.restFoot : NaN,
+      lift: 0,
+      grounded: true,
+      tell: { glint: 0, glinted: false, red: false, serial: -1, base: 0 },
     });
   }
 
@@ -398,6 +422,7 @@ export class CombatView {
         // The fighter's right is -x in its own frame (it faces +z).
         const right = -(velocity.x * Math.cos(yaw) - velocity.z * Math.sin(yaw));
         const grounded = Math.abs(verticalSpeed) < 1.5;
+        fighter.grounded = grounded;
         const stance = pickStance(mode, speed, verticalSpeed, grounded, forward, right);
         if (stance.lower) {
           const legs = fighter.lower.get(stance.clip);
@@ -490,7 +515,8 @@ export class CombatView {
         case MeleeEvent.dodged:
           // A perfect dodge: the Player slips a blow in its i-frames.
           if (target === player) {
-            this.slow(0.45, 0.35);
+            // A perfect dodge: time slows for 1.5 s, the window for Shadow Step.
+            this.slow(0.4, 1.5);
             this.comic.hit("dodge", objects[player]?.position.clone().add(new THREE.Vector3(0, 1.2, 0)) ?? point);
             host.sound(point)?.whoosh(false, 0.5);
           }
@@ -501,6 +527,14 @@ export class CombatView {
           this.impact(point, 1.4, new THREE.Color(0.7, 0.85, 1));
           host.sound(point)?.punch(true);
           if (involved) host.shake(0.08, 0.25);
+          break;
+        case MeleeEvent.broken:
+          // A Break: the elite or boss is floored and takes bonus damage.
+          this.comic.hit("break", point);
+          this.ring(point, new THREE.Color(1, 0.8, 0.2), 2.2);
+          this.slow(0.3, 0.6);
+          host.shake(0.1, 0.3);
+          host.sound(point)?.punch(true);
           break;
         case MeleeEvent.fire:
           this.ring(point, new THREE.Color(0.5, 0.8, 1), 0.8);
@@ -514,6 +548,32 @@ export class CombatView {
           break;
         }
       }
+    }
+  }
+
+  // After the mixers pose every body: keeps each grounded fighter's lowest
+  // foot on the floor its collider stands on. Clips authored on another
+  // rig carry that rig's hip height, which sinks shorter legs through the
+  // floor (or floats longer ones). In the air nothing is pinned.
+  plant(dt: number) {
+    for (const [index, fighter] of this.fighters) {
+      if (!fighter.feet.length || !Number.isFinite(fighter.restFoot)) continue;
+      const object = fighter.object;
+      const parent = object.parent;
+      if (!parent) continue;
+      object.position.y = fighter.baseY;
+      object.updateMatrixWorld(true);
+      let lowest = Infinity;
+      for (const foot of fighter.feet) lowest = Math.min(lowest, parent.worldToLocal(foot.getWorldPosition(scratch)).y);
+      const mode = this.host.value(index, FighterField.mode);
+      let target = fighter.restFoot - lowest;
+      if (mode === FighterMode.airborne || !fighter.grounded) target = 0;
+      // A kick may leave the floor and a body on its back has its feet up:
+      // those only ever lift out of the floor.
+      else if (mode === FighterMode.move || mode === FighterMode.down || mode === FighterMode.dead || mode === FighterMode.getup) target = Math.max(0, target);
+      // Rising out of the floor is immediate; settling down eases.
+      fighter.lift = target > fighter.lift ? target : fighter.lift + (target - fighter.lift) * (1 - Math.exp(-dt * 12));
+      object.position.y = fighter.baseY + fighter.lift;
     }
   }
 
@@ -561,9 +621,164 @@ export class CombatView {
       geometry.setAttribute("position", new THREE.BufferAttribute(ribbon.positions, 3));
       geometry.setAttribute("fade", new THREE.BufferAttribute(ribbon.fades, 1));
       geometry.setIndex(new THREE.BufferAttribute(ribbon.indices, 1));
+      this.telegraph(index, fighter, mode, realDt);
     }
     this.stepEffects(dt, camera);
     this.comboAge += realDt;
+  }
+
+  // The glint and the red warning, over the enemies winding up.
+  private drawTells(ctx: CanvasRenderingContext2D, height: number, project: (point: THREE.Vector3) => { x: number; y: number } | undefined): string[] {
+    const lines: string[] = [];
+    const scale = height / 720;
+    for (const [, fighter] of this.fighters) {
+      const tell = fighter.tell;
+      if (tell.glint <= 0 && !tell.red) continue;
+      const head = new THREE.Box3().setFromObject(fighter.object).max.y;
+      const anchor = (fighter.object.parent ?? fighter.object).getWorldPosition(new THREE.Vector3());
+      if (tell.glint > 0) {
+        const at = project((fighter.limb ?? fighter.object).getWorldPosition(new THREE.Vector3()));
+        if (at) {
+          // A four-point star that flares and shrinks.
+          const k = tell.glint / 0.3;
+          const r = (10 + 26 * k) * scale;
+          ctx.save();
+          ctx.translate(at.x, at.y);
+          ctx.rotate(0.4);
+          ctx.fillStyle = tell.red ? "rgba(255,80,60,0.95)" : "rgba(255,255,255,0.95)";
+          ctx.shadowColor = tell.red ? "#ff2a1a" : "#bfe6ff";
+          ctx.shadowBlur = 14 * scale;
+          ctx.beginPath();
+          for (let i = 0; i < 8; i++) {
+            const radius = i % 2 === 0 ? r : r * 0.18;
+            const a = (i / 8) * Math.PI * 2;
+            ctx.lineTo(Math.cos(a) * radius, Math.sin(a) * radius);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+      if (tell.red) {
+        const at = project(new THREE.Vector3(anchor.x, (Number.isFinite(head) ? head : anchor.y + 0.9) + 0.35, anchor.z));
+        if (at) {
+          const pulse = 0.75 + 0.25 * Math.sin(performance.now() / 60);
+          ctx.save();
+          ctx.globalAlpha = pulse;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "bottom";
+          ctx.font = `italic 900 ${Math.round(44 * scale)}px Impact, 'Arial Black', system-ui, sans-serif`;
+          ctx.lineWidth = 7 * scale;
+          ctx.strokeStyle = "#08060c";
+          ctx.strokeText("!", at.x, at.y);
+          ctx.fillStyle = "#ff2a1a";
+          ctx.fillText("!", at.x, at.y);
+          ctx.restore();
+          lines.push("Red attack: dodge it");
+        }
+      }
+    }
+    return lines;
+  }
+
+  // Q, E, R and F: the skills and the ultimate, with their cooldowns.
+  private drawSlots(ctx: CanvasRenderingContext2D, width: number, height: number, player: number): string[] {
+    const slots: [string, number][] = [
+      ["Q", FighterField.slotSkill1],
+      ["E", FighterField.slotSkill2],
+      ["R", FighterField.slotSkill3],
+      ["F", FighterField.slotUltimate],
+    ];
+    const states = slots.map(([key, field]) => [key, this.host.value(player, field)] as const).filter(([, v]) => v !== -1);
+    if (!states.length) return [];
+    const scale = height / 720;
+    const size = 46 * scale;
+    const gap = 10 * scale;
+    let x = (width - (states.length * size + (states.length - 1) * gap)) / 2;
+    const y = height - size - 18 * scale;
+    const lines: string[] = [];
+    ctx.save();
+    for (const [key, value] of states) {
+      const ready = value === 0;
+      ctx.fillStyle = "rgba(8,10,20,0.75)";
+      ctx.fillRect(x, y, size, size);
+      ctx.lineWidth = 2 * scale;
+      ctx.strokeStyle = ready ? (key === "F" ? "#ffd84a" : "#7cc4ff") : "rgba(160,170,190,0.6)";
+      ctx.strokeRect(x, y, size, size);
+      if (value > 0) {
+        // The cooldown sweeps away clockwise.
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.beginPath();
+        ctx.moveTo(x + size / 2, y + size / 2);
+        ctx.arc(x + size / 2, y + size / 2, size * 0.7, -Math.PI / 2, -Math.PI / 2 + value * Math.PI * 2);
+        ctx.closePath();
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, size, size);
+        ctx.clip();
+        ctx.beginPath();
+        ctx.moveTo(x + size / 2, y + size / 2);
+        ctx.arc(x + size / 2, y + size / 2, size * 0.7, -Math.PI / 2, -Math.PI / 2 + value * Math.PI * 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `800 ${Math.round(20 * scale)}px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif`;
+      ctx.fillStyle = value === -2 ? "rgba(150,150,160,0.5)" : value === -3 ? "rgba(200,210,230,0.45)" : "#ffffff";
+      ctx.fillText(value === -2 ? "🔒" : key, x + size / 2, y + size / 2);
+      lines.push(`${key}: ${value === -2 ? "locked" : value === -3 ? "not enough" : ready ? "ready" : "cooling down"}`);
+      x += size + gap;
+    }
+    ctx.restore();
+    return [lines.join(", ")];
+  }
+
+  // An enemy's wind-up: the glint just before its blow, red when it can't be
+  // blocked or parried, and a ground circle filling in under an area attack.
+  private telegraph(index: number, fighter: Fighter, mode: number, dt: number) {
+    const host = this.host;
+    const tell = fighter.tell;
+    tell.glint = Math.max(0, tell.glint - dt);
+    const windup = index === host.playerIndex() || mode !== FighterMode.move ? -1 : host.value(index, FighterField.windup);
+    if (windup < 0) {
+      if (tell.ring) tell.ring.visible = false;
+      tell.red = false;
+      return;
+    }
+    if (tell.serial !== fighter.moveSerial) {
+      tell.serial = fighter.moveSerial;
+      tell.base = Math.max(windup, 0.05);
+      tell.glinted = false;
+    }
+    if (!tell.glinted && windup <= 0.22) {
+      tell.glinted = true;
+      tell.glint = 0.3;
+    }
+    tell.red = host.value(index, FighterField.red) === 1;
+    const aoe = host.value(index, FighterField.aoe);
+    if (aoe <= 0) {
+      if (tell.ring) tell.ring.visible = false;
+      return;
+    }
+    if (!tell.ring) {
+      tell.ring = new THREE.Mesh(
+        new THREE.CircleGeometry(1, 48),
+        new THREE.MeshBasicMaterial({ color: 0xff2a1a, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide }),
+      );
+      tell.ring.rotation.x = -Math.PI / 2;
+      tell.ring.renderOrder = 2;
+      this.group.add(tell.ring);
+    }
+    const anchor = fighter.object.parent ?? fighter.object;
+    anchor.getWorldPosition(scratch);
+    const feet = new THREE.Box3().setFromObject(fighter.object).min.y;
+    const filled = 1 - Math.min(1, windup / tell.base);
+    tell.ring.position.set(scratch.x, (Number.isFinite(feet) ? feet : scratch.y - 0.9) + 0.04, scratch.z);
+    tell.ring.scale.setScalar(aoe * (0.35 + 0.65 * filled));
+    tell.ring.material.opacity = 0.18 + 0.42 * filled;
+    tell.ring.visible = true;
   }
 
   // Slows the game to `scale` for `seconds` of real time.
@@ -671,8 +886,9 @@ export class CombatView {
   drawHud(ctx: CanvasRenderingContext2D, width: number, height: number, project: (point: THREE.Vector3) => { x: number; y: number } | undefined, objects: readonly (THREE.Object3D | undefined)[]): string[] {
     const host = this.host;
     this.comic.draw(ctx, width, height, project);
+    const tells = this.drawTells(ctx, height, project);
     const player = host.playerIndex();
-    if (player < 0 || !this.isFighter(player)) return [];
+    if (player < 0 || !this.isFighter(player)) return tells;
     const lines: string[] = [];
     const health = Math.max(0, host.health(player));
     const energy = host.value(player, FighterField.energy);
@@ -691,10 +907,13 @@ export class CombatView {
       ctx.fillStyle = "rgba(255,255,255,0.85)";
       ctx.fillText(label, x + w + 10, top + h / 2);
     };
-    bar(y, 14, health, health > 0.3 ? "#5fd16a" : "#e2483c", "HP");
-    bar(y + 22, 9, energy, energy >= 0.7 ? "#ffd84a" : "#4ab8ff", "ENERGY");
-    bar(y + 37, 6, guard, "#c9d3e6", "GUARD");
-    lines.push(`Health ${Math.round(health * 100)}%, energy ${Math.round(energy * 100)}%, guard ${Math.round(guard * 100)}%`);
+    const mana = host.value(player, FighterField.mana);
+    bar(y - 14, 14, health, health > 0.3 ? "#5fd16a" : "#e2483c", "HP");
+    bar(y + 8, 8, mana, "#3f8cff", "MANA");
+    bar(y + 24, 8, energy, energy >= 0.9 ? "#ffd84a" : "#c99a2e", energy >= 0.9 ? "ULTIMATE READY" : "ULTIMATE");
+    bar(y + 40, 5, guard, "#c9d3e6", "GUARD");
+    lines.push(`Health ${Math.round(health * 100)}%, mana ${Math.round(mana * 100)}%, energy ${Math.round(energy * 100)}%, guard ${Math.round(guard * 100)}%`);
+    lines.push(...this.drawSlots(ctx, width, height, player));
     // Combo counter, fading a moment after the string ends.
     if (this.comboShown >= 2 && this.comboAge < 1.4) {
       const alpha = Math.min(1, 1.4 - this.comboAge);

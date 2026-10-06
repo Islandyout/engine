@@ -824,10 +824,11 @@ FighterInput think(BrainState &brain, const BrainSettings &settings, const Brain
         return input;
     }
     // A ranged fighter keeps its distance and shoots (its light move), and
-    // only claws at close range.
+    // only claws at close range. It backs off at under half speed, so a
+    // fighter who closes in catches it.
     if (settings.range > 0 && view.distance >= 2.0F) {
         input.move_x = brain.strafe * 0.5F;
-        input.move_y = view.distance > settings.range + 1.0F ? 1.0F : view.distance < settings.range - 1.5F ? -0.8F : 0.0F;
+        input.move_y = view.distance > settings.range + 1.0F ? 1.0F : view.distance < settings.range - 1.5F ? -0.45F : 0.0F;
         if (std::abs(view.bearing) < 0.35F && brain.press_gap <= 0 && view.distance < settings.range + 4.0F &&
             self.mode != FighterMode::move) {
             input.pressed[static_cast<int>(MeleeButton::light)] = true;

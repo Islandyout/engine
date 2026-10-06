@@ -112,7 +112,7 @@ add("Look", [0, 0, 0], {
 const HALF = 8;
 for (const x of [-6, -2, 2, 6])
   for (const z of [-6, -2, 2, 6]) {
-    piece(`Floor ${x},${z}`, "floor-tile-large", [x, 0, z], 0, false);
+    piece(`Floor ${x},${z}`, "floor-tile-large", [x, -0.04, z], 0, false);
   }
 // One collision slab under the whole floor.
 add("Ground", [0, -0.5, 0], {

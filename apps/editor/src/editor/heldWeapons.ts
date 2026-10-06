@@ -7,11 +7,14 @@
 // its long axis.
 import * as THREE from "three";
 
-export const HELD_LENGTH = { dagger: 0.34, blade: 0.95 } as const;
+export const HELD_LENGTH = { dagger: 0.34, shield: 0.62, blade: 0.95 } as const;
 
-// How long a held model is drawn: daggers and knives short, the rest blade-length.
+// How long a held model is drawn: daggers and knives short, shields
+// forearm-sized, the rest blade-length.
 export function heldLength(name: string): number {
-  return /dagger|knife/i.test(name) ? HELD_LENGTH.dagger : HELD_LENGTH.blade;
+  if (/dagger|knife/i.test(name)) return HELD_LENGTH.dagger;
+  if (/shield/i.test(name)) return HELD_LENGTH.shield;
+  return HELD_LENGTH.blade;
 }
 
 const scratch = { a: new THREE.Vector3(), b: new THREE.Vector3(), c: new THREE.Vector3() };

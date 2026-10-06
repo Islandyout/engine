@@ -432,7 +432,7 @@ function weapon.ammo() end
 ---@param slot? integer
 function weapon.give_ammo(rounds, slot) end
 
---- A key held this tick (KeyW, Space, ...).
+--- A key held this tick, by its code (KeyW, Space, Enter) or its lowercase name (w, enter).
 ---@param key string
 ---@return boolean
 function input.down(key) end

@@ -550,7 +550,7 @@ export const scriptApi: ScriptApiEntry[] = [
   {
     "name": "input.down",
     "signature": "input.down(key: string): boolean",
-    "doc": "A key held this tick (KeyW, Space, ...).",
+    "doc": "A key held this tick, by its code (KeyW, Space, Enter) or its lowercase name (w, enter).",
     "group": "input"
   },
   {

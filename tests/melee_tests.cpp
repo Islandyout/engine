@@ -370,7 +370,8 @@ int main() {
             BrainView near;
             near.has_target = true;
             near.distance = 4;
-            check(think(aim, archer, near, self, dt).move_y < 0, "backs off");
+            const float back = think(aim, archer, near, self, dt).move_y;
+            check(back < 0 && back > -0.5F, "backs off, slower than a fighter closing in");
             BrainView at = near;
             at.distance = 7;
             bool shot = false;

@@ -383,6 +383,16 @@ Engine version 0.79.0 starts **GATEBREAKER**, an original manhwa-style hunter ac
 
 See [F79](docs/changelog/F79.md).
 
+Engine version 0.80.0 makes GATEBREAKER playable from start to finish: **one E-rank Gate** (Games → GATEBREAKER):
+
+- A **comic-panel prologue** and the **Ledger**'s system windows.
+- A **tutorial** that teaches by doing: attack, Heavy, dodge, Perfect Dodge into Shadow Step, parry.
+- **Goblin rooms** that seal and open: grunts, archers that keep their distance, and a shield-bearer that only a Heavy breaks.
+- The **Goblin Chieftain**: a boss bar, red unblockable slams with ground warnings, a stagger bar that **Breaks** it, and a second phase. Then a level-up and the first skill.
+- **Combat additions**: mana and skill cooldowns on the HUD, locked skills, guard-breakers, and enemy tells (glint, red "!", ground circles).
+
+See [F80](docs/changelog/F80.md).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

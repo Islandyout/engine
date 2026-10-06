@@ -85,7 +85,7 @@ export const builtins = [
   ["weapon", "select", "(slot: integer)", "Switches weapon."],
   ["weapon", "ammo", "(): integer, integer", "Rounds in the magazine and in reserve."],
   ["weapon", "give_ammo", "(rounds: integer, slot?: integer)", "Adds reserve rounds."],
-  ["input", "down", "(key: string): boolean", "A key held this tick (KeyW, Space, ...)."],
+  ["input", "down", "(key: string): boolean", "A key held this tick, by its code (KeyW, Space, Enter) or its lowercase name (w, enter)."],
   ["input", "pressed", "(key: string): boolean", "A key pressed this tick."],
   ["input", "action", "(name: string): number", "An action's value (axes -1..1, buttons 0/1)."],
   ["input", "action_down", "(name: string): boolean", "An action held."],

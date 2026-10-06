@@ -36,6 +36,9 @@ A move list can also put moves on four more actions, `skill1`, `skill2`, `skill3
   - **Parry**: raise the block just as a blow arrives (the first 0.15 s) and it's parried. No damage, the attacker staggers, and time slows for a moment.
   - **Dodge**: the roll is invulnerable for most of its length. Dodge right as a blow lands and time slows ("perfect dodge"). A dodge can also cut your own move short once its blow has landed.
   - **Shadow Step**: if the move list has a move named `shadow_step`, an attack within 0.9 s of a perfect dodge cuts the dodge short, puts you behind the attacker and plays it. Give it `after=shadow_step` so it never starts from neutral.
+- **Stagger and Break** (elites and bosses with a *Stagger bar*): hits fill the bar (a move's `stagger=`, or its damage); when it's full the fighter is **Broken**, floored for the *Break time* and taking 1.5× damage. The bar drains slowly between hits.
+- **Red attacks** (`unblockable`) go through blocks and parries; **guard-breakers** (`guardbreak`) break a block outright and can't be parried. Dodge both.
+- **Parrying** also fills the ultimate gauge (energy).
 - **Being hit.** Light hits snap the head or body back; heavy hits stagger. Launchers throw you into the air, and you land, lie for a moment, and get up invulnerable. Knockdowns floor you. **Armored** moves (the power hook, flying strike, meteor smash) keep going through hits.
 - **Lock on** (T) faces you toward one opponent, makes the stick strafe around them, and swings the camera behind you so both of you are in view. Without a lock, moves still turn toward the nearest opponent in front of you.
 - **Defeat.** A fighter at 0 health plays its death and lies there a few seconds before it's removed.
@@ -66,6 +69,10 @@ A move list can also put moves on four more actions, `skill1`, `skill2`, `skill3
 | Aggression, Skill, Reaction | How often it attacks; how often it defends and how long its strings run; how quickly it reacts. |
 | Energy | Starting energy (0–100). |
 | Guard | How much blocked damage the guard soaks before breaking. |
+| Stagger bar, Break time | A poise bar that Breaks the fighter when full (0: none), and how long a Break floors it. |
+| Mana, Mana per second | The pool skills (`mana=`) spend, and its refill. |
+| Ranged distance | An AI fighter that keeps this distance and shoots with its light move (0: melee). |
+| Shield-bearer | An AI fighter that holds its guard up whenever it isn't striking. |
 | Right hand, Left hand | Catalog models held in each hand (0 for none), e.g. the Dagger for twin daggers. They are fitted to the hand bones of any model on the Quaternius skeleton, blade out of the little-finger side. |
 
 The fighter needs a Health component to be hurt, and a RigidBody and Collider like any character.
@@ -96,9 +103,12 @@ rising_dragon: clip=rising_strike input=special seq=b dur=0.7 hit=0.1-0.3 dmg=18
 | `stun`, `stop` | Seconds of hit-stun dealt, and of hit-stop. |
 | `lunge` | Metres travelled by the end of the active window. |
 | `free` | Travel along the stick, not the facing (dodges). |
-| `cost`, `gain`, `cooldown` | Energy spent; energy gained per landed hit; seconds before it can be used again. |
+| `cost`, `mana`, `gain`, `cooldown` | Energy (the ultimate gauge) spent; mana spent (skills; mana refills over time); energy gained per landed hit; seconds before it can be used again. |
+| `stagger` | Stagger dealt to a poise bar (default: the damage). |
+| `guardbreak` | A blocked hit breaks the guard at once; it can't be parried. |
+| `locked` | Unusable until a script calls `melee.unlock(name)`. |
 | `iframes` | Invulnerable window, `start-end`. |
-| `armor`, `unblockable`, `knockdown`, `finisher` | Flags. |
+| `armor`, `unblockable`, `knockdown`, `finisher` | Flags (`unblockable` is a red attack: no block, no parry). |
 | `hits` | Hits spread over the active window. |
 | `projectile` | Fires an energy blast at this speed at the start of the window. |
 | `track` | Degrees it turns toward its target as it starts. |
@@ -122,6 +132,7 @@ Errors name the line, and the fighter falls back to the martial-arts list.
   - `melee.lock(id)`
   - `melee.target()`
   - `melee.set_ai(on, aggression, skill)`
+- `melee.unlock(name)` makes a `locked` move usable; `melee.stagger()` returns the poise bar (0-1) and 1 while Broken.
 - `on_melee_hit(target, move, damage, outcome)` fires in the attacker's script. The outcome is `hit`, `blocked`, `parried`, `dodged` or `guard_break`.
 - The usual `on_damaged`/`on_death` fire in the target's.
 

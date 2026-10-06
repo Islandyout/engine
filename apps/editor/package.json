@@ -1,6 +1,6 @@
 {
   "name": "game-engine-editor",
-  "version": "0.79.0",
+  "version": "0.80.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,7 @@
     "fps": "tsx ../../tools/fps/build_last_signal.ts",
     "racing": "tsx ../../tools/racing/build_high_heat.ts",
     "space": "tsx ../../tools/space/build_pale_signal.ts",
-    "gatebreaker": "tsx ../../tools/gatebreaker/build_m0.ts"
+    "gatebreaker": "tsx ../../tools/gatebreaker/build_m0.ts && tsx ../../tools/gatebreaker/build_gate.ts"
   },
   "dependencies": {
     "three": "0.169.0"
