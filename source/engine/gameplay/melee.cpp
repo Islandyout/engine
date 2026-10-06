@@ -184,6 +184,10 @@ MoveParse parse_moves(std::string_view text) {
                     move.armor = true;
                 else if (key == "unblockable")
                     move.unblockable = true;
+                else if (key == "guardbreak")
+                    move.guardbreak = true;
+                else if (key == "locked")
+                    move.locked = true;
                 else if (key == "knockdown")
                     move.knockdown = true;
                 else if (key == "finisher")
@@ -288,6 +292,10 @@ MoveParse parse_moves(std::string_view text) {
                 ok = std::isfinite(number) && std::abs(number) <= 30 && (move.lunge = number, true);
             else if (key == "cost")
                 ok = non_negative(move.energy);
+            else if (key == "mana")
+                ok = non_negative(move.mana);
+            else if (key == "stagger")
+                ok = non_negative(move.stagger);
             else if (key == "gain")
                 ok = non_negative(move.gain);
             else if (key == "cooldown")
@@ -334,6 +342,10 @@ FighterState make_fighter_state(const std::vector<MoveDef> &moves, const Fighter
     FighterState state;
     state.cooldowns.assign(moves.size(), 0.0F);
     state.guard = settings.guard_max;
+    state.mana = settings.mana_max;
+    state.locked.resize(moves.size());
+    for (std::size_t i = 0; i < moves.size(); ++i)
+        state.locked[i] = moves[i].locked ? 1 : 0;
     return state;
 }
 
@@ -378,6 +390,7 @@ void start_move(FighterState &state, const std::vector<MoveDef> &moves, int inde
     state.buffered = -1;
     state.buffer_left = 0;
     state.energy = std::max(0.0F, state.energy - move.energy);
+    state.mana = std::max(0.0F, state.mana - move.mana);
     state.cooldowns[static_cast<std::size_t>(index)] = move.cooldown;
     if (!move.sequence.empty()) {
         state.history.clear();
@@ -406,7 +419,9 @@ bool can_start(const FighterState &state, const std::vector<MoveDef> &moves, int
     const auto &move = moves[static_cast<std::size_t>(index)];
     if (move.air != input.airborne || (move.sprint && !input.sprinting))
         return false;
-    if (state.energy + 1e-4F < move.energy)
+    if (state.energy + 1e-4F < move.energy || state.mana + 1e-4F < move.mana)
+        return false;
+    if (static_cast<std::size_t>(index) < state.locked.size() && state.locked[static_cast<std::size_t>(index)])
         return false;
     if (static_cast<std::size_t>(index) < state.cooldowns.size() &&
         state.cooldowns[static_cast<std::size_t>(index)] > 0)
@@ -503,6 +518,11 @@ FighterTick update_fighter(FighterState &state, const std::vector<MoveDef> &move
     }
     if (state.mode != FighterMode::block)
         state.guard = std::min(settings.guard_max, state.guard + settings.guard_regen * dt);
+    state.mana = std::min(settings.mana_max, state.mana + settings.mana_regen * dt);
+    if (state.broken > 0)
+        state.broken = std::max(0.0F, state.broken - dt);
+    else if (settings.poise > 0)
+        state.stagger = std::max(0.0F, state.stagger - settings.poise * 0.04F * dt);
     state.time += dt;
     switch (state.mode) {
     case FighterMode::stun:
@@ -588,7 +608,9 @@ bool force_move(FighterState &state, const std::vector<MoveDef> &moves, int inde
                         (interrupt || state.time >= moves[static_cast<std::size_t>(state.move)].cancel));
     if (state.cooldowns.size() != moves.size())
         state.cooldowns.assign(moves.size(), 0.0F);
-    if (!ready || state.energy + 1e-4F < move.energy || state.cooldowns[static_cast<std::size_t>(index)] > 0)
+    const bool locked = static_cast<std::size_t>(index) < state.locked.size() && state.locked[static_cast<std::size_t>(index)];
+    if (!ready || locked || state.energy + 1e-4F < move.energy || state.mana + 1e-4F < move.mana ||
+        state.cooldowns[static_cast<std::size_t>(index)] > 0)
         return false;
     FighterTick tick;
     start_move(state, moves, index, tick);
@@ -631,8 +653,9 @@ HitResult resolve_hit(const MoveDef &move, int attacker_combo, const FighterStat
         result.hitstop = 0;
         return result;
     }
+    result.stagger = move.stagger >= 0 ? move.stagger : move.damage;
     if (defender && settings && defender->mode == FighterMode::block && from_front && !move.unblockable) {
-        if (defender->block_time <= settings->parry_window) {
+        if (defender->block_time <= settings->parry_window && !move.guardbreak) {
             result.outcome = HitOutcome::parried;
             result.hitstop = std::max(0.12F, move.hitstop);
             return result;
@@ -640,7 +663,7 @@ HitResult resolve_hit(const MoveDef &move, int attacker_combo, const FighterStat
         result.damage = move.damage * 0.15F;
         result.guard_damage = move.damage;
         result.knockback = move.knockback * 0.4F;
-        if (defender->guard - move.damage <= 0) {
+        if (move.guardbreak || defender->guard - move.damage <= 0) {
             result.outcome = HitOutcome::guard_break;
             result.kind = StunKind::guard_break;
             result.stun = 1.0F;
@@ -651,7 +674,7 @@ HitResult resolve_hit(const MoveDef &move, int attacker_combo, const FighterStat
     }
     // Long strings do less per hit, so a juggle can't go on forever.
     const float scale = std::max(0.4F, 1.0F - 0.07F * static_cast<float>(std::max(0, attacker_combo - 3)));
-    result.damage = move.damage * scale;
+    result.damage = move.damage * scale * (defender && settings && defender->broken > 0 ? settings->break_bonus : 1.0F);
     result.stun = move.stun;
     result.knockback = move.knockback;
     if (move.launch > 0 || defender_airborne) {
@@ -667,24 +690,44 @@ HitResult resolve_hit(const MoveDef &move, int attacker_combo, const FighterStat
     return result;
 }
 
-void take_hit(FighterState &defender, const std::vector<MoveDef> &moves, const FighterSettings &settings,
+bool take_hit(FighterState &defender, const std::vector<MoveDef> &moves, const FighterSettings &settings,
               const HitResult &result) {
     switch (result.outcome) {
     case HitOutcome::dodged:
+        return false;
     case HitOutcome::parried:
-        return;
+        defender.energy = std::min(settings.energy_max, defender.energy + settings.parry_gain);
+        return false;
     case HitOutcome::blocked:
         defender.guard = std::max(0.0F, defender.guard - result.guard_damage);
         defender.hitstop = result.hitstop;
-        return;
+        return false;
     case HitOutcome::guard_break:
         defender.guard = settings.guard_max;
         break;
     case HitOutcome::hit:
+        // The poise bar: full means a Break, which floors it through armor.
+        if (settings.poise > 0 && defender.broken <= 0) {
+            defender.stagger += result.stagger;
+            if (defender.stagger >= settings.poise) {
+                defender.stagger = 0;
+                defender.broken = settings.break_time;
+                defender.hitstop = std::max(result.hitstop, 0.12F);
+                if (defender.mode == FighterMode::move)
+                    defender.previous = -1;
+                defender.move = -1;
+                defender.buffered = -1;
+                defender.stun_kind = StunKind::knockdown;
+                defender.mode = FighterMode::down;
+                // Lies down for the whole Break, then gets up as usual.
+                defender.time = settings.down_time - settings.break_time;
+                return true;
+            }
+        }
         if (defender.mode == FighterMode::move && moves[static_cast<std::size_t>(defender.move)].armor &&
             result.kind != StunKind::launched) {
             defender.hitstop = result.hitstop;
-            return; // armored: keeps going
+            return false; // armored: keeps going
         }
         break;
     }
@@ -697,6 +740,7 @@ void take_hit(FighterState &defender, const std::vector<MoveDef> &moves, const F
     defender.stun_kind = result.kind;
     defender.stun_left = result.stun;
     defender.mode = result.kind == StunKind::launched ? FighterMode::airborne : FighterMode::stun;
+    return false;
 }
 
 void land_hit(FighterState &attacker, const MoveDef &move, const FighterSettings &settings, const HitResult &result) {
@@ -779,6 +823,18 @@ FighterInput think(BrainState &brain, const BrainSettings &settings, const Brain
         input.move_x = brain.strafe * 0.5F;
         return input;
     }
+    // A ranged fighter keeps its distance and shoots (its light move), and
+    // only claws at close range.
+    if (settings.range > 0 && view.distance >= 2.0F) {
+        input.move_x = brain.strafe * 0.5F;
+        input.move_y = view.distance > settings.range + 1.0F ? 1.0F : view.distance < settings.range - 1.5F ? -0.8F : 0.0F;
+        if (std::abs(view.bearing) < 0.35F && brain.press_gap <= 0 && view.distance < settings.range + 4.0F &&
+            self.mode != FighterMode::move) {
+            input.pressed[static_cast<int>(MeleeButton::light)] = true;
+            brain.press_gap = 2.2F - 1.2F * settings.aggression + 0.6F * next_unit(brain.rng);
+        }
+        return input;
+    }
     if (view.wait_turn) {
         // Someone else's turn: hold a little outside striking range and circle.
         const float ring = engage + 1.2F;
@@ -823,6 +879,13 @@ FighterInput think(BrainState &brain, const BrainSettings &settings, const Brain
                 }
             }
         }
+    }
+    // A shield-bearer keeps its guard up whenever it isn't striking.
+    if (settings.shield && view.distance <= engage + 2.5F && self.mode != FighterMode::move && brain.chain_left == 0) {
+        bool pressing = false;
+        for (const bool pressed : input.pressed)
+            pressing = pressing || pressed;
+        input.block = !pressing;
     }
     return input;
 }

@@ -89,10 +89,20 @@ enum class FighterField : int {
     active = 14, // 1 while the move's blow is live
     team = 15,
     stun_left = 16, // seconds of hit-stun left
+    mana = 17, // 0..1
+    stagger = 18, // 0..1 of the poise bar, -1 without one
+    broken = 19, // seconds of Break left
+    windup = 20, // seconds until the current move's blow, -1 none
+    red = 21, // 1 when the current move can't be blocked or parried
+    aoe = 22, // the current move's area radius
+    slot_skill1 = 23, // skill1 slot: -1 empty, -2 locked, -3 short of mana/energy, else cooldown left 0..1
+    slot_skill2 = 24,
+    slot_skill3 = 25,
+    slot_ultimate = 26,
 };
 
 enum class MeleeEventField : int {
-    kind = 0, // 0 start, 1 hit, 2 blocked, 3 parried, 4 dodged, 5 guard_break, 6 fire, 7 land, 8 ko
+    kind = 0, // 0 start, 1 hit, 2 blocked, 3 parried, 4 dodged, 5 guard_break, 6 fire, 7 land, 8 ko, 9 broken
     attacker = 1,
     target = 2,
     x = 3, // where it landed

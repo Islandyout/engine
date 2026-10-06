@@ -30,6 +30,10 @@ function hud.minimap(shown) host.send("minimap", shown and "1" or "0") end
 function hud.open_settings() host.send("settings", "") end
 function hud.visor(helmet, integrity, frost, heat) host.send("visor", string.format("%d %.2f %.2f %.2f", helmet and 1 or 0, integrity, frost, heat)) end
 function hud.suit_light(mode) host.send("suitlight", mode) end
+function hud.system(title, body) host.send("system", title .. "|" .. (body or "")) end
+function hud.system_close() host.send("system", "") end
+function hud.panels(spec) host.send("panels", spec) end
+function hud.boss(name, title) host.send("boss", (name or "") .. "|" .. (title or "")) end
 function audio.music(mood) host.send("music", mood) end
 function audio.ambience(layer, level) host.send("audio", string.format("%s %.2f", layer, level)) end
 function fx.weather(rain, fog, wind_x, wind_z) host.send("weather", string.format("%.2f %.2f %.1f %.1f", rain, fog, wind_x, wind_z)) end

@@ -171,6 +171,12 @@ Martial-arts fighting: punch and kick combos, specials, dodges, blocks and parri
 | `guard` | 60 | Guard |
 | `rightHand` | 0 | Right hand (catalog model, 0 none) |
 | `leftHand` | 0 | Left hand (catalog model, 0 none) |
+| `poise` | 0 | Stagger bar (0 none) |
+| `breakTime` | 2.5 | Break time (s) |
+| `manaMax` | 100 | Mana |
+| `manaRegen` | 8 | Mana per second |
+| `range` | 0 | Ranged distance (0 melee) |
+| `shield` | false | Shield-bearer (guard up) |
 
 ### Vehicle
 

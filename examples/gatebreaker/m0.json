@@ -2885,7 +2885,13 @@
           "energy": 40,
           "guard": 60,
           "rightHand": 203,
-          "leftHand": 203
+          "leftHand": 203,
+          "poise": 0,
+          "breakTime": 2.5,
+          "manaMax": 100,
+          "manaRegen": 8,
+          "range": 0,
+          "shield": false
         }
       }
     },
@@ -2983,7 +2989,13 @@
           "energy": 0,
           "guard": 60,
           "rightHand": 204,
-          "leftHand": 0
+          "leftHand": 0,
+          "poise": 0,
+          "breakTime": 2.5,
+          "manaMax": 100,
+          "manaRegen": 8,
+          "range": 0,
+          "shield": false
         }
       }
     },

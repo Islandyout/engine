@@ -506,6 +506,18 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "melee"
   },
   {
+    "name": "melee.unlock",
+    "signature": "melee.unlock(move: string): number?",
+    "doc": "Makes a move marked locked usable; 1 when the move exists.",
+    "group": "melee"
+  },
+  {
+    "name": "melee.stagger",
+    "signature": "melee.stagger(): number, number",
+    "doc": "Its poise bar 0-1, and 1 while it's Broken.",
+    "group": "melee"
+  },
+  {
     "name": "weapon.fire",
     "signature": "weapon.fire(dx?: number, dy?: number, dz?: number)",
     "doc": "Fires the current weapon (optionally along a direction).",
@@ -761,6 +773,30 @@ export const scriptApi: ScriptApiEntry[] = [
     "name": "hud.suit_light",
     "signature": "hud.suit_light(mode: string)",
     "doc": "auto, on or off.",
+    "group": "hud"
+  },
+  {
+    "name": "hud.system",
+    "signature": "hud.system(title: string, body: string)",
+    "doc": "Shows a Ledger system window (title, body lines split by \\n); replaces the open one.",
+    "group": "hud"
+  },
+  {
+    "name": "hud.system_close",
+    "signature": "hud.system_close()",
+    "doc": "Closes the Ledger system window.",
+    "group": "hud"
+  },
+  {
+    "name": "hud.panels",
+    "signature": "hud.panels(spec: string)",
+    "doc": "Plays a comic-panel cutscene: one shot per line, \"x y z > tx ty tz | caption | sfx | seconds\". Space or Enter skips.",
+    "group": "hud"
+  },
+  {
+    "name": "hud.boss",
+    "signature": "hud.boss(name: string, title: string)",
+    "doc": "A boss bar (health and stagger) for the named entity; an empty name hides it.",
     "group": "hud"
   },
   {

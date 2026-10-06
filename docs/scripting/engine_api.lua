@@ -401,6 +401,15 @@ function melee.target() end
 ---@param skill? number
 function melee.set_ai(on, aggression, skill) end
 
+--- Makes a move marked locked usable; 1 when the move exists.
+---@param move string
+---@return number?
+function melee.unlock(move) end
+
+--- Its poise bar 0-1, and 1 while it's Broken.
+---@return number, number
+function melee.stagger() end
+
 --- Fires the current weapon (optionally along a direction).
 ---@param dx? number
 ---@param dy? number
@@ -593,6 +602,23 @@ function hud.visor(helmet, integrity, frost, heat) end
 --- auto, on or off.
 ---@param mode string
 function hud.suit_light(mode) end
+
+--- Shows a Ledger system window (title, body lines split by \n); replaces the open one.
+---@param title string
+---@param body string
+function hud.system(title, body) end
+
+--- Closes the Ledger system window.
+function hud.system_close() end
+
+--- Plays a comic-panel cutscene: one shot per line, "x y z > tx ty tz | caption | sfx | seconds". Space or Enter skips.
+---@param spec string
+function hud.panels(spec) end
+
+--- A boss bar (health and stagger) for the named entity; an empty name hides it.
+---@param name string
+---@param title string
+function hud.boss(name, title) end
 
 --- off, title, explore, night, flight, space, signal or tension.
 ---@param mood string

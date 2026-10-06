@@ -628,7 +628,7 @@ struct Fighter final {
     std::optional<engine::Entity> counter_target;
 };
 // What the editor hears about melee each frame (editor_take_melee_events).
-enum class MeleeEventKind : int { start, hit, blocked, parried, dodged, guard_break, fire, land, ko };
+enum class MeleeEventKind : int { start, hit, blocked, parried, dodged, guard_break, fire, land, ko, broken };
 struct MeleeEvent final {
     MeleeEventKind kind{};
     int attacker{-1};

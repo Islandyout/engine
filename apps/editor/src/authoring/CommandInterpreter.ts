@@ -817,6 +817,12 @@ export function defaultComponent(
         guard: 60,
         rightHand: 0,
         leftHand: 0,
+        poise: 0,
+        breakTime: 2.5,
+        manaMax: 100,
+        manaRegen: 8,
+        range: 0,
+        shield: false,
       };
     case "AICombat":
       return {

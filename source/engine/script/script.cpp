@@ -683,6 +683,10 @@ struct LuaApi final {
     // melee.lock(id) / melee.lock() releases
     static int melee_lock(lua_State *L) { return melee_call(L, "lock", {}, {}, entity_arg(L, 1)); }
     static int melee_target(lua_State *L) { return melee_call(L, "target", {}); }
+    // melee.unlock(name) -> found: a locked move becomes usable
+    static int melee_unlock(lua_State *L) { return melee_call(L, "unlock", {}, luaL_checkstring(L, 1)); }
+    // melee.stagger() -> poise bar 0..1, broken (1 while Broken)
+    static int melee_stagger(lua_State *L) { return melee_call(L, "stagger", {}); }
     // melee.set_ai(on, aggression?, skill?)
     static int melee_set_ai(lua_State *L) {
         return melee_call(L, "set_ai",
@@ -1202,7 +1206,9 @@ struct LuaApi final {
                {"set_energy", melee_set_energy},
                {"lock", melee_lock},
                {"target", melee_target},
-               {"set_ai", melee_set_ai}});
+               {"set_ai", melee_set_ai},
+               {"unlock", melee_unlock},
+               {"stagger", melee_stagger}});
         table(L, self, "weapon",
               {{"fire", weapon_fire},
                {"reload", weapon_reload},

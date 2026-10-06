@@ -2866,6 +2866,7 @@ async function startEditor() {
         [index, { "Martial arts": 0, Sword: 1, Custom: 2 }[melee.style], melee.moves, melee.team, melee.ai ? 1 : 0, melee.aggression, melee.skill, melee.reaction, melee.energy, melee.guard],
       );
       runtime._editor_set_melee_yaw(index, get("Rotation")?.euler.y ?? 0);
+      runtime._editor_set_melee_extra(index, melee.poise, melee.breakTime, melee.manaMax, melee.manaRegen, melee.range, melee.shield ? 1 : 0);
     }
     // A Terrain entity's own body must never fall or move.
     if (get("Terrain")) runtime._editor_set_body(index, 1, 1, 0);

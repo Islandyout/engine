@@ -134,11 +134,28 @@ export const FighterField = {
   team: 15,
   // seconds of hit-stun left
   stunLeft: 16,
+  // 0..1
+  mana: 17,
+  // 0..1 of the poise bar, -1 without one
+  stagger: 18,
+  // seconds of Break left
+  broken: 19,
+  // seconds until the current move's blow, -1 none
+  windup: 20,
+  // 1 when the current move can't be blocked or parried
+  red: 21,
+  // the current move's area radius
+  aoe: 22,
+  // skill1 slot: -1 empty, -2 locked, -3 short of mana/energy, else cooldown left 0..1
+  slotSkill1: 23,
+  slotSkill2: 24,
+  slotSkill3: 25,
+  slotUltimate: 26,
 } as const;
 
 // editor_melee_event(index, field)
 export const MeleeEventField = {
-  // 0 start, 1 hit, 2 blocked, 3 parried, 4 dodged, 5 guard_break, 6 fire, 7 land, 8 ko
+  // 0 start, 1 hit, 2 blocked, 3 parried, 4 dodged, 5 guard_break, 6 fire, 7 land, 8 ko, 9 broken
   kind: 0,
   attacker: 1,
   target: 2,

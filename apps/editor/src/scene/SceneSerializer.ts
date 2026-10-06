@@ -680,6 +680,12 @@ export function normalizeComponent(
         guard: positiveNumber(value.guard, "Melee.guard"),
         rightHand: value.rightHand === undefined ? 0 : hand(value.rightHand, "Melee.rightHand"),
         leftHand: value.leftHand === undefined ? 0 : hand(value.leftHand, "Melee.leftHand"),
+        poise: value.poise === undefined ? 0 : nonNegativeNumber(value.poise, "Melee.poise"),
+        breakTime: value.breakTime === undefined ? 2.5 : positiveNumber(value.breakTime, "Melee.breakTime"),
+        manaMax: value.manaMax === undefined ? 100 : nonNegativeNumber(value.manaMax, "Melee.manaMax"),
+        manaRegen: value.manaRegen === undefined ? 8 : nonNegativeNumber(value.manaRegen, "Melee.manaRegen"),
+        range: value.range === undefined ? 0 : nonNegativeNumber(value.range, "Melee.range"),
+        shield: value.shield === undefined ? false : boolean(value.shield, "Melee.shield"),
       };
     }
     case "CharacterController": {
