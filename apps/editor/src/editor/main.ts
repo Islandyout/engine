@@ -33,6 +33,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { isNonPhysical, isSettingsOnly } from "./settingsEntity";
+import { heldLength, holdWeapon } from "./heldWeapons";
 import { InkPass, attachDepth, installToonShading, markCharacter, toonUniforms } from "./manhwa";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
@@ -510,11 +511,12 @@ async function startEditor() {
       view.updateProjectionMatrix();
     }
     // Melee lock-on (0.78.0): the rig swings behind the Player toward its
-    // locked-on opponent and frames both.
+    // locked-on opponent and frames both, a little over the right shoulder
+    // so the Player never hides the opponent.
     const lock = target === objects[playerIndex] ? combat.lockTarget() : -1;
     const opponent = lock >= 0 && runtime._editor_alive(lock) ? objects[lock] : undefined;
     if (opponent && rig.placed) {
-      const behind = Math.atan2(target.position.x - opponent.position.x, target.position.z - opponent.position.z);
+      const behind = Math.atan2(target.position.x - opponent.position.x, target.position.z - opponent.position.z) - 0.4;
       const turn = Math.atan2(Math.sin(behind - rig.yaw), Math.cos(behind - rig.yaw));
       rig.yaw += turn * (1 - Math.exp(-rig.frameDt * 5));
       focus.lerp(opponent.position.clone().setY(focus.y), 0.15);
@@ -2480,10 +2482,11 @@ async function startEditor() {
       openPlayerSettings();
       return;
     }
-    // Keep Space/arrows from scrolling the page while a game has the keys --
-    // unless the user is typing into a field.
+    // Keep Space/arrows from scrolling the page, and Tab (a lock-on key)
+    // from moving focus, while a game has the keys -- unless the user is
+    // typing into a field.
     const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
-    if (!typing && (event.code === "Space" || event.code.startsWith("Arrow"))) event.preventDefault();
+    if (!typing && (event.code === "Space" || event.code === "Tab" || event.code.startsWith("Arrow"))) event.preventDefault();
     keyQueue.push([event.code, 1]);
     heldKeys.add(event.code);
     const key = event.key.toLowerCase();
@@ -3629,7 +3632,20 @@ async function startEditor() {
     scene.add(anchor);
     objects.push(anchor);
     animStates.push(animState);
-    if (get("Melee") && animState) attachFighter(objects.length - 1, object, animState);
+    if (get("Melee") && animState) {
+      attachFighter(objects.length - 1, object, animState);
+      // Weapons in its hands (heldWeapons.ts), once their models load.
+      const melee = get("Melee")!;
+      const rig = cached!.scene;
+      for (const [side, id] of [["r", melee.rightHand], ["l", melee.leftHand]] as const) {
+        const entry = id > 0 ? catalogEntry(id) : undefined;
+        if (!entry) continue;
+        const place = (weapon: CachedModel) => holdWeapon(rig, object, side, weapon.scene, heldLength(entry.name));
+        const ready = catalogCache.get(id);
+        if (ready) place(ready);
+        else loadCatalogModel(id)?.then(place, (error) => log(`Catalog model ${id} failed to load: ${String(error)}`));
+      }
+    }
     particleStates.push(particleState);
     deathStates.push(undefined);
   }
@@ -5328,7 +5344,8 @@ async function startEditor() {
       doc.scene.eachAlive().forEach((entity, index) => {
         if (!doc.scene.effectiveHas(entity, "Health")) return;
         if (!runtime._editor_alive(index)) return;
-        if (index === playerIndex && firstPerson()) return; // no bar over your own head
+        // No bar over your own head: in first person, or as a fighter (its HUD shows your health).
+        if (index === playerIndex && (firstPerson() || combat.isFighter(index))) return;
         const object = objects[index];
         if (!object) return;
         const ratio = runtime._editor_value(index, EntityField.health);

@@ -71,8 +71,16 @@ int main() {
             check(parse_moves("a: dmg=3").error == "line 1: move \"a\" needs hit=start-end", "strikes need a hit");
             check(parse_moves("a: dur=0.5 hit=0.1-0.6").error == "line 1: hit and cancel must fall within dur",
                   "hit within duration");
-            check(parse_moves("a: input=punch").error == "line 1: input must be light, heavy, kick, special or dodge",
+            check(parse_moves("a: input=punch").error ==
+                      "line 1: input must be light, heavy, kick, special, dodge, skill1, skill2, skill3 or ultimate",
                   "input names");
+            const auto slots = parse_moves("q: input=skill1 hit=0.1-0.2\ne: input=skill2 hit=0.1-0.2\n"
+                                           "r: input=skill3 hit=0.1-0.2\nf: input=ultimate hit=0.1-0.2\n"
+                                           "counter: after=counter hit=0.1-0.2\n");
+            check(slots.error.empty() && slots.moves[0].input == MeleeButton::skill1 &&
+                      slots.moves[2].input == MeleeButton::skill3 && slots.moves[3].input == MeleeButton::ultimate,
+                  "skill and ultimate slots");
+            check(!slots.moves[4].from_neutral, "a move chained only from itself never starts from neutral");
             check(parse_moves("a: seq=up").error ==
                       "line 1: seq is up to 4 of f, b, l, r (forward, back, left, right)",
                   "sequence tokens");

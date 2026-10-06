@@ -374,6 +374,15 @@ Engine version 0.78.0 adds hand-to-hand combat:
 
 See [F78](docs/changelog/F78.md).
 
+Engine version 0.79.0 starts **GATEBREAKER**, an original manhwa-style hunter action game ([design](docs/gatebreaker/GAME_DESIGN.md)):
+
+- **A Manhwa render style**: toon tones, ink lines, rim light, inked sound words (SHK, BOOM), speed lines and impact frames.
+- **Action controls**: dodge, block or parry, three skills and an ultimate on their own keys, and **Shadow Step** behind an enemy after a perfect dodge.
+- **Weapons in hand** (twin daggers), the hunter and a goblin on the shared combat skeleton, and a CC0 dungeon kit.
+- **Fixes**: an invisible box that settings entities left at the centre of every scene, squashed AI fighters, and stuck health bars.
+
+See [F79](docs/changelog/F79.md).
+
 Run `engine_playground.exe` after building on Windows, or `engine_playground` on Linux.
 [Controls, architecture, and verification](docs/NATIVE_PLAYGROUND.md).
 

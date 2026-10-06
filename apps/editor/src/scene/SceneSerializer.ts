@@ -661,6 +661,11 @@ export function normalizeComponent(
         if (n < 0 || n > 1) throw new Error(`${label} must be from 0 to 1.`);
         return n;
       };
+      const hand = (v: unknown, label: string) => {
+        const n = number(v, label);
+        if (!Number.isInteger(n) || n < 0) throw new Error(`${label} must be a catalog model id (0 for none).`);
+        return n;
+      };
       const energy = nonNegativeNumber(value.energy, "Melee.energy");
       if (energy > 100) throw new Error("Melee.energy must be from 0 to 100.");
       return {
@@ -673,6 +678,8 @@ export function normalizeComponent(
         reaction: nonNegativeNumber(value.reaction, "Melee.reaction"),
         energy,
         guard: positiveNumber(value.guard, "Melee.guard"),
+        rightHand: value.rightHand === undefined ? 0 : hand(value.rightHand, "Melee.rightHand"),
+        leftHand: value.leftHand === undefined ? 0 : hand(value.leftHand, "Melee.leftHand"),
       };
     }
     case "CharacterController": {

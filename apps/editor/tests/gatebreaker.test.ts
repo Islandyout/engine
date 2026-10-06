@@ -25,6 +25,14 @@ test("GATEBREAKER M0: a Manhwa-styled room with the hunter against a goblin", ()
   assert.ok(hero.Player && hero.Melee.ai === false);
   assert.equal(goblin.Renderable.mesh, 177);
   assert.ok(goblin.Melee.ai && goblin.Melee.team !== hero.Melee.team);
+  // Twin daggers, the action profile, and Shadow Step.
+  assert.equal(hero.Melee.rightHand, 203);
+  assert.equal(hero.Melee.leftHand, 203);
+  for (const move of ["shadow_step:", "input=skill1", "input=skill2", "input=skill3", "input=ultimate"]) assert.ok(hero.Melee.moves.includes(move), move);
+  const bindings: string = named("Input").components.InputActions.bindings;
+  for (const line of ["dodge: space", "block: shift", "lock: tab", "skill1: q", "skill2: e", "skill3: r", "ultimate: f", "light: mouse_left", "heavy: mouse_right"])
+    assert.ok(bindings.includes(line), line);
+  assert.ok(!/^jump:/m.test(bindings), "no jump");
   // Nothing solid stands in the open middle where they fight.
   for (const e of scene.entities) {
     const c = e.components;

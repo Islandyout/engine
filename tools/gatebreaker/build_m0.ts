@@ -181,6 +181,61 @@ piece("Candles", "candle-triple", [6.6, 0, 2.4], 0, false);
 piece("Column left", "column", [-4.6, 0, -1.2], 0, true);
 piece("Column right", "column", [4.6, 0, -1.2], 0, true);
 
+// -- Controls -------------------------------------------------------------
+// The action profile from GAME_DESIGN.md 5.1: no jump, no kick button, no
+// sprint (Space dodges, and Shadow Step covers distance).
+add("Input", [0, 0, 0], {
+  InputActions: {
+    bindings: [
+      "move_x: d, -a, right, -left, pad_lx",
+      "move_y: w, -s, up, -down, -pad_ly",
+      "look_x: mouse_dx*0.05, pad_rx",
+      "look_y: mouse_dy*0.05, pad_ry",
+      "light: mouse_left, j, pad_x",
+      "heavy: mouse_right, k, pad_y",
+      "dodge: space, pad_a",
+      "block: shift, pad_lb",
+      "skill1: q, pad_rb",
+      "skill2: e, pad_b",
+      "skill3: r, pad_lt",
+      "ultimate: f, pad_rt",
+      "lock: tab, mouse_middle, pad_rs",
+      "interact: g",
+    ].join("\n") + "\n",
+  },
+});
+
+// Twin daggers. Light: stab, stab, hook-slash, then a spinning kick to
+// finish (kicks live inside the chains). Heavy: an armored cross-cut, or a
+// launching rising slash out of the stabs. Skills spend energy built by
+// landing hits; the ultimate takes nearly a full gauge.
+const daggerMoves = `# GATEBREAKER twin daggers (M0)
+stab_l: clip=jab input=light dur=0.45 hit=0.08-0.14 cancel=0.17 dmg=7 reach=1.0 lunge=0.35 stun=0.3 gain=6 limb=hand_l
+stab_r: clip=cross input=light after=stab_l dur=0.5 hit=0.12-0.18 cancel=0.21 dmg=8 reach=1.05 lunge=0.35 stun=0.32 gain=6 limb=hand_r
+hook_slash: clip=hook input=light after=stab_r dur=0.6 hit=0.13-0.2 cancel=0.27 dmg=10 reach=1.05 radius=0.7 lunge=0.4 knock=2 stun=0.4 gain=8 limb=hand_r
+spin_kick: clip=roundhouse_l input=light after=hook_slash dur=0.85 hit=0.36-0.46 cancel=0.58 dmg=15 reach=1.3 height=0.8 lunge=0.35 knock=6 stun=0.6 stop=0.1 gain=10 finisher limb=foot_l
+cross_cut: clip=sword_heavy_a input=heavy dur=1.0 hit=0.24-0.34 cancel=0.45 dmg=16 reach=1.3 radius=0.85 lunge=0.7 knock=4.5 stun=0.6 stop=0.11 gain=10 armor limb=hand_r
+rising_slash: clip=uppercut input=heavy after=stab_l|stab_r dur=0.8 hit=0.18-0.28 cancel=0.48 dmg=12 reach=1.0 lunge=0.35 launch=8.5 stun=0.7 stop=0.1 gain=8 limb=hand_r
+air_slash: clip=sword_light_b input=light air after=air_slash|start dur=0.45 hit=0.1-0.18 cancel=0.2 dmg=7 reach=1.1 launch=3.5 stun=0.4 lunge=0 limb=hand_r
+dodge: clip=roll input=dodge dur=0.5 hit=0-0 cancel=0.36 dmg=0 lunge=3.4 free iframes=0.02-0.34 track=0 limb=pelvis
+# After a perfect dodge, an attack steps behind the attacker (never from neutral)
+shadow_step: clip=sword_light_c input=light after=shadow_step dur=0.6 hit=0.05-0.16 cancel=0.3 dmg=22 reach=1.2 radius=0.9 lunge=0 knock=4 stun=0.9 stop=0.14 gain=12 unblockable finisher limb=hand_r
+# Q: Viper Rush, a three-cut dash. E: Fang Whirl, a spin around you. R: Shadow Fang, a thrown blade of shadow.
+viper_rush: clip=dash_strike input=skill1 dur=0.9 hit=0.12-0.4 cancel=0.65 dmg=18 reach=1.2 lunge=5 knock=5 stun=0.7 stop=0.1 cost=25 cooldown=2 hits=3 armor limb=hand_r
+fang_whirl: clip=sword_heavy_c input=skill2 dur=1.0 hit=0.3-0.42 cancel=0.6 dmg=16 aoe=2.4 knock=6 stun=0.6 stop=0.1 cost=30 cooldown=4 lunge=0.2 limb=hand_r
+shadow_fang: clip=energy_throw input=skill3 dur=0.7 hit=0.22-0.26 cancel=0.45 dmg=14 projectile=22 knock=4 stun=0.5 cost=20 cooldown=1.5 lunge=0 limb=hand_r
+# F: Thousand Fangs, the ultimate
+thousand_fangs: clip=ground_pound input=ultimate dur=1.4 hit=0.3-0.9 cancel=1.2 dmg=60 aoe=3.4 hits=6 knock=9 launch=4 stun=1.2 stop=0.16 cost=90 armor unblockable knockdown finisher iframes=0-1.0 lunge=0.2 limb=hand_r
+`;
+// The goblin: claws and a lunging bite, quick but light.
+const goblinMoves = `# Goblin (M0)
+claw_l: clip=jab input=light dur=0.55 hit=0.12-0.18 cancel=0.24 dmg=6 reach=0.9 lunge=0.35 stun=0.3 limb=hand_l
+claw_r: clip=cross input=light after=claw_l dur=0.6 hit=0.15-0.22 cancel=0.28 dmg=7 reach=0.95 lunge=0.35 stun=0.35 limb=hand_r
+pounce: clip=dash_strike input=heavy dur=1.0 hit=0.2-0.42 cancel=0.7 dmg=12 reach=1.0 lunge=3.5 knock=5 stun=0.6 stop=0.1 limb=hand_r
+kick: clip=front_kick_r input=kick after=claw_l|claw_r dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=8 reach=1.15 height=0.55 lunge=0.4 knock=4 stun=0.4 limb=foot_r
+hop: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3 free iframes=0.03-0.36 track=0 limb=pelvis
+`;
+
 // -- Fighters -------------------------------------------------------------
 add("Han Seo-jin", [0, 0.9, 4], {
   Scale: { value: vec(0.6, 1.8, 0.6) },
@@ -189,9 +244,9 @@ add("Han Seo-jin", [0, 0.9, 4], {
   Player: {},
   RigidBody: { mass: 70, dynamic: true },
   Collider: component("Collider"),
-  CharacterController: component("CharacterController", { mode: "ThirdPerson" }),
+  CharacterController: component("CharacterController", { mode: "ThirdPerson", walkSpeed: 5.2, sprintSpeed: 5.2 }),
   Health: { current: 200, maximum: 200 },
-  Melee: component("Melee", { team: 0, ai: false, energy: 40 }),
+  Melee: component("Melee", { style: "Custom", moves: daggerMoves, team: 0, ai: false, energy: 40, rightHand: 203, leftHand: 203 }),
 });
 add("Camera", [0, 2, 8], {
   Camera: component("Camera", { fov: 50, far: 200 }),
@@ -204,13 +259,13 @@ add("Goblin", [0, 0.725, -3], {
   RigidBody: { mass: 45, dynamic: true },
   Collider: component("Collider"),
   Health: { current: 90, maximum: 90 },
-  Melee: component("Melee", { team: 1, ai: true, aggression: 0.65, skill: 0.4, reaction: 0.3 }),
+  Melee: component("Melee", { style: "Custom", moves: goblinMoves, team: 1, ai: true, aggression: 0.65, skill: 0.4, reaction: 0.3, rightHand: 204 }),
 });
 add("Controls", [0, 0, 0], {
   UI: component("UI", {
-    text: "Click attack · Right-click heavy · F kick · Q special · X dodge · R block · T lock on · Shift run",
-    anchor: "bottom-center",
-    offsetY: -16,
+    text: "Click attack · Right-click heavy · Space dodge (just in time: Shadow Step) · Shift block / tap to parry · Q E R skills · F ultimate · Tab lock on",
+    anchor: "top-center",
+    offsetY: 14,
     fontSize: 14,
     color: vec(1, 1, 1),
     opacity: 0.75,

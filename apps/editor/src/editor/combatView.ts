@@ -443,6 +443,9 @@ export class CombatView {
             fighter.trail.length = 0;
           }
           host.sound(point)?.whoosh((flags & MeleeFlag.finisher) !== 0, 0.8);
+          // Shadow Step: the attacker reappears behind its target.
+          if (host.text(attacker, host.value(attacker, FighterField.move), 0) === "shadow_step")
+            this.comic.hit("dodge", (objects[attacker]?.position ?? point).clone().add(new THREE.Vector3(0, 1.2, 0)));
           break;
         }
         case MeleeEvent.hit: {

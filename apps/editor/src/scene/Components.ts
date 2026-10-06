@@ -522,6 +522,9 @@ export interface MeleeComponent {
   reaction: number; // seconds
   energy: number; // starting energy, 0..100
   guard: number;
+  // Catalog models held in each hand (0: empty), e.g. twin daggers.
+  rightHand: number;
+  leftHand: number;
 }
 
 // Combat AI (0.62.0): a soldier on `team` (the Player is team 0) that

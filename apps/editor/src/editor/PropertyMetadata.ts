@@ -112,6 +112,8 @@ const metadata: Record<string, PropertyMetadata> = {
   "Melee.reaction": { label: "Reaction time (seconds)", step: "0.05" },
   "Melee.energy": { label: "Starting energy (0-100)", step: "5" },
   "Melee.guard": { label: "Guard", step: "5" },
+  "Melee.rightHand": { label: "Right hand (catalog model, 0 none)", step: "1" },
+  "Melee.leftHand": { label: "Left hand (catalog model, 0 none)", step: "1" },
   "CameraFollow.target": { label: "Target (entity name; empty = Player)" },
   "CameraFollow.smoothing": { label: "Smoothing (seconds)", step: "0.05" },
   "CameraFollow.lookHeight": { label: "Look height", step: "0.1" },

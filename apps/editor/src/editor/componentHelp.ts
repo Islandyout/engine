@@ -65,7 +65,7 @@ export const fieldHelp: Record<string, string> = {
   "Weapons.loadout": "One weapon per line: name: key=value ... (damage, rate, range, magazine, ...).",
   "Melee.style": "Martial arts and Sword are built-in move lists; Custom uses the Moves text below.",
   "Melee.moves":
-    "One move per line: name: clip=... input=light|heavy|kick|special|dodge after=a|b seq=bf dur= hit=a-b cancel= dmg= reach= knock= launch= stun= lunge= cost= ... (see docs/COMBAT.md).",
+    "One move per line: name: clip=... input=light|heavy|kick|special|dodge|skill1|skill2|skill3|ultimate after=a|b seq=bf dur= hit=a-b cancel= dmg= reach= knock= launch= stun= lunge= cost= ... (see docs/COMBAT.md).",
   "Melee.aggression": "How often an AI fighter attacks.",
   "Melee.skill": "How often an AI fighter blocks, parries and dodges, and how long its combos run.",
   "Collider.mask": "Which layers this collides with, as a bitmask (4294967295 = all).",

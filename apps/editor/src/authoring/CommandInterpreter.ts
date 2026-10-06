@@ -815,6 +815,8 @@ export function defaultComponent(
         reaction: 0.25,
         energy: 0,
         guard: 60,
+        rightHand: 0,
+        leftHand: 0,
       };
     case "AICombat":
       return {

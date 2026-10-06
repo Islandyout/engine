@@ -199,11 +199,12 @@ MoveParse parse_moves(std::string_view text) {
                 continue;
             }
             if (key == "input") {
-                static const char *const buttons[]{"light", "heavy", "kick", "special", "dodge"};
+                static const char *const buttons[]{"light", "heavy", "kick",   "special", "dodge",
+                                                   "skill1", "skill2", "skill3", "ultimate"};
                 const auto found = std::find_if(std::begin(buttons), std::end(buttons),
                                                 [&](const char *b) { return value == b; });
                 if (found == std::end(buttons))
-                    return fail("input must be light, heavy, kick, special or dodge");
+                    return fail("input must be light, heavy, kick, special, dodge, skill1, skill2, skill3 or ultimate");
                 move.input = static_cast<MeleeButton>(found - std::begin(buttons));
                 continue;
             }
@@ -578,13 +579,13 @@ FighterTick update_fighter(FighterState &state, const std::vector<MoveDef> &move
     return tick;
 }
 
-bool force_move(FighterState &state, const std::vector<MoveDef> &moves, int index) {
+bool force_move(FighterState &state, const std::vector<MoveDef> &moves, int index, bool interrupt) {
     if (index < 0 || static_cast<std::size_t>(index) >= moves.size() || state.hitstop > 0)
         return false;
     const auto &move = moves[static_cast<std::size_t>(index)];
     const bool ready = state.mode == FighterMode::idle || state.mode == FighterMode::block ||
                        (state.mode == FighterMode::move &&
-                        state.time >= moves[static_cast<std::size_t>(state.move)].cancel);
+                        (interrupt || state.time >= moves[static_cast<std::size_t>(state.move)].cancel));
     if (state.cooldowns.size() != moves.size())
         state.cooldowns.assign(moves.size(), 0.0F);
     if (!ready || state.energy + 1e-4F < move.energy || state.cooldowns[static_cast<std::size_t>(index)] > 0)

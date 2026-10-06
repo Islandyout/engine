@@ -161,7 +161,7 @@ Martial-arts fighting: punch and kick combos, specials, dodges, blocks and parri
 | Field | Default | Notes |
 |---|---|---|
 | `style` | "Martial arts" | Martial arts and Sword are built-in move lists; Custom uses the Moves text below.. one of Martial arts, Sword, Custom |
-| `moves` | "# Punches (light): jab, cross, hook, up… | Moves (Custom style; name: key=value ...). One move per line: name: clip=... input=light\|heavy\|kick\|special\|dodge after=a\|b seq=bf dur= hit=a-b cancel= dmg= reach= knock= launch= stun= lunge= cost= ... (see docs/COMBAT.md). |
+| `moves` | "# Punches (light): jab, cross, hook, up… | Moves (Custom style; name: key=value ...). One move per line: name: clip=... input=light\|heavy\|kick\|special\|dodge\|skill1\|skill2\|skill3\|ultimate after=a\|b seq=bf dur= hit=a-b cancel= dmg= reach= knock= launch= stun= lunge= cost= ... (see docs/COMBAT.md). |
 | `team` | 1 | Team (Player is 0) |
 | `ai` | true | AI fighter (not the Player) |
 | `aggression` | 0.5 | Aggression (0-1). How often an AI fighter attacks. |
@@ -169,6 +169,8 @@ Martial-arts fighting: punch and kick combos, specials, dodges, blocks and parri
 | `reaction` | 0.25 | Reaction time (seconds) |
 | `energy` | 0 | Starting energy (0-100) |
 | `guard` | 60 | Guard |
+| `rightHand` | 0 | Right hand (catalog model, 0 none) |
+| `leftHand` | 0 | Left hand (catalog model, 0 none) |
 
 ### Vehicle
 

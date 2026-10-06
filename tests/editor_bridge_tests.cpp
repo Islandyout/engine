@@ -2096,6 +2096,37 @@ int main() {
             editor_tick();
         check(!editor_alive(1));
 
+        // Shadow Step: the Player rolls through an enemy's jab (a perfect
+        // dodge), then attacks -- and appears behind the enemy, striking.
+        {
+            editor_begin();
+            add_player(0);
+            editor_set_melee(0, 2, "j: input=light hit=0.1-0.2 dmg=1\n"
+                                   "roll: input=dodge dur=0.5 hit=0-0 cancel=0.36 dmg=0 lunge=0 free iframes=0-0.45\n"
+                                   "shadow_step: input=light after=shadow_step dur=0.6 hit=0.05-0.16 dmg=5 reach=1.2\n",
+                             0, 0, 0.5, 0.5, 0.25, 0, 60);
+            check(editor_add(0, 0.9, 1.2, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            editor_set_melee(1, 0, "", 1, 0, 0.5, 0.5, 0.25, 0, 60);
+            editor_set_melee_yaw(1, 3.14159265);
+            editor_set_script_source(1, "t = 0\nfunction on_tick(dt) t = t + 1 if t == 20 then melee.perform('jab') end end");
+            check(editor_commit() == 1);
+            bool dodged = false;
+            for (int i = 0; i < 60; ++i) {
+                editor_input_begin_frame();
+                editor_input_key("KeyX", i >= 22 && i < 24 ? 1 : 0);
+                editor_input_key("KeyJ", i >= 34 && i < 36 ? 1 : 0);
+                editor_tick();
+                const int events = editor_take_melee_events();
+                for (int e = 0; e < events; ++e)
+                    dodged = dodged || editor_melee_event(e, 0) == 4; // dodged
+                if (i == 36)
+                    check(editor_fighter_value(0, 2) == 2);
+            }
+            check(dodged);
+            check(editor_value(0, 2) > 1.7); // the enemy is at z = 1.2
+            check(editor_value(1, 3) < 1);
+        }
+
         // An AI fighter that starts out facing a fighting Player, across a
         // kinematic floor slab, walks the whole way in.
         editor_begin();
