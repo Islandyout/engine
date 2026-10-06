@@ -620,6 +620,12 @@ struct Fighter final {
     float pending_launch{0};           // upward m/s applied once hit-stop ends
     float dying{0};                    // > 0 once defeated: seconds until it's removed
     std::string script_move;           // melee.perform() for the next tick
+    bool script_interrupt{false};      // ...cutting the current move short (Shadow Step)
+    // Shadow Step (GATEBREAKER): after a perfect dodge, an attack press
+    // within this many seconds steps behind the attacker and strikes with
+    // the move list's shadow_step, if it has one.
+    float counter_window{0};
+    std::optional<engine::Entity> counter_target;
 };
 // What the editor hears about melee each frame (editor_take_melee_events).
 enum class MeleeEventKind : int { start, hit, blocked, parried, dodged, guard_break, fire, land, ko };

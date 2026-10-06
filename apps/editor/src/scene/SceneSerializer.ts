@@ -355,7 +355,12 @@ export function normalizeComponent(
       const shadowQuality = value.shadowQuality;
       if (shadowQuality !== "Low" && shadowQuality !== "Medium" && shadowQuality !== "High")
         throw new Error("PostProcessing.shadowQuality must be Low, Medium, or High.");
+      const style = value.style ?? "Standard";
+      if (style !== "Standard" && style !== "Manhwa") throw new Error("PostProcessing.style must be Standard or Manhwa.");
       return {
+        style,
+        ink: value.ink === undefined ? 1 : within(value.ink, "PostProcessing.ink", 0, 1),
+        rim: value.rim === undefined ? 0.6 : within(value.rim, "PostProcessing.rim", 0, 1),
         antialias,
         ambientOcclusion: boolean(value.ambientOcclusion, "PostProcessing.ambientOcclusion"),
         aoRadius: within(value.aoRadius, "PostProcessing.aoRadius", 0.05, 5),
@@ -656,6 +661,11 @@ export function normalizeComponent(
         if (n < 0 || n > 1) throw new Error(`${label} must be from 0 to 1.`);
         return n;
       };
+      const hand = (v: unknown, label: string) => {
+        const n = number(v, label);
+        if (!Number.isInteger(n) || n < 0) throw new Error(`${label} must be a catalog model id (0 for none).`);
+        return n;
+      };
       const energy = nonNegativeNumber(value.energy, "Melee.energy");
       if (energy > 100) throw new Error("Melee.energy must be from 0 to 100.");
       return {
@@ -668,6 +678,8 @@ export function normalizeComponent(
         reaction: nonNegativeNumber(value.reaction, "Melee.reaction"),
         energy,
         guard: positiveNumber(value.guard, "Melee.guard"),
+        rightHand: value.rightHand === undefined ? 0 : hand(value.rightHand, "Melee.rightHand"),
+        leftHand: value.leftHand === undefined ? 0 : hand(value.leftHand, "Melee.leftHand"),
       };
     }
     case "CharacterController": {

@@ -16,6 +16,8 @@ Give an animated character (Mannequin F, the Talari, or any model on the Quatern
 
 These are the default **InputActions** bindings (`light`, `heavy`, `kick`, `special`, `dodge`, `block`, `lock`). A scene with its own InputActions needs those seven lines to fight; the defaults show them.
 
+A move list can also put moves on four more actions, `skill1`, `skill2`, `skill3` and `ultimate`, for an action-game layout. GATEBREAKER binds them to Q, E, R and F, with Space to dodge, Shift to block and Tab to lock on (`examples/gatebreaker/m0.json`).
+
 ## How a fight works
 
 - **Combos.** Each press starts a move or, if a move is playing, waits in a short buffer and starts the next move in the chain at the current one's *cancel point*. Light: jab → cross → hook → uppercut. Kick: front kick → roundhouse → side kick. Mixing works too: jab, cross, then kick for the roundhouse; heavy after a jab or cross for the launcher.
@@ -33,6 +35,7 @@ These are the default **InputActions** bindings (`light`, `heavy`, `kick`, `spec
   - **Block** (hold) stops blows from the front for a little chip damage, but every block drains the guard bar; when it empties the guard breaks and you're staggered.
   - **Parry**: raise the block just as a blow arrives (the first 0.15 s) and it's parried. No damage, the attacker staggers, and time slows for a moment.
   - **Dodge**: the roll is invulnerable for most of its length. Dodge right as a blow lands and time slows ("perfect dodge"). A dodge can also cut your own move short once its blow has landed.
+  - **Shadow Step**: if the move list has a move named `shadow_step`, an attack within 0.9 s of a perfect dodge cuts the dodge short, puts you behind the attacker and plays it. Give it `after=shadow_step` so it never starts from neutral.
 - **Being hit.** Light hits snap the head or body back; heavy hits stagger. Launchers throw you into the air, and you land, lie for a moment, and get up invulnerable. Knockdowns floor you. **Armored** moves (the power hook, flying strike, meteor smash) keep going through hits.
 - **Lock on** (T) faces you toward one opponent, makes the stick strafe around them, and swings the camera behind you so both of you are in view. Without a lock, moves still turn toward the nearest opponent in front of you.
 - **Defeat.** A fighter at 0 health plays its death and lies there a few seconds before it's removed.
@@ -63,6 +66,7 @@ These are the default **InputActions** bindings (`light`, `heavy`, `kick`, `spec
 | Aggression, Skill, Reaction | How often it attacks; how often it defends and how long its strings run; how quickly it reacts. |
 | Energy | Starting energy (0–100). |
 | Guard | How much blocked damage the guard soaks before breaking. |
+| Right hand, Left hand | Catalog models held in each hand (0 for none), e.g. the Dagger for twin daggers. They are fitted to the hand bones of any model on the Quaternius skeleton, blade out of the little-finger side. |
 
 The fighter needs a Health component to be hurt, and a RigidBody and Collider like any character.
 
@@ -79,7 +83,7 @@ rising_dragon: clip=rising_strike input=special seq=b dur=0.7 hit=0.1-0.3 dmg=18
 | Key | Meaning |
 |---|---|
 | `clip` | The animation clip (default: the move's name). |
-| `input` | `light`, `heavy`, `kick`, `special` or `dodge`. |
+| `input` | `light`, `heavy`, `kick`, `special`, `dodge`, `skill1`, `skill2`, `skill3` or `ultimate`. |
 | `after` | Moves this one chains from, joined with `\|`. Add `start` to also allow it from neutral. Without `after`, a move starts from neutral only. |
 | `seq` | Stick directions before the press, relative to your facing: up to four of `f`, `b`, `l`, `r` (e.g. `bf`). |
 | `air`, `sprint` | Only in the air / only while sprinting. |

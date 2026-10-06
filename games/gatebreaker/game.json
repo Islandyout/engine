@@ -1,0 +1,8 @@
+{
+  "name": "GATEBREAKER",
+  "genre": "Hunter action",
+  "description": "M0: Han Seo-jin against a goblin in a torch-lit E-rank gate, drawn like a manhwa panel.",
+  "scene": "../../examples/gatebreaker/m0.json",
+  "accent": "#7b5cff",
+  "builtin": true
+}

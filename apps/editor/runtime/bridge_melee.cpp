@@ -14,6 +14,8 @@ using engine::gameplay::StunKind;
 constexpr float tick_dt = 1.0F / 60.0F;
 constexpr float pi = 3.14159265F;
 
+// Seconds after a perfect dodge in which an attack becomes a Shadow Step.
+constexpr float shadow_step_window = 0.9F;
 float wrap_angle(float a) { return std::atan2(std::sin(a), std::cos(a)); }
 
 // Turns `yaw` toward `goal` by at most `rate * dt` radians.
@@ -100,6 +102,11 @@ void Runtime::melee_strike(engine::World &w, engine::Entity self, Fighter &fight
                                                     defender ? &defender->settings : nullptr, from_front, airborne);
         if (defender)
             engine::gameplay::take_hit(defender->state, defender->moves, defender->settings, result);
+        // A perfect dodge opens the dodger's Shadow Step on this attacker.
+        if (defender && result.outcome == HitOutcome::dodged && move_index(defender->moves, "shadow_step") >= 0) {
+            defender->counter_window = shadow_step_window;
+            defender->counter_target = self;
+        }
         engine::gameplay::land_hit(fighter.state, move, fighter.settings, result);
         // Knockback away from the attacker, along the ground.
         engine::Vec3 away{their_box.center.x - box.center.x, 0, their_box.center.z - box.center.z};
@@ -156,7 +163,8 @@ void Runtime::melee_strike(engine::World &w, engine::Entity self, Fighter &fight
 void Runtime::step_melee(engine::World &w) {
     // The Player's buttons this tick.
     const auto pressed = [this](const char *name) { return actions.state(engine::ActionId{name}).pressed; };
-    static const char *const button_actions[]{"light", "heavy", "kick", "special", "dodge"};
+    static const char *const button_actions[]{"light",  "heavy",  "kick",   "special", "dodge",
+                                              "skill1", "skill2", "skill3", "ultimate"};
     for (const auto self : w.query<Fighter, engine::Box, engine::physics::RigidBody>()) {
         if (stowed(self))
             continue;
@@ -304,12 +312,40 @@ void Runtime::step_melee(engine::World &w) {
         }
         const float wish_length = std::hypot(wish_x, wish_z);
 
+        // ---- Shadow Step: an attack soon after a perfect dodge steps behind
+        // the attacker and strikes, cutting the dodge short.
+        if (fighter.counter_window > 0) {
+            fighter.counter_window -= tick_dt;
+            const bool attack = held.pressed[static_cast<int>(engine::gameplay::MeleeButton::light)] ||
+                                held.pressed[static_cast<int>(engine::gameplay::MeleeButton::heavy)];
+            const bool free = state.mode == FighterMode::idle || state.mode == FighterMode::move ||
+                              state.mode == FighterMode::block;
+            if (attack && free && fighter.counter_target && alive_target(w, *fighter.counter_target)) {
+                const auto &their_box = *w.get<engine::Box>(*fighter.counter_target);
+                const auto *their_fighter = w.get<Fighter>(*fighter.counter_target);
+                const auto behind = their_fighter ? facing_of(their_fighter->yaw)
+                                                  : facing_of(yaw_to(box.center, their_box.center) + pi);
+                const float gap = half_width(their_box) + half_width(box) + 0.3F;
+                box.center.x = their_box.center.x - behind.x * gap;
+                box.center.z = their_box.center.z - behind.z * gap;
+                body.velocity = {0, body.velocity.y, 0};
+                fighter.yaw = yaw_to(box.center, their_box.center);
+                fighter.script_move = "shadow_step";
+                fighter.script_interrupt = true;
+                for (auto &button : held.pressed)
+                    button = false;
+                fighter.counter_window = 0;
+            }
+        }
+
         // ---- The state machine (a script's melee.perform goes first).
         engine::gameplay::FighterTick tick;
         if (!fighter.script_move.empty()) {
             const int index = move_index(fighter.moves, fighter.script_move);
             fighter.script_move.clear();
-            if (engine::gameplay::force_move(state, fighter.moves, index))
+            const bool interrupt = fighter.script_interrupt;
+            fighter.script_interrupt = false;
+            if (engine::gameplay::force_move(state, fighter.moves, index, interrupt))
                 tick.started = index;
         }
         if (tick.started < 0) {

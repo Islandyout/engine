@@ -490,6 +490,9 @@
      "exposure": 1
     },
     "PostProcessing": {
+     "style": "Standard",
+     "ink": 1,
+     "rim": 0.6,
      "antialias": "SMAA",
      "ambientOcclusion": false,
      "aoRadius": 0.5,

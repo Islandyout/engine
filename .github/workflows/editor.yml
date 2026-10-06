@@ -37,6 +37,7 @@ jobs:
           node tests/browser/last_signal.cjs
           node tests/browser/high_heat.cjs
           node tests/browser/pale_signal.cjs
+          node tests/browser/gatebreaker.cjs
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v5

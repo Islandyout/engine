@@ -22,8 +22,10 @@ namespace engine::gameplay {
 // the caller (they need the world); this part is pure and unit tested.
 
 // The buttons a fighter presses.
-enum class MeleeButton : int { light, heavy, kick, special, dodge };
-constexpr int melee_button_count = 5;
+// skill1-3 and ultimate (GATEBREAKER): action-game slots a move list can
+// put its skills and its ultimate on.
+enum class MeleeButton : int { light, heavy, kick, special, dodge, skill1, skill2, skill3, ultimate };
+constexpr int melee_button_count = 9;
 
 struct MoveDef final {
     std::string name;
@@ -165,7 +167,8 @@ FighterTick update_fighter(FighterState &state, const std::vector<MoveDef> &move
 // Starts `move` by name's index regardless of its button (scripts: melee.perform):
 // from idle or block, or once the current move reaches its cancel point.
 // False when the fighter can't act yet or lacks the energy/cooldown.
-bool force_move(FighterState &state, const std::vector<MoveDef> &moves, int move);
+// With interrupt, it also cuts a playing move short before its cancel point.
+bool force_move(FighterState &state, const std::vector<MoveDef> &moves, int move, bool interrupt = false);
 
 // Invulnerable right now: a dodge's i-frames, getting up, or down/dead.
 [[nodiscard]] bool invulnerable(const FighterState &state, const std::vector<MoveDef> &moves);

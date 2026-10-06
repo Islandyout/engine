@@ -26,3 +26,19 @@ test("PostProcessing attaches with a polished default and validates ranges", () 
   const mode = d.execute({ command: "set_component", entity, type: "PostProcessing", value: { ...attached, antialias: "MSAA" } });
   assert.equal(mode.ok, false);
 });
+
+test("the Manhwa toon patch still matches three.js's shader chunks", async () => {
+  const { toonPatchApplies } = await import("../src/editor/manhwa");
+  assert.equal(toonPatchApplies, true);
+});
+
+test("PostProcessing.style defaults to Standard for older scenes and validates", () => {
+  const d = new EditorDocument();
+  const entity = d.execute({ command: "spawn_entity", name: "Look" }).entity!;
+  d.execute({ command: "attach_component", entity, type: "PostProcessing" });
+  const attached = d.scene.get(entity, "PostProcessing")!;
+  assert.equal(attached.style, "Standard");
+  assert.equal(d.execute({ command: "set_component", entity, type: "PostProcessing", value: { ...attached, style: "Manhwa", ink: 0.8 } }).ok, true);
+  assert.equal(d.execute({ command: "set_component", entity, type: "PostProcessing", value: { ...attached, style: "Noir" } }).ok, false);
+  assert.equal(d.execute({ command: "set_component", entity, type: "PostProcessing", value: { ...attached, ink: 2 } }).ok, false);
+});
