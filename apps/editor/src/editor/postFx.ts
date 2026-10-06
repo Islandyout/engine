@@ -7,6 +7,9 @@ export type PostSettings = PostProcessingComponent;
 
 // No PostProcessing component: the original fixed bloom, nothing else.
 export const defaultPostSettings: PostSettings = {
+  style: "Standard",
+  ink: 1,
+  rim: 0.6,
   antialias: "None",
   ambientOcclusion: false,
   aoRadius: 0.5,

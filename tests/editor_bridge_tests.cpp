@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
@@ -2094,6 +2095,29 @@ int main() {
         for (int i = 0; i < 260; ++i)
             editor_tick();
         check(!editor_alive(1));
+
+        // An AI fighter that starts out facing a fighting Player, across a
+        // kinematic floor slab, walks the whole way in.
+        editor_begin();
+        check(editor_add(0, 0.9, 4, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 1, 200, 200, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_melee(0, 0, "", 0, 0, 0.5, 0.5, 0.25, 40, 60);
+        editor_set_melee_yaw(0, 3.14159265);
+        editor_set_collider(0, 0, 0, 4294967295.0, 0);
+        editor_set_rotation(0, 0, 3.14159265, 0); // turned to face the goblin, as authored
+        check(editor_add(0, 0.725, -3, 0, 0, 0, 0.5, 1.45, 0.5, 0, 0, 0, 90, 90, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_melee(1, 0, "", 1, 1, 0.65, 0.4, 0.3, 0, 60);
+        editor_set_melee_yaw(1, 0);
+        editor_set_body(1, 1, 45, 1);
+        editor_set_collider(1, 0, 0, 4294967295.0, 0);
+        editor_set_body(0, 1, 70, 1);
+        editor_set_controller(0, 1, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        // A kinematic slab for the floor, as scenes author it.
+        check(editor_add(0, -0.5, 0, 0, 0, 0, 16, 1, 16, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(2, 1, 1, 0);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 240; ++i)
+            editor_tick();
+        check(editor_value(1, 2) > 1.5); // within reach of the Player at z = 4
     }
 
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "

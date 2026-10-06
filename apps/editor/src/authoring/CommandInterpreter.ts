@@ -732,6 +732,9 @@ export function defaultComponent(
       // A good-looking starting point rather than "no change": SMAA, AO, a
       // touch of contrast and vignette.
       return {
+        style: "Standard",
+        ink: 1,
+        rim: 0.6,
         antialias: "SMAA",
         ambientOcclusion: true,
         aoRadius: 0.5,

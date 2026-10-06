@@ -1,0 +1,3004 @@
+{
+  "format": 1,
+  "name": "GATEBREAKER — M0",
+  "entities": [
+    {
+      "name": "Environment",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Environment": {
+          "sky": "Color",
+          "skyColor": {
+            "x": 0.027450980392156862,
+            "y": 0.023529411764705882,
+            "z": 0.043137254901960784
+          },
+          "horizonColor": {
+            "x": 0.55,
+            "y": 0.7,
+            "z": 0.85
+          },
+          "groundColor": {
+            "x": 0.25,
+            "y": 0.31,
+            "z": 0.21
+          },
+          "sunElevation": 70,
+          "sunAzimuth": 200,
+          "sunIntensity": 1.3,
+          "sunColor": {
+            "x": 0.7686274509803922,
+            "y": 0.8,
+            "z": 1
+          },
+          "ambientIntensity": 0.95,
+          "fog": "Exponential",
+          "fogColor": {
+            "x": 0.043137254901960784,
+            "y": 0.0392156862745098,
+            "z": 0.07058823529411765
+          },
+          "fogNear": 20,
+          "fogFar": 120,
+          "fogDensity": 0.035,
+          "shadows": true,
+          "exposure": 1.05
+        }
+      }
+    },
+    {
+      "name": "Look",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "PostProcessing": {
+          "style": "Manhwa",
+          "ink": 1,
+          "rim": 0.7,
+          "antialias": "SMAA",
+          "ambientOcclusion": false,
+          "aoRadius": 0.5,
+          "aoIntensity": 1,
+          "bloom": 0.55,
+          "bloomRadius": 0.4,
+          "bloomThreshold": 0.8,
+          "exposure": 1,
+          "contrast": 0.12,
+          "saturation": 0.08,
+          "temperature": 0,
+          "vignette": 0.45,
+          "grain": 0,
+          "shadowQuality": "Medium"
+        }
+      }
+    },
+    {
+      "name": "Floor -6,-6",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -6,
+            "y": -0.02500000037252903,
+            "z": -6
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Floor -6,-2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -6,
+            "y": -0.02500000037252903,
+            "z": -2
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Floor -6,2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -6,
+            "y": -0.02500000037252903,
+            "z": 2
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Floor -6,6",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -6,
+            "y": -0.02500000037252903,
+            "z": 6
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Floor -2,-6",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -2,
+            "y": -0.02500000037252903,
+            "z": -6
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Floor -2,-2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -2,
+            "y": -0.02500000037252903,
+            "z": -2
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Floor -2,2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -2,
+            "y": -0.02500000037252903,
+            "z": 2
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Floor -2,6",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -2,
+            "y": -0.02500000037252903,
+            "z": 6
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Floor 2,-6",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 2,
+            "y": -0.02500000037252903,
+            "z": -6
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Floor 2,-2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 2,
+            "y": -0.02500000037252903,
+            "z": -2
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Floor 2,2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 2,
+            "y": -0.02500000037252903,
+            "z": 2
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Floor 2,6",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 2,
+            "y": -0.02500000037252903,
+            "z": 6
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Floor 6,-6",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 6,
+            "y": -0.02500000037252903,
+            "z": -6
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Floor 6,-2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 6,
+            "y": -0.02500000037252903,
+            "z": -2
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Floor 6,2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 6,
+            "y": -0.02500000037252903,
+            "z": 2
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Floor 6,6",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 6,
+            "y": -0.02500000037252903,
+            "z": 6
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.15000001713633537,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 186,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Ground",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -0.5,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 16,
+            "y": 1,
+            "z": 16
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "North wall 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -6,
+            "y": 2,
+            "z": -8
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 4,
+            "z": 1
+          }
+        },
+        "Renderable": {
+          "mesh": 196,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "North wall 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -2,
+            "y": 2,
+            "z": -8
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 4,
+            "z": 1.2593896389007568
+          }
+        },
+        "Renderable": {
+          "mesh": 199,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "North wall 3",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 2,
+            "y": 2,
+            "z": -8
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 4,
+            "z": 0.9999999403953552
+          }
+        },
+        "Renderable": {
+          "mesh": 201,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "North wall 4",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 6,
+            "y": 2,
+            "z": -8
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 4,
+            "z": 1
+          }
+        },
+        "Renderable": {
+          "mesh": 196,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "South wall 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -6,
+            "y": 2,
+            "z": 8
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 3.141592653589793,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 4,
+            "z": 1
+          }
+        },
+        "Renderable": {
+          "mesh": 196,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "South wall 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -2,
+            "y": 2,
+            "z": 8
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 3.141592653589793,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 4,
+            "z": 0.9999999403953552
+          }
+        },
+        "Renderable": {
+          "mesh": 200,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "South wall 3",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 2,
+            "y": 2,
+            "z": 8
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 3.141592653589793,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 4,
+            "z": 1.2593896389007568
+          }
+        },
+        "Renderable": {
+          "mesh": 199,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "South wall 4",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 6,
+            "y": 2,
+            "z": 8
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 3.141592653589793,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 4,
+            "z": 1
+          }
+        },
+        "Renderable": {
+          "mesh": 196,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "West wall 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -8,
+            "y": 2,
+            "z": -6
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 1.5707963267948966,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 4,
+            "z": 1.2593896389007568
+          }
+        },
+        "Renderable": {
+          "mesh": 199,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "West wall 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -7.999999687075615,
+            "y": 2,
+            "z": -1.9999998807907104
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 1.5707963267948966,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4.000000238418579,
+            "y": 4,
+            "z": 1.0000005662441254
+          }
+        },
+        "Renderable": {
+          "mesh": 197,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "West wall 3",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -8,
+            "y": 2,
+            "z": 2
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 1.5707963267948966,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 4,
+            "z": 1
+          }
+        },
+        "Renderable": {
+          "mesh": 196,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "West wall 4",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -7.999999687075615,
+            "y": 2,
+            "z": 6.0000001192092896
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 1.5707963267948966,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4.000000238418579,
+            "y": 4,
+            "z": 1.0000005662441254
+          }
+        },
+        "Renderable": {
+          "mesh": 197,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "East wall 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 8,
+            "y": 2,
+            "z": -6
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": -1.5707963267948966,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 4,
+            "z": 1
+          }
+        },
+        "Renderable": {
+          "mesh": 196,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "East wall 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 7.999999687075615,
+            "y": 2,
+            "z": -2.0000001192092896
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": -1.5707963267948966,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4.000000238418579,
+            "y": 4,
+            "z": 1.0000005662441254
+          }
+        },
+        "Renderable": {
+          "mesh": 197,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "East wall 3",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 8,
+            "y": 2,
+            "z": 2
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": -1.5707963267948966,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 4,
+            "z": 1.2593896389007568
+          }
+        },
+        "Renderable": {
+          "mesh": 199,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "East wall 4",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 8,
+            "y": 2,
+            "z": 6
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": -1.5707963267948966,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 4,
+            "z": 1
+          }
+        },
+        "Renderable": {
+          "mesh": 196,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Corner pillar -8,-8",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -8.000012040138245,
+            "y": 2,
+            "z": -7.999999970197678
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.5,
+            "y": 4,
+            "z": 1.4999999403953552
+          }
+        },
+        "Renderable": {
+          "mesh": 190,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Corner pillar 8,-8",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 7.999987959861755,
+            "y": 2,
+            "z": -7.999999970197678
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.5,
+            "y": 4,
+            "z": 1.4999999403953552
+          }
+        },
+        "Renderable": {
+          "mesh": 190,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Corner pillar -8,8",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -8.000012040138245,
+            "y": 2,
+            "z": 8.000000029802322
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.5,
+            "y": 4,
+            "z": 1.4999999403953552
+          }
+        },
+        "Renderable": {
+          "mesh": 190,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Corner pillar 8,8",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 7.999987959861755,
+            "y": 2,
+            "z": 8.000000029802322
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.5,
+            "y": 4,
+            "z": 1.4999999403953552
+          }
+        },
+        "Renderable": {
+          "mesh": 190,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Torch 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -3.999994859099388,
+            "y": 2.3504263281822206,
+            "z": -7.1920797547303605
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.550283282995224,
+            "y": 1.0624667406082153,
+            "z": 0.615840498726163
+          }
+        },
+        "Renderable": {
+          "mesh": 195,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Torch light 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -4,
+            "y": 2.95,
+            "z": -7.05
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "Light": {
+          "type": "Point",
+          "color": {
+            "x": 1,
+            "y": 0.6039215686274509,
+            "z": 0.2901960784313726
+          },
+          "intensity": 9,
+          "range": 11,
+          "angle": 0.5235987755982988,
+          "castShadows": true
+        },
+        "Particles": {
+          "preset": "Fire",
+          "color": {
+            "x": 1,
+            "y": 0.7529411764705882,
+            "z": 0.2901960784313726
+          },
+          "rate": 24,
+          "lifetime": 0.5,
+          "speed": 0.6,
+          "size": 0.14,
+          "endColor": {
+            "x": 1,
+            "y": 0.22745098039215686,
+            "z": 0.047058823529411764
+          },
+          "endSize": 0.3,
+          "gravityScale": 1,
+          "shape": "Sphere",
+          "shapeSize": 0.06,
+          "coneAngle": 25,
+          "space": "Local",
+          "burst": 0
+        }
+      }
+    },
+    {
+      "name": "Torch 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 4.000005140900612,
+            "y": 2.3504263281822206,
+            "z": -7.1920797547303605
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.550283282995224,
+            "y": 1.0624667406082153,
+            "z": 0.615840498726163
+          }
+        },
+        "Renderable": {
+          "mesh": 195,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Torch light 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 4,
+            "y": 2.95,
+            "z": -7.05
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "Light": {
+          "type": "Point",
+          "color": {
+            "x": 1,
+            "y": 0.6039215686274509,
+            "z": 0.2901960784313726
+          },
+          "intensity": 9,
+          "range": 11,
+          "angle": 0.5235987755982988,
+          "castShadows": false
+        },
+        "Particles": {
+          "preset": "Fire",
+          "color": {
+            "x": 1,
+            "y": 0.7529411764705882,
+            "z": 0.2901960784313726
+          },
+          "rate": 24,
+          "lifetime": 0.5,
+          "speed": 0.6,
+          "size": 0.14,
+          "endColor": {
+            "x": 1,
+            "y": 0.22745098039215686,
+            "z": 0.047058823529411764
+          },
+          "endSize": 0.3,
+          "gravityScale": 1,
+          "shape": "Sphere",
+          "shapeSize": 0.06,
+          "coneAngle": 25,
+          "space": "Local",
+          "burst": 0
+        }
+      }
+    },
+    {
+      "name": "Torch 3",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -7.1920797547303605,
+            "y": 2.3504263281822206,
+            "z": 1.9999948590993881
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 1.5707963267948966,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.550283282995224,
+            "y": 1.0624667406082153,
+            "z": 0.615840498726163
+          }
+        },
+        "Renderable": {
+          "mesh": 195,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Torch light 3",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -7.05,
+            "y": 2.95,
+            "z": 2
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "Light": {
+          "type": "Point",
+          "color": {
+            "x": 1,
+            "y": 0.6039215686274509,
+            "z": 0.2901960784313726
+          },
+          "intensity": 9,
+          "range": 11,
+          "angle": 0.5235987755982988,
+          "castShadows": false
+        },
+        "Particles": {
+          "preset": "Fire",
+          "color": {
+            "x": 1,
+            "y": 0.7529411764705882,
+            "z": 0.2901960784313726
+          },
+          "rate": 24,
+          "lifetime": 0.5,
+          "speed": 0.6,
+          "size": 0.14,
+          "endColor": {
+            "x": 1,
+            "y": 0.22745098039215686,
+            "z": 0.047058823529411764
+          },
+          "endSize": 0.3,
+          "gravityScale": 1,
+          "shape": "Sphere",
+          "shapeSize": 0.06,
+          "coneAngle": 25,
+          "space": "Local",
+          "burst": 0
+        }
+      }
+    },
+    {
+      "name": "Torch 4",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 7.1920797547303605,
+            "y": 2.3504263281822206,
+            "z": -1.9999948590993881
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": -1.5707963267948966,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.550283282995224,
+            "y": 1.0624667406082153,
+            "z": 0.615840498726163
+          }
+        },
+        "Renderable": {
+          "mesh": 195,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Torch light 4",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 7.05,
+            "y": 2.95,
+            "z": -2
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "Light": {
+          "type": "Point",
+          "color": {
+            "x": 1,
+            "y": 0.6039215686274509,
+            "z": 0.2901960784313726
+          },
+          "intensity": 9,
+          "range": 11,
+          "angle": 0.5235987755982988,
+          "castShadows": true
+        },
+        "Particles": {
+          "preset": "Fire",
+          "color": {
+            "x": 1,
+            "y": 0.7529411764705882,
+            "z": 0.2901960784313726
+          },
+          "rate": 24,
+          "lifetime": 0.5,
+          "speed": 0.6,
+          "size": 0.14,
+          "endColor": {
+            "x": 1,
+            "y": 0.22745098039215686,
+            "z": 0.047058823529411764
+          },
+          "endSize": 0.3,
+          "gravityScale": 1,
+          "shape": "Sphere",
+          "shapeSize": 0.06,
+          "coneAngle": 25,
+          "space": "Local",
+          "burst": 0
+        }
+      }
+    },
+    {
+      "name": "Torch 5",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 3.999994859099388,
+            "y": 2.3504263281822206,
+            "z": 7.1920797547303605
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 3.141592653589793,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.550283282995224,
+            "y": 1.0624667406082153,
+            "z": 0.615840498726163
+          }
+        },
+        "Renderable": {
+          "mesh": 195,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Torch light 5",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 4,
+            "y": 2.95,
+            "z": 7.05
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "Light": {
+          "type": "Point",
+          "color": {
+            "x": 1,
+            "y": 0.6039215686274509,
+            "z": 0.2901960784313726
+          },
+          "intensity": 9,
+          "range": 11,
+          "angle": 0.5235987755982988,
+          "castShadows": false
+        },
+        "Particles": {
+          "preset": "Fire",
+          "color": {
+            "x": 1,
+            "y": 0.7529411764705882,
+            "z": 0.2901960784313726
+          },
+          "rate": 24,
+          "lifetime": 0.5,
+          "speed": 0.6,
+          "size": 0.14,
+          "endColor": {
+            "x": 1,
+            "y": 0.22745098039215686,
+            "z": 0.047058823529411764
+          },
+          "endSize": 0.3,
+          "gravityScale": 1,
+          "shape": "Sphere",
+          "shapeSize": 0.06,
+          "coneAngle": 25,
+          "space": "Local",
+          "burst": 0
+        }
+      }
+    },
+    {
+      "name": "Banner",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0.0000073909759521484375,
+            "y": 2.1294314861297607,
+            "z": -7.4164171636104586
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.5000004768371582,
+            "y": 3.1960768699645996,
+            "z": 0.3118894696235657
+          }
+        },
+        "Renderable": {
+          "mesh": 179,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Barrel",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -6.200000029802323,
+            "y": 1.0000009536743164,
+            "z": -6.099999612569809
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.800000011920929,
+            "y": 2,
+            "z": 1.7999998927116394
+          }
+        },
+        "Renderable": {
+          "mesh": 180,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Crates",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 5.9454980601341525,
+            "y": 1.071143867147157,
+            "z": -6.01229356240554
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0.4,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 2.0891836285591125,
+            "y": 2.142295834278684,
+            "z": 2.2494012117385864
+          }
+        },
+        "Renderable": {
+          "mesh": 185,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Chest",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -5.844657075405121,
+            "y": 0.3174988776445389,
+            "z": -2.2
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 1.5707963267948966,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.7000000476837158,
+            "y": 0.9650022685527802,
+            "z": 1.9106866121292114
+          }
+        },
+        "Renderable": {
+          "mesh": 183,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Broken sword and shield",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 2.653470078810412,
+            "y": 0.18815037608146667,
+            "z": -4.321417617581215
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 1.1,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.4256414771080017,
+            "y": 1.9622970223426819,
+            "z": 0.3357423320412636
+          }
+        },
+        "Renderable": {
+          "mesh": 194,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Candles",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 6.683403795957565,
+            "y": 0.4364910125732422,
+            "z": 2.435435490310192
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.5011786222457886,
+            "y": 0.8729820251464844,
+            "z": 0.38992415368556976
+          }
+        },
+        "Renderable": {
+          "mesh": 182,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Column left",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -4.6,
+            "y": 0.7000000476837158,
+            "z": -1.2
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.7000000476837158,
+            "y": 1.4000000953674316,
+            "z": 0.7000000476837158
+          }
+        },
+        "Renderable": {
+          "mesh": 184,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Column right",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 4.6,
+            "y": 0.7000000476837158,
+            "z": -1.2
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.7000000476837158,
+            "y": 1.4000000953674316,
+            "z": 0.7000000476837158
+          }
+        },
+        "Renderable": {
+          "mesh": 184,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Han Seo-jin",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.9,
+            "z": 4
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.6,
+            "y": 1.8,
+            "z": 0.6
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 3.141592653589793,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 176,
+          "material": 0,
+          "visible": true
+        },
+        "Player": {},
+        "RigidBody": {
+          "mass": 70,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "CharacterController": {
+          "mode": "ThirdPerson",
+          "walkSpeed": 4.5,
+          "sprintSpeed": 7.5,
+          "crouchSpeed": 2.2,
+          "jumpHeight": 1.1,
+          "standHeight": 1.8,
+          "crouchHeight": 1.1,
+          "stepHeight": 0.4,
+          "acceleration": 45,
+          "airControl": 12,
+          "lookSensitivity": 1,
+          "invertY": false,
+          "fov": 75,
+          "headBob": 1
+        },
+        "Health": {
+          "current": 200,
+          "maximum": 200
+        },
+        "Melee": {
+          "style": "Martial arts",
+          "moves": "# Punches (light): jab, cross, hook, uppercut\njab: clip=jab input=light dur=0.55 hit=0.10-0.16 cancel=0.2 dmg=6 reach=0.9 lunge=0.25 stun=0.3 limb=hand_l\ncross: clip=cross input=light after=jab dur=0.62 hit=0.15-0.22 cancel=0.26 dmg=8 reach=1.0 lunge=0.3 stun=0.35 limb=hand_r\nhook: clip=hook input=light after=cross dur=0.72 hit=0.15-0.23 cancel=0.32 dmg=10 reach=1.0 lunge=0.35 knock=2.5 stun=0.4 limb=hand_r\nuppercut: clip=uppercut input=light after=hook dur=0.78 hit=0.18-0.28 cancel=0.45 dmg=13 reach=0.9 lunge=0.3 launch=7.5 knock=1 stun=0.6 stop=0.1 limb=hand_r\n# Kicks: front kick, roundhouse, side kick (alternating legs)\nfront_kick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=10 reach=1.25 height=0.55 lunge=0.4 knock=3.5 stun=0.4 limb=foot_r\nroundhouse: clip=roundhouse_l input=kick after=front_kick|jab|cross dur=0.9 hit=0.38-0.48 cancel=0.6 dmg=14 reach=1.3 height=0.8 lunge=0.35 knock=4.5 stun=0.5 stop=0.09 limb=foot_l\nside_kick: clip=side_kick_r input=kick after=roundhouse|hook dur=0.92 hit=0.30-0.40 cancel=0.62 dmg=16 reach=1.45 height=0.65 lunge=0.35 knock=8 stun=0.7 stop=0.11 knockdown finisher limb=foot_r\n# Heavies\npower_hook: clip=hook input=heavy dur=0.95 hit=0.22-0.32 cancel=0.55 dmg=15 reach=1.05 lunge=0.5 knock=4.5 stun=0.55 stop=0.1 armor limb=hand_r\nlauncher: clip=uppercut input=heavy after=jab|cross dur=0.85 hit=0.2-0.3 cancel=0.5 dmg=11 reach=0.95 lunge=0.35 launch=8.5 stun=0.7 stop=0.1 limb=hand_r\nknee_strike: clip=knee input=heavy after=hook|power_hook dur=0.8 hit=0.36-0.46 cancel=0.6 dmg=14 reach=0.75 lunge=0.6 knock=2 stun=0.7 stop=0.1 limb=calf_r\n# In the air (after a jump, or chasing a launched target)\nair_punch: clip=cross input=light air after=air_punch|air_kick|start dur=0.45 hit=0.10-0.18 cancel=0.2 dmg=6 reach=1.0 launch=3.5 stun=0.4 lunge=0 limb=hand_r\nair_kick: clip=roundhouse_r input=kick air after=air_punch|start dur=0.6 hit=0.25-0.36 cancel=0.4 dmg=9 reach=1.2 launch=3 knock=2 stun=0.5 lunge=0 limb=foot_r\n# Running\ndash_attack: clip=shoulder_dash input=light sprint dur=0.75 hit=0.08-0.35 cancel=0.5 dmg=10 reach=0.9 lunge=2.4 knock=7 stun=0.6 stop=0.08 limb=upperarm_l\n# Dodges (invulnerable while rolling)\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis\nslide: clip=slide input=dodge sprint dur=0.7 hit=0-0 cancel=0.55 dmg=0 lunge=4.2 free iframes=0-0.45 track=0 limb=pelvis\n# Specials (energy, built by landing hits): neutral, forward, back, back-forward\nenergy_blast: clip=energy_throw input=special dur=0.8 hit=0.26-0.3 cancel=0.55 dmg=18 projectile=18 knock=5 stun=0.6 cost=25 cooldown=0.6 lunge=0 limb=hand_r\nflying_strike: clip=dash_strike input=special seq=f dur=1.0 hit=0.15-0.45 cancel=0.75 dmg=20 reach=1.1 lunge=4 knock=6 stun=0.7 stop=0.1 cost=35 armor limb=hand_r\nrising_dragon: clip=rising_strike input=special seq=b dur=0.7 hit=0.1-0.3 cancel=0.55 dmg=18 reach=1.0 launch=10 stun=0.9 stop=0.12 cost=35 iframes=0-0.15 lunge=0.3 limb=hand_r\nmeteor_smash: clip=ground_pound input=special seq=bf dur=1.1 hit=0.3-0.42 cancel=0.9 dmg=35 aoe=3 knock=9 launch=4 stun=1 stop=0.16 cost=70 armor knockdown unblockable finisher lunge=0.2 limb=hand_r\n",
+          "team": 0,
+          "ai": false,
+          "aggression": 0.5,
+          "skill": 0.5,
+          "reaction": 0.25,
+          "energy": 40,
+          "guard": 60
+        }
+      }
+    },
+    {
+      "name": "Camera",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 2,
+            "z": 8
+          }
+        },
+        "Camera": {
+          "projection": "Perspective",
+          "fov": 50,
+          "near": 0.1,
+          "far": 200,
+          "orthoSize": 10,
+          "priority": 0
+        },
+        "CameraFollow": {
+          "target": "",
+          "offset": {
+            "x": 0,
+            "y": 2.5,
+            "z": -4.4
+          },
+          "smoothing": 0.15,
+          "lookHeight": 0.9,
+          "collision": true,
+          "orbit": true
+        }
+      }
+    },
+    {
+      "name": "Goblin",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.725,
+            "z": -3
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.5,
+            "y": 1.45,
+            "z": 0.5
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 177,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 45,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "Health": {
+          "current": 90,
+          "maximum": 90
+        },
+        "Melee": {
+          "style": "Martial arts",
+          "moves": "# Punches (light): jab, cross, hook, uppercut\njab: clip=jab input=light dur=0.55 hit=0.10-0.16 cancel=0.2 dmg=6 reach=0.9 lunge=0.25 stun=0.3 limb=hand_l\ncross: clip=cross input=light after=jab dur=0.62 hit=0.15-0.22 cancel=0.26 dmg=8 reach=1.0 lunge=0.3 stun=0.35 limb=hand_r\nhook: clip=hook input=light after=cross dur=0.72 hit=0.15-0.23 cancel=0.32 dmg=10 reach=1.0 lunge=0.35 knock=2.5 stun=0.4 limb=hand_r\nuppercut: clip=uppercut input=light after=hook dur=0.78 hit=0.18-0.28 cancel=0.45 dmg=13 reach=0.9 lunge=0.3 launch=7.5 knock=1 stun=0.6 stop=0.1 limb=hand_r\n# Kicks: front kick, roundhouse, side kick (alternating legs)\nfront_kick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=10 reach=1.25 height=0.55 lunge=0.4 knock=3.5 stun=0.4 limb=foot_r\nroundhouse: clip=roundhouse_l input=kick after=front_kick|jab|cross dur=0.9 hit=0.38-0.48 cancel=0.6 dmg=14 reach=1.3 height=0.8 lunge=0.35 knock=4.5 stun=0.5 stop=0.09 limb=foot_l\nside_kick: clip=side_kick_r input=kick after=roundhouse|hook dur=0.92 hit=0.30-0.40 cancel=0.62 dmg=16 reach=1.45 height=0.65 lunge=0.35 knock=8 stun=0.7 stop=0.11 knockdown finisher limb=foot_r\n# Heavies\npower_hook: clip=hook input=heavy dur=0.95 hit=0.22-0.32 cancel=0.55 dmg=15 reach=1.05 lunge=0.5 knock=4.5 stun=0.55 stop=0.1 armor limb=hand_r\nlauncher: clip=uppercut input=heavy after=jab|cross dur=0.85 hit=0.2-0.3 cancel=0.5 dmg=11 reach=0.95 lunge=0.35 launch=8.5 stun=0.7 stop=0.1 limb=hand_r\nknee_strike: clip=knee input=heavy after=hook|power_hook dur=0.8 hit=0.36-0.46 cancel=0.6 dmg=14 reach=0.75 lunge=0.6 knock=2 stun=0.7 stop=0.1 limb=calf_r\n# In the air (after a jump, or chasing a launched target)\nair_punch: clip=cross input=light air after=air_punch|air_kick|start dur=0.45 hit=0.10-0.18 cancel=0.2 dmg=6 reach=1.0 launch=3.5 stun=0.4 lunge=0 limb=hand_r\nair_kick: clip=roundhouse_r input=kick air after=air_punch|start dur=0.6 hit=0.25-0.36 cancel=0.4 dmg=9 reach=1.2 launch=3 knock=2 stun=0.5 lunge=0 limb=foot_r\n# Running\ndash_attack: clip=shoulder_dash input=light sprint dur=0.75 hit=0.08-0.35 cancel=0.5 dmg=10 reach=0.9 lunge=2.4 knock=7 stun=0.6 stop=0.08 limb=upperarm_l\n# Dodges (invulnerable while rolling)\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis\nslide: clip=slide input=dodge sprint dur=0.7 hit=0-0 cancel=0.55 dmg=0 lunge=4.2 free iframes=0-0.45 track=0 limb=pelvis\n# Specials (energy, built by landing hits): neutral, forward, back, back-forward\nenergy_blast: clip=energy_throw input=special dur=0.8 hit=0.26-0.3 cancel=0.55 dmg=18 projectile=18 knock=5 stun=0.6 cost=25 cooldown=0.6 lunge=0 limb=hand_r\nflying_strike: clip=dash_strike input=special seq=f dur=1.0 hit=0.15-0.45 cancel=0.75 dmg=20 reach=1.1 lunge=4 knock=6 stun=0.7 stop=0.1 cost=35 armor limb=hand_r\nrising_dragon: clip=rising_strike input=special seq=b dur=0.7 hit=0.1-0.3 cancel=0.55 dmg=18 reach=1.0 launch=10 stun=0.9 stop=0.12 cost=35 iframes=0-0.15 lunge=0.3 limb=hand_r\nmeteor_smash: clip=ground_pound input=special seq=bf dur=1.1 hit=0.3-0.42 cancel=0.9 dmg=35 aoe=3 knock=9 launch=4 stun=1 stop=0.16 cost=70 armor knockdown unblockable finisher lunge=0.2 limb=hand_r\n",
+          "team": 1,
+          "ai": true,
+          "aggression": 0.65,
+          "skill": 0.4,
+          "reaction": 0.3,
+          "energy": 0,
+          "guard": 60
+        }
+      }
+    },
+    {
+      "name": "Controls",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "UI": {
+          "kind": "Text",
+          "text": "Click attack · Right-click heavy · F kick · Q special · X dodge · R block · T lock on · Shift run",
+          "anchor": "bottom-center",
+          "visibleWhen": "always",
+          "action": "restart",
+          "offsetX": 0,
+          "offsetY": -16,
+          "width": 0,
+          "height": 0,
+          "fontSize": 14,
+          "color": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          },
+          "opacity": 0.75,
+          "image": "",
+          "value": 0
+        }
+      }
+    }
+  ]
+}

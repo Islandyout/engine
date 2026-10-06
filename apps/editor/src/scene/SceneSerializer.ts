@@ -355,7 +355,12 @@ export function normalizeComponent(
       const shadowQuality = value.shadowQuality;
       if (shadowQuality !== "Low" && shadowQuality !== "Medium" && shadowQuality !== "High")
         throw new Error("PostProcessing.shadowQuality must be Low, Medium, or High.");
+      const style = value.style ?? "Standard";
+      if (style !== "Standard" && style !== "Manhwa") throw new Error("PostProcessing.style must be Standard or Manhwa.");
       return {
+        style,
+        ink: value.ink === undefined ? 1 : within(value.ink, "PostProcessing.ink", 0, 1),
+        rim: value.rim === undefined ? 0.6 : within(value.rim, "PostProcessing.rim", 0, 1),
         antialias,
         ambientOcclusion: boolean(value.ambientOcclusion, "PostProcessing.ambientOcclusion"),
         aoRadius: within(value.aoRadius, "PostProcessing.aoRadius", 0.05, 5),

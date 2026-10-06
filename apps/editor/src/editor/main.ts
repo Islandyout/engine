@@ -32,6 +32,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { isNonPhysical, isSettingsOnly } from "./settingsEntity";
+import { InkPass, attachDepth, installToonShading, markCharacter, toonUniforms } from "./manhwa";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
@@ -650,7 +652,12 @@ async function startEditor() {
   // Camera entity during Play. HUD projection and WASD use the same one.
   let viewCamera: THREE.Camera = camera;
   let bloomPass: UnrealBloomPass | undefined;
+  // The Manhwa style (manhwa.ts): toon shading on every standard material,
+  // and the ink pass reading the scene's depth.
+  installToonShading();
+  const inkPass = new InkPass(camera);
   if (composer) {
+    attachDepth([composer.renderTarget1, composer.renderTarget2]);
     composer.addPass(renderPass);
     bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.5, 0.85);
     composer.addPass(bloomPass);
@@ -794,6 +801,8 @@ async function startEditor() {
   viewmodelPass.clearDepth = true;
   viewmodelPass.enabled = false;
   composer?.insertPass(viewmodelPass, 1);
+  // Right after the scene (and the viewmodel): it needs the depth the scene left.
+  composer?.insertPass(inkPass, 2);
   // Post-processing (0.65.0; postFx.ts): grading and anti-aliasing after
   // tone mapping, ambient occlusion on the world before the viewmodel.
   const gradingPass = new ShaderPass(gradingShader);
@@ -815,6 +824,11 @@ async function startEditor() {
       bloomPass.threshold = settings.bloomThreshold;
     }
     if (renderer instanceof THREE.WebGLRenderer) renderer.toneMappingExposure *= settings.exposure;
+    const manhwa = settings.style === "Manhwa";
+    toonUniforms.toonOn.value = manhwa ? 1 : 0;
+    toonUniforms.toonRim.value = manhwa ? settings.rim : 0;
+    inkPass.enabled = !!composer && manhwa && settings.ink > 0;
+    inkPass.ink = settings.ink;
     gradingPass.enabled = !!composer && gradingActive(settings);
     const uniforms = gradingPass.uniforms as Record<string, { value: number }>;
     uniforms.contrast!.value = settings.contrast;
@@ -824,13 +838,16 @@ async function startEditor() {
     uniforms.grain!.value = settings.grain;
     fxaaPass.enabled = !!composer && settings.antialias === "FXAA";
     smaaPass.enabled = !!composer && settings.antialias === "SMAA";
-    if (composer && settings.ambientOcclusion && !gtaoPass) {
+    // Flat fills don't want ambient occlusion, and the ink pass must read the
+    // scene's own target (GTAO swaps it).
+    const ambientOcclusion = settings.ambientOcclusion && !manhwa;
+    if (composer && ambientOcclusion && !gtaoPass) {
       // Created on first use: it allocates its own normal and AO targets.
       gtaoPass = new GTAOPass(scene, camera, viewport.clientWidth || 1, viewport.clientHeight || 1);
       composer.insertPass(gtaoPass, 1);
     }
     if (gtaoPass) {
-      gtaoPass.enabled = settings.ambientOcclusion;
+      gtaoPass.enabled = ambientOcclusion;
       gtaoPass.blendIntensity = settings.aoIntensity;
       gtaoPass.updateGtaoMaterial({ radius: settings.aoRadius });
     }
@@ -852,6 +869,8 @@ async function startEditor() {
     const w = Math.max(1, viewport.clientWidth),
       h = Math.max(1, viewport.clientHeight);
     (fxaaPass.material.uniforms.resolution!.value as THREE.Vector2).set(1 / (w * ratio), 1 / (h * ratio));
+    // About 2 px at 720p, scaling with the view so lines keep their weight.
+    inkPass.width = ratio * Math.max(1.5, h / 360);
   }
   // Audio (0.64.0): every sound goes through the mixer's buses; world
   // sounds are positional and muffled behind solid geometry.
@@ -1376,6 +1395,7 @@ async function startEditor() {
         const nativeSize = bounds.getSize(new THREE.Vector3());
         const nativeCenter = bounds.getCenter(new THREE.Vector3());
         const cached = { scene: gltf.scene, clips: gltf.animations, nativeSize, nativeCenter };
+        if (entry.animated) markCharacter(gltf.scene);
         catalogCache.set(meshId, cached);
         return cached;
       });
@@ -2735,7 +2755,8 @@ async function startEditor() {
         s.x,
         s.y,
         s.z,
-        isChild,
+        // Settings-only entities ride along like hierarchy children: no body.
+        isChild || (isNonPhysical(get) ? 1 : 0),
         isPlayer,
         isCollider,
         hpCurrent,
@@ -3508,7 +3529,7 @@ async function startEditor() {
     animators.push(animator);
     // Scene-wide settings (a UI label, the Environment) have no body of
     // their own: their stand-in box shows only while editing (0.78.0).
-    const settingsOnly = !renderable && !!(get("UI") || get("Environment") || get("PostProcessing") || get("AudioSettings") || get("InputActions"));
+    const settingsOnly = isSettingsOnly(get);
     object.visible = renderable?.visible ?? !(settingsOnly && doc.mode === "play");
     if (settingsOnly) object.userData.settingsOnly = true;
     // `anchor` -- not `object` -- carries this entity's Transform/Rotation/
@@ -3536,7 +3557,7 @@ async function startEditor() {
       // Characters (an animated model driven by AI or a controller) keep
       // their proportions: one uniform scale from the box's height, since a
       // rig's bind pose (arms out) says nothing about its collision width.
-      const character = catalog?.animated && (get("AICombat") || get("CharacterController"));
+      const character = catalog?.animated && (get("AICombat") || get("CharacterController") || get("Melee"));
       if (character && n.y > 1e-6) anchor.scale.setScalar(s.y / n.y);
       else anchor.scale.set(n.x > 1e-6 ? s.x / n.x : s.x, n.y > 1e-6 ? s.y / n.y : s.y, n.z > 1e-6 ? s.z / n.z : s.z);
     } else if (s) anchor.scale.set(s.x, s.y, s.z);
@@ -5083,6 +5104,7 @@ async function startEditor() {
     updateSunShadow();
     renderPass.camera = viewCamera;
     if (gtaoPass) gtaoPass.camera = viewCamera;
+    inkPass.camera = viewCamera;
     if (gradingPass.enabled) (gradingPass.uniforms as Record<string, { value: number }>).time!.value = (now / 1000) % 100;
     // Counted over every pass of the frame (bloom included), not just the
     // last one, for the Stats overlay's draw calls and triangles.
@@ -5313,7 +5335,8 @@ async function startEditor() {
         // only damaged targets within 40 m get one.
         if (firstPerson() && (ratio >= 1 || object.position.distanceTo(viewCamera.position) > 40)) return;
         const scaleY = doc.scene.resolve(entity, "Scale")?.value.y ?? 1;
-        hudScratch.copy(object.position);
+        // Where the simulation has it: a fighter's drawn body isn't its anchor.
+        hudScratch.set(runtime._editor_value(index, EntityField.x), runtime._editor_value(index, EntityField.y), runtime._editor_value(index, EntityField.z));
         hudScratch.y += scaleY / 2 + 0.35;
         hudScratch.project(viewCamera);
         if (hudScratch.z > 1) return; // behind the camera

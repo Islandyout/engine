@@ -42,7 +42,7 @@ export const componentHelp: Record<string, string> = {
   Wildlife: "An animal that grows wary of the player and flees, staying near home.",
   Terrain: "A heightfield ground with noise, sculpting, colour bands and scattered models.",
   AudioSettings: "Volumes for the mixer buses, room reverb and wall muffling.",
-  PostProcessing: "Screen effects: bloom, ambient occlusion, colour grading, vignette, grain.",
+  PostProcessing: "Screen effects: bloom, ambient occlusion, colour grading, vignette, grain, and the Manhwa style (toon shading and ink lines).",
   InputActions: "Named actions (jump, fire, ...) and the keys and buttons bound to them.",
   Trail: "A ribbon that follows the entity as it moves.",
 };

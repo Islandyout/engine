@@ -582,7 +582,13 @@ export interface TerrainComponent {
 // one the editor keeps its original subtle bloom.
 export type AntialiasMode = "None" | "FXAA" | "SMAA";
 export type ShadowQuality = "Low" | "Medium" | "High";
+// "Manhwa" (GATEBREAKER): toon shading, ink lines and a rim light on
+// characters (editor/manhwa.ts). It turns ambient occlusion off.
+export type RenderStyle = "Standard" | "Manhwa";
 export interface PostProcessingComponent {
+  style: RenderStyle;
+  ink: number; // 0..1, Manhwa line strength
+  rim: number; // 0..1, Manhwa rim light on characters
   antialias: AntialiasMode;
   ambientOcclusion: boolean;
   aoRadius: number;
