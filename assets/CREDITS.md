@@ -404,3 +404,34 @@ Sources:
 Combat clip library SHA-256:
 
 - `assets/source/kit/people/combat_clips.glb`: `f7eb7aed6b2aa2a1647324796463d34a98e88d0be9bfe9b3479332b234616009`
+
+## GATEBREAKER characters and dungeon kit (M0)
+
+- `source/kit/people/hunter.glb` and `source/kit/people/goblin.glb`, made by
+  `tools/models/make_characters.mjs` from **Quaternius, Universal Base
+  Characters** (Standard tier), CC0 1.0 (https://quaternius.com/packs/universalbasecharacters.html).
+  Taken from the copies in https://github.com/Arod231/monomachia @
+  `9a345c4ed12f73186efc7c29d47237ed07ca4bac` (`game/assets/quaternius/`; that
+  repository's `game/assets/CREDITS.md` records the pack and its licence).
+  Source SHA-256:
+  - `characters/Superhero_Male_FullBody.gltf`: `6915859f59dbb1a37a4f62e66087556d46933bb9951ff0b81167e810ee759fd3`
+  - `characters/Superhero_Male_FullBody.bin`: `459003f9745853ae562a85506a2b94dd56515c1f37728f9fa3d2ce1a3e4cd92f`
+  - `characters/T_Eye_Brown.png`: `41afe615f77a994413003bc643b426c9a17129407699cd082167660fb2d03559`
+  - `hair/Hair_Buzzed.gltf`: `b2f06ae6224d4488d93cc4d2f0759df7f6a5ebbffab19907ee488894867f33d8`
+  - `hair/Hair_Buzzed.bin`: `5d4b5452ff879ed1d516694be57d1106c070c7133e747a8c9432b01ebf20e908`
+  - `hair/T_Hair_1_BaseColor.png`: `8db824114cb8a5e978bbe1322b95d5702acde5e42990667fc0a3e2698c6b70e5`
+
+  Both keep the male body's mesh, skeleton and skin weights. The skin texture,
+  normal and roughness maps are dropped, and each vertex gets a flat colour by
+  the bone that moves it most. The hunter adds the buzzed hair. The goblin
+  drops the hair, gives the eyes a yellow glow, and adds pointed ears that the
+  script generates and binds to the head. The results are CC0 like their source.
+  SHA-256: hunter `d789dcc9441ca4b9feb97c7d5395f4e01a45ac894d7492a6476c2a125c6cc19a`,
+  goblin `2015a487136a9cce0ca5c477574a654d3432f81143031faf2913c24fd110db95`.
+
+- `source/kit/dungeon/*.glb` (24 pieces): **Kay Lousberg, KayKit Dungeon
+  Remastered 1.0**, CC0 1.0 (`LICENSE.txt` in the pack; https://www.kaylousberg.com),
+  from https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0 @
+  `b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07`
+  (`addons/kaykit_dungeon_remastered/Assets/gltf/<name>.gltf.glb`). Copied
+  unmodified, renamed to kebab case (`torch_mounted.gltf.glb` → `torch-mounted.glb`).
