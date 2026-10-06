@@ -2999,7 +2999,7 @@
         },
         "UI": {
           "kind": "Text",
-          "text": "Click attack · Right-click heavy · Space dodge (just in time: Shadow Step) · Shift block / tap to parry · Q E R skills · F ultimate · Tab lock on",
+          "text": "LMB attack · RMB heavy · Space dodge (perfect, then attack: Shadow Step) · Shift block/parry · Q E R skills · F ultimate · Tab lock",
           "anchor": "top-center",
           "visibleWhen": "always",
           "action": "restart",
@@ -3007,7 +3007,7 @@
           "offsetY": 14,
           "width": 0,
           "height": 0,
-          "fontSize": 14,
+          "fontSize": 12,
           "color": {
             "x": 1,
             "y": 1,

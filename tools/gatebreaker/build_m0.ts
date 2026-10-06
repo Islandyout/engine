@@ -263,10 +263,10 @@ add("Goblin", [0, 0.725, -3], {
 });
 add("Controls", [0, 0, 0], {
   UI: component("UI", {
-    text: "Click attack · Right-click heavy · Space dodge (just in time: Shadow Step) · Shift block / tap to parry · Q E R skills · F ultimate · Tab lock on",
+    text: "LMB attack · RMB heavy · Space dodge (perfect, then attack: Shadow Step) · Shift block/parry · Q E R skills · F ultimate · Tab lock",
     anchor: "top-center",
     offsetY: 14,
-    fontSize: 14,
+    fontSize: 12,
     color: vec(1, 1, 1),
     opacity: 0.75,
   }),
