@@ -150,18 +150,33 @@ const { chromium } = require("playwright");
       } else aligned = true;
     };
     let logged = 0;
+    let fightFrom;
+    let stalled = 0;
     while (Date.now() < deadline && !/GATE CLEARED|LEVEL UP/.test(await hud())) {
       // Where the hunter is: every 30 s (every 6 s with GATE_DEBUG=1), so a
       // CI failure log shows how far it got.
       if (Date.now() - logged > (process.env.GATE_DEBUG ? 6000 : 30000)) {
         logged = Date.now();
-        console.log(JSON.stringify(await position()), heading, aligned, (await hud()).slice(0, 100));
+        const text = await hud();
+        // The objective is the HUD's last line.
+        console.log(JSON.stringify(await position()), aligned, "|", text.slice(text.lastIndexOf(" · ") + 3), "|", /Locked on/.test(text) ? "locked" : "free");
       }
       if (/Go north|Face the Gate|Enter the Gate/.test(await hud())) {
         await travel();
         continue;
       }
-      // A fight: lock on and close in, swinging.
+      // A fight: lock on and close in, swinging. Stuck against a wall for a
+      // few rounds (pushing toward a target it can't reach): drop the lock
+      // and back out, alternating sides.
+      const here = await position();
+      stalled = here && fightFrom && Math.hypot(here.x - fightFrom.x, here.z - fightFrom.z) < 0.1 ? stalled + 1 : 0;
+      fightFrom = here;
+      if (stalled >= 3) {
+        if (/Locked on/.test(await hud())) await page.keyboard.press("Tab");
+        await hold("s", 600);
+        await hold(stalled % 2 ? "a" : "d", 900);
+        continue;
+      }
       if (!/Locked on/.test(await hud())) await page.keyboard.press("Tab");
       await page.keyboard.down("w");
       await page.waitForTimeout(700);
