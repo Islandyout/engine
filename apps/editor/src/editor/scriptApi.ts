@@ -518,6 +518,12 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "melee"
   },
   {
+    "name": "melee.tune",
+    "signature": "melee.tune(damage: number, speed: number, crit: number, skill: number, health_max?: number, mana_max?: number): number, number, number, number",
+    "doc": "Stats: damage dealt (times), its clock speed (0.5-2: attacks, dodges, cooldowns), crit chance 0-1 (1.5x), skill damage (times, moves that cost mana), and optionally max health and mana. -1 keeps one as is.",
+    "group": "melee"
+  },
+  {
     "name": "weapon.fire",
     "signature": "weapon.fire(dx?: number, dy?: number, dz?: number)",
     "doc": "Fires the current weapon (optionally along a direction).",

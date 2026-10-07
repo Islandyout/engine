@@ -28,7 +28,7 @@ export const combatClipsPath = "./kit/people/combat_clips.glb";
 export const FighterMode = { idle: 0, move: 1, block: 2, stun: 3, airborne: 4, down: 5, getup: 6, dead: 7 } as const;
 export const StunKind = { none: 0, light: 1, heavy: 2, launched: 3, knockdown: 4, guardBreak: 5, parried: 6 } as const;
 export const MeleeEvent = { start: 0, hit: 1, blocked: 2, parried: 3, dodged: 4, guardBreak: 5, fire: 6, land: 7, ko: 8, broken: 9 } as const;
-export const MeleeFlag = { finisher: 1, launch: 2, knockdown: 4, heavy: 8, killed: 16 } as const;
+export const MeleeFlag = { finisher: 1, launch: 2, knockdown: 4, heavy: 8, killed: 16, crit: 32 } as const;
 
 // What the view reads from the runtime.
 export interface CombatHost {
@@ -486,7 +486,7 @@ export class CombatView {
           const killed = (flags & MeleeFlag.killed) !== 0;
           const finisher = (flags & MeleeFlag.finisher) !== 0;
           this.impact(point, heavy ? 1.6 : 1, new THREE.Color(1, 0.85, 0.55));
-          this.comic.hit(finisher || killed ? "finisher" : heavy ? "heavy" : "light", point);
+          this.comic.hit(finisher || killed ? "finisher" : (flags & MeleeFlag.crit) !== 0 ? "crit" : heavy ? "heavy" : "light", point);
           host.sound(point)?.punch(heavy, 1);
           if (involved) host.shake(finisher || killed ? 0.12 : heavy ? 0.07 : 0.035, finisher ? 0.35 : 0.18);
           if (finisher || killed) {

@@ -100,6 +100,20 @@ void Runtime::melee_strike(engine::World &w, engine::Entity self, Fighter &fight
         auto result = engine::gameplay::resolve_hit(move, fighter.state.combo, defender ? &defender->state : nullptr,
                                                     defender ? &defender->moves : nullptr,
                                                     defender ? &defender->settings : nullptr, from_front, airborne);
+        // The attacker's stats (melee.tune): STR, INT for skills, SEN's crits.
+        bool crit = false;
+        if (result.damage > 0) {
+            result.damage *= fighter.stat_damage * (move.mana > 0 ? fighter.stat_skill : 1.0F);
+            if (fighter.stat_crit > 0 && result.outcome == HitOutcome::hit) {
+                auto &seed = fighter.crit_seed;
+                seed ^= seed << 13U;
+                seed ^= seed >> 17U;
+                seed ^= seed << 5U;
+                crit = static_cast<float>(seed % 10000U) < fighter.stat_crit * 10000.0F;
+                if (crit)
+                    result.damage *= 1.5F;
+            }
+        }
         const bool broke =
             defender && engine::gameplay::take_hit(defender->state, defender->moves, defender->settings, result);
         // A perfect dodge opens the dodger's Shadow Step on this attacker.
@@ -139,7 +153,8 @@ void Runtime::melee_strike(engine::World &w, engine::Entity self, Fighter &fight
         event.move = fighter.state.move;
         event.flags = (move.finisher ? melee_finisher : 0) | (result.kind == StunKind::launched ? melee_launch : 0) |
                       (result.kind == StunKind::knockdown ? melee_knockdown : 0) |
-                      (result.kind == StunKind::heavy || result.kind == StunKind::guard_break ? melee_heavy : 0);
+                      (result.kind == StunKind::heavy || result.kind == StunKind::guard_break ? melee_heavy : 0) |
+                      (crit ? melee_crit : 0);
         if (result.damage > 0) {
             const auto *health = w.get<Health>(other);
             const bool lethal = health && health->current <= result.damage;
@@ -354,10 +369,11 @@ void Runtime::step_melee(engine::World &w) {
                 tick.started = index;
         }
         if (tick.started < 0) {
-            const auto stepped = engine::gameplay::update_fighter(state, fighter.moves, fighter.settings, held, tick_dt);
+            const auto stepped =
+                engine::gameplay::update_fighter(state, fighter.moves, fighter.settings, held, tick_dt * fighter.stat_speed);
             tick = stepped;
         } else {
-            engine::gameplay::update_fighter(state, fighter.moves, fighter.settings, {}, tick_dt);
+            engine::gameplay::update_fighter(state, fighter.moves, fighter.settings, {}, tick_dt * fighter.stat_speed);
         }
 
         // ---- Facing.
@@ -446,7 +462,7 @@ void Runtime::step_melee(engine::World &w) {
             const auto projectile = w.defer_create();
             w.defer_set(projectile, engine::Box{origin, engine::Vec3{0.45F, 0.45F, 0.45F}});
             Projectile shot{{facing.x * move.projectile, 0, facing.z * move.projectile}, self};
-            shot.damage = move.damage;
+            shot.damage = move.damage * fighter.stat_damage * (move.mana > 0 ? fighter.stat_skill : 1.0F);
             shot.lifetime = 1.6F;
             w.defer_set(projectile, shot);
             push_melee({MeleeEventKind::fire, index_of(self), -1, origin, move.projectile, state.move, 0});
@@ -492,6 +508,29 @@ bool BridgeHost::melee(engine::World &world, engine::Entity self, const std::str
     } else if (op == "stagger") {
         out = {fighter->settings.poise > 0 ? state.stagger / fighter->settings.poise : 0.0,
                state.broken > 0 ? 1.0 : 0.0};
+    } else if (op == "tune") {
+        // damage, speed, crit chance, skill power, health max, mana max;
+        // a negative or non-finite value leaves that one as it is.
+        const auto arg = [&args](std::size_t i, float lo, float hi, float &into) {
+            if (i < args.size() && std::isfinite(args[i]) && args[i] >= 0)
+                into = std::clamp(static_cast<float>(args[i]), lo, hi);
+        };
+        arg(0, 0.1F, 10.0F, fighter->stat_damage);
+        arg(1, 0.5F, 2.0F, fighter->stat_speed);
+        arg(2, 0.0F, 1.0F, fighter->stat_crit);
+        arg(3, 0.1F, 10.0F, fighter->stat_skill);
+        if (args.size() > 4 && std::isfinite(args[4]) && args[4] > 0) {
+            if (auto *health = world.get<Health>(self)) {
+                const float ratio = health->max > 0 ? health->current / health->max : 1.0F;
+                health->max = static_cast<float>(args[4]);
+                health->current = std::max(1.0F, std::min(health->max, ratio * health->max));
+            }
+        }
+        if (args.size() > 5 && std::isfinite(args[5]) && args[5] > 0) {
+            fighter->settings.mana_max = static_cast<float>(args[5]);
+            state.mana = std::min(state.mana, fighter->settings.mana_max);
+        }
+        out = {fighter->stat_damage, fighter->stat_speed, fighter->stat_crit, fighter->stat_skill};
     } else if (op == "set_ai") {
         fighter->ai = !args.empty() && args[0] != 0 && !world.get<PlayerMarker>(self);
         if (args.size() > 1 && args[1] >= 0)

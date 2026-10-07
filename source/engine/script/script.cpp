@@ -687,6 +687,12 @@ struct LuaApi final {
     static int melee_unlock(lua_State *L) { return melee_call(L, "unlock", {}, luaL_checkstring(L, 1)); }
     // melee.stagger() -> poise bar 0..1, broken (1 while Broken)
     static int melee_stagger(lua_State *L) { return melee_call(L, "stagger", {}); }
+    // melee.tune(damage, speed, crit, skill, health_max?, mana_max?) -> the four scales
+    static int melee_tune(lua_State *L) {
+        return melee_call(L, "tune",
+                          {number_arg(L, 1, -1.0F), number_arg(L, 2, -1.0F), number_arg(L, 3, -1.0F),
+                           number_arg(L, 4, -1.0F), number_arg(L, 5, -1.0F), number_arg(L, 6, -1.0F)});
+    }
     // melee.set_ai(on, aggression?, skill?)
     static int melee_set_ai(lua_State *L) {
         return melee_call(L, "set_ai",
@@ -1208,7 +1214,8 @@ struct LuaApi final {
                {"target", melee_target},
                {"set_ai", melee_set_ai},
                {"unlock", melee_unlock},
-               {"stagger", melee_stagger}});
+               {"stagger", melee_stagger},
+               {"tune", melee_tune}});
         table(L, self, "weapon",
               {{"fire", weapon_fire},
                {"reload", weapon_reload},

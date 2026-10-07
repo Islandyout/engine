@@ -410,6 +410,16 @@ function melee.unlock(move) end
 ---@return number, number
 function melee.stagger() end
 
+--- Stats: damage dealt (times), its clock speed (0.5-2: attacks, dodges, cooldowns), crit chance 0-1 (1.5x), skill damage (times, moves that cost mana), and optionally max health and mana. -1 keeps one as is.
+---@param damage number
+---@param speed number
+---@param crit number
+---@param skill number
+---@param health_max? number
+---@param mana_max? number
+---@return number, number, number, number
+function melee.tune(damage, speed, crit, skill, health_max, mana_max) end
+
 --- Fires the current weapon (optionally along a direction).
 ---@param dx? number
 ---@param dy? number

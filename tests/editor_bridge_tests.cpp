@@ -2171,6 +2171,24 @@ int main() {
             check(broke && editor_fighter_value(1, 19) > 0); // Broken
         }
 
+        // GATEBREAKER M2: melee.tune scales the damage a fighter deals and
+        // sets its maximum health (keeping the share it has).
+        {
+            editor_begin();
+            add_player(0);
+            editor_set_melee(0, 2, "j: input=light hit=0.05-0.1 dmg=10 reach=1.2\n", 0, 0, 0.5, 0.5, 0.25, 0, 60);
+            editor_set_script_source(0, "t = 0\nfunction on_tick(dt) t = t + 1\n"
+                                        " if t == 2 then melee.tune(2.5, -1, 0, -1, 200) end\n"
+                                        " if t == 10 then melee.perform('j') end end");
+            check(editor_add(0, 0.9, 1.1, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 500, 500, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            editor_set_melee(1, 0, "", 1, 0, 0.5, 0.5, 0.25, 0, 60);
+            check(editor_commit() == 1);
+            for (int i = 0; i < 60; ++i)
+                editor_tick();
+            check(std::abs(editor_value(1, 3) - 475.0 / 500.0) < 1e-3); // 10 x 2.5 off 500
+            check(std::abs(editor_value(0, 3) - 1.0) < 1e-6);           // max 200, still full
+        }
+
         // An AI fighter that starts out facing a fighting Player, across a
         // kinematic floor slab, walks the whole way in.
         editor_begin();

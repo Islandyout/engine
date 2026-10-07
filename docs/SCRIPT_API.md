@@ -165,6 +165,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `melee.set_ai(on: boolean, aggression?: number, skill?: number)` | Hands the fighter to (or takes it from) its melee brain. |
 | `melee.unlock(move: string): number?` | Makes a move marked locked usable; 1 when the move exists. |
 | `melee.stagger(): number, number` | Its poise bar 0-1, and 1 while it's Broken. |
+| `melee.tune(damage: number, speed: number, crit: number, skill: number, health_max?: number, mana_max?: number): number, number, number, number` | Stats: damage dealt (times), its clock speed (0.5-2: attacks, dodges, cooldowns), crit chance 0-1 (1.5x), skill damage (times, moves that cost mana), and optionally max health and mana. -1 keeps one as is. |
 
 ## weapon
 
