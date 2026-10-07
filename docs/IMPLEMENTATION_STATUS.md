@@ -85,3 +85,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F78](changelog/F78.md) | Martial arts: the Melee component, motion-captured kicks, combat feel and AI fighters (0.78.0) |
 | [F79](changelog/F79.md) | GATEBREAKER M0: the Manhwa render style, comic impact effects, action controls, Shadow Step and held weapons (0.79.0) |
 | [F80](changelog/F80.md) | GATEBREAKER M1: the E-rank Gate (prologue panels, tutorial, goblin rooms, the Goblin Chieftain, rewards), stagger and Break, mana, red attacks, ranged and shield AI (0.80.0) |
+| [F81](changelog/F81.md) | GATEBREAKER: locomotion clips for clipless rigs (running legs), idle instead of T-pose for bystanders (0.81.0) |
