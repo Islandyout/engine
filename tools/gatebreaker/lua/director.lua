@@ -24,18 +24,34 @@ local PROLOGUE = [[
 0 1.2 60 > 0 1.6 69 | Then the Double Gate opened. | VWOOM | 3.5
 1.2 1.65 54.2 > 0 1.55 52 | And something inside it answered him. | SHING | 3.5
 ]]
-local CEREMONY = [[
+-- Each rank a test Gate grants: its ceremony panels and the window after.
+local CEREMONY = {
+  D = { [[
 0 1.5 51 > 0 1.4 47 | The Association measures Han Seo-jin's mana again. |  | 3
 2.2 1.7 45.2 > 0 1.5 47 | The reading climbs past E. | SHING | 3
 -1.5 0.6 49 > 0 1.7 47 | D-rank. | BOOM | 2.5
-]]
+]], "RANK UP: E -> D", "The weakest hunter in Seoul is gone.\nHan Seo-jin, D-rank Hunter. Harder Gates will open to you.\n\nPress Enter." },
+  C = { [[
+0 1.5 51 > 0 1.4 47 | The Association measures him a third time. |  | 3
+2.2 1.7 45.2 > 0 1.5 47 | The crystal floods with light. | SHING | 3
+-1.5 0.6 49 > 0 1.7 47 | C-rank. | BOOM | 2.5
+]], "RANK UP: D -> C", "Most hunters never climb past D.\nHan Seo-jin, C-rank Hunter. At Lv.11 the Ice Fortress, the B-rank test, opens.\n\nPress Enter." },
+  B = { [[
+0 1.5 51 > 0 1.4 47 | Guild masters come to watch the reading. |  | 3
+2.2 1.7 45.2 > 0 1.5 47 | The crystal cracks. | CRACK | 3
+-1.5 0.6 49 > 0 1.7 47 | B-rank. | BOOM | 2.5
+]], "RANK UP: C -> B", "The guilds know his name now.\nHan Seo-jin, B-rank Hunter. The Double Gate is still waiting.\n\nPress Enter." },
+}
 
 -- Half the height of each enemy kind: where it stands when spawned.
 local HALF = {
   ["Goblin Grunt"] = 0.725, ["Goblin Archer"] = 0.725, ["Goblin Shieldbearer"] = 0.725, ["Goblin Shaman"] = 0.7,
   ["Hobgoblin"] = 0.925, ["Goblin Chieftain"] = 1.05, ["Hobgoblin Brute"] = 1.2, ["Goblin Warlord"] = 1.125,
+  ["Drowned Goblin"] = 0.725, ["Ice Ghoul"] = 0.725, ["Armored Knight"] = 0.95, ["Cultist Caster"] = 0.9,
+  ["Drowned Priest"] = 1.1, ["Frost Knight Commander"] = 1.15,
 }
 local G, A, S, SH, H = "Goblin Grunt", "Goblin Archer", "Goblin Shieldbearer", "Goblin Shaman", "Hobgoblin"
+local DG, IG, K, C = "Drowned Goblin", "Ice Ghoul", "Armored Knight", "Cultist Caster"
 
 -- Who can be bound: role (1 tank, 2 striker, 3 archer) and whether it is a
 -- Gate master (3 tries at the odds) or an elite (always rises).
@@ -43,12 +59,15 @@ local BIND = {
   ["Goblin Shieldbearer"] = { 1 }, ["Hobgoblin Brute"] = { 1, true },
   ["Hobgoblin"] = { 2 }, ["Goblin Chieftain"] = { 2, true }, ["Goblin Warlord"] = { 2, true },
   ["Goblin Shaman"] = { 3 },
+  ["Armored Knight"] = { 1 }, ["Cultist Caster"] = { 3 },
+  ["Drowned Priest"] = { 2, true }, ["Frost Knight Commander"] = { 2, true },
 }
 local ROLE_NAME = { "tank", "striker", "archer" }
 local BIND_TIME, BIND_RANGE, BIND_HOLD = 8, 2.4, 1.0
 
 -- Each Gate: where it lies (x), its rooms (centre z, who stands where,
--- relative to the centre) and its boss.
+-- relative to the centre), its boss, who the boss calls in phase 2 (and
+-- the window saying so), and what the room objective calls its enemies.
 local GATES = {
   { ox = 0, name = "GOBLIN CAVE", rank = "E", boss = "Goblin Chieftain", boss_title = "GOBLIN CHIEFTAIN  ·  E-rank Gate master",
     blurb = "A shallow cave of goblins. Every Hunter's first Gate.",
@@ -71,6 +90,7 @@ local GATES = {
         foes = { { H, -3, -6 }, { H, 3, -6 }, { S, 0, -3 } } },
     } },
   { ox = -120, name = "GOBLIN FORTRESS", rank = "D", boss = "Goblin Warlord", boss_title = "GOBLIN WARLORD  ·  D-rank test",
+    summon = { G, "The Warlord calls its guard. Its red slams come faster now:\nwhen it flashes red, don't block. Dodge." },
     blurb = "The D-rank test. A fortress of goblins under a Warlord.\nClear it and the Association ranks you D.",
     rooms = {
       { title = "GATEHOUSE", hint = "A shield wall with archers behind it.\nBreak the shields with Heavies; Fang Whirl (E) hits all around you.",
@@ -79,6 +99,29 @@ local GATES = {
         foes = { { H, 0, -4 }, { SH, -5, -8 }, { SH, 5, -8 }, { A, -3, -7 }, { A, 3, -7 } } },
       { title = "WAR HALL", hint = "The Warlord's guard. Take them one at a time.",
         foes = { { H, -3, -5 }, { H, 3, -5 }, { S, 0, -3 }, { SH, 0, -8 } } },
+    } },
+  { ox = 240, name = "FLOODED TEMPLE", rank = "C", boss = "Drowned Priest", boss_title = "DROWNED PRIEST  ·  C-rank Gate master",
+    summon = { DG, "The Priest drags the drowned up out of the water.\nIts tide bolts come faster now: stay close, and dodge the red slam." },
+    foe = "temple's guard",
+    blurb = "A temple sunk under black water. Knights still guard it.\nClear it as a D-rank hunter and the Association ranks you C.",
+    rooms = {
+      { title = "NAVE", hint = "Armored knights teach the PARRY. Their shields stop Light attacks:\ntap Shift just as a sword lands, then strike while the knight staggers.",
+        foes = { { K, 0, -4 }, { DG, -3, -6 }, { DG, 3, -6 } } },
+      { title = "DROWNED CLOISTER", hint = "Cultist casters (purple) curse you from the back.\nKill the casters first: Shadow Step Dash (Q) and Shadow Fang (R) reach them.",
+        foes = { { C, -5, -8 }, { C, 5, -8 }, { DG, -2, -4 }, { DG, 2, -4 }, { DG, 0, -6 } } },
+      { title = "SANCTUM STAIRS", hint = "Casters first, then the knights: Parry their quick cuts (tap Shift).\nTheir overhead swing breaks guards. Dodge that one.",
+        foes = { { K, -3, -5 }, { K, 3, -5 }, { C, 0, -8 }, { DG, 0, -3 } } },
+    } },
+  { ox = -240, name = "ICE FORTRESS", rank = "B", boss = "Frost Knight Commander", boss_title = "FROST KNIGHT COMMANDER  ·  B-rank test",
+    foe = "fortress guard",
+    blurb = "The B-rank test. A fortress of ice held by frost knights.\nClear it and the Association ranks you B.",
+    rooms = {
+      { title = "OUTER GATE", hint = "Ice ghouls are fast and hunt in packs.\nLet them close in, then Fang Whirl (E) hits every one around you.",
+        foes = { { IG, -3, -4 }, { IG, 0, -5 }, { IG, 3, -4 }, { IG, -5, -7 }, { IG, 5, -7 } } },
+      { title = "RIME BARRACKS", hint = "Knights have stagger bars. Fill one with Heavies and finishers\nand it Breaks: it falls, takes extra damage, and your shadows strike.",
+        foes = { { K, -2, -4 }, { K, 2, -4 }, { IG, -5, -7 }, { IG, 5, -7 }, { C, 0, -8 } } },
+      { title = "HALL OF WINTER", hint = "The Commander's guard. Fang Whirl (E) the ghouls,\nthen Break the knights one at a time.",
+        foes = { { K, -3, -5 }, { K, 3, -5 }, { IG, -4, -3 }, { IG, 4, -3 }, { IG, 0, -7 }, { C, 0, -9 } } },
     } },
 }
 local ROOM_Z = { -24, -48, -72 }
@@ -113,6 +156,7 @@ local risen = {}       -- role -> the shadow's id in this Gate
 local bodies = {}      -- { x, z, prefab, t, tries, mark }
 local holding = 0      -- seconds G has been held over a body
 local run_start, hurt, last_hp = 0, 0, nil
+local new_rank = "D"   -- the rank the ceremony announces
 
 local shown_prompt
 local function prompt(text)
@@ -460,11 +504,11 @@ function on_message(name, value)
   elseif name == "phase2" and not phase2 and state == "boss" then
     phase2 = true
     local g = GATES[gate]
-    if value == true then
+    if value == true and g.summon then
       local x = g.ox
-      spawn(G, x - 5, -96, "boss")
-      spawn(G, x + 5, -96, "boss")
-      say("PHASE 2", "The Warlord calls its guard. Its red slams come faster now:\nwhen it flashes red, don't block. Dodge.", 4)
+      spawn(g.summon[1], x - 5, -96, "boss")
+      spawn(g.summon[1], x + 5, -96, "boss")
+      say("PHASE 2", g.summon[2], 4)
     else
       say("PHASE 2", "The " .. g.boss .. " roars. Its red slams come faster now:\nwhen it flashes red, don't block. Dodge.", 4)
     end
@@ -487,9 +531,11 @@ function on_message(name, value)
         "The Gate closes behind you. Somewhere, the Double Gate is still open.\n\nPress Enter to return to the Hunter Association.")
       objective("E-rank Gate cleared. Try Shadow Step Dash (Q).")
       state = "outro"
-    elseif value == "rankup" then
+    elseif type(value) == "string" and value:sub(1, 6) == "rankup" then
+      -- "rankup:C" names the rank just earned ("rankup" alone: D).
+      new_rank = CEREMONY[value:sub(8)] and value:sub(8) or "D"
       to_hub()
-      hud.panels(CEREMONY)
+      hud.panels(CEREMONY[new_rank][1])
       state = "ceremony"
     else
       say("THE GATE CLOSES", "Returning to the Hunter Association.", 3)
@@ -578,7 +624,7 @@ function on_tick(dt)
     local g = GATES[gate]
     local r = g.rooms[room]
     local left = standing(room)
-    objective(r.title .. ": defeat the goblins (" .. left .. " left)")
+    objective(r.title .. ": defeat the " .. (g.foe or "goblins") .. " (" .. left .. " left)")
     if left == 0 and t > 1 then
       seal(gate, room + 1, false)
       raise_fallen()
@@ -621,7 +667,7 @@ function on_tick(dt)
     if t > 3 then to_hub() end
   elseif state == "ceremony" then
     if t > 9 or (t > 1 and skip_pressed()) then
-      say("RANK UP: E -> D", "The weakest hunter in Seoul is gone.\nHan Seo-jin, D-rank Hunter. Harder Gates will open to you.\n\nPress Enter.")
+      say(CEREMONY[new_rank][2], CEREMONY[new_rank][3])
       state = "ranked"
       t = 0
     end

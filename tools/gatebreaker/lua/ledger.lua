@@ -17,12 +17,12 @@
 -- Messages in: kill ("prefab|x|z"), gate_clear ("gate:grade:seconds:damage"),
 -- gate_fail, hub (the hunter is back in the hub), board, smith, daily_done,
 -- rest, penalty_done, bound (a shadow's prefab name). Out: Director
--- enter_gate (n), rewards_done (n), penalty, shadows ("sen,tank,striker,
+-- enter_gate (n), rewards_done (n, or "rankup:D" after a rank test), penalty, shadows ("sen,tank,striker,
 -- archer"); Hub busy (true while a menu is open).
 
 local STATS = { "STR", "AGI", "VIT", "INT", "SEN" }
--- Cumulative XP for Lv.2, 3, 4, 5, 6 ...
-local LEVELS = { 150, 450, 900, 1500, 2300, 3300 }
+-- Cumulative XP for Lv.2, 3, 4, 5, 6 ... 15 (then +1000 a level).
+local LEVELS = { 150, 450, 900, 1500, 2300, 3300, 4500, 5900, 7500, 9300, 11300, 13500, 16000, 18800 }
 local POINTS_PER_LEVEL = 3
 local KILL = { -- xp, gold, fangs
   ["Goblin Grunt"] = { 12, 4, 1 },
@@ -33,12 +33,23 @@ local KILL = { -- xp, gold, fangs
   ["Goblin Chieftain"] = { 120, 40, 8 },
   ["Hobgoblin Brute"] = { 180, 60, 8 },
   ["Goblin Warlord"] = { 300, 100, 8 },
+  ["Drowned Goblin"] = { 20, 7, 1 },
+  ["Ice Ghoul"] = { 24, 8, 1 },
+  ["Armored Knight"] = { 60, 20, 3 },
+  ["Cultist Caster"] = { 45, 15, 2 },
+  ["Drowned Priest"] = { 500, 160, 10 },
+  ["Frost Knight Commander"] = { 750, 240, 12 },
 }
 local GATES = {
   { name = "Goblin Cave", rank = "E", xp = 100, gold = 80 },
   { name = "Subway Tunnel", rank = "E", xp = 150, gold = 140 },
   { name = "Goblin Fortress", rank = "D", xp = 300, gold = 300 },
+  { name = "Flooded Temple", rank = "C", xp = 500, gold = 450 },
+  { name = "Ice Fortress", rank = "B", xp = 800, gold = 700 },
 }
+-- Hunter ranks in order, and what each later Gate asks (GAME_DESIGN.md 5.5).
+local RANKS = { E = 1, D = 2, C = 3, B = 4, A = 5, S = 6 }
+local NEEDS = { [3] = { "E", 5 }, [4] = { "D", 8 }, [5] = { "C", 11 } }
 -- Dagger +1..+5: gold, fangs. Each level is +8% damage.
 local UPGRADES = { { 100, 6 }, { 200, 12 }, { 350, 20 }, { 500, 30 }, { 700, 40 } }
 -- A shadow's role by the enemy it was (GAME_DESIGN.md 5.4); one of each.
@@ -46,6 +57,8 @@ local ROLE = {
   ["Goblin Shieldbearer"] = "sh1", ["Hobgoblin Brute"] = "sh1",
   ["Hobgoblin"] = "sh2", ["Goblin Chieftain"] = "sh2", ["Goblin Warlord"] = "sh2",
   ["Goblin Shaman"] = "sh3",
+  ["Armored Knight"] = "sh1", ["Cultist Caster"] = "sh3",
+  ["Drowned Priest"] = "sh2", ["Frost Knight Commander"] = "sh2",
 }
 -- The clear grade's bonus on the Gate's own XP and gold.
 local GRADE_BONUS = { S = 0.5, A = 0.25, B = 0.1, C = 0 }
@@ -55,7 +68,11 @@ local QUESTS = {
   "Clear the Subway Tunnel (Gate Board)",
   "Reach Lv.5 to take the D-rank test",
   "Pass the D-rank test: the Goblin Fortress",
-  "Rank D. Keep clearing Gates and growing.",
+  "Reach Lv.8 to enter the Flooded Temple (C-rank Gate)",
+  "Clear the Flooded Temple to rank up to C",
+  "Reach Lv.11 to take the B-rank test",
+  "Pass the B-rank test: the Ice Fortress",
+  "Rank B. Keep clearing Gates and growing.",
 }
 
 local s = {} -- the saved state
@@ -73,11 +90,11 @@ local close_at -- a passing window closes itself then
 
 local function defaults()
   return { lv = 1, xp = 0, pts = 0, str = 10, agi = 10, vit = 10, int = 10, sen = 10,
-    gold = 0, fang = 0, dag = 0, rank = "E", q = 1, day = 1, daily = 0, c1 = 0, c2 = 0, c3 = 0, sk = 0,
+    gold = 0, fang = 0, dag = 0, rank = "E", q = 1, day = 1, daily = 0, c1 = 0, c2 = 0, c3 = 0, c4 = 0, c5 = 0, sk = 0,
     sh1 = "", sh2 = "", sh3 = "", bag = "", eq = "/////", p1 = 2, p2 = 1, look = 0, wd = 0, pity = 0 }
 end
 
-local KEYS = { "lv", "xp", "pts", "str", "agi", "vit", "int", "sen", "gold", "fang", "dag", "rank", "q", "day", "daily", "c1", "c2", "c3", "sk", "sh1", "sh2", "sh3",
+local KEYS = { "lv", "xp", "pts", "str", "agi", "vit", "int", "sen", "gold", "fang", "dag", "rank", "q", "day", "daily", "c1", "c2", "c3", "c4", "c5", "sk", "sh1", "sh2", "sh3",
   "bag", "eq", "p1", "p2", "look", "wd", "pity" }
 local TEXT = { rank = true, sh1 = true, sh2 = true, sh3 = true, bag = true, eq = true }
 local STAT_KEY = { "str", "agi", "vit", "int", "sen" }
@@ -89,6 +106,9 @@ local function load()
   for k, v in text:gmatch("(%w+)=([^;]*)") do
     if s[k] ~= nil then s[k] = TEXT[k] and v or (tonumber(v) or s[k]) end
   end
+  -- A hunter already past a quest's level (an older save) moves on.
+  if s.q == 6 and s.lv >= 8 then s.q = 7 end
+  if s.q == 8 and s.lv >= 11 then s.q = 9 end
 end
 
 local function store()
@@ -117,9 +137,12 @@ local SETS = {
   { name = "Cave Stalker", tint = "", two = { crit = 0.05 }, four = { damage = 0.12 } },
   { name = "Tunnel Runner", tint = "#8aa6d6", two = { speed = 0.05 }, four = { skill = 0.2 } },
   { name = "Fortress Guard", tint = "#d0786a", two = { health = 50 }, four = { health = 100, damage = 0.08 } },
+  { name = "Tide Warden", tint = "#4fa3a0", two = { mana = 30 }, four = { skill = 0.25, crit = 0.05 } },
+  { name = "Frost Bastion", tint = "#bfd8f0", two = { health = 80 }, four = { damage = 0.15, speed = 0.05 } },
 }
 -- Wardrobe looks over the gear's own colours (unlocked: wd bits).
-local LOOKS = { { "Your gear's own", nil }, { "Shadow black", "#4a4560" }, { "Cave brown", "#b89a78" }, { "Tunnel steel", "#8aa6d6" }, { "Fortress red", "#d0786a" } }
+local LOOKS = { { "Your gear's own", nil }, { "Shadow black", "#4a4560" }, { "Cave brown", "#b89a78" }, { "Tunnel steel", "#8aa6d6" }, { "Fortress red", "#d0786a" },
+  { "Temple teal", "#4fa3a0" }, { "Frost white", "#bfd8f0" } }
 local MAX_BAG, MAX_PLUS = 40, 10
 local POTION_HEAL, POTION_MANA, POTION_PRICE = 0.4, 50, 30
 
@@ -267,7 +290,7 @@ local function next_level_xp()
 end
 
 local function hunter_line()
-  ui.set_text("Hunter", string.format("Lv.%d  %s-rank  ·  XP %d/%d  ·  %d G  ·  %d fangs%s  ·  potions [1] %d  [2] %d  ·  [C] status  [I] bag",
+  ui.set_text("Hunter", string.format("Lv.%d  %s-rank  ·  XP %d/%d  ·  %d G  ·  %d fangs%s%s  ·  potions [1] %d  [2] %d  ·  [C] status  [I] bag",
     s.lv, s.rank, s.xp, next_level_xp(), s.gold, s.fang, s.dag > 0 and ("  ·  daggers +" .. s.dag) or "",
     s.pts > 0 and ("  ·  " .. s.pts .. " points!") or "", s.p1, s.p2))
 end
@@ -359,6 +382,14 @@ local function gain_xp(amount)
       s.q = 5
       push("QUEST: THE D-RANK TEST", "The Association will test you. The Goblin Fortress is open\non the Gate Board. Clear it and you are D-rank.\n\nPress Enter.")
     end
+    if s.lv == 8 and s.q == 6 then
+      s.q = 7
+      push("QUEST: THE FLOODED TEMPLE", "A C-rank Gate is open on the Gate Board: the Flooded Temple.\nIts knights shield themselves; Parry their cuts (tap Shift).\nClear it and you are C-rank.\n\nPress Enter.")
+    end
+    if s.lv == 11 and s.q == 8 then
+      s.q = 9
+      push("QUEST: THE B-RANK TEST", "The Association will test you again. The Ice Fortress is open\non the Gate Board. Clear it and you are B-rank.\n\nPress Enter.")
+    end
   end
 end
 
@@ -414,8 +445,8 @@ local function tick_rewards(dt)
 end
 
 -- Loot -------------------------------------------------------------------------
-local ELITE = { ["Goblin Shieldbearer"] = true, ["Hobgoblin"] = true, ["Goblin Shaman"] = true }
-local BOSS = { ["Goblin Chieftain"] = true, ["Hobgoblin Brute"] = true, ["Goblin Warlord"] = true }
+local ELITE = { ["Goblin Shieldbearer"] = true, ["Hobgoblin"] = true, ["Goblin Shaman"] = true, ["Armored Knight"] = true, ["Cultist Caster"] = true }
+local BOSS = { ["Goblin Chieftain"] = true, ["Hobgoblin Brute"] = true, ["Goblin Warlord"] = true, ["Drowned Priest"] = true, ["Frost Knight Commander"] = true }
 local run_gate = 1
 local loot = {} -- { id, code, x, z } lying in the Gate
 
@@ -636,11 +667,19 @@ local function tick_bag()
 end
 
 -- Menus ----------------------------------------------------------------------
-local function gate_open(n)
-  if n == 1 then return true end
-  if n == 2 then return s.c1 > 0 end
-  return s.lv >= 5
+-- Why a Gate is still locked (nil: it's open).
+local function locked(n)
+  if n == 2 and s.c1 == 0 then return "clear the Goblin Cave first" end
+  local need = NEEDS[n]
+  if not need then return nil end
+  local rank_ok, lv_ok = RANKS[s.rank] >= RANKS[need[1]], s.lv >= need[2]
+  if rank_ok and lv_ok then return nil end
+  local parts = {}
+  if not rank_ok then parts[#parts + 1] = "rank " .. need[1] end
+  if not lv_ok then parts[#parts + 1] = "Lv." .. need[2] end
+  return "needs " .. table.concat(parts, " and ")
 end
+local function gate_open(n) return locked(n) == nil end
 
 local function board_body()
   local lines = { "The Association's open Gates. Press a number to enter.\n" }
@@ -650,7 +689,7 @@ local function board_body()
       local cleared = s["c" .. n]
       status = cleared > 0 and ("cleared " .. cleared .. "x") or "not cleared"
     else
-      status = n == 2 and "LOCKED: clear the Goblin Cave first" or "LOCKED: reach Lv.5"
+      status = "LOCKED: " .. locked(n)
     end
     lines[#lines + 1] = string.format("[%d] %s-rank  %s   (%s)   reward %d G", n, g.rank, g.name, status, g.gold)
   end
@@ -699,7 +738,7 @@ local function tick_menu()
       end
     end
   elseif menu == "board" then
-    for n = 1, 3 do
+    for n = 1, #GATES do
       if input.pressed("Digit" .. n) then
         if gate_open(n) then
           close_menu()
@@ -819,13 +858,20 @@ function on_message(name, value)
       push("QUEST: THE D-RANK TEST", s.lv >= 5
         and "The Association will test you. The Goblin Fortress is open\non the Gate Board. Clear it and you are D-rank.\n\nPress Enter."
         or "Reach Lv.5 and the Association will test you:\nthe Goblin Fortress opens on the Gate Board.\n\nPress Enter.")
-    elseif n == 3 and s.rank == "E" then
-      s.rank = "D"
-      s.q = 6
     end
+    -- A rank test's first clear at the rank below: the rank-up ceremony.
+    local ranked
+    if n == 3 and s.rank == "E" then
+      ranked, s.q = "D", s.lv >= 8 and 7 or 6
+    elseif n == 4 and s.rank == "D" then
+      ranked, s.q = "C", s.lv >= 11 and 9 or 8
+    elseif n == 5 and s.rank == "C" then
+      ranked, s.q = "B", 10
+    end
+    if ranked then s.rank = ranked end
     run = { xp = 0, gold = 0, fangs = 0, kills = 0 }
     store()
-    reward_gate = (n == 3 and s.q == 6 and first) and "rankup" or n
+    reward_gate = ranked and ("rankup:" .. ranked) or n
     if not current then show_next() end
   elseif name == "bound" then
     local key = ROLE[value]
