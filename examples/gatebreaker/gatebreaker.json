@@ -31,13 +31,13 @@
           },
           "sunElevation": 70,
           "sunAzimuth": 200,
-          "sunIntensity": 1.25,
+          "sunIntensity": 0.7,
           "sunColor": {
-            "x": 0.7686274509803922,
-            "y": 0.8,
+            "x": 0.6039215686274509,
+            "y": 0.6509803921568628,
             "z": 1
           },
-          "ambientIntensity": 0.95,
+          "ambientIntensity": 0.5,
           "fog": "Exponential",
           "fogColor": {
             "x": 0.043137254901960784,
@@ -74,10 +74,10 @@
           "bloomRadius": 0.4,
           "bloomThreshold": 0.8,
           "exposure": 1,
-          "contrast": 0.12,
-          "saturation": 0.08,
+          "contrast": 0.2,
+          "saturation": 0.12,
           "temperature": 0,
-          "vignette": 0.45,
+          "vignette": 0.6,
           "grain": 0,
           "shadowQuality": "Medium"
         }
@@ -2309,7 +2309,7 @@
           }
         },
         "ModelInstances": {
-          "instances": "179 0.00 -33.90 0.0\n179 -5.00 -113.90 0.0\n179 5.00 -113.90 0.0"
+          "instances": "179 -3.40 -33.90 0.0\n179 3.40 -33.90 0.0\n179 -5.00 -113.90 0.0\n179 5.00 -113.90 0.0"
         }
       }
     },
@@ -6828,11 +6828,11 @@
           "target": "",
           "offset": {
             "x": 0,
-            "y": 2.5,
-            "z": -4.4
+            "y": 2.1,
+            "z": -3.9
           },
           "smoothing": 0.15,
-          "lookHeight": 0.9,
+          "lookHeight": 1,
           "collision": true,
           "orbit": true
         }

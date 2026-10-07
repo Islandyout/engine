@@ -37,9 +37,12 @@ scene.add("Environment", [0, 0, 0], {
     skyColor: rgb("#0a0d1f"),
     sunElevation: 70,
     sunAzimuth: 200,
-    sunIntensity: 1.25,
-    sunColor: rgb("#c4ccff"),
-    ambientIntensity: 0.95,
+    // Dim and cold overhead, so the torches make warm pools and the rooms
+    // keep deep shadows (a webtoon panel is high contrast); the rim light
+    // keeps the fighters readable against the dark.
+    sunIntensity: 0.7,
+    sunColor: rgb("#9aa6ff"),
+    ambientIntensity: 0.5,
     fog: "Exponential",
     fogColor: rgb("#0b0a12"),
     fogDensity: 0.018,
@@ -57,9 +60,9 @@ scene.add("Look", [0, 0, 0], {
     bloom: 0.6,
     bloomRadius: 0.4,
     bloomThreshold: 0.8,
-    contrast: 0.12,
-    saturation: 0.08,
-    vignette: 0.45,
+    contrast: 0.2,
+    saturation: 0.12,
+    vignette: 0.6,
     shadowQuality: "Medium",
   },
 });
@@ -278,7 +281,7 @@ gate("G1", CAVE, 0, "Tutorial", () => {
   place(dungeon("barrel-large"), -8, 7.6);
   place(dungeon("crates-stacked"), 8, 7.4, 0.3);
   place(dungeon("chest"), -8.4, -31, Math.PI / 2);
-  place(dungeon("banner-patternA-red"), 0, -33.9, 0, false);
+  for (const x of [-3.4, 3.4]) place(dungeon("banner-patternA-red"), x, -33.9, 0, false);
   place(dungeon("rubble-half"), 7.8, -55, -0.6, false);
   place(dungeon("barrel-large"), -8.2, -41);
   place(dungeon("sword-shield-broken"), 6.5, -66, 1.1, false);
@@ -570,7 +573,7 @@ scene.add("Han Seo-jin", [0, 0.9, 6], {
 });
 scene.add("Camera", [0, 3, 10], {
   Camera: { fov: 50, far: 260 },
-  CameraFollow: { offset: vec(0, 2.5, -4.4), orbit: true, lookHeight: 0.9 },
+  CameraFollow: { offset: vec(0, 2.1, -3.9), orbit: true, lookHeight: 1.0 },
 });
 const construct = (name: string, at: V3, listener: string) =>
   scene.add(name, at, {
