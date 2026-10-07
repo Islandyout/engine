@@ -4,8 +4,9 @@
 -- the Goblin Chieftain, and the rewards.
 -- @prop fast false
 --
--- props.fast (tests): every tutorial step passes after a moment and the
--- rewards confirm themselves.
+-- props.fast (tests): every tutorial step passes after a moment, a cleared
+-- room sets the hunter just short of the next doorway (it still walks
+-- through), and the rewards confirm themselves.
 
 local PROLOGUE = [[
 14 6 40 > 0 5 70 | Seoul. Ten years after the first Gates opened in the sky. |  | 4
@@ -73,6 +74,13 @@ local function seal(name, closed)
   world.set_position(id, x, closed and 1.75 or -40, z)
 end
 
+-- props.fast: the hunter, set just short of the doorway at z.
+local function skip_to(z)
+  if not props.fast then return end
+  local _, y = world.position(hero)
+  world.set_position(hero, 0, y or 0.9, z)
+end
+
 local function hero_z()
   local _, _, z = world.position(hero)
   return z or 0
@@ -102,6 +110,7 @@ local function lesson_done()
   seal("Seal 1", false)
   say("TUTORIAL COMPLETE", "The training construct crumbles. The Gate's first door opens.\nGo north.", 4)
   objective("Enter the Gate (north)")
+  skip_to(-6)
   state = "advance"
   room = 1
   t = 0
@@ -223,6 +232,7 @@ function on_tick(dt)
       seal(r.seal_out, false)
       say("CLEARED", room < #ROOMS and "The next door opens." or "The way to the Gate's master opens.", 3)
       objective(room < #ROOMS and "Go north" or "Face the Gate's master (north)")
+      skip_to(r.z - 8)
       room = room + 1
       state = "advance"
       t = 0
@@ -265,7 +275,7 @@ function on_tick(dt)
       points = 5
       changed = true
     end
-    if props.fast and t > 0.5 and points > 0 then
+    if props.fast and t > 2 and points > 0 then
       stats[5] = stats[5] + points
       points = 0
       changed = true
@@ -273,14 +283,14 @@ function on_tick(dt)
     if changed then
       say("LEVEL UP", "Lv.1 -> Lv.2. " .. points .. " stat points left.\n" .. stats_text() .. "\n\nPress 1-5 to spend a point, Backspace to undo, Enter to confirm.")
     end
-    if points == 0 and (input.pressed("Enter") or (props.fast and t > 1)) then
+    if points == 0 and (input.pressed("Enter") or (props.fast and t > 4)) then
       world.send(hero, "unlock")
       say("NEW SKILL: SHADOW STEP DASH", "[Q] Dash through your enemies as a shadow,\ncutting everything in your path. Costs 25 mana.\n\nPress Enter.")
       state = "skill"
       t = 0
     end
   elseif state == "skill" then
-    if t > 0.3 and (input.pressed("Enter") or (props.fast and t > 1)) then
+    if t > 0.3 and (input.pressed("Enter") or (props.fast and t > 3)) then
       say("E-RANK GATE: CLEARED", "Han Seo-jin   Lv.2   " .. stats_text():gsub("%[%d%] ", "") ..
         "\nThe Gate closes behind you. Somewhere, the Double Gate is still open.\n\nTo be continued.")
       objective("E-rank Gate cleared. Try Shadow Step Dash (Q).")

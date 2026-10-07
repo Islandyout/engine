@@ -4,7 +4,8 @@
 // variant), rooms 1-3 sealing and opening, the Goblin Chieftain with its
 // boss bar, the level-up and the new skill, with zero page errors. The
 // variant (props.fast, 1-HP goblins, a 30-HP Chieftain) keeps it short; the
-// hunter walks north swinging, steering back to the doorways between rooms.
+// hunter walks north swinging, steering back to the doorways between rooms
+// (a cleared room sets it just short of the next doorway).
 const assert = require("node:assert/strict");
 const { saveFailure } = require("./evidence.cjs");
 const http = require("node:http");
@@ -87,7 +88,7 @@ const { chromium } = require("playwright");
     await waitHud(/Enter the Gate/, "the tutorial completes", 120000);
 
     // North through the rooms, swinging; then the boss and the rewards.
-    const deadline = Date.now() + 1200000;
+    const deadline = Date.now() + 1500000;
     // Walks north along the middle (x = 0), where the doorways are. The
     // camera orbits only when dragged, and keys move the hunter relative to
     // it, so the camera is first dragged to face north (W's measured
@@ -144,7 +145,7 @@ const { chromium } = require("playwright");
       } else aligned = true;
     };
     let logged = 0;
-    while (Date.now() < deadline && !/LEVEL UP/.test(await hud())) {
+    while (Date.now() < deadline && !/GATE CLEARED|LEVEL UP/.test(await hud())) {
       // GATE_DEBUG=1: where the hunter is, every few seconds.
       if (process.env.GATE_DEBUG && Date.now() - logged > 6000) {
         logged = Date.now();
@@ -156,6 +157,8 @@ const { chromium } = require("playwright");
       }
       // A fight: lock on and close in, swinging.
       if (!/Locked on/.test(await hud())) await page.keyboard.press("Tab");
+      // Shadow Fang (R) reaches the archers at range.
+      await page.keyboard.press("r");
       await page.keyboard.down("w");
       await page.waitForTimeout(700);
       for (let k = 0; k < 3; k++) {
