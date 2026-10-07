@@ -238,6 +238,17 @@ export class CombatView {
   // set per weapon type: a blade, an axe, a two-hander or a shield stands in
   // a sword guard and blocks with the blade; bare fists and reverse-grip
   // daggers keep the boxing guard.
+  // Whether the fighter whose root is `object` stands in its guard (free,
+  // or shuffling with the guard on its upper body): weapon guard poses go
+  // over the clip only then, never over an attack, a block or a reaction.
+  guarding(object: THREE.Object3D): boolean {
+    for (const fighter of this.fighters.values()) {
+      if (fighter.object !== object) continue;
+      return fighter.pose === `free:${fighter.guardClip}` || fighter.pose.startsWith("lower:");
+    }
+    return false;
+  }
+
   private armed = new Map<number, "blade" | "unarmed">();
   arm(index: number, weapon: "blade" | "unarmed") {
     // The weapon may be in hand before the clips load: remembered for attach().

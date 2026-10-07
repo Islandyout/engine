@@ -31,20 +31,43 @@ export type WeaponGrip = {
   hold: number;
   // Two-handed: where the off hand holds it.
   offHand?: number;
+  // Its guard, for a weapon the clip library has no stance for: where the
+  // main hand's grip sits and which way the blade and the edge point, in
+  // the body's frame (from the pelvis, in body heights; +z ahead, +x to its
+  // left, +y up). While the fighter stands in guard, IK puts the hand there;
+  // its clips drive it everywhere else.
+  pose?: { at: [number, number, number]; blade: [number, number, number]; edge: [number, number, number] };
+  // The clips it fights with: the boxing set (jabs and hooks; daggers and
+  // knives) or the sword set (everything else). The two sets hold the hand
+  // rolled half a turn apart, so the side of the fist the blade leaves by
+  // depends on the set.
+  clips: "boxing" | "sword";
 };
 
-// Measured from each model's handle, guard and head.
+// Grips measured from each model's handle, guard and head. Guards from
+// fencing and martial-arts references:
+// - knife, forward grip: the knife hand ahead at the waist, point forward and
+//   a little up, the live hand up in guard (the boxing clip's).
+// - one-handed sword: hilt by the right hip, point forward at the opponent's
+//   chest; an axe the same with its head up.
+// - claymore: Pflug (the plough): hilt at the right hip, hands crossed, point
+//   at the opponent's face, long edge down.
+// - spear: rear (right) hand by the hip near the butt, the lead hand a
+//   forearm or more up the shaft, point at the opponent's neck.
+// - scythe: a polearm's close guard, the shaft across the body, the blade
+//   high over the lead shoulder.
+// - bow at rest: the bow hand low in front, the bow nearly upright.
 export const WEAPON_GRIPS: Record<string, WeaponGrip> = {
-  dagger: { grip: "reverse", length: 0.36, hold: 0.14 },
-  knife: { grip: "forward", length: 0.34, hold: 0.15 },
-  sword: { grip: "forward", length: 0.82, hold: 0.09 },
-  "sword-2": { grip: "forward", length: 0.78, hold: 0.12 },
-  "axe-double": { grip: "forward", length: 0.85, hold: 0.14 },
-  claymore: { grip: "twohand", length: 1.45, hold: 0.17, offHand: 0.06 },
-  scythe: { grip: "twohand", length: 1.6, hold: 0.5, offHand: 0.38 },
-  spear: { grip: "twohand", length: 2.0, hold: 0.42, offHand: 0.3 },
-  bow: { grip: "bow", length: 1.1, hold: 0.5 },
-  "shield-round": { grip: "shield", length: 0.6, hold: 0.5 },
+  dagger: { grip: "reverse", length: 0.36, hold: 0.14, clips: "boxing" },
+  knife: { grip: "forward", length: 0.34, hold: 0.15, clips: "boxing", pose: { at: [-0.06, 0.13, 0.26], blade: [0.08, 0.3, 1], edge: [0, -1, 0] } },
+  sword: { grip: "forward", length: 0.82, hold: 0.09, clips: "sword", pose: { at: [-0.1, 0.05, 0.2], blade: [0.12, 0.32, 1], edge: [0, -1, 0] } },
+  "sword-2": { grip: "forward", length: 0.78, hold: 0.12, clips: "sword", pose: { at: [-0.1, 0.05, 0.2], blade: [0.12, 0.32, 1], edge: [0, -1, 0] } },
+  "axe-double": { grip: "forward", length: 0.85, hold: 0.14, clips: "sword", pose: { at: [-0.12, 0.04, 0.18], blade: [0.05, 1, 0.5], edge: [0, 0, 1] } },
+  claymore: { grip: "twohand", length: 1.45, hold: 0.17, offHand: 0.06, clips: "sword", pose: { at: [-0.09, 0.02, 0.17], blade: [0.18, 0.5, 1], edge: [0, -1, 0] } },
+  scythe: { grip: "twohand", length: 1.6, hold: 0.3, offHand: 0.48, clips: "sword", pose: { at: [-0.12, 0.0, 0.12], blade: [0.55, 1, 0.3], edge: [0, 0, 1] } },
+  spear: { grip: "twohand", length: 2.0, hold: 0.2, offHand: 0.4, clips: "sword", pose: { at: [-0.12, -0.02, 0.06], blade: [0.1, 0.28, 1], edge: [0, -1, 0] } },
+  bow: { grip: "bow", length: 1.1, hold: 0.5, clips: "sword", pose: { at: [0.16, 0.06, 0.22], blade: [0, 1, 0.25], edge: [0, 0, 1] } },
+  "shield-round": { grip: "shield", length: 0.6, hold: 0.5, clips: "sword" },
 };
 
 // A catalog model's grip: by its name, or a guess for a model not listed
@@ -57,7 +80,8 @@ export function weaponGrip(name: string): WeaponGrip {
   if (WEAPON_GRIPS[key]) return WEAPON_GRIPS[key]!;
   if (/shield/.test(key)) return WEAPON_GRIPS["shield-round"]!;
   if (/dagger/.test(key)) return WEAPON_GRIPS.dagger!;
-  return { grip: "forward", length: /knife/.test(key) ? 0.34 : 0.85, hold: 0.12 };
+  if (/knife/.test(key)) return WEAPON_GRIPS.knife!;
+  return { grip: "forward", length: 0.85, hold: 0.12, clips: "sword" };
 }
 
 const HUMAN_HEIGHT = 1.75;
@@ -97,15 +121,15 @@ function restHand(rest: THREE.Object3D, side: "l" | "r"): Hand | undefined {
 
 // The grip frame on the rest rig, world space: +y along the blade, +x the
 // edge, origin where the hand holds it.
-function gripFrame(hand: Hand, grip: Grip): THREE.Matrix4 {
-  // Measured on the bind pose, `across` leaves the fist on the pinky side
-  // and `palm` faces the thumb. The combat clips (retargeted from the
-  // Mannequin) roll the hand half a turn from that pose, so in every
-  // animated fist both come out the other way. The signs here are the ones
-  // that render right: a reverse-grip dagger along the forearm from the
-  // pinky side, a sword ahead of the fist in the sword guard.
+function gripFrame(hand: Hand, grip: Grip, clips: "boxing" | "sword"): THREE.Matrix4 {
+  // Measured on the bind pose, `across` leaves the fist on the pinky side.
+  // The sword clips hold the hand as the bind pose does: a forward grip's
+  // blade leaves by the thumb (-across), a reverse grip's by the pinky. The
+  // boxing clips hold it rolled half a turn, so there the sides swap.
+  // (Checked on rendered poses: a sword ahead of the fist in the sword
+  // guard, a reverse-grip dagger along the forearm in the boxing guard.)
   const y = hand.across.clone();
-  if (grip === "reverse") y.negate();
+  if ((grip === "reverse") !== (clips === "sword")) y.negate();
   const x = hand.knuckles.clone().sub(y.clone().multiplyScalar(hand.knuckles.dot(y))).normalize();
   const z = v().crossVectors(x, y).normalize();
   return new THREE.Matrix4().makeBasis(x, y, z).setPosition(hand.at);
@@ -154,6 +178,22 @@ type OffHand = {
 };
 const offHands = new Set<OffHand>();
 
+// Weapons with a guard pose: the hand that holds one, its arm, the body it
+// is posed against, and how far the pose is blended in (0 to 1).
+type Posed = {
+  upper: THREE.Object3D;
+  lower: THREE.Object3D;
+  hand: THREE.Object3D;
+  holder: THREE.Object3D;
+  pelvis: THREE.Object3D;
+  body: THREE.Object3D;
+  at: THREE.Vector3;
+  frame: THREE.Matrix4; // the weapon's axes in the body frame
+  height: number; // rest rig height, rig units
+  weight: number;
+};
+const posed = new Set<Posed>();
+
 // Parents a copy of `model` to the hand (or forearm) of `target`, held as
 // `grip` says. `rest` is an unanimated copy of the same rig (the catalog's
 // cached model). Returns the holder, or undefined when the rig lacks the
@@ -166,7 +206,7 @@ export function holdWeapon(rest: THREE.Object3D, target: THREE.Object3D, side: "
   const restBone = rest.getObjectByName(attachName);
   const targetBone = target.getObjectByName(attachName);
   if (!restBone || !targetBone) return undefined;
-  const frame = grip.grip === "shield" ? shieldFrame(rest, side, hand) : gripFrame(hand, grip.grip);
+  const frame = grip.grip === "shield" ? shieldFrame(rest, side, hand) : gripFrame(hand, grip.grip, grip.clips);
   if (!frame) return undefined;
 
   // The model, sized and moved so its hold point sits at the holder's origin.
@@ -190,6 +230,20 @@ export function holdWeapon(rest: THREE.Object3D, target: THREE.Object3D, side: "
     if (node instanceof THREE.Mesh) node.castShadow = true;
   });
 
+  // A guard pose for the main hand.
+  if (grip.pose && grip.grip !== "shield") {
+    const upper = target.getObjectByName(`upperarm_${side}`);
+    const lower = target.getObjectByName(`lowerarm_${side}`);
+    const pelvis = target.getObjectByName("pelvis");
+    if (upper && lower && pelvis) {
+      const n = (a: [number, number, number]) => new THREE.Vector3(...a).normalize();
+      const blade = n(grip.pose.blade);
+      const edge = n(grip.pose.edge).sub(blade.clone().multiplyScalar(n(grip.pose.edge).dot(blade))).normalize();
+      const frame = new THREE.Matrix4().makeBasis(edge, blade, v().crossVectors(edge, blade).normalize());
+      posed.add({ upper, lower, hand: targetBone, holder, pelvis, body: target, at: new THREE.Vector3(...grip.pose.at), frame, height: rigHeight(rest), weight: 0 });
+    }
+  }
+
   // A two-hander: the other hand, on the handle below.
   if (grip.grip === "twohand" && grip.offHand !== undefined) {
     const other = side === "r" ? "l" : "r";
@@ -199,7 +253,7 @@ export function holdWeapon(rest: THREE.Object3D, target: THREE.Object3D, side: "
     const handBone = target.getObjectByName(`hand_${other}`);
     const restHandBone = rest.getObjectByName(`hand_${other}`);
     if (otherHand && upper && lower && handBone && restHandBone) {
-      const offFrame = gripFrame(otherHand, "forward");
+      const offFrame = gripFrame(otherHand, "forward", grip.clips);
       const handInGrip = offFrame.clone().invert().multiply(restHandBone.matrixWorld);
       // Down the handle from the main hand, in the holder's (unscaled) space.
       const drop = (grip.offHand - grip.hold) * size.y * scale;
@@ -212,6 +266,7 @@ export function holdWeapon(rest: THREE.Object3D, target: THREE.Object3D, side: "
 // Forgets the off hands of fighters that are gone (a rebuild).
 export function clearOffHands() {
   offHands.clear();
+  posed.clear();
 }
 
 const ik = {
@@ -237,10 +292,77 @@ function rotateWorld(bone: THREE.Object3D, delta: THREE.Quaternion) {
 
 const clampUnit = (x: number) => Math.min(1, Math.max(-1, x));
 
-// Every frame, after the mixers: each two-hander's off hand onto its handle.
-// Analytic two-bone IK in the arm's own bend plane, then the hand turned to
-// the grip.
-export function updateOffHands() {
+// Analytic two-bone IK in the arm's own bend plane: the hand bone to `t`,
+// then turned to `rot` (world).
+function solveArm(upper: THREE.Object3D, lower: THREE.Object3D, hand: THREE.Object3D, t: THREE.Vector3, rot: THREE.Quaternion) {
+  const a = upper.getWorldPosition(ik.a);
+  const b = lower.getWorldPosition(ik.b);
+  const c = hand.getWorldPosition(ik.c);
+  const lab = b.distanceTo(a);
+  const lcb = c.distanceTo(b);
+  const lat = Math.min(Math.max(t.distanceTo(a), 1e-4), (lab + lcb) * 0.999);
+  const ca = c.clone().sub(a).normalize();
+  const ba = b.clone().sub(a).normalize();
+  const ab = a.clone().sub(b).normalize();
+  const cb = c.clone().sub(b).normalize();
+  const ta = t.clone().sub(a).normalize();
+  const shoulder0 = Math.acos(clampUnit(ca.dot(ba)));
+  const elbow0 = Math.acos(clampUnit(ab.dot(cb)));
+  const swing = Math.acos(clampUnit(ca.dot(ta)));
+  const shoulder1 = Math.acos(clampUnit((lcb * lcb - lab * lab - lat * lat) / (-2 * lab * lat)));
+  const elbow1 = Math.acos(clampUnit((lat * lat - lab * lab - lcb * lcb) / (-2 * lab * lcb)));
+  const bend = v().crossVectors(ca, ba);
+  if (bend.lengthSq() < 1e-10) bend.set(0, 1, 0);
+  bend.normalize();
+  const reach = v().crossVectors(ca, ta);
+  rotateWorld(upper, new THREE.Quaternion().setFromAxisAngle(bend, shoulder1 - shoulder0));
+  rotateWorld(lower, new THREE.Quaternion().setFromAxisAngle(bend, elbow1 - elbow0));
+  if (reach.lengthSq() > 1e-10) rotateWorld(upper, new THREE.Quaternion().setFromAxisAngle(reach.normalize(), swing));
+  hand.parent!.getWorldQuaternion(ik.pq);
+  hand.quaternion.copy(ik.pq.invert().multiply(rot));
+  hand.updateMatrixWorld(true);
+}
+
+const pose = {
+  m: new THREE.Matrix4(),
+  body: new THREE.Quaternion(),
+  pos: v(),
+  s: v(),
+  q: new THREE.Quaternion(),
+  cur: v(),
+  curQ: new THREE.Quaternion(),
+};
+
+// Every frame, after the mixers. First the guard poses: while `guarding`
+// says a fighter (its root object) stands in guard, its weapon hand is
+// moved to the weapon's guard, blended in and out over a fifth of a second.
+// Then each two-hander's off hand onto its handle.
+export function updateHeldWeapons(dt: number, guarding: (body: THREE.Object3D) => boolean) {
+  for (const p of posed) {
+    if (!p.holder.parent || !p.hand.parent) {
+      posed.delete(p);
+      continue;
+    }
+    const goal = guarding(p.body) ? 1 : 0;
+    p.weight += Math.sign(goal - p.weight) * Math.min(Math.abs(goal - p.weight), dt * 5);
+    if (p.weight <= 0.001) continue;
+    p.holder.updateMatrixWorld(true);
+    // The fighter's size against the rest rig, and its heading.
+    p.holder.matrixWorld.decompose(pose.pos, pose.q, pose.s);
+    const scale = pose.s.x;
+    p.body.getWorldQuaternion(pose.body);
+    const at = p.at.clone().multiplyScalar(p.height * scale).applyQuaternion(pose.body).add(p.pelvis.getWorldPosition(v()));
+    // Where the holder should be, then the hand that puts it there.
+    const axes = new THREE.Quaternion().setFromRotationMatrix(p.frame).premultiply(pose.body);
+    pose.m.compose(at, axes, pose.s).multiply(p.holder.matrix.clone().invert());
+    pose.m.decompose(pose.pos, pose.q, pose.s);
+    // Blended with where the clip put it.
+    p.hand.getWorldPosition(pose.cur);
+    p.hand.getWorldQuaternion(pose.curQ);
+    pose.cur.lerp(pose.pos, p.weight);
+    pose.curQ.slerp(pose.q, p.weight);
+    solveArm(p.upper, p.lower, p.hand, pose.cur, pose.curQ);
+  }
   for (const o of offHands) {
     if (!o.holder.parent || !o.hand.parent || !o.upper.parent) {
       offHands.delete(o);
@@ -248,38 +370,10 @@ export function updateOffHands() {
     }
     o.holder.updateMatrixWorld(true);
     // Where the hand bone should be: the grip on the handle, then the hand
-    // relative to that grip.
-    // (The holder's world scale is the fighter's size against the rest rig,
-    // which the rest-rig offsets need too.)
+    // relative to that grip. (The holder's world scale is the fighter's
+    // size against the rest rig, which the rest-rig offsets need too.)
     ik.target.copy(o.holder.matrixWorld).multiply(o.grip).multiply(o.handInGrip);
     ik.target.decompose(ik.t, ik.rot, ik.scl);
-
-    const a = o.upper.getWorldPosition(ik.a);
-    const b = o.lower.getWorldPosition(ik.b);
-    const c = o.hand.getWorldPosition(ik.c);
-    const lab = b.distanceTo(a);
-    const lcb = c.distanceTo(b);
-    const lat = Math.min(Math.max(ik.t.distanceTo(a), 1e-4), (lab + lcb) * 0.999);
-    const ca = c.clone().sub(a).normalize();
-    const ba = b.clone().sub(a).normalize();
-    const ab = a.clone().sub(b).normalize();
-    const cb = c.clone().sub(b).normalize();
-    const ta = ik.t.clone().sub(a).normalize();
-    const shoulder0 = Math.acos(clampUnit(ca.dot(ba)));
-    const elbow0 = Math.acos(clampUnit(ab.dot(cb)));
-    const swing = Math.acos(clampUnit(ca.dot(ta)));
-    const shoulder1 = Math.acos(clampUnit((lcb * lcb - lab * lab - lat * lat) / (-2 * lab * lat)));
-    const elbow1 = Math.acos(clampUnit((lat * lat - lab * lab - lcb * lcb) / (-2 * lab * lcb)));
-    const bend = v().crossVectors(ca, ba);
-    if (bend.lengthSq() < 1e-10) bend.set(0, 1, 0);
-    bend.normalize();
-    const reach = v().crossVectors(ca, ta);
-    rotateWorld(o.upper, new THREE.Quaternion().setFromAxisAngle(bend, shoulder1 - shoulder0));
-    rotateWorld(o.lower, new THREE.Quaternion().setFromAxisAngle(bend, elbow1 - elbow0));
-    if (reach.lengthSq() > 1e-10) rotateWorld(o.upper, new THREE.Quaternion().setFromAxisAngle(reach.normalize(), swing));
-    // The hand turned to hold the handle.
-    o.hand.parent.getWorldQuaternion(ik.pq);
-    o.hand.quaternion.copy(ik.pq.invert().multiply(ik.rot));
-    o.hand.updateMatrixWorld(true);
+    solveArm(o.upper, o.lower, o.hand, ik.t, ik.rot);
   }
 }

@@ -33,7 +33,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { isNonPhysical, isSettingsOnly } from "./settingsEntity";
-import { clearOffHands, holdWeapon, updateOffHands, weaponGrip } from "./heldWeapons";
+import { clearOffHands, holdWeapon, updateHeldWeapons, weaponGrip } from "./heldWeapons";
 import { LedgerHud } from "./ledger";
 import { LightPool } from "./lightPool";
 import { InkPass, attachDepth, installToonShading, markCharacter, toonUniforms } from "./manhwa";
@@ -3708,11 +3708,10 @@ async function startEditor() {
         const index = objects.length - 1;
         const place = (weapon: CachedModel) => {
           if (!holdWeapon(rig, object, side, weapon.scene, grip)) return;
-          // A one-handed blade or a shield takes the sword stance. Two-handers
-          // keep the fists-together guard, where the off hand can reach the
-          // handle (the clips hold no two-handed stance); daggers in reverse
-          // grip and bows keep it too.
-          if (grip.grip === "forward" || grip.grip === "shield") combat.arm(index, "blade");
+          // A weapon fought with the sword clips takes their stance (its
+          // guard pose, if it has one, goes over it); daggers and knives keep
+          // the boxing guard.
+          if (grip.clips === "sword") combat.arm(index, "blade");
         };
         const ready = catalogCache.get(id);
         if (ready) place(ready);
@@ -5016,8 +5015,8 @@ async function startEditor() {
       }
     });
     if (doc.mode === "play") combat.plant(dt);
-    // Two-handed weapons: the off hand onto the handle, over the clip's pose.
-    updateOffHands();
+    // Weapon guards and two-handed grips, over the clips' poses.
+    updateHeldWeapons(animDt, (body) => combat.guarding(body));
     // Same reasoning as mixers above -- a Particles emitter is as "always on"
     // as a Light, not gated to Play mode like Script/Sound.
     particleScale.value = viewport.clientHeight / 2;
