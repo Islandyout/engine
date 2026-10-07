@@ -20,7 +20,12 @@ const { chromium } = require("playwright");
     await fs.mkdir("build/browser-evidence", { recursive: true });
     const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
     const errors = [];
-    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("pageerror", (error) => {
+      errors.push(error.message);
+      // Printed as it happens: a script or frame error is the likeliest
+      // cause of a later timeout.
+      console.log("page error:", error.stack ?? error.message);
+    });
     page.on("console", (message) => {
       if (message.type() === "error" && !message.location().url.endsWith("/favicon.ico")) errors.push(message.text());
     });

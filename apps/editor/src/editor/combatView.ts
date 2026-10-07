@@ -110,6 +110,12 @@ interface Fighter {
   full: Map<string, Action>;
   lower: Map<string, Action>;
   guardUpper?: Action;
+  // Its stance clips: the boxing guard unarmed or with daggers, a sword
+  // guard with a blade (arm()).
+  guardClip: string;
+  blockClip: string;
+  upper: Set<string>;
+  clips: THREE.AnimationClip[];
   playing: Set<Action>;
   pose: string;
   moveAction?: Action;
@@ -228,6 +234,26 @@ export class CombatView {
     return player >= 0 ? this.host.value(player, FighterField.lockTarget) : -1;
   }
 
+  // A fighter's weapon class picks its stance, as games keep an animation
+  // set per weapon type: a blade, an axe, a two-hander or a shield stands in
+  // a sword guard and blocks with the blade; bare fists and reverse-grip
+  // daggers keep the boxing guard.
+  private armed = new Map<number, "blade" | "unarmed">();
+  arm(index: number, weapon: "blade" | "unarmed") {
+    // The weapon may be in hand before the clips load: remembered for attach().
+    this.armed.set(index, weapon);
+    const fighter = this.fighters.get(index);
+    if (!fighter) return;
+    const guard = weapon === "blade" ? "sword_idle" : "guard";
+    const block = weapon === "blade" ? "sword_block" : "block";
+    if (!fighter.full.has(guard) || fighter.guardClip === guard) return;
+    fighter.guardClip = guard;
+    fighter.blockClip = fighter.full.has(block) ? block : "block";
+    const clip = fighter.clips.find((c) => c.name === guard);
+    if (clip && fighter.upper.size) fighter.guardUpper = fighter.mixer.clipAction(filterClip(clip, fighter.upper, true));
+    fighter.pose = ""; // re-pick the stance next frame
+  }
+
   // Readies a fighter's body: the library's clips join its own, and the
   // guard (upper body) and strafing legs become their own layers.
   attach(index: number, object: THREE.Object3D, mixer: THREE.AnimationMixer, actions: Map<string, Action>, clips: THREE.AnimationClip[], current?: string) {
@@ -269,6 +295,10 @@ export class CombatView {
       full: actions,
       lower,
       guardUpper,
+      guardClip: "guard",
+      blockClip: "block",
+      upper,
+      clips,
       playing,
       pose: current ?? "",
       moveDuration: 0.6,
@@ -288,6 +318,8 @@ export class CombatView {
       grounded: true,
       tell: { glint: 0, glinted: false, red: false, serial: -1, base: 0 },
     });
+    const weapon = this.armed.get(index);
+    if (weapon) this.arm(index, weapon);
   }
 
   detach(index: number) {
@@ -302,6 +334,7 @@ export class CombatView {
   // Everything back to rest (Play stopped, or a rebuild).
   reset() {
     for (const index of [...this.fighters.keys()]) this.detach(index);
+    this.armed.clear();
     this.sparks.length = 0;
     for (const burst of this.bursts) this.group.remove(burst.mesh);
     this.bursts.length = 0;
@@ -441,13 +474,14 @@ export class CombatView {
             break;
           }
         }
-        const action = get(stance.clip) ?? get("guard") ?? get("idle");
+        const clipName = stance.clip === "guard" ? fighter.guardClip : stance.clip === "block" ? fighter.blockClip : stance.clip;
+        const action = get(clipName) ?? get("guard") ?? get("idle");
         if (!action) break;
         if (stance.clip === "block") {
           this.setPose(fighter, "block", [this.once(action)], 0.06);
           action.setEffectiveTimeScale(2);
         } else {
-          this.setPose(fighter, `free:${stance.clip}`, [stance.loop ? this.loop(action) : this.once(action)], 0.15);
+          this.setPose(fighter, `free:${clipName}`, [stance.loop ? this.loop(action) : this.once(action)], 0.15);
           if (stance.clip === "run" || stance.clip === "sprint") action.setEffectiveTimeScale(1);
         }
       }
