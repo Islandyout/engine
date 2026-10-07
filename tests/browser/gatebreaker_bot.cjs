@@ -94,7 +94,11 @@ function bot(page) {
       // Locked on (the hub has a training construct), W heads at the target.
       if (/Locked on/.test(await hud())) await page.keyboard.press("Tab");
       const from = await position();
-      if (!from) continue;
+      if (!from) {
+        if (process.env.GATE_DEBUG) console.log("no position:", ((await page.locator("#status").textContent()) ?? "").slice(0, 200));
+        await page.waitForTimeout(500);
+        continue;
+      }
       const far = Math.hypot(x - from.x, z - from.z);
       if (far < near) return;
       // Long presses: headless software rendering runs the simulation a
@@ -104,6 +108,7 @@ function bot(page) {
       if (!to) continue;
       const d = { x: to.x - from.x, z: to.z - from.z };
       if (Math.hypot(d.x, d.z) < 0.05) {
+        if (process.env.GATE_DEBUG) console.log("walk stuck at", JSON.stringify(to));
         await hold("s", 300);
         await hold("a", 500);
         continue;

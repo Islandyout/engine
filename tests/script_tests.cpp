@@ -692,7 +692,7 @@ int main() {
             TestHost host;
             const auto first = world.create();
             world.set(first, Box{{0, 0, 0}, {1, 1, 1}});
-            world.set(first, Script{R"lua(function on_start() world.send(world.find("Second"), "hello", 1) end)lua"});
+            world.set(first, Script{R"lua(function on_start() world.send(world.find("Second"), "hello", 1) world.send(world.find("Second"), "half", 1.5) end)lua"});
             host.names[first] = "First";
             const auto second = world.create();
             world.set(second, Box{{0, 0, 0}, {1, 1, 1}});
@@ -701,7 +701,8 @@ int main() {
             Runtime runtime;
             runtime.set_host(&host);
             runtime.step(world, 1.0F / 60);
-            check(host.emitted == std::vector<std::string>{"log:hello 1.0"}, "a message sent in on_start reaches a later script");
+            check(host.emitted == std::vector<std::string>{"log:hello 1", "log:half 1.5"},
+                  "a message sent in on_start reaches a later script, integers as integers");
         }
         {
             // world.raycast/overlap see colliders; physics.add_impulse moves self.

@@ -339,7 +339,7 @@ function on_message(name, value)
     gain_xp(k[1])
     hunter_line()
   elseif name == "gate_clear" then
-    local n = tonumber(value) or 1
+    local n = math.tointeger(tonumber(value) or 1) or 1
     local g = GATES[n]
     local first = s["c" .. n] == 0
     s["c" .. n] = s["c" .. n] + 1

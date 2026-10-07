@@ -297,7 +297,7 @@ function on_message(name, value)
       say("PHASE 2", "The " .. g.boss .. " roars. Its red slams come faster now:\nwhen it flashes red, don't block. Dodge.", 4)
     end
   elseif name == "enter_gate" and state == "hub" then
-    enter_gate(tonumber(value) or 1)
+    enter_gate(math.tointeger(tonumber(value) or 1) or 1)
   elseif name == "penalty" and state == "hub" then
     start_penalty()
   elseif name == "rewards_done" and state == "cleared" then

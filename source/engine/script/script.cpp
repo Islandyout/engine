@@ -524,6 +524,9 @@ struct LuaApi final {
         const int type = lua_type(L, 3);
         const bool boolean = lua_toboolean(L, 3) != 0;
         const double number = type == LUA_TNUMBER ? lua_tonumber(L, 3) : 0;
+        // An integer stays an integer: "G" .. 3 is "G3", but "G" .. 3.0 is "G3.0".
+        const bool integer = type == LUA_TNUMBER && lua_isinteger(L, 3) != 0;
+        const lua_Integer whole = integer ? lua_tointeger(L, 3) : 0;
         const std::string text = type == LUA_TSTRING ? lua_tostring(L, 3) : "";
         lua_getglobal(L, "self");
         lua_getfield(L, -1, "id");
@@ -536,6 +539,8 @@ struct LuaApi final {
                       lua_pushlstring(T, message.data(), message.size());
                       if (type == LUA_TBOOLEAN)
                           lua_pushboolean(T, boolean ? 1 : 0);
+                      else if (integer)
+                          lua_pushinteger(T, whole);
                       else if (type == LUA_TNUMBER)
                           lua_pushnumber(T, number);
                       else if (type == LUA_TSTRING)
