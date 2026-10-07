@@ -129,8 +129,18 @@ const { chromium } = require("playwright");
       const d = { x: to.x - from.x, z: to.z - from.z };
       const length = Math.hypot(d.x, d.z);
       if (length < 0.2) {
-        // Blocked: step aside and try again.
-        await hold(heading && heading.x > 0 ? "a" : "d", 500);
+        // Blocked (on a doorway's edge): back off, then step toward the
+        // middle line. The camera faces north once aligned; before that the
+        // last heading says which key goes which way.
+        await hold("s", 500);
+        const west = from.x > 0;
+        const right = heading ? -heading.z * (west ? -1 : 1) > 0 : !west;
+        // Long enough to clear the jamb (the opening is 2 m); if it went
+        // the wrong way, come back past the middle the other way.
+        const before = await position();
+        await hold(right ? "d" : "a", 1300);
+        const after = await position();
+        if (before && after && Math.abs(after.x) > Math.abs(before.x)) await hold(right ? "a" : "d", 2400);
         aligned = false;
         return;
       }
