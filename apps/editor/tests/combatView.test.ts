@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { FighterMode, StunKind, pickReaction, pickStance } from "../src/editor/combatView";
+import * as THREE from "three";
+import { FighterMode, StunKind, loadCombatClips, pickReaction, pickStance } from "../src/editor/combatView";
 import { martialArtsMoves, swordMoves } from "../src/scene/meleeMoves";
 
 test("a free fighter stands in guard, shuffles toward where it moves, and runs when fast", () => {
@@ -41,4 +42,16 @@ test("every clip the moves and reactions name is in the combat clip library", ()
     for (const [, clip] of text.matchAll(/clip=(\w+)/g)) assert.ok(clips.has(clip!), `missing clip ${clip}`);
   for (const name of ["guard", "block", "strafe_f", "strafe_b", "strafe_l", "strafe_r", "hit_head", "hit_chest", "hit_knockback", "guard_break", "launched", "air_loop", "air_hit_l", "air_hit_r", "fall_impact", "get_up", "kip_up", "death", "jump_loop"])
     assert.ok(clips.has(name), `missing clip ${name}`);
+});
+
+test("the clip library adds the locomotion every stance names, for rigs with no clips of their own", async () => {
+  const names = (path: string) => {
+    const glb = readFileSync(new URL(`../../../assets/source/${path.replace(/^\.\//, "")}`, import.meta.url));
+    const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString("utf8")) as { animations: { name: string }[] };
+    return { animations: json.animations.map((a) => new THREE.AnimationClip(a.name, 1, [])) };
+  };
+  const clips = new Set((await loadCombatClips(async (path) => names(path))).map((c) => c.name));
+  for (const stance of [pickStance(FighterMode.idle, 0, 0, true, 0, 0), pickStance(FighterMode.idle, 4.5, 0, true, 1, 0), pickStance(FighterMode.idle, 6, 0, true, 1, 0)])
+    assert.ok(clips.has(stance.clip), `missing stance clip ${stance.clip}`);
+  for (const name of ["idle", "walk", "run", "sprint"]) assert.ok(clips.has(name), `missing locomotion ${name}`);
 });

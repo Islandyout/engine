@@ -3670,6 +3670,22 @@ async function startEditor() {
     scene.add(anchor);
     objects.push(anchor);
     animStates.push(animState);
+    // A rig with no clips of its own that isn't a fighter (a bystander in a
+    // cutscene) stands in the library's idle instead of its bind (T) pose.
+    if (!get("Melee") && animState && catalog?.animated && cached && cached.clips.length === 0) {
+      const state = animState;
+      loadCombatClips((path) => gltfLoader.loadAsync(path)).then(
+        (clips) => {
+          if (animStates[objects.indexOf(anchor)] !== state) return;
+          for (const clip of clips) if (!state.actions.has(clip.name)) state.actions.set(clip.name, state.mixer.clipAction(clip));
+          const pinned = get("AnimationState")?.clip;
+          const name = pinned && state.actions.has(pinned) ? pinned : "idle";
+          state.actions.get(name)?.play();
+          state.current = name;
+        },
+        (error) => log(`Combat clips failed to load: ${String(error)}`),
+      );
+    }
     if (get("Melee") && animState) {
       attachFighter(objects.length - 1, object, animState);
       // Weapons in its hands (heldWeapons.ts), once their models load.

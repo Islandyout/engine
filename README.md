@@ -383,6 +383,11 @@ Engine version 0.79.0 starts **GATEBREAKER**, an original manhwa-style hunter ac
 
 See [F79](docs/changelog/F79.md).
 
+Engine version 0.81.0 fixes two GATEBREAKER animation bugs:
+
+- The hunter and the goblins run with their legs moving; before, they slid along the ground.
+- Nobody stands in a T-pose in the prologue.
+
 Engine version 0.80.0 makes GATEBREAKER playable from start to finish: **one E-rank Gate** (Games → GATEBREAKER):
 
 - A **comic-panel prologue** and the **Ledger**'s system windows.
