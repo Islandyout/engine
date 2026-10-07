@@ -410,6 +410,16 @@ function melee.unlock(move) end
 ---@return number, number
 function melee.stagger() end
 
+--- Adds mana (a potion; capped at the max) and returns its mana and max.
+---@param add? number
+---@return number, number
+function melee.mana(add) end
+
+--- Makes this AI fighter an ally of the leader: with no hostile within reach it walks to its slot (0 left, 1 right, 2 behind) and won't chase hostiles more than 16 m from the leader; nil stops it.
+---@param leader? integer
+---@param slot? integer
+function melee.follow(leader, slot) end
+
 --- Stats: damage dealt (times), its clock speed (0.5-2: attacks, dodges, cooldowns), crit chance 0-1 (1.5x), skill damage (times, moves that cost mana), and optionally max health and mana. -1 keeps one as is.
 ---@param damage number
 ---@param speed number
@@ -567,6 +577,10 @@ function space.set_wind(x, y, z) end
 ---@param allowed boolean
 function space.allow_boarding(allowed) end
 
+--- Dresses this script's own character in gear: catalog model ids (space-separated; "214:#8aa6d6" tints one) rigged to its skeleton, worn over its body and moving with it. Empty undresses.
+---@param models string
+function world.wear(models) end
+
 --- 0 calm, 1 wary, 2 fleeing, -1 not an animal.
 ---@param name string
 function world.wildlife_state(name) end
@@ -574,6 +588,11 @@ function world.wildlife_state(name) end
 --- Reads a line aloud for screen readers and shows it briefly.
 ---@param text string
 function hud.announce(text) end
+
+--- A UI element's text colour (#rrggbb); empty restores its own.
+---@param name string
+---@param color string
+function ui.set_color(name, color) end
 
 --- Plays an interface sound cue.
 ---@param name string

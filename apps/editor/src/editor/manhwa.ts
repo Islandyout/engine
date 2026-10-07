@@ -22,18 +22,19 @@ export const toonUniforms = {
   toonRimColor: { value: new THREE.Color(1, 0.93, 0.85) },
 };
 
-// Three tones: unlit below the terminator, a half tone, then fully lit. The
-// steps are a few hundredths wide so the edge is crisp but not aliased.
+// Two soft tones over the real light: the band (unlit, then lit) carries
+// the comic read, a third of the smooth falloff keeps the form round. Kept
+// light on purpose: hard flat fills on every surface read as cheap.
 const toonFunctions = /* glsl */ `
 uniform float toonOn;
 uniform float toonRim;
 uniform vec3 toonRimColor;
 float toonDot( const in float x ) {
-  float band = mix( 0.4, 1.0, smoothstep( 0.3, 0.36, x ) ) * smoothstep( -0.02, 0.04, x );
-  return mix( saturate( x ), band, toonOn );
+  float band = mix( 0.55, 1.0, smoothstep( 0.22, 0.4, x ) ) * smoothstep( -0.08, 0.1, x );
+  return mix( saturate( x ), mix( band, saturate( x ), 0.35 ), toonOn );
 }
 float toonShadow( const in float s ) {
-  return mix( s, smoothstep( 0.4, 0.6, s ), toonOn );
+  return mix( s, smoothstep( 0.3, 0.7, s ), toonOn );
 }
 `;
 
@@ -43,7 +44,7 @@ const physicalLights = THREE.ShaderChunk.lights_physical_pars_fragment.replace(
   "float dotNL = toonDot( dot( geometryNormal, directLight.direction ) );$1",
 ).replace(
   "reflectedLight.directSpecular += irradiance * BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material );",
-  "reflectedLight.directSpecular += irradiance * BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material ) * ( 1.0 - 0.85 * toonOn );",
+  "reflectedLight.directSpecular += irradiance * BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material ) * ( 1.0 - 0.5 * toonOn );",
 );
 
 // Each light's shadow lookup, given a hard edge.
@@ -141,8 +142,8 @@ const inkShader = {
       float tl = tone(texture2D(tDiffuse, vUv - dx).rgb), tr = tone(texture2D(tDiffuse, vUv + dx).rgb);
       float td = tone(texture2D(tDiffuse, vUv - dy).rgb), tu = tone(texture2D(tDiffuse, vUv + dy).rgb);
       float fill = smoothstep(0.35, 0.7, max(abs(tl - tr), abs(td - tu)) + 0.5 * max(abs(tl + tr - 2.0 * t), abs(td + tu - 2.0 * t)));
-      float line = max(silhouette, max(crease * 0.85, fill * 0.55));
-      float fade = 1.0 - smoothstep(25.0, 60.0, c);
+      float line = max(silhouette, max(crease * 0.5, fill * 0.2));
+      float fade = 1.0 - smoothstep(18.0, 45.0, c);
       vec3 inked = mix(source.rgb, inkColor, clamp(line * ink * fade, 0.0, 1.0));
       // An impact frame: the panel inverted to ink and paper, lines in white.
       vec3 inverted = mix(t > 0.75 ? inkColor : vec3(0.96, 0.95, 0.92), vec3(0.96, 0.95, 0.92), clamp(line * 1.5, 0.0, 1.0));

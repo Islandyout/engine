@@ -6,6 +6,12 @@
 -- and spawns its enemies, killing them all opens the next door, and the last
 -- room holds the boss. Every kill and the clear go to the Ledger, which
 -- shows the rewards; then the hunter returns to the hub.
+--
+-- Shadows (M3): an elite or boss that falls leaves a mark for 8 s; holding G
+-- over it binds it (elites always rise, bosses get 3 tries at odds SEN
+-- improves). The Ledger keeps one shadow per role; the Director raises them
+-- at each Gate's door, gathers them when a room seals, raises the fallen
+-- when it's cleared, and passes on the hunter's ultimate and every Break.
 -- @prop fast false
 --
 -- props.fast (tests): every tutorial step passes after a moment, a cleared
@@ -30,6 +36,16 @@ local HALF = {
   ["Hobgoblin"] = 0.925, ["Goblin Chieftain"] = 1.05, ["Hobgoblin Brute"] = 1.2, ["Goblin Warlord"] = 1.125,
 }
 local G, A, S, SH, H = "Goblin Grunt", "Goblin Archer", "Goblin Shieldbearer", "Goblin Shaman", "Hobgoblin"
+
+-- Who can be bound: role (1 tank, 2 striker, 3 archer) and whether it is a
+-- Gate master (3 tries at the odds) or an elite (always rises).
+local BIND = {
+  ["Goblin Shieldbearer"] = { 1 }, ["Hobgoblin Brute"] = { 1, true },
+  ["Hobgoblin"] = { 2 }, ["Goblin Chieftain"] = { 2, true }, ["Goblin Warlord"] = { 2, true },
+  ["Goblin Shaman"] = { 3 },
+}
+local ROLE_NAME = { "tank", "striker", "archer" }
+local BIND_TIME, BIND_RANGE, BIND_HOLD = 8, 2.4, 1.0
 
 -- Each Gate: where it lies (x), its rooms (centre z, who stands where,
 -- relative to the centre) and its boss.
@@ -91,6 +107,20 @@ local clock = 0
 local phase2 = false
 local spawned = {}     -- { id, prefab, room, counted }
 local penalty_next = 0
+local sen = 10
+local bound = { "", "", "" }  -- the Ledger's shadows by role
+local risen = {}       -- role -> the shadow's id in this Gate
+local bodies = {}      -- { x, z, prefab, t, tries, mark }
+local holding = 0      -- seconds G has been held over a body
+local run_start, hurt, last_hp = 0, 0, nil
+
+local shown_prompt
+local function prompt(text)
+  if text ~= shown_prompt then
+    shown_prompt = text
+    ui.set_text("Prompt", text)
+  end
+end
 
 local function find(name) return world.find(name) end
 local function ledger(name, value) world.send(find("Ledger"), name, value) end
@@ -157,7 +187,13 @@ local function standing(tag)
     if dead(e.id) then
       if not e.counted then
         e.counted = true
-        if state ~= "penalty" then ledger("kill", e.prefab) end
+        if state ~= "penalty" then
+          local x, _, z = world.position(e.id)
+          ledger("kill", x and string.format("%s|%.2f|%.2f", e.prefab, x, z) or e.prefab)
+          if BIND[e.prefab] and x then
+            bodies[#bodies + 1] = { x = x, z = z, prefab = e.prefab, t = clock, tries = 0, mark = world.spawn("Shadow Mark", x, 0.2, z) }
+          end
+        end
       end
     elseif e.room == tag then
       n = n + 1
@@ -173,8 +209,135 @@ local function clear_spawned()
   spawned = {}
 end
 
+-- Shadows ------------------------------------------------------------------------
+local SLOT = { { 1.6, 1.4 }, { -1.6, 1.4 }, { 0, 2.4 } }
+local function beside_hero(role)
+  local x, y, z = world.position(hero)
+  return (x or 0) + SLOT[role][1], z and (z + SLOT[role][2]) or 0
+end
+
+local function raise(role)
+  if bound[role] == "" then return end
+  local old = risen[role]
+  if old and world.alive(old) then world.destroy(old) end
+  local x, z = beside_hero(role)
+  risen[role] = world.spawn("Shadow " .. bound[role], x, (HALF[bound[role]] or 0.8) + 0.05, z)
+end
+
+-- Every shadow at its slot (a room is sealing: none is left outside).
+local function gather()
+  for role, id in pairs(risen) do
+    if world.alive(id) and not dead(id) then
+      local x, z = beside_hero(role)
+      world.set_position(id, x, (HALF[bound[role]] or 0.8) + 0.05, z)
+    end
+  end
+end
+
+-- The fallen rise again (a room is clear).
+local function raise_fallen()
+  for role = 1, 3 do
+    local id = risen[role]
+    if bound[role] ~= "" and (not id or dead(id)) then raise(role) end
+  end
+end
+
+local function clear_shadows()
+  for _, id in pairs(risen) do
+    if world.alive(id) then world.destroy(id) end
+  end
+  risen = {}
+  for _, b in ipairs(bodies) do
+    if b.mark and world.alive(b.mark) then world.destroy(b.mark) end
+  end
+  bodies = {}
+  prompt("")
+  holding = 0
+end
+
+local function each_shadow(name, value)
+  for _, id in pairs(risen) do
+    if world.alive(id) and not dead(id) then world.send(id, name, value) end
+  end
+end
+
+local function odds(b)
+  if not BIND[b.prefab][2] then return 1 end
+  return math.min(0.9, 0.5 + 0.02 * (sen - 10))
+end
+
+local function drop_body(i)
+  local b = table.remove(bodies, i)
+  if b and b.mark and world.alive(b.mark) then world.destroy(b.mark) end
+end
+
+-- Hold G over a fresh body to bind it.
+local function tick_bind(dt)
+  for i = #bodies, 1, -1 do
+    if clock - bodies[i].t > BIND_TIME then drop_body(i) end
+  end
+  local hx, _, hz = world.position(hero)
+  local near, ni
+  for i, b in ipairs(bodies) do
+    if hx and (hx - b.x) ^ 2 + (hz - b.z) ^ 2 < BIND_RANGE * BIND_RANGE then near, ni = b, i end
+  end
+  -- Tests: the first body nearby rises by itself.
+  if near and props.fast then holding = BIND_HOLD end
+  if not near then
+    holding = 0
+    prompt("")
+    return
+  end
+  local role = BIND[near.prefab][1]
+  local chance = math.floor(odds(near) * 100 + 0.5)
+  if input.down("KeyG") or props.fast then
+    holding = holding + dt
+  else
+    holding = 0
+  end
+  local swap = bound[role] ~= "" and bound[role] ~= near.prefab and ("  (replaces your " .. bound[role]:gsub("^Goblin ", "") .. ")") or ""
+  if holding < BIND_HOLD then
+    local bar = string.rep("|", math.floor(holding / BIND_HOLD * 10)) .. string.rep(".", 10 - math.floor(holding / BIND_HOLD * 10))
+    prompt(string.format("[Hold G] ARISE  %s  ·  %s  ·  %d%%%s%s", near.prefab, ROLE_NAME[role], chance, swap,
+      holding > 0 and ("\n" .. bar) or ""))
+    return
+  end
+  holding = 0
+  near.tries = near.tries + 1
+  if math.random() < odds(near) then
+    drop_body(ni)
+    bound[role] = near.prefab
+    ledger("bound", near.prefab)
+    raise(role)
+    hud.cue("discovery")
+    say("ARISE", near.prefab .. " rises as your " .. ROLE_NAME[role] .. ".\nShadows follow you and fight on their own. They join your ultimate (F)\nand strike every enemy you Break.", 5)
+    prompt("")
+  elseif near.tries >= 3 then
+    drop_body(ni)
+    hud.cue("bad")
+    say("THE SHADOW FADES", "It resisted three times. Its shadow is gone.\nMore SEN (C) raises the odds.", 4)
+    prompt("")
+  else
+    hud.cue("bad")
+    prompt(string.format("It resists. %d tries left. [Hold G] again", 3 - near.tries))
+  end
+end
+
+-- The clear grade (GAME_DESIGN.md 5.5): time and damage taken.
+local function grade()
+  local secs = clock - run_start
+  local _, max = world.health(hero)
+  local share = hurt / (max or 220)
+  local g = "C"
+  if share < 0.5 and secs < 240 then g = "S"
+  elseif share < 1 and secs < 360 then g = "A"
+  elseif share < 2 then g = "B" end
+  return string.format("%d:%s:%d:%d", gate, g, math.floor(secs), math.floor(hurt))
+end
+
 local function to_hub()
   clear_spawned()
+  clear_shadows()
   hud.boss("", "")
   for k = 1, 4 do seal(gate, k, true) end
   teleport(HUB_SPOT[1], HUB_SPOT[2], HUB_SPOT[3])
@@ -229,6 +392,9 @@ local function enter_gate(n)
   for k = 2, 4 do seal(n, k, true) end
   seal(n, 1, false)
   teleport(g.ox, 0.9, 6)
+  clear_shadows()
+  for role = 1, 3 do raise(role) end
+  run_start, hurt, last_hp = clock, 0, nil
   say(g.name .. "  ·  " .. g.rank .. "-RANK GATE", g.blurb .. "\n\nGo north. The doors seal behind you until a room is clear.", 5)
   objective("Enter the Gate (north)")
   audio.music("tension")
@@ -240,6 +406,7 @@ end
 local function start_penalty()
   gate = 1
   clear_spawned()
+  clear_shadows()
   seal(1, 4, true)
   teleport(0, 0.9, -96)
   audio.music("tension")
@@ -296,6 +463,15 @@ function on_message(name, value)
     else
       say("PHASE 2", "The " .. g.boss .. " roars. Its red slams come faster now:\nwhen it flashes red, don't block. Dodge.", 4)
     end
+  elseif name == "shadows" and type(value) == "string" then
+    local v = {}
+    for part in (value .. ","):gmatch("([^,]*),") do v[#v + 1] = part end
+    sen = tonumber(v[1]) or sen
+    bound = { v[2] or "", v[3] or "", v[4] or "" }
+  elseif name == "ult" then
+    each_shadow("ult")
+  elseif name == "broken" then
+    each_shadow("strike", value)
   elseif name == "enter_gate" and state == "hub" then
     enter_gate(math.tointeger(tonumber(value) or 1) or 1)
   elseif name == "penalty" and state == "hub" then
@@ -326,10 +502,18 @@ function on_tick(dt)
     window_until = -1
   end
   local fighting = state == "advance" or state == "fight" or state == "boss_intro" or state == "boss" or state == "penalty" or state == "tutorial"
+  local in_gate = state == "advance" or state == "fight" or state == "boss_intro" or state == "boss" or state == "cleared"
+  if hero and in_gate then
+    local hp = world.health(hero)
+    if hp and last_hp and hp < last_hp then hurt = hurt + (last_hp - hp) end
+    last_hp = hp
+    tick_bind(dt)
+  end
   if hero and fighting then
     local hp, max = world.health(hero)
     if hp and max and hp < max * 0.25 then
       world.heal(hero, max)
+      last_hp = max
       if first_run and gate == 1 or state == "penalty" or state == "tutorial" then
         -- The Ledger won't let its hunter die in their first Gate.
         say("THE LEDGER REFUSES", "You will not die here. Health restored.\nRead the tells: glint means dodge, red means never block.", 4)
@@ -372,12 +556,14 @@ function on_tick(dt)
     local r = g.rooms[room]
     if r and hero_z() < ROOM_Z[room] + 7 then
       seal(gate, room, true)
+      gather()
       for _, f in ipairs(r.foes) do spawn(f[1], g.ox + f[2], ROOM_Z[room] + f[3], room) end
       say(r.title, r.hint, 5)
       state = "fight"
       t = 0
     elseif not r and hero_z() < -91 then
       seal(gate, 4, true)
+      gather()
       hud.panels(string.format("%g 2.2 -91 > %g 1.6 -104 | The Gate's master. | GRAAH | 2.6\n", g.ox + 3, g.ox))
       boss = spawn(g.boss, g.ox, -105, "boss")
       state = "boss_intro"
@@ -390,6 +576,7 @@ function on_tick(dt)
     objective(r.title .. ": defeat the goblins (" .. left .. " left)")
     if left == 0 and t > 1 then
       seal(gate, room + 1, false)
+      raise_fallen()
       say("CLEARED", room < #g.rooms and "The next door opens." or "The way to the Gate's master opens.", 3)
       objective(room < #g.rooms and "Go north" or "Face the Gate's master (north)")
       skip_to(ROOM_Z[room] - 8)
@@ -414,7 +601,7 @@ function on_tick(dt)
       audio.music("title")
       state = "cleared"
       t = 0
-      ledger("gate_clear", gate)
+      ledger("gate_clear", grade())
     end
   elseif state == "outro" then
     if t > 0.3 and (input.pressed("Enter") or (props.fast and t > 3)) then

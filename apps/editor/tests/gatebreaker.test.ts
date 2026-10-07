@@ -56,7 +56,9 @@ test("GATEBREAKER: floors sit on the ground and fighters, placed or spawned, sta
   for (const e of scene.entities) {
     const c = e.components;
     // Floor tiles' tops sit 1 cm above y = 0 (just clear of the shadow plane there).
-    if (/floor/.test(e.name)) assert.ok(Math.abs(c.Transform.position.y + c.Scale.value.y / 2 - 0.01) < 1e-6, `${e.name} top at y = 0.01`);
+    // Instanced tiles stand on their bottoms: 15 cm thick, 14 cm down, tops at y = 0.01.
+    if (/floor/.test(e.name) && c.ModelInstances) assert.equal(c.Transform.position.y, -0.14, `${e.name} tiles top at y = 0.01`);
+    else if (/floor/.test(e.name)) assert.ok(Math.abs(c.Transform.position.y + c.Scale.value.y / 2 - 0.01) < 1e-6, `${e.name} top at y = 0.01`);
     if (c.Melee && !/Prologue/.test(e.name)) assert.ok(Math.abs(c.Transform.position.y - c.Scale.value.y / 2) < 1e-6, `${e.name} stands on y = 0`);
   }
   // The Director spawns each enemy at half its height (its HALF table), and

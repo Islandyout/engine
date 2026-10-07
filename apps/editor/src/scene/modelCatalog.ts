@@ -251,6 +251,14 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 211, category: "weapons", name: "Bow", path: "./kit/weapons/bow.glb" },
   { id: 212, category: "weapons", name: "Round shield", path: "./kit/weapons/shield-round.glb" },
   { id: 213, category: "dungeon", name: "Wall doorway (open)", path: "./kit/dungeon/wall-doorway-open.glb" },
+  // GATEBREAKER (M3.5): gear pieces, skinned to the hunter's skeleton and
+  // worn with world.wear (tools/models/make_outfits.mjs, Quaternius
+  // CC0 Modular Character Outfits -- see assets/CREDITS.md).
+  { id: 214, category: "gear", name: "Gear: body armor", path: "./kit/people/gear-body.glb" },
+  { id: 215, category: "gear", name: "Gear: bracers", path: "./kit/people/gear-hands.glb" },
+  { id: 216, category: "gear", name: "Gear: trousers", path: "./kit/people/gear-legs.glb" },
+  { id: 217, category: "gear", name: "Gear: boots", path: "./kit/people/gear-feet.glb" },
+  { id: 218, category: "gear", name: "Gear: pauldron", path: "./kit/people/gear-shoulders.glb" },
 ];
 
 export const catalogCategories = Array.from(

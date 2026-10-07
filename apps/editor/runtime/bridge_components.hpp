@@ -636,6 +636,11 @@ struct Fighter final {
     float stat_skill{1.0F};
     float stat_crit{0.0F};
     std::uint32_t crit_seed{0x9e3779b9U};
+    // An ally that follows (GATEBREAKER M3, melee.follow): with no hostile
+    // in reach, its brain walks it to its slot behind the leader, and it
+    // won't chase a hostile far from them.
+    std::optional<engine::Entity> leader;
+    int follow_slot{0};
 };
 // What the editor hears about melee each frame (editor_take_melee_events).
 enum class MeleeEventKind : int { start, hit, blocked, parried, dodged, guard_break, fire, land, ko, broken };

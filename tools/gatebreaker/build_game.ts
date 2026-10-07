@@ -102,12 +102,18 @@ scene.add("Objective", [0, 0, 0], {
 });
 // Level, rank, gold and fangs, kept up to date by the Ledger.
 scene.add("Hunter", [0, 0, 0], {
-  UI: { text: "", anchor: "top-right", offsetX: 18, offsetY: 44, fontSize: 15, color: vec(0.95, 0.85, 0.55), opacity: 0.95 },
+  UI: { text: "", anchor: "top-right", offsetX: -18, offsetY: 44, fontSize: 15, color: vec(0.95, 0.85, 0.55), opacity: 0.95 },
 });
 // "G: Gate Board" and the like, near a hub station.
 scene.add("Prompt", [0, 0, 0], {
-  UI: { text: "", anchor: "bottom-center", offsetY: 120, fontSize: 18, color: vec(1, 1, 1), opacity: 0.95 },
+  UI: { text: "", anchor: "bottom-center", offsetY: -120, fontSize: 18, color: vec(1, 1, 1), opacity: 0.95 },
 });
+// The pick-up feed (the Ledger): three lines, bottom right, newest lowest.
+// (Offsets are +x right, +y down from the anchor.)
+for (const k of [1, 2, 3])
+  scene.add(`Feed ${k}`, [0, 0, 0], {
+    UI: { text: "", anchor: "bottom-right", offsetX: -6, offsetY: -(90 + (k - 1) * 26), fontSize: 17, color: vec(1, 1, 1), opacity: 0.95 },
+  });
 scene.add("Director", [0, 0, 0], { Script: { source: lua("director.lua"), props: { fast: false } } });
 scene.add("Hub", [0, 0, 0], { Script: { source: lua("hub.lua"), props: { fast: false } } });
 scene.add("Ledger", [0, 0, 0], { Script: { source: lua("ledger.lua"), props: { fast: false } } });
@@ -122,6 +128,39 @@ scene.add("Ground", [0, -0.5, -35], {
 });
 
 // -- Rooms ------------------------------------------------------------------
+// A Gate's walls, floors, torches and props are drawn instanced
+// (ModelInstances): one entity per Gate and height instead of one per
+// piece, so five Gates fit under the engine's 1024 entities. Solid pieces
+// collide with their footprint. What moves or glows (seals, flames, lights)
+// stays an entity of its own.
+const sets = new Map<string, { y: number; lines: string[] }>();
+let setName = "";
+// An instance stands on its model's bottom, not its origin: these pieces'
+// origins are above or below their bottoms (metres), so their set is moved
+// by that much to keep the origin at the height asked for.
+const BOTTOM = new Map<number, number>(
+  (
+    [
+      ["floor-tile-large", -0.1],
+      ["banner-patternA-red", 0.531],
+      ["sword-shield-broken", -0.793],
+      ["torch-mounted", -0.381],
+    ] as const
+  ).map(([name, bottom]) => [dungeon(name), bottom]),
+);
+function place(id: number, x: number, z: number, yaw = 0, solid = true, origin = 0) {
+  const y = Number((origin + (BOTTOM.get(id) ?? 0)).toFixed(3));
+  const key = `${setName} ${origin === 0 && y === 0 ? "pieces" : origin === FLOOR ? "floor" : `at ${y}`}`;
+  let set = sets.get(key);
+  if (!set) sets.set(key, (set = { y, lines: [] }));
+  const deg = ((yaw * 180) / Math.PI).toFixed(1);
+  set.lines.push(`${id} ${x.toFixed(2)} ${z.toFixed(2)} ${deg}${solid ? " solid" : ""}`);
+}
+function flushSets() {
+  for (const [name, set] of sets) scene.add(name, [0, set.y, 0], { ModelInstances: { instances: set.lines.join("\n") } });
+  sets.clear();
+}
+
 type Theme = { walls: string[]; floor: string; torch: string };
 const CAVE: Theme = { walls: ["wall", "wall-cracked", "wall-arched", "wall", "wall-cracked", "wall-arched", "wall"], floor: "floor-tile-large", torch: "#ff9a4a" };
 const TUNNEL: Theme = { walls: ["wall-gated", "wall", "wall-gated", "wall-cracked", "wall", "wall-gated", "wall"], floor: "floor-tile-large", torch: "#a8d8ff" };
@@ -132,23 +171,12 @@ const FORT: Theme = { walls: ["wall-pillar", "wall", "wall-arched", "wall-pillar
 // are a little shallower than the 1 m walls, so a body sliding along the
 // wall never catches on the seam between them.
 function doorway(name: string, ox: number, z: number, yaw: number) {
-  scene.model(name, dungeon("wall-doorway-open"), [ox, 0, z], yaw, false);
+  place(dungeon("wall-doorway-open"), ox, z, yaw, false);
   for (const x of [-1.5, 1.5]) scene.box(`${name} jamb ${x < 0 ? "W" : "E"}`, [ox + x, 2, z], [1, 4, 0.9], "#000000", { Renderable: { mesh: 0, material: 0, visible: false } });
 }
-// An 8 m floor slab: the 4 m tile at twice the width and depth. The
-// engine holds 1024 entities, and three Gates of 4 m tiles would need
-// half of them.
-function slab(name: string, theme: Theme, x: number, z: number) {
-  const e = scene.entities[scene.model(name, dungeon(theme.floor), [x, FLOOR, z], 0, false)]!;
-  const c = e.components as unknown as { Transform: { position: { x: number; z: number } }; Scale: { value: { x: number; z: number } } };
-  c.Scale.value.x *= 2;
-  c.Scale.value.z *= 2;
-  c.Transform.position.x = x + (c.Transform.position.x - x) * 2;
-  c.Transform.position.z = z + (c.Transform.position.z - z) * 2;
-}
 // A square room centred on (ox, cz), `half` metres to each wall (4 m wall
-// pieces), with a doorway in the middle of the north and/or south wall.
-// Its floor is laid by the Gate.
+// pieces), with a doorway in the middle of the north and/or south wall,
+// floored with 4 m tiles.
 function room(name: string, theme: Theme, ox: number, cz: number, half: number, north: boolean, south: boolean) {
   const walls = theme.walls;
   const pieces = half / 2; // 4 m walls from -half to +half
@@ -157,11 +185,11 @@ function room(name: string, theme: Theme, ox: number, cz: number, half: number, 
     const t = along(i);
     const middle = Math.abs(t) < 0.01;
     if (middle && north) doorway(`${name} north door`, ox, cz - half, 0);
-    else scene.model(`${name} north wall ${i}`, dungeon(walls[i % walls.length]!), [ox + t, 0, cz - half], 0);
+    else place(dungeon(walls[i % walls.length]!), ox + t, cz - half, 0);
     if (middle && south) doorway(`${name} south door`, ox, cz + half, Math.PI);
-    else scene.model(`${name} south wall ${i}`, dungeon(walls[(i + 3) % walls.length]!), [ox + t, 0, cz + half], Math.PI);
-    scene.model(`${name} west wall ${i}`, dungeon(walls[(i + 1) % walls.length]!), [ox - half, 0, cz + t], Math.PI / 2);
-    scene.model(`${name} east wall ${i}`, dungeon(walls[(i + 2) % walls.length]!), [ox + half, 0, cz + t], -Math.PI / 2);
+    else place(dungeon(walls[(i + 3) % walls.length]!), ox + t, cz + half, Math.PI);
+    place(dungeon(walls[(i + 1) % walls.length]!), ox - half, cz + t, Math.PI / 2);
+    place(dungeon(walls[(i + 2) % walls.length]!), ox + half, cz + t, -Math.PI / 2);
   }
   for (const [x, z] of [
     [-half, -half],
@@ -169,13 +197,14 @@ function room(name: string, theme: Theme, ox: number, cz: number, half: number, 
     [-half, half],
     [half, half],
   ] as const)
-    scene.model(`${name} corner ${x},${z}`, dungeon("pillar"), [ox + x, 0, cz + z]);
+    place(dungeon("pillar"), ox + x, cz + z);
+  for (let x = -half + 2; x < half; x += 4) for (let z = -half + 2; z < half; z += 4) place(dungeon(theme.floor), ox + x, cz + z, 0, false, FLOOR);
 }
 // A torch on a wall facing into the room, with its light and flames.
 let torches = 0;
-function torch(at: V3, yaw: number, hex: string, light = true) {
+function torch(at: V3, yaw: number, hex: string, light = true, flame = "#ffc04a", flameEnd = "#ff3a0c") {
   const n = ++torches;
-  scene.model(`Torch ${n}`, dungeon("torch-mounted"), at, yaw, false);
+  place(dungeon("torch-mounted"), at[0], at[2], yaw, false, at[1]);
   const out: V3 = [at[0] + Math.sin(yaw) * 0.45, at[1] + 0.75, at[2] + Math.cos(yaw) * 0.45];
   scene.add(`Torch flame ${n}`, out, {
     Renderable: { visible: false },
@@ -186,8 +215,8 @@ function torch(at: V3, yaw: number, hex: string, light = true) {
       lifetime: 0.5,
       speed: 0.6,
       size: 0.14,
-      color: rgb("#ffc04a"),
-      endColor: rgb("#ff3a0c"),
+      color: rgb(flame),
+      endColor: rgb(flameEnd),
       endSize: 0.3,
       shape: "Sphere",
       shapeSize: 0.06,
@@ -195,9 +224,10 @@ function torch(at: V3, yaw: number, hex: string, light = true) {
   });
 }
 // The magic barrier sealing a corridor; the Director drops it to open.
-function corridor(prefix: string, n: number, ox: number, z: number) {
-  scene.model(`${prefix} corridor ${n} west`, dungeon("wall"), [ox - 2.5, 0, z], Math.PI / 2);
-  scene.model(`${prefix} corridor ${n} east`, dungeon("wall"), [ox + 2.5, 0, z], -Math.PI / 2);
+function corridor(prefix: string, n: number, ox: number, z: number, theme: Theme) {
+  place(dungeon("wall"), ox - 2.5, z, Math.PI / 2);
+  place(dungeon("wall"), ox + 2.5, z, -Math.PI / 2);
+  place(dungeon(theme.floor), ox, z, 0, false, FLOOR);
   scene.box(`${prefix} Seal ${n}`, [ox, 1.75, z], [4, 3.5, 0.4], "#5a2dff", {}, {
     emissive: rgb("#7a4dff"),
     emissiveIntensity: 1.6,
@@ -205,97 +235,101 @@ function corridor(prefix: string, n: number, ox: number, z: number) {
   });
 }
 // A Gate: an arrival room (centre 0), rooms at -24, -48, -72 and the boss
-// arena at -100, corridors (with their seals) between them.
-function gate(prefix: string, theme: Theme, ox: number, start: string) {
+// arena at -100, corridors (with their seals) between them. `dress` adds its
+// props (to the same instanced set) before the set is written out.
+function gate(prefix: string, theme: Theme, ox: number, start: string, dress: () => void = () => {}, flame?: [string, string]) {
+  setName = prefix;
   room(`${prefix} ${start}`, theme, ox, 0, 10, true, false);
-  corridor(prefix, 1, ox, -12);
+  corridor(prefix, 1, ox, -12, theme);
   room(`${prefix} Room 1`, theme, ox, -24, 10, true, true);
-  corridor(prefix, 2, ox, -36);
+  corridor(prefix, 2, ox, -36, theme);
   room(`${prefix} Room 2`, theme, ox, -48, 10, true, true);
-  corridor(prefix, 3, ox, -60);
+  corridor(prefix, 3, ox, -60, theme);
   room(`${prefix} Room 3`, theme, ox, -72, 10, true, true);
-  corridor(prefix, 4, ox, -84);
+  corridor(prefix, 4, ox, -84, theme);
   room(`${prefix} Arena`, theme, ox, -100, 14, false, true);
-  // One run of floor from the arrival room's south wall to the arena's
-  // north wall: 24 m per room (corridors included), 32 m of arena.
-  for (const cz of [0, -24, -48, -72]) for (const x of [-8, 0, 8]) for (const z of [-8, 0, 8]) slab(`${prefix} floor ${x},${cz + z}`, theme, ox + x, cz + z);
-  for (const x of [-12, -4, 4, 12]) for (const z of [-88, -96, -104, -112]) slab(`${prefix} floor ${x},${z}`, theme, ox + x, z);
+  const fire = (at: V3, yaw: number, light = true) => torch(at, yaw, theme.torch, light, ...(flame ?? []));
   for (const [cz, half] of [
     [0, 10],
     [-24, 10],
     [-48, 10],
     [-72, 10],
   ] as const) {
-    torch([ox - half + 0.5, 2.2, cz - 2], Math.PI / 2, theme.torch);
-    torch([ox + half - 0.5, 2.2, cz + 3], -Math.PI / 2, theme.torch, cz !== 0);
+    fire([ox - half + 0.5, 2.2, cz - 2], Math.PI / 2);
+    fire([ox + half - 0.5, 2.2, cz + 3], -Math.PI / 2, cz !== 0);
   }
-  torch([ox - 13.5, 2.4, -95], Math.PI / 2, theme.torch);
-  torch([ox + 13.5, 2.4, -95], -Math.PI / 2, theme.torch);
-  torch([ox - 6, 2.4, -113.5], 0, theme.torch, false);
-  torch([ox + 6, 2.4, -113.5], 0, theme.torch, false);
+  fire([ox - 13.5, 2.4, -95], Math.PI / 2);
+  fire([ox + 13.5, 2.4, -95], -Math.PI / 2);
+  fire([ox - 6, 2.4, -113.5], 0, false);
+  fire([ox + 6, 2.4, -113.5], 0, false);
   for (const [x, z] of [
     [-7, -94],
     [7, -94],
     [-7, -106],
     [7, -106],
   ] as const)
-    scene.model(`${prefix} Arena column ${x},${z}`, dungeon("column"), [ox + x, 0, z]);
+    place(dungeon("column"), ox + x, z);
+  dress();
+  flushSets();
 }
 
 // The Goblin Cave (E): the first Gate, whose arrival room is the tutorial.
-gate("G1", CAVE, 0, "Tutorial");
-scene.model("Tutorial barrel", dungeon("barrel-large"), [-8, 0, 7.6]);
-scene.model("Tutorial crates", dungeon("crates-stacked"), [8, 0, 7.4], 0.3);
-scene.model("Room 1 chest", dungeon("chest"), [-8.4, 0, -31], Math.PI / 2);
-scene.model("Room 1 banner", dungeon("banner-patternA-red"), [0, 0, -33.9], 0, false);
-scene.model("Room 2 rubble", dungeon("rubble-half"), [7.8, 0, -55], -0.6, false);
-scene.model("Room 2 barrel", dungeon("barrel-large"), [-8.2, 0, -41]);
-scene.model("Room 3 sword", dungeon("sword-shield-broken"), [6.5, 0, -66], 1.1, false);
-scene.model("Room 3 crates", dungeon("box-stacked"), [-8, 0, -79], 0.2);
-scene.model("Arena banner L", dungeon("banner-patternA-red"), [-5, 0, -113.9], 0, false);
-scene.model("Arena banner R", dungeon("banner-patternA-red"), [5, 0, -113.9], 0, false);
-scene.model("Arena candles", dungeon("candle-triple"), [0, 0, -112], 0, false);
+gate("G1", CAVE, 0, "Tutorial", () => {
+  place(dungeon("barrel-large"), -8, 7.6);
+  place(dungeon("crates-stacked"), 8, 7.4, 0.3);
+  place(dungeon("chest"), -8.4, -31, Math.PI / 2);
+  place(dungeon("banner-patternA-red"), 0, -33.9, 0, false);
+  place(dungeon("rubble-half"), 7.8, -55, -0.6, false);
+  place(dungeon("barrel-large"), -8.2, -41);
+  place(dungeon("sword-shield-broken"), 6.5, -66, 1.1, false);
+  place(dungeon("box-stacked"), -8, -79, 0.2);
+  place(dungeon("banner-patternA-red"), -5, -113.9, 0, false);
+  place(dungeon("banner-patternA-red"), 5, -113.9, 0, false);
+  place(dungeon("candle-triple"), 0, -112, 0, false);
+});
 
 // The Subway Tunnel (E): rails down every room, rubble, cold light.
 const TX = 120;
-gate("G2", TUNNEL, TX, "Platform");
+gate("G2", TUNNEL, TX, "Platform", () => {
+  for (const [x, z, kind, yaw] of [
+    [-7, 4, "rubble-large", 0.4],
+    [7.5, -20, "rubble-half", -0.8],
+    [-7.6, -44, "rubble-large", 1.2],
+    [7.2, -76, "rubble-half", 0.2],
+    [-8, -66, "barrel-large", 0],
+    [8, -52, "crates-stacked", 0.6],
+  ] as const)
+    place(dungeon(kind), TX + x, z, yaw, !kind.startsWith("rubble"));
+});
 for (const cz of [0, -24, -48, -72, -100]) {
   const half = cz === -100 ? 14 : 10;
   for (const x of [-0.8, 0.8])
     scene.box(`G2 rail ${cz},${x}`, [TX + x, 0.04, cz], [0.12, 0.08, half * 2 - 1], "#6b6f78", { Collider: { type: "AABB", isTrigger: true } }, { metalness: 0.6, roughness: 0.35 });
 }
-for (const [x, z, kind, yaw] of [
-  [-7, 4, "rubble-large", 0.4],
-  [7.5, -20, "rubble-half", -0.8],
-  [-7.6, -44, "rubble-large", 1.2],
-  [7.2, -76, "rubble-half", 0.2],
-  [-8, -66, "barrel-large", 0],
-  [8, -52, "crates-stacked", 0.6],
-] as const)
-  scene.model(`G2 ${kind} ${x},${z}`, dungeon(kind), [TX + x, 0, z], yaw, kind.startsWith("rubble") ? false : true);
 
 // The Goblin Fortress (D): the rank test. Banners, braziers, a war hall.
 const FX = -120;
-gate("G3", FORT, FX, "Gatehouse");
-for (const [x, z] of [
-  [-4, -9.9],
-  [4, -9.9],
-  [-4, -33.9],
-  [4, -33.9],
-  [-4, -57.9],
-  [4, -57.9],
-  [-4, -81.9],
-  [4, -81.9],
-  [-9, -113.9],
-  [9, -113.9],
-] as const)
-  scene.model(`G3 banner ${x},${z}`, dungeon("banner-patternA-red"), [FX + x, 0, z], 0, false);
-for (const [x, z] of [
-  [-8, -20],
-  [8, -44],
-  [-8, -68],
-] as const)
-  scene.model(`G3 pillar ${x},${z}`, dungeon("pillar-decorated"), [FX + x, 0, z]);
+gate("G3", FORT, FX, "Gatehouse", () => {
+  for (const [x, z] of [
+    [-4, -9.9],
+    [4, -9.9],
+    [-4, -33.9],
+    [4, -33.9],
+    [-4, -57.9],
+    [4, -57.9],
+    [-4, -81.9],
+    [4, -81.9],
+    [-9, -113.9],
+    [9, -113.9],
+  ] as const)
+    place(dungeon("banner-patternA-red"), FX + x, z, 0, false);
+  for (const [x, z] of [
+    [-8, -20],
+    [8, -44],
+    [-8, -68],
+  ] as const)
+    place(dungeon("pillar-decorated"), FX + x, z);
+});
 
 // -- Move lists ---------------------------------------------------------------
 // Twin daggers. Light: stab, stab, hook-slash, spinning kick. Heavy after 1,
@@ -385,9 +419,20 @@ function on_melee_hit(target, move, damage, outcome)
   world.send(world.find("Director"), "hero_hit", text)
   world.send(world.find("Hub"), "hero_hit", text)
 end
+-- Tells the Director when Thousand Fangs starts: the shadows join in.
+local last_move = ""
+function on_tick()
+  local move = melee.move()
+  if move == "thousand_fangs" and last_move ~= move then world.send(world.find("Director"), "ult") end
+  last_move = move
+end
 function on_message(name, value)
   if name == "unlock" then
     melee.unlock(type(value) == "string" and value or "shadow_dash")
+  elseif name == "wear" then
+    world.wear(type(value) == "string" and value or "")
+  elseif name == "mana" and type(value) == "number" then
+    melee.mana(value)
   elseif name == "tune" and type(value) == "string" then
     local v = {}
     for n in value:gmatch("[^,]+") do v[#v + 1] = tonumber(n) end
@@ -411,6 +456,15 @@ function on_melee_hit(target, move, damage, outcome)
   world.send(world.find("${listener}"), "construct", outcome)
 end
 function on_damaged(amount) world.heal(self.id, amount) end
+`;
+// Enemies that can be Broken tell the Director when they are, so the
+// shadows can join in (GAME_DESIGN.md 5.4).
+const breakWatch = `local was_broken = false
+local function watch_break()
+  local _, broken = melee.stagger()
+  if broken == 1 and not was_broken then world.send(world.find("Director"), "broken", self.id) end
+  was_broken = broken == 1
+end
 `;
 // A shaman mends the goblins around it every few seconds: kill it first.
 const shamanScript = `-- Every 7 s, mends the wounded goblins within 7 m by 18.
@@ -437,12 +491,13 @@ end
 const bossScript = (slam: number, slam2: number, summon: boolean) => `-- Waits for the Director's "wake" (after its intro panels), then the red
 -- slam every ${slam} s (${slam2} s in phase 2).
 local phase, t, awake = 1, 0, false
-function on_start() if not awake then melee.set_ai(false) end end
+${breakWatch}function on_start() if not awake then melee.set_ai(false) end end
 function on_message(name)
   if name == "wake" then awake = true melee.set_ai(true) end
 end
 function on_tick(dt)
   if not awake then return end
+  watch_break()
   t = t + dt
   local hp, max = world.health(self.id)
   if not hp or hp <= 0 then return end
@@ -452,6 +507,48 @@ function on_tick(dt)
     world.send(world.find("Director"), "phase2", ${summon ? "true" : "false"})
   end
   if t > (phase == 1 and ${slam} or ${slam2}) and melee.perform("red_slam") then t = 0 end
+end
+`;
+
+const breakOnly = `${breakWatch}function on_tick() watch_break() end
+`;
+
+// A shadow (GATEBREAKER M3): a bound enemy risen on the hunter's side. It
+// keeps its slot beside him and fights on its own; the Director sends it
+// "ult" (his Thousand Fangs) and "strike" (an enemy Broke), and it answers
+// with its own big move.
+const shadowScript = (slot: number, big: string, damage: number) => `-- Follows Han Seo-jin in slot ${slot}; joins his ultimate and every Break.
+local hero
+local release = -1
+local clock = 0
+function on_start()
+  hero = world.find("Han Seo-jin")
+  melee.set_ai(true, 0.75, 0.6)
+  melee.follow(hero, ${slot})
+  melee.tune(${damage}, -1, -1, -1)
+end
+function on_message(name, value)
+  if name == "ult" then
+    melee.perform("${big}")
+  elseif name == "strike" and type(value) == "number" and world.alive(value) then
+    -- A shadow step to the Broken enemy's side, then the big move.
+    local tx, ty, tz = world.position(value)
+    local x, _, z = world.position(self.id)
+    if not tx or not x then return end
+    local dx, dz = x - tx, z - tz
+    local d = math.sqrt(dx * dx + dz * dz)
+    if d > 1.6 then world.set_position(self.id, tx + dx / d * 1.3, ty, tz + dz / d * 1.3) end
+    melee.lock(value)
+    melee.perform("${big}")
+    release = clock + 2
+  end
+end
+function on_tick(dt)
+  clock = clock + dt
+  if release >= 0 and clock > release then
+    release = -1
+    melee.lock()
+  end
 end
 `;
 
@@ -500,6 +597,7 @@ const kinds: Record<string, Kind> = {
     health: 110,
     mesh: GOBLIN,
     mass: 50,
+    script: breakOnly,
     melee: { moves: shieldMoves, aggression: 0.4, skill: 0.6, rightHand: modelId("knife"), leftHand: modelId("shield-round"), shield: true, guard: 220, poise: 70, breakTime: 2.5 },
   },
   Hobgoblin: {
@@ -509,6 +607,7 @@ const kinds: Record<string, Kind> = {
     mesh: GOBLIN,
     mass: 90,
     tint: "#b06a4c",
+    script: breakOnly,
     melee: { moves: hobgoblinMoves, aggression: 0.5, skill: 0.4, rightHand: modelId("axe-double"), poise: 80, breakTime: 2.2, guard: 140 },
   },
   "Goblin Shaman": {
@@ -563,13 +662,61 @@ for (const [name, kind] of Object.entries(kinds))
     ...(kind.script ? { Script: { source: kind.script, props: {} } } : {}),
   });
 
+// Shadows: each bindable kind, risen. Its role decides its slot (tank on
+// the left, striker on the right, archer behind); bosses' shadows hit a
+// little softer so the hunter stays the one who wins the fight.
+const SHADOWS: [string, number, string, number][] = [
+  ["Goblin Shieldbearer", 0, "bash", 0.8],
+  ["Hobgoblin Brute", 0, "red_slam", 0.6],
+  ["Hobgoblin", 1, "crush", 0.8],
+  ["Goblin Chieftain", 1, "red_slam", 0.6],
+  ["Goblin Warlord", 1, "red_slam", 0.6],
+  ["Goblin Shaman", 2, "hex", 0.8],
+];
+for (const [name, slot, big, damage] of SHADOWS) {
+  const kind = kinds[name]!;
+  scene.prefab(`Shadow ${name}`, {
+    Scale: { value: vec(kind.width, kind.height, kind.width) },
+    Renderable: { mesh: kind.mesh, material: 0, visible: true },
+    Material: { color: rgb("#3b3160"), emissive: rgb("#5b34d6"), emissiveIntensity: 0.35, roughness: 0.9, keepTextures: true },
+    RigidBody: { mass: kind.mass, dynamic: true },
+    Collider: {},
+    Health: { current: kind.health, maximum: kind.health },
+    Melee: { style: "Custom", ai: true, reaction: 0.3, ...kind.melee, team: 0 },
+    Particles: { preset: "Sparkle", rate: 10, lifetime: 0.9, speed: 0.5, size: 0.07, color: rgb("#9a7bff"), endColor: rgb("#2a145c"), endSize: 0.02, shape: "Sphere", shapeSize: kind.height * 0.35 },
+    Script: { source: shadowScript(slot, big, damage), props: {} },
+  });
+}
+
+// Loot on the floor: a beam in its rarity's colour (white, blue, purple,
+// gold; potions green), so you can read its worth from across the room.
+for (const [kind, hex, rate] of [
+  ["Common", "#e8e8e8", 14],
+  ["Rare", "#4aa8ff", 22],
+  ["Epic", "#b866ff", 30],
+  ["Legendary", "#ffb020", 40],
+  ["Potion", "#7dffa0", 12],
+] as const)
+  scene.prefab(`Loot ${kind}`, {
+    Renderable: { visible: false },
+    Particles: { preset: "Sparkle", rate, lifetime: 1.1, speed: 2.2, size: 0.09, color: rgb(hex), endColor: rgb(hex), endSize: 0.03, shape: "Sphere", shapeSize: 0.12 },
+  });
+
+// Black-violet smoke over a body that can still be bound (8 s).
+scene.prefab("Shadow Mark", {
+  Renderable: { visible: false },
+  Particles: { preset: "Smoke", rate: 26, lifetime: 1.4, speed: 0.9, size: 0.35, color: rgb("#3a2470"), endColor: rgb("#0c0618"), endSize: 0.9, shape: "Sphere", shapeSize: 0.5 },
+});
+
 // -- The plaza: the prologue's set, then the hub ------------------------------
 // The Hunter Association's square at night, the sealed Double Gate at its
 // north end. The hub is the part between the buildings (x -16..16,
 // z 40..64), fenced by invisible walls.
 scene.box("Plaza", [0, -0.07, 58], [70, 0.1, 50], "#34333d", { Collider: { type: "AABB", isTrigger: true } });
 // Stone paving where the hunter walks (the hub, x -16..16, z 40..64).
-for (const x of [-12, -4, 4, 12]) for (const z of [44, 52, 60]) slab(`Hub floor ${x},${z}`, CAVE, x, z);
+setName = "Hub";
+for (let x = -14; x <= 14; x += 4) for (let z = 42; z <= 62; z += 4) place(dungeon(CAVE.floor), x, z, 0, false, FLOOR);
+flushSets();
 for (const [id, x, z, yaw] of [
   [20, -24, 66, Math.PI / 2],
   [21, 24, 70, -Math.PI / 2],

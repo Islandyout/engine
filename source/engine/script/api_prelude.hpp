@@ -20,8 +20,10 @@ function space.use_reserve() return space.call("reserve") end
 function space.repair_part(part, amount) local r = space.call("part", part, amount) return r and r[1] end
 function space.set_wind(x, y, z) return space.call("wind", "", x, y, z) end
 function space.allow_boarding(allowed) return space.call("board_key", "", allowed and 1 or 0) end
+function world.wear(models) host.send("outfit", models or "") end
 function world.wildlife_state(name) local r = space.call("wildlife", name) return r and r[1] or -1 end
 function hud.announce(text) host.send("announce", text) end
+function ui.set_color(name, color) host.send("ui_color", name .. "|" .. (color or "")) end
 function hud.cue(name) host.send("cue", name) end
 function hud.waypoint(id, body, latitude, longitude, label) host.send("waypoint", table.concat({id, body, latitude, longitude, label or ""}, "|")) end
 function hud.clear_waypoint(id) host.send("waypoint_clear", id) end

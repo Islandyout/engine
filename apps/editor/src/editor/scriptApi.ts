@@ -518,6 +518,18 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "melee"
   },
   {
+    "name": "melee.mana",
+    "signature": "melee.mana(add?: number): number, number",
+    "doc": "Adds mana (a potion; capped at the max) and returns its mana and max.",
+    "group": "melee"
+  },
+  {
+    "name": "melee.follow",
+    "signature": "melee.follow(leader?: integer, slot?: integer)",
+    "doc": "Makes this AI fighter an ally of the leader: with no hostile within reach it walks to its slot (0 left, 1 right, 2 behind) and won't chase hostiles more than 16 m from the leader; nil stops it.",
+    "group": "melee"
+  },
+  {
     "name": "melee.tune",
     "signature": "melee.tune(damage: number, speed: number, crit: number, skill: number, health_max?: number, mana_max?: number): number, number, number, number",
     "doc": "Stats: damage dealt (times), its clock speed (0.5-2: attacks, dodges, cooldowns), crit chance 0-1 (1.5x), skill damage (times, moves that cost mana), and optionally max health and mana. -1 keeps one as is.",
@@ -722,6 +734,12 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "space"
   },
   {
+    "name": "world.wear",
+    "signature": "world.wear(models: string)",
+    "doc": "Dresses this script's own character in gear: catalog model ids (space-separated; \"214:#8aa6d6\" tints one) rigged to its skeleton, worn over its body and moving with it. Empty undresses.",
+    "group": "world"
+  },
+  {
     "name": "world.wildlife_state",
     "signature": "world.wildlife_state(name: string)",
     "doc": "0 calm, 1 wary, 2 fleeing, -1 not an animal.",
@@ -732,6 +750,12 @@ export const scriptApi: ScriptApiEntry[] = [
     "signature": "hud.announce(text: string)",
     "doc": "Reads a line aloud for screen readers and shows it briefly.",
     "group": "hud"
+  },
+  {
+    "name": "ui.set_color",
+    "signature": "ui.set_color(name: string, color: string)",
+    "doc": "A UI element's text colour (#rrggbb); empty restores its own.",
+    "group": "ui"
   },
   {
     "name": "hud.cue",

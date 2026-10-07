@@ -456,3 +456,34 @@ Copied unmodified, renamed to kebab case. SHA-256:
 - `axe-double.glb`: `f403f3940042ac2579b88c032d5a3b3efc5d9c55b6a8586d9538bd4a6e525af2`
 - `bow.glb` (the pack's `wooden_bow.glb`): `0aca54204443e70af43a9cc7e98c5c9ae42c938595078c801f2303fedd2f6d8f`
 - `shield-round.glb` (`shield_round.glb`): `d84f41cd0eb8dd77089b82fdf5a9ee3b6ced7d0e8e0ee05711113d2ccd640c39`
+
+## GATEBREAKER gear pieces (M3.5)
+
+`source/kit/people/gear-{body,hands,legs,feet,shoulders}.glb`, made by
+`tools/models/make_outfits.mjs` from **Quaternius, Modular Character Outfits -
+Fantasy** (Standard tier, the male Ranger set), CC0 1.0 (https://quaternius.com).
+Taken from the copies in https://github.com/Arod231/monomachia @
+`24cf91ee272b0544936d20dacad22f4562a07856` (`game/assets/quaternius/outfits/`; that repository's
+`game/assets/CREDITS.md` records the pack and its licence). Source SHA-256:
+- `outfits/Male_Ranger_Body.gltf`: `2c54b5793af8c1f4fe2e496c54ba5631317d3a7088d3ef5a2e2246f9978e644f`
+- `outfits/Male_Ranger_Body.bin`: `e3ebad21b1865c37e46b93c9249d0eb58949498ad99773e9db415b48d8df925e`
+- `outfits/Male_Ranger_Arms.gltf`: `3a07fe1ad30fc0a14b8dcfbf8df1da81534c583f7914d21a82f14e89db4287d4`
+- `outfits/Male_Ranger_Arms.bin`: `d630f5cd806c8edce8c48f807d64468ef4207d317baf238d942fe630afd4c023`
+- `outfits/Male_Ranger_Legs.gltf`: `ffad8763fc0fda5400ef11f74fbc241f155a774c67745aeec01f1f4526d0cc6e`
+- `outfits/Male_Ranger_Legs.bin`: `74691dd17e15f755436fafdc75da25ddc156c7c7811c43f08a4b9f55eba90666`
+- `outfits/Male_Ranger_Feet_Boots.gltf`: `f8ae162c7a7b91a5754eb9761ad84dbc9de59289d1e5d4821c4ac1997e8c92b8`
+- `outfits/Male_Ranger_Feet_Boots.bin`: `8079ffa4ac2c9a3522a6aa08386e6df92f2de900ece8102d12cdeb96e4476625`
+- `outfits/Male_Ranger_Acc_Pauldron.gltf`: `996e44ed28ff07bcc918aacb80b4c6087c8a109c2ffd2a5c7ec3f8785942028f`
+- `outfits/Male_Ranger_Acc_Pauldron.bin`: `e8ccb52c8e2bc771ffa53d03dd6bda9e13680b91f3feec78e2d6451f8d3a20be`
+- `outfits/T_Ranger_3_BaseColor.png`: `d751d9375c1807518ea1fca8da144e96e5d947c065bdc915c7b5fdc78a6ac031`
+
+Each keeps its mesh, its skin on the 65-bone skeleton the hunter uses, and its
+skin weights. The texture is dropped: each vertex takes the colour the
+atlas has under its UV, snapped to the piece's four main fills (k-means); the
+skin at the wrists takes the hunter's skin fill. The results are CC0 like
+their source. SHA-256:
+- `gear-body.glb`: `0af8eb453d16cb75b6266c302bc0a47c75b0a93609ce368accb3745141d4500c`
+- `gear-hands.glb`: `3a547fe2f149f507261b0bc8f49f3535acbdf5fa9a2aefbe4b01a65c1e4def5f`
+- `gear-legs.glb`: `3cf92b8e2ba785b73f27caa86f8b7c5ec1bb5bd2ea7a665c0ddd94f77a01dce4`
+- `gear-feet.glb`: `368c80b970fdc46a77e22991d74d94b569cb67955501e05df572bff264a22a29`
+- `gear-shoulders.glb`: `d937477a6691aaa7adeed5789ca3a3bdfe36979e79cd65a77e040dfdfdd42da1`

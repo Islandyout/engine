@@ -1966,6 +1966,62 @@ async function startEditor() {
     if (!audioContext) return;
     playCue(audioContext, audioMixer().buses.ui, name);
   }
+  // Gear (world.wear, GATEBREAKER M3.5): catalog models skinned to the
+  // same skeleton as a character, bound to its bones by name, so they move
+  // with every clip it plays; "id:#rrggbb" tints a piece. Indexed like
+  // objects[].
+  const outfits = new Map<number, THREE.Object3D[]>();
+  function parseOutfit(text: string) {
+    return text
+      .split(/\s+/)
+      .map((part) => /^(\d+)(?::(#[0-9a-fA-F]{6}))?$/.exec(part))
+      .filter((m): m is RegExpExecArray => !!m && Number(m[1]) > 0)
+      .map((m) => ({ id: Number(m[1]), tint: m[2] }));
+  }
+  function setOutfit(index: number, spec: { id: number; tint?: string }[]) {
+    for (const piece of outfits.get(index) ?? []) piece.removeFromParent();
+    outfits.delete(index);
+    const anchor = objects[index];
+    if (!anchor) return;
+    let body: THREE.SkinnedMesh | undefined;
+    anchor.traverse((node) => {
+      if (!body && (node as THREE.SkinnedMesh).isSkinnedMesh) body = node as THREE.SkinnedMesh;
+    });
+    if (!body?.parent) return;
+    const bones = new Map(body.skeleton.bones.map((bone) => [bone.name, bone]));
+    const pieces: THREE.Object3D[] = [];
+    for (const { id, tint } of spec) {
+      const cached = catalogCache.get(id);
+      if (!cached) {
+        // Worn once it has loaded (unless something else was put on since).
+        loadCatalogModel(id)?.then(() => {
+          if (outfits.get(index) === pieces) setOutfit(index, spec);
+        });
+        continue;
+      }
+      const clone = SkeletonUtils.clone(cached.scene);
+      clone.updateMatrixWorld(true);
+      const meshes: THREE.SkinnedMesh[] = [];
+      clone.traverse((node) => {
+        if ((node as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(node as THREE.SkinnedMesh);
+      });
+      for (const mesh of meshes) {
+        const mapped = mesh.skeleton.bones.map((bone) => bones.get(bone.name) ?? bone);
+        mesh.bind(new THREE.Skeleton(mapped, mesh.skeleton.boneInverses), mesh.bindMatrix);
+        mesh.frustumCulled = false;
+        mesh.castShadow = true;
+        if (tint) {
+          const material = (mesh.material as THREE.MeshStandardMaterial).clone();
+          material.color.multiply(new THREE.Color(tint));
+          mesh.material = material;
+        }
+        markCharacter(mesh);
+        body.parent.add(mesh);
+        pieces.push(mesh);
+      }
+    }
+    outfits.set(index, pieces);
+  }
   function handleHost(kind: string, text: string) {
     if (kind === "weather") {
       const weather = parseWeather(text);
@@ -2010,6 +2066,12 @@ async function startEditor() {
       const [layer = "", level = "0"] = text.split(/\s+/);
       if ((ambienceLayers as readonly string[]).includes(layer)) ambience?.set(layer as AmbienceLayer, Number(level));
     } else if (kind === "cue") cue(text);
+    else if (kind === "ui_color") {
+      const [name = "", hex = ""] = text.split("|");
+      if (/^#[0-9a-fA-F]{6}$/.test(hex)) uiColorOverrides.set(name, new THREE.Color(hex));
+      else uiColorOverrides.delete(name);
+    }
+
     else if (kind === "announce") announcer.say(text);
     else if (kind === "system") {
       const split = text.indexOf("|");
@@ -2978,6 +3040,8 @@ async function startEditor() {
   const uiVisibility = new Map<string, boolean>();
   let draggingSlider: UIButtonHit | undefined;
   const uiTextOverrides = new Map<string, string>();
+  // ui.set_color: a UI element's text colour, by name (cleared like the text).
+  const uiColorOverrides = new Map<string, THREE.Color>();
   // Script waypoints (ui.marker), by name (0.66.0).
   const uiMarkers = new Map<string, { position: THREE.Vector3; label: string }>();
   // Runtime-spawned prefab instances (world.spawn) get render objects at the
@@ -3166,7 +3230,9 @@ async function startEditor() {
         uiTextOverrides.set(a, b);
         // Banners and objectives are read out to screen readers.
         if (a === "Banner" || a === "Objective") announcer.say(b);
-      } else if (kind === "host") handleHost(a, b);
+      } else if (kind === "host" && a === "outfit")
+        setOutfit(runtime._editor_command_entity(i), parseOutfit(b));
+      else if (kind === "host") handleHost(a, b);
       else if (kind === "particles_burst" || kind === "particles_emitting") {
         const state = particleStates[runtime._editor_command_entity(i)];
         if (state && kind === "particles_burst") burst(state.emitter, Math.max(0, Math.min(1000, Number(a) || 0)));
@@ -3199,6 +3265,7 @@ async function startEditor() {
   }
   function syncRuntime() {
     uiTextOverrides.clear();
+    uiColorOverrides.clear();
     uiMarkers.clear();
     uiValues.clear();
     uiVisibility.clear();
@@ -3574,7 +3641,9 @@ async function startEditor() {
     // their own: their stand-in box shows only while editing (0.78.0).
     // Settings holders and invisible helpers (a light, a camera, a director
     // script): their stand-in box shows only while editing.
-    const settingsOnly = isSettingsOnly(get) || (!renderable && isNonPhysical(get));
+    // Instanced models (ModelInstances) stay out of the simulation but are
+    // drawn: they have no Renderable of their own.
+    const settingsOnly = isSettingsOnly(get) || (!renderable && !instancesComponent && isNonPhysical(get));
     object.visible = renderable?.visible ?? !(settingsOnly && doc.mode === "play");
     if (settingsOnly) object.userData.settingsOnly = true;
     // `anchor` -- not `object` -- carries this entity's Transform/Rotation/
@@ -3724,6 +3793,7 @@ async function startEditor() {
   function rebuild() {
     talkerScan = -1;
     clearOffHands();
+    outfits.clear();
     staticBatcher.clear();
     probe.detach();
     probeScanAt = 0;
@@ -5538,7 +5608,12 @@ async function startEditor() {
       const uiName = doc.scene.resolve(entity, "Name")?.value ?? "";
       const playing = doc.mode !== "edit";
       const override = playing ? uiTextOverrides.get(uiName) : undefined;
-      const ui = override === undefined ? authoredUi : { ...authoredUi, text: override };
+      const tint = playing ? uiColorOverrides.get(uiName) : undefined;
+      const ui = {
+        ...authoredUi,
+        ...(override === undefined ? {} : { text: override }),
+        ...(tint ? { color: { x: tint.r, y: tint.g, z: tint.b } } : {}),
+      };
       if (ui.visibleWhen === "play" && doc.mode !== "play") continue;
       if (ui.visibleWhen === "pause" && doc.mode !== "pause") continue;
       if (playing && uiVisibility.get(uiName) === false) continue;

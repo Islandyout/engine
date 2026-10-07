@@ -17,6 +17,8 @@ async function testScene() {
   for (const entity of scene.entities) if (["Director", "Ledger", "Hub"].includes(entity.name)) entity.components.Script.props.fast = true;
   for (const [name, prefab] of Object.entries(scene.prefabs)) {
     const c = prefab.components;
+    // Enemies only: shadows (team 0) and the bind mark keep theirs.
+    if (!c.Melee || c.Melee.team === 0) continue;
     const hp = /Chieftain|Brute|Warlord/.test(name) ? 30 : 1;
     c.Health.current = c.Health.maximum = hp;
     c.Melee.range = 0;

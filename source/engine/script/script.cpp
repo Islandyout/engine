@@ -698,6 +698,17 @@ struct LuaApi final {
                           {number_arg(L, 1, -1.0F), number_arg(L, 2, -1.0F), number_arg(L, 3, -1.0F),
                            number_arg(L, 4, -1.0F), number_arg(L, 5, -1.0F), number_arg(L, 6, -1.0F)});
     }
+    // melee.follow(leader?, slot?): an ally walks with the leader when
+    // there's nothing to fight (nil stops it)
+    // melee.mana(add?): mana now and max, after adding `add`.
+    static int melee_mana(lua_State *L) {
+        if (lua_isnoneornil(L, 1))
+            return melee_call(L, "mana", {}, {});
+        return melee_call(L, "mana", {luaL_checknumber(L, 1)}, {});
+    }
+    static int melee_follow(lua_State *L) {
+        return melee_call(L, "follow", {static_cast<double>(luaL_optinteger(L, 2, 0))}, {}, entity_arg(L, 1));
+    }
     // melee.set_ai(on, aggression?, skill?)
     static int melee_set_ai(lua_State *L) {
         return melee_call(L, "set_ai",
@@ -1220,7 +1231,9 @@ struct LuaApi final {
                {"set_ai", melee_set_ai},
                {"unlock", melee_unlock},
                {"stagger", melee_stagger},
-               {"tune", melee_tune}});
+               {"tune", melee_tune},
+               {"follow", melee_follow},
+               {"mana", melee_mana}});
         table(L, self, "weapon",
               {{"fire", weapon_fire},
                {"reload", weapon_reload},
