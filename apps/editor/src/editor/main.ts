@@ -35,6 +35,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { isNonPhysical, isSettingsOnly } from "./settingsEntity";
 import { heldLength, holdWeapon } from "./heldWeapons";
 import { LedgerHud } from "./ledger";
+import { LightPool } from "./lightPool";
 import { InkPass, attachDepth, installToonShading, markCharacter, toonUniforms } from "./manhwa";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
@@ -898,6 +899,8 @@ async function startEditor() {
   // Melee (0.78.0): fighters' bodies, impacts and the fighter HUD (combatView.ts).
   // GATEBREAKER's interface (ledger.ts): system windows, panel cutscenes, the boss bar.
   const ledger = new LedgerHud();
+  // At most 8 point lights shade the scene at once (lightPool.ts).
+  const lightPool = new LightPool(scene);
   const combat = new CombatView(scene, {
     value: (i, field) => runtime._editor_fighter_value(i, field),
     text: (i, move, field) => runtime.ccall("editor_fighter_text", "string", ["number", "number", "number"], [i, move, field]),
@@ -3644,7 +3647,11 @@ async function startEditor() {
     // selected, same as any other entity before a real Renderable.mesh is
     // chosen. Being a child of `anchor` means it inherits this entity's
     // own position/rotation for free, no separate transform tracking.
-    if (light) anchor.add(createLight(light));
+    if (light) {
+      const made = createLight(light);
+      anchor.add(made);
+      lightPool.register(made);
+    }
     // Every mesh casts and receives shadows; a Material component overrides
     // the surface (see applyMaterial).
     const materialOverride = get("Material");
@@ -3727,6 +3734,7 @@ async function startEditor() {
     }
     for (const object of objects) object.removeFromParent();
     objects.length = 0;
+    lightPool.reset();
     terrainMeshes.clear();
     animStates.length = 0;
     combat.reset();
@@ -4970,6 +4978,7 @@ async function startEditor() {
     const stride = governorTier().crowdStride;
     crowdFrame++;
     const eye = viewCamera.position;
+    lightPool.update(viewCamera.position);
     if (doc.mode === "play") combat.frame(dt, tickAlpha, viewCamera);
     // Slow motion (a finisher, a parry) slows every body with the game clock.
     const animDt = doc.mode === "play" ? dt * combat.timeScale : dt;
