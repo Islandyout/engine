@@ -91,7 +91,9 @@ const { chromium } = require("playwright");
     await waitHud(/Enter the Gate/, "the tutorial completes", 120000);
 
     // North through the rooms, swinging; then the boss and the rewards.
-    const deadline = Date.now() + 1500000;
+    // CI's software renderer runs the simulation a few times slower than real
+    // time; the whole Gate takes ~10 min locally and up to ~30 there.
+    const deadline = Date.now() + 2700000;
     // Walks north along the middle (x = 0), where the doorways are. The
     // camera orbits only when dragged, and keys move the hunter relative to
     // it, so the camera is first dragged to face north (W's measured
@@ -149,8 +151,9 @@ const { chromium } = require("playwright");
     };
     let logged = 0;
     while (Date.now() < deadline && !/GATE CLEARED|LEVEL UP/.test(await hud())) {
-      // GATE_DEBUG=1: where the hunter is, every few seconds.
-      if (process.env.GATE_DEBUG && Date.now() - logged > 6000) {
+      // Where the hunter is: every 30 s (every 6 s with GATE_DEBUG=1), so a
+      // CI failure log shows how far it got.
+      if (Date.now() - logged > (process.env.GATE_DEBUG ? 6000 : 30000)) {
         logged = Date.now();
         console.log(JSON.stringify(await position()), heading, aligned, (await hud()).slice(0, 100));
       }
