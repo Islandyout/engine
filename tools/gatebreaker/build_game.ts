@@ -98,7 +98,7 @@ scene.add("Controls", [0, 0, 0], {
 // The quest tracker, left of centre: clear of the Ledger's windows (top
 // centre) and the bars (bottom left).
 scene.add("Objective", [0, 0, 0], {
-  UI: { text: "", anchor: "middle-left", offsetX: 18, offsetY: -40, fontSize: 16, width: 330, color: vec(0.75, 0.88, 1), opacity: 0.95 },
+  UI: { text: "", anchor: "middle-left", offsetX: 18, offsetY: -40, fontSize: 15, width: 240, color: vec(0.75, 0.88, 1), opacity: 0.95 },
 });
 // Level, rank, gold and fangs, kept up to date by the Ledger.
 scene.add("Hunter", [0, 0, 0], {
