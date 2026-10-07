@@ -190,7 +190,8 @@ local function standing(tag)
         if state ~= "penalty" then
           local x, _, z = world.position(e.id)
           ledger("kill", x and string.format("%s|%.2f|%.2f", e.prefab, x, z) or e.prefab)
-          if BIND[e.prefab] and x then
+          -- A shadow you already have doesn't ask again.
+          if BIND[e.prefab] and x and bound[BIND[e.prefab][1]] ~= e.prefab then
             bodies[#bodies + 1] = { x = x, z = z, prefab = e.prefab, t = clock, tries = 0, mark = world.spawn("Shadow Mark", x, 0.2, z) }
           end
         end
@@ -298,7 +299,11 @@ local function tick_bind(dt)
   local swap = bound[role] ~= "" and bound[role] ~= near.prefab and ("  (replaces your " .. bound[role]:gsub("^Goblin ", "") .. ")") or ""
   if holding < BIND_HOLD then
     local bar = string.rep("|", math.floor(holding / BIND_HOLD * 10)) .. string.rep(".", 10 - math.floor(holding / BIND_HOLD * 10))
-    prompt(string.format("[Hold G] ARISE  %s  ·  %s  ·  %d%%%s%s", near.prefab, ROLE_NAME[role], chance, swap,
+    -- A Gate master's odds are per try: show the three-try total too.
+    local odds_text = BIND[near.prefab][2]
+      and string.format("%d%% a try, %d tries left", chance, 3 - near.tries)
+      or "always rises"
+    prompt(string.format("[Hold G] ARISE  %s  ·  %s  ·  %s%s%s", near.prefab, ROLE_NAME[role], odds_text, swap,
       holding > 0 and ("\n" .. bar) or ""))
     return
   end

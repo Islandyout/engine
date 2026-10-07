@@ -74,11 +74,11 @@ local close_at -- a passing window closes itself then
 local function defaults()
   return { lv = 1, xp = 0, pts = 0, str = 10, agi = 10, vit = 10, int = 10, sen = 10,
     gold = 0, fang = 0, dag = 0, rank = "E", q = 1, day = 1, daily = 0, c1 = 0, c2 = 0, c3 = 0, sk = 0,
-    sh1 = "", sh2 = "", sh3 = "", bag = "", eq = "/////", p1 = 2, p2 = 1, look = 0, wd = 0 }
+    sh1 = "", sh2 = "", sh3 = "", bag = "", eq = "/////", p1 = 2, p2 = 1, look = 0, wd = 0, pity = 0 }
 end
 
 local KEYS = { "lv", "xp", "pts", "str", "agi", "vit", "int", "sen", "gold", "fang", "dag", "rank", "q", "day", "daily", "c1", "c2", "c3", "sk", "sh1", "sh2", "sh3",
-  "bag", "eq", "p1", "p2", "look", "wd" }
+  "bag", "eq", "p1", "p2", "look", "wd", "pity" }
 local TEXT = { rank = true, sh1 = true, sh2 = true, sh3 = true, bag = true, eq = true }
 local STAT_KEY = { "str", "agi", "vit", "int", "sen" }
 
@@ -420,17 +420,25 @@ local run_gate = 1
 local loot = {} -- { id, code, x, z } lying in the Gate
 
 -- What a kill drops: nothing, a potion ("P1", "P2") or gear (always for a
--- Gate master, Rare or better).
+-- Gate master). Odds of Legendary, Epic and Rare gear by who fell: players
+-- quit loot games where the best tier never shows (GAME_DESIGN.md 13), so a
+-- Gate master drops Epic or better a third of the time, and the fifth
+-- master in a row without one always does (s.pity).
+local ODDS = { grunt = { 0.02, 0.10, 0.28 }, elite = { 0.04, 0.15, 0.35 }, boss = { 0.12, 0.35, 1 } }
 local function roll_loot(prefab)
   local boss, elite = BOSS[prefab], ELITE[prefab]
   if math.random() > (boss and 1 or elite and 0.35 or 0.12) then
     if math.random() < 0.1 then return math.random() < 0.65 and "P1" or "P2" end
     return nil
   end
+  local odds = ODDS[boss and "boss" or elite and "elite" or "grunt"]
   local r = math.random()
-  local rarity = r < 0.02 and 4 or r < 0.12 and 3 or r < 0.4 and 2 or 1
-  if elite and rarity < 4 and math.random() < 0.3 then rarity = rarity + 1 end
-  if boss then rarity = math.max(rarity, 2) end
+  local rarity = r < odds[1] and 4 or r < odds[1] + odds[2] and 3 or r < odds[1] + odds[2] + odds[3] and 2 or 1
+  if boss then
+    if rarity >= 3 then s.pity = 0
+    elseif s.pity >= 4 then rarity, s.pity = 3, 0
+    else s.pity = s.pity + 1 end
+  end
   return encode({ slot = math.random(#SLOT), rarity = rarity, set = run_gate, seed = math.random(0, 99999), plus = 0 })
 end
 
@@ -493,15 +501,30 @@ end
 -- Potions: 1 heals 40% of max health, 2 restores 50 mana; 8 s apart.
 local potion_ready = 0
 local function tick_potions()
-  if not hero or clock < potion_ready then return end
-  if input.pressed("Digit1") and s.p1 > 0 then
+  if not hero then return end
+  local one, two = input.pressed("Digit1"), input.pressed("Digit2")
+  if not one and not two then return end
+  if clock < potion_ready then
+    push_feed(string.format("Potions ready in %d s", math.ceil(potion_ready - clock)), "#c8c8c8")
+    return
+  end
+  if one and s.p1 == 0 or two and s.p2 == 0 then
+    push_feed("No " .. (one and "health" or "mana") .. " potions: Smith Kang sells them", "#c8c8c8")
+    return
+  end
+  local hp, hp_max = world.health(hero)
+  if one and hp and hp_max and hp >= hp_max then
+    push_feed("Health already full: potion kept", "#c8c8c8")
+    return
+  end
+  if one and s.p1 > 0 then
     local _, max = world.health(hero)
     world.heal(hero, math.floor((max or 220) * POTION_HEAL))
     s.p1 = s.p1 - 1
     potion_ready = clock + 8
     push_feed("Health potion: +" .. math.floor((max or 220) * POTION_HEAL) .. " health", "#7dffa0")
     hunter_line()
-  elseif input.pressed("Digit2") and s.p2 > 0 then
+  elseif two and s.p2 > 0 then
     world.send(hero, "mana", POTION_MANA)
     s.p2 = s.p2 - 1
     potion_ready = clock + 8
@@ -537,10 +560,23 @@ local function bag_body(note)
   if #list == 0 then lines[#lines + 1] = "  (empty: clear Gates for gear)" end
   if picked and list[picked] then
     local it = list[picked]
-    lines[#lines + 1] = "\nNow wearing: " .. describe(eq[it.slot])
+    local worn = eq[it.slot]
+    lines[#lines + 1] = "\nNow wearing: " .. describe(worn)
+    -- The verdict: what wearing it changes, stat by stat (upgrades carry over).
+    local new, old = item_stats(it), worn and item_stats(worn) or {}
+    if worn and worn.plus > it.plus then
+      new = item_stats({ slot = it.slot, rarity = it.rarity, set = it.set, seed = it.seed, plus = worn.plus })
+    end
+    local delta = {}
+    for _, key in ipairs(STAT_KEYS) do
+      local d = (new[key] or 0) - (old[key] or 0)
+      if math.abs(d) > 1e-6 then delta[#delta + 1] = (d > 0 and "" or "-") .. stat_text(key, math.abs(d)):sub(2) end
+    end
+    lines[#lines + 1] = "Wearing it: " .. (#delta > 0 and table.concat(delta, ", ") or "no change") ..
+      ((worn and worn.plus > 0) and ("   (your +" .. worn.plus .. " carries over)") or "")
     lines[#lines + 1] = "Enter wears it   ·   X sells it for " .. sell_price(it) .. " G"
   else
-    lines[#lines + 1] = "\n1-9 picks an item   ·   Left/Right pages   ·   W changes the look   ·   I closes"
+    lines[#lines + 1] = "\n1-9 picks an item   ·   Left/Right pages   ·   S sells every Common   ·   W changes the look   ·   I closes"
   end
   return table.concat(lines, "\n")
 end
@@ -563,10 +599,23 @@ local function tick_bag()
     wear()
     store()
     hud.system("BAG", bag_body())
+  elseif input.pressed("KeyS") and not picked then
+    local kept, gold, n = {}, 0, 0
+    for _, it in ipairs(list) do
+      if it.rarity == 1 then gold, n = gold + sell_price(it), n + 1 else kept[#kept + 1] = it end
+    end
+    s.gold = s.gold + gold
+    set_bag(kept)
+    store()
+    hunter_line()
+    hud.system("BAG", bag_body(n > 0 and ("Sold " .. n .. " Common items for " .. gold .. " G.") or "No Common items to sell."))
   elseif picked and list[picked] and input.pressed("Enter") then
     local it = table.remove(list, picked)
     local eq = equipped()
-    if eq[it.slot] then list[#list + 1] = eq[it.slot] end
+    local worn = eq[it.slot]
+    -- Smith upgrades move to the better piece: an upgrade is never wasted.
+    if worn and worn.plus > it.plus then it.plus, worn.plus = worn.plus, it.plus end
+    if worn then list[#list + 1] = worn end
     eq[it.slot] = it
     set_equipped(eq)
     set_bag(list)
@@ -751,7 +800,7 @@ function on_message(name, value)
     local xp, gold = math.floor(g.xp * (1 + bonus)), math.floor(g.gold * (1 + bonus))
     s.gold = s.gold + gold
     secs = tonumber(secs) or 0
-    local body = string.format("%s cleared.   GRADE %s%s\n%d:%02d   %s damage taken\n\nXP +%d   Gold +%d   Fangs +%d   (%d kills)",
+    local body = string.format("%s cleared.   GRADE %s%s\nYou: %d:%02d, %s damage taken.   S: under 4:00, under half your health lost.\n\nXP +%d   Gold +%d   Fangs +%d   (%d kills)",
       g.name, grade, bonus > 0 and string.format("  (+%d%% Gate reward)", math.floor(bonus * 100)) or "",
       math.floor(secs / 60), math.floor(secs % 60), hurt ~= "" and hurt or "0",
       run.xp + xp, run.gold + gold, run.fangs, run.kills)
