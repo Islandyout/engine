@@ -525,6 +525,15 @@ export interface MeleeComponent {
   // Catalog models held in each hand (0: empty), e.g. twin daggers.
   rightHand: number;
   leftHand: number;
+  // GATEBREAKER (0.80.0): a stagger bar that Breaks it (0: none) and how
+  // long the Break floors it; the mana pool skills spend and its refill per
+  // second; a ranged brain's distance (0: melee); a shield-bearer's guard.
+  poise: number;
+  breakTime: number;
+  manaMax: number;
+  manaRegen: number;
+  range: number;
+  shield: boolean;
 }
 
 // Combat AI (0.62.0): a soldier on `team` (the Player is team 0) that

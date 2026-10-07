@@ -435,6 +435,8 @@ Combat clip library SHA-256:
   `b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07`
   (`addons/kaykit_dungeon_remastered/Assets/gltf/<name>.gltf.glb`). Copied
   unmodified, renamed to kebab case (`torch_mounted.gltf.glb` → `torch-mounted.glb`).
+  One derived piece: `wall-doorway-open.glb` is `wall-doorway.glb` with its door
+  node unhooked (`tools/models/make_open_doorway.mjs`), CC0 like its source.
 
 ## GATEBREAKER hand weapons (M0)
 
@@ -452,3 +454,5 @@ Copied unmodified, renamed to kebab case. SHA-256:
 - `spear.glb`: `782d0df743960a7e5151e646be151272a30d3ed3698af4b7d1b713c41cc445f0`
 - `scythe.glb`: `e3c710901b23224e5dd7b6555e40d2c3e6f044f1c67e5cd0afe66549408a198b`
 - `axe-double.glb`: `f403f3940042ac2579b88c032d5a3b3efc5d9c55b6a8586d9538bd4a6e525af2`
+- `bow.glb` (the pack's `wooden_bow.glb`): `0aca54204443e70af43a9cc7e98c5c9ae42c938595078c801f2303fedd2f6d8f`
+- `shield-round.glb` (`shield_round.glb`): `d84f41cd0eb8dd77089b82fdf5a9ee3b6ced7d0e8e0ee05711113d2ccd640c39`

@@ -100,8 +100,8 @@ void Runtime::melee_strike(engine::World &w, engine::Entity self, Fighter &fight
         auto result = engine::gameplay::resolve_hit(move, fighter.state.combo, defender ? &defender->state : nullptr,
                                                     defender ? &defender->moves : nullptr,
                                                     defender ? &defender->settings : nullptr, from_front, airborne);
-        if (defender)
-            engine::gameplay::take_hit(defender->state, defender->moves, defender->settings, result);
+        const bool broke =
+            defender && engine::gameplay::take_hit(defender->state, defender->moves, defender->settings, result);
         // A perfect dodge opens the dodger's Shadow Step on this attacker.
         if (defender && result.outcome == HitOutcome::dodged && move_index(defender->moves, "shadow_step") >= 0) {
             defender->counter_window = shadow_step_window;
@@ -148,6 +148,11 @@ void Runtime::melee_strike(engine::World &w, engine::Entity self, Fighter &fight
                 event.flags |= melee_killed;
         }
         push_melee(event);
+        if (broke) {
+            MeleeEvent breaking = event;
+            breaking.kind = MeleeEventKind::broken;
+            push_melee(breaking);
+        }
         const auto name = [&w](engine::Entity entity) {
             const auto *n = w.get<EntityName>(entity);
             return n ? n->value : std::string{};
@@ -457,8 +462,11 @@ bool BridgeHost::melee(engine::World &world, engine::Entity self, const std::str
     auto &state = fighter->state;
     if (op == "perform") {
         const int index = move_index(fighter->moves, text);
-        const bool ok = index >= 0 && engine::gameplay::can_start(state, fighter->moves, index, {}, {}) ? true
-                        : index >= 0 && state.mode != FighterMode::stun && state.mode != FighterMode::dead;
+        const bool locked = index >= 0 && static_cast<std::size_t>(index) < state.locked.size() &&
+                            state.locked[static_cast<std::size_t>(index)];
+        const bool ok = !locked && (index >= 0 && engine::gameplay::can_start(state, fighter->moves, index, {}, {})
+                                        ? true
+                                        : index >= 0 && state.mode != FighterMode::stun && state.mode != FighterMode::dead);
         if (ok)
             fighter->script_move = text;
         out = {ok ? 1.0 : 0.0};
@@ -476,6 +484,14 @@ bool BridgeHost::melee(engine::World &world, engine::Entity self, const std::str
         fighter->lock = other;
     } else if (op == "target") {
         other_out = fighter->target;
+    } else if (op == "unlock") {
+        const int index = move_index(fighter->moves, text);
+        if (index >= 0 && static_cast<std::size_t>(index) < state.locked.size())
+            state.locked[static_cast<std::size_t>(index)] = 0;
+        out = {index >= 0 ? 1.0 : 0.0};
+    } else if (op == "stagger") {
+        out = {fighter->settings.poise > 0 ? state.stagger / fighter->settings.poise : 0.0,
+               state.broken > 0 ? 1.0 : 0.0};
     } else if (op == "set_ai") {
         fighter->ai = !args.empty() && args[0] != 0 && !world.get<PlayerMarker>(self);
         if (args.size() > 1 && args[1] >= 0)
@@ -555,6 +571,27 @@ EXPORT void editor_set_melee(int index, int style, const char *moves, double tea
         world.remove<AIAgent>(entity);
 }
 EXPORT const char *editor_melee_error() { return active->melee_error.c_str(); }
+// GATEBREAKER fighter settings (0.80.0), after editor_set_melee: a poise
+// (stagger) bar and how long a Break floors it (poise 0: none), the mana
+// pool and its regeneration per second, a ranged brain's preferred distance
+// (0: melee) and a shield-bearer's raised guard.
+EXPORT void editor_set_melee_extra(int index, double poise, double break_time, double mana_max, double mana_regen,
+                                   double range, int shield) {
+    const auto target = staged(index);
+    if (!target)
+        return;
+    auto *fighter = target->first->get<Fighter>(target->second);
+    if (!fighter)
+        return;
+    const auto clamp = [](double v, double lo, double hi) { return static_cast<float>(std::isfinite(v) ? std::clamp(v, lo, hi) : lo); };
+    fighter->settings.poise = clamp(poise, 0, 100000);
+    fighter->settings.break_time = clamp(break_time, 0.5, 20);
+    fighter->settings.mana_max = clamp(mana_max, 0, 100000);
+    fighter->settings.mana_regen = clamp(mana_regen, 0, 1000);
+    fighter->state.mana = fighter->settings.mana_max;
+    fighter->brain_settings.range = clamp(range, 0, 60);
+    fighter->brain_settings.shield = shield != 0;
+}
 // Sets a fighter's starting facing (radians; it faces (sin, 0, cos)).
 EXPORT void editor_set_melee_yaw(int index, double yaw) {
     const auto target = staged(index);
@@ -595,6 +632,31 @@ EXPORT double editor_fighter_value(int index, int field) {
     case F::active: return move && state.time >= move->hit_start && state.time <= move->hit_end && move->damage > 0 ? 1 : 0;
     case F::team: return fighter->team;
     case F::stun_left: return state.stun_left;
+    case F::mana: return fighter->settings.mana_max > 0 ? state.mana / fighter->settings.mana_max : 0;
+    case F::stagger: return fighter->settings.poise > 0 ? state.stagger / fighter->settings.poise : -1;
+    case F::broken: return state.broken;
+    case F::windup: return move && state.time < move->hit_start && (move->damage > 0 || move->projectile > 0) ? move->hit_start - state.time : -1;
+    case F::red: return move && (move->unblockable || move->guardbreak) ? 1 : 0;
+    case F::aoe: return move ? move->aoe : 0;
+    case F::slot_skill1:
+    case F::slot_skill2:
+    case F::slot_skill3:
+    case F::slot_ultimate: {
+        const auto button = static_cast<engine::gameplay::MeleeButton>(
+            static_cast<int>(engine::gameplay::MeleeButton::skill1) + field - static_cast<int>(F::slot_skill1));
+        for (std::size_t i = 0; i < fighter->moves.size(); ++i) {
+            const auto &m = fighter->moves[i];
+            if (m.input != button || !m.from_neutral)
+                continue;
+            if (i < state.locked.size() && state.locked[i])
+                return -2;
+            if (state.mana + 1e-4F < m.mana || state.energy + 1e-4F < m.energy)
+                return -3;
+            const float left = i < state.cooldowns.size() ? state.cooldowns[i] : 0.0F;
+            return m.cooldown > 0 ? std::clamp(left / m.cooldown, 0.0F, 1.0F) : 0.0;
+        }
+        return -1;
+    }
     }
     return 0;
 }

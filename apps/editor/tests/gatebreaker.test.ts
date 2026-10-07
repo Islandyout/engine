@@ -41,3 +41,22 @@ test("GATEBREAKER M0: a Manhwa-styled room with the hunter against a goblin", ()
     assert.ok(Math.abs(x) > 3 || Math.abs(z) > 5, `${e.name} blocks the arena at ${x}, ${z}`);
   }
 });
+
+const gate = new URL("../../../examples/gatebreaker/e-rank-gate.json", import.meta.url);
+
+test("examples/gatebreaker/e-rank-gate.json is what tools/gatebreaker/build_gate.ts generates", () => {
+  const out = join(mkdtempSync(join(tmpdir(), "gatebreaker-")), "gate.json");
+  execFileSync(process.execPath, ["--import", "tsx", "../../tools/gatebreaker/build_gate.ts"], { env: { ...process.env, GB_GATE_OUT: out }, stdio: "pipe" });
+  assert.equal(readFileSync(out, "utf8"), readFileSync(gate, "utf8"), "regenerate it with `npm run gatebreaker --prefix apps/editor`");
+});
+
+test("GATEBREAKER M1: the E-rank Gate's floors sit on the ground and its fighters stand on it", () => {
+  const scene = JSON.parse(readFileSync(gate, "utf8"));
+  validateSceneDocument(scene);
+  for (const e of scene.entities) {
+    const c = e.components;
+    // Floor tiles' tops sit 1 cm above y = 0 (just clear of the shadow plane there).
+    if (/floor/.test(e.name)) assert.ok(Math.abs(c.Transform.position.y + c.Scale.value.y / 2 - 0.01) < 1e-6, `${e.name} top at y = 0.01`);
+    if (c.Melee && !/Prologue/.test(e.name)) assert.ok(Math.abs(c.Transform.position.y - c.Scale.value.y / 2) < 1e-6, `${e.name} stands on y = 0`);
+  }
+});

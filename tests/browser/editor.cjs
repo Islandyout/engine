@@ -1410,7 +1410,7 @@ const { chromium } = require("playwright");
       page.once("dialog", (dialog) => dialog.accept());
       await page.click('[aria-label="Martial-arts dojo"]');
       await page.click("#play");
-      await page.waitForFunction(() => /Health \d+%, energy \d+%/.test(document.querySelector("#hud-text").textContent), null, { timeout: 30000 });
+      await page.waitForFunction(() => /Health \d+%, (mana \d+%, )?energy \d+%/.test(document.querySelector("#hud-text").textContent), null, { timeout: 30000 });
       const energy = () => page.evaluate(() => Number(document.querySelector("#hud-text").textContent.match(/energy (\d+)%/)[1]));
       const startEnergy = await energy();
       await page.keyboard.press("t");

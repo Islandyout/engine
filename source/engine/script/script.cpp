@@ -683,6 +683,10 @@ struct LuaApi final {
     // melee.lock(id) / melee.lock() releases
     static int melee_lock(lua_State *L) { return melee_call(L, "lock", {}, {}, entity_arg(L, 1)); }
     static int melee_target(lua_State *L) { return melee_call(L, "target", {}); }
+    // melee.unlock(name) -> found: a locked move becomes usable
+    static int melee_unlock(lua_State *L) { return melee_call(L, "unlock", {}, luaL_checkstring(L, 1)); }
+    // melee.stagger() -> poise bar 0..1, broken (1 while Broken)
+    static int melee_stagger(lua_State *L) { return melee_call(L, "stagger", {}); }
     // melee.set_ai(on, aggression?, skill?)
     static int melee_set_ai(lua_State *L) {
         return melee_call(L, "set_ai",
@@ -1202,7 +1206,9 @@ struct LuaApi final {
                {"set_energy", melee_set_energy},
                {"lock", melee_lock},
                {"target", melee_target},
-               {"set_ai", melee_set_ai}});
+               {"set_ai", melee_set_ai},
+               {"unlock", melee_unlock},
+               {"stagger", melee_stagger}});
         table(L, self, "weapon",
               {{"fire", weapon_fire},
                {"reload", weapon_reload},
@@ -1254,9 +1260,12 @@ void Runtime::call(World &world, Entity entity, Instance &instance, const char *
     // last self table.
     Vec3 before{};
     Vec3 velocity_before{};
-    if (box && body) {
+    // A bodiless entity (a director, a child) still gets `self`: its
+    // position, with no velocity.
+    if (box) {
         before = box->center;
-        velocity_before = body->velocity;
+        if (body)
+            velocity_before = body->velocity;
         lua_newtable(L);
         lua_pushinteger(L, id_of(entity));
         lua_setfield(L, -2, "id");
@@ -1271,13 +1280,13 @@ void Runtime::call(World &world, Entity entity, Instance &instance, const char *
         lua_setfield(L, -2, "y");
         lua_pushnumber(L, box->center.z);
         lua_setfield(L, -2, "z");
-        lua_pushnumber(L, body->velocity.x);
+        lua_pushnumber(L, velocity_before.x);
         lua_setfield(L, -2, "vx");
-        lua_pushnumber(L, body->velocity.y);
+        lua_pushnumber(L, velocity_before.y);
         lua_setfield(L, -2, "vy");
-        lua_pushnumber(L, body->velocity.z);
+        lua_pushnumber(L, velocity_before.z);
         lua_setfield(L, -2, "vz");
-        lua_pushboolean(L, body->grounded ? 1 : 0);
+        lua_pushboolean(L, body && body->grounded ? 1 : 0);
         lua_setfield(L, -2, "grounded");
         lua_setglobal(L, "self");
     }
@@ -1299,7 +1308,7 @@ void Runtime::call(World &world, Entity entity, Instance &instance, const char *
         instance.broken = true;
         return;
     }
-    if (!(box && body) || !world.alive(entity))
+    if (!box || !world.alive(entity))
         return;
     lua_getglobal(L, "self");
     if (lua_istable(L, -1) != 0) {
@@ -1308,12 +1317,14 @@ void Runtime::call(World &world, Entity entity, Instance &instance, const char *
         // aren't clobbered by the stale values `self` was created with.
         const float vx = field_or(L, -1, "vx", velocity_before.x), vy = field_or(L, -1, "vy", velocity_before.y),
                     vz = field_or(L, -1, "vz", velocity_before.z);
-        if (vx != velocity_before.x)
-            body->velocity.x = vx;
-        if (vy != velocity_before.y)
-            body->velocity.y = vy;
-        if (vz != velocity_before.z)
-            body->velocity.z = vz;
+        if (body) {
+            if (vx != velocity_before.x)
+                body->velocity.x = vx;
+            if (vy != velocity_before.y)
+                body->velocity.y = vy;
+            if (vz != velocity_before.z)
+                body->velocity.z = vz;
+        }
         // Writing self.x/y/z teleports; untouched values leave the body where
         // physics (or world.set_position) put it during the call.
         const float x = field_or(L, -1, "x", before.x), y = field_or(L, -1, "y", before.y),
@@ -1353,7 +1364,9 @@ void Runtime::step(World &world, float dt) {
             ++it;
         }
     }
-    for (const auto entity : world.query<Box, physics::RigidBody, Script>()) {
+    // Any entity with a Script runs it, bodiless helpers (a director, a
+    // child) included; the API calls that need a body skip one without.
+    for (const auto entity : world.query<Box, Script>()) {
         auto &instance = instances_[entity];
         if (!instance)
             instance = std::make_unique<Instance>();

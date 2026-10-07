@@ -62,6 +62,7 @@ double editor_weapon_event(int, int);
 void editor_set_melee(int, int, const char *, double, int, double, double, double, double, double);
 const char *editor_melee_error();
 void editor_set_melee_yaw(int, double);
+void editor_set_melee_extra(int, double, double, double, double, double, int);
 double editor_fighter_value(int, int);
 const char *editor_fighter_text(int, int, int);
 int editor_take_melee_events();
@@ -879,6 +880,16 @@ int main() {
         editor_tick();
     check(editor_value(0, 0) > 0.4); // moved from spawn under its own script, no input at all
     check(std::string(editor_script_error(0)).empty()); // a working script reports no error
+
+    // A bodiless entity (is_child, e.g. a director with no model) still runs its script and can
+    // read and move itself.
+    editor_begin();
+    check(editor_add(1, 2, 3, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+    editor_set_script_source(0, "function on_tick(dt) if self.vx == 0 then self.x = self.x + 1 end end");
+    check(editor_commit() == 1);
+    editor_tick();
+    check(std::string(editor_script_error(0)).empty());
+    check(std::abs(editor_value(0, 0) - 2) < 1e-6);
 
     // A script that fails to compile is surfaced through editor_script_error instead of being a
     // silently inert entity with no visible cause — the whole point of exposing it at all.
@@ -2125,6 +2136,39 @@ int main() {
             check(dodged);
             check(editor_value(0, 2) > 1.7); // the enemy is at z = 1.2
             check(editor_value(1, 3) < 1);
+        }
+
+        // GATEBREAKER (0.80.0): a locked skill stays shut until melee.unlock,
+        // and filling an enemy's poise bar Breaks it (a broken event).
+        {
+            editor_begin();
+            add_player(0);
+            editor_set_melee(0, 2, "j: input=light hit=0.05-0.1 dmg=8 stagger=30 reach=1.2\n"
+                                   "skill: input=skill1 hit=0.05-0.1 dmg=8 reach=1.2 locked\n",
+                             0, 0, 0.5, 0.5, 0.25, 0, 60);
+            editor_set_script_source(0, "t = 0\nfunction on_tick(dt) t = t + 1\n"
+                                        " if t == 2 then log(melee.perform('skill') and 'early' or 'shut') end\n"
+                                        " if t == 4 then melee.unlock('skill') end\n"
+                                        " if t == 6 then log(melee.perform('skill') and 'open' or 'still shut') end\n"
+                                        " if t == 40 or t == 70 then melee.perform('j') end end");
+            check(editor_add(0, 0.9, 1.1, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 500, 500, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            editor_set_melee(1, 0, "", 1, 0, 0.5, 0.5, 0.25, 0, 60);
+            editor_set_melee_extra(1, 50, 2, 0, 0, 0, 0);
+            check(editor_commit() == 1);
+            std::string logs;
+            bool broke = false;
+            for (int i = 0; i < 120; ++i) {
+                editor_tick();
+                const int events = editor_take_melee_events();
+                for (int e = 0; e < events; ++e)
+                    broke = broke || editor_melee_event(e, 0) == 9;
+                const int commands = editor_take_commands();
+                for (int c = 0; c < commands; ++c)
+                    if (std::string(editor_command_text(c, 0)) == "log")
+                        logs += std::string(editor_command_text(c, 1)) + ";";
+            }
+            check(logs == "shut;open;");
+            check(broke && editor_fighter_value(1, 19) > 0); // Broken
         }
 
         // An AI fighter that starts out facing a fighting Player, across a

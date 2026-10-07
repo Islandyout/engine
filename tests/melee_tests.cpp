@@ -302,6 +302,93 @@ int main() {
             }
             check(defended, "defends against a wind-up");
         }
+        {
+            // GATEBREAKER (0.80.0): mana, locked skills, guard-breakers, red
+            // attacks, parries feeding the gauge, and poise bars with a Break.
+            const auto parsed = parse_moves("jab: input=light hit=0.1-0.2 dmg=10\n"
+                                            "skill: input=skill1 hit=0.1-0.2 dmg=10 mana=30 cooldown=2 locked\n"
+                                            "smash: input=heavy hit=0.1-0.2 dmg=10 guardbreak stagger=55\n"
+                                            "slam: input=heavy after=jab hit=0.1-0.2 dmg=10 unblockable\n");
+            check(parsed.error.empty(), "the new keys parse");
+            const auto &list = parsed.moves;
+            check(list[1].mana == 30 && list[1].locked && list[2].guardbreak && list[2].stagger == 55, "fields");
+            FighterSettings gb;
+            gb.mana_max = 100;
+            gb.mana_regen = 10;
+            auto fighter = make_fighter_state(list, gb);
+            check(fighter.mana == 100 && fighter.locked[1], "starts full, the skill locked");
+            check(choose_move(fighter, list, MeleeButton::skill1, {}, {}) < 0, "a locked skill can't start");
+            fighter.locked[1] = 0;
+            check(choose_move(fighter, list, MeleeButton::skill1, {}, {}) == 1, "unlocked, it can");
+            update_fighter(fighter, list, gb, press(MeleeButton::skill1), dt);
+            check(fighter.mode == FighterMode::move && std::abs(fighter.mana - 70) < 0.01F, "mana spent");
+            fighter.mana = 10;
+            run(fighter, list, gb, {}, [&](const FighterTick &) { return fighter.mode == FighterMode::idle; });
+            fighter.cooldowns[1] = 0;
+            fighter.mana = 10;
+            check(choose_move(fighter, list, MeleeButton::skill1, {}, {}) < 0, "short of mana");
+            const float before = fighter.mana;
+            run(fighter, list, gb, {}, [](const FighterTick &) { return false; }, 1);
+            check(fighter.mana > before + 9, "mana refills");
+
+            // A blocking defender: a guard-breaker breaks the guard and can't be parried; red can't be blocked.
+            auto blocker = make_fighter_state(list, gb);
+            blocker.mode = FighterMode::block;
+            blocker.block_time = 0; // inside the parry window
+            check(resolve_hit(list[0], 0, &blocker, &list, &gb, true, false).outcome == HitOutcome::parried, "parried");
+            check(resolve_hit(list[2], 0, &blocker, &list, &gb, true, false).outcome == HitOutcome::guard_break,
+                  "a guard-breaker isn't parried");
+            check(resolve_hit(list[3], 0, &blocker, &list, &gb, true, false).outcome == HitOutcome::hit, "red goes through");
+            const float energy = blocker.energy;
+            take_hit(blocker, list, gb, resolve_hit(list[0], 0, &blocker, &list, &gb, true, false));
+            check(blocker.energy >= energy + gb.parry_gain - 0.01F, "a parry fills the gauge");
+
+            // A poise bar fills and Breaks; a Broken fighter takes bonus damage.
+            FighterSettings elite = gb;
+            elite.poise = 60;
+            auto boss = make_fighter_state(list, elite);
+            check(!take_hit(boss, list, elite, resolve_hit(list[0], 0, &boss, &list, &elite, true, false)) &&
+                      std::abs(boss.stagger - 10) < 0.01F,
+                  "hits fill the bar");
+            run(boss, list, elite, {}, [&](const FighterTick &) { return boss.mode == FighterMode::idle; });
+            check(take_hit(boss, list, elite, resolve_hit(list[2], 0, &boss, &list, &elite, true, false)), "full: a Break");
+            check(boss.mode == FighterMode::down && boss.broken > 0 && boss.stagger == 0, "floored");
+            const auto bonus = resolve_hit(list[0], 0, &boss, &list, &elite, true, false);
+            check(boss.mode != FighterMode::down || std::abs(bonus.damage - 10 * elite.break_bonus) < 0.01F ||
+                      bonus.outcome == HitOutcome::dodged,
+                  "bonus damage while Broken");
+            float down = 0;
+            run(boss, list, elite, {}, [&](const FighterTick &) { down += dt; return boss.mode == FighterMode::getup; }, 10);
+            check(down > elite.break_time - 0.1F, "a Break floors it for break_time");
+
+            // A ranged brain keeps its distance and shoots; a shield-bearer guards.
+            BrainSettings archer;
+            archer.range = 7;
+            archer.aggression = 1;
+            BrainState aim;
+            auto self = make_fighter_state(moves, settings);
+            BrainView near;
+            near.has_target = true;
+            near.distance = 4;
+            const float back = think(aim, archer, near, self, dt).move_y;
+            check(back < 0 && back > -0.5F, "backs off, slower than a fighter closing in");
+            BrainView at = near;
+            at.distance = 7;
+            bool shot = false;
+            for (int i = 0; i < 300 && !shot; ++i)
+                shot = think(aim, archer, at, self, dt).pressed[static_cast<int>(MeleeButton::light)];
+            check(shot, "shoots at range");
+            BrainSettings shield;
+            shield.shield = true;
+            shield.aggression = 0;
+            BrainState wall;
+            BrainView close = near;
+            close.distance = 1.5F;
+            bool guarded = false;
+            for (int i = 0; i < 30 && !guarded; ++i)
+                guarded = think(wall, shield, close, self, dt).block;
+            check(guarded, "a shield-bearer holds its guard");
+        }
         std::cout << "melee tests passed\n";
         return 0;
     } catch (const std::exception &error) {

@@ -12,7 +12,7 @@
 // Everything runs on real time, so slow motion doesn't stretch the lettering.
 import * as THREE from "three";
 
-export type ComicHit = "light" | "heavy" | "finisher" | "block" | "parry" | "guardBreak" | "dodge" | "blast";
+export type ComicHit = "light" | "heavy" | "finisher" | "block" | "parry" | "guardBreak" | "dodge" | "blast" | "break";
 
 // Words per kind of blow; one is picked in turn so repeats vary.
 export const SFX_WORDS: Record<ComicHit, readonly string[]> = {
@@ -24,6 +24,7 @@ export const SFX_WORDS: Record<ComicHit, readonly string[]> = {
   guardBreak: ["CRACK", "KRSSH"],
   dodge: ["FWOOSH", "SWSH"],
   blast: ["VWOOM", "FZZT"],
+  break: ["BREAK!"],
 };
 
 interface Word {
@@ -46,7 +47,7 @@ interface Lines {
   dense: number; // 0..1
 }
 
-const BIG: ReadonlySet<ComicHit> = new Set(["heavy", "finisher", "parry", "guardBreak"]);
+const BIG: ReadonlySet<ComicHit> = new Set(["heavy", "finisher", "parry", "guardBreak", "break"]);
 
 export class ComicFx {
   enabled = false;
@@ -67,20 +68,20 @@ export class ComicFx {
       text,
       point: point.clone(),
       age: 0,
-      life: kind === "finisher" ? 1.1 : big ? 0.8 : 0.55,
-      size: kind === "finisher" ? 96 : big ? 70 : kind === "dodge" ? 40 : 46,
+      life: kind === "finisher" || kind === "break" ? 1.1 : big ? 0.8 : 0.55,
+      size: kind === "finisher" || kind === "break" ? 96 : big ? 70 : kind === "dodge" ? 40 : 46,
       tilt: side * (0.1 + 0.12 * ((this.turn * 7) % 5) / 5),
-      fill: kind === "parry" ? "#ffe066" : kind === "block" ? "#cfe3ff" : kind === "finisher" ? "#ff5a3a" : kind === "dodge" ? "#b9a6ff" : "#ffffff",
+      fill: kind === "break" ? "#f2c230" : kind === "parry" ? "#ffe066" : kind === "block" ? "#cfe3ff" : kind === "finisher" ? "#ff5a3a" : kind === "dodge" ? "#b9a6ff" : "#ffffff",
       dx: side * (big ? 70 : 46),
       // Consecutive words step up the panel instead of piling on each other.
       dy: -(big ? 70 : 44) - (this.turn % 3) * 34,
     });
     if (this.words.length > 6) this.words.shift();
     if (big || kind === "dodge") {
-      this.lines.push({ point: point.clone(), age: 0, life: kind === "finisher" ? 0.5 : 0.3, seed: this.turn * 977, dense: kind === "finisher" ? 1 : 0.6 });
+      this.lines.push({ point: point.clone(), age: 0, life: kind === "finisher" || kind === "break" ? 0.5 : 0.3, seed: this.turn * 977, dense: kind === "finisher" || kind === "break" ? 1 : 0.6 });
       if (this.lines.length > 2) this.lines.shift();
     }
-    if (kind === "finisher" || kind === "parry") this.impactLeft = kind === "finisher" ? 0.09 : 0.06;
+    if (kind === "finisher" || kind === "parry" || kind === "break") this.impactLeft = kind === "parry" ? 0.06 : 0.09;
   }
 
   // Advances in real seconds.

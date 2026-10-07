@@ -248,6 +248,9 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 208, category: "weapons", name: "Spear", path: "./kit/weapons/spear.glb" },
   { id: 209, category: "weapons", name: "Scythe", path: "./kit/weapons/scythe.glb" },
   { id: 210, category: "weapons", name: "Double axe", path: "./kit/weapons/axe-double.glb" },
+  { id: 211, category: "weapons", name: "Bow", path: "./kit/weapons/bow.glb" },
+  { id: 212, category: "weapons", name: "Round shield", path: "./kit/weapons/shield-round.glb" },
+  { id: 213, category: "dungeon", name: "Wall doorway (open)", path: "./kit/dungeon/wall-doorway-open.glb" },
 ];
 
 export const catalogCategories = Array.from(

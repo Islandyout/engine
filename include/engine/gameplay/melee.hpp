@@ -51,13 +51,17 @@ struct MoveDef final {
     float hitstop{0.06F};      // seconds both fighters freeze on contact
     float lunge{0.3F};         // metres travelled forward by hit_end (from the clip's root motion)
     bool free_direction{false}; // travels along the stick, not the facing (dodges)
-    float energy{0.0F};        // energy cost
+    float energy{0.0F};        // energy cost (the ultimate gauge)
+    float mana{0.0F};          // mana cost (skills; mana refills over time)
     float gain{5.0F};          // energy gained on a landed hit
     float cooldown{0.0F};
     float iframe_start{-1.0F}; // invulnerable window (dodges), seconds; -1 none
     float iframe_end{-1.0F};
     bool armor{false};         // not interrupted by hits while it plays
-    bool unblockable{false};
+    bool unblockable{false};   // red: can't be blocked or parried (dodge it)
+    bool guardbreak{false};    // a blocked hit breaks the guard at once; can't be parried
+    bool locked{false};        // can't be used until unlocked (melee.unlock)
+    float stagger{-1.0F};      // stagger dealt to a poise bar; -1: the damage
     bool knockdown{false};     // a landed hit floors the target
     bool finisher{false};      // the editor slows time and frames it
     int hits{1};               // hits spread over the active window
@@ -74,9 +78,9 @@ struct MoveParse final {
 // Parses a move list. `#` starts a comment; blank lines are ignored. Keys:
 // clip, input (light|heavy|kick|special|dodge), after (names joined by |),
 // seq, air, sprint, dur, hit (a-b), cancel, dmg, reach, radius, height,
-// aoe, knock, launch, stun, stop, lunge, free, cost, gain, cooldown,
-// iframes (a-b), armor, unblockable, knockdown, finisher, hits, projectile,
-// track, limb. `after` names must be defined somewhere in the list.
+// aoe, knock, launch, stun, stop, lunge, free, cost, mana, gain, cooldown,
+// iframes (a-b), armor, unblockable, guardbreak, locked, stagger,
+// knockdown, finisher, hits, projectile, track, limb. `after` names must be defined somewhere in the list.
 [[nodiscard]] MoveParse parse_moves(std::string_view text);
 
 // Unarmed martial arts: a four-punch chain, a three-kick chain, power and
@@ -95,6 +99,13 @@ struct FighterSettings final {
     float buffer{0.3F};         // seconds a press waits for the current move's cancel point
     float down_time{0.6F};      // seconds lying down after a knockdown
     float getup_time{0.9F};     // seconds getting up (invulnerable)
+    // GATEBREAKER (0.80.0):
+    float poise{0.0F};          // stagger bar size (elites, bosses); 0: none
+    float break_time{2.5F};     // seconds floored by a Break
+    float break_bonus{1.5F};    // damage taken while Broken, times
+    float mana_max{100.0F};
+    float mana_regen{8.0F};     // per second
+    float parry_gain{20.0F};    // energy (the ultimate gauge) a parry earns
 };
 
 enum class FighterMode : int { idle, move, block, stun, airborne, down, getup, dead };
@@ -123,6 +134,10 @@ struct FighterState final {
     int combo{0};          // hits landed in the current string
     float combo_left{0};   // the string ends when this runs out
     float energy{0};
+    float mana{100.0F};
+    float stagger{0};      // filled by hits until poise: then a Break
+    float broken{0};       // seconds of Break left (it takes bonus damage)
+    std::vector<char> locked; // per move: still locked
     float guard{60.0F};
     float block_time{0};   // seconds the block has been held
     int hits_done{0};      // hits dealt so far in the current move's window
@@ -189,6 +204,7 @@ struct HitResult final {
     float launch{0};
     float hitstop{0};
     float guard_damage{0}; // guard drained by a blocked hit
+    float stagger{0};      // filled into the defender's poise bar
 };
 
 // The outcome of `move` meeting a defender: dodged through i-frames;
@@ -202,8 +218,10 @@ struct HitResult final {
                                     bool from_front, bool defender_airborne);
 
 // Puts the defender into the stun/launch/knockdown the result calls for
-// (armored moves keep playing through a hit), or drains its guard.
-void take_hit(FighterState &defender, const std::vector<MoveDef> &moves, const FighterSettings &settings,
+// (armored moves keep playing through a hit), or drains its guard. Fills
+// its poise bar; true when this hit Breaks it (floored for break_time,
+// taking bonus damage). A parry earns the defender energy.
+bool take_hit(FighterState &defender, const std::vector<MoveDef> &moves, const FighterSettings &settings,
               const HitResult &result);
 
 // The attacker's side of a landed (or blocked/parried) hit: combo count,
@@ -219,6 +237,8 @@ struct BrainSettings final {
     float aggression{0.5F}; // 0..1: how often it presses the attack
     float skill{0.5F};      // 0..1: how often it blocks, parries and dodges, and how long its strings run
     float reaction{0.25F};  // seconds before it reacts to a threat
+    float range{0.0F};      // > 0: a ranged fighter keeping this distance and shooting (light)
+    bool shield{false};     // holds its block up whenever it isn't striking
 };
 
 struct BrainState final {

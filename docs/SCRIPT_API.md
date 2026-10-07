@@ -163,6 +163,8 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `melee.lock(id?: integer)` | Locks onto a target; no argument releases. |
 | `melee.target(): integer?` | Who it faces and fights. |
 | `melee.set_ai(on: boolean, aggression?: number, skill?: number)` | Hands the fighter to (or takes it from) its melee brain. |
+| `melee.unlock(move: string): number?` | Makes a move marked locked usable; 1 when the move exists. |
+| `melee.stagger(): number, number` | Its poise bar 0-1, and 1 while it's Broken. |
 
 ## weapon
 
@@ -178,7 +180,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 
 | Function | What it does |
 |---|---|
-| `input.down(key: string): boolean` | A key held this tick (KeyW, Space, ...). |
+| `input.down(key: string): boolean` | A key held this tick, by its code (KeyW, Space, Enter) or its lowercase name (w, enter). |
 | `input.pressed(key: string): boolean` | A key pressed this tick. |
 | `input.action(name: string): number` | An action's value (axes -1..1, buttons 0/1). |
 | `input.action_down(name: string): boolean` | An action held. |
@@ -214,6 +216,10 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `hud.open_settings()` | Opens the player settings panel. |
 | `hud.visor(helmet: boolean, integrity: number, frost: number, heat: number)` | The helmet visor: on or off, integrity 0-1 (cracks below), frost and heat shimmer 0-1. |
 | `hud.suit_light(mode: string)` | auto, on or off. |
+| `hud.system(title: string, body: string)` | Shows a Ledger system window (title, body lines split by \n); replaces the open one. |
+| `hud.system_close()` | Closes the Ledger system window. |
+| `hud.panels(spec: string)` | Plays a comic-panel cutscene: one shot per line, "x y z > tx ty tz | caption | sfx | seconds". Space or Enter skips. |
+| `hud.boss(name: string, title: string)` | A boss bar (health and stagger) for the named entity; an empty name hides it. |
 
 ## audio
 

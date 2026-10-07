@@ -10,7 +10,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 65
+    timeout-minutes: 95
     steps:
       - uses: actions/checkout@v5
       - name: Install WebAssembly compiler
@@ -38,6 +38,7 @@ jobs:
           node tests/browser/high_heat.cjs
           node tests/browser/pale_signal.cjs
           node tests/browser/gatebreaker.cjs
+          node tests/browser/gatebreaker_gate.cjs
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v5

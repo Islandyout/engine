@@ -34,6 +34,7 @@ import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { isNonPhysical, isSettingsOnly } from "./settingsEntity";
 import { heldLength, holdWeapon } from "./heldWeapons";
+import { LedgerHud } from "./ledger";
 import { InkPass, attachDepth, installToonShading, markCharacter, toonUniforms } from "./manhwa";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
@@ -65,7 +66,7 @@ import { parseVisor, Visor } from "./visor";
 import { version as editorVersion } from "../../package.json";
 import { Music } from "./music";
 import { StaticBatcher } from "./staticBatcher";
-import { EntityField, SpaceField } from "./bridgeFields";
+import { EntityField, FighterField, SpaceField } from "./bridgeFields";
 import type { RuntimeExports } from "./runtimeExports";
 import { ReflectionProbe } from "./reflectionProbe";
 import { nextSiteView } from "./siteView";
@@ -895,6 +896,8 @@ async function startEditor() {
     return sounds().at(audioMixer().source("sfx", point, { occluded, volume }).input);
   }
   // Melee (0.78.0): fighters' bodies, impacts and the fighter HUD (combatView.ts).
+  // GATEBREAKER's interface (ledger.ts): system windows, panel cutscenes, the boss bar.
+  const ledger = new LedgerHud();
   const combat = new CombatView(scene, {
     value: (i, field) => runtime._editor_fighter_value(i, field),
     text: (i, move, field) => runtime.ccall("editor_fighter_text", "string", ["number", "number", "number"], [i, move, field]),
@@ -1398,7 +1401,17 @@ async function startEditor() {
         const nativeSize = bounds.getSize(new THREE.Vector3());
         const nativeCenter = bounds.getCenter(new THREE.Vector3());
         const cached = { scene: gltf.scene, clips: gltf.animations, nativeSize, nativeCenter };
-        if (entry.animated) markCharacter(gltf.scene);
+        if (entry.animated) {
+          markCharacter(gltf.scene);
+          // Where its lowest foot bone stands in the rest pose, relative to
+          // the model's centre: combatView keeps fighters' feet there.
+          gltf.scene.updateMatrixWorld(true);
+          let foot = Infinity;
+          gltf.scene.traverse((node) => {
+            if ((node as THREE.Bone).isBone && /foot|toe/i.test(node.name)) foot = Math.min(foot, node.getWorldPosition(new THREE.Vector3()).y);
+          });
+          if (Number.isFinite(foot)) gltf.scene.userData.restFoot = foot - nativeCenter.y;
+        }
         catalogCache.set(meshId, cached);
         return cached;
       });
@@ -1995,6 +2008,15 @@ async function startEditor() {
       if ((ambienceLayers as readonly string[]).includes(layer)) ambience?.set(layer as AmbienceLayer, Number(level));
     } else if (kind === "cue") cue(text);
     else if (kind === "announce") announcer.say(text);
+    else if (kind === "system") {
+      const split = text.indexOf("|");
+      ledger.system(split < 0 ? text : text.slice(0, split), split < 0 ? "" : text.slice(split + 1));
+      if (text) announcer.say(ledger.systemText);
+    } else if (kind === "panels") ledger.panels(text);
+    else if (kind === "boss") {
+      const [name = "", title = ""] = text.split("|");
+      ledger.setBoss(name, title || name);
+    }
     else if (kind === "settings") openPlayerSettings();
     else if (kind === "prospect") {
       // "label|range|key,key,..." -- empty to stop.
@@ -2023,10 +2045,10 @@ async function startEditor() {
         keyQueue.push([code, down ? 1 : 0]);
         if (down) heldKeys.add(code);
         else heldKeys.delete(code);
-        if (key) {
-          scriptKeyQueue.push([key, down ? 1 : 0]);
-          if (down) heldScriptKeys.add(key);
-          else heldScriptKeys.delete(key);
+        for (const name of key && key !== code ? [key, code] : [code]) {
+          scriptKeyQueue.push([name, down ? 1 : 0]);
+          if (down) heldScriptKeys.add(name);
+          else heldScriptKeys.delete(name);
         }
       });
     else if (!wantTouch && touchControls) {
@@ -2487,12 +2509,24 @@ async function startEditor() {
     // typing into a field.
     const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
     if (!typing && (event.code === "Space" || event.code === "Tab" || event.code.startsWith("Arrow"))) event.preventDefault();
+    // A panel cutscene holds the keys: Space or Enter skips it (and still
+    // reaches scripts, so a director knows).
+    if (ledger.playing) {
+      event.preventDefault();
+      if (event.code !== "Space" && event.code !== "Enter") return;
+      ledger.skip();
+    }
     keyQueue.push([event.code, 1]);
     heldKeys.add(event.code);
     const key = event.key.toLowerCase();
     scriptKeyByCode.set(event.code, key);
     scriptKeyQueue.push([key, 1]);
     heldScriptKeys.add(key);
+    // Scripts may also name keys by code (KeyG, Enter, Space, Digit1).
+    if (event.code && event.code !== key) {
+      scriptKeyQueue.push([event.code, 1]);
+      heldScriptKeys.add(event.code);
+    }
   });
   window.addEventListener("keyup", (event) => {
     if (doc.mode === "edit") return;
@@ -2501,6 +2535,7 @@ async function startEditor() {
     scriptKeyByCode.delete(event.code);
     scriptKeyQueue.push([key, 0]);
     heldScriptKeys.delete(key);
+    if (heldScriptKeys.delete(event.code)) scriptKeyQueue.push([event.code, 0]);
   });
   window.addEventListener("blur", () => {
     if (doc.mode !== "edit") releaseHeldKeys();
@@ -2866,6 +2901,7 @@ async function startEditor() {
         [index, { "Martial arts": 0, Sword: 1, Custom: 2 }[melee.style], melee.moves, melee.team, melee.ai ? 1 : 0, melee.aggression, melee.skill, melee.reaction, melee.energy, melee.guard],
       );
       runtime._editor_set_melee_yaw(index, get("Rotation")?.euler.y ?? 0);
+      runtime._editor_set_melee_extra(index, melee.poise, melee.breakTime, melee.manaMax, melee.manaRegen, melee.range, melee.shield ? 1 : 0);
     }
     // A Terrain entity's own body must never fall or move.
     if (get("Terrain")) runtime._editor_set_body(index, 1, 1, 0);
@@ -3533,7 +3569,9 @@ async function startEditor() {
     animators.push(animator);
     // Scene-wide settings (a UI label, the Environment) have no body of
     // their own: their stand-in box shows only while editing (0.78.0).
-    const settingsOnly = isSettingsOnly(get);
+    // Settings holders and invisible helpers (a light, a camera, a director
+    // script): their stand-in box shows only while editing.
+    const settingsOnly = isSettingsOnly(get) || (!renderable && isNonPhysical(get));
     object.visible = renderable?.visible ?? !(settingsOnly && doc.mode === "play");
     if (settingsOnly) object.userData.settingsOnly = true;
     // `anchor` -- not `object` -- carries this entity's Transform/Rotation/
@@ -3676,6 +3714,7 @@ async function startEditor() {
     terrainMeshes.clear();
     animStates.length = 0;
     combat.reset();
+    ledger.clear();
     waitingFighters.length = 0;
     animators.length = 0;
     animatorErrors.length = 0;
@@ -4938,6 +4977,7 @@ async function startEditor() {
         applyGesture(bones, kind, now / 1000, i);
       }
     });
+    if (doc.mode === "play") combat.plant(dt);
     // Same reasoning as mixers above -- a Particles emitter is as "always on"
     // as a Light, not gated to Play mode like Script/Sound.
     particleScale.value = viewport.clientHeight / 2;
@@ -5073,6 +5113,11 @@ async function startEditor() {
     rig.frameDt = dt;
     const game = gameCamera();
     viewCamera = game ?? camera;
+    // A panel cutscene takes the camera while it plays.
+    if (doc.mode === "play") {
+      ledger.update(dt, Math.max(1, viewport.clientWidth) / Math.max(1, viewport.clientHeight));
+      if (ledger.playing) viewCamera = ledger.camera;
+    }
     // Shake the game camera, or during Play a copy of the editor camera, so
     // the orbit camera itself never drifts.
     if (doc.mode !== "edit" && shake.remaining > 0) {
@@ -5334,6 +5379,18 @@ async function startEditor() {
       hudCtx.fillText(text, cx, cy + 116);
     }
   }
+  // The boss bar's numbers: its entity by Name.
+  function bossReadout() {
+    const name = ledger.bossName;
+    if (!name) return undefined;
+    const index = doc.scene.eachAlive().findIndex((e) => doc.scene.resolve(e, "Name")?.value === name);
+    if (index < 0 || !runtime._editor_alive(index)) return { health: -1, stagger: -1, broken: false };
+    return {
+      health: runtime._editor_value(index, EntityField.health),
+      stagger: runtime._editor_fighter_value(index, FighterField.stagger),
+      broken: runtime._editor_fighter_value(index, FighterField.broken) > 0,
+    };
+  }
   function drawHud() {
     hudCtx.clearRect(0, 0, hud.width, hud.height);
     // The visor under everything else, while walking in a suit.
@@ -5353,6 +5410,8 @@ async function startEditor() {
         // In first person a bar is feedback on your own hits, not a radar:
         // only damaged targets within 40 m get one.
         if (firstPerson() && (ratio >= 1 || object.position.distanceTo(viewCamera.position) > 40)) return;
+        // Third person: only the ones nearby (not a sleeping room through the wall).
+        if (!firstPerson() && playerIndex >= 0 && objects[playerIndex] && object.position.distanceTo(objects[playerIndex]!.position) > 14) return;
         const scaleY = doc.scene.resolve(entity, "Scale")?.value.y ?? 1;
         // Where the simulation has it: a fighter's drawn body isn't its anchor.
         hudScratch.set(runtime._editor_value(index, EntityField.x), runtime._editor_value(index, EntityField.y), runtime._editor_value(index, EntityField.z));
@@ -5373,8 +5432,10 @@ async function startEditor() {
       drawWaypoints();
     }
     if (firstPerson()) hudLines.push(...drawFirstPersonOverlay());
+    // GATEBREAKER: panels, the Ledger's windows and the boss bar.
+    if (doc.mode === "play") hudLines.push(...ledger.draw(hudCtx, hud.width, hud.height, bossReadout()));
     // Melee (0.78.0): health, energy, guard, combo and lock-on.
-    if (doc.mode === "play")
+    if (doc.mode === "play" && !ledger.playing)
       hudLines.push(
         ...combat.drawHud(
           hudCtx,
@@ -5431,7 +5492,8 @@ async function startEditor() {
     }
     for (const entity of doc.scene.eachAlive()) {
       const authoredUi = doc.scene.resolve(entity, "UI");
-      if (!authoredUi) continue;
+      // A panel cutscene fills the screen alone.
+      if (!authoredUi || (doc.mode === "play" && ledger.playing)) continue;
       const uiName = doc.scene.resolve(entity, "Name")?.value ?? "";
       const playing = doc.mode !== "edit";
       const override = playing ? uiTextOverrides.get(uiName) : undefined;
