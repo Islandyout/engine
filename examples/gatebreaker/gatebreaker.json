@@ -7419,67 +7419,6 @@
       }
     },
     {
-      "name": "Hub fence S",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 2,
-            "z": 39.5
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 34,
-            "y": 4,
-            "z": 1
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": false
-        },
-        "Material": {
-          "color": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "metalness": 0,
-          "roughness": 0.8,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 1,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        },
-        "RigidBody": {
-          "mass": 1,
-          "inverseMass": 1,
-          "dynamic": false
-        },
-        "Collider": {
-          "type": "AABB",
-          "halfExtents": {
-            "x": 0.5,
-            "y": 0.5,
-            "z": 0.5
-          },
-          "radius": 0.5,
-          "isTrigger": false,
-          "layer": 0,
-          "mask": 4294967295,
-          "bounciness": 0
-        }
-      }
-    },
-    {
       "name": "Hub fence N",
       "components": {
         "Transform": {
@@ -8897,6 +8836,2225 @@
           "layer": 0,
           "mask": 4294967295,
           "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "District ground",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -0.5,
+            "z": 150
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 220,
+            "y": 1,
+            "z": 132
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "District base",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -1.05,
+            "z": 113.5
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 400,
+            "y": 2,
+            "z": 201
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.09019607843137255,
+            "y": 0.09019607843137255,
+            "z": 0.11372549019607843
+          },
+          "metalness": 0,
+          "roughness": 0.95,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "South sidewalk",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -0.01,
+            "z": 15.25
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 208,
+            "y": 0.04,
+            "z": 1.5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.22745098039215686,
+            "y": 0.22745098039215686,
+            "z": 0.25882352941176473
+          },
+          "metalness": 0,
+          "roughness": 0.92,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Block west 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -88,
+            "y": -0.01,
+            "z": 72
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 32,
+            "y": 0.04,
+            "z": 80
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.22745098039215686,
+            "y": 0.22745098039215686,
+            "z": 0.25882352941176473
+          },
+          "metalness": 0,
+          "roughness": 0.92,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Block shops west",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -36,
+            "y": -0.01,
+            "z": 72
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 40,
+            "y": 0.04,
+            "z": 80
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.25098039215686274,
+            "y": 0.24705882352941178,
+            "z": 0.2784313725490196
+          },
+          "metalness": 0,
+          "roughness": 0.92,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Block Association north",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -0.01,
+            "z": 88
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 32,
+            "y": 0.04,
+            "z": 48
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.25098039215686274,
+            "y": 0.24705882352941178,
+            "z": 0.2784313725490196
+          },
+          "metalness": 0,
+          "roughness": 0.92,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Block Association steps",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -0.01,
+            "z": 36
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 32,
+            "y": 0.04,
+            "z": 8
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.25098039215686274,
+            "y": 0.24705882352941178,
+            "z": 0.2784313725490196
+          },
+          "metalness": 0,
+          "roughness": 0.92,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Block shops east",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 36,
+            "y": -0.01,
+            "z": 72
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 40,
+            "y": 0.04,
+            "z": 80
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.25098039215686274,
+            "y": 0.24705882352941178,
+            "z": 0.2784313725490196
+          },
+          "metalness": 0,
+          "roughness": 0.92,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Block east 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 88,
+            "y": -0.01,
+            "z": 72
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 32,
+            "y": 0.04,
+            "z": 80
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.22745098039215686,
+            "y": 0.22745098039215686,
+            "z": 0.25882352941176473
+          },
+          "metalness": 0,
+          "roughness": 0.92,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Block west 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -88,
+            "y": -0.01,
+            "z": 160
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 32,
+            "y": 0.04,
+            "z": 64
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.22745098039215686,
+            "y": 0.22745098039215686,
+            "z": 0.25882352941176473
+          },
+          "metalness": 0,
+          "roughness": 0.92,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Park lawn",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -32,
+            "y": -0.01,
+            "z": 160
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 48,
+            "y": 0.04,
+            "z": 64
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.12156862745098039,
+            "y": 0.20784313725490197,
+            "z": 0.1411764705882353
+          },
+          "metalness": 0,
+          "roughness": 0.92,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Hangang plaza paving",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 32,
+            "y": -0.01,
+            "z": 160
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 48,
+            "y": 0.04,
+            "z": 64
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.2784313725490196,
+            "y": 0.27058823529411763,
+            "z": 0.30980392156862746
+          },
+          "metalness": 0,
+          "roughness": 0.92,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Block east 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 88,
+            "y": -0.01,
+            "z": 160
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 32,
+            "y": 0.04,
+            "z": 64
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.22745098039215686,
+            "y": 0.22745098039215686,
+            "z": 0.25882352941176473
+          },
+          "metalness": 0,
+          "roughness": 0.92,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Promenade",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -0.01,
+            "z": 211
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 208,
+            "y": 0.04,
+            "z": 6
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.2901960784313726,
+            "y": 0.2823529411764706,
+            "z": 0.3215686274509804
+          },
+          "metalness": 0,
+          "roughness": 0.92,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Han river",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -1.25,
+            "z": 290
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 440,
+            "y": 0.1,
+            "z": 152
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.0392156862745098,
+            "y": 0.08627450980392157,
+            "z": 0.14901960784313725
+          },
+          "metalness": 0.4,
+          "roughness": 0.12,
+          "emissive": {
+            "x": 0.043137254901960784,
+            "y": 0.09411764705882353,
+            "z": 0.2196078431372549
+          },
+          "emissiveIntensity": 0.35,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "District hoarding",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 2.25,
+            "z": 14.25
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 210,
+            "y": 4.5,
+            "z": 0.5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.12549019607843137,
+            "y": 0.1411764705882353,
+            "z": 0.1803921568627451
+          },
+          "metalness": 0,
+          "roughness": 0.85,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "District hoarding stripe",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 3.9,
+            "z": 14.54
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 210,
+            "y": 0.22,
+            "z": 0.08
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 1,
+            "y": 0.6901960784313725,
+            "z": 0.12549019607843137
+          },
+          "metalness": 0,
+          "roughness": 0.8,
+          "emissive": {
+            "x": 1,
+            "y": 0.6901960784313725,
+            "z": 0.12549019607843137
+          },
+          "emissiveIntensity": 0.9,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "District edge W",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -104.6,
+            "y": 3,
+            "z": 114
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1,
+            "y": 6,
+            "z": 202
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "District edge E",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 104.6,
+            "y": 3,
+            "z": 114
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1,
+            "y": 6,
+            "z": 202
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "District edge N",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 3,
+            "z": 214.6
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 210,
+            "y": 6,
+            "z": 1
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "District roads",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -0.13,
+            "z": 0
+          }
+        },
+        "ModelInstances": {
+          "instances": "64 -96.00 24.00 90\n64 -80.00 24.00 90\n66 -64.00 24.00 180\n64 -48.00 24.00 90\n64 -32.00 24.00 90\n64 -16.00 24.00 90\n62 0.00 24.00 90\n64 16.00 24.00 90\n64 32.00 24.00 90\n64 48.00 24.00 90\n66 64.00 24.00 180\n64 80.00 24.00 90\n64 96.00 24.00 90\n64 -96.00 120.00 90\n64 -80.00 120.00 90\n56 -64.00 120.00 0\n64 -48.00 120.00 90\n64 -32.00 120.00 90\n64 -16.00 120.00 90\n66 0.00 120.00 180\n64 16.00 120.00 90\n64 32.00 120.00 90\n64 48.00 120.00 90\n56 64.00 120.00 0\n64 80.00 120.00 90\n64 96.00 120.00 90\n64 -96.00 200.00 90\n64 -80.00 200.00 90\n66 -64.00 200.00 0\n64 -48.00 200.00 90\n64 -32.00 200.00 90\n64 -16.00 200.00 90\n66 0.00 200.00 0\n64 16.00 200.00 90\n64 32.00 200.00 90\n64 48.00 200.00 90\n66 64.00 200.00 0\n64 80.00 200.00 90\n64 96.00 200.00 90\n64 -64.00 40.00 0\n64 -64.00 56.00 0\n64 -64.00 72.00 0\n64 -64.00 88.00 0\n64 -64.00 104.00 0\n64 -64.00 136.00 0\n64 -64.00 152.00 0\n64 -64.00 168.00 0\n64 -64.00 184.00 0\n64 64.00 40.00 0\n64 64.00 56.00 0\n64 64.00 72.00 0\n64 64.00 88.00 0\n64 64.00 104.00 0\n64 64.00 136.00 0\n64 64.00 152.00 0\n64 64.00 168.00 0\n64 64.00 184.00 0\n64 0.00 136.00 0\n64 0.00 152.00 0\n64 0.00 168.00 0\n64 0.00 184.00 0"
+        }
+      }
+    },
+    {
+      "name": "District buildings",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "ModelInstances": {
+          "instances": "2 -88.00 41.00 90 solid\n4 -88.00 68.00 0 solid\n3 -88.00 93.00 0 solid\n3 -88.00 140.00 0 solid\n2 -88.00 160.00 90 solid\n4 -88.00 182.00 0 solid\n17 -46.00 60.00 270 solid\n17 47.00 60.00 90 solid\n18 -46.00 72.00 270 solid\n18 47.00 72.00 90 solid\n19 -46.00 84.00 270 solid\n18 47.00 84.00 90 solid\n17 -46.00 96.00 270 solid\n17 47.00 96.00 90 solid\n15 -28.00 103.00 0 0.8 solid\n16 28.00 103.50 180 0.75 solid\n2 88.00 41.00 90 solid\n14 88.00 102.00 180 0.85 solid\n9 88.00 142.00 0 solid\n17 80.00 160.00 0 solid\n19 96.00 160.00 0 solid\n21 88.00 179.00 0 0.7 solid\n20 -130.00 44.00 90\n2 130.00 44.00 270\n8 -168.00 61.00 0\n21 168.00 61.00 0\n8 -130.00 78.00 90\n21 130.00 78.00 270\n22 -168.00 95.00 0\n10 168.00 95.00 0\n22 -130.00 112.00 90\n10 130.00 112.00 270\n2 -168.00 129.00 0\n20 168.00 129.00 0\n2 -130.00 146.00 90\n20 130.00 146.00 270\n21 -168.00 163.00 0\n8 168.00 163.00 0\n21 -130.00 180.00 90\n8 130.00 180.00 270\n10 -168.00 197.00 0\n22 168.00 197.00 0\n10 -130.00 214.00 90\n22 130.00 214.00 270\n20 -168.00 231.00 0\n2 168.00 231.00 0\n20 -120.00 300.00 180\n10 -70.00 316.00 180\n21 -20.00 300.00 180\n2 30.00 316.00 180\n22 80.00 300.00 180\n8 130.00 316.00 180"
+        }
+      }
+    },
+    {
+      "name": "District street",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "ModelInstances": {
+          "instances": "35 -88.00 33.50 90\n35 -44.00 33.50 90\n35 -16.00 33.50 90\n35 16.00 33.50 90\n35 50.00 33.50 90\n35 88.00 33.50 90\n35 -88.00 129.50 90\n35 -30.00 129.50 90\n35 24.00 129.50 90\n35 88.00 129.50 90\n35 -80.00 110.50 270\n35 -24.00 110.50 270\n35 40.00 110.50 270\n35 100.00 110.50 270\n35 -76.00 190.50 270\n35 -30.00 190.50 270\n35 26.00 190.50 270\n35 80.00 190.50 270\n35 -73.50 56.00 0\n35 -73.50 88.00 0\n35 -73.50 152.00 0\n35 -73.50 184.00 0\n35 -54.50 40.00 180\n35 -54.50 72.00 180\n35 -54.50 104.00 180\n35 -54.50 156.00 180\n35 54.50 46.00 0\n35 54.50 104.00 0\n35 54.50 140.00 0\n35 54.50 172.00 0\n35 73.50 52.00 180\n35 73.50 94.00 180\n35 73.50 136.00 180\n35 73.50 168.00 180\n34 -96.00 211.00 0\n34 -64.00 211.00 0\n34 -32.00 211.00 0\n34 0.00 211.00 0\n34 32.00 211.00 0\n34 64.00 211.00 0\n34 96.00 211.00 0\n90 -73.00 15.50 0\n90 73.00 15.50 0\n90 -73.00 111.00 0\n90 73.00 129.00 0\n90 9.00 129.00 0\n39 -104.00 16.00 90\n39 104.00 16.00 90\n39 -104.00 20.10 90\n39 104.00 20.10 90\n39 -104.00 24.20 90\n39 104.00 24.20 90\n39 -104.00 28.30 90\n39 104.00 28.30 90\n39 -104.00 32.40 90\n39 104.00 32.40 90\n39 -104.00 36.50 90\n39 104.00 36.50 90\n39 -104.00 40.60 90\n39 104.00 40.60 90\n39 -104.00 44.70 90\n39 104.00 44.70 90\n39 -104.00 48.80 90\n39 104.00 48.80 90\n39 -104.00 52.90 90\n39 104.00 52.90 90\n39 -104.00 57.00 90\n39 104.00 57.00 90\n39 -104.00 61.10 90\n39 104.00 61.10 90\n39 -104.00 65.20 90\n39 104.00 65.20 90\n39 -104.00 69.30 90\n39 104.00 69.30 90\n39 -104.00 73.40 90\n39 104.00 73.40 90\n39 -104.00 77.50 90\n39 104.00 77.50 90\n39 -104.00 81.60 90\n39 104.00 81.60 90\n39 -104.00 85.70 90\n39 104.00 85.70 90\n39 -104.00 89.80 90\n39 104.00 89.80 90\n39 -104.00 93.90 90\n39 104.00 93.90 90\n39 -104.00 98.00 90\n39 104.00 98.00 90\n39 -104.00 102.10 90\n39 104.00 102.10 90\n39 -104.00 106.20 90\n39 104.00 106.20 90\n39 -104.00 110.30 90\n39 104.00 110.30 90\n39 -104.00 114.40 90\n39 104.00 114.40 90\n39 -104.00 118.50 90\n39 104.00 118.50 90\n39 -104.00 122.60 90\n39 104.00 122.60 90\n39 -104.00 126.70 90\n39 104.00 126.70 90\n39 -104.00 130.80 90\n39 104.00 130.80 90\n39 -104.00 134.90 90\n39 104.00 134.90 90\n39 -104.00 139.00 90\n39 104.00 139.00 90\n39 -104.00 143.10 90\n39 104.00 143.10 90\n39 -104.00 147.20 90\n39 104.00 147.20 90\n39 -104.00 151.30 90\n39 104.00 151.30 90\n39 -104.00 155.40 90\n39 104.00 155.40 90\n39 -104.00 159.50 90\n39 104.00 159.50 90\n39 -104.00 163.60 90\n39 104.00 163.60 90\n39 -104.00 167.70 90\n39 104.00 167.70 90\n39 -104.00 171.80 90\n39 104.00 171.80 90\n39 -104.00 175.90 90\n39 104.00 175.90 90\n39 -104.00 180.00 90\n39 104.00 180.00 90\n39 -104.00 184.10 90\n39 104.00 184.10 90\n39 -104.00 188.20 90\n39 104.00 188.20 90\n39 -104.00 192.30 90\n39 104.00 192.30 90\n39 -104.00 196.40 90\n39 104.00 196.40 90\n39 -104.00 200.50 90\n39 104.00 200.50 90\n39 -104.00 204.60 90\n39 104.00 204.60 90\n39 -104.00 208.70 90\n39 104.00 208.70 90\n31 -100.00 214.00 0\n31 -91.90 214.00 0\n31 -83.80 214.00 0\n31 -75.70 214.00 0\n31 -67.60 214.00 0\n31 -59.50 214.00 0\n31 -51.40 214.00 0\n31 -43.30 214.00 0\n31 -35.20 214.00 0\n31 -27.10 214.00 0\n31 -19.00 214.00 0\n31 -10.90 214.00 0\n31 -2.80 214.00 0\n31 5.30 214.00 0\n31 13.40 214.00 0\n31 21.50 214.00 0\n31 29.60 214.00 0\n31 37.70 214.00 0\n31 45.80 214.00 0\n31 53.90 214.00 0\n31 62.00 214.00 0\n31 70.10 214.00 0\n31 78.20 214.00 0\n31 86.30 214.00 0\n31 94.40 214.00 0\n26 -102.00 18.00 90 solid\n26 -102.00 22.00 90 solid\n26 -102.00 26.00 90 solid\n26 -102.00 30.00 90 solid\n26 102.00 18.00 90 solid\n26 102.00 22.00 90 solid\n26 102.00 26.00 90 solid\n26 102.00 30.00 90 solid\n26 -102.00 114.00 90 solid\n26 -102.00 118.00 90 solid\n26 -102.00 122.00 90 solid\n26 -102.00 126.00 90 solid\n26 102.00 114.00 90 solid\n26 102.00 118.00 90 solid\n26 102.00 122.00 90 solid\n26 102.00 126.00 90 solid\n26 -102.00 194.00 90 solid\n26 -102.00 198.00 90 solid\n26 -102.00 202.00 90 solid\n26 -102.00 206.00 90 solid\n26 102.00 194.00 90 solid\n26 102.00 198.00 90 solid\n26 102.00 202.00 90 solid\n26 102.00 206.00 90 solid\n30 -92.00 15.40 0\n30 -90.80 15.40 0\n30 -69.00 15.40 0\n30 -67.80 15.40 0\n30 -46.00 15.40 0\n30 -44.80 15.40 0\n30 -23.00 15.40 0\n30 -21.80 15.40 0\n30 0.00 15.40 0\n30 1.20 15.40 0\n30 23.00 15.40 0\n30 24.20 15.40 0\n30 46.00 15.40 0\n30 47.20 15.40 0\n30 69.00 15.40 0\n30 70.20 15.40 0\n30 92.00 15.40 0\n30 93.20 15.40 0\n86 -24.00 15.20 0\n86 24.00 15.20 0\n98 -36.00 30.00 90 solid\n103 -84.00 30.00 270 solid\n94 80.00 30.00 90 solid\n102 -70.00 52.00 0 solid\n98 -70.00 84.00 0 solid\n103 70.00 96.00 180 solid\n104 58.00 108.00 0 solid\n94 -58.00 140.00 180 solid\n98 -40.00 126.00 90 solid\n102 30.00 114.00 270 solid\n103 -6.00 150.00 0 solid\n98 6.00 170.00 180 solid\n94 70.00 150.00 0 solid\n98 -80.00 194.00 90 solid\n102 84.00 206.00 270 solid\n92 -20.00 18.50 90 solid\n29 40.00 34.00 0 solid\n93 34.00 29.00 90 solid\n27 -40.00 34.00 0 solid\n27 52.00 110.00 0 solid\n27 -24.00 212.50 0 solid\n32 -55.00 100.00 0 solid\n32 55.00 36.00 0 solid\n32 74.00 190.00 0 solid\n36 -74.00 72.00 0\n36 74.00 129.50 0\n36 -74.00 168.00 0"
+        }
+      }
+    },
+    {
+      "name": "District park and plaza",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "ModelInstances": {
+          "instances": "46 -50.00 133.00 47 0.8 solid\n48 -50.00 187.00 94 0.8 solid\n47 -41.00 133.00 141 0.8 solid\n49 -41.00 187.00 188 0.8 solid\n46 -23.00 133.00 235 0.8 solid\n48 -23.00 187.00 282 0.8 solid\n47 -14.00 133.00 329 0.8 solid\n49 -14.00 187.00 16 0.8 solid\n46 -51.00 141.00 63 0.8 solid\n48 -13.00 141.00 110 0.8 solid\n47 -51.00 150.00 157 0.8 solid\n49 -13.00 150.00 204 0.8 solid\n46 -51.00 170.00 251 0.8 solid\n48 -13.00 170.00 298 0.8 solid\n47 -51.00 179.00 345 0.8 solid\n49 -13.00 179.00 32 0.8 solid\n1 -32.00 145.50 0 solid\n1 -32.00 174.50 180 solid\n1 -46.50 160.00 90 solid\n37 -44.00 146.00 -212\n38 -42.00 147.00 302\n37 -20.00 146.00 -260\n38 -18.00 147.00 302\n37 -44.00 174.00 -212\n38 -42.00 175.00 138\n37 -20.00 174.00 -260\n38 -18.00 175.00 138\n41 12.00 132.00 0 solid\n41 52.00 132.00 0 solid\n41 12.00 172.00 0 solid\n41 40.00 172.00 0 solid\n1 14.00 189.50 180 solid\n1 22.00 189.50 180 solid\n1 30.00 189.50 180 solid\n1 38.00 189.50 180 solid\n50 52.00 140.00 0 solid\n50 12.00 150.00 0 solid\n104 14.00 182.00 0 solid\n1 -80.00 212.00 180 solid\n1 -48.00 212.00 180 solid\n1 -16.00 212.00 180 solid\n1 16.00 212.00 180 solid\n1 48.00 212.00 180 solid\n1 80.00 212.00 180 solid\n98 76.00 56.00 0 solid\n102 76.00 64.00 0 solid\n103 100.00 58.00 180 solid\n94 100.00 84.00 180 solid\n104 76.00 88.00 0 solid\n26 -24.21 164.50 60 solid\n26 -25.64 166.36 45 solid\n26 -27.50 167.79 30 solid\n26 -29.67 168.69 15 solid\n26 -32.00 169.00 0 solid\n26 -34.33 168.69 345 solid\n26 -36.50 167.79 330 solid\n26 -38.36 166.36 315 solid\n26 -39.79 164.50 300 solid\n26 -39.79 155.50 240 solid\n26 -38.36 153.64 225 solid\n26 -36.50 152.21 210 solid\n26 -34.33 151.31 195 solid\n26 -32.00 151.00 180 solid\n26 -29.67 151.31 165 solid\n26 -27.50 152.21 150 solid\n26 -25.64 153.64 135 solid\n26 -24.21 155.50 120 solid\n30 -41.60 157.60 0\n30 -22.40 157.60 0\n30 -41.60 162.40 0\n30 -22.40 162.40 0\n86 -42.00 164.00 90\n26 35.79 160.50 60 solid\n26 34.36 162.36 45 solid\n26 32.50 163.79 30 solid\n26 30.33 164.69 15 solid\n26 28.00 165.00 0 solid\n26 25.67 164.69 345 solid\n26 23.50 163.79 330 solid\n26 21.64 162.36 315 solid\n26 20.21 160.50 300 solid\n26 20.21 151.50 240 solid\n26 21.64 149.64 225 solid\n26 23.50 148.21 210 solid\n26 25.67 147.31 195 solid\n26 28.00 147.00 180 solid\n26 30.33 147.31 165 solid\n26 32.50 148.21 150 solid\n26 34.36 149.64 135 solid\n26 35.79 151.50 120 solid\n30 18.40 153.60 0\n30 37.60 153.60 0\n30 18.40 158.40 0\n30 37.60 158.40 0\n86 18.00 160.00 90\n26 95.79 76.50 60 solid\n26 94.36 78.36 45 solid\n26 92.50 79.79 30 solid\n26 90.33 80.69 15 solid\n26 88.00 81.00 0 solid\n26 85.67 80.69 345 solid\n26 83.50 79.79 330 solid\n26 81.64 78.36 315 solid\n26 80.21 76.50 300 solid\n26 80.21 67.50 240 solid\n26 81.64 65.64 225 solid\n26 83.50 64.21 210 solid\n26 85.67 63.31 195 solid\n26 88.00 63.00 180 solid\n26 90.33 63.31 165 solid\n26 92.50 64.21 150 solid\n26 94.36 65.64 135 solid\n26 95.79 67.50 120 solid\n30 78.40 69.60 0\n30 97.60 69.60 0\n30 78.40 74.40 0\n30 97.60 74.40 0\n86 78.00 76.00 90"
+        }
+      }
+    },
+    {
+      "name": "Gate site 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -32,
+            "y": 3.6,
+            "z": 160
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 6.5,
+            "y": 7.2,
+            "z": 0.5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "Material": {
+          "color": {
+            "x": 0.10196078431372549,
+            "y": 0.047058823529411764,
+            "z": 0.2
+          },
+          "metalness": 0,
+          "roughness": 0.8,
+          "emissive": {
+            "x": 0.4196078431372549,
+            "y": 0.16862745098039217,
+            "z": 1
+          },
+          "emissiveIntensity": 2.2,
+          "opacity": 0.85,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Gate site 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 28,
+            "y": 3.6,
+            "z": 156
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 6.5,
+            "y": 7.2,
+            "z": 0.5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "Material": {
+          "color": {
+            "x": 0.10196078431372549,
+            "y": 0.047058823529411764,
+            "z": 0.2
+          },
+          "metalness": 0,
+          "roughness": 0.8,
+          "emissive": {
+            "x": 0.4196078431372549,
+            "y": 0.16862745098039217,
+            "z": 1
+          },
+          "emissiveIntensity": 2.2,
+          "opacity": 0.85,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Gate site 3",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 88,
+            "y": 3.6,
+            "z": 72
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 6.5,
+            "y": 7.2,
+            "z": 0.5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "Material": {
+          "color": {
+            "x": 0.10196078431372549,
+            "y": 0.047058823529411764,
+            "z": 0.2
+          },
+          "metalness": 0,
+          "roughness": 0.8,
+          "emissive": {
+            "x": 0.4196078431372549,
+            "y": 0.16862745098039217,
+            "z": 1
+          },
+          "emissiveIntensity": 2.2,
+          "opacity": 0.85,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Station A canopy",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -46,
+            "y": 1.4,
+            "z": 46
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 3.2,
+            "y": 2.8,
+            "z": 5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.08627450980392157,
+            "y": 0.12941176470588237,
+            "z": 0.10980392156862745
+          },
+          "metalness": 0.4,
+          "roughness": 0.3,
+          "emissive": {
+            "x": 0.11372549019607843,
+            "y": 0.35294117647058826,
+            "z": 0.17254901960784313
+          },
+          "emissiveIntensity": 0.35,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Station A",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -43.7,
+            "y": 1.7,
+            "z": 43.8
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.5,
+            "y": 3.4,
+            "z": 0.5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.23529411764705882,
+            "y": 0.7058823529411765,
+            "z": 0.29411764705882354
+          },
+          "metalness": 0,
+          "roughness": 0.8,
+          "emissive": {
+            "x": 0.23529411764705882,
+            "y": 0.8392156862745098,
+            "z": 0.35294117647058826
+          },
+          "emissiveIntensity": 1.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Station B canopy",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 48,
+            "y": 1.4,
+            "z": 182
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 3.2,
+            "y": 2.8,
+            "z": 5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.08627450980392157,
+            "y": 0.12941176470588237,
+            "z": 0.10980392156862745
+          },
+          "metalness": 0.4,
+          "roughness": 0.3,
+          "emissive": {
+            "x": 0.11372549019607843,
+            "y": 0.35294117647058826,
+            "z": 0.17254901960784313
+          },
+          "emissiveIntensity": 0.35,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Station B",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 50.3,
+            "y": 1.7,
+            "z": 179.8
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.5,
+            "y": 3.4,
+            "z": 0.5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.23529411764705882,
+            "y": 0.7058823529411765,
+            "z": 0.29411764705882354
+          },
+          "metalness": 0,
+          "roughness": 0.8,
+          "emissive": {
+            "x": 0.23529411764705882,
+            "y": 0.8392156862745098,
+            "z": 0.35294117647058826
+          },
+          "emissiveIntensity": 1.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "District neon 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -54.6,
+            "y": 1.3,
+            "z": 66
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.25,
+            "y": 2.6,
+            "z": 0.9
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.06666666666666667,
+            "y": 0.06666666666666667,
+            "z": 0.06666666666666667
+          },
+          "metalness": 0,
+          "roughness": 0.8,
+          "emissive": {
+            "x": 1,
+            "y": 0.23921568627450981,
+            "z": 0.5450980392156862
+          },
+          "emissiveIntensity": 1.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "District neon 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -54.6,
+            "y": 1.3,
+            "z": 78
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.25,
+            "y": 2.6,
+            "z": 0.9
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.06666666666666667,
+            "y": 0.06666666666666667,
+            "z": 0.06666666666666667
+          },
+          "metalness": 0,
+          "roughness": 0.8,
+          "emissive": {
+            "x": 0.23921568627450981,
+            "y": 0.8784313725490196,
+            "z": 1
+          },
+          "emissiveIntensity": 1.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "District neon 3",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 54.9,
+            "y": 1.3,
+            "z": 66
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.25,
+            "y": 2.6,
+            "z": 0.9
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.06666666666666667,
+            "y": 0.06666666666666667,
+            "z": 0.06666666666666667
+          },
+          "metalness": 0,
+          "roughness": 0.8,
+          "emissive": {
+            "x": 1,
+            "y": 0.6901960784313725,
+            "z": 0.12549019607843137
+          },
+          "emissiveIntensity": 1.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "District neon 4",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 54.9,
+            "y": 1.3,
+            "z": 90
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.25,
+            "y": 2.6,
+            "z": 0.9
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.06666666666666667,
+            "y": 0.06666666666666667,
+            "z": 0.06666666666666667
+          },
+          "metalness": 0,
+          "roughness": 0.8,
+          "emissive": {
+            "x": 0.6274509803921569,
+            "y": 0.4392156862745098,
+            "z": 1
+          },
+          "emissiveIntensity": 1.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "District neon 5",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 14,
+            "y": 3.2,
+            "z": 182
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.15,
+            "y": 0.6,
+            "z": 2.2
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.06666666666666667,
+            "y": 0.06666666666666667,
+            "z": 0.06666666666666667
+          },
+          "metalness": 0,
+          "roughness": 0.8,
+          "emissive": {
+            "x": 1,
+            "y": 0.6901960784313725,
+            "z": 0.12549019607843137
+          },
+          "emissiveIntensity": 1.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "District neon 6",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 73,
+            "y": 1.3,
+            "z": 160
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.25,
+            "y": 2.6,
+            "z": 0.9
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.06666666666666667,
+            "y": 0.06666666666666667,
+            "z": 0.06666666666666667
+          },
+          "metalness": 0,
+          "roughness": 0.8,
+          "emissive": {
+            "x": 1,
+            "y": 0.23921568627450981,
+            "z": 0.5450980392156862
+          },
+          "emissiveIntensity": 1.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Station A light",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -46,
+            "y": 4,
+            "z": 41.5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "Light": {
+          "type": "Point",
+          "color": {
+            "x": 0.615686274509804,
+            "y": 1,
+            "z": 0.6901960784313725
+          },
+          "intensity": 14,
+          "range": 12,
+          "angle": 0.5235987755982988,
+          "castShadows": false
+        }
+      }
+    },
+    {
+      "name": "Station B light",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 48,
+            "y": 4,
+            "z": 177.5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "Light": {
+          "type": "Point",
+          "color": {
+            "x": 0.615686274509804,
+            "y": 1,
+            "z": 0.6901960784313725
+          },
+          "intensity": 14,
+          "range": 12,
+          "angle": 0.5235987755982988,
+          "castShadows": false
+        }
+      }
+    },
+    {
+      "name": "Park light",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -32,
+            "y": 7,
+            "z": 152
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "Light": {
+          "type": "Point",
+          "color": {
+            "x": 0.6235294117647059,
+            "y": 0.7058823529411765,
+            "z": 1
+          },
+          "intensity": 30,
+          "range": 26,
+          "angle": 0.5235987755982988,
+          "castShadows": false
+        }
+      }
+    },
+    {
+      "name": "Plaza light",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 30,
+            "y": 7,
+            "z": 170
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "Light": {
+          "type": "Point",
+          "color": {
+            "x": 1,
+            "y": 0.8117647058823529,
+            "z": 0.5411764705882353
+          },
+          "intensity": 30,
+          "range": 26,
+          "angle": 0.5235987755982988,
+          "castShadows": false
+        }
+      }
+    },
+    {
+      "name": "Lot light",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 88,
+            "y": 7,
+            "z": 72
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "Light": {
+          "type": "Point",
+          "color": {
+            "x": 1,
+            "y": 0.6901960784313725,
+            "z": 0.3764705882352941
+          },
+          "intensity": 28,
+          "range": 24,
+          "angle": 0.5235987755982988,
+          "castShadows": false
+        }
+      }
+    },
+    {
+      "name": "Midtown light",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -64,
+            "y": 7,
+            "z": 120
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
+        "Light": {
+          "type": "Point",
+          "color": {
+            "x": 1,
+            "y": 0.8117647058823529,
+            "z": 0.5411764705882353
+          },
+          "intensity": 26,
+          "range": 22,
+          "angle": 0.5235987755982988,
+          "castShadows": false
+        }
+      }
+    },
+    {
+      "name": "World prompt",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "UI": {
+          "kind": "Text",
+          "text": "",
+          "anchor": "bottom-center",
+          "visibleWhen": "always",
+          "action": "restart",
+          "offsetX": 0,
+          "offsetY": -150,
+          "width": 0,
+          "height": 0,
+          "fontSize": 18,
+          "color": {
+            "x": 0.75,
+            "y": 1,
+            "z": 0.8
+          },
+          "opacity": 0.95,
+          "image": "",
+          "value": 0
+        }
+      }
+    },
+    {
+      "name": "World",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Script": {
+          "source": "-- GATEBREAKER M4: the district around the Hunter Association (built by\n-- tools/gatebreaker/district.ts).\n--\n-- Gate sites: three cordoned open spaces where Gates tear open. Two are\n-- open each day (the closed one rotates with the Ledger's day), and the\n-- nearest open one carries an on-screen marker while the hunter is out in\n-- the district. Standing in one, G opens the Gate Board.\n--\n-- The subway: Station A (by the Association) and Station B (Hangang\n-- plaza). Standing at a station's entrance, G rides to the other one.\n\n-- The district's extent (x, z), the hub inside it.\nlocal AREA = { x0 = -105, x1 = 105, z0 = 14, z1 = 215 }\n-- Sites: their entities' positions are read at start (these are fallbacks).\nlocal SITES = {\n  { name = \"Gate site 1\", label = \"Gate: the park\", x = -32, y = 3.6, z = 160 },\n  { name = \"Gate site 2\", label = \"Gate: Hangang plaza\", x = 28, y = 3.6, z = 156 },\n  { name = \"Gate site 3\", label = \"Gate: the east lot\", x = 88, y = 3.6, z = 72 },\n}\nlocal SITE_R = 8.5 -- inside the cordon\n-- Stations: where to stand (in front of the entrance), where you arrive.\nlocal STATIONS = {\n  { name = \"Station A\", title = \"Association Station\", x = -46, z = 41.5, ax = -46, az = 38.2 },\n  { name = \"Station B\", title = \"Hangang Station\", x = 48, z = 177.5, ax = 48, az = 174.2 },\n}\nlocal STATION_R = 2.6\n\nlocal hero\nlocal day, day_check = 1, 0\nlocal marked       -- the site index the marker is on, or false\nlocal shown = \"\"\nlocal note_until = 0\nlocal cooldown = 0\n\nlocal function prompt(text)\n  if text ~= shown then\n    shown = text\n    ui.set_text(\"World prompt\", text)\n  end\nend\n\nlocal function in_district(x, z)\n  return x and x > AREA.x0 and x < AREA.x1 and z > AREA.z0 and z < AREA.z1\nend\n\n-- The Ledger's day from its save (\"day=N;...\"), checked every few seconds.\nlocal function read_day()\n  local text = save.get(\"gb\")\n  local n = text and tonumber(text:match(\"day=(%d+)\"))\n  day = n or 1\nend\n\n-- Today's closed site: day 1 closes site 3, day 2 site 1, day 3 site 2...\nlocal function is_open(i)\n  return i ~= (day + 1) % 3 + 1\nend\n\nlocal function set_marker(i)\n  if i == marked then return end\n  if i then\n    local s = SITES[i]\n    ui.marker(\"gate_site\", s.x, s.y, s.z, s.label)\n  else\n    ui.clear_marker(\"gate_site\")\n  end\n  marked = i\nend\n\nlocal function pressed()\n  return input.action_pressed(\"interact\") or input.pressed(\"KeyG\")\nend\n\nfunction on_start()\n  hero = world.find(\"Han Seo-jin\")\n  for _, s in ipairs(SITES) do\n    local id = world.find(s.name)\n    if id then\n      local x, y, z = world.position(id)\n      if x then s.x, s.y, s.z = x, y, z end\n    end\n  end\n  marked = false\n  ui.clear_marker(\"gate_site\")\n  read_day()\nend\n\nfunction on_tick(dt)\n  if not hero then return end\n  local now = time.now or 0\n  cooldown = math.max(0, cooldown - dt)\n  if now >= day_check then\n    day_check = now + 3\n    read_day()\n  end\n  local x, _, z = world.position(hero)\n  if not in_district(x, z) then\n    -- In a Gate (or the prologue): the district keeps quiet.\n    set_marker(false)\n    prompt(\"\")\n    return\n  end\n\n  -- The nearest open Gate site, and whether the hunter stands in one.\n  local best, best_d, here\n  for i, s in ipairs(SITES) do\n    if is_open(i) then\n      local d = math.sqrt((x - s.x) ^ 2 + (z - s.z) ^ 2)\n      if not best_d or d < best_d then best, best_d = i, d end\n      if d < SITE_R then here = i end\n    end\n  end\n  -- (No marker while standing in the site itself.)\n  if here then set_marker(false) else set_marker(best or false) end\n\n  -- What G does here: ride the subway, or open the Gate Board at a site.\n  local station, other\n  for i, st in ipairs(STATIONS) do\n    if (x - st.x) ^ 2 + (z - st.z) ^ 2 < STATION_R * STATION_R then\n      station, other = st, STATIONS[3 - i]\n    end\n  end\n  if station then\n    prompt(\"[G] Subway to \" .. other.title)\n    if cooldown == 0 and pressed() then\n      world.set_position(hero, other.ax, 0.9, other.az)\n      world.set_velocity(hero, 0, 0, 0)\n      cooldown = 1\n      note_until = now + 2.5\n      shown = \"\"\n      prompt(other.title)\n    end\n  elseif here then\n    prompt(\"A Gate is open here.  [G] Gate Board: choose a Gate\")\n    if cooldown == 0 and pressed() then\n      cooldown = 0.5\n      world.send(world.find(\"Ledger\"), \"board\")\n    end\n  elseif now < note_until then\n    -- Just arrived: the station's name stays up a moment.\n    return\n  else\n    prompt(\"\")\n  end\nend\n",
+          "props": {}
         }
       }
     }
