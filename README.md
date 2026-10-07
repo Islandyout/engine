@@ -383,6 +383,15 @@ Engine version 0.79.0 starts **GATEBREAKER**, an original manhwa-style hunter ac
 
 See [F79](docs/changelog/F79.md).
 
+Engine version 0.82.0 gives GATEBREAKER **its loop** (about an hour from the prologue to rank D):
+
+- **The hub**: the Hunter Association's square. The Gate Board, Smith Kang's dagger upgrades, the Daily Quest drill and the door home that ends the day and saves.
+- **Three Gates** to play again and again: the Goblin Cave, the Subway Tunnel (hobgoblins, healing shamans, the Hobgoblin Brute) and the Goblin Fortress, the D-rank test with the Goblin Warlord.
+- **Growth**: XP, gold and goblin fangs from every kill, level-ups, stats you can see working (C), critical hits, Fang Whirl, story quests and a rank-up ceremony.
+- **Saves**: a saved hunter starts in the hub.
+
+See [F82](docs/changelog/F82.md).
+
 Engine version 0.81.0 fixes two GATEBREAKER animation bugs:
 
 - The hunter and the goblins run with their legs moving; before, they slid along the ground.

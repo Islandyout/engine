@@ -1373,6 +1373,8 @@ void Runtime::step(World &world, float dt) {
     }
     // Any entity with a Script runs it, bodiless helpers (a director, a
     // child) included; the API calls that need a body skip one without.
+    // Every new script compiles before any starts, so an on_start (or a
+    // first tick) can world.send to a script further down the list.
     for (const auto entity : world.query<Box, Script>()) {
         auto &instance = instances_[entity];
         if (!instance)
@@ -1402,8 +1404,12 @@ void Runtime::step(World &world, float dt) {
                 instance->broken = true;
             }
         }
-        if (instance->broken)
+    }
+    for (const auto entity : world.query<Box, Script>()) {
+        const auto found = instances_.find(entity);
+        if (found == instances_.end() || !found->second || found->second->broken || !found->second->L)
             continue;
+        auto &instance = found->second;
         if (!instance->started) {
             instance->started = true;
             call(world, entity, *instance, "on_start", [](lua_State *) {}, 0);

@@ -5408,7 +5408,11 @@ async function startEditor() {
   function bossReadout() {
     const name = ledger.bossName;
     if (!name) return undefined;
-    const index = doc.scene.eachAlive().findIndex((e) => doc.scene.resolve(e, "Name")?.value === name);
+    let index = doc.scene.eachAlive().findIndex((e) => doc.scene.resolve(e, "Name")?.value === name);
+    // A boss spawned from a prefab (world.spawn) goes by the prefab's name.
+    if (index < 0)
+      for (let i = doc.scene.eachAlive().length; i < objects.length && index < 0; i++)
+        if (runtime._editor_alive(i) && runtime.ccall("editor_spawned_prefab", "string", ["number"], [i]) === name) index = i;
     if (index < 0 || !runtime._editor_alive(index)) return { health: -1, stagger: -1, broken: false };
     return {
       health: runtime._editor_value(index, EntityField.health),
@@ -5457,8 +5461,6 @@ async function startEditor() {
       drawWaypoints();
     }
     if (firstPerson()) hudLines.push(...drawFirstPersonOverlay());
-    // GATEBREAKER: panels, the Ledger's windows and the boss bar.
-    if (doc.mode === "play") hudLines.push(...ledger.draw(hudCtx, hud.width, hud.height, bossReadout()));
     // Melee (0.78.0): health, energy, guard, combo and lock-on.
     if (doc.mode === "play" && !ledger.playing)
       hudLines.push(
@@ -5546,6 +5548,9 @@ async function startEditor() {
       if (ui.text) hudLines.push(ui.text);
       if (ui.kind === "Bar" || ui.kind === "Slider" || ui.kind === "Toggle") hudLines.push(`${uiName || ui.kind}=${Math.round(value * 100) / 100}`);
     }
+    // GATEBREAKER: panels, the Ledger's windows and the boss bar, drawn last
+    // so a window covers the scene's own UI text.
+    if (doc.mode === "play") hudLines.push(...ledger.draw(hudCtx, hud.width, hud.height, bossReadout()));
     const hudSummary = hudLines.join(" · ");
     if (hudText.textContent !== hudSummary) hudText.textContent = hudSummary;
   }

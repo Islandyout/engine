@@ -133,6 +133,7 @@ Errors name the line, and the fighter falls back to the martial-arts list.
   - `melee.target()`
   - `melee.set_ai(on, aggression, skill)`
 - `melee.unlock(name)` makes a `locked` move usable; `melee.stagger()` returns the poise bar (0-1) and 1 while Broken.
+- `melee.tune(damage, speed, crit, skill, health_max, mana_max)` sets a fighter's stats: damage dealt (times), its clock (0.5-2: attacks, dodges and cooldowns all run faster), crit chance (0-1; a crit does 1.5x and shows **CRIT!**), skill damage (times, for moves that cost mana), and optionally max health and mana (health keeps its fraction). -1 keeps a value. GATEBREAKER's Ledger turns STR, AGI, VIT, INT and SEN into these.
 - `on_melee_hit(target, move, damage, outcome)` fires in the attacker's script. The outcome is `hit`, `blocked`, `parried`, `dodged` or `guard_break`.
 - The usual `on_damaged`/`on_death` fire in the target's.
 

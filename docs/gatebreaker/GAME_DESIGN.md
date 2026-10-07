@@ -234,8 +234,8 @@ Each gap is written down, researched and fixed, then re-shot.
 | | Goal | Done when |
 |---|---|---|
 | **M0** Look + feel test | A style test scene: one hero against a goblin in a lit dungeon room, with the full manhwa render and the new controls | The screenshot review passes; 60 fps; input feels instant |
-| **M1** Vertical slice | §6 | §6 checklist |
-| **M2** The loop | Hub, saves, the Ledger quests, 3 E–D Gates, rank-up | A 1-hour session plays end to end |
+| **M1** Vertical slice | §6 | §6 checklist (done in 0.80.0) |
+| **M2** The loop | Hub, saves, the Ledger quests, 3 E–D Gates, rank-up | A 1-hour session plays end to end (done in 0.82.0) |
 | **M3** Shadows | Bind, 3 shadow roles, C–B Gates | Shadows help without being managed |
 | **M4** Content | A–S Gates, all weapons and skills | Full progression E→S |
 | **M5** Finale and polish | The Double Gate finale, story panels, balance, performance and bug pass | Zero known bugs, 60 fps throughout |
