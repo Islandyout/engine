@@ -46,7 +46,7 @@
           },
           "fogNear": 20,
           "fogFar": 120,
-          "fogDensity": 0.018,
+          "fogDensity": 0.011,
           "shadows": true,
           "exposure": 1.05
         }

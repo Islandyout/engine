@@ -48,7 +48,7 @@ scene.add("Environment", [0, 0, 0], {
     ambientIntensity: 0.5,
     fog: "Exponential",
     fogColor: rgb("#0b0a12"),
-    fogDensity: 0.018,
+    fogDensity: 0.011,
     shadows: true,
     exposure: 1.05,
   },
