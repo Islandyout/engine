@@ -3,9 +3,9 @@
 // Ledger awakening, the tutorial (its steps pass on their own in the fast
 // variant), rooms 1-3 sealing and opening, the Goblin Chieftain with its
 // boss bar, the level-up and the new skill, with zero page errors. The
-// variant (props.fast, 1-HP goblins, a 30-HP Chieftain) keeps it short; the
-// hunter walks north swinging, steering back to the doorways between rooms
-// (a cleared room sets it just short of the next doorway).
+// variant (props.fast, 1-HP goblins that all close in, a 30-HP Chieftain)
+// keeps it short; the hunter walks north swinging, steering back to the
+// doorways between rooms (a cleared room sets it just short of the next).
 const assert = require("node:assert/strict");
 const { saveFailure } = require("./evidence.cjs");
 const http = require("node:http");
@@ -22,6 +22,9 @@ const { chromium } = require("playwright");
     if (c.Melee && c.Melee.team === 1 && entity.name !== "Training Construct") {
       const hp = entity.name === "Goblin Chieftain" ? 30 : 1;
       c.Health.current = c.Health.maximum = hp;
+      // Archers come to the hunter here (their ranged brain has its own unit
+      // test), so the bot never has to chase one round a room.
+      c.Melee.range = 0;
     }
   }
   const index = await fs.readFile(path.join(root, "index.html"), "utf8");
@@ -157,8 +160,6 @@ const { chromium } = require("playwright");
       }
       // A fight: lock on and close in, swinging.
       if (!/Locked on/.test(await hud())) await page.keyboard.press("Tab");
-      // Shadow Fang (R) reaches the archers at range.
-      await page.keyboard.press("r");
       await page.keyboard.down("w");
       await page.waitForTimeout(700);
       for (let k = 0; k < 3; k++) {
