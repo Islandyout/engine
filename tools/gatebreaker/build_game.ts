@@ -23,6 +23,7 @@ import { dirname, join } from "node:path";
 import { validateSceneDocument } from "../../apps/editor/src/scene/SceneSerializer";
 import type { SceneDocument } from "../../apps/editor/src/scene/SceneSerializer";
 import { type Components, ROOT, SceneBuilder, type V3, modelId, rgb, vec } from "./kit";
+import { buildDistrict } from "./district";
 
 const scene = new SceneBuilder();
 const lua = (file: string) => readFileSync(join(ROOT, "tools/gatebreaker/lua", file), "utf8");
@@ -1028,6 +1029,10 @@ const npc = (name: string, at: V3, yaw: number, tint: string) =>
   });
 npc("Association Clerk", [-12.2, 0.9, 58.6], Math.PI * 0.85, "#3d4a66");
 npc("Smith Kang", [10, 0.9, 59.6], Math.PI, "#6a4632");
+
+// -- The district around the hub (M4: district.ts, lua/world.lua) ------------
+buildDistrict(scene);
+scene.add("World", [0, 0, 0], { Script: { source: lua("world.lua"), props: {} } });
 
 const document = { format: 1, name: "GATEBREAKER", entities: scene.entities, prefabs: scene.prefabs } as SceneDocument;
 validateSceneDocument(document);
