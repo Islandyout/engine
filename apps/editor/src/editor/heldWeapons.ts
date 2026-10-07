@@ -57,16 +57,19 @@ export type WeaponGrip = {
 // - scythe: a polearm's close guard, the shaft across the body, the blade
 //   high over the lead shoulder.
 // - bow at rest: the bow hand low in front, the bow nearly upright.
+// - daggers in reverse grip: fists up by the chin, each blade down along the
+//   outside of the forearm, edge forward.
+// A pose is written for the right hand; a weapon in the left is mirrored.
 export const WEAPON_GRIPS: Record<string, WeaponGrip> = {
-  dagger: { grip: "reverse", length: 0.36, hold: 0.14, clips: "boxing" },
+  dagger: { grip: "reverse", length: 0.36, hold: 0.14, clips: "boxing", pose: { at: [-0.08, 0.36, 0.16], blade: [-0.2, -1, 0.15], edge: [0, 0, 1] } },
   knife: { grip: "forward", length: 0.34, hold: 0.15, clips: "boxing", pose: { at: [-0.06, 0.13, 0.26], blade: [0.08, 0.3, 1], edge: [0, -1, 0] } },
   sword: { grip: "forward", length: 0.82, hold: 0.09, clips: "sword", pose: { at: [-0.1, 0.05, 0.2], blade: [0.12, 0.32, 1], edge: [0, -1, 0] } },
   "sword-2": { grip: "forward", length: 0.78, hold: 0.12, clips: "sword", pose: { at: [-0.1, 0.05, 0.2], blade: [0.12, 0.32, 1], edge: [0, -1, 0] } },
   "axe-double": { grip: "forward", length: 0.85, hold: 0.14, clips: "sword", pose: { at: [-0.12, 0.04, 0.18], blade: [0.05, 1, 0.5], edge: [0, 0, 1] } },
   claymore: { grip: "twohand", length: 1.45, hold: 0.17, offHand: 0.06, clips: "sword", pose: { at: [-0.09, 0.02, 0.17], blade: [0.18, 0.5, 1], edge: [0, -1, 0] } },
-  scythe: { grip: "twohand", length: 1.6, hold: 0.3, offHand: 0.48, clips: "sword", pose: { at: [-0.12, 0.0, 0.12], blade: [0.55, 1, 0.3], edge: [0, 0, 1] } },
+  scythe: { grip: "twohand", length: 1.6, hold: 0.3, offHand: 0.44, clips: "sword", pose: { at: [-0.1, 0.02, 0.2], blade: [0.4, 1, 0.55], edge: [0, 0, 1] } },
   spear: { grip: "twohand", length: 2.0, hold: 0.2, offHand: 0.4, clips: "sword", pose: { at: [-0.12, -0.02, 0.06], blade: [0.1, 0.28, 1], edge: [0, -1, 0] } },
-  bow: { grip: "bow", length: 1.1, hold: 0.5, clips: "sword", pose: { at: [0.16, 0.06, 0.22], blade: [0, 1, 0.25], edge: [0, 0, 1] } },
+  bow: { grip: "bow", length: 1.1, hold: 0.5, clips: "sword", pose: { at: [-0.16, 0.06, 0.22], blade: [0, 1, 0.25], edge: [0, 0, 1] } },
   "shield-round": { grip: "shield", length: 0.6, hold: 0.5, clips: "sword" },
 };
 
@@ -154,6 +157,29 @@ function shieldFrame(rest: THREE.Object3D, side: "l" | "r", hand: Hand): THREE.M
   return new THREE.Matrix4().makeBasis(x, y, z).setPosition(at);
 }
 
+// The middle of the handle at height `y` (model units): the centroid of the
+// vertices in a thin slice there. A weapon's bounding box isn't centred on
+// its handle when its head sticks out to one side (a scythe, an axe, a bow).
+function handleCentre(weapon: THREE.Object3D, y: number, depth: number): THREE.Vector3 {
+  const sum = v();
+  let n = 0;
+  const p = v();
+  weapon.updateMatrixWorld(true);
+  weapon.traverse((node) => {
+    if (!(node instanceof THREE.Mesh)) return;
+    const pos = node.geometry.getAttribute("position");
+    if (!pos) return;
+    for (let i = 0; i < pos.count; i++) {
+      p.fromBufferAttribute(pos, i).applyMatrix4(node.matrixWorld);
+      if (Math.abs(p.y - y) <= depth) {
+        sum.add(p);
+        n++;
+      }
+    }
+  });
+  return n ? sum.divideScalar(n).setY(y) : new THREE.Vector3(0, y, 0);
+}
+
 // How tall the rest rig is (head over the lowest foot), in its own units.
 function rigHeight(rest: THREE.Object3D): number {
   const head = rest.getObjectByName("head");
@@ -217,10 +243,11 @@ export function holdWeapon(rest: THREE.Object3D, target: THREE.Object3D, side: "
   const size = box.getSize(v());
   const along = grip.grip === "shield" ? Math.max(size.x, size.y) : size.y;
   const scale = (grip.length * (rigHeight(rest) / HUMAN_HEIGHT)) / Math.max(along, 1e-6);
+  // The hold point on the handle (a shield: its middle), unscaled model units.
+  const at = (f: number) => (grip.grip === "shield" ? box.getCenter(v()) : handleCentre(weapon, box.min.y + size.y * f, size.y * 0.025));
+  const hold = at(grip.hold);
   weapon.scale.multiplyScalar(scale);
-  const centre = box.getCenter(v()).multiplyScalar(scale);
-  const holdY = (box.min.y + size.y * grip.hold) * scale;
-  weapon.position.set(-centre.x, -holdY, -centre.z);
+  weapon.position.copy(hold).multiplyScalar(-scale);
   const holder = new THREE.Group();
   holder.name = `held_${side}`;
   holder.add(weapon);
@@ -236,11 +263,14 @@ export function holdWeapon(rest: THREE.Object3D, target: THREE.Object3D, side: "
     const lower = target.getObjectByName(`lowerarm_${side}`);
     const pelvis = target.getObjectByName("pelvis");
     if (upper && lower && pelvis) {
-      const n = (a: [number, number, number]) => new THREE.Vector3(...a).normalize();
+      // Mirrored across the body for the left hand.
+      const m = side === "l" ? -1 : 1;
+      const n = (a: [number, number, number]) => new THREE.Vector3(a[0] * m, a[1], a[2]).normalize();
       const blade = n(grip.pose.blade);
       const edge = n(grip.pose.edge).sub(blade.clone().multiplyScalar(n(grip.pose.edge).dot(blade))).normalize();
       const frame = new THREE.Matrix4().makeBasis(edge, blade, v().crossVectors(edge, blade).normalize());
-      posed.add({ upper, lower, hand: targetBone, holder, pelvis, body: target, at: new THREE.Vector3(...grip.pose.at), frame, height: rigHeight(rest), weight: 0 });
+      const at = new THREE.Vector3(grip.pose.at[0] * m, grip.pose.at[1], grip.pose.at[2]);
+      posed.add({ upper, lower, hand: targetBone, holder, pelvis, body: target, at, frame, height: rigHeight(rest), weight: 0 });
     }
   }
 
@@ -255,9 +285,9 @@ export function holdWeapon(rest: THREE.Object3D, target: THREE.Object3D, side: "
     if (otherHand && upper && lower && handBone && restHandBone) {
       const offFrame = gripFrame(otherHand, "forward", grip.clips);
       const handInGrip = offFrame.clone().invert().multiply(restHandBone.matrixWorld);
-      // Down the handle from the main hand, in the holder's (unscaled) space.
-      const drop = (grip.offHand - grip.hold) * size.y * scale;
-      offHands.add({ upper, lower, hand: handBone, holder, grip: new THREE.Matrix4().makeTranslation(0, drop, 0), handInGrip });
+      // Along the handle from the main hand, in the holder's space.
+      const off = at(grip.offHand).sub(hold).multiplyScalar(scale);
+      offHands.add({ upper, lower, hand: handBone, holder, grip: new THREE.Matrix4().makeTranslation(off.x, off.y, off.z), handInGrip });
     }
   }
   return holder;
