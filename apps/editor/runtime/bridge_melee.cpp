@@ -583,7 +583,6 @@ bool BridgeHost::melee(engine::World &world, engine::Entity self, const std::str
     } else if (op == "mana") {
         // melee.mana(add?): adds mana (a potion; capped at its max) and
         // returns what it has and its max.
-        auto &state = fighter->state;
         if (!args.empty())
             state.mana = std::clamp(state.mana + static_cast<float>(args[0]), 0.0F, fighter->settings.mana_max);
         out = {state.mana, fighter->settings.mana_max};
