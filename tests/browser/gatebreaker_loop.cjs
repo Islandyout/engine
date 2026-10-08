@@ -100,7 +100,9 @@ const SAVE = "lv=5;xp=1500;pts=0;str=12;agi=11;vit=12;int=10;sen=13;gold=900;fan
     await page.keyboard.press("Digit3");
     await waitHud(/GOBLIN FORTRESS/, "into the Goblin Fortress");
     const seen = new Set();
-    await runGate(-120, /GATE CLEARED/, Date.now() + 2700000, async () => {
+    // In test mode the clear window lasts 3 s and the rank-up ceremony
+    // follows it, so either one ends the run.
+    await runGate(-120, /GATE CLEARED|Panel \d of 3: |RANK UP: E -> D/, Date.now() + 2700000, async () => {
       const text = await hud();
       for (const [tag, pattern] of [
         ["gatehouse", /GATEHOUSE/],
