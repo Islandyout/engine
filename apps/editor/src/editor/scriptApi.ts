@@ -794,6 +794,12 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "hud"
   },
   {
+    "name": "hud.pause_menu",
+    "signature": "hud.pause_menu(on: boolean)",
+    "doc": "While on, Esc (or losing the captured mouse) opens the settings panel as a pause menu: the game stops until it closes.",
+    "group": "hud"
+  },
+  {
     "name": "hud.visor",
     "signature": "hud.visor(helmet: boolean, integrity: number, frost: number, heat: number)",
     "doc": "The helmet visor: on or off, integrity 0-1 (cracks below), frost and heat shimmer 0-1.",
@@ -851,6 +857,12 @@ export const scriptApi: ScriptApiEntry[] = [
     "name": "fx.light",
     "signature": "fx.light(ambient: number, sun: number)",
     "doc": "Sets the ambient and sun intensities over the Environment's (a lit street vs a dark dungeon in one scene).",
+    "group": "fx"
+  },
+  {
+    "name": "fx.time_of_day",
+    "signature": "fx.time_of_day(hours: number)",
+    "doc": "Lights the scene for a time of day, 0-24 (sun or moon, sky, fog and ambient over the Environment's); a negative value gives back the Environment's own light (and fx.light's).",
     "group": "fx"
   },
   {

@@ -24,6 +24,7 @@ local busy = false
 local shown
 local drill        -- nil, or {t, hits, dodges, heavy}
 local daily_done = false
+local night, hour = false, 12 -- the Sky's clock: the smith upgrades by day
 
 local function prompt(text)
   if text ~= shown then
@@ -58,6 +59,10 @@ function on_message(name, value)
     busy = value == true
   elseif name == "daily" then
     daily_done = value == true
+  elseif name == "time" then
+    night = value == "night"
+  elseif name == "hour" then
+    hour = tonumber(value) or hour
   elseif name == "hero_hit" and drill and type(value) == "string" then
     local move, outcome = value:match("^(.-):(.*)$")
     if outcome == "hit" then drill.hits = drill.hits + 1 end
@@ -111,6 +116,10 @@ function on_tick(dt)
   end
   local text = near.text
   if near.id == "mat" and daily_done then text = "Daily Quest done. [G] Spar with the construct" end
+  if near.id == "smith" and night then
+    local left = math.floor(((6 - hour) % 24) * 60) -- a game hour is a real minute
+    text = string.format("[G] Smith Kang: potions · Upgrades open 06:00 (in %d:%02d) · Rest at home to skip", left // 60, left % 60)
+  end
   prompt(text)
   if input.action_pressed("interact") or input.pressed("KeyG") then
     if near.id == "board" or near.id == "smith" then

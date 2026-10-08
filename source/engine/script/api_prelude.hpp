@@ -30,6 +30,7 @@ function hud.clear_waypoint(id) host.send("waypoint_clear", id) end
 function hud.map(mode) host.send("map", mode) end
 function hud.minimap(shown) host.send("minimap", shown and "1" or "0") end
 function hud.open_settings() host.send("settings", "") end
+function hud.pause_menu(on) host.send("pause_menu", on and "1" or "0") end
 function hud.visor(helmet, integrity, frost, heat) host.send("visor", string.format("%d %.2f %.2f %.2f", helmet and 1 or 0, integrity, frost, heat)) end
 function hud.suit_light(mode) host.send("suitlight", mode) end
 function hud.system(title, body) host.send("system", title .. "|" .. (body or "")) end
@@ -40,6 +41,7 @@ function audio.music(mood) host.send("music", mood) end
 function audio.ambience(layer, level) host.send("audio", string.format("%s %.2f", layer, level)) end
 function fx.weather(rain, fog, wind_x, wind_z) host.send("weather", string.format("%.2f %.2f %.1f %.1f", rain, fog, wind_x, wind_z)) end
 function fx.light(ambient, sun) host.send("light", string.format("%.3f %.3f", ambient, sun)) end
+function fx.time_of_day(hours) host.send("time_of_day", string.format("%.3f", hours or -1)) end
 function fx.dust(color, density) host.send("dust", color .. " " .. density) end
 function fx.soft_ground(soft) host.send("soft", soft and "1" or "0") end
 function scanner.tune(range, time, condition) host.send("scanner", range .. " " .. time .. " " .. condition) end

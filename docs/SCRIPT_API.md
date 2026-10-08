@@ -219,6 +219,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `hud.map(mode: string)` | off, system, surface or toggle. |
 | `hud.minimap(shown: boolean)` | Shows or hides the minimap. |
 | `hud.open_settings()` | Opens the player settings panel. |
+| `hud.pause_menu(on: boolean)` | While on, Esc (or losing the captured mouse) opens the settings panel as a pause menu: the game stops until it closes. |
 | `hud.visor(helmet: boolean, integrity: number, frost: number, heat: number)` | The helmet visor: on or off, integrity 0-1 (cracks below), frost and heat shimmer 0-1. |
 | `hud.suit_light(mode: string)` | auto, on or off. |
 | `hud.system(title: string, body: string)` | Shows a Ledger system window (title, body lines split by \n); replaces the open one. |
@@ -239,6 +240,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 |---|---|
 | `fx.weather(rain: number, fog: number, wind_x: number, wind_z: number)` | Weather: rain and fog 0-1, wind in m/s. |
 | `fx.light(ambient: number, sun: number)` | Sets the ambient and sun intensities over the Environment's (a lit street vs a dark dungeon in one scene). |
+| `fx.time_of_day(hours: number)` | Lights the scene for a time of day, 0-24 (sun or moon, sky, fog and ambient over the Environment's); a negative value gives back the Environment's own light (and fx.light's). |
 | `fx.dust(color: string, density: number)` | Dust kicked up on landing: a #rrggbb colour and 0-1 density. |
 | `fx.soft_ground(soft: boolean)` | Whether footprints show. |
 

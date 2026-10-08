@@ -171,6 +171,9 @@ local function find(name) return world.find(name) end
 -- see everything: the city a touch brighter, a Gate a touch dimmer.
 local function outdoors(yes)
   if yes then fx.light(1.4, 1.6) else fx.light(1.15, 1.25) end
+  -- The Sky lights the city for its hour; a Gate keeps this light.
+  local sky = find("Sky")
+  if sky then world.send(sky, "outdoors", yes) end
 end
 local function ledger(name, value) world.send(find("Ledger"), name, value) end
 
