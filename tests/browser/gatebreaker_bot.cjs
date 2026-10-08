@@ -95,6 +95,7 @@ function bot(page) {
   // point.
   const walkTo = async (x, z, near = 0.8, timeout = 240000, until = undefined) => {
     const end = Date.now() + timeout;
+    let metresPerMs = 0;
     while (Date.now() < end) {
       if (until && until.test(await hud())) return;
       // Locked on (the hub has a training construct), W heads at the target.
@@ -107,12 +108,16 @@ function bot(page) {
       }
       const far = Math.hypot(x - from.x, z - from.z);
       if (far < near) return;
-      // Long presses: headless software rendering runs the simulation a
-      // few times slower than real time.
-      await hold("w", Math.min(3000, 700 + far * 200));
+      // Long presses at first (headless software rendering runs the
+      // simulation a few times slower than real time); then each press is
+      // sized from how far the last one went, so the hunter settles on the
+      // target instead of overshooting and circling it.
+      const press = metresPerMs ? Math.min(3000, Math.max(120, (far / metresPerMs) * 0.7)) : Math.min(3000, 700 + far * 200);
+      await hold("w", press);
       const to = await position();
       if (!to) continue;
       const d = { x: to.x - from.x, z: to.z - from.z };
+      if (Math.hypot(d.x, d.z) > 0.05) metresPerMs = Math.hypot(d.x, d.z) / press;
       if (Math.hypot(d.x, d.z) < 0.05) {
         if (process.env.GATE_DEBUG) console.log("walk stuck at", JSON.stringify(to));
         await hold("s", 300);
