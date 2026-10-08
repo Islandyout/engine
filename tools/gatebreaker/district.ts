@@ -260,17 +260,17 @@ export function buildDistrict(scene: SceneBuilder) {
     [M.sedan, -36, 30, 90],
     [M.taxi, -84, 30, 270],
     [M.hatchback, 80, 30, 90],
-    [M.suv, -70, 52, 0],
-    [M.sedan, -70, 84, 0],
+    [223, -70, 52, 0], // crossover SUV
+    [219, -70, 84, 0], // family sedan
     [M.taxi, 70, 96, 180],
-    [M.van, 58, 108, 0],
+    [227, 58, 108, 0], // panel van
     [M.hatchback, -58, 140, 180],
-    [M.sedan, -40, 126, 90],
+    [220, -40, 126, 90], // compact wagon
     [M.suv, 30, 114, 270],
-    [M.taxi, -6, 150, 0],
-    [M.sedan, 6, 170, 180],
+    [224, -6, 150, 0], // sedan taxi
+    [221, 6, 170, 180], // coupe
     [M.hatchback, 70, 150, 0],
-    [M.sedan, -80, 194, 90],
+    [222, -80, 194, 90], // GT
     [M.suv, 84, 206, 270],
     [M.boxtruck, -20, 18.5, 90],
   ] as const)
@@ -278,6 +278,10 @@ export function buildDistrict(scene: SceneBuilder) {
   // The bus stop on Association street, a bus pulled in.
   st.put(M.busstop, 40, 34, 0);
   st.put(M.bus, 34, 29, 90);
+  // The Association keeps an ambulance on standby: hunters come back hurt.
+  st.put(229, 20, 31, 90);
+  // Bicycles racked by Station B.
+  for (const [x, id] of [[52.5, 232], [53.3, 233], [54.1, 232]] as const) st.put(id, x, 181, 0, false);
   // Bins, hydrants and poles on the sidewalks.
   for (const [id, x, z] of [
     [M.bin, -40, 34],
@@ -341,7 +345,7 @@ export function buildDistrict(scene: SceneBuilder) {
   for (let x = -80; x <= 80; x += 32) pk.put(M.bench, x, 212, 180);
   // The east lot (x 72..104, z 52..92): cars parked round its edge.
   for (const [id, x, z, yaw] of [
-    [M.sedan, 76, 56, 0],
+    [219, 76, 56, 0],
     [M.suv, 76, 64, 0],
     [M.taxi, 100, 58, 180],
     [M.hatchback, 100, 84, 180],
