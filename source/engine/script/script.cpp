@@ -1273,6 +1273,12 @@ void Runtime::call(World &world, Entity entity, Instance &instance, const char *
     lua_State *const L = instance.L;
     if (!L || instance.broken)
         return;
+    // The watchdog's budget is per call: Lua's count hook keeps counting
+    // across calls, so without re-arming it a long-lived script (a game's
+    // director ticking for an hour) was stopped for its total, not for one
+    // runaway call. (A message that re-enters a running script re-arms it
+    // too, which only lengthens the outer call's budget.)
+    lua_sethook(L, instruction_watchdog, LUA_MASKCOUNT, instruction_budget);
     lua_getglobal(L, function_name);
     if (lua_isfunction(L, -1) == 0) {
         lua_pop(L, 1); // not defined: a silent no-op, not an error
