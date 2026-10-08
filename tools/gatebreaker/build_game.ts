@@ -40,17 +40,16 @@ scene.add("Environment", [0, 0, 0], {
     skyColor: rgb("#0a0d1f"),
     sunElevation: 70,
     sunAzimuth: 200,
-    // Dim and cold overhead, so the torches make warm pools and the rooms
-    // keep deep shadows (a webtoon panel is high contrast); the rim light
-    // keeps the fighters readable against the dark.
-    sunIntensity: 0.7,
-    sunColor: rgb("#9aa6ff"),
-    ambientIntensity: 0.5,
+    // Night, but everything readable: a bright cool moon and a strong
+    // ambient fill, with the torches adding warm pools on top.
+    sunIntensity: 1.4,
+    sunColor: rgb("#c4ccff"),
+    ambientIntensity: 1.25,
     fog: "Exponential",
     fogColor: rgb("#0b0a12"),
     fogDensity: 0.011,
     shadows: true,
-    exposure: 1.05,
+    exposure: 1.2,
   },
 });
 scene.add("Look", [0, 0, 0], {
@@ -63,9 +62,9 @@ scene.add("Look", [0, 0, 0], {
     bloom: 0.6,
     bloomRadius: 0.4,
     bloomThreshold: 0.8,
-    contrast: 0.2,
+    contrast: 0.1,
     saturation: 0.12,
-    vignette: 0.6,
+    vignette: 0.3,
     shadowQuality: "Medium",
   },
 });

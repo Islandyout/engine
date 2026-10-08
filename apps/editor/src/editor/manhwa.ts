@@ -22,19 +22,20 @@ export const toonUniforms = {
   toonRimColor: { value: new THREE.Color(1, 0.93, 0.85) },
 };
 
-// Two soft tones over the real light: the band (unlit, then lit) carries
-// the comic read, a third of the smooth falloff keeps the form round. Kept
-// light on purpose: hard flat fills on every surface read as cheap.
+// A light touch of toon banding over the real light (TOON_AMOUNT): the
+// ink lines and rim carry the comic read, and the light itself stays
+// smooth and bright so everything can be seen, even at night.
 const toonFunctions = /* glsl */ `
 uniform float toonOn;
 uniform float toonRim;
 uniform vec3 toonRimColor;
+const float TOON_AMOUNT = 0.2;
 float toonDot( const in float x ) {
   float band = mix( 0.55, 1.0, smoothstep( 0.22, 0.4, x ) ) * smoothstep( -0.08, 0.1, x );
-  return mix( saturate( x ), mix( band, saturate( x ), 0.35 ), toonOn );
+  return mix( saturate( x ), band, TOON_AMOUNT * toonOn );
 }
 float toonShadow( const in float s ) {
-  return mix( s, smoothstep( 0.3, 0.7, s ), toonOn );
+  return mix( s, smoothstep( 0.3, 0.7, s ), TOON_AMOUNT * toonOn );
 }
 `;
 
@@ -46,7 +47,7 @@ const physicalLights = THREE.ShaderChunk.lights_physical_pars_fragment.replace(
   "reflectedLight.directSpecular += irradiance * BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material );",
   // Each light's highlight is capped in the Manhwa style: a leaf seen edge-on
   // otherwise peaks at extreme values that bloom into white blotches.
-  "{ vec3 toonSpec = irradiance * BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material ); reflectedLight.directSpecular += mix( toonSpec, min( toonSpec, vec3( 0.6 ) ), toonOn ) * ( 1.0 - 0.5 * toonOn ); }",
+  "{ vec3 toonSpec = irradiance * BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material ); reflectedLight.directSpecular += mix( toonSpec, min( toonSpec, vec3( 0.6 ) ), toonOn ) * ( 1.0 - 0.15 * toonOn ); }",
 );
 
 // Each light's shadow lookup, given a hard edge.

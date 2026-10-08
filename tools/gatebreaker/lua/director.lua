@@ -167,9 +167,10 @@ local function prompt(text)
 end
 
 local function find(name) return world.find(name) end
--- The city at night is lit for walking; a Gate is dark, its torches the light.
+-- Night in the city and the dim inside of a Gate, both bright enough to
+-- see everything: the city a touch brighter, a Gate a touch dimmer.
 local function outdoors(yes)
-  if yes then fx.light(1.0, 1.2) else fx.light(0.5, 0.7) end
+  if yes then fx.light(1.4, 1.6) else fx.light(1.15, 1.25) end
 end
 local function ledger(name, value) world.send(find("Ledger"), name, value) end
 
