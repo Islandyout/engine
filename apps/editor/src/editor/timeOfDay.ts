@@ -141,4 +141,3 @@ export function skyAt(hours: number, out: SkyState): SkyState {
   out.exposure = mix(a.exposure, b.exposure);
   return out;
 }
-
