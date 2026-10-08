@@ -39,6 +39,7 @@ function hud.boss(name, title) host.send("boss", (name or "") .. "|" .. (title o
 function audio.music(mood) host.send("music", mood) end
 function audio.ambience(layer, level) host.send("audio", string.format("%s %.2f", layer, level)) end
 function fx.weather(rain, fog, wind_x, wind_z) host.send("weather", string.format("%.2f %.2f %.1f %.1f", rain, fog, wind_x, wind_z)) end
+function fx.light(ambient, sun) host.send("light", string.format("%.3f %.3f", ambient, sun)) end
 function fx.dust(color, density) host.send("dust", color .. " " .. density) end
 function fx.soft_ground(soft) host.send("soft", soft and "1" or "0") end
 function scanner.tune(range, time, condition) host.send("scanner", range .. " " .. time .. " " .. condition) end

@@ -848,6 +848,12 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "fx"
   },
   {
+    "name": "fx.light",
+    "signature": "fx.light(ambient: number, sun: number)",
+    "doc": "Sets the ambient and sun intensities over the Environment's (a lit street vs a dark dungeon in one scene).",
+    "group": "fx"
+  },
+  {
     "name": "fx.dust",
     "signature": "fx.dust(color: string, density: number)",
     "doc": "Dust kicked up on landing: a #rrggbb colour and 0-1 density.",

@@ -118,21 +118,21 @@ export function buildDistrict(scene: SceneBuilder) {
   // What the hunter stands on north of the game's Ground slab (z > 90), and
   // a dark base under the whole district whose north face is the river wall.
   scene.add("District ground", [0, -0.5, 150], { Scale: { value: vec(220, 1, 132) }, ...hidden, RigidBody: { dynamic: false }, Collider: { type: "AABB" } });
-  scene.box("District base", [0, -1.05, 113.5], [400, 2, 201], "#17171d", trigger, { roughness: 0.95 });
+  scene.box("District base", [0, -1.05, 113.5], [400, 2, 201], "#4a4a56", trigger, { roughness: 0.95 });
   // Concrete pads for sidewalks and blocks (roads lie between them); the
   // park is grass. None covers the hub's paving (x -16..16, z 40..64).
   const pads: [string, number, number, number, number, string][] = [
-    ["South sidewalk", -104, 104, 14.5, 16, "#3a3a42"],
-    ["Block west 1", -104, -72, 32, 112, "#3a3a42"],
+    ["South sidewalk", -104, 104, 14.5, 16, "#64646f"],
+    ["Block west 1", -104, -72, 32, 112, "#64646f"],
     ["Block shops west", -56, -16, 32, 112, "#403f47"],
     ["Block Association north", -16, 16, 64, 112, "#403f47"],
     ["Block Association steps", -16, 16, 32, 40, "#403f47"],
     ["Block shops east", 16, 56, 32, 112, "#403f47"],
-    ["Block east 1", 72, 104, 32, 112, "#3a3a42"],
-    ["Block west 2", -104, -72, 128, 192, "#3a3a42"],
+    ["Block east 1", 72, 104, 32, 112, "#64646f"],
+    ["Block west 2", -104, -72, 128, 192, "#64646f"],
     ["Park lawn", -56, -8, 128, 192, "#1f3524"],
     ["Hangang plaza paving", 8, 56, 128, 192, "#47454f"],
-    ["Block east 2", 72, 104, 128, 192, "#3a3a42"],
+    ["Block east 2", 72, 104, 128, 192, "#64646f"],
     ["Promenade", -104, 104, 208, 214, "#4a4852"],
   ];
   for (const [name, x0, x1, z0, z1, hex] of pads) scene.box(name, [(x0 + x1) / 2, TOP - 0.02, (z0 + z1) / 2], [x1 - x0, 0.04, z1 - z0], hex, trigger, { roughness: 0.92 });
@@ -319,8 +319,10 @@ export function buildDistrict(scene: SceneBuilder) {
     [-44, 174],
     [-20, 174],
   ] as const) {
-    pk.put(M.bush1, x, z, (x * 13) % 360, false);
-    pk.put(M.bush2, x + 2, z + 1, (z * 7) % 360, false);
+    // Planters, not the kit's bushes: those render as white glare under the
+    // Manhwa shading at night (to fix in the shader; tracked on the board).
+    pk.put(41, x, z, (x * 13) % 360, false);
+    pk.put(41, x + 2.4, z + 1.2, (z * 7) % 360, false);
   }
   // Hangang plaza (x 8..56, z 128..192): planters, benches looking at the
   // river, a food truck, Station B in the north-east corner.
@@ -383,16 +385,16 @@ export function buildDistrict(scene: SceneBuilder) {
     [5, [14, 3.2, 182], [0.15, 0.6, 2.2], "#ffb020"],
     [6, [73, 1.3, 160], [0.25, 2.6, 0.9], "#ff3d8b"],
   ] as const)
-    scene.box(`District neon ${n}`, at as unknown as V3, size as unknown as V3, "#111111", {}, { emissive: rgb(hex), emissiveIntensity: 1.8 });
+    scene.box(`District neon ${n}`, at as unknown as V3, size as unknown as V3, "#111111", {}, { emissive: rgb(hex), emissiveIntensity: 0.9 });
 
   // -- A few lights (pooled by the player: only the nearest few render) ---------------
   for (const [name, at, hex, intensity, range] of [
     ["Station A light", [-46, 4, 41.5], "#9dffb0", 14, 12],
     ["Station B light", [48, 4, 177.5], "#9dffb0", 14, 12],
-    ["Park light", [-32, 7, 152], "#9fb4ff", 30, 26],
-    ["Plaza light", [30, 7, 170], "#ffcf8a", 30, 26],
-    ["Lot light", [88, 7, 72], "#ffb060", 28, 24],
-    ["Midtown light", [-64, 7, 120], "#ffcf8a", 26, 22],
+    ["Park light", [-32, 9, 152], "#9fb4ff", 16, 24],
+    ["Plaza light", [30, 9, 170], "#ffcf8a", 16, 24],
+    ["Lot light", [88, 9, 72], "#ffb060", 16, 22],
+    ["Midtown light", [-64, 9, 120], "#ffcf8a", 16, 22],
   ] as const)
     scene.add(name, at as unknown as V3, { Renderable: { visible: false }, Light: { type: "Point", color: rgb(hex), intensity, range, castShadows: false } });
 

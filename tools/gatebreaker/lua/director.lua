@@ -167,6 +167,10 @@ local function prompt(text)
 end
 
 local function find(name) return world.find(name) end
+-- The city at night is lit for walking; a Gate is dark, its torches the light.
+local function outdoors(yes)
+  if yes then fx.light(1.0, 1.2) else fx.light(0.5, 0.7) end
+end
 local function ledger(name, value) world.send(find("Ledger"), name, value) end
 
 -- A Ledger window; it closes itself after `seconds` (nil or <= 0: stays).
@@ -390,6 +394,7 @@ local function to_hub()
   hud.boss("", "")
   for k = 1, 4 do seal(gate, k, true) end
   teleport(HUB_SPOT[1], HUB_SPOT[2], HUB_SPOT[3])
+  outdoors(true)
   audio.music("night")
   state = "hub"
   t = 0
@@ -441,6 +446,7 @@ local function enter_gate(n)
   for k = 2, 4 do seal(n, k, true) end
   seal(n, 1, false)
   teleport(g.ox, 0.9, 6)
+  outdoors(false)
   clear_shadows()
   for role = 1, 3 do raise(role) end
   run_start, hurt, last_hp = clock, 0, nil
@@ -458,6 +464,7 @@ local function start_penalty()
   clear_shadows()
   seal(1, 4, true)
   teleport(0, 0.9, -96)
+  outdoors(false)
   audio.music("tension")
   state = "penalty"
   t = 0
@@ -472,6 +479,7 @@ function on_start()
   first_run = save.get("gb") == nil
   objective("")
   if first_run then
+    outdoors(true)
     hud.panels(PROLOGUE)
     audio.music("tension")
     return
@@ -587,6 +595,7 @@ function on_tick(dt)
   elseif state == "awaken" then
     if t > 0.3 and (input.pressed("Enter") or t > 8 or (props.fast and t > 2)) then
       hud.system_close()
+      outdoors(false)
       state = "tutorial"
       start_lesson(1)
     end

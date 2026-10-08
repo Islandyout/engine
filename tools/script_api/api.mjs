@@ -140,6 +140,7 @@ export const helpers = [
   ["audio", "music", "mood: string", 'host.send("music", mood)', "off, title, explore, night, flight, space, signal or tension."],
   ["audio", "ambience", "layer: string, level: number", 'host.send("audio", string.format("%s %.2f", layer, level))', "An ambience layer's level 0-1: wind, rain, settlement, wildlife or signal."],
   ["fx", "weather", "rain: number, fog: number, wind_x: number, wind_z: number", 'host.send("weather", string.format("%.2f %.2f %.1f %.1f", rain, fog, wind_x, wind_z))', "Weather: rain and fog 0-1, wind in m/s."],
+  ["fx", "light", "ambient: number, sun: number", 'host.send("light", string.format("%.3f %.3f", ambient, sun))', "Sets the ambient and sun intensities over the Environment's (a lit street vs a dark dungeon in one scene)."],
   ["fx", "dust", "color: string, density: number", 'host.send("dust", color .. " " .. density)', "Dust kicked up on landing: a #rrggbb colour and 0-1 density."],
   ["fx", "soft_ground", "soft: boolean", 'host.send("soft", soft and "1" or "0")', "Whether footprints show."],
   ["scanner", "tune", "range: number, time: number, condition: number", 'host.send("scanner", range .. " " .. time .. " " .. condition)', "Scanner range, scan time and condition multipliers."],

@@ -304,6 +304,10 @@ async function startEditor() {
     texture.colorSpace = THREE.SRGBColorSpace;
     return texture;
   }
+  // fx.light (GATEBREAKER M4): a script's ambient and sun intensities over
+  // the Environment's, so one scene can be a dark dungeon and a lit street.
+  // Cleared when the scene is rebuilt.
+  let lightOverride: { ambient: number; sun: number } | undefined;
   function applyEnvironment(env: EnvironmentComponent) {
     const elevation = THREE.MathUtils.degToRad(env.sunElevation);
     const azimuth = THREE.MathUtils.degToRad(env.sunAzimuth);
@@ -313,6 +317,10 @@ async function startEditor() {
     sun.castShadow = env.shadows;
     shadowGround.visible = env.shadows;
     hemisphere.intensity = env.ambientIntensity;
+    if (lightOverride) {
+      hemisphere.intensity = lightOverride.ambient;
+      sun.intensity = lightOverride.sun;
+    }
     if (renderer instanceof THREE.WebGLRenderer) renderer.toneMappingExposure = env.exposure;
     scene.fog =
       env.fog === "Linear"
@@ -2066,7 +2074,14 @@ async function startEditor() {
       const [layer = "", level = "0"] = text.split(/\s+/);
       if ((ambienceLayers as readonly string[]).includes(layer)) ambience?.set(layer as AmbienceLayer, Number(level));
     } else if (kind === "cue") cue(text);
-    else if (kind === "ui_color") {
+    else if (kind === "light") {
+      const [ambient = NaN, sunLevel = NaN] = text.split(/\s+/).map(Number);
+      lightOverride = Number.isFinite(ambient) && Number.isFinite(sunLevel) ? { ambient: Math.max(0, ambient), sun: Math.max(0, sunLevel) } : undefined;
+      if (lightOverride) {
+        hemisphere.intensity = lightOverride.ambient;
+        sun.intensity = lightOverride.sun;
+      }
+    } else if (kind === "ui_color") {
       const [name = "", hex = ""] = text.split("|");
       if (/^#[0-9a-fA-F]{6}$/.test(hex)) uiColorOverrides.set(name, new THREE.Color(hex));
       else uiColorOverrides.delete(name);
@@ -3792,6 +3807,7 @@ async function startEditor() {
   }
   function rebuild() {
     talkerScan = -1;
+    lightOverride = undefined;
     clearOffHands();
     outfits.clear();
     staticBatcher.clear();

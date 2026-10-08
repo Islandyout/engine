@@ -238,6 +238,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | Function | What it does |
 |---|---|
 | `fx.weather(rain: number, fog: number, wind_x: number, wind_z: number)` | Weather: rain and fog 0-1, wind in m/s. |
+| `fx.light(ambient: number, sun: number)` | Sets the ambient and sun intensities over the Environment's (a lit street vs a dark dungeon in one scene). |
 | `fx.dust(color: string, density: number)` | Dust kicked up on landing: a #rrggbb colour and 0-1 density. |
 | `fx.soft_ground(soft: boolean)` | Whether footprints show. |
 

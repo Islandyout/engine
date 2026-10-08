@@ -665,6 +665,11 @@ function audio.ambience(layer, level) end
 ---@param wind_z number
 function fx.weather(rain, fog, wind_x, wind_z) end
 
+--- Sets the ambient and sun intensities over the Environment's (a lit street vs a dark dungeon in one scene).
+---@param ambient number
+---@param sun number
+function fx.light(ambient, sun) end
+
 --- Dust kicked up on landing: a #rrggbb colour and 0-1 density.
 ---@param color string
 ---@param density number
