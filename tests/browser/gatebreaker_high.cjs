@@ -9,7 +9,8 @@
 //
 // The test copy of the scene (props.fast, 1-HP enemies that close in) gives
 // the two Gate masters 600 health, so their phase 2 plays out against the
-// bot's plain swings. Screenshots of every new room and boss go to
+// bot's plain swings, and brings the hunter back to the hub beside the
+// Gate Board. Screenshots of every new room and boss go to
 // build/browser-evidence (or GB_SHOTS).
 const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
@@ -29,6 +30,12 @@ const SHOTS = process.env.GB_SHOTS || "build/browser-evidence";
     const health = scene.prefabs[name].components.Health;
     health.current = health.maximum = 600;
   }
+  // The hunter comes back to the hub beside the Gate Board (its prompt
+  // shows there): crossing the hub is the loop test's, and headless it
+  // takes minutes each way.
+  const director = scene.entities.find((e) => e.name === "Director").components.Script;
+  director.source = director.source.replace(/local HUB_SPOT = \{[^}]*\}/, "local HUB_SPOT = { -9, 0.9, 55 }");
+  assert.match(director.source, /local HUB_SPOT = \{ -9, 0\.9, 55 \}/);
   const server = await serve(scene);
   let browser;
   try {
@@ -58,7 +65,8 @@ const SHOTS = process.env.GB_SHOTS || "build/browser-evidence";
     await page.reload();
     await play();
     const { hud, waitHud, walkTo, runGate } = bot(page);
-    const shot = (tag) => page.screenshot({ path: `${SHOTS}/gatebreaker-high-${tag}.png` });
+    // (A software renderer on a busy machine can take a while over a frame.)
+    const shot = (tag) => page.screenshot({ path: `${SHOTS}/gatebreaker-high-${tag}.png`, timeout: 180000 });
 
     await waitHud(/Welcome back/, "the Ledger greets a returning hunter");
     await waitHud(/Lv\.20 {2}B-rank/, "the save's level and rank");
@@ -66,7 +74,7 @@ const SHOTS = process.env.GB_SHOTS || "build/browser-evidence";
 
     // The Gate Board: seven Gates, the S Gate locked until A-rank.
     const board = async () => {
-      await walkTo(-9, 55, 0.8, 480000, /\[G\] Gate Board/);
+      await walkTo(-9, 55, 0.8, 900000, /\[G\] Gate Board/);
       await waitHud(/\[G\] Gate Board/, "the board's prompt");
       await page.keyboard.press("g");
       await waitHud(/\[7\] S-rank {2}Eclipse Spire/, "the board lists all seven Gates");

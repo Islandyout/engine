@@ -420,11 +420,11 @@ local function gain_xp(amount)
     end
     if s.lv == 15 and s.q == 10 then
       s.q = 11
-      push("QUEST: THE A-RANK TEST", "The Bloodstone Citadel is open on the Gate Board: the A-rank test.\nIts knights don't flinch; its master's red combo can't be parried.\nClear it and you are A-rank.\n\nPress Enter.")
+      push("QUEST: THE A-RANK TEST", "The Bloodstone Citadel is open on the Gate Board.\nIts knights don't flinch, and its master's red combo\ncan't be parried. Clear it and you are A-rank.\n\nPress Enter.")
     end
     if s.lv == 20 and s.q == 12 then
       s.q = 13
-      push("QUEST: THE S-RANK TEST", "The Eclipse Spire is open on the Gate Board: the S-rank test.\nNo hunter who went in has come out. Clear it and you are S-rank.\n\nPress Enter.")
+      push("QUEST: THE S-RANK TEST", "The Eclipse Spire is open on the Gate Board.\nNo hunter who went in has come out.\nClear it and you are S-rank.\n\nPress Enter.")
     end
   end
 end

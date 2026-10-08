@@ -40,12 +40,12 @@ local CEREMONY = {
 0 1.5 51 > 0 1.4 47 | Guild masters come to watch the reading. |  | 3
 2.2 1.7 45.2 > 0 1.5 47 | The crystal cracks. | CRACK | 3
 -1.5 0.6 49 > 0 1.7 47 | B-rank. | BOOM | 2.5
-]], "RANK UP: C -> B", "The guilds know his name now.\nHan Seo-jin, B-rank Hunter. From Lv.15 the Bloodstone Citadel, the A-rank test, is open to you.\n\nPress Enter." },
+]], "RANK UP: C -> B", "The guilds know his name now.\nHan Seo-jin, B-rank Hunter.\nAt Lv.15 the Bloodstone Citadel, the A-rank test, opens.\n\nPress Enter." },
   A = { [[
 0 1.5 51 > 0 1.4 47 | The whole Association stops to watch the reading. |  | 3
 2.2 1.7 45.2 > 0 1.5 47 | The crystal burns red, then white. | SHING | 3
 -1.5 0.6 49 > 0 1.7 47 | A-rank. | BOOM | 2.5
-]], "RANK UP: B -> A", "Few hunters in the country stand this high.\nHan Seo-jin, A-rank Hunter. From Lv.20 the Eclipse Spire, the S-rank test, is open to you.\n\nPress Enter." },
+]], "RANK UP: B -> A", "Few hunters in the country stand this high.\nHan Seo-jin, A-rank Hunter.\nAt Lv.20 the Eclipse Spire, the S-rank test, opens.\n\nPress Enter." },
   S = { [[
 0 1.5 51 > 0 1.4 47 | No crystal in the building can hold his reading. |  | 3
 2.2 1.7 45.2 > 0 1.5 47 | It splits in the examiner's hands. | CRACK | 3
@@ -145,12 +145,12 @@ local GATES = {
   { ox = 360, name = "BLOODSTONE CITADEL", rank = "A", boss = "Crimson Castellan", boss_title = "CRIMSON CASTELLAN  ·  A-rank test", par = 450,
     foe = "citadel's guard", light = { 1.35, 1.35 },
     intro = "The Crimson Castellan. The Citadel's keeper.",
-    phase2 = "The Castellan's blade burns red: the Crimson Rend, three cuts in a row\nthat can't be parried or blocked. Dodge each one (Space), then punish the last.",
+    phase2 = "The Castellan's blade burns red: the Crimson Rend.\nThree cuts in a row that can't be parried or blocked:\ndodge each one (Space), then punish the last.",
     blurb = "The A-rank test. A citadel of red stone held by demon knights.\nClear it as a B-rank hunter and the Association ranks you A.",
     rooms = {
       { title = "BARBICAN", hint = "Bloodstone knights don't flinch mid-swing: trading blows loses.\nParry their white cleaves (tap Shift), and dodge the red rend.",
         foes = { { BK, 0, -5 }, { IM, -4, -4 }, { IM, 4, -4 }, { IM, -2, -7 }, { IM, 2, -7 } } },
-      { title = "BLOOD CHAPEL", hint = "Blood mages blink away when you close in.\nRight after a blink, Shadow Fang (R) or Shadow Step Dash (Q) catches them.",
+      { title = "BLOOD CHAPEL", hint = "Blood mages blink away when you close in. Right after a blink,\nShadow Fang (R) or Shadow Step Dash (Q) catches them.",
         foes = { { BM, -5, -8 }, { BM, 5, -8 }, { BK, 0, -4 }, { IM, -3, -6 }, { IM, 3, -6 }, { IM, 0, -7 } } },
       { title = "THRONE GALLERY", hint = "The Castellan's guard: knights of two orders and a mage.\nThe mage first, then Break the knights one at a time.",
         foes = { { BK, -3, -5 }, { BK, 3, -5 }, { K, -5, -3 }, { K, 5, -3 }, { BM, 0, -8 }, { IM, -2, -6 }, { IM, 2, -6 } } },
@@ -159,11 +159,11 @@ local GATES = {
     summon = { EW, "The Herald seals itself in the eclipse and calls two Wardens.\nWhile a Warden stands nothing hurts it: kill the Wardens first,\nand step out of the red sigils before they burn." },
     foe = "Spire's host", light = { 1.35, 1.4 },
     intro = "The Eclipse Herald. The Spire's voice.",
-    blurb = "The S-rank test. A ruined spire under a red eclipse, and nothing in it\nfears hunters. Clear it as an A-rank hunter and the Association ranks you S.",
+    blurb = "The S-rank test. A ruined spire under a red eclipse.\nNothing in it fears hunters. Clear it as an A-rank hunter\nand the Association ranks you S.",
     rooms = {
-      { title = "SHATTERED CAUSEWAY", hint = "Hollows: pale shades the Spire made of fallen hunters. Fast, in packs.\nDodge their leaps, let them close in, then Fang Whirl (E) the crowd.",
+      { title = "SHATTERED CAUSEWAY", hint = "Hollows: pale shades of fallen hunters. Fast, and in packs.\nDodge their leaps, let them close in, then Fang Whirl (E).",
         foes = { { HO, -4, -4 }, { HO, 0, -5 }, { HO, 4, -4 }, { HO, -6, -7 }, { HO, 6, -7 }, { HO, 0, -8 } } },
-      { title = "HALL OF ASH", hint = "Eclipse wardens hide behind shields: a Heavy (Right click) breaks a guard.\nTheir red sun-lance breaks yours. Dodge it.",
+      { title = "HALL OF ASH", hint = "Eclipse wardens hide behind shields: Heavies (Right click)\nbreak a guard. Their red sun-lance breaks yours: dodge it.",
         foes = { { EW, -3, -5 }, { EW, 3, -5 }, { BM, -6, -8 }, { BM, 6, -8 }, { HO, -2, -3 }, { HO, 2, -3 } } },
       { title = "ECLIPSE STAIR", hint = "The Spire's last guard, and more behind it.\nKeep moving and take them one at a time.",
         foes = { { BK, -3, -5 }, { BK, 3, -5 }, { EW, 0, -7 }, { HO, -5, -3 }, { HO, 5, -3 } },

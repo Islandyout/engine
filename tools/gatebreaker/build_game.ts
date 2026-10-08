@@ -1169,6 +1169,11 @@ const CASTELLAN_GEAR = "214:#ff3040 215:#ffd068 216:#9a4048 217:#6a4a50 218:#ffd
 const WARDEN_GEAR = "214:#fff0b0 215:#fff0b0 216:#d0b070 217:#a08a60 218:#ffe080";
 const HERALD_GEAR = "214:#8a70b0 215:#ffd068 216:#6a5888 217:#5a4a70 218:#ffd068";
 const TALARI = modelId("talari");
+// A flat body colour in place of the rig's own, whose dark suit swallows any
+// tint: the A–S Gates' fighters read by colour at a glance.
+const flat = (hex: string, glow = "#000000", glowLevel = 0) => ({
+  Material: { color: rgb(hex), emissive: rgb(glow), emissiveIntensity: glowLevel, roughness: 0.7, keepTextures: false },
+});
 const kinds: Record<string, Kind> = {
   "Goblin Grunt": { height: 1.45, width: 0.5, health: 60, mesh: GOBLIN, mass: 45, melee: { moves: gruntMoves, aggression: 0.6, skill: 0.3, rightHand: modelId("knife") } },
   "Goblin Archer": { height: 1.45, width: 0.5, health: 40, mesh: GOBLIN, mass: 45, melee: { moves: archerMoves, aggression: 0.6, skill: 0.3, leftHand: modelId("bow"), range: 7 } },
@@ -1298,14 +1303,14 @@ const kinds: Record<string, Kind> = {
   // monster exists on the combat skeleton: imps are small red goblins,
   // knights, wardens and the two masters wear plate on the hunter's rig,
   // blood mages are the crested Talari, and hollows the bare mannequin.
-  "Castle Imp": { height: 1.2, width: 0.45, health: 120, mesh: GOBLIN, mass: 40, tint: "#c8463a", melee: { moves: impMoves, aggression: 0.8, skill: 0.35, reaction: 0.25, rightHand: modelId("knife") } },
+  "Castle Imp": { height: 1.2, width: 0.45, health: 120, mesh: GOBLIN, mass: 40, extra: flat("#d04434", "#5a0a06", 0.3), melee: { moves: impMoves, aggression: 0.8, skill: 0.35, reaction: 0.25, rightHand: modelId("knife") } },
   "Bloodstone Knight": {
     height: 1.95,
     width: 0.65,
     health: 360,
     mesh: HUNTER,
     mass: 110,
-    tint: "#e09090",
+    extra: flat("#a8343c"),
     wear: BLOODSTONE_GEAR,
     script: armoredScript(BLOODSTONE_GEAR),
     melee: { moves: bloodKnightMoves, aggression: 0.55, skill: 0.6, rightHand: modelId("claymore"), guard: 280, poise: 150, breakTime: 2.5 },
@@ -1329,7 +1334,7 @@ const kinds: Record<string, Kind> = {
     health: 3200,
     mesh: HUNTER,
     mass: 240,
-    tint: "#f08080",
+    extra: flat("#c0303a", "#4a0608", 0.25),
     wear: CASTELLAN_GEAR,
     script: castellanScript(CASTELLAN_GEAR),
     melee: { moves: castellanMoves, aggression: 0.6, skill: 0.65, guard: 340, rightHand: modelId("claymore"), poise: 300, breakTime: 4 },
@@ -1350,7 +1355,7 @@ const kinds: Record<string, Kind> = {
     health: 360,
     mesh: HUNTER,
     mass: 120,
-    tint: "#fff0c0",
+    extra: flat("#e8d49a"),
     wear: WARDEN_GEAR,
     script: armoredScript(WARDEN_GEAR),
     melee: { moves: wardenMoves, aggression: 0.55, skill: 0.6, rightHand: modelId("spear"), leftHand: modelId("shield-round"), shield: true, guard: 300, poise: 170, breakTime: 2.5 },
@@ -1361,7 +1366,7 @@ const kinds: Record<string, Kind> = {
     health: 3400,
     mesh: HUNTER,
     mass: 260,
-    tint: "#b498c8",
+    extra: flat("#7a5a9a", "#2a0a3a", 0.25),
     wear: HERALD_GEAR,
     script: heraldScript(HERALD_GEAR),
     melee: { moves: heraldMoves, aggression: 0.65, skill: 0.7, guard: 360, rightHand: modelId("sword-2"), leftHand: modelId("sword"), poise: 340, breakTime: 4 },
