@@ -44,7 +44,9 @@ const physicalLights = THREE.ShaderChunk.lights_physical_pars_fragment.replace(
   "float dotNL = toonDot( dot( geometryNormal, directLight.direction ) );$1",
 ).replace(
   "reflectedLight.directSpecular += irradiance * BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material );",
-  "reflectedLight.directSpecular += irradiance * BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material ) * ( 1.0 - 0.5 * toonOn );",
+  // Each light's highlight is capped in the Manhwa style: a leaf seen edge-on
+  // otherwise peaks at extreme values that bloom into white blotches.
+  "{ vec3 toonSpec = irradiance * BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material ); reflectedLight.directSpecular += mix( toonSpec, min( toonSpec, vec3( 0.6 ) ), toonOn ) * ( 1.0 - 0.5 * toonOn ); }",
 );
 
 // Each light's shadow lookup, given a hard edge.
@@ -64,7 +66,7 @@ const rim = /* glsl */ `
 
 // True once the chunks are known to match this three.js version.
 export const toonPatchApplies =
-  physicalLights.includes("toonDot(") && physicalLights.includes("toonOn );") && lightsBegin.includes("toonShadow( getShadow(");
+  physicalLights.includes("toonDot(") && physicalLights.includes("toonSpec") && lightsBegin.includes("toonShadow( getShadow(");
 
 let installed = false;
 // Patches every MeshStandardMaterial (and MeshPhysicalMaterial) through the
