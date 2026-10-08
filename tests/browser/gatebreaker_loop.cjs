@@ -115,7 +115,13 @@ const SAVE = "lv=5;xp=1500;pts=0;str=12;agi=11;vit=12;int=10;sen=13;gold=900;fan
         }
     });
     for (const tag of ["gatehouse", "warhall", "warlord"]) assert.ok(seen.has(tag), `passed through ${tag}`);
-    await waitHud(/RANK UP: E -> D/, "the rank-up ceremony", 180000);
+    // Space skips the ceremony's panels, as a player can: on a slow
+    // software renderer they take minutes.
+    for (const until = Date.now() + 300000; !/RANK UP: E -> D/.test(await hud()); ) {
+      if (Date.now() > until) throw new Error(`the rank-up ceremony never showed -- HUD: ${await hud()}`);
+      if (/Panel \d of 3/.test(await hud())) await page.keyboard.press("Space");
+      await page.waitForTimeout(500);
+    }
     await shot("rankup");
     await page.keyboard.press("Enter");
     await waitHud(/Lv\.\d+ {2}D-rank/, "D-rank on the hunter line");
