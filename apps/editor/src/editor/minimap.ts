@@ -551,7 +551,8 @@ export class DistrictMap {
     if (!this.inside || view.panels) this.open = false;
     if (!this.inside) return [];
     const lines: string[] = [];
-    if (!this.open && !view.panels) lines.push(...this.drawWorldMarks(ctx, view, time));
+    // (Under a Ledger window: none, rather than over it.)
+    if (!this.open && !view.panels && !view.window) lines.push(...this.drawWorldMarks(ctx, view, time));
     if (this.open) return [...lines, this.drawBig(ctx, width, height, view, time)];
     if (!view.minimap || view.panels || view.window) return lines;
     return [...lines, this.drawMini(ctx, width, height, view, time)];
@@ -620,7 +621,7 @@ export class DistrictMap {
       if (m.kind !== "giver" && m.kind !== "turnin") continue;
       const d = Math.hypot(m.x - me.x, m.z - me.z);
       if (d > 45) continue;
-      const at = view.project(new THREE.Vector3(m.x, 2.45 + Math.sin(time * 3 + m.x) * 0.06, m.z));
+      const at = view.project(new THREE.Vector3(m.x, 2.25 + Math.sin(time * 3 + m.x) * 0.06, m.z));
       if (!at) continue;
       const size = Math.max(22, Math.min(44, 560 / Math.max(d, 1)));
       ctx.save();
@@ -805,15 +806,18 @@ export class DistrictMap {
       g.fillStyle = "#ffffff";
       g.font = `800 ${Math.round(22 * k)}px ${FONT}`;
       g.fillText("DISTRICT MAP", px + 18 * k, py + 28 * k);
-      g.textAlign = "right";
+      // The map and the legend: side by side when wide, stacked when not;
+      // the keys top right, or under the title on a narrow screen.
+      const wide = pw > 720;
+      g.textAlign = wide ? "right" : "left";
       g.fillStyle = "rgba(225,238,255,0.9)";
       g.font = `600 ${Math.round(13 * k)}px ${FONT}`;
-      g.fillText(`M / Esc: close   ·   N: minimap ${this.northUp ? "turns with you" : "north up"}`, px + pw - 18 * k, py + 16 * k);
-      // The map and the legend: side by side when wide, stacked when not.
-      const wide = pw > 720;
+      const keys = `M / Esc / tap: close   ·   N: minimap ${this.northUp ? "turns with you" : "north up"}`;
+      g.fillText(keys, wide ? px + pw - 18 * k : px + 18 * k, wide ? py + 16 * k : py + 56 * k, pw - 36 * k);
       const legendW = wide ? Math.round(230 * k) : 0;
       const legendH = wide ? 0 : Math.round(118 * k);
-      const area = { x: px + 18 * k, y: py + 62 * k, w: pw - 36 * k - legendW - (wide ? 16 * k : 0), h: ph - 80 * k - legendH };
+      const top = (wide ? 62 : 80) * k;
+      const area = { x: px + 18 * k, y: py + top, w: pw - 36 * k - legendW - (wide ? 16 * k : 0), h: ph - top - 18 * k - legendH };
       const frame = this.frame!;
       const fit = fitMap(frame, area.x, area.y, area.w, area.h);
       const image = this.ensureImage();

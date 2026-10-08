@@ -2,7 +2,9 @@
 -- level, XP, stats, gold, fangs, dagger upgrades, rank, quests and the day,
 -- saves them (save key "gb"), turns stats into combat numbers (melee.tune
 -- on the hunter), and runs the windows: rewards, level-ups, the status
--- window (C), the Gate Board and the smith.
+-- window (C), the Gate Board and the smith. M4: the side quests of the
+-- district's quest givers, the quest log (J) and the quest tracker, with
+-- their markers on the map (see "Side quests and the quest log").
 -- @prop fast false
 --
 -- props.fast (tests): reward and level-up windows confirm themselves and
@@ -752,7 +754,7 @@ local SIDE = {
     reward = "an Epic item, 100 G" },
 }
 local PARCEL_TO = { x = 48, z = 175.5, r = 6 } -- Hangang Station's entrance
-local TALK_R = 2.6
+local TALK_R = 3
 local LOG_KEYS = { "story", "daily", "patrol", "parcel", "forge" }
 local spots = {}     -- where things stand: board, smith, mat, home, each giver
 local talking, talk_mode -- the side quest being talked about; "offer" or "info"
@@ -1010,7 +1012,7 @@ local function quest_log_body(note)
   for i, q in ipairs(SIDE) do
     row(i + 2, q.id, q.title, side_objective(i), side_state(i) ~= 2 and q.reward or nil)
   end
-  lines[#lines + 1] = "\n1-5 tracks a quest (◆): the map and the tracker follow it   ·   J closes"
+  lines[#lines + 1] = "\n1-5: track a quest (◆ on the map)   ·   J closes"
   return table.concat(lines, "\n")
 end
 

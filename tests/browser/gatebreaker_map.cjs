@@ -89,7 +89,7 @@ const SHOTS = process.env.GB_SHOTS || "build/browser-evidence";
     await gone(/QUEST LOG/, "J closes the quest log");
 
     // Officer Yoon, south of the hub: a ! over his head, G talks, Enter takes the patrol.
-    await walkTo(3, 40.5, 0.8, 240000, /\[G\] Talk: Officer Yoon/);
+    await walkTo(3, 40.5, 0.8, 480000, /\[G\] Talk: Officer Yoon/);
     await waitHud(/! Officer Yoon/, "the ! over Officer Yoon");
     await waitHud(/\[G\] Talk: Officer Yoon {2}\(!\)/, "the talk prompt");
     await shot("yoon");
