@@ -137,7 +137,8 @@ loop: in, fight, grow, out.
 - **E–D Gates**: a cave and a subway tunnel; goblins, wolves and insects. They
   teach the basics.
 - **C–B Gates**: a flooded temple and an ice fortress; armored knights,
-  casters and spiders. They teach parry, Break and crowd skills.
+  casters and ice ghouls (no CC0 spider model exists for the combat
+  skeleton). They teach parry, Break and crowd skills.
 - **A–S Gates**: a demon castle and a red-sky ruin; elite packs and multi-phase
   bosses.
 - **Double Gate** (the story opener and the finale): puzzle rooms with statue
@@ -245,7 +246,7 @@ Each gap is written down, researched and fixed, then re-shot.
 | **M0** Look + feel test | A style test scene: one hero against a goblin in a lit dungeon room, with the full manhwa render and the new controls | The screenshot review passes; 60 fps; input feels instant |
 | **M1** Vertical slice | §6 | §6 checklist (done in 0.80.0) |
 | **M2** The loop | Hub, saves, the Ledger quests, 3 E–D Gates, rank-up | A 1-hour session plays end to end (done in 0.82.0) |
-| **M3** Shadows | Bind, 3 shadow roles, C–B Gates | Shadows help without being managed |
+| **M3** Shadows | Bind, 3 shadow roles, C–B Gates | Shadows help without being managed (done in 0.83.0) |
 | **M3.5** Items and gear | Loot, pick-up, rarity, the bag, 7 gear slots shown on the hunter, upgrades, potions, wardrobe (§13) | A Gate's drops change what the hunter wears and how he fights |
 | **M4** The world and content | The open Seoul district, Gates in the world, field enemies and respawn, subway travel, map, quests (§13); A–S Gates, all weapons and skills | Full progression E→S across the district |
 | **M5** Finale and polish | The Double Gate finale, story panels, balance, performance and bug pass | Zero known bugs, 60 fps throughout |

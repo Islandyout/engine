@@ -87,3 +87,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F80](changelog/F80.md) | GATEBREAKER M1: the E-rank Gate (prologue panels, tutorial, goblin rooms, the Goblin Chieftain, rewards), stagger and Break, mana, red attacks, ranged and shield AI (0.80.0) |
 | [F81](changelog/F81.md) | GATEBREAKER: locomotion clips for clipless rigs (running legs), idle instead of T-pose for bystanders (0.81.0) |
 | [F82](changelog/F82.md) | GATEBREAKER M2: the hub (Gate Board, smith, Daily Quest, rest), saves, stats via `melee.tune` and crits, three Gates with spawned enemies, story quests, rank-up, light pool (0.82.0) |
+| [F83](changelog/F83.md) | GATEBREAKER M3: shadows (`melee.follow`), clear grades, the Flooded Temple and Ice Fortress, rank C and B; items (loot, bag, gear shown with `world.wear`, sets, potions with `melee.mana`); the Seoul district, subway and 15 CC0 vehicles; `fx.light`, `ui.set_color`; instanced Gate geometry (0.83.0) |

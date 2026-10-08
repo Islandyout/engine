@@ -383,6 +383,15 @@ Engine version 0.79.0 starts **GATEBREAKER**, an original manhwa-style hunter ac
 
 See [F79](docs/changelog/F79.md).
 
+Engine version 0.83.0 gives GATEBREAKER **shadows, gear and a city**:
+
+- **Shadows**: hold G over a fallen elite or boss to raise it. A tank, a striker and an archer follow you, fight on their own, and join your ultimate and every Break.
+- **Two new Gates**: the Flooded Temple (C) and the Ice Fortress (the B-rank test), with armoured knights, casters and two new bosses.
+- **Loot and gear you can see**: rarity beams, a bag (I), six gear slots and sets, smith upgrades, potions and a wardrobe.
+- **A district of Seoul** around the Association, with Gate sites, a subway and 15 new real-scale vehicles.
+
+See [F83](docs/changelog/F83.md).
+
 Engine version 0.82.0 gives GATEBREAKER **its loop** (about an hour from the prologue to rank D):
 
 - **The hub**: the Hunter Association's square. The Gate Board, Smith Kang's dagger upgrades, the Daily Quest drill and the door home that ends the day and saves.
