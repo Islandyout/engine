@@ -2,6 +2,7 @@
 // bridge.cpp): headings, drivers, routines, wildlife, the space simulation,
 // AI, health, weapons and the rest, in namespace editor_bridge.
 #pragma once
+#include <cstdint>
 #include "bridge_fields.hpp"
 #include "bindings.hpp"
 #include "engine/gameplay/character.hpp"
@@ -626,6 +627,20 @@ struct Fighter final {
     // the move list's shadow_step, if it has one.
     float counter_window{0};
     std::optional<engine::Entity> counter_target;
+    // Stats (GATEBREAKER M2, melee.tune): what the Ledger's STR, AGI, INT
+    // and SEN do to this fighter. Damage it deals, its clock (attack speed,
+    // dodges, cooldowns), its skills' damage (moves that cost mana), and
+    // its chance of a critical hit (1.5x).
+    float stat_damage{1.0F};
+    float stat_speed{1.0F};
+    float stat_skill{1.0F};
+    float stat_crit{0.0F};
+    std::uint32_t crit_seed{0x9e3779b9U};
+    // An ally that follows (GATEBREAKER M3, melee.follow): with no hostile
+    // in reach, its brain walks it to its slot behind the leader, and it
+    // won't chase a hostile far from them.
+    std::optional<engine::Entity> leader;
+    int follow_slot{0};
 };
 // What the editor hears about melee each frame (editor_take_melee_events).
 enum class MeleeEventKind : int { start, hit, blocked, parried, dodged, guard_break, fire, land, ko, broken };
@@ -639,7 +654,8 @@ struct MeleeEvent final {
     int flags{};
 };
 // MeleeEvent::flags bits.
-constexpr int melee_finisher = 1, melee_launch = 2, melee_knockdown = 4, melee_heavy = 8, melee_killed = 16;
+constexpr int melee_finisher = 1, melee_launch = 2, melee_knockdown = 4, melee_heavy = 8, melee_killed = 16,
+              melee_crit = 32;
 
 // Authored Name, so scripts can world.find()/world.name() entities.
 struct EntityName final {

@@ -456,3 +456,109 @@ Copied unmodified, renamed to kebab case. SHA-256:
 - `axe-double.glb`: `f403f3940042ac2579b88c032d5a3b3efc5d9c55b6a8586d9538bd4a6e525af2`
 - `bow.glb` (the pack's `wooden_bow.glb`): `0aca54204443e70af43a9cc7e98c5c9ae42c938595078c801f2303fedd2f6d8f`
 - `shield-round.glb` (`shield_round.glb`): `d84f41cd0eb8dd77089b82fdf5a9ee3b6ced7d0e8e0ee05711113d2ccd640c39`
+
+## GATEBREAKER gear pieces (M3.5)
+
+`source/kit/people/gear-{body,hands,legs,feet,shoulders}.glb`, made by
+`tools/models/make_outfits.mjs` from **Quaternius, Modular Character Outfits -
+Fantasy** (Standard tier, the male Ranger set), CC0 1.0 (https://quaternius.com).
+Taken from the copies in https://github.com/Arod231/monomachia @
+`24cf91ee272b0544936d20dacad22f4562a07856` (`game/assets/quaternius/outfits/`; that repository's
+`game/assets/CREDITS.md` records the pack and its licence). Source SHA-256:
+- `outfits/Male_Ranger_Body.gltf`: `2c54b5793af8c1f4fe2e496c54ba5631317d3a7088d3ef5a2e2246f9978e644f`
+- `outfits/Male_Ranger_Body.bin`: `e3ebad21b1865c37e46b93c9249d0eb58949498ad99773e9db415b48d8df925e`
+- `outfits/Male_Ranger_Arms.gltf`: `3a07fe1ad30fc0a14b8dcfbf8df1da81534c583f7914d21a82f14e89db4287d4`
+- `outfits/Male_Ranger_Arms.bin`: `d630f5cd806c8edce8c48f807d64468ef4207d317baf238d942fe630afd4c023`
+- `outfits/Male_Ranger_Legs.gltf`: `ffad8763fc0fda5400ef11f74fbc241f155a774c67745aeec01f1f4526d0cc6e`
+- `outfits/Male_Ranger_Legs.bin`: `74691dd17e15f755436fafdc75da25ddc156c7c7811c43f08a4b9f55eba90666`
+- `outfits/Male_Ranger_Feet_Boots.gltf`: `f8ae162c7a7b91a5754eb9761ad84dbc9de59289d1e5d4821c4ac1997e8c92b8`
+- `outfits/Male_Ranger_Feet_Boots.bin`: `8079ffa4ac2c9a3522a6aa08386e6df92f2de900ece8102d12cdeb96e4476625`
+- `outfits/Male_Ranger_Acc_Pauldron.gltf`: `996e44ed28ff07bcc918aacb80b4c6087c8a109c2ffd2a5c7ec3f8785942028f`
+- `outfits/Male_Ranger_Acc_Pauldron.bin`: `e8ccb52c8e2bc771ffa53d03dd6bda9e13680b91f3feec78e2d6451f8d3a20be`
+- `outfits/T_Ranger_3_BaseColor.png`: `d751d9375c1807518ea1fca8da144e96e5d947c065bdc915c7b5fdc78a6ac031`
+
+Each keeps its mesh, its skin on the 65-bone skeleton the hunter uses, and its
+skin weights. The texture is dropped: each vertex takes the colour the
+atlas has under its UV, snapped to the piece's four main fills (k-means); the
+skin at the wrists takes the hunter's skin fill. The results are CC0 like
+their source. SHA-256:
+- `gear-body.glb`: `0af8eb453d16cb75b6266c302bc0a47c75b0a93609ce368accb3745141d4500c`
+- `gear-hands.glb`: `3a547fe2f149f507261b0bc8f49f3535acbdf5fa9a2aefbe4b01a65c1e4def5f`
+- `gear-legs.glb`: `3cf92b8e2ba785b73f27caa86f8b7c5ec1bb5bd2ea7a665c0ddd94f77a01dce4`
+- `gear-feet.glb`: `368c80b970fdc46a77e22991d74d94b569cb67955501e05df572bff264a22a29`
+- `gear-shoulders.glb`: `d937477a6691aaa7adeed5789ca3a3bdfe36979e79cd65a77e040dfdfdd42da1`
+
+## GATEBREAKER traffic vehicles (catalog ids 219-233)
+
+`source/kit/vehicles/{sedan-family,compact-wagon,coupe,sports-gt,suv-crossover,taxi-sedan,step-van,bicycle,bicycle-city,firetruck,coach-bus,ambulance-van,panel-van,roadster,limousine}.glb`,
+made by `tools/models/import_vehicles.mjs` (with `tools/models/fbx_io.mjs`) from three CC0
+creators' packs, taken from these GitHub copies:
+
+- **Quaternius, Cars Bundle** (the Nov 2018 "Realistic Car Pack"), CC0 1.0
+  (https://quaternius.com/packs/cars.html; https://poly.pizza/bundle/Cars-Bundle-FE5IWe6OMk),
+  from https://github.com/schulerj89/vanta-city @ `a3fbd53398d6712742f34170a54cb450c90b1f80`
+  (`public/assets/vehicles/quaternius-cars/`: the Poly Pizza GLBs, unmodified, with that
+  repository's README recording the download and `LICENSE-CC0-1.0.txt`, SHA-256
+  `a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499`). The same files, byte for
+  byte, are in https://github.com/First-Hour-Games/anarchy-intelligence @
+  `0b8b674623a62d8c7e65ea7d3807716eb435f068` (`assets/local_licensed/cars_bundle/`, with the
+  pack's own `License.txt`: "Cars Bundle ... Created/distributed by Quaternius ... CC0 1.0").
+- **Quaternius, Truck** (from the Zombie Apocalypse Kit), CC0 1.0 (https://poly.pizza/m/cXw6oiFtZ8),
+  from https://github.com/RRG314/WorldExplorer3D @ `e960bc887337a46112efbdd569dc8352d4b23219`
+  (`app/assets/models/vehicles/traffic/service-truck-v1.glb`, recorded with its source and licence
+  in that repository's `app/assets/models/ATTRIBUTION.md`).
+- **Quaternius, Public Transport Pack (Feb 2017)**, CC0 1.0 (https://quaternius.com/packs/publictransport.html),
+  from https://github.com/beep2bleep/FreeAssetsByKenneyNLandQuaternius @
+  `dea756baf3b3a4889d8c245e456a4791f961578a`
+  (`FreeModels by Quaternius[Patreon]/Vehicles/Public Transport Pack - Feb 2017/FBX/`; the
+  collection's `License.txt`, "LowPoly Models by @Quaternius ... CC0 1.0 Universal", SHA-256
+  `20b983ae0e2e555817495a65c37519bfcb2231825269db6a57d72c51ed6006e3`).
+- **Raphael Gonçalves (Rgsdev), Free Low Poly Vehicles Pack**, CC0 1.0
+  (https://rgsdev.itch.io/free-low-poly-vehicles-pack; https://opengameart.org/content/free-low-poly-vehicles-pack),
+  from https://github.com/coderKillo/jam-20sec-2025 @ `bd081fe2a1fbd5e3ffab54d7d1874388ece6c93e`
+  (`assets/models/Free Low Poly Vehicles Pack by Rgsdev/`, with the pack's own `License.txt`:
+  "This asset is under CC0 License ... Credit is not required", SHA-256
+  `1211323133c7e6940d998de01c91c8e7affcf434922773146e791bff2b6ed7a7`).
+
+Source files (SHA-256; the tool refuses a source whose hash differs):
+- `quaternius-cars/family-sedan.glb` (Poly Pizza "Car", NormalCar1): `bf00f2f0386a25aa310abc0424d22586e46a59ee6c737e6b375c97c9f01bd462`
+- `quaternius-cars/compact-wagon.glb` ("Car", NormalCar2): `e5f5fa41c4434383b20287725c0e9d757cbd0f059eedc342ec265d32a195fe39`
+- `quaternius-cars/sports-car.glb` ("Sports Car", SportsCar): `2878182e9a17b809d45b0a184f51560eab755b2d7e3058bf02acbd5fcd0ca78b`
+- `quaternius-cars/sport-coupe.glb` ("Sports Car", SportsCar2): `bbb1c718d2aaf5f4344e9fb2cd66d8332a998a515b09ddd4dfa14698d787124e`
+- `quaternius-cars/suv.glb` ("SUV"): `1a9ce2bba813dca5005abab09715b01b8b5f4a9c48d7260463afdfeb876aa8b6`
+- `quaternius-cars/taxi-sedan.glb` ("Taxi"): `14b2f982f8a501565702ecb56f917c82e9abae914fa3f76d2f622a8670598af1`
+- `traffic/service-truck-v1.glb` ("Truck"): `a5d107b5b06f8ca2d8d7e66ae6309f2e1a25cac577c5db8ebb661b3f0ca5ed8f`
+- `Public Transport Pack - Feb 2017/FBX/Bicycle.fbx`: `bffdb5f8155338ed898d38bf1e40b1ed383a0f49f420994d588f0d56ee1d113c`
+- `Public Transport Pack - Feb 2017/FBX/SquareFrameBicycle.fbx`: `6cc459d81128671c11e3196fd0a412497d477456deea494e3f6a29fc70cd0a3d`
+- `Rgsdev/Firetruck/Firetruck.fbx`: `dd1ba5cacee2277b6ccbdb51cd146d6fa5378a421f7320348ee87e6ef26115d6`
+- `Rgsdev/Bus/Bus.fbx`: `16264ba9cdc251b2603dbe6b0cec125cec6a329d6845914d545327eda0ed8462`
+- `Rgsdev/Ambulance/Ambulance.fbx`: `c5a6716d93df86f39ce7a1f6f344a67848f62ab556119ccf02c44f3785ff0ced`
+- `Rgsdev/Van/Van.fbx`: `2e05fe145a8d525e9105816ee953f39c9cd66a914eecbbe2a4a8182673a31479`
+- `Rgsdev/Roadster/Roadster.fbx`: `93174d07fb41526fdf16c38c6e06219d4e8d97c7841fcc62fd11c460aa987233`
+- `Rgsdev/Limousine/Limousine.fbx`: `3ed083da97f91aa09ee526aac70192ddeadfede93769e9c3e59d19e3e70bd533`
+
+What the tool changes: every node transform (and the FBX files' axis and unit setup) is
+baked into the vertices, so each result is one node and one mesh, with one primitive per
+source material (names and colours kept; the step van keeps its embedded atlas PNG and UVs).
+Each model is turned to face +z (the bicycles were modelled facing -z), scaled uniformly to a
+real length for its type, and, where that leaves it wider than a real vehicle of that size,
+squeezed across x only, so the wheels stay round. It is then centred on x/z with its tyres
+on y = 0. The Public Transport FBXs left every material at Blender's default grey, so the
+two bicycles get plain fills (a red or navy frame, black tyres and grips, a grey or brown
+saddle). Shapes are otherwise unmodified. The results are CC0 like their sources.
+Final sizes (length x width x height, metres) and result SHA-256:
+- `sedan-family.glb` (4.70 x 1.95 x 1.31): `1578e438242ed216ec908332070aea16fd3ceb578b919b485b804305d75e14df`
+- `compact-wagon.glb` (4.10 x 1.85 x 1.42): `ff3c83b46061af853b4d787d8eb6c4c88f9a5e18f4ef45c9cb0cf7c490f13b3c`
+- `coupe.glb` (4.50 x 1.95 x 1.31): `1052cf3f4f99b25cca79b47768b3469b89f4be23589fd25a02595fe60883905e`
+- `sports-gt.glb` (4.60 x 1.95 x 1.41): `8598f5509a0040ca47b4d23e895468024bbf7bfb81af3e8d02d7c0fb7df97f3f`
+- `suv-crossover.glb` (4.70 x 1.95 x 1.71): `9910ba7b57c89b23414c9462dfda46e977bf3438f74c985db63ba42e42311bba`
+- `taxi-sedan.glb` (4.70 x 1.95 x 1.46): `45c507322dcc398fe7a677621856f58c43f71b46dfe3a2f5b101ca32c0bbfa5c`
+- `step-van.glb` (6.00 x 2.30 x 3.29): `1c6cd68f0da3e0ff5dfe90ed3c35925d5d29fea008f6707b08f560e8c3226ef6`
+- `bicycle.glb` (1.75 x 0.45 x 0.95): `a17a1de395f65f333aca58b19cc7da3ce41709a1b037d33fb26a07bd6c4244f2`
+- `bicycle-city.glb` (1.75 x 0.45 x 0.95): `15c3c01ad1bd49502b271352780aa3faf8027ca03c33df04a44f31bf430dbcf5`
+- `firetruck.glb` (8.50 x 2.50 x 3.48): `fe035203b25cc88f6958b01a185979e64e792bd9503461d04b74cb64eb0da4ea`
+- `coach-bus.glb` (12.00 x 2.50 x 3.74): `6503ad96de4a75641cf217ab0b03122b6eb705769ecbe3d3bef6e199e17da26e`
+- `ambulance-van.glb` (5.90 x 2.10 x 2.85): `3c7dda68fe4b4ec40469a7655afec638df12c7dd7e722206a9d6aa030126d025`
+- `panel-van.glb` (5.00 x 2.00 x 2.29): `961ed6a180d67dd3cbf1c5cd59da147a8b34d8f131b371a19139249550b71df7`
+- `roadster.glb` (4.00 x 1.80 x 1.29): `6755e12388c2352607d6259e93150f05024cf0c0428126317e1f2729c07b79b0`
+- `limousine.glb` (6.40 x 1.76 x 1.26): `f9b9b8362913c2cdff7693a19606643e3063730f1761de11540374a547a5260f`

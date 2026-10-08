@@ -2,7 +2,7 @@
   "name": "GATEBREAKER",
   "genre": "Hunter action",
   "description": "An E-rank Gate, start to finish: the prologue, the Ledger, goblin rooms and the Goblin Chieftain. Drawn like a manhwa panel.",
-  "scene": "../../examples/gatebreaker/e-rank-gate.json",
+  "scene": "../../examples/gatebreaker/gatebreaker.json",
   "accent": "#7b5cff",
   "builtin": true
 }

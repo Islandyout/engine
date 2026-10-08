@@ -52,6 +52,14 @@ export function modelBounds(id: number) {
 
 export class SceneBuilder {
   readonly entities: SceneDocument["entities"] = [];
+  readonly prefabs: Record<string, { components: Components }> = {};
+
+  // A prefab (world.spawn(name, x, y, z)), its components filled from defaults.
+  prefab(name: string, components: Components) {
+    this.prefabs[name] = {
+      components: Object.fromEntries(Object.entries(components).map(([type, value]) => [type, component(type, value as Record<string, unknown>)])),
+    };
+  }
 
   // Every component starts from its defaults, with the fields given on top.
   add(name: string, position: V3, components: Components): number {

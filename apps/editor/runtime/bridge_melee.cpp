@@ -43,6 +43,22 @@ float distance_sq(engine::Vec3 p, const engine::Box &box) {
            axis(p.z, box.center.z, box.size.z / 2);
 }
 
+// Followers (melee.follow): where each slot stands from the leader (x to
+// the leader's left, z behind), how far from the leader they'll fight, and
+// how far behind they catch up at once.
+constexpr float follow_leash = 16.0F;
+constexpr float follow_teleport = 28.0F;
+engine::Vec3 follow_offset(int slot) {
+    switch (slot) {
+    case 1:
+        return {-1.6F, 0, 1.4F};
+    case 2:
+        return {0, 0, 2.4F};
+    default:
+        return {1.6F, 0, 1.4F};
+    }
+}
+
 bool alive_target(const engine::World &w, engine::Entity entity) {
     if (!w.alive(entity))
         return false;
@@ -100,6 +116,20 @@ void Runtime::melee_strike(engine::World &w, engine::Entity self, Fighter &fight
         auto result = engine::gameplay::resolve_hit(move, fighter.state.combo, defender ? &defender->state : nullptr,
                                                     defender ? &defender->moves : nullptr,
                                                     defender ? &defender->settings : nullptr, from_front, airborne);
+        // The attacker's stats (melee.tune): STR, INT for skills, SEN's crits.
+        bool crit = false;
+        if (result.damage > 0) {
+            result.damage *= fighter.stat_damage * (move.mana > 0 ? fighter.stat_skill : 1.0F);
+            if (fighter.stat_crit > 0 && result.outcome == HitOutcome::hit) {
+                auto &seed = fighter.crit_seed;
+                seed ^= seed << 13U;
+                seed ^= seed >> 17U;
+                seed ^= seed << 5U;
+                crit = static_cast<float>(seed % 10000U) < fighter.stat_crit * 10000.0F;
+                if (crit)
+                    result.damage *= 1.5F;
+            }
+        }
         const bool broke =
             defender && engine::gameplay::take_hit(defender->state, defender->moves, defender->settings, result);
         // A perfect dodge opens the dodger's Shadow Step on this attacker.
@@ -139,7 +169,8 @@ void Runtime::melee_strike(engine::World &w, engine::Entity self, Fighter &fight
         event.move = fighter.state.move;
         event.flags = (move.finisher ? melee_finisher : 0) | (result.kind == StunKind::launched ? melee_launch : 0) |
                       (result.kind == StunKind::knockdown ? melee_knockdown : 0) |
-                      (result.kind == StunKind::heavy || result.kind == StunKind::guard_break ? melee_heavy : 0);
+                      (result.kind == StunKind::heavy || result.kind == StunKind::guard_break ? melee_heavy : 0) |
+                      (crit ? melee_crit : 0);
         if (result.damage > 0) {
             const auto *health = w.get<Health>(other);
             const bool lethal = health && health->current <= result.damage;
@@ -203,6 +234,9 @@ void Runtime::step_melee(engine::World &w) {
             // included), other teams for everyone else. The Player only
             // auto-targets within striking distance, ahead of it.
             float best = player ? 4.5F : 30.0F;
+            if (fighter.leader && !w.alive(*fighter.leader))
+                fighter.leader.reset();
+            const engine::Box *leader_box = fighter.leader ? w.get<engine::Box>(*fighter.leader) : nullptr;
             for (const auto other : w.query<engine::Box, Health>()) {
                 if (other == self || !alive_target(w, other))
                     continue;
@@ -210,6 +244,9 @@ void Runtime::step_melee(engine::World &w) {
                 if (player ? their_team == 0 : their_team < 0 || their_team == my_team)
                     continue;
                 const auto &their_box = *w.get<engine::Box>(other);
+                // A follower fights near its leader, not across the map.
+                if (leader_box && flat_distance(leader_box->center, their_box.center) > follow_leash)
+                    continue;
                 const float distance = flat_distance(box.center, their_box.center);
                 if (player && std::abs(wrap_angle(yaw_to(box.center, their_box.center) - fighter.yaw)) > 1.9F)
                     continue;
@@ -293,6 +330,33 @@ void Runtime::step_melee(engine::World &w) {
             held = engine::gameplay::think(fighter.brain, fighter.brain_settings, view, state, tick_dt);
             held.airborne = !grounded;
             held.sprinting = view.distance > 6.0F && held.move_y > 0.5F;
+            // Nothing to fight: back to its slot behind its leader.
+            if (!target_box && fighter.leader && state.mode == FighterMode::idle) {
+                if (const auto *leader_box = w.get<engine::Box>(*fighter.leader)) {
+                    const auto *leader_fighter = w.get<Fighter>(*fighter.leader);
+                    const float leader_yaw = leader_fighter ? leader_fighter->yaw : fighter.yaw;
+                    const auto ahead = facing_of(leader_yaw);
+                    const engine::Vec3 side{ahead.z, 0, -ahead.x}; // the leader's left
+                    const auto slot = follow_offset(fighter.follow_slot);
+                    const engine::Vec3 goal{leader_box->center.x + side.x * slot.x - ahead.x * slot.z, box.center.y,
+                                            leader_box->center.z + side.z * slot.x - ahead.z * slot.z};
+                    const float gap = flat_distance(box.center, goal);
+                    held = {};
+                    held.airborne = !grounded;
+                    if (gap > follow_teleport) {
+                        // Left far behind (the leader went through a door, or
+                        // to another place): there at once.
+                        box.center = goal;
+                        body.velocity = {0, body.velocity.y, 0};
+                    } else if (gap > 0.8F) {
+                        fighter.yaw = turn_toward(fighter.yaw, yaw_to(box.center, goal), 10.0F);
+                        held.move_y = std::min(1.0F, gap / 1.5F);
+                        held.sprinting = gap > 5.0F;
+                    } else {
+                        fighter.yaw = turn_toward(fighter.yaw, leader_yaw, 4.0F);
+                    }
+                }
+            }
             const auto facing = facing_of(fighter.yaw);
             const engine::Vec3 right{-facing.z, 0, facing.x};
             wish_x = facing.x * held.move_y + right.x * held.move_x;
@@ -354,10 +418,11 @@ void Runtime::step_melee(engine::World &w) {
                 tick.started = index;
         }
         if (tick.started < 0) {
-            const auto stepped = engine::gameplay::update_fighter(state, fighter.moves, fighter.settings, held, tick_dt);
+            const auto stepped =
+                engine::gameplay::update_fighter(state, fighter.moves, fighter.settings, held, tick_dt * fighter.stat_speed);
             tick = stepped;
         } else {
-            engine::gameplay::update_fighter(state, fighter.moves, fighter.settings, {}, tick_dt);
+            engine::gameplay::update_fighter(state, fighter.moves, fighter.settings, {}, tick_dt * fighter.stat_speed);
         }
 
         // ---- Facing.
@@ -446,7 +511,7 @@ void Runtime::step_melee(engine::World &w) {
             const auto projectile = w.defer_create();
             w.defer_set(projectile, engine::Box{origin, engine::Vec3{0.45F, 0.45F, 0.45F}});
             Projectile shot{{facing.x * move.projectile, 0, facing.z * move.projectile}, self};
-            shot.damage = move.damage;
+            shot.damage = move.damage * fighter.stat_damage * (move.mana > 0 ? fighter.stat_skill : 1.0F);
             shot.lifetime = 1.6F;
             w.defer_set(projectile, shot);
             push_melee({MeleeEventKind::fire, index_of(self), -1, origin, move.projectile, state.move, 0});
@@ -492,6 +557,39 @@ bool BridgeHost::melee(engine::World &world, engine::Entity self, const std::str
     } else if (op == "stagger") {
         out = {fighter->settings.poise > 0 ? state.stagger / fighter->settings.poise : 0.0,
                state.broken > 0 ? 1.0 : 0.0};
+    } else if (op == "tune") {
+        // damage, speed, crit chance, skill power, health max, mana max;
+        // a negative or non-finite value leaves that one as it is.
+        const auto arg = [&args](std::size_t i, float lo, float hi, float &into) {
+            if (i < args.size() && std::isfinite(args[i]) && args[i] >= 0)
+                into = std::clamp(static_cast<float>(args[i]), lo, hi);
+        };
+        arg(0, 0.1F, 10.0F, fighter->stat_damage);
+        arg(1, 0.5F, 2.0F, fighter->stat_speed);
+        arg(2, 0.0F, 1.0F, fighter->stat_crit);
+        arg(3, 0.1F, 10.0F, fighter->stat_skill);
+        if (args.size() > 4 && std::isfinite(args[4]) && args[4] > 0) {
+            if (auto *health = world.get<Health>(self)) {
+                const float ratio = health->max > 0 ? health->current / health->max : 1.0F;
+                health->max = static_cast<float>(args[4]);
+                health->current = std::max(1.0F, std::min(health->max, ratio * health->max));
+            }
+        }
+        if (args.size() > 5 && std::isfinite(args[5]) && args[5] > 0) {
+            fighter->settings.mana_max = static_cast<float>(args[5]);
+            state.mana = std::min(state.mana, fighter->settings.mana_max);
+        }
+        out = {fighter->stat_damage, fighter->stat_speed, fighter->stat_crit, fighter->stat_skill};
+    } else if (op == "mana") {
+        // melee.mana(add?): adds mana (a potion; capped at its max) and
+        // returns what it has and its max.
+        if (!args.empty())
+            state.mana = std::clamp(state.mana + static_cast<float>(args[0]), 0.0F, fighter->settings.mana_max);
+        out = {state.mana, fighter->settings.mana_max};
+    } else if (op == "follow") {
+        // melee.follow(leader, slot): nil leader stops following.
+        fighter->leader = other;
+        fighter->follow_slot = args.empty() ? 0 : std::clamp(static_cast<int>(args[0]), 0, 2);
     } else if (op == "set_ai") {
         fighter->ai = !args.empty() && args[0] != 0 && !world.get<PlayerMarker>(self);
         if (args.size() > 1 && args[1] >= 0)

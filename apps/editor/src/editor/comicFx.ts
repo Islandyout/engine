@@ -12,7 +12,7 @@
 // Everything runs on real time, so slow motion doesn't stretch the lettering.
 import * as THREE from "three";
 
-export type ComicHit = "light" | "heavy" | "finisher" | "block" | "parry" | "guardBreak" | "dodge" | "blast" | "break";
+export type ComicHit = "light" | "heavy" | "finisher" | "block" | "parry" | "guardBreak" | "dodge" | "blast" | "break" | "crit";
 
 // Words per kind of blow; one is picked in turn so repeats vary.
 export const SFX_WORDS: Record<ComicHit, readonly string[]> = {
@@ -25,6 +25,7 @@ export const SFX_WORDS: Record<ComicHit, readonly string[]> = {
   dodge: ["FWOOSH", "SWSH"],
   blast: ["VWOOM", "FZZT"],
   break: ["BREAK!"],
+  crit: ["CRIT!"],
 };
 
 interface Word {
@@ -47,7 +48,7 @@ interface Lines {
   dense: number; // 0..1
 }
 
-const BIG: ReadonlySet<ComicHit> = new Set(["heavy", "finisher", "parry", "guardBreak", "break"]);
+const BIG: ReadonlySet<ComicHit> = new Set(["heavy", "finisher", "parry", "guardBreak", "break", "crit"]);
 
 export class ComicFx {
   enabled = false;
@@ -71,7 +72,7 @@ export class ComicFx {
       life: kind === "finisher" || kind === "break" ? 1.1 : big ? 0.8 : 0.55,
       size: kind === "finisher" || kind === "break" ? 96 : big ? 70 : kind === "dodge" ? 40 : 46,
       tilt: side * (0.1 + 0.12 * ((this.turn * 7) % 5) / 5),
-      fill: kind === "break" ? "#f2c230" : kind === "parry" ? "#ffe066" : kind === "block" ? "#cfe3ff" : kind === "finisher" ? "#ff5a3a" : kind === "dodge" ? "#b9a6ff" : "#ffffff",
+      fill: kind === "break" || kind === "crit" ? "#f2c230" : kind === "parry" ? "#ffe066" : kind === "block" ? "#cfe3ff" : kind === "finisher" ? "#ff5a3a" : kind === "dodge" ? "#b9a6ff" : "#ffffff",
       dx: side * (big ? 70 : 46),
       // Consecutive words step up the panel instead of piling on each other.
       dy: -(big ? 70 : 44) - (this.turn % 3) * 34,

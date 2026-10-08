@@ -119,10 +119,16 @@ loop: in, fight, grow, out.
 
 ### 5.4 Shadows (milestone M3)
 
-- Defeated elites and bosses can be **bound** (hold G over the body).
-- Up to 3 shadows follow you; each has one role: tank, striker or archer.
+- Defeated elites and bosses can be **bound** (hold G over the body for 1 s,
+  within 8 s of the kill). The prompt shows the odds (**ARISE 70%**): elites
+  always rise, bosses have 3 tries, better with SEN. Job: SEN matters outside
+  dodging, and a boss shadow feels earned (§12).
+- Up to 3 shadows follow you; each has one role: tank, striker or archer. A
+  new shadow of a role replaces the old one (the Ledger asks first).
 - Commands: none; the shadows act on their own. A shadow's ultimate fires when
-  yours does.
+  yours does, and when an enemy **Breaks** every shadow joins in with a
+  follow-up strike (§12: the genre's QTE, without the button).
+- A fallen shadow returns when the room is cleared.
 - Job: the late-game power fantasy, and it's a reward for beating hard enemies,
   not a menu to manage.
 
@@ -131,13 +137,17 @@ loop: in, fight, grow, out.
 - **E–D Gates**: a cave and a subway tunnel; goblins, wolves and insects. They
   teach the basics.
 - **C–B Gates**: a flooded temple and an ice fortress; armored knights,
-  casters and spiders. They teach parry, Break and crowd skills.
+  casters and ice ghouls (no CC0 spider model exists for the combat
+  skeleton). They teach parry, Break and crowd skills.
 - **A–S Gates**: a demon castle and a red-sky ruin; elite packs and multi-phase
   bosses.
 - **Double Gate** (the story opener and the finale): puzzle rooms with statue
   rules.
 - Each room shows its enemies before it closes. No ambush that you couldn't
   read.
+- **Clear grade** S/A/B/C on the reward screen, from time and damage taken; a
+  better grade pays more gold and XP. Job: a reason to replay a Gate well,
+  not just again (§12).
 
 ## 6. The first playable target: the vertical slice (M1)
 
@@ -234,10 +244,11 @@ Each gap is written down, researched and fixed, then re-shot.
 | | Goal | Done when |
 |---|---|---|
 | **M0** Look + feel test | A style test scene: one hero against a goblin in a lit dungeon room, with the full manhwa render and the new controls | The screenshot review passes; 60 fps; input feels instant |
-| **M1** Vertical slice | §6 | §6 checklist |
-| **M2** The loop | Hub, saves, the Ledger quests, 3 E–D Gates, rank-up | A 1-hour session plays end to end |
-| **M3** Shadows | Bind, 3 shadow roles, C–B Gates | Shadows help without being managed |
-| **M4** Content | A–S Gates, all weapons and skills | Full progression E→S |
+| **M1** Vertical slice | §6 | §6 checklist (done in 0.80.0) |
+| **M2** The loop | Hub, saves, the Ledger quests, 3 E–D Gates, rank-up | A 1-hour session plays end to end (done in 0.82.0) |
+| **M3** Shadows | Bind, 3 shadow roles, C–B Gates | Shadows help without being managed (done in 0.83.0) |
+| **M3.5** Items and gear | Loot, pick-up, rarity, the bag, 7 gear slots shown on the hunter, upgrades, potions, wardrobe (§13) | A Gate's drops change what the hunter wears and how he fights |
+| **M4** The world and content | The open Seoul district, Gates in the world, field enemies and respawn, subway travel, map, quests (§13); A–S Gates, all weapons and skills | Full progression E→S across the district |
 | **M5** Finale and polish | The Double Gate finale, story panels, balance, performance and bug pass | Zero known bugs, 60 fps throughout |
 
 ## 11. Decisions for you
@@ -249,3 +260,76 @@ Each gap is written down, researched and fixed, then re-shot.
 3. **Gamepad**: equal priority (as planned), or keyboard first?
 4. **Korean SFX lettering** in impact frames (쾅, 슉) or English (BOOM, SHK)?
 5. **Start**: M0, the look and feel test, is the proposed next step.
+
+## 12. Genre research (M3)
+
+What the genre's games (Solo Leveling: ARISE, its mobile/PC peers such as
+Punishing: Gray Raven, Wuthering Waves and Zenless Zone Zero, and action games
+like DMC and Sekiro) share, and what GATEBREAKER takes from it.
+
+| Mechanic | Where it's standard | GATEBREAKER |
+|---|---|---|
+| Perfect/extreme evasion: dodge on the last frames, time slows, a counter | ARISE "Extreme Evasion", PGR, WuWa, Bayonetta | Has it (Perfect Dodge → Shadow Step, M0). |
+| Break gauge on elites/bosses: empty it, the enemy is stunned and takes extra damage | ARISE, ZZZ "Daze", Sekiro posture | Has it (M1). Shadows now join every Break (§5.4). |
+| QTE follow-ups: a prompt after a knockdown/Break/evasion triggers a support strike | ARISE, ZZZ chain attacks, PGR | Taken without the button: shadows follow up a Break on their own, since "no commands" is a pillar. |
+| Summoned army with roles | ARISE shadows, Diablo necromancer | Three roles, no orders (§5.4). |
+| Extraction can fail (the source's "Arise" takes up to 3 tries) | Solo Leveling, ARISE | Bosses: 3 tries, odds shown. Elites: always. |
+| Mission grade S/A/B/C | DMC, Bayonetta, ARISE stage stars | Clear grade on the reward screen (§5.5). |
+| Parry/guard-break, red unblockable tell | Sekiro, Elden Ring, ARISE | Has it (M1). |
+| Lock-on with soft auto-aim | every 3D action game | Has it (M0). |
+| Daily quest, stat points, rank tests | Solo Leveling's System, ARISE | Has it (M2). |
+| Gear rarity and loot drops | ARISE, every ARPG | Planned for M4 with the weapons, where it has a job. |
+| Elemental statuses, party swapping, gacha | ARISE, ZZZ, WuWa | Not taken: they add menus and numbers without a decision a solo hunter would make, and gacha is a business model, not play. |
+
+Sources: [GameRant on ARISE's Break](https://gamerant.com/solo-leveling-arise-break-effect-guide/),
+[GameRant on Extreme Evasion](https://gamerant.com/solo-leveling-arise-extreme-evasion-guide/),
+[TheGamer combat tips](https://www.thegamer.com/solo-leveling-arise-best-combat-tips/),
+[Fextralife ARISE Overdrive preview](https://fextralife.com/solo-leveling-arise-overdrive-preview/).
+
+## 13. RPG systems: items, gear and the world (research, M3.5–M4)
+
+What players of the genre (Solo Leveling: ARISE / OVERDRIVE, Diablo, Path of
+Exile, Genshin, Black Desert, MMORPGs) expect beyond combat, and the job each
+one has here. Every item must change a decision the player makes.
+
+### Items and gear (M3.5, next)
+
+| Mechanic | The standard | GATEBREAKER | Its job |
+|---|---|---|---|
+| **Loot drops** | Enemies drop items with a coloured beam by rarity | Kills drop gold, materials, potions and gear; bosses always drop gear. A beam shows the rarity | The reward you can see the moment you earn it |
+| **Pick-up** | Walk over or press a key; a feed lists what you got | Gold, materials and potions: walk over them (magnet). Gear: walk over it too; the feed names it in its colour | No inventory chores mid-fight |
+| **Rarity** | Colour-coded tiers (white → blue → purple → gold) | Common, Rare, Epic, Legendary | Read an item's worth at a glance |
+| **Inventory** | A grid bag, sort, sell, dismantle | I opens the bag (40 slots), sorted by slot and rarity; pick an item to compare it with what you wear, Enter wears it, X sells it | Somewhere to keep and compare finds |
+| **Equipment slots** | Paper-doll: weapon, head, body, legs, feet, accessories | Body armor, bracers, trousers, boots, ring, necklace (the daggers stay the smith's). Body, bracers, trousers and boots **show on the hunter** (modular outfits on his own rig); Epic body armor adds a pauldron | You see your progress on the character |
+| **Item stats** | A main stat, rolled extra stats by rarity, set bonuses | Main stat (damage, health…) plus 0–3 extra by rarity. Each Gate drops its own 2- and 4-piece set | Builds: a dodge set, a tank set, a skill set |
+| **Upgrades** | Enhance +1…+10 with materials | The smith upgrades any gear (+1…+10) with gold and materials | A use for duplicates and materials |
+| **Consumables** | Potions on quick slots | 1: health potion, 2: mana potion (cooldown); sold at the Association shop | A panic button that costs gold, not a free heal |
+| **Skins / wardrobe** | Cosmetic looks, transmog, dyes | W in the bag switches the look: the gear's own set colours, or a colourway you've unlocked (each Gate's set, and Shadow black once you've bound a shadow) | Look the way you want without losing stats |
+| **Shop** | A vendor for basics | The Association shop: potions, keys to repeat-Gates | A gold sink with a purpose |
+| **Loadouts** | Saved gear and skill sets | 2 loadouts, switched in the hub | Swap between a boss build and a clearing build |
+
+### The world (M4)
+
+| Mechanic | The standard | GATEBREAKER | Its job |
+|---|---|---|---|
+| **Open world** | A seamless map you travel on foot or by mount | A district of Seoul around the Association: streets, a park, the river, the subway entrance. The hub becomes part of it | A place, not a menu |
+| **Gates in the world** | Dungeons entered from the map | Gates open at spots around the district, coloured by rank; walk in to enter. They move each day | The source fantasy: Gates tearing open in the city |
+| **Field enemies and respawn** | Field monsters respawn on a timer; dungeons reset on entry | A "dungeon break" spills monsters into a zone; they respawn every few minutes while it lasts. Gates reset each time you enter. A field boss returns each day | Something to fight between Gates, farmable but never empty |
+| **Travel** | Sprint, mounts, fast travel between waypoints | Sprint (Shift while not fighting), the subway as fast travel between stations you've visited | Distances that never become a chore |
+| **Map and minimap** | M for the map; a minimap with markers | M opens the district map: Gates, stations, shops, quests. The minimap shows the nearest | Always know where to go |
+| **Quests and NPCs** | A quest log, markers, NPC dialogue | J opens the quest log; NPCs with a ! give quests; markers on the map | Direction and story between Gates |
+| **Day and night** | A clock that changes the world | Day (shops open) and night (stronger field enemies, better drops) | A reason to go out at night |
+| **Settings** | Volume, sensitivity, graphics, key binding | Esc menu: volume, mouse sensitivity, quality, key bindings | Basic comfort, expected by every player |
+
+### Not taken
+
+- **Online multiplayer, co-op and trading**: the engine runs single-player in
+  the browser; this is a solo hunter's story.
+- **Gacha, stamina timers, battle passes**: business models, not play.
+- **Durability, weight limits**: chores without decisions.
+
+Sources: [ARISE OVERDRIVE artifact sets](https://www.treyexgaming.com/solo-leveling-arise-overdrive-artifact-sets-guide/),
+[ARISE vs OVERDRIVE comparison](https://www.dtgre.com/2025/11/solo-leveling-arise-vs-overdrive-comparison-guide.html),
+[Loot (video games)](https://en.wikipedia.org/wiki/Loot_(video_games)),
+[Colour-coded item tiers](https://tvtropes.org/pmwiki/pmwiki.php/Main/ColorCodedItemTiers),
+[MMORPGs with great loot systems](https://gamerant.com/best-mmorpgs-great-loot-systems/).

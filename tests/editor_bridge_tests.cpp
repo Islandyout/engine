@@ -2171,6 +2171,24 @@ int main() {
             check(broke && editor_fighter_value(1, 19) > 0); // Broken
         }
 
+        // GATEBREAKER M2: melee.tune scales the damage a fighter deals and
+        // sets its maximum health (keeping the share it has).
+        {
+            editor_begin();
+            add_player(0);
+            editor_set_melee(0, 2, "j: input=light hit=0.05-0.1 dmg=10 reach=1.2\n", 0, 0, 0.5, 0.5, 0.25, 0, 60);
+            editor_set_script_source(0, "t = 0\nfunction on_tick(dt) t = t + 1\n"
+                                        " if t == 2 then melee.tune(2.5, -1, 0, -1, 200) end\n"
+                                        " if t == 10 then melee.perform('j') end end");
+            check(editor_add(0, 0.9, 1.1, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 500, 500, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            editor_set_melee(1, 0, "", 1, 0, 0.5, 0.5, 0.25, 0, 60);
+            check(editor_commit() == 1);
+            for (int i = 0; i < 60; ++i)
+                editor_tick();
+            check(std::abs(editor_value(1, 3) - 475.0 / 500.0) < 1e-3); // 10 x 2.5 off 500
+            check(std::abs(editor_value(0, 3) - 1.0) < 1e-6);           // max 200, still full
+        }
+
         // An AI fighter that starts out facing a fighting Player, across a
         // kinematic floor slab, walks the whole way in.
         editor_begin();
@@ -2193,6 +2211,28 @@ int main() {
         for (int i = 0; i < 240; ++i)
             editor_tick();
         check(editor_value(1, 2) > 1.5); // within reach of the Player at z = 4
+
+        // GATEBREAKER M3: an ally (team 0, AI) told to follow walks to its
+        // slot behind its leader, and doesn't run off after a hostile 22 m
+        // from the leader (past its leash).
+        editor_begin();
+        add_player(0);
+        editor_set_name(0, "Hero");
+        check(editor_add(9, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 200, 200, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_melee(1, 0, "", 0, 1, 0.5, 0.5, 0.25, 0, 60);
+        editor_set_body(1, 1, 70, 1);
+        editor_set_controller(1, 1, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        editor_set_script_source(1, "function on_start() melee.follow(world.find('Hero'), 2) end");
+        check(editor_add(0, 0.725, -22, 0, 0, 0, 0.5, 1.45, 0.5, 0, 0, 0, 90, 90, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_melee(2, 0, "", 1, 0, 0.5, 0.5, 0.25, 0, 60);
+        check(editor_add(0, -0.5, 0, 0, 0, 0, 60, 1, 60, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(3, 1, 1, 0);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 300; ++i)
+            editor_tick();
+        const double dx = editor_value(1, 0) - editor_value(0, 0), dz = editor_value(1, 2) - editor_value(0, 2);
+        check(std::hypot(dx, dz) < 3.2); // in its slot, 2.4 m behind
+        check(editor_value(1, 2) > -4);  // never went after the goblin at z = -22
     }
 
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "

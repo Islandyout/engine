@@ -10,7 +10,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 95
+    timeout-minutes: 140
     steps:
       - uses: actions/checkout@v5
       - name: Install WebAssembly compiler
@@ -26,6 +26,8 @@ jobs:
         with:
           node-version: '22'
       - name: Install browser test tools
+        # A hung download fails fast here instead of using up the job's time.
+        timeout-minutes: 15
         run: |
           npm install --prefix tests/browser --no-package-lock --ignore-scripts
           tests/browser/node_modules/.bin/playwright install --with-deps chromium
@@ -39,6 +41,7 @@ jobs:
           node tests/browser/pale_signal.cjs
           node tests/browser/gatebreaker.cjs
           node tests/browser/gatebreaker_gate.cjs
+          node tests/browser/gatebreaker_loop.cjs
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v5

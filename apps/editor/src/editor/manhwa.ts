@@ -22,18 +22,20 @@ export const toonUniforms = {
   toonRimColor: { value: new THREE.Color(1, 0.93, 0.85) },
 };
 
-// Three tones: unlit below the terminator, a half tone, then fully lit. The
-// steps are a few hundredths wide so the edge is crisp but not aliased.
+// A light touch of toon banding over the real light (TOON_AMOUNT): the
+// ink lines and rim carry the comic read, and the light itself stays
+// smooth and bright so everything can be seen, even at night.
 const toonFunctions = /* glsl */ `
 uniform float toonOn;
 uniform float toonRim;
 uniform vec3 toonRimColor;
+const float TOON_AMOUNT = 0.2;
 float toonDot( const in float x ) {
-  float band = mix( 0.4, 1.0, smoothstep( 0.3, 0.36, x ) ) * smoothstep( -0.02, 0.04, x );
-  return mix( saturate( x ), band, toonOn );
+  float band = mix( 0.55, 1.0, smoothstep( 0.22, 0.4, x ) ) * smoothstep( -0.08, 0.1, x );
+  return mix( saturate( x ), band, TOON_AMOUNT * toonOn );
 }
 float toonShadow( const in float s ) {
-  return mix( s, smoothstep( 0.4, 0.6, s ), toonOn );
+  return mix( s, smoothstep( 0.3, 0.7, s ), TOON_AMOUNT * toonOn );
 }
 `;
 
@@ -43,7 +45,9 @@ const physicalLights = THREE.ShaderChunk.lights_physical_pars_fragment.replace(
   "float dotNL = toonDot( dot( geometryNormal, directLight.direction ) );$1",
 ).replace(
   "reflectedLight.directSpecular += irradiance * BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material );",
-  "reflectedLight.directSpecular += irradiance * BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material ) * ( 1.0 - 0.85 * toonOn );",
+  // Each light's highlight is capped in the Manhwa style: a leaf seen edge-on
+  // otherwise peaks at extreme values that bloom into white blotches.
+  "{ vec3 toonSpec = irradiance * BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material ); reflectedLight.directSpecular += mix( toonSpec, min( toonSpec, vec3( 0.6 ) ), toonOn ) * ( 1.0 - 0.15 * toonOn ); }",
 );
 
 // Each light's shadow lookup, given a hard edge.
@@ -63,7 +67,7 @@ const rim = /* glsl */ `
 
 // True once the chunks are known to match this three.js version.
 export const toonPatchApplies =
-  physicalLights.includes("toonDot(") && physicalLights.includes("toonOn );") && lightsBegin.includes("toonShadow( getShadow(");
+  physicalLights.includes("toonDot(") && physicalLights.includes("toonSpec") && lightsBegin.includes("toonShadow( getShadow(");
 
 let installed = false;
 // Patches every MeshStandardMaterial (and MeshPhysicalMaterial) through the
@@ -141,8 +145,8 @@ const inkShader = {
       float tl = tone(texture2D(tDiffuse, vUv - dx).rgb), tr = tone(texture2D(tDiffuse, vUv + dx).rgb);
       float td = tone(texture2D(tDiffuse, vUv - dy).rgb), tu = tone(texture2D(tDiffuse, vUv + dy).rgb);
       float fill = smoothstep(0.35, 0.7, max(abs(tl - tr), abs(td - tu)) + 0.5 * max(abs(tl + tr - 2.0 * t), abs(td + tu - 2.0 * t)));
-      float line = max(silhouette, max(crease * 0.85, fill * 0.55));
-      float fade = 1.0 - smoothstep(25.0, 60.0, c);
+      float line = max(silhouette, max(crease * 0.5, fill * 0.2));
+      float fade = 1.0 - smoothstep(18.0, 45.0, c);
       vec3 inked = mix(source.rgb, inkColor, clamp(line * ink * fade, 0.0, 1.0));
       // An impact frame: the panel inverted to ink and paper, lines in white.
       vec3 inverted = mix(t > 0.75 ? inkColor : vec3(0.96, 0.95, 0.92), vec3(0.96, 0.95, 0.92), clamp(line * 1.5, 0.0, 1.0));

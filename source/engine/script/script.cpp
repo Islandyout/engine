@@ -524,6 +524,9 @@ struct LuaApi final {
         const int type = lua_type(L, 3);
         const bool boolean = lua_toboolean(L, 3) != 0;
         const double number = type == LUA_TNUMBER ? lua_tonumber(L, 3) : 0;
+        // An integer stays an integer: "G" .. 3 is "G3", but "G" .. 3.0 is "G3.0".
+        const bool integer = type == LUA_TNUMBER && lua_isinteger(L, 3) != 0;
+        const lua_Integer whole = integer ? lua_tointeger(L, 3) : 0;
         const std::string text = type == LUA_TSTRING ? lua_tostring(L, 3) : "";
         lua_getglobal(L, "self");
         lua_getfield(L, -1, "id");
@@ -536,6 +539,8 @@ struct LuaApi final {
                       lua_pushlstring(T, message.data(), message.size());
                       if (type == LUA_TBOOLEAN)
                           lua_pushboolean(T, boolean ? 1 : 0);
+                      else if (integer)
+                          lua_pushinteger(T, whole);
                       else if (type == LUA_TNUMBER)
                           lua_pushnumber(T, number);
                       else if (type == LUA_TSTRING)
@@ -687,6 +692,23 @@ struct LuaApi final {
     static int melee_unlock(lua_State *L) { return melee_call(L, "unlock", {}, luaL_checkstring(L, 1)); }
     // melee.stagger() -> poise bar 0..1, broken (1 while Broken)
     static int melee_stagger(lua_State *L) { return melee_call(L, "stagger", {}); }
+    // melee.tune(damage, speed, crit, skill, health_max?, mana_max?) -> the four scales
+    static int melee_tune(lua_State *L) {
+        return melee_call(L, "tune",
+                          {number_arg(L, 1, -1.0F), number_arg(L, 2, -1.0F), number_arg(L, 3, -1.0F),
+                           number_arg(L, 4, -1.0F), number_arg(L, 5, -1.0F), number_arg(L, 6, -1.0F)});
+    }
+    // melee.follow(leader?, slot?): an ally walks with the leader when
+    // there's nothing to fight (nil stops it)
+    // melee.mana(add?): mana now and max, after adding `add`.
+    static int melee_mana(lua_State *L) {
+        if (lua_isnoneornil(L, 1))
+            return melee_call(L, "mana", {}, {});
+        return melee_call(L, "mana", {luaL_checknumber(L, 1)}, {});
+    }
+    static int melee_follow(lua_State *L) {
+        return melee_call(L, "follow", {static_cast<double>(luaL_optinteger(L, 2, 0))}, {}, entity_arg(L, 1));
+    }
     // melee.set_ai(on, aggression?, skill?)
     static int melee_set_ai(lua_State *L) {
         return melee_call(L, "set_ai",
@@ -1208,7 +1230,10 @@ struct LuaApi final {
                {"target", melee_target},
                {"set_ai", melee_set_ai},
                {"unlock", melee_unlock},
-               {"stagger", melee_stagger}});
+               {"stagger", melee_stagger},
+               {"tune", melee_tune},
+               {"follow", melee_follow},
+               {"mana", melee_mana}});
         table(L, self, "weapon",
               {{"fire", weapon_fire},
                {"reload", weapon_reload},
@@ -1366,6 +1391,8 @@ void Runtime::step(World &world, float dt) {
     }
     // Any entity with a Script runs it, bodiless helpers (a director, a
     // child) included; the API calls that need a body skip one without.
+    // Every new script compiles before any starts, so an on_start (or a
+    // first tick) can world.send to a script further down the list.
     for (const auto entity : world.query<Box, Script>()) {
         auto &instance = instances_[entity];
         if (!instance)
@@ -1395,8 +1422,12 @@ void Runtime::step(World &world, float dt) {
                 instance->broken = true;
             }
         }
-        if (instance->broken)
+    }
+    for (const auto entity : world.query<Box, Script>()) {
+        const auto found = instances_.find(entity);
+        if (found == instances_.end() || !found->second || found->second->broken || !found->second->L)
             continue;
+        auto &instance = found->second;
         if (!instance->started) {
             instance->started = true;
             call(world, entity, *instance, "on_start", [](lua_State *) {}, 0);

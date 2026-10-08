@@ -33,8 +33,9 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { isNonPhysical, isSettingsOnly } from "./settingsEntity";
-import { heldLength, holdWeapon } from "./heldWeapons";
+import { clearOffHands, holdWeapon, updateHeldWeapons, weaponGrip } from "./heldWeapons";
 import { LedgerHud } from "./ledger";
+import { LightPool } from "./lightPool";
 import { InkPass, attachDepth, installToonShading, markCharacter, toonUniforms } from "./manhwa";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
@@ -303,6 +304,10 @@ async function startEditor() {
     texture.colorSpace = THREE.SRGBColorSpace;
     return texture;
   }
+  // fx.light (GATEBREAKER M4): a script's ambient and sun intensities over
+  // the Environment's, so one scene can be a dark dungeon and a lit street.
+  // Cleared when the scene is rebuilt.
+  let lightOverride: { ambient: number; sun: number } | undefined;
   function applyEnvironment(env: EnvironmentComponent) {
     const elevation = THREE.MathUtils.degToRad(env.sunElevation);
     const azimuth = THREE.MathUtils.degToRad(env.sunAzimuth);
@@ -312,6 +317,10 @@ async function startEditor() {
     sun.castShadow = env.shadows;
     shadowGround.visible = env.shadows;
     hemisphere.intensity = env.ambientIntensity;
+    if (lightOverride) {
+      hemisphere.intensity = lightOverride.ambient;
+      sun.intensity = lightOverride.sun;
+    }
     if (renderer instanceof THREE.WebGLRenderer) renderer.toneMappingExposure = env.exposure;
     scene.fog =
       env.fog === "Linear"
@@ -898,6 +907,8 @@ async function startEditor() {
   // Melee (0.78.0): fighters' bodies, impacts and the fighter HUD (combatView.ts).
   // GATEBREAKER's interface (ledger.ts): system windows, panel cutscenes, the boss bar.
   const ledger = new LedgerHud();
+  // At most 8 point lights shade the scene at once (lightPool.ts).
+  const lightPool = new LightPool(scene);
   const combat = new CombatView(scene, {
     value: (i, field) => runtime._editor_fighter_value(i, field),
     text: (i, move, field) => runtime.ccall("editor_fighter_text", "string", ["number", "number", "number"], [i, move, field]),
@@ -1963,6 +1974,62 @@ async function startEditor() {
     if (!audioContext) return;
     playCue(audioContext, audioMixer().buses.ui, name);
   }
+  // Gear (world.wear, GATEBREAKER M3.5): catalog models skinned to the
+  // same skeleton as a character, bound to its bones by name, so they move
+  // with every clip it plays; "id:#rrggbb" tints a piece. Indexed like
+  // objects[].
+  const outfits = new Map<number, THREE.Object3D[]>();
+  function parseOutfit(text: string) {
+    return text
+      .split(/\s+/)
+      .map((part) => /^(\d+)(?::(#[0-9a-fA-F]{6}))?$/.exec(part))
+      .filter((m): m is RegExpExecArray => !!m && Number(m[1]) > 0)
+      .map((m) => ({ id: Number(m[1]), tint: m[2] }));
+  }
+  function setOutfit(index: number, spec: { id: number; tint?: string }[]) {
+    for (const piece of outfits.get(index) ?? []) piece.removeFromParent();
+    outfits.delete(index);
+    const anchor = objects[index];
+    if (!anchor) return;
+    let body: THREE.SkinnedMesh | undefined;
+    anchor.traverse((node) => {
+      if (!body && (node as THREE.SkinnedMesh).isSkinnedMesh) body = node as THREE.SkinnedMesh;
+    });
+    if (!body?.parent) return;
+    const bones = new Map(body.skeleton.bones.map((bone) => [bone.name, bone]));
+    const pieces: THREE.Object3D[] = [];
+    for (const { id, tint } of spec) {
+      const cached = catalogCache.get(id);
+      if (!cached) {
+        // Worn once it has loaded (unless something else was put on since).
+        loadCatalogModel(id)?.then(() => {
+          if (outfits.get(index) === pieces) setOutfit(index, spec);
+        });
+        continue;
+      }
+      const clone = SkeletonUtils.clone(cached.scene);
+      clone.updateMatrixWorld(true);
+      const meshes: THREE.SkinnedMesh[] = [];
+      clone.traverse((node) => {
+        if ((node as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(node as THREE.SkinnedMesh);
+      });
+      for (const mesh of meshes) {
+        const mapped = mesh.skeleton.bones.map((bone) => bones.get(bone.name) ?? bone);
+        mesh.bind(new THREE.Skeleton(mapped, mesh.skeleton.boneInverses), mesh.bindMatrix);
+        mesh.frustumCulled = false;
+        mesh.castShadow = true;
+        if (tint) {
+          const material = (mesh.material as THREE.MeshStandardMaterial).clone();
+          material.color.multiply(new THREE.Color(tint));
+          mesh.material = material;
+        }
+        markCharacter(mesh);
+        body.parent.add(mesh);
+        pieces.push(mesh);
+      }
+    }
+    outfits.set(index, pieces);
+  }
   function handleHost(kind: string, text: string) {
     if (kind === "weather") {
       const weather = parseWeather(text);
@@ -2007,6 +2074,19 @@ async function startEditor() {
       const [layer = "", level = "0"] = text.split(/\s+/);
       if ((ambienceLayers as readonly string[]).includes(layer)) ambience?.set(layer as AmbienceLayer, Number(level));
     } else if (kind === "cue") cue(text);
+    else if (kind === "light") {
+      const [ambient = NaN, sunLevel = NaN] = text.split(/\s+/).map(Number);
+      lightOverride = Number.isFinite(ambient) && Number.isFinite(sunLevel) ? { ambient: Math.max(0, ambient), sun: Math.max(0, sunLevel) } : undefined;
+      if (lightOverride) {
+        hemisphere.intensity = lightOverride.ambient;
+        sun.intensity = lightOverride.sun;
+      }
+    } else if (kind === "ui_color") {
+      const [name = "", hex = ""] = text.split("|");
+      if (/^#[0-9a-fA-F]{6}$/.test(hex)) uiColorOverrides.set(name, new THREE.Color(hex));
+      else uiColorOverrides.delete(name);
+    }
+
     else if (kind === "announce") announcer.say(text);
     else if (kind === "system") {
       const split = text.indexOf("|");
@@ -2975,6 +3055,8 @@ async function startEditor() {
   const uiVisibility = new Map<string, boolean>();
   let draggingSlider: UIButtonHit | undefined;
   const uiTextOverrides = new Map<string, string>();
+  // ui.set_color: a UI element's text colour, by name (cleared like the text).
+  const uiColorOverrides = new Map<string, THREE.Color>();
   // Script waypoints (ui.marker), by name (0.66.0).
   const uiMarkers = new Map<string, { position: THREE.Vector3; label: string }>();
   // Runtime-spawned prefab instances (world.spawn) get render objects at the
@@ -3163,7 +3245,9 @@ async function startEditor() {
         uiTextOverrides.set(a, b);
         // Banners and objectives are read out to screen readers.
         if (a === "Banner" || a === "Objective") announcer.say(b);
-      } else if (kind === "host") handleHost(a, b);
+      } else if (kind === "host" && a === "outfit")
+        setOutfit(runtime._editor_command_entity(i), parseOutfit(b));
+      else if (kind === "host") handleHost(a, b);
       else if (kind === "particles_burst" || kind === "particles_emitting") {
         const state = particleStates[runtime._editor_command_entity(i)];
         if (state && kind === "particles_burst") burst(state.emitter, Math.max(0, Math.min(1000, Number(a) || 0)));
@@ -3196,6 +3280,7 @@ async function startEditor() {
   }
   function syncRuntime() {
     uiTextOverrides.clear();
+    uiColorOverrides.clear();
     uiMarkers.clear();
     uiValues.clear();
     uiVisibility.clear();
@@ -3571,7 +3656,9 @@ async function startEditor() {
     // their own: their stand-in box shows only while editing (0.78.0).
     // Settings holders and invisible helpers (a light, a camera, a director
     // script): their stand-in box shows only while editing.
-    const settingsOnly = isSettingsOnly(get) || (!renderable && isNonPhysical(get));
+    // Instanced models (ModelInstances) stay out of the simulation but are
+    // drawn: they have no Renderable of their own.
+    const settingsOnly = isSettingsOnly(get) || (!renderable && !instancesComponent && isNonPhysical(get));
     object.visible = renderable?.visible ?? !(settingsOnly && doc.mode === "play");
     if (settingsOnly) object.userData.settingsOnly = true;
     // `anchor` -- not `object` -- carries this entity's Transform/Rotation/
@@ -3644,7 +3731,11 @@ async function startEditor() {
     // selected, same as any other entity before a real Renderable.mesh is
     // chosen. Being a child of `anchor` means it inherits this entity's
     // own position/rotation for free, no separate transform tracking.
-    if (light) anchor.add(createLight(light));
+    if (light) {
+      const made = createLight(light);
+      anchor.add(made);
+      lightPool.register(made);
+    }
     // Every mesh casts and receives shadows; a Material component overrides
     // the surface (see applyMaterial).
     const materialOverride = get("Material");
@@ -3694,7 +3785,18 @@ async function startEditor() {
       for (const [side, id] of [["r", melee.rightHand], ["l", melee.leftHand]] as const) {
         const entry = id > 0 ? catalogEntry(id) : undefined;
         if (!entry) continue;
-        const place = (weapon: CachedModel) => holdWeapon(rig, object, side, weapon.scene, heldLength(entry.name));
+        let grip = weaponGrip(entry.path);
+        // A two-hander with something in the other hand (the Warlord's
+        // claymore and shield) is wielded one-handed.
+        if (grip.grip === "twohand" && (side === "r" ? melee.leftHand : melee.rightHand) > 0) grip = { ...grip, grip: "forward", offHand: undefined };
+        const index = objects.length - 1;
+        const place = (weapon: CachedModel) => {
+          if (!holdWeapon(rig, object, side, weapon.scene, grip)) return;
+          // A weapon fought with the sword clips takes their stance (its
+          // guard pose, if it has one, goes over it); daggers and knives keep
+          // the boxing guard.
+          if (grip.clips === "sword") combat.arm(index, "blade");
+        };
         const ready = catalogCache.get(id);
         if (ready) place(ready);
         else loadCatalogModel(id)?.then(place, (error) => log(`Catalog model ${id} failed to load: ${String(error)}`));
@@ -3705,6 +3807,9 @@ async function startEditor() {
   }
   function rebuild() {
     talkerScan = -1;
+    lightOverride = undefined;
+    clearOffHands();
+    outfits.clear();
     staticBatcher.clear();
     probe.detach();
     probeScanAt = 0;
@@ -3727,6 +3832,7 @@ async function startEditor() {
     }
     for (const object of objects) object.removeFromParent();
     objects.length = 0;
+    lightPool.reset();
     terrainMeshes.clear();
     animStates.length = 0;
     combat.reset();
@@ -4970,6 +5076,7 @@ async function startEditor() {
     const stride = governorTier().crowdStride;
     crowdFrame++;
     const eye = viewCamera.position;
+    lightPool.update(viewCamera.position);
     if (doc.mode === "play") combat.frame(dt, tickAlpha, viewCamera);
     // Slow motion (a finisher, a parry) slows every body with the game clock.
     const animDt = doc.mode === "play" ? dt * combat.timeScale : dt;
@@ -4994,6 +5101,8 @@ async function startEditor() {
       }
     });
     if (doc.mode === "play") combat.plant(dt);
+    // Weapon guards and two-handed grips, over the clips' poses.
+    updateHeldWeapons(animDt, (body) => combat.guarding(body));
     // Same reasoning as mixers above -- a Particles emitter is as "always on"
     // as a Light, not gated to Play mode like Script/Sound.
     particleScale.value = viewport.clientHeight / 2;
@@ -5399,7 +5508,11 @@ async function startEditor() {
   function bossReadout() {
     const name = ledger.bossName;
     if (!name) return undefined;
-    const index = doc.scene.eachAlive().findIndex((e) => doc.scene.resolve(e, "Name")?.value === name);
+    let index = doc.scene.eachAlive().findIndex((e) => doc.scene.resolve(e, "Name")?.value === name);
+    // A boss spawned from a prefab (world.spawn) goes by the prefab's name.
+    if (index < 0)
+      for (let i = doc.scene.eachAlive().length; i < objects.length && index < 0; i++)
+        if (runtime._editor_alive(i) && runtime.ccall("editor_spawned_prefab", "string", ["number"], [i]) === name) index = i;
     if (index < 0 || !runtime._editor_alive(index)) return { health: -1, stagger: -1, broken: false };
     return {
       health: runtime._editor_value(index, EntityField.health),
@@ -5448,8 +5561,6 @@ async function startEditor() {
       drawWaypoints();
     }
     if (firstPerson()) hudLines.push(...drawFirstPersonOverlay());
-    // GATEBREAKER: panels, the Ledger's windows and the boss bar.
-    if (doc.mode === "play") hudLines.push(...ledger.draw(hudCtx, hud.width, hud.height, bossReadout()));
     // Melee (0.78.0): health, energy, guard, combo and lock-on.
     if (doc.mode === "play" && !ledger.playing)
       hudLines.push(
@@ -5513,7 +5624,12 @@ async function startEditor() {
       const uiName = doc.scene.resolve(entity, "Name")?.value ?? "";
       const playing = doc.mode !== "edit";
       const override = playing ? uiTextOverrides.get(uiName) : undefined;
-      const ui = override === undefined ? authoredUi : { ...authoredUi, text: override };
+      const tint = playing ? uiColorOverrides.get(uiName) : undefined;
+      const ui = {
+        ...authoredUi,
+        ...(override === undefined ? {} : { text: override }),
+        ...(tint ? { color: { x: tint.r, y: tint.g, z: tint.b } } : {}),
+      };
       if (ui.visibleWhen === "play" && doc.mode !== "play") continue;
       if (ui.visibleWhen === "pause" && doc.mode !== "pause") continue;
       if (playing && uiVisibility.get(uiName) === false) continue;
@@ -5537,6 +5653,9 @@ async function startEditor() {
       if (ui.text) hudLines.push(ui.text);
       if (ui.kind === "Bar" || ui.kind === "Slider" || ui.kind === "Toggle") hudLines.push(`${uiName || ui.kind}=${Math.round(value * 100) / 100}`);
     }
+    // GATEBREAKER: panels, the Ledger's windows and the boss bar, drawn last
+    // so a window covers the scene's own UI text.
+    if (doc.mode === "play") hudLines.push(...ledger.draw(hudCtx, hud.width, hud.height, bossReadout()));
     const hudSummary = hudLines.join(" · ");
     if (hudText.textContent !== hudSummary) hudText.textContent = hudSummary;
   }

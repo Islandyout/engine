@@ -42,21 +42,34 @@ test("GATEBREAKER M0: a Manhwa-styled room with the hunter against a goblin", ()
   }
 });
 
-const gate = new URL("../../../examples/gatebreaker/e-rank-gate.json", import.meta.url);
+const game = new URL("../../../examples/gatebreaker/gatebreaker.json", import.meta.url);
 
-test("examples/gatebreaker/e-rank-gate.json is what tools/gatebreaker/build_gate.ts generates", () => {
-  const out = join(mkdtempSync(join(tmpdir(), "gatebreaker-")), "gate.json");
-  execFileSync(process.execPath, ["--import", "tsx", "../../tools/gatebreaker/build_gate.ts"], { env: { ...process.env, GB_GATE_OUT: out }, stdio: "pipe" });
-  assert.equal(readFileSync(out, "utf8"), readFileSync(gate, "utf8"), "regenerate it with `npm run gatebreaker --prefix apps/editor`");
+test("examples/gatebreaker/gatebreaker.json is what tools/gatebreaker/build_game.ts generates", () => {
+  const out = join(mkdtempSync(join(tmpdir(), "gatebreaker-")), "game.json");
+  execFileSync(process.execPath, ["--import", "tsx", "../../tools/gatebreaker/build_game.ts"], { env: { ...process.env, GB_GAME_OUT: out }, stdio: "pipe" });
+  assert.equal(readFileSync(out, "utf8"), readFileSync(game, "utf8"), "regenerate it with `npm run gatebreaker --prefix apps/editor`");
 });
 
-test("GATEBREAKER M1: the E-rank Gate's floors sit on the ground and its fighters stand on it", () => {
-  const scene = JSON.parse(readFileSync(gate, "utf8"));
+test("GATEBREAKER: floors sit on the ground and fighters, placed or spawned, stand on it", () => {
+  const scene = JSON.parse(readFileSync(game, "utf8"));
   validateSceneDocument(scene);
   for (const e of scene.entities) {
     const c = e.components;
     // Floor tiles' tops sit 1 cm above y = 0 (just clear of the shadow plane there).
-    if (/floor/.test(e.name)) assert.ok(Math.abs(c.Transform.position.y + c.Scale.value.y / 2 - 0.01) < 1e-6, `${e.name} top at y = 0.01`);
+    // Instanced tiles stand on their bottoms: 15 cm thick, 14 cm down, tops at y = 0.01.
+    if (/floor/.test(e.name) && c.ModelInstances) assert.equal(c.Transform.position.y, -0.14, `${e.name} tiles top at y = 0.01`);
+    else if (/floor/.test(e.name)) assert.ok(Math.abs(c.Transform.position.y + c.Scale.value.y / 2 - 0.01) < 1e-6, `${e.name} top at y = 0.01`);
     if (c.Melee && !/Prologue/.test(e.name)) assert.ok(Math.abs(c.Transform.position.y - c.Scale.value.y / 2) < 1e-6, `${e.name} stands on y = 0`);
   }
+  // The Director spawns each enemy at half its height (its HALF table), and
+  // only enemies that are prefabs.
+  const director = scene.entities.find((e: { name: string }) => e.name === "Director").components.Script.source as string;
+  const half = new Map([...director.matchAll(/\["([^"]+)"\] = ([\d.]+)/g)].map((m) => [m[1]!, Number(m[2])]));
+  assert.ok(half.size >= 8);
+  for (const [name, y] of half) {
+    const prefab = scene.prefabs[name];
+    assert.ok(prefab, `${name} is a prefab`);
+    assert.ok(Math.abs(prefab.components.Scale.value.y / 2 - y) < 1e-6, `${name} spawns standing on y = 0`);
+  }
+  for (const m of director.matchAll(/boss = "([^"]+)"/g)) assert.ok(scene.prefabs[m[1]!], `boss ${m[1]} is a prefab`);
 });

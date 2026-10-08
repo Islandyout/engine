@@ -682,6 +682,29 @@ int main() {
             check(world.query<Box>().size() == 3, "the spawned ball exists and the wall is gone");
         }
         {
+            // An on_start can message a script further down the entity list:
+            // every script compiles before any starts.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            TestHost host;
+            const auto first = world.create();
+            world.set(first, Box{{0, 0, 0}, {1, 1, 1}});
+            world.set(first, Script{R"lua(function on_start() world.send(world.find("Second"), "hello", 1) world.send(world.find("Second"), "half", 1.5) end)lua"});
+            host.names[first] = "First";
+            const auto second = world.create();
+            world.set(second, Box{{0, 0, 0}, {1, 1, 1}});
+            world.set(second, Script{R"lua(function on_message(name, value) log(name .. " " .. tostring(value)) end)lua"});
+            host.names[second] = "Second";
+            Runtime runtime;
+            runtime.set_host(&host);
+            runtime.step(world, 1.0F / 60);
+            check(host.emitted == std::vector<std::string>{"log:hello 1", "log:half 1.5"},
+                  "a message sent in on_start reaches a later script, integers as integers");
+        }
+        {
             // world.raycast/overlap see colliders; physics.add_impulse moves self.
             World world;
             world.register_component<Box>("box");

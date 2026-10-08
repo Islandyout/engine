@@ -46,6 +46,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `world.send(id: integer, name: string, value?: any)` | Calls the entity's on_message(name, value, sender). |
 | `world.path(x, y, z, tx, ty, tz: number): table[]?` | Waypoints {x, y, z} around obstacles, or nil when unreachable. |
 | `world.set_clock(hours: number): number` | The scene clock that Routines follow. |
+| `world.wear(models: string)` | Dresses this script's own character in gear: catalog model ids (space-separated; "214:#8aa6d6" tints one) rigged to its skeleton, worn over its body and moving with it. Empty undresses. |
 | `world.wildlife_state(name: string)` | 0 calm, 1 wary, 2 fleeing, -1 not an animal. |
 
 ## host
@@ -78,6 +79,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `ui.set_visible(name: string, visible: boolean)` | Shows or hides a UI element. |
 | `ui.marker(name: string, x: number, y: number, z: number, label?: string)` | An on-screen waypoint at a world position, pinned to the screen edge when off screen. |
 | `ui.clear_marker(id: string)` | Removes a marker. |
+| `ui.set_color(name: string, color: string)` | A UI element's text colour (#rrggbb); empty restores its own. |
 
 ## game
 
@@ -165,6 +167,9 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `melee.set_ai(on: boolean, aggression?: number, skill?: number)` | Hands the fighter to (or takes it from) its melee brain. |
 | `melee.unlock(move: string): number?` | Makes a move marked locked usable; 1 when the move exists. |
 | `melee.stagger(): number, number` | Its poise bar 0-1, and 1 while it's Broken. |
+| `melee.mana(add?: number): number, number` | Adds mana (a potion; capped at the max) and returns its mana and max. |
+| `melee.follow(leader?: integer, slot?: integer)` | Makes this AI fighter an ally of the leader: with no hostile within reach it walks to its slot (0 left, 1 right, 2 behind) and won't chase hostiles more than 16 m from the leader; nil stops it. |
+| `melee.tune(damage: number, speed: number, crit: number, skill: number, health_max?: number, mana_max?: number): number, number, number, number` | Stats: damage dealt (times), its clock speed (0.5-2: attacks, dodges, cooldowns), crit chance 0-1 (1.5x), skill damage (times, moves that cost mana), and optionally max health and mana. -1 keeps one as is. |
 
 ## weapon
 
@@ -233,6 +238,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | Function | What it does |
 |---|---|
 | `fx.weather(rain: number, fog: number, wind_x: number, wind_z: number)` | Weather: rain and fog 0-1, wind in m/s. |
+| `fx.light(ambient: number, sun: number)` | Sets the ambient and sun intensities over the Environment's (a lit street vs a dark dungeon in one scene). |
 | `fx.dust(color: string, density: number)` | Dust kicked up on landing: a #rrggbb colour and 0-1 density. |
 | `fx.soft_ground(soft: boolean)` | Whether footprints show. |
 

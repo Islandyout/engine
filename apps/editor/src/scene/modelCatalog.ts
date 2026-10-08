@@ -251,6 +251,31 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 211, category: "weapons", name: "Bow", path: "./kit/weapons/bow.glb" },
   { id: 212, category: "weapons", name: "Round shield", path: "./kit/weapons/shield-round.glb" },
   { id: 213, category: "dungeon", name: "Wall doorway (open)", path: "./kit/dungeon/wall-doorway-open.glb" },
+  // GATEBREAKER (M3.5): gear pieces, skinned to the hunter's skeleton and
+  // worn with world.wear (tools/models/make_outfits.mjs, Quaternius
+  // CC0 Modular Character Outfits -- see assets/CREDITS.md).
+  { id: 214, category: "gear", name: "Gear: body armor", path: "./kit/people/gear-body.glb" },
+  { id: 215, category: "gear", name: "Gear: bracers", path: "./kit/people/gear-hands.glb" },
+  { id: 216, category: "gear", name: "Gear: trousers", path: "./kit/people/gear-legs.glb" },
+  { id: 217, category: "gear", name: "Gear: boots", path: "./kit/people/gear-feet.glb" },
+  { id: 218, category: "gear", name: "Gear: pauldron", path: "./kit/people/gear-shoulders.glb" },
+  // More traffic (Quaternius and Rgsdev, CC0), baked to real metres facing +z
+  // by tools/models/import_vehicles.mjs -- see assets/CREDITS.md.
+  { id: 219, category: "vehicles", name: "Sedan (family)", path: "./kit/vehicles/sedan-family.glb" },
+  { id: 220, category: "vehicles", name: "Compact wagon", path: "./kit/vehicles/compact-wagon.glb" },
+  { id: 221, category: "vehicles", name: "Coupe", path: "./kit/vehicles/coupe.glb" },
+  { id: 222, category: "vehicles", name: "Sports GT", path: "./kit/vehicles/sports-gt.glb" },
+  { id: 223, category: "vehicles", name: "SUV (crossover)", path: "./kit/vehicles/suv-crossover.glb" },
+  { id: 224, category: "vehicles", name: "Taxi (sedan)", path: "./kit/vehicles/taxi-sedan.glb" },
+  { id: 225, category: "vehicles", name: "Roadster", path: "./kit/vehicles/roadster.glb" },
+  { id: 226, category: "vehicles", name: "Limousine", path: "./kit/vehicles/limousine.glb" },
+  { id: 227, category: "vehicles", name: "Panel van", path: "./kit/vehicles/panel-van.glb" },
+  { id: 228, category: "vehicles", name: "Step van", path: "./kit/vehicles/step-van.glb" },
+  { id: 229, category: "vehicles", name: "Ambulance van", path: "./kit/vehicles/ambulance-van.glb" },
+  { id: 230, category: "vehicles", name: "Fire truck", path: "./kit/vehicles/firetruck.glb" },
+  { id: 231, category: "vehicles", name: "Coach bus", path: "./kit/vehicles/coach-bus.glb" },
+  { id: 232, category: "vehicles", name: "Bicycle", path: "./kit/vehicles/bicycle.glb" },
+  { id: 233, category: "vehicles", name: "Bicycle (city)", path: "./kit/vehicles/bicycle-city.glb" },
 ];
 
 export const catalogCategories = Array.from(
