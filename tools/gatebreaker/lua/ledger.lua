@@ -456,14 +456,18 @@ local loot = {} -- { id, code, x, z } lying in the Gate
 -- Gate master drops Epic or better a third of the time, and the fifth
 -- master in a row without one always does (s.pity).
 local ODDS = { grunt = { 0.02, 0.10, 0.28 }, elite = { 0.04, 0.15, 0.35 }, boss = { 0.12, 0.35, 1 } }
-local function roll_loot(prefab)
+-- Night in the field (lua/world.lua): gear drops half again as often, and
+-- every rarity's odds rise by half too.
+local NIGHT_LOOT = 1.5
+local function roll_loot(prefab, night)
   local boss, elite = BOSS[prefab], ELITE[prefab]
-  if math.random() > (boss and 1 or elite and 0.35 or 0.12) then
+  local boost = night and NIGHT_LOOT or 1
+  if math.random() > (boss and 1 or elite and 0.35 or 0.12) * boost then
     if math.random() < 0.1 then return math.random() < 0.65 and "P1" or "P2" end
     return nil
   end
   local odds = ODDS[boss and "boss" or elite and "elite" or "grunt"]
-  local r = math.random()
+  local r = math.random() / boost
   local rarity = r < odds[1] and 4 or r < odds[1] + odds[2] and 3 or r < odds[1] + odds[2] + odds[3] and 2 or 1
   if boss then
     if rarity >= 3 then s.pity = 0
@@ -497,8 +501,8 @@ local function pick_up(code)
   store()
 end
 
-local function drop(prefab, x, z)
-  local code = roll_loot(prefab)
+local function drop(prefab, x, z, night)
+  local code = roll_loot(prefab, night)
   if not code or not x then return end
   local kind = code:sub(1, 1) == "P" and "Potion" or RARITY[parse(code).rarity][1]
   local id = world.spawn("Loot " .. kind, x, 0.15, z)
@@ -818,15 +822,39 @@ local applied = false
 function on_message(name, value)
   ready()
   if name == "kill" then
-    local prefab, x, z = tostring(value):match("^([^|]+)|?([^|]*)|?([^|]*)$")
+    -- A fourth part ("field" or "night") is a kill out in the district
+    -- (lua/world.lua): not part of a Gate run, saved at once.
+    local prefab, x, z, field = tostring(value):match("^([^|]+)|?([^|]*)|?([^|]*)|?([^|]*)$")
     local k = KILL[prefab]
     if not k then return end
-    drop(prefab, tonumber(x), tonumber(z))
-    run.kills = run.kills + 1
-    run.xp, run.gold, run.fangs = run.xp + k[1], run.gold + k[2], run.fangs + k[3]
+    drop(prefab, tonumber(x), tonumber(z), field == "night")
+    if field == "" then
+      run.kills = run.kills + 1
+      run.xp, run.gold, run.fangs = run.xp + k[1], run.gold + k[2], run.fangs + k[3]
+    end
     s.gold, s.fang = s.gold + k[2], s.fang + k[3]
     gain_xp(k[1])
+    if field ~= "" then store() end
     hunter_line()
+  elseif name == "field_calm" then
+    -- Out in the district with no fight on: level-ups earned there show now.
+    if not current and not menu and #queue > 0 then show_next() end
+  elseif name == "open_gates" then
+    -- The district's Gate sites (lua/world.lua) hold the Gates he may enter.
+    local list = {}
+    for n, g in ipairs(GATES) do
+      if gate_open(n) then list[#list + 1] = n .. ":" .. g.rank .. ":" .. g.name end
+    end
+    world.send(world.find("World"), "open_gates", table.concat(list, ","))
+  elseif name == "site_gate" then
+    -- Walking into a Gate site's rift: in, the way the Gate Board sends him.
+    local n = math.tointeger(tonumber(value) or 0) or 0
+    if GATES[n] and gate_open(n) and not current then
+      close_menu()
+      in_hub = false
+      run_gate = n
+      world.send(world.find("Director"), "enter_gate", n)
+    end
   elseif name == "gate_clear" then
     collect_all()
     local gn, grade, secs, hurt = tostring(value):match("^(%d+):?(%a?):?(%d*):?(%d*)")

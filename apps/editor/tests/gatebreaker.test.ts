@@ -73,3 +73,25 @@ test("GATEBREAKER: floors sit on the ground and fighters, placed or spawned, sta
   }
   for (const m of director.matchAll(/boss = "([^"]+)"/g)) assert.ok(scene.prefabs[m[1]!], `boss ${m[1]} is a prefab`);
 });
+
+test("GATEBREAKER M4: field enemies stand on y = 0, every Gate rank has a rift, and the district stays small", () => {
+  const scene = JSON.parse(readFileSync(game, "utf8"));
+  const world = scene.entities.find((e: { name: string }) => e.name === "World").components.Script.source as string;
+  // world.lua places each field kind at half its height (its HALF table) as
+  // a "Field <kind>" prefab whose script takes the World's messages.
+  const half = new Map([...world.matchAll(/\["([^"]+)"\] = ([\d.]+)/g)].map((m) => [m[1]!, Number(m[2])]));
+  assert.ok(half.size >= 8);
+  for (const [name, y] of half) {
+    const prefab = scene.prefabs[`Field ${name}`];
+    assert.ok(prefab, `Field ${name} is a prefab`);
+    assert.ok(Math.abs(prefab.components.Scale.value.y / 2 - y) < 1e-6, `Field ${name} spawns standing on y = 0`);
+    assert.match(prefab.components.Script.source, /name == "stash"/, `Field ${name} can be pooled`);
+  }
+  for (const m of world.matchAll(/boss = "([^"]+)"/g)) assert.ok(half.has(m[1]!), `field boss ${m[1]} has a height`);
+  for (const rank of ["E", "D", "C", "B", "A", "S"]) assert.ok(scene.prefabs[`Gate rift ${rank}`], `a rift for ${rank}-rank Gates`);
+  for (const k of [1, 2, 3])
+    for (const suffix of ["", " anchor"]) assert.ok(scene.entities.some((e: { name: string }) => e.name === `Field zone ${k}${suffix}`), `Field zone ${k}${suffix}`);
+  // The engine's limit is 1024 entities, spawned ones included: the field
+  // reuses its enemies, so the static scene leaves most of it free.
+  assert.ok(scene.entities.length < 400, `${scene.entities.length} static entities`);
+});

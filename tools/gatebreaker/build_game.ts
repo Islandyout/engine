@@ -878,6 +878,38 @@ for (const [name, kind] of Object.entries(kinds))
     ...(kind.script ? { Script: { source: kind.script, props: {} } } : {}),
   });
 
+// Field enemies (M4, lua/world.lua): each kind again as "Field <name>",
+// its own script (if any) wrapped so the World can put it on its pack's
+// anchor with the hour's numbers ("field": leader id, damage and health
+// scales, 1 to hand it to its brain) and put it away when it falls
+// ("stash": revived and asleep, pooled for its pack's return).
+const fieldHook = `
+-- Out in the district (lua/world.lua): its pack's anchor, its numbers, and
+-- back to the pool when it falls.
+local own_message = on_message
+function on_message(name, value, sender)
+  if name == "field" and type(value) == "string" then
+    local leader, damage, health, ai = value:match("^(%d+),([%d.]+),([%d.]+),(%d)$")
+    if not leader then return end
+    melee.follow(math.tointeger(tonumber(leader)), 2)
+    melee.tune(tonumber(damage), -1, -1, -1, tonumber(health))
+    if ai == "1" then melee.set_ai(true) end
+  elseif name == "stash" then
+    melee.follow()
+    melee.set_ai(false)
+    melee.lock()
+    melee.revive()
+  elseif own_message then
+    own_message(name, value, sender)
+  end
+end
+`;
+for (const [name, kind] of Object.entries(kinds))
+  scene.prefab(`Field ${name}`, {
+    ...scene.prefabs[name]!.components,
+    Script: { source: (kind.script ?? "") + fieldHook, props: {} },
+  });
+
 // Shadows: each bindable kind, risen. Its role decides its slot (tank on
 // the left, striker on the right, archer behind); bosses' shadows hit a
 // little softer so the hunter stays the one who wins the fight.
@@ -1031,7 +1063,7 @@ npc("Smith Kang", [10, 0.9, 59.6], Math.PI, "#6a4632");
 
 // -- The district around the hub (M4: district.ts, lua/world.lua) ------------
 buildDistrict(scene);
-scene.add("World", [0, 0, 0], { Script: { source: lua("world.lua"), props: {} } });
+scene.add("World", [0, 0, 0], { Script: { source: lua("world.lua"), props: { fast: false } } });
 
 const document = { format: 1, name: "GATEBREAKER", entities: scene.entities, prefabs: scene.prefabs } as SceneDocument;
 validateSceneDocument(document);
