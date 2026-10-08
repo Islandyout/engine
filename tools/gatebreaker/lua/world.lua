@@ -214,6 +214,12 @@ local function place_rifts()
       end
       if id then rifts[i] = { id = id, rank = g.rank } end
     end
+    -- The map (M) and minimap show each open site's Gate in its rank colour.
+    if g then
+      hud.map_marker("site" .. i, "gate", s.x, s.z, RANK_COLOUR[g.rank] or "", g.rank .. "-rank Gate: " .. g.name)
+    else
+      hud.clear_map_marker("site" .. i)
+    end
   end
 end
 

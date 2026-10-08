@@ -221,8 +221,10 @@ function bot(page) {
       if (!/Locked on/.test(await hud())) await page.keyboard.press("Tab");
       await page.keyboard.down("w");
       await page.waitForTimeout(700);
+      // Left clicks: the light attack (J opens the quest log).
+      const box = await page.locator("#viewport").boundingBox();
       for (let k = 0; k < 3; k++) {
-        await page.keyboard.press("j");
+        await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
         await page.waitForTimeout(120);
       }
       await page.keyboard.up("w");

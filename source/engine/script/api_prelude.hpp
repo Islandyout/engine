@@ -37,6 +37,9 @@ function hud.system(title, body) host.send("system", title .. "|" .. (body or ""
 function hud.system_close() host.send("system", "") end
 function hud.panels(spec) host.send("panels", spec) end
 function hud.boss(name, title) host.send("boss", (name or "") .. "|" .. (title or "")) end
+function hud.map_layout(spec) host.send("map_layout", spec or "") end
+function hud.map_marker(id, kind, x, z, color, label) host.send("map_marker", table.concat({id, kind, string.format("%.2f", x), string.format("%.2f", z), color or "", label or ""}, "|")) end
+function hud.clear_map_marker(id) host.send("map_marker_clear", id) end
 function audio.music(mood) host.send("music", mood) end
 function audio.ambience(layer, level) host.send("audio", string.format("%s %.2f", layer, level)) end
 function fx.weather(rain, fog, wind_x, wind_z) host.send("weather", string.format("%.2f %.2f %.1f %.1f", rain, fog, wind_x, wind_z)) end
