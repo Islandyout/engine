@@ -89,10 +89,14 @@ function bot(page) {
   const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
   // Walks to (x, z) in the open (the hub): W in short steps, turning the
-  // camera after each until W heads at the target.
-  const walkTo = async (x, z, near = 0.8, timeout = 240000) => {
+  // camera after each until W heads at the target. With `until` (a HUD
+  // pattern, e.g. a station's prompt) it stops as soon as that shows: the
+  // station is the goal, and its counter can keep the hunter from the exact
+  // point.
+  const walkTo = async (x, z, near = 0.8, timeout = 240000, until = undefined) => {
     const end = Date.now() + timeout;
     while (Date.now() < end) {
+      if (until && until.test(await hud())) return;
       // Locked on (the hub has a training construct), W heads at the target.
       if (/Locked on/.test(await hud())) await page.keyboard.press("Tab");
       const from = await position();
