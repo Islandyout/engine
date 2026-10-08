@@ -73,3 +73,46 @@ test("GATEBREAKER: floors sit on the ground and fighters, placed or spawned, sta
   }
   for (const m of director.matchAll(/boss = "([^"]+)"/g)) assert.ok(scene.prefabs[m[1]!], `boss ${m[1]} is a prefab`);
 });
+
+test("GATEBREAKER M4: the A and S Gates are built, peopled, ranked and within the entity budget", () => {
+  const scene = JSON.parse(readFileSync(game, "utf8"));
+  const script = (name: string) => scene.entities.find((e: { name: string }) => e.name === name).components.Script.source as string;
+  const director = script("Director");
+  const ledger = script("Ledger");
+  // Seven Gates, E to S, each with a par time for its clear grade.
+  const gates = [...director.matchAll(/^ {2}\{ ox = (-?\d+), name = "([^"]+)", rank = "(\w)".*par = (\d+)/gm)];
+  assert.deepEqual(
+    gates.map((m) => m[3]),
+    ["E", "E", "D", "C", "B", "A", "S"],
+  );
+  // The A and S Gates stand on their own ground, with four seals each, and
+  // their pieces add at most 120 entities (the cap is 1024, and spawned
+  // enemies, loot and shadows need room under it).
+  for (const n of [6, 7]) {
+    for (const k of [1, 2, 3, 4]) assert.ok(scene.entities.some((e: { name: string }) => e.name === `G${n} Seal ${k}`), `G${n} Seal ${k}`);
+    assert.ok(scene.entities.some((e: { name: string }) => e.name === `G${n} ground`), `G${n} ground`);
+  }
+  assert.ok(scene.entities.filter((e: { name: string }) => /^G[67] /.test(e.name)).length <= 120, "the A and S Gates within +120 entities");
+  assert.ok(scene.entities.length + 150 <= 1024, `${scene.entities.length} entities leave room for what spawns`);
+  // Their enemies, bosses and hazards are prefabs; the bindable ones have shadows.
+  for (const name of ["Castle Imp", "Bloodstone Knight", "Blood Mage", "Crimson Castellan", "Hollow", "Eclipse Warden", "Eclipse Herald", "Eclipse Sigil", "Eclipse Seal"])
+    assert.ok(scene.prefabs[name], `${name} is a prefab`);
+  for (const name of ["Bloodstone Knight", "Blood Mage", "Crimson Castellan", "Eclipse Warden", "Eclipse Herald"]) {
+    assert.ok(scene.prefabs[`Shadow ${name}`], `${name} can be bound`);
+    assert.match(director, new RegExp(`\\["${name}"\\] = \\{ \\d`), `the Director binds ${name}`);
+    assert.match(ledger, new RegExp(`\\["${name}"\\] = "sh\\d"`), `the Ledger keeps ${name}'s role`);
+  }
+  // The Castellan's Crimson Rend is red (unblockable) and only its script starts it.
+  const castellan = scene.prefabs["Crimson Castellan"].components.Melee.moves as string;
+  for (const cut of ["rend_1", "rend_2", "rend_3"]) assert.match(castellan, new RegExp(`^${cut}: .*input=skill1 .*unblockable`, "m"));
+  // Levels run to 25, each costing at least as much more as the last; the A
+  // and S Gates ask Lv.15/B and Lv.20/A and rank their first clear up.
+  const levels = ledger.match(/local LEVELS = \{([^}]+)\}/)![1]!.split(",").map(Number);
+  assert.equal(levels.length, 24);
+  for (let i = 2; i < levels.length; i++) assert.ok(levels[i]! - levels[i - 1]! >= levels[i - 1]! - levels[i - 2]!, `Lv.${i + 2} costs more than Lv.${i + 1}`);
+  assert.equal(levels.at(-1), 63300);
+  assert.match(ledger, /\[6\] = \{ "B", 15 \}, \[7\] = \{ "A", 20 \}/);
+  assert.match(ledger, /n == 6 and s\.rank == "B" then\s+ranked, s\.q = "A"/);
+  assert.match(ledger, /n == 7 and s\.rank == "A" then\s+ranked, s\.q = "S"/);
+  for (const rank of ["A", "S"]) assert.match(director, new RegExp(`^ {2}${rank} = \\{ \\[\\[`, "m"), `a ${rank}-rank ceremony`);
+});

@@ -4,11 +4,12 @@
 // - The prologue panels play over a night plaza with the Double Gate; that
 //   plaza is then the hub (the Hunter Association's square): the Gate Board,
 //   the smith, the training mat for the Daily Quest, and the door home.
-// - Five Gates, each a line of rooms that seal and open, ending in a boss:
+// - Seven Gates, each a line of rooms that seal and open, ending in a boss:
 //   the Goblin Cave (E, with the tutorial on the first run), the Subway
 //   Tunnel (E), the Goblin Fortress (D, the rank-up test), the Flooded
-//   Temple (C, which ranks a D hunter C) and the Ice Fortress (the B-rank
-//   test).
+//   Temple (C, which ranks a D hunter C), the Ice Fortress (the B-rank
+//   test), the Bloodstone Citadel (the A-rank test) and the Eclipse Spire
+//   (the S-rank test).
 // - Enemies are prefabs the Director spawns room by room, so every Gate can
 //   be run again.
 //
@@ -424,6 +425,140 @@ for (const cz of [0, -24, -48, -72, -100]) {
   });
 }
 
+// -- The A and S Gates (M4) ---------------------------------------------------
+// Two more Gates past the Ground slab (x -255..255), each on its own slab.
+// Every room of these has a lamp over it besides its torches, so the fights
+// read clearly from any angle (GAME_DESIGN.md 7: pools of light, never murk).
+const ROOM_CENTRES = [0, -24, -48, -72, -100] as const;
+function gateGround(prefix: string, ox: number) {
+  scene.add(`${prefix} ground`, [ox, -0.5, -55], {
+    Scale: { value: vec(40, 1, 140) },
+    Renderable: { mesh: 0, material: 0, visible: false },
+    RigidBody: { dynamic: false },
+    Collider: { type: "AABB" },
+  });
+}
+function gateLamps(prefix: string, ox: number, hex: string) {
+  for (const cz of ROOM_CENTRES)
+    scene.add(`${prefix} lamp ${cz}`, [ox, 7, cz], {
+      Renderable: { visible: false },
+      Light: { type: "Point", color: rgb(hex), intensity: cz === -100 ? 30 : 22, range: cz === -100 ? 26 : 20, castShadows: false },
+    });
+}
+// Red banners on a room's walls: on the north wall at `north` (x offsets),
+// and on both side walls at `side` (z offsets), each hung just off the face.
+function banners(ox: number, cz: number, half: number, north: readonly number[], side: readonly number[]) {
+  for (const x of north) place(dungeon("banner-patternA-red"), ox + x, cz - half + 0.1, 0, false);
+  for (const z of side) {
+    place(dungeon("banner-patternA-red"), ox - half + 0.1, cz + z, Math.PI / 2, false);
+    place(dungeon("banner-patternA-red"), ox + half - 0.1, cz + z, -Math.PI / 2, false);
+  }
+}
+
+// The Bloodstone Citadel (A): the A-rank test. A castle interior of dark
+// stone: red banners on every wall, a crimson runner down the length of the
+// Gate, warm torchlight and a lamp over each hall, and the Castellan's
+// throne at the end of the throne room. The flat walls sit where the
+// banners hang.
+const CITADEL: Theme = { walls: ["wall-pillar", "wall", "wall-arched", "wall", "wall-arched", "wall", "wall-gated"], floor: "floor-tile-large", torch: "#ff8a52" };
+const CX = 360;
+gate("G6", CITADEL, CX, "Outer Ward", () => {
+  // (The gallery's side walls are behind its pillars: banners north only.)
+  for (const cz of [0, -24, -48, -72]) banners(CX, cz, 10, [-4, 4], cz === -72 ? [] : [-5, 6.5]);
+  banners(CX, -100, 14, [-9.5, -2.6, 2.6, 9.5], [-5, -10]);
+  for (const [x, z, kind, yaw] of [
+    // The outer ward's stores.
+    [-7.8, 7.4, "crates-stacked", 0.2],
+    [7.9, 7.5, "barrel-large", 0],
+    [7.2, -6.4, "sword-shield-broken", 0.9],
+    // The barbican's and the gallery's pillars, clear of the fights.
+    [-7.4, -20, "pillar-decorated", 0],
+    [7.4, -20, "pillar-decorated", 0],
+    [-7.2, -67, "pillar-decorated", 0],
+    [7.2, -67, "pillar-decorated", 0],
+    [-7.2, -77, "pillar-decorated", 0],
+    [7.2, -77, "pillar-decorated", 0],
+    // The chapel's candles and its spoils.
+    [-8.4, -56.4, "candle-triple", 0],
+    [8.2, -56.4, "candle-triple", 0],
+    [-8.4, -39.6, "candle-triple", 0],
+    [8.2, -39.6, "candle-triple", 0],
+    [-8.2, -44, "chest", Math.PI / 2],
+    [8.2, -52, "chest", -Math.PI / 2],
+    // The throne room: candles by the throne, chests in its corners.
+    [-2.2, -110.6, "candle-triple", 0],
+    [1.9, -110.6, "candle-triple", 0],
+    [-11.6, -111.6, "chest", 0.4],
+    [11.6, -111.6, "chest", -0.4],
+    [-10.5, -90, "sword-shield-broken", 2.2],
+  ] as const)
+    place(dungeon(kind), CX + x, z, yaw, !(kind === "candle-triple" || kind === "sword-shield-broken"));
+}, ["#ffd27a", "#ff2a0c"]);
+gateGround("G6", CX);
+gateLamps("G6", CX, "#ffd6bc");
+// The runner, door to door down the whole Gate (only a look: a trigger).
+scene.box("G6 runner", [CX, 0.03, -52], [2.6, 0.02, 122], "#6e1018", { Collider: { type: "AABB", isTrigger: true } }, { roughness: 0.95 });
+// The throne: a dais, a tall crimson back and a gold crest.
+scene.box("G6 throne dais", [CX, 0.25, -111.4], [3.4, 0.5, 2.4], "#2c2428", {}, { roughness: 0.7 });
+scene.box("G6 throne back", [CX, 2.1, -112.6], [2.4, 3.4, 0.5], "#7a1420", {}, { roughness: 0.6, emissive: rgb("#3a0508"), emissiveIntensity: 0.6 });
+scene.box("G6 throne crest", [CX, 4.0, -112.5], [2.9, 0.35, 0.65], "#c9a24a", {}, { metalness: 0.7, roughness: 0.3, emissive: rgb("#7a5a1a"), emissiveIntensity: 0.6 });
+
+// The Eclipse Spire (S): the S-rank test. A ruin open to a red eclipse:
+// cracked walls, rubble, the gear of hunters it swallowed, violet torches,
+// ash on the floor and embers rising through every room; above the throne
+// room's far wall the eclipse itself, a black disc ringed in red light.
+const SPIRE: Theme = { walls: ["wall-cracked", "wall-arched", "wall-cracked", "wall", "wall-cracked", "wall-gated", "wall-arched"], floor: "floor-tile-large", torch: "#e08aff" };
+const SX = -360;
+gate("G7", SPIRE, SX, "Landing", () => {
+  for (const [x, z, kind, yaw] of [
+    [-7.6, 6.2, "rubble-half", 0.3],
+    [6.4, -7.8, "rubble-half", 2.9],
+    [-7.8, -30.5, "rubble-half", 1.4],
+    [7.5, -16.8, "column", 0],
+    [-6.5, -18, "sword-shield-broken", 0.4],
+    [6.8, -27.5, "sword-shield-broken", 2.6],
+    [-7.5, -41, "column", 0],
+    [7.5, -41, "column", 0],
+    [-7.5, -55, "column", 0],
+    [7.5, -55, "column", 0],
+    [6.5, -50, "sword-shield-broken", 1.7],
+    [-7.8, -78.5, "rubble-half", 1.2],
+    [7.4, -65.5, "rubble-half", -1.9],
+    [-6.2, -64.5, "sword-shield-broken", 0.9],
+    [11, -89.5, "rubble-half", 2.6],
+    [-11.2, -111.2, "rubble-half", 0.5],
+    [9.6, -108, "sword-shield-broken", 2.2],
+  ] as const)
+    place(dungeon(kind), SX + x, z, yaw, !(kind.startsWith("rubble") || kind === "sword-shield-broken"));
+  banners(SX, -100, 14, [-9.5, 9.5], []);
+}, ["#ffd6ff", "#8a2ad0"]);
+gateGround("G7", SX);
+gateLamps("G7", SX, "#d8ccff");
+for (const cz of ROOM_CENTRES) {
+  const half = cz === -100 ? 14 : 10;
+  // Pale ash over the floor (a look: a trigger).
+  scene.box(`G7 ash ${cz}`, [SX, 0.025, cz], [half * 2 - 1, 0.02, half * 2 - 1], "#b9a7c9", { Collider: { type: "AABB", isTrigger: true } }, {
+    opacity: 0.2,
+    roughness: 0.9,
+  });
+  // Embers rising from the floor (squashed into a low band, drifting up).
+  scene.add(`G7 embers ${cz}`, [SX, 0.6, cz], {
+    Scale: { value: vec(1, 0.2, 1) },
+    Renderable: { visible: false },
+    Particles: { preset: "Fire", rate: 14, lifetime: 4, speed: 0.35, size: 0.05, color: rgb("#ff9a6a"), endColor: rgb("#8a1a4a"), endSize: 0.4, gravityScale: -0.15, shape: "Box", shapeSize: half - 1.5 },
+  });
+}
+// The eclipse on the throne room's far wall, behind the Herald: a red
+// corona set on its corner, a black disc before it, and its light, which
+// floods the arena crimson. (Over the wall it hid behind the HUD.)
+const DIAMOND = { Rotation: { euler: vec(0, 0, Math.PI / 4) }, Collider: { type: "AABB", isTrigger: true } };
+scene.box("G7 eclipse corona", [SX, 4.4, -113.4], [5, 5, 0.12], "#3a0614", DIAMOND, { emissive: rgb("#ff2a4a"), emissiveIntensity: 1.8 });
+scene.box("G7 eclipse disc", [SX, 4.4, -113.3], [3.8, 3.8, 0.12], "#06030a", DIAMOND, { roughness: 1 });
+scene.add("G7 eclipse light", [SX, 6, -109], {
+  Renderable: { visible: false },
+  Light: { type: "Point", color: rgb("#ff5a6a"), intensity: 26, range: 24, castShadows: false },
+});
+
 // -- Move lists ---------------------------------------------------------------
 // Twin daggers. Light: stab, stab, hook-slash, spinning kick. Heavy after 1,
 // 2, 3 or 4 lights is a different finisher (GAME_DESIGN.md 5.2); from neutral
@@ -538,6 +673,71 @@ red_slam: clip=ground_pound input=special dur=1.8 hit=1.0-1.1 cancel=1.5 dmg=38 
 `;
 const constructMoves = `# Training construct: one slow, readable swing
 swing: clip=hook input=light dur=1.3 hit=0.8-0.9 cancel=1.1 dmg=4 reach=1.4 radius=0.9 lunge=0.2 knock=2 stun=0.3 track=120 limb=hand_r
+`;
+// The A and S Gates' enemies. A castle imp: small, quick, in packs.
+const impMoves = `# Castle imp
+claw_l: clip=jab input=light dur=0.5 hit=0.15-0.21 cancel=0.25 dmg=9 reach=0.95 lunge=0.45 stun=0.3 limb=hand_l
+claw_r: clip=cross input=light after=claw_l dur=0.52 hit=0.16-0.22 cancel=0.26 dmg=10 reach=1.0 lunge=0.45 stun=0.3 limb=hand_r
+pounce: clip=dash_strike input=heavy dur=0.95 hit=0.3-0.5 cancel=0.7 dmg=16 reach=1.0 lunge=5 knock=5 stun=0.5 stop=0.1 limb=hand_r
+hop: clip=roll input=dodge dur=0.5 hit=0-0 cancel=0.38 dmg=0 lunge=3.2 free iframes=0.03-0.32 track=0 limb=pelvis
+`;
+// A bloodstone knight swings a greatsword with armor: it doesn't flinch
+// mid-swing, so trading blows loses. Its white cleaves can be parried (a
+// parry stops even it); its rend is red: dodge it.
+const bloodKnightMoves = `# Bloodstone knight
+cleave: clip=sword_heavy_a input=light dur=1.0 hit=0.4-0.5 cancel=0.62 dmg=20 reach=1.6 radius=1.0 lunge=0.6 knock=4 stun=0.5 stop=0.1 armor limb=hand_r
+cleave_back: clip=sword_heavy_b input=light after=cleave dur=0.9 hit=0.32-0.42 cancel=0.55 dmg=18 reach=1.6 radius=1.0 lunge=0.5 knock=5 stun=0.5 armor limb=hand_r
+kick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=12 reach=1.2 height=0.55 lunge=0.5 knock=6 stun=0.5 limb=foot_r
+rend: clip=dash_strike input=heavy dur=1.3 hit=0.6-0.85 cancel=1.05 dmg=30 reach=1.4 lunge=6 knock=8 stun=0.7 stop=0.12 armor unblockable limb=hand_r
+`;
+// A blood mage bolts from range and, up close, throws everyone back with a
+// nova; its script blinks it away from a hunter who closes in.
+const bloodMageMoves = `# Blood mage
+bolt: clip=energy_cast input=light dur=1.0 hit=0.5-0.55 cancel=0.8 dmg=16 projectile=14 knock=3 stun=0.4 track=70 lunge=0 limb=hand_r
+nova: clip=ground_pound input=kick dur=1.2 hit=0.6-0.7 cancel=0.95 dmg=14 aoe=2.4 knock=8 stun=0.5 limb=hand_r
+hop: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3 free iframes=0.03-0.36 track=0 limb=pelvis
+`;
+// A hollow: a pale shade the Spire made of a fallen hunter. Twin knives,
+// quick rakes, a knee and a long leap; they hunt in packs.
+const hollowMoves = `# Hollow
+rake_l: clip=jab input=light dur=0.46 hit=0.14-0.2 cancel=0.24 dmg=12 reach=1.0 lunge=0.5 stun=0.3 limb=hand_l
+rake_r: clip=cross input=light after=rake_l dur=0.48 hit=0.15-0.21 cancel=0.25 dmg=13 reach=1.0 lunge=0.5 stun=0.3 limb=hand_r
+knee: clip=knee input=kick dur=0.7 hit=0.25-0.35 cancel=0.45 dmg=16 reach=0.9 lunge=0.6 knock=5 stun=0.5 limb=foot_r
+leap: clip=dash_strike input=heavy dur=0.9 hit=0.3-0.5 cancel=0.65 dmg=18 reach=1.0 lunge=5.5 knock=6 stun=0.5 stop=0.1 limb=hand_r
+hop: clip=roll input=dodge dur=0.5 hit=0-0 cancel=0.38 dmg=0 lunge=3.2 free iframes=0.03-0.32 track=0 limb=pelvis
+`;
+// An eclipse warden: a spear behind a shield (Heavies break its guard), and
+// a red sun-lance that breaks yours.
+const wardenMoves = `# Eclipse warden
+thrust: clip=sword_light_a input=light dur=0.75 hit=0.28-0.36 cancel=0.45 dmg=16 reach=1.8 radius=0.6 lunge=0.6 knock=3 stun=0.4 limb=hand_r
+thrust_2: clip=sword_light_b input=light after=thrust dur=0.75 hit=0.26-0.34 cancel=0.45 dmg=16 reach=1.8 radius=0.6 lunge=0.5 knock=3 stun=0.4 limb=hand_r
+bash: clip=cross input=kick dur=0.8 hit=0.3-0.38 cancel=0.45 dmg=12 reach=1.1 lunge=0.6 knock=6 stun=0.5 limb=hand_l
+sun_lance: clip=dash_strike input=heavy dur=1.25 hit=0.55-0.8 cancel=1.0 dmg=28 reach=1.6 lunge=7 knock=8 stun=0.7 stop=0.12 armor guardbreak limb=hand_r
+`;
+// The Crimson Castellan: parryable cleaves, a guard-breaking lunge, the red
+// slam, and (phase 2, from its script) the Crimson Rend: three red cuts in
+// a row. The rend's input is a skill button, which no AI presses: only the
+// script starts it.
+const castellanMoves = `# Crimson Castellan
+cleave: clip=sword_heavy_a input=light dur=1.1 hit=0.45-0.55 cancel=0.7 dmg=22 reach=1.8 radius=1.0 lunge=0.6 knock=5 stun=0.5 stop=0.1 limb=hand_r
+cleave_back: clip=sword_heavy_b input=light after=cleave dur=0.95 hit=0.35-0.45 cancel=0.6 dmg=20 reach=1.8 radius=1.0 lunge=0.4 knock=6 stun=0.5 stop=0.1 limb=hand_r
+kick: clip=side_kick_r input=kick dur=0.85 hit=0.35-0.45 cancel=0.55 dmg=14 reach=1.4 height=0.6 lunge=0.5 knock=8 stun=0.6 limb=foot_r
+lunge: clip=dash_strike input=heavy dur=1.2 hit=0.5-0.75 cancel=0.95 dmg=26 reach=1.4 lunge=6 knock=8 stun=0.7 stop=0.12 armor guardbreak limb=hand_r
+red_slam: clip=ground_pound input=special dur=1.8 hit=1.0-1.1 cancel=1.5 dmg=42 aoe=4.2 knock=10 stun=1 stop=0.16 armor unblockable knockdown limb=hand_r
+rend_1: clip=sword_light_a input=skill1 dur=0.85 hit=0.42-0.5 cancel=0.6 dmg=22 reach=1.9 radius=1.0 lunge=1.4 knock=3 stun=0.5 armor unblockable limb=hand_r
+rend_2: clip=sword_light_b input=skill1 dur=0.85 hit=0.4-0.48 cancel=0.58 dmg=22 reach=1.9 radius=1.0 lunge=1.4 knock=3 stun=0.5 armor unblockable limb=hand_r
+rend_3: clip=sword_heavy_c input=skill1 dur=1.6 hit=0.55-0.65 cancel=1.4 dmg=32 reach=2.0 radius=1.1 lunge=1.2 knock=8 stun=0.8 stop=0.14 armor unblockable knockdown limb=hand_r
+`;
+// The Eclipse Herald: twin blades, a guard-breaking lunge, eclipse bolts at
+// a hunter who keeps away, and the red slam.
+const heraldMoves = `# Eclipse Herald
+cut: clip=sword_light_a input=light dur=0.75 hit=0.26-0.34 cancel=0.45 dmg=20 reach=1.8 radius=0.9 lunge=0.6 knock=4 stun=0.5 limb=hand_r
+cut_back: clip=sword_light_b input=light after=cut dur=0.75 hit=0.26-0.34 cancel=0.45 dmg=20 reach=1.8 radius=0.9 lunge=0.5 knock=4 stun=0.5 limb=hand_r
+cut_rise: clip=sword_light_c input=light after=cut_back dur=1.0 hit=0.4-0.5 cancel=0.7 dmg=26 reach=1.8 radius=1.0 lunge=0.4 knock=7 stun=0.6 stop=0.12 limb=hand_r
+kick: clip=roundhouse_r input=kick dur=0.9 hit=0.38-0.48 cancel=0.6 dmg=16 reach=1.5 height=0.8 lunge=0.4 knock=8 stun=0.6 limb=foot_r
+lunge: clip=dash_strike input=heavy dur=1.15 hit=0.48-0.72 cancel=0.9 dmg=30 reach=1.5 lunge=7 knock=9 stun=0.8 stop=0.12 armor guardbreak limb=hand_r
+bolt: clip=energy_throw input=special dur=1.1 hit=0.55-0.6 cancel=0.85 dmg=24 projectile=16 knock=4 stun=0.5 track=90 lunge=0 limb=hand_r
+red_slam: clip=ground_pound input=special dur=1.8 hit=1.0-1.1 cancel=1.5 dmg=48 aoe=4.6 knock=11 stun=1 stop=0.16 armor unblockable knockdown limb=hand_r
 `;
 
 // -- Scripts ----------------------------------------------------------------
@@ -660,6 +860,226 @@ ${breakWatch}function on_start() world.wear("${wear}") end
 function on_tick() watch_break() end
 `;
 
+// A blood mage blinks away from a hunter who closes within 3 m, to the far
+// side of its room (at most every 6 s): catch it right after with Shadow
+// Fang (R) or Shadow Step Dash (Q). Its room is the nearest Gate line and
+// room centre to where it first stood.
+const bloodMageScript = `-- Blinks to the far side of its room when the hunter closes in.
+local wait, hero = 2, nil
+local cx, cz
+local GATE_X = { 0, 120, -120, 240, -240, 360, -360 }
+local ROOM_Z = { 0, -24, -48, -72, -100 }
+local function nearest(list, v)
+  local best
+  for _, c in ipairs(list) do
+    if not best or math.abs(c - v) < math.abs(best - v) then best = c end
+  end
+  return best
+end
+function on_tick(dt)
+  wait = wait - dt
+  local hp = world.health(self.id)
+  local x, y, z = world.position(self.id)
+  if not hp or hp <= 0 or not x then return end
+  cx, cz = cx or nearest(GATE_X, x), cz or nearest(ROOM_Z, z)
+  if wait > 0 then return end
+  hero = hero or world.find("Han Seo-jin")
+  local hx, _, hz = world.position(hero)
+  if not hx or (hx - x) ^ 2 + (hz - z) ^ 2 > 9 then return end
+  particles.burst(40)
+  world.set_position(self.id, cx + (hx > cx and -6 or 6), y, cz + (hz > cz and -5 or 5))
+  world.set_velocity(self.id, 0, 0, 0)
+  wait = 6
+end
+`;
+
+// The Crimson Castellan (the A-rank test): wakes on the Director's "wake";
+// a red slam every 8 s (5.5 s in phase 2). Below half health, phase 2: every
+// 7 s the Crimson Rend, three red cuts in a row that can't be parried or
+// blocked (each cut starts as soon as the last may be cancelled), then a
+// long recovery to punish. The phase-2 window (the Director) teaches it.
+const castellanScript = (wear: string) => `-- Phase 1: cleaves (parry them) and the red slam. Phase 2: the Crimson Rend.
+local phase, t, awake = 1, 0, false
+local REND = { "rend_1", "rend_2", "rend_3" }
+local rend_t, rending, seen, waited = 0, false, 0, 0
+${breakWatch}function on_start()
+  world.wear("${wear}")
+  if not awake then melee.set_ai(false) end
+end
+function on_message(name)
+  if name == "wake" then awake = true melee.set_ai(true) end
+end
+-- Keeps asking for the cut after the last one seen; done once the third
+-- is under way, or if it stalls (the Castellan was staggered or Broken).
+local function tick_rend(dt)
+  local move = melee.move()
+  for i = #REND, 1, -1 do
+    if move == REND[i] then
+      if i > seen then seen, waited = i, 0 end
+      break
+    end
+  end
+  waited = waited + dt
+  if seen == #REND or waited > 1.6 then
+    rending = false
+    return
+  end
+  melee.perform(REND[seen + 1])
+end
+function on_tick(dt)
+  if not awake then return end
+  watch_break()
+  t = t + dt
+  local hp, max = world.health(self.id)
+  if not hp or hp <= 0 then return end
+  if phase == 1 and max and hp < max * 0.5 then
+    phase = 2
+    rend_t = 4
+    melee.set_ai(true, 0.85, 0.65)
+    world.send(world.find("Director"), "phase2", false)
+  end
+  if rending then
+    tick_rend(dt)
+    return
+  end
+  if phase == 2 then
+    rend_t = rend_t + dt
+    if rend_t > 7 then
+      -- (The slam waits a little: the rend's recovery is the punish window.)
+      rend_t, rending, seen, waited, t = 0, true, 0, 0, math.min(t, 3)
+      tick_rend(0)
+      return
+    end
+  end
+  if t > (phase == 1 and 8 or 5.5) and melee.perform("red_slam") then t = 0 end
+end
+`;
+
+// The Eclipse Herald (the S-rank test): wakes on "wake"; a red slam every
+// 7 s (4.5 s in phase 2) and eclipse bolts at a hunter who keeps away.
+// Below half health, phase 2: it seals itself in the eclipse (every blow on
+// it is undone) and the Director calls two Eclipse Wardens: the adds must
+// die first. While it is sealed, eclipse sigils open under the hunter every
+// 3 s (an arena hazard: step out before they burn), and it holds its slams.
+// The last Warden down shatters the seal: the Herald reels, open, for 3 s,
+// and its sigils keep coming every 6 s.
+const heraldScript = (wear: string) => `-- Phase 2: sealed until its Wardens fall; sigils under the hunter.
+local phase, t, awake = 1, 0, false
+local sealed, check, sigil_t, reel = false, 0, 0, 0
+local shield
+local cast_t, hero = 0, nil
+${breakWatch}function on_start()
+  world.wear("${wear}")
+  if not awake then melee.set_ai(false) end
+end
+function on_message(name)
+  if name == "wake" then awake = true melee.set_ai(true) end
+end
+-- While sealed, whatever lands is given back.
+function on_damaged(amount)
+  if sealed then world.heal(self.id, amount) end
+end
+local function wardens(x, y, z)
+  local n = 0
+  for _, id in ipairs(world.overlap(x, y, z, 40)) do
+    if world.name(id) == "Eclipse Warden" then
+      local hp = world.health(id)
+      if hp and hp > 0 then n = n + 1 end
+    end
+  end
+  return n
+end
+function on_tick(dt)
+  if not awake then return end
+  watch_break()
+  t = t + dt
+  local hp, max = world.health(self.id)
+  if not hp or hp <= 0 then return end
+  hero = hero or world.find("Han Seo-jin")
+  local x, y, z = world.position(self.id)
+  if not x then return end
+  if phase == 1 and max and hp < max * 0.5 then
+    phase, sealed, check, sigil_t = 2, true, -1.5, 1.5
+    melee.set_ai(true, 0.85, 0.65)
+    shield = world.spawn("Eclipse Seal", x, y, z)
+    world.send(world.find("Director"), "phase2", true)
+  end
+  if phase == 2 then
+    sigil_t = sigil_t + dt
+    if sigil_t > (sealed and 3 or 6) then
+      sigil_t = 0
+      local hx, _, hz = world.position(hero)
+      if hx then world.spawn("Eclipse Sigil", hx, 0.05, hz) end
+    end
+  end
+  if reel > 0 then
+    reel = reel - dt
+    if reel <= 0 then melee.set_ai(true, 0.85, 0.65) end
+    return
+  end
+  if sealed then
+    check = check + dt
+    if check > 0.5 then
+      check = 0
+      if wardens(x, y, z) == 0 then
+        sealed = false
+        if shield then world.send(shield, "break") end
+        melee.set_ai(false)
+        reel = 3
+        world.send(world.find("Director"), "boss_say", "THE SEAL SHATTERS|The Herald reels, open. Strike now!\\nIts red slams come faster from here, and the sigils still burn.")
+      end
+    end
+    return
+  end
+  if t > (phase == 1 and 7 or 4.5) and melee.perform("red_slam") then t = 0 end
+${bossCast("bolt")}end
+`;
+// An eclipse sigil: opens under the hunter and burns 1.6 s later, for 45
+// damage to whoever still stands in it; then it fades.
+const sigilScript = `-- Burns once, 1.6 s after it opens, then fades.
+local t, burnt = 0, false
+function on_tick(dt)
+  t = t + dt
+  if not burnt and t >= 1.6 then
+    burnt = true
+    particles.burst(90)
+    local hero = world.find("Han Seo-jin")
+    local hx, _, hz = world.position(hero)
+    local x, _, z = world.position(self.id)
+    -- The square as drawn (3.4 m), and a little over for the hunter's body.
+    if hx and x and math.abs(hx - x) < 1.9 and math.abs(hz - z) < 1.9 then world.damage(hero, 45) end
+  end
+  if t >= 2.4 then world.destroy(self.id) end
+end
+`;
+// The Herald's seal: rides on the Herald; on "break" it bursts and goes. It
+// also goes when the Herald does.
+const sealScript = `-- Follows the Eclipse Herald until broken.
+local owner, gone
+function on_message(name)
+  if name == "break" and not gone then
+    gone = 1.2
+    particles.burst(120)
+    particles.set_emitting(false)
+  end
+end
+function on_tick(dt)
+  if gone then
+    gone = gone - dt
+    if gone <= 0 then world.destroy(self.id) end
+    return
+  end
+  owner = owner or world.find("Eclipse Herald")
+  local hp = owner and world.health(owner)
+  if not hp or hp <= 0 then
+    world.destroy(self.id)
+    return
+  end
+  local x, y, z = world.position(owner)
+  if x then world.set_position(self.id, x, y, z) end
+end
+`;
+
 // A shadow (GATEBREAKER M3): a bound enemy risen on the hunter's side. It
 // keeps its slot beside him and fights on its own; the Director sends it
 // "ult" (his Thousand Fangs) and "strike" (an enemy Broke), and it answers
@@ -735,11 +1155,20 @@ construct("Training Construct", [0, 0.9, -3], "Director");
 // The enemies, spawned room by room (world.spawn). Name, size, health and
 // the rest; the Director keeps the list of who stands where in each room.
 // `wear`: the armor its script puts on (gear ids, each with its colour).
-type Kind = { height: number; width: number; health: number; mesh: number; melee: Components; script?: string; tint?: string; mass: number; wear?: string };
+// `extra`: more components on its prefab (an aura, its own material).
+type Kind = { height: number; width: number; health: number; mesh: number; melee: Components; script?: string; tint?: string; mass: number; wear?: string; extra?: Components };
 // Plate armor on the hunter's own rig: body, bracers, trousers, boots and
 // pauldron (lua/ledger.lua's gear slots).
 const KNIGHT_GEAR = "214:#8a93a3 215:#8a93a3 216:#5a606b 217:#3a3f48 218:#8a93a3";
 const FROST_GEAR = "214:#c8dcf0 215:#c8dcf0 216:#7d93ab 217:#4a5a70 218:#c8dcf0";
+// The A–S Gates' plate (tints multiply the gear's own dark fills, so they
+// are bright): bloodstone red over iron, the Castellan's crimson with a gold
+// pauldron, the wardens' sun-gold, the Herald's violet-black and gold.
+const BLOODSTONE_GEAR = "214:#ff4a52 215:#9a9098 216:#8a7e88 217:#6a5e66 218:#ff4a52";
+const CASTELLAN_GEAR = "214:#ff3040 215:#ffd068 216:#9a4048 217:#6a4a50 218:#ffd068";
+const WARDEN_GEAR = "214:#fff0b0 215:#fff0b0 216:#d0b070 217:#a08a60 218:#ffe080";
+const HERALD_GEAR = "214:#8a70b0 215:#ffd068 216:#6a5888 217:#5a4a70 218:#ffd068";
+const TALARI = modelId("talari");
 const kinds: Record<string, Kind> = {
   "Goblin Grunt": { height: 1.45, width: 0.5, health: 60, mesh: GOBLIN, mass: 45, melee: { moves: gruntMoves, aggression: 0.6, skill: 0.3, rightHand: modelId("knife") } },
   "Goblin Archer": { height: 1.45, width: 0.5, health: 40, mesh: GOBLIN, mass: 45, melee: { moves: archerMoves, aggression: 0.6, skill: 0.3, leftHand: modelId("bow"), range: 7 } },
@@ -865,6 +1294,78 @@ const kinds: Record<string, Kind> = {
       breakTime: 4,
     },
   },
+  // The Bloodstone Citadel and the Eclipse Spire (A–S). Still no new rigged
+  // monster exists on the combat skeleton: imps are small red goblins,
+  // knights, wardens and the two masters wear plate on the hunter's rig,
+  // blood mages are the crested Talari, and hollows the bare mannequin.
+  "Castle Imp": { height: 1.2, width: 0.45, health: 120, mesh: GOBLIN, mass: 40, tint: "#c8463a", melee: { moves: impMoves, aggression: 0.8, skill: 0.35, reaction: 0.25, rightHand: modelId("knife") } },
+  "Bloodstone Knight": {
+    height: 1.95,
+    width: 0.65,
+    health: 360,
+    mesh: HUNTER,
+    mass: 110,
+    tint: "#e09090",
+    wear: BLOODSTONE_GEAR,
+    script: armoredScript(BLOODSTONE_GEAR),
+    melee: { moves: bloodKnightMoves, aggression: 0.55, skill: 0.6, rightHand: modelId("claymore"), guard: 280, poise: 150, breakTime: 2.5 },
+  },
+  "Blood Mage": {
+    height: 1.85,
+    width: 0.55,
+    health: 170,
+    mesh: TALARI,
+    mass: 60,
+    tint: "#b0283c",
+    script: bloodMageScript,
+    melee: { moves: bloodMageMoves, aggression: 0.55, skill: 0.45, range: 8 },
+    extra: {
+      Particles: { preset: "Sparkle", rate: 8, lifetime: 0.9, speed: 0.6, size: 0.08, color: rgb("#ff4a5a"), endColor: rgb("#5a0a14"), endSize: 0.02, shape: "Sphere", shapeSize: 0.6 },
+    },
+  },
+  "Crimson Castellan": {
+    height: 2.5,
+    width: 0.9,
+    health: 3200,
+    mesh: HUNTER,
+    mass: 240,
+    tint: "#f08080",
+    wear: CASTELLAN_GEAR,
+    script: castellanScript(CASTELLAN_GEAR),
+    melee: { moves: castellanMoves, aggression: 0.6, skill: 0.65, guard: 340, rightHand: modelId("claymore"), poise: 300, breakTime: 4 },
+  },
+  Hollow: {
+    height: 1.8,
+    width: 0.55,
+    health: 120,
+    mesh: MANNEQUIN,
+    mass: 55,
+    melee: { moves: hollowMoves, aggression: 0.85, skill: 0.4, reaction: 0.2, rightHand: modelId("knife"), leftHand: modelId("knife") },
+    // Bone-pale with a red glow: nothing like the hunter's violet shadows.
+    extra: { Material: { color: rgb("#ded6cc"), emissive: rgb("#c0102e"), emissiveIntensity: 0.35, roughness: 0.6, keepTextures: false } },
+  },
+  "Eclipse Warden": {
+    height: 2.0,
+    width: 0.65,
+    health: 360,
+    mesh: HUNTER,
+    mass: 120,
+    tint: "#fff0c0",
+    wear: WARDEN_GEAR,
+    script: armoredScript(WARDEN_GEAR),
+    melee: { moves: wardenMoves, aggression: 0.55, skill: 0.6, rightHand: modelId("spear"), leftHand: modelId("shield-round"), shield: true, guard: 300, poise: 170, breakTime: 2.5 },
+  },
+  "Eclipse Herald": {
+    height: 2.6,
+    width: 0.95,
+    health: 3400,
+    mesh: HUNTER,
+    mass: 260,
+    tint: "#b498c8",
+    wear: HERALD_GEAR,
+    script: heraldScript(HERALD_GEAR),
+    melee: { moves: heraldMoves, aggression: 0.65, skill: 0.7, guard: 360, rightHand: modelId("sword-2"), leftHand: modelId("sword"), poise: 340, breakTime: 4 },
+  },
 };
 for (const [name, kind] of Object.entries(kinds))
   scene.prefab(name, {
@@ -876,6 +1377,7 @@ for (const [name, kind] of Object.entries(kinds))
     Health: { current: kind.health, maximum: kind.health },
     Melee: { style: "Custom", team: 1, ai: true, reaction: 0.35, ...kind.melee },
     ...(kind.script ? { Script: { source: kind.script, props: {} } } : {}),
+    ...(kind.extra ?? {}),
   });
 
 // Shadows: each bindable kind, risen. Its role decides its slot (tank on
@@ -892,6 +1394,11 @@ const SHADOWS: [string, number, string, number][] = [
   ["Drowned Priest", 1, "red_slam", 0.6],
   ["Frost Knight Commander", 1, "red_slam", 0.6],
   ["Cultist Caster", 2, "curse", 0.8],
+  ["Bloodstone Knight", 0, "rend", 0.8],
+  ["Eclipse Warden", 0, "sun_lance", 0.8],
+  ["Crimson Castellan", 1, "red_slam", 0.6],
+  ["Eclipse Herald", 1, "red_slam", 0.6],
+  ["Blood Mage", 2, "bolt", 0.8],
 ];
 for (const [name, slot, big, damage] of SHADOWS) {
   const kind = kinds[name]!;
@@ -926,6 +1433,22 @@ for (const [kind, hex, rate] of [
 scene.prefab("Shadow Mark", {
   Renderable: { visible: false },
   Particles: { preset: "Smoke", rate: 26, lifetime: 1.4, speed: 0.9, size: 0.35, color: rgb("#3a2470"), endColor: rgb("#0c0618"), endSize: 0.9, shape: "Sphere", shapeSize: 0.5 },
+});
+
+// The Eclipse Herald's phase 2: a red sigil (a glowing rune square, sparks
+// rising off it) that burns where the hunter stood, and the gold-and-red
+// seal around the Herald while its Wardens stand.
+scene.prefab("Eclipse Sigil", {
+  Scale: { value: vec(3.4, 0.04, 3.4) },
+  Renderable: { mesh: 0, material: 0, visible: true },
+  Material: { color: rgb("#ff2a5a"), emissive: rgb("#ff1a4a"), emissiveIntensity: 1.4, opacity: 0.55, roughness: 0.6, keepTextures: false },
+  Particles: { preset: "Fire", rate: 26, lifetime: 0.7, speed: 0.9, size: 0.1, color: rgb("#ff7a9a"), endColor: rgb("#5a0a2a"), endSize: 0.5, shape: "Box", shapeSize: 1.2 },
+  Script: { source: sigilScript, props: {} },
+});
+scene.prefab("Eclipse Seal", {
+  Renderable: { visible: false },
+  Particles: { preset: "Sparkle", rate: 70, lifetime: 0.8, speed: 0.4, size: 0.12, color: rgb("#ffd27a"), endColor: rgb("#ff2a5a"), endSize: 0.03, shape: "Sphere", shapeSize: 1.6 },
+  Script: { source: sealScript, props: {} },
 });
 
 // -- The plaza: the prologue's set, then the hub ------------------------------

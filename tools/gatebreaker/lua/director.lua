@@ -40,7 +40,17 @@ local CEREMONY = {
 0 1.5 51 > 0 1.4 47 | Guild masters come to watch the reading. |  | 3
 2.2 1.7 45.2 > 0 1.5 47 | The crystal cracks. | CRACK | 3
 -1.5 0.6 49 > 0 1.7 47 | B-rank. | BOOM | 2.5
-]], "RANK UP: C -> B", "The guilds know his name now.\nHan Seo-jin, B-rank Hunter. The Double Gate is still waiting.\n\nPress Enter." },
+]], "RANK UP: C -> B", "The guilds know his name now.\nHan Seo-jin, B-rank Hunter. From Lv.15 the Bloodstone Citadel, the A-rank test, is open to you.\n\nPress Enter." },
+  A = { [[
+0 1.5 51 > 0 1.4 47 | The whole Association stops to watch the reading. |  | 3
+2.2 1.7 45.2 > 0 1.5 47 | The crystal burns red, then white. | SHING | 3
+-1.5 0.6 49 > 0 1.7 47 | A-rank. | BOOM | 2.5
+]], "RANK UP: B -> A", "Few hunters in the country stand this high.\nHan Seo-jin, A-rank Hunter. From Lv.20 the Eclipse Spire, the S-rank test, is open to you.\n\nPress Enter." },
+  S = { [[
+0 1.5 51 > 0 1.4 47 | No crystal in the building can hold his reading. |  | 3
+2.2 1.7 45.2 > 0 1.5 47 | It splits in the examiner's hands. | CRACK | 3
+-1.5 0.6 49 > 0 1.7 47 | S-rank. | BOOM | 2.5
+]], "RANK UP: A -> S", "The weakest hunter in Seoul is now its strongest.\nHan Seo-jin, S-rank Hunter. The Double Gate is waiting.\n\nPress Enter." },
 }
 
 -- Half the height of each enemy kind: where it stands when spawned.
@@ -49,9 +59,12 @@ local HALF = {
   ["Hobgoblin"] = 0.925, ["Goblin Chieftain"] = 1.05, ["Hobgoblin Brute"] = 1.2, ["Goblin Warlord"] = 1.125,
   ["Drowned Goblin"] = 0.725, ["Ice Ghoul"] = 0.725, ["Armored Knight"] = 0.95, ["Cultist Caster"] = 0.9,
   ["Drowned Priest"] = 1.1, ["Frost Knight Commander"] = 1.15,
+  ["Castle Imp"] = 0.6, ["Bloodstone Knight"] = 0.975, ["Blood Mage"] = 0.925, ["Crimson Castellan"] = 1.25,
+  ["Hollow"] = 0.9, ["Eclipse Warden"] = 1.0, ["Eclipse Herald"] = 1.3,
 }
 local G, A, S, SH, H = "Goblin Grunt", "Goblin Archer", "Goblin Shieldbearer", "Goblin Shaman", "Hobgoblin"
 local DG, IG, K, C = "Drowned Goblin", "Ice Ghoul", "Armored Knight", "Cultist Caster"
+local IM, BK, BM, HO, EW = "Castle Imp", "Bloodstone Knight", "Blood Mage", "Hollow", "Eclipse Warden"
 
 -- Who can be bound: role (1 tank, 2 striker, 3 archer) and whether it is a
 -- Gate master (3 tries at the odds) or an elite (always rises).
@@ -61,6 +74,8 @@ local BIND = {
   ["Goblin Shaman"] = { 3 },
   ["Armored Knight"] = { 1 }, ["Cultist Caster"] = { 3 },
   ["Drowned Priest"] = { 2, true }, ["Frost Knight Commander"] = { 2, true },
+  ["Bloodstone Knight"] = { 1 }, ["Eclipse Warden"] = { 1 }, ["Blood Mage"] = { 3 },
+  ["Crimson Castellan"] = { 2, true }, ["Eclipse Herald"] = { 2, true },
 }
 local ROLE_NAME = { "tank", "striker", "archer" }
 local BIND_TIME, BIND_RANGE, BIND_HOLD = 8, 2.4, 1.0
@@ -68,8 +83,12 @@ local BIND_TIME, BIND_RANGE, BIND_HOLD = 8, 2.4, 1.0
 -- Each Gate: where it lies (x), its rooms (centre z, who stands where,
 -- relative to the centre), its boss, who the boss calls in phase 2 (and
 -- the window saying so), and what the room objective calls its enemies.
+-- `par`: the expected clear in seconds (the clear grade: S under 0.75 x par,
+-- A under par). Optional: `light` (ambient, sun inside it), `intro` (the
+-- boss's panel line), `phase2` (its phase-2 window), and a room's `wave`
+-- (a second wave when the first is down, with `wave_hint`).
 local GATES = {
-  { ox = 0, name = "GOBLIN CAVE", rank = "E", boss = "Goblin Chieftain", boss_title = "GOBLIN CHIEFTAIN  ·  E-rank Gate master",
+  { ox = 0, name = "GOBLIN CAVE", rank = "E", boss = "Goblin Chieftain", boss_title = "GOBLIN CHIEFTAIN  ·  E-rank Gate master", par = 300,
     blurb = "A shallow cave of goblins. Every Hunter's first Gate.",
     rooms = {
       { title = "ROOM 1", hint = "Goblins. Tab locks on to one; Left click strikes.\nLand four in a row, then Right click for a finisher.",
@@ -79,7 +98,7 @@ local GATES = {
       { title = "ROOM 3", hint = "A shield-bearer. Light attacks bounce off its guard.\nBreak it with a Heavy (Right click), and fill its stagger bar.",
         foes = { { S, 0, -4 }, { G, -3, -6 }, { G, 3, -6 } } },
     } },
-  { ox = 120, name = "SUBWAY TUNNEL", rank = "E", boss = "Hobgoblin Brute", boss_title = "HOBGOBLIN BRUTE  ·  E-rank Gate master",
+  { ox = 120, name = "SUBWAY TUNNEL", rank = "E", boss = "Hobgoblin Brute", boss_title = "HOBGOBLIN BRUTE  ·  E-rank Gate master", par = 300,
     blurb = "A Gate opened on a subway line. Hobgoblins nest in the dark.",
     rooms = {
       { title = "PLATFORM", hint = "A hobgoblin: slow, and it hits hard. Its overhead crush\nbreaks your guard. Dodge it (Space), then punish.",
@@ -89,7 +108,7 @@ local GATES = {
       { title = "MAINTENANCE BAY", hint = "Two hobgoblins and a shield. Don't fight them all at once:\nkeep moving, and dodge through the big swings.",
         foes = { { H, -3, -6 }, { H, 3, -6 }, { S, 0, -3 } } },
     } },
-  { ox = -120, name = "GOBLIN FORTRESS", rank = "D", boss = "Goblin Warlord", boss_title = "GOBLIN WARLORD  ·  D-rank test",
+  { ox = -120, name = "GOBLIN FORTRESS", rank = "D", boss = "Goblin Warlord", boss_title = "GOBLIN WARLORD  ·  D-rank test", par = 340,
     summon = { G, "The Warlord calls its guard. Its red slams come faster now:\nwhen it flashes red, don't block. Dodge." },
     blurb = "The D-rank test. A fortress of goblins under a Warlord.\nClear it and the Association ranks you D.",
     rooms = {
@@ -100,7 +119,7 @@ local GATES = {
       { title = "WAR HALL", hint = "The Warlord's guard. Take them one at a time.",
         foes = { { H, -3, -5 }, { H, 3, -5 }, { S, 0, -3 }, { SH, 0, -8 } } },
     } },
-  { ox = 240, name = "FLOODED TEMPLE", rank = "C", boss = "Drowned Priest", boss_title = "DROWNED PRIEST  ·  C-rank Gate master",
+  { ox = 240, name = "FLOODED TEMPLE", rank = "C", boss = "Drowned Priest", boss_title = "DROWNED PRIEST  ·  C-rank Gate master", par = 360,
     summon = { DG, "The Priest drags the drowned up out of the water.\nIts tide bolts come faster now: stay close, and dodge the red slam." },
     foe = "temple's guard",
     blurb = "A temple sunk under black water. Knights still guard it.\nClear it as a D-rank hunter and the Association ranks you C.",
@@ -112,7 +131,7 @@ local GATES = {
       { title = "SANCTUM STAIRS", hint = "Casters first, then the knights: Parry their quick cuts (tap Shift).\nTheir overhead swing breaks guards. Dodge that one.",
         foes = { { K, -3, -5 }, { K, 3, -5 }, { C, 0, -8 }, { DG, 0, -3 } } },
     } },
-  { ox = -240, name = "ICE FORTRESS", rank = "B", boss = "Frost Knight Commander", boss_title = "FROST KNIGHT COMMANDER  ·  B-rank test",
+  { ox = -240, name = "ICE FORTRESS", rank = "B", boss = "Frost Knight Commander", boss_title = "FROST KNIGHT COMMANDER  ·  B-rank test", par = 380,
     foe = "fortress guard",
     blurb = "The B-rank test. A fortress of ice held by frost knights.\nClear it and the Association ranks you B.",
     rooms = {
@@ -122,6 +141,34 @@ local GATES = {
         foes = { { K, -2, -4 }, { K, 2, -4 }, { IG, -5, -7 }, { IG, 5, -7 }, { C, 0, -8 } } },
       { title = "HALL OF WINTER", hint = "The Commander's guard. Fang Whirl (E) the ghouls,\nthen Break the knights one at a time.",
         foes = { { K, -3, -5 }, { K, 3, -5 }, { IG, -4, -3 }, { IG, 4, -3 }, { IG, 0, -7 }, { C, 0, -9 } } },
+    } },
+  { ox = 360, name = "BLOODSTONE CITADEL", rank = "A", boss = "Crimson Castellan", boss_title = "CRIMSON CASTELLAN  ·  A-rank test", par = 450,
+    foe = "citadel's guard", light = { 1.35, 1.35 },
+    intro = "The Crimson Castellan. The Citadel's keeper.",
+    phase2 = "The Castellan's blade burns red: the Crimson Rend, three cuts in a row\nthat can't be parried or blocked. Dodge each one (Space), then punish the last.",
+    blurb = "The A-rank test. A citadel of red stone held by demon knights.\nClear it as a B-rank hunter and the Association ranks you A.",
+    rooms = {
+      { title = "BARBICAN", hint = "Bloodstone knights don't flinch mid-swing: trading blows loses.\nParry their white cleaves (tap Shift), and dodge the red rend.",
+        foes = { { BK, 0, -5 }, { IM, -4, -4 }, { IM, 4, -4 }, { IM, -2, -7 }, { IM, 2, -7 } } },
+      { title = "BLOOD CHAPEL", hint = "Blood mages blink away when you close in.\nRight after a blink, Shadow Fang (R) or Shadow Step Dash (Q) catches them.",
+        foes = { { BM, -5, -8 }, { BM, 5, -8 }, { BK, 0, -4 }, { IM, -3, -6 }, { IM, 3, -6 }, { IM, 0, -7 } } },
+      { title = "THRONE GALLERY", hint = "The Castellan's guard: knights of two orders and a mage.\nThe mage first, then Break the knights one at a time.",
+        foes = { { BK, -3, -5 }, { BK, 3, -5 }, { K, -5, -3 }, { K, 5, -3 }, { BM, 0, -8 }, { IM, -2, -6 }, { IM, 2, -6 } } },
+    } },
+  { ox = -360, name = "ECLIPSE SPIRE", rank = "S", boss = "Eclipse Herald", boss_title = "ECLIPSE HERALD  ·  S-rank test", par = 510,
+    summon = { EW, "The Herald seals itself in the eclipse and calls two Wardens.\nWhile a Warden stands nothing hurts it: kill the Wardens first,\nand step out of the red sigils before they burn." },
+    foe = "Spire's host", light = { 1.35, 1.4 },
+    intro = "The Eclipse Herald. The Spire's voice.",
+    blurb = "The S-rank test. A ruined spire under a red eclipse, and nothing in it\nfears hunters. Clear it as an A-rank hunter and the Association ranks you S.",
+    rooms = {
+      { title = "SHATTERED CAUSEWAY", hint = "Hollows: pale shades the Spire made of fallen hunters. Fast, in packs.\nDodge their leaps, let them close in, then Fang Whirl (E) the crowd.",
+        foes = { { HO, -4, -4 }, { HO, 0, -5 }, { HO, 4, -4 }, { HO, -6, -7 }, { HO, 6, -7 }, { HO, 0, -8 } } },
+      { title = "HALL OF ASH", hint = "Eclipse wardens hide behind shields: a Heavy (Right click) breaks a guard.\nTheir red sun-lance breaks yours. Dodge it.",
+        foes = { { EW, -3, -5 }, { EW, 3, -5 }, { BM, -6, -8 }, { BM, 6, -8 }, { HO, -2, -3 }, { HO, 2, -3 } } },
+      { title = "ECLIPSE STAIR", hint = "The Spire's last guard, and more behind it.\nKeep moving and take them one at a time.",
+        foes = { { BK, -3, -5 }, { BK, 3, -5 }, { EW, 0, -7 }, { HO, -5, -3 }, { HO, 5, -3 } },
+        wave = { { HO, -4, -8 }, { HO, 4, -8 }, { HO, -2, -9 }, { HO, 2, -9 }, { BM, 0, -9 } },
+        wave_hint = "More pour down the stair, a mage behind them.\nShadow Fang (R) the mage, then Fang Whirl (E) the hollows." },
     } },
 }
 local ROOM_Z = { -24, -48, -72 }
@@ -157,6 +204,7 @@ local bodies = {}      -- { x, z, prefab, t, tries, mark }
 local holding = 0      -- seconds G has been held over a body
 local run_start, hurt, last_hp = 0, 0, nil
 local new_rank = "D"   -- the rank the ceremony announces
+local wave_spawned = false -- the current room's second wave is in
 
 local shown_prompt
 local function prompt(text)
@@ -377,16 +425,19 @@ local function tick_bind(dt)
   end
 end
 
--- The clear grade (GAME_DESIGN.md 5.5): time and damage taken.
+-- The clear grade (GAME_DESIGN.md 5.5): time against the Gate's par and
+-- damage taken. S: under 3/4 of par, under half your health lost; A: under
+-- par, under all of it. The Ledger shows the targets from the par it's sent.
 local function grade()
   local secs = clock - run_start
   local _, max = world.health(hero)
   local share = hurt / (max or 220)
+  local par = GATES[gate].par or 320
   local g = "C"
-  if share < 0.5 and secs < 240 then g = "S"
-  elseif share < 1 and secs < 360 then g = "A"
+  if share < 0.5 and secs < par * 0.75 then g = "S"
+  elseif share < 1 and secs < par then g = "A"
   elseif share < 2 then g = "B" end
-  return string.format("%d:%s:%d:%d", gate, g, math.floor(secs), math.floor(hurt))
+  return string.format("%d:%s:%d:%d:%d", gate, g, math.floor(secs), math.floor(hurt), par)
 end
 
 local function to_hub()
@@ -448,6 +499,10 @@ local function enter_gate(n)
   seal(n, 1, false)
   teleport(g.ox, 0.9, 6)
   outdoors(false)
+  if g.light then fx.light(g.light[1], g.light[2]) end
+  -- Whoever sent the hunter in (the Gate Board, a Gate in the district),
+  -- the Ledger learns which Gate's loot to drop.
+  ledger("entered", n)
   clear_shadows()
   for role = 1, 3 do raise(role) end
   run_start, hurt, last_hp = clock, 0, nil
@@ -519,8 +574,12 @@ function on_message(name, value)
       spawn(g.summon[1], x + 5, -96, "boss")
       say("PHASE 2", g.summon[2], 4)
     else
-      say("PHASE 2", "The " .. g.boss .. " roars. Its red slams come faster now:\nwhen it flashes red, don't block. Dodge.", 4)
+      say("PHASE 2", g.phase2 or ("The " .. g.boss .. " roars. Its red slams come faster now:\nwhen it flashes red, don't block. Dodge."), 4)
     end
+  elseif name == "boss_say" and state == "boss" and type(value) == "string" then
+    -- A Gate master's own window ("TITLE|body"), e.g. the Herald's seal breaking.
+    local title, body = value:match("^(.-)|(.*)$")
+    if title then say(title, body, 4) end
   elseif name == "shadows" and type(value) == "string" then
     local v = {}
     for part in (value .. ","):gmatch("([^,]*),") do v[#v + 1] = part end
@@ -619,13 +678,14 @@ function on_tick(dt)
       seal(gate, room, true)
       gather()
       for _, f in ipairs(r.foes) do spawn(f[1], g.ox + f[2], ROOM_Z[room] + f[3], room) end
+      wave_spawned = false
       say(r.title, r.hint, 5)
       state = "fight"
       t = 0
     elseif not r and hero_z() < -91 then
       seal(gate, 4, true)
       gather()
-      hud.panels(string.format("%g 2.2 -91 > %g 1.6 -104 | The Gate's master. | GRAAH | 2.6\n", g.ox + 3, g.ox))
+      hud.panels(string.format("%g 2.2 -91 > %g 1.6 -104 | %s | GRAAH | 2.6\n", g.ox + 3, g.ox, g.intro or "The Gate's master."))
       boss = spawn(g.boss, g.ox, -105, "boss")
       state = "boss_intro"
       t = 0
@@ -635,7 +695,13 @@ function on_tick(dt)
     local r = g.rooms[room]
     local left = standing(room)
     objective(r.title .. ": defeat the " .. (g.foe or "goblins") .. " (" .. left .. " left)")
-    if left == 0 and t > 1 then
+    if left == 0 and t > 1 and r.wave and not wave_spawned then
+      -- The room's second wave, in through the far door.
+      wave_spawned = true
+      for _, f in ipairs(r.wave) do spawn(f[1], g.ox + f[2], ROOM_Z[room] + f[3], room) end
+      say("SECOND WAVE", r.wave_hint or "More are coming.", 4)
+      t = 0
+    elseif left == 0 and t > 1 then
       seal(gate, room + 1, false)
       raise_fallen()
       say("CLEARED", room < #g.rooms and "The next door opens." or "The way to the Gate's master opens.", 3)

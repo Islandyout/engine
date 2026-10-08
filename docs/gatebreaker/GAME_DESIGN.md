@@ -55,8 +55,10 @@ Hub (the Hunter Association, your apartment)
   → the Ledger's Daily Quest and story Quests point you to the next Gate
 ```
 
-A run lasts 8–15 minutes, so each sitting gives at least one complete
-loop: in, fight, grow, out.
+A run lasts 5–8 minutes at the Gate's intended level, so each sitting gives
+several complete loops: in, fight, grow, out. Each Gate has a **par** time
+(5:00 for the E Gates up to 8:30 for the S-rank test) that the clear grade
+is measured against (§5.5).
 
 ## 5. Mechanics, each with its job
 
@@ -139,14 +141,21 @@ loop: in, fight, grow, out.
 - **C–B Gates**: a flooded temple and an ice fortress; armored knights,
   casters and ice ghouls (no CC0 spider model exists for the combat
   skeleton). They teach parry, Break and crowd skills.
-- **A–S Gates**: a demon castle and a red-sky ruin; elite packs and multi-phase
-  bosses.
+- **A–S Gates**: the Bloodstone Citadel (a castle of dark stone and red
+  banners, the A-rank test, Lv.15) and the Eclipse Spire (a ruin under a red
+  eclipse, the S-rank test, Lv.20); elite packs, a second wave, and bosses
+  whose phase 2 teaches something: the Crimson Castellan's Crimson Rend
+  (three red cuts in a row: dodge, never parry) and the Eclipse Herald's
+  seal (its Wardens must die first) with sigils that burn where you stand.
+  Levels go to 25.
 - **Double Gate** (the story opener and the finale): puzzle rooms with statue
   rules.
 - Each room shows its enemies before it closes. No ambush that you couldn't
   read.
-- **Clear grade** S/A/B/C on the reward screen, from time and damage taken; a
-  better grade pays more gold and XP. Job: a reason to replay a Gate well,
+- **Clear grade** S/A/B/C on the reward screen, from time against the Gate's
+  par and damage taken: S under three quarters of par with under half your
+  health lost, A under par with under all of it, B under twice your health;
+  a better grade pays more gold and XP. Job: a reason to replay a Gate well,
   not just again (§12).
 
 ## 6. The first playable target: the vertical slice (M1)
