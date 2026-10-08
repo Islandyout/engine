@@ -2233,6 +2233,36 @@ int main() {
         const double dx = editor_value(1, 0) - editor_value(0, 0), dz = editor_value(1, 2) - editor_value(0, 2);
         check(std::hypot(dx, dz) < 3.2); // in its slot, 2.4 m behind
         check(editor_value(1, 2) > -4);  // never went after the goblin at z = -22
+
+        // GATEBREAKER M4: melee.revive keeps a defeated fighter (it would be
+        // removed 4 s after falling) and stands it back up at full health,
+        // and camera.forward() reads the camera's facing.
+        editor_begin();
+        add_player(0);
+        check(editor_add(0, 0.725, -6, 0, 0, 0, 0.5, 1.45, 0.5, 0, 0, 0, 80, 80, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_melee(1, 0, "", 1, 0, 0.5, 0.5, 0.25, 0, 60);
+        editor_set_script_source(1, "t = 0\nfunction on_tick() t = t + 1\n"
+                                    " if t == 2 then world.damage(self.id, 500) end\n"
+                                    " if t == 60 then melee.revive() local x, z = camera.forward()\n"
+                                    "  log(string.format('%.1f %.1f', x, z)) end end");
+        check(editor_add(0, -0.5, 0, 0, 0, 0, 40, 1, 40, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(2, 1, 1, 0);
+        check(editor_commit() == 1);
+        editor_set_camera_forward(0, 3);
+        std::string camera_log;
+        for (int i = 0; i < 400; ++i) {
+            editor_tick();
+            if (i == 20)
+                check(editor_fighter_value(1, 1) == 7); // down (dead)
+            const int commands = editor_take_commands();
+            for (int c = 0; c < commands; ++c)
+                if (std::string(editor_command_text(c, 0)) == "log")
+                    camera_log = editor_command_text(c, 1);
+        }
+        check(editor_alive(1) == 1);                  // still here long past 4 s
+        check(editor_fighter_value(1, 1) == 0);       // idle again
+        check(std::abs(editor_value(1, 3) - 1.0) < 1e-6); // full health
+        check(camera_log == "0.0 1.0");
     }
 
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "

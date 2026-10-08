@@ -586,6 +586,21 @@ bool BridgeHost::melee(engine::World &world, engine::Entity self, const std::str
         if (!args.empty())
             state.mana = std::clamp(state.mana + static_cast<float>(args[0]), 0.0F, fighter->settings.mana_max);
         out = {state.mana, fighter->settings.mana_max};
+    } else if (op == "revive") {
+        // melee.revive(): back on its feet at full health, out of any move,
+        // stun or fall. A fighter that was defeated but not yet removed (it
+        // lies there 4 s) is kept: a script can pool its enemies and reuse
+        // them instead of spawning new ones. Unlocked moves stay unlocked.
+        if (auto *health = world.get<Health>(self))
+            health->current = health->max;
+        auto locked = state.locked;
+        state = engine::gameplay::make_fighter_state(fighter->moves, fighter->settings);
+        state.locked = std::move(locked);
+        fighter->dying = 0;
+        fighter->slide = {};
+        fighter->script_move.clear();
+        fighter->counter_window = 0;
+        out = {1.0};
     } else if (op == "follow") {
         // melee.follow(leader, slot): nil leader stops following.
         fighter->leader = other;

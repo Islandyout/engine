@@ -22,6 +22,7 @@ function space.set_wind(x, y, z) return space.call("wind", "", x, y, z) end
 function space.allow_boarding(allowed) return space.call("board_key", "", allowed and 1 or 0) end
 function world.wear(models) host.send("outfit", models or "") end
 function world.wildlife_state(name) local r = space.call("wildlife", name) return r and r[1] or -1 end
+function camera.forward() local r = space.call("camera") if not r then return 0, -1 end return r[1], r[2] end
 function hud.announce(text) host.send("announce", text) end
 function ui.set_color(name, color) host.send("ui_color", name .. "|" .. (color or "")) end
 function hud.cue(name) host.send("cue", name) end

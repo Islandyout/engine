@@ -709,6 +709,8 @@ struct LuaApi final {
     static int melee_follow(lua_State *L) {
         return melee_call(L, "follow", {static_cast<double>(luaL_optinteger(L, 2, 0))}, {}, entity_arg(L, 1));
     }
+    // melee.revive(): back up at full health, even once defeated (pooling)
+    static int melee_revive(lua_State *L) { return melee_call(L, "revive", {}); }
     // melee.set_ai(on, aggression?, skill?)
     static int melee_set_ai(lua_State *L) {
         return melee_call(L, "set_ai",
@@ -1233,6 +1235,7 @@ struct LuaApi final {
                {"stagger", melee_stagger},
                {"tune", melee_tune},
                {"follow", melee_follow},
+               {"revive", melee_revive},
                {"mana", melee_mana}});
         table(L, self, "weapon",
               {{"fire", weapon_fire},

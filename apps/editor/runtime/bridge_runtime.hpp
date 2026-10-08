@@ -2427,6 +2427,13 @@ inline std::optional<engine::Entity> BridgeHost::spawn(engine::World &world, con
 
 inline bool BridgeHost::space(engine::World &world, const std::string &op, const std::vector<double> &args,
                        const std::string &text, std::vector<double> &out, std::string &text_out) {
+    // space.call("camera"): the camera's horizontal facing {x, z} (the
+    // last editor_set_camera_forward), with or without a SpaceSystem, so a
+    // script can keep what it spawns out of view (camera.forward()).
+    if (op == "camera") {
+        out = {runtime_.camera_forward_x, runtime_.camera_forward_z};
+        return true;
+    }
     // The scene clock (world.set_clock) works with or without a SpaceSystem.
     // space.call("settle"): everyone with a Routine stands at the stop the
     // clock says, now (0.75.0: a loaded save doesn't watch the town walk

@@ -420,6 +420,9 @@ function melee.mana(add) end
 ---@param slot? integer
 function melee.follow(leader, slot) end
 
+--- Back on its feet at full health, out of any move or fall, even once defeated (before it's removed): pool enemies and reuse them instead of spawning new ones.
+function melee.revive() end
+
 --- Stats: damage dealt (times), its clock speed (0.5-2: attacks, dodges, cooldowns), crit chance 0-1 (1.5x), skill damage (times, moves that cost mana), and optionally max health and mana. -1 keeps one as is.
 ---@param damage number
 ---@param speed number
@@ -584,6 +587,9 @@ function world.wear(models) end
 --- 0 calm, 1 wary, 2 fleeing, -1 not an animal.
 ---@param name string
 function world.wildlife_state(name) end
+
+--- The camera's horizontal facing (x, z), a unit vector: keep what you spawn out of view.
+function camera.forward() end
 
 --- Reads a line aloud for screen readers and shows it briefly.
 ---@param text string
