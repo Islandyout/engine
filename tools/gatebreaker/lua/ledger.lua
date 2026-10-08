@@ -16,15 +16,19 @@
 -- his numbers; each Gate drops its own set. 1 and 2 drink potions. The
 -- smith upgrades worn gear and sells potions.
 --
--- Messages in: kill ("prefab|x|z"), gate_clear ("gate:grade:seconds:damage"),
+-- Messages in: kill ("prefab|x|z"), gate_clear ("gate:grade:seconds:damage:par"),
 -- gate_fail, hub (the hunter is back in the hub), board, smith, daily_done,
--- rest, penalty_done, bound (a shadow's prefab name). Out: Director
+-- rest, penalty_done, bound (a shadow's prefab name), entered (the Gate the
+-- Director just sent the hunter into). Out: Director
 -- enter_gate (n), rewards_done (n, or "rankup:D" after a rank test), penalty, shadows ("sen,tank,striker,
 -- archer"); Hub busy (true while a menu is open).
 
 local STATS = { "STR", "AGI", "VIT", "INT", "SEN" }
--- Cumulative XP for Lv.2, 3, 4, 5, 6 ... 15 (then +1000 a level).
-local LEVELS = { 150, 450, 900, 1500, 2300, 3300, 4500, 5900, 7500, 9300, 11300, 13500, 16000, 18800 }
+-- Cumulative XP for Lv.2, 3, 4, 5, 6 ... 25, the cap. Past Lv.15 each level
+-- costs 300 more than the last (Lv.16 +3100 ... Lv.25 +5800).
+local LEVELS = { 150, 450, 900, 1500, 2300, 3300, 4500, 5900, 7500, 9300, 11300, 13500, 16000, 18800,
+  21900, 25300, 29000, 33000, 37300, 41900, 46800, 52000, 57500, 63300 }
+local MAX_LEVEL = #LEVELS + 1
 local POINTS_PER_LEVEL = 3
 local KILL = { -- xp, gold, fangs
   ["Goblin Grunt"] = { 12, 4, 1 },
@@ -41,6 +45,13 @@ local KILL = { -- xp, gold, fangs
   ["Cultist Caster"] = { 45, 15, 2 },
   ["Drowned Priest"] = { 500, 160, 10 },
   ["Frost Knight Commander"] = { 750, 240, 12 },
+  ["Castle Imp"] = { 40, 14, 1 },
+  ["Bloodstone Knight"] = { 110, 36, 4 },
+  ["Blood Mage"] = { 90, 30, 3 },
+  ["Crimson Castellan"] = { 1300, 400, 14 },
+  ["Hollow"] = { 55, 18, 2 },
+  ["Eclipse Warden"] = { 160, 50, 5 },
+  ["Eclipse Herald"] = { 2200, 650, 18 },
 }
 local GATES = {
   { name = "Goblin Cave", rank = "E", xp = 100, gold = 80 },
@@ -48,10 +59,12 @@ local GATES = {
   { name = "Goblin Fortress", rank = "D", xp = 300, gold = 300 },
   { name = "Flooded Temple", rank = "C", xp = 500, gold = 450 },
   { name = "Ice Fortress", rank = "B", xp = 800, gold = 700 },
+  { name = "Bloodstone Citadel", rank = "A", xp = 1300, gold = 1100 },
+  { name = "Eclipse Spire", rank = "S", xp = 2000, gold = 1600 },
 }
 -- Hunter ranks in order, and what each later Gate asks (GAME_DESIGN.md 5.5).
 local RANKS = { E = 1, D = 2, C = 3, B = 4, A = 5, S = 6 }
-local NEEDS = { [3] = { "E", 5 }, [4] = { "D", 8 }, [5] = { "C", 11 } }
+local NEEDS = { [3] = { "E", 5 }, [4] = { "D", 8 }, [5] = { "C", 11 }, [6] = { "B", 15 }, [7] = { "A", 20 } }
 -- Dagger +1..+5: gold, fangs. Each level is +8% damage.
 local UPGRADES = { { 100, 6 }, { 200, 12 }, { 350, 20 }, { 500, 30 }, { 700, 40 } }
 -- A shadow's role by the enemy it was (GAME_DESIGN.md 5.4); one of each.
@@ -61,6 +74,8 @@ local ROLE = {
   ["Goblin Shaman"] = "sh3",
   ["Armored Knight"] = "sh1", ["Cultist Caster"] = "sh3",
   ["Drowned Priest"] = "sh2", ["Frost Knight Commander"] = "sh2",
+  ["Bloodstone Knight"] = "sh1", ["Eclipse Warden"] = "sh1", ["Blood Mage"] = "sh3",
+  ["Crimson Castellan"] = "sh2", ["Eclipse Herald"] = "sh2",
 }
 -- The clear grade's bonus on the Gate's own XP and gold.
 local GRADE_BONUS = { S = 0.5, A = 0.25, B = 0.1, C = 0 }
@@ -74,7 +89,11 @@ local QUESTS = {
   "Clear the Flooded Temple to rank up to C",
   "Reach Lv.11 to take the B-rank test",
   "Pass the B-rank test: the Ice Fortress",
-  "Rank B. Keep clearing Gates and growing.",
+  "Reach Lv.15 to take the A-rank test",
+  "Pass the A-rank test: the Bloodstone Citadel",
+  "Reach Lv.20 to take the S-rank test",
+  "Pass the S-rank test: the Eclipse Spire",
+  "Rank S. The Double Gate is waiting.",
 }
 
 local s = {} -- the saved state
@@ -92,11 +111,11 @@ local close_at -- a passing window closes itself then
 
 local function defaults()
   return { lv = 1, xp = 0, pts = 0, str = 10, agi = 10, vit = 10, int = 10, sen = 10,
-    gold = 0, fang = 0, dag = 0, rank = "E", q = 1, day = 1, daily = 0, c1 = 0, c2 = 0, c3 = 0, c4 = 0, c5 = 0, sk = 0,
+    gold = 0, fang = 0, dag = 0, rank = "E", q = 1, day = 1, daily = 0, c1 = 0, c2 = 0, c3 = 0, c4 = 0, c5 = 0, c6 = 0, c7 = 0, sk = 0,
     sh1 = "", sh2 = "", sh3 = "", bag = "", eq = "/////", p1 = 2, p2 = 1, look = 0, wd = 0, pity = 0 }
 end
 
-local KEYS = { "lv", "xp", "pts", "str", "agi", "vit", "int", "sen", "gold", "fang", "dag", "rank", "q", "day", "daily", "c1", "c2", "c3", "c4", "c5", "sk", "sh1", "sh2", "sh3",
+local KEYS = { "lv", "xp", "pts", "str", "agi", "vit", "int", "sen", "gold", "fang", "dag", "rank", "q", "day", "daily", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "sk", "sh1", "sh2", "sh3",
   "bag", "eq", "p1", "p2", "look", "wd", "pity" }
 local TEXT = { rank = true, sh1 = true, sh2 = true, sh3 = true, bag = true, eq = true }
 local STAT_KEY = { "str", "agi", "vit", "int", "sen" }
@@ -117,6 +136,8 @@ local function load()
   -- A hunter already past a quest's level (an older save) moves on.
   if s.q == 6 and s.lv >= 8 then s.q = 7 end
   if s.q == 8 and s.lv >= 11 then s.q = 9 end
+  if s.q == 10 and s.lv >= 15 then s.q = 11 end
+  if s.q == 12 and s.lv >= 20 then s.q = 13 end
 end
 
 local function store()
@@ -147,10 +168,13 @@ local SETS = {
   { name = "Fortress Guard", tint = "#d0786a", two = { health = 50 }, four = { health = 100, damage = 0.08 } },
   { name = "Tide Warden", tint = "#4fa3a0", two = { mana = 30 }, four = { skill = 0.25, crit = 0.05 } },
   { name = "Frost Bastion", tint = "#bfd8f0", two = { health = 80 }, four = { damage = 0.15, speed = 0.05 } },
+  -- The A Gate's set hits hard and crits; the S Gate's feeds skills and speed.
+  { name = "Bloodstone Reaver", tint = "#a0262e", two = { damage = 0.1 }, four = { crit = 0.1, health = 120 } },
+  { name = "Eclipse Regalia", tint = "#6a4aa0", two = { skill = 0.15, mana = 40 }, four = { damage = 0.18, speed = 0.06 } },
 }
 -- Wardrobe looks over the gear's own colours (unlocked: wd bits).
 local LOOKS = { { "Your gear's own", nil }, { "Shadow black", "#4a4560" }, { "Cave brown", "#b89a78" }, { "Tunnel steel", "#8aa6d6" }, { "Fortress red", "#d0786a" },
-  { "Temple teal", "#4fa3a0" }, { "Frost white", "#bfd8f0" } }
+  { "Temple teal", "#4fa3a0" }, { "Frost white", "#bfd8f0" }, { "Bloodstone crimson", "#a0262e" }, { "Eclipse violet", "#6a4aa0" } }
 local MAX_BAG, MAX_PLUS = 40, 10
 local POTION_HEAL, POTION_MANA, POTION_PRICE = 0.4, 50, 30
 
@@ -294,12 +318,16 @@ local function shadow_line()
 end
 
 local function next_level_xp()
-  return LEVELS[s.lv] or (LEVELS[#LEVELS] + 1000 * (s.lv - #LEVELS))
+  return LEVELS[math.min(s.lv, #LEVELS)]
+end
+-- "XP 1746/2300", or "XP MAX" at the level cap.
+local function xp_text()
+  return s.lv >= MAX_LEVEL and "MAX" or string.format("%d/%d", s.xp, next_level_xp())
 end
 
 local function hunter_line()
-  ui.set_text("Hunter", string.format("Lv.%d  %s-rank  ·  XP %d/%d  ·  %d G  ·  %d fangs%s%s  ·  potions [1] %d  [2] %d  ·  [C] status  [I] bag",
-    s.lv, s.rank, s.xp, next_level_xp(), s.gold, s.fang, s.dag > 0 and ("  ·  daggers +" .. s.dag) or "",
+  ui.set_text("Hunter", string.format("Lv.%d  %s-rank  ·  XP %s  ·  %d G  ·  %d fangs%s%s  ·  potions [1] %d  [2] %d  ·  [C] status  [I] bag",
+    s.lv, s.rank, xp_text(), s.gold, s.fang, s.dag > 0 and ("  ·  daggers +" .. s.dag) or "",
     s.pts > 0 and ("  ·  " .. s.pts .. " points!") or "", s.p1, s.p2))
 end
 
@@ -336,10 +364,10 @@ end
 local function status_body()
   local d = derived()
   return string.format(
-    "Han Seo-jin   Lv.%d   %s-rank   XP %d / %d\n" ..
+    "Han Seo-jin   Lv.%d   %s-rank   XP %s\n" ..
     "[1] STR %d   damage x%.2f%s\n[2] AGI %d   attack and dodge speed x%.2f\n[3] VIT %d   max health %d\n" ..
     "[4] INT %d   mana %d, skill damage x%.2f\n[5] SEN %d   critical hit chance %d%%, boss binding odds\n\n%s\n\n%s",
-    s.lv, s.rank, s.xp, next_level_xp(),
+    s.lv, s.rank, xp_text(),
     s.str, d.damage, s.dag > 0 and ("  (daggers +" .. s.dag .. ")") or "", s.agi, d.speed, s.vit, d.health,
     s.int, d.mana, d.skill, s.sen, math.floor(d.crit * 100 + 0.5), shadow_line(),
     s.pts > 0 and (s.pts .. " stat points: press 1-5 to spend one. C closes.") or "No stat points. C closes.")
@@ -378,7 +406,7 @@ end
 
 local function gain_xp(amount)
   s.xp = s.xp + amount
-  while s.xp >= next_level_xp() do
+  while s.lv < MAX_LEVEL and s.xp >= next_level_xp() do
     s.lv = s.lv + 1
     s.pts = s.pts + POINTS_PER_LEVEL
     push("LEVEL UP", nil, "levelup")
@@ -397,6 +425,14 @@ local function gain_xp(amount)
     if s.lv == 11 and s.q == 8 then
       s.q = 9
       push("QUEST: THE B-RANK TEST", "The Association will test you again. The Ice Fortress is open\non the Gate Board. Clear it and you are B-rank.\n\nPress Enter.")
+    end
+    if s.lv == 15 and s.q == 10 then
+      s.q = 11
+      push("QUEST: THE A-RANK TEST", "The Bloodstone Citadel is open on the Gate Board.\nIts knights don't flinch, and its master's red combo\ncan't be parried. Clear it and you are A-rank.\n\nPress Enter.")
+    end
+    if s.lv == 20 and s.q == 12 then
+      s.q = 13
+      push("QUEST: THE S-RANK TEST", "The Eclipse Spire is open on the Gate Board.\nNo hunter who went in has come out.\nClear it and you are S-rank.\n\nPress Enter.")
     end
   end
 end
@@ -453,8 +489,10 @@ local function tick_rewards(dt)
 end
 
 -- Loot -------------------------------------------------------------------------
-local ELITE = { ["Goblin Shieldbearer"] = true, ["Hobgoblin"] = true, ["Goblin Shaman"] = true, ["Armored Knight"] = true, ["Cultist Caster"] = true }
-local BOSS = { ["Goblin Chieftain"] = true, ["Hobgoblin Brute"] = true, ["Goblin Warlord"] = true, ["Drowned Priest"] = true, ["Frost Knight Commander"] = true }
+local ELITE = { ["Goblin Shieldbearer"] = true, ["Hobgoblin"] = true, ["Goblin Shaman"] = true, ["Armored Knight"] = true, ["Cultist Caster"] = true,
+  ["Bloodstone Knight"] = true, ["Blood Mage"] = true, ["Eclipse Warden"] = true }
+local BOSS = { ["Goblin Chieftain"] = true, ["Hobgoblin Brute"] = true, ["Goblin Warlord"] = true, ["Drowned Priest"] = true, ["Frost Knight Commander"] = true,
+  ["Crimson Castellan"] = true, ["Eclipse Herald"] = true }
 local run_gate = 1
 local loot = {} -- { id, code, x, z } lying in the Gate
 
@@ -467,6 +505,9 @@ local ODDS = { grunt = { 0.02, 0.10, 0.28 }, elite = { 0.04, 0.15, 0.35 }, boss 
 -- Night in the field (lua/world.lua): gear drops half again as often, and
 -- every rarity's odds rise by half too.
 local NIGHT_LOOT = 1.5
+-- The A and S Gates pay for their danger: Epic and Legendary come more
+-- often (a Gate master there drops Epic or better 58% of the time).
+local ODDS_HIGH = { grunt = { 0.03, 0.14, 0.32 }, elite = { 0.06, 0.2, 0.38 }, boss = { 0.18, 0.4, 1 } }
 local function roll_loot(prefab, night)
   local boss, elite = BOSS[prefab], ELITE[prefab]
   local boost = night and NIGHT_LOOT or 1
@@ -474,7 +515,7 @@ local function roll_loot(prefab, night)
     if math.random() < 0.1 then return math.random() < 0.65 and "P1" or "P2" end
     return nil
   end
-  local odds = ODDS[boss and "boss" or elite and "elite" or "grunt"]
+  local odds = (run_gate >= 6 and ODDS_HIGH or ODDS)[boss and "boss" or elite and "elite" or "grunt"]
   local r = math.random() / boost
   local rarity = r < odds[1] and 4 or r < odds[1] + odds[2] and 3 or r < odds[1] + odds[2] + odds[3] and 2 or 1
   if boss then
@@ -1241,7 +1282,7 @@ function on_message(name, value)
     end
   elseif name == "gate_clear" then
     collect_all()
-    local gn, grade, secs, hurt = tostring(value):match("^(%d+):?(%a?):?(%d*):?(%d*)")
+    local gn, grade, secs, hurt, par = tostring(value):match("^(%d+):?(%a?):?(%d*):?(%d*):?(%d*)")
     local n = math.tointeger(tonumber(gn) or 1) or 1
     grade = GRADE_BONUS[grade] and grade or "C"
     local g = GATES[n]
@@ -1251,9 +1292,11 @@ function on_message(name, value)
     local xp, gold = math.floor(g.xp * (1 + bonus)), math.floor(g.gold * (1 + bonus))
     s.gold = s.gold + gold
     secs = tonumber(secs) or 0
-    local body = string.format("%s cleared.   GRADE %s%s\nYou: %d:%02d, %s damage taken.   S: under 4:00, under half your health lost.\n\nXP +%d   Gold +%d   Fangs +%d   (%d kills)",
+    -- The S target: 3/4 of the Gate's par (the Director sends it).
+    local s_secs = math.floor((tonumber(par) or 320) * 0.75)
+    local body = string.format("%s cleared.   GRADE %s%s\nYou: %d:%02d, %s damage taken.   S: under %d:%02d, under half your health lost.\n\nXP +%d   Gold +%d   Fangs +%d   (%d kills)",
       g.name, grade, bonus > 0 and string.format("  (+%d%% Gate reward)", math.floor(bonus * 100)) or "",
-      math.floor(secs / 60), math.floor(secs % 60), hurt ~= "" and hurt or "0",
+      math.floor(secs / 60), math.floor(secs % 60), hurt ~= "" and hurt or "0", s_secs // 60, s_secs % 60,
       run.xp + xp, run.gold + gold, run.fangs, run.kills)
     -- The windows come in order: the clear, then what it earned.
     gain_xp(xp)
@@ -1278,7 +1321,11 @@ function on_message(name, value)
     elseif n == 4 and s.rank == "D" then
       ranked, s.q = "C", s.lv >= 11 and 9 or 8
     elseif n == 5 and s.rank == "C" then
-      ranked, s.q = "B", 10
+      ranked, s.q = "B", s.lv >= 15 and 11 or 10
+    elseif n == 6 and s.rank == "B" then
+      ranked, s.q = "A", s.lv >= 20 and 13 or 12
+    elseif n == 7 and s.rank == "A" then
+      ranked, s.q = "S", 14
     end
     if ranked then s.rank = ranked end
     run = { xp = 0, gold = 0, fangs = 0, kills = 0 }
@@ -1292,6 +1339,9 @@ function on_message(name, value)
     s.wd = s.wd | 2 -- the Shadow black look
     store()
     apply()
+  elseif name == "entered" then
+    run_gate = math.tointeger(tonumber(value) or run_gate) or run_gate
+    in_hub = false
   elseif name == "gate_fail" then
     collect_all()
     run = { xp = 0, gold = 0, fangs = 0, kills = 0 }
