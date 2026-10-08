@@ -43,16 +43,36 @@ local function in_district(x, z)
   return x and x > AREA.x0 and x < AREA.x1 and z > AREA.z0 and z < AREA.z1
 end
 
--- The Ledger's day from its save ("day=N;..."), checked every few seconds.
+-- Today's closed site: day 1 closes site 3, day 2 site 1, day 3 site 2...
+local function is_open(i)
+  return i ~= (day + 1) % 3 + 1
+end
+
+-- The open sites on the map (hud.map_marker), in the colour of the hunter's
+-- rank (or a site's own `rank`): the Gate Board there lists Gates up to it.
+local RANK_COLORS = { E = "#a9b4c4", D = "#5fd16a", C = "#4aa8ff", B = "#b866ff", A = "#ffb020", S = "#ff4545" }
+local rank, mapped = "E", ""
+local function map_sites()
+  if mapped == day .. rank then return end
+  mapped = day .. rank
+  for i, s in ipairs(SITES) do
+    local r = s.rank or rank
+    if is_open(i) then
+      hud.map_marker("site" .. i, "gate", s.x, s.z, RANK_COLORS[r] or "", s.label .. " (" .. r .. ")")
+    else
+      hud.clear_map_marker("site" .. i)
+    end
+  end
+end
+
+-- The Ledger's day and rank from its save ("day=N;rank=E;..."), checked
+-- every few seconds.
 local function read_day()
   local text = save.get("gb")
   local n = text and tonumber(text:match("day=(%d+)"))
   day = n or 1
-end
-
--- Today's closed site: day 1 closes site 3, day 2 site 1, day 3 site 2...
-local function is_open(i)
-  return i ~= (day + 1) % 3 + 1
+  rank = text and text:match("rank=(%a)") or "E"
+  map_sites()
 end
 
 local function set_marker(i)

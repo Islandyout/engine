@@ -22,8 +22,10 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { validateSceneDocument } from "../../apps/editor/src/scene/SceneSerializer";
 import type { SceneDocument } from "../../apps/editor/src/scene/SceneSerializer";
-import { type Components, ROOT, SceneBuilder, type V3, modelId, rgb, vec } from "./kit";
-import { buildDistrict } from "./district";
+import { type Components, ROOT, SceneBuilder, type V3, modelBounds, modelId, rgb, vec } from "./kit";
+import { DISTRICT, buildDistrict } from "./district";
+import { modelCatalog } from "../../apps/editor/src/scene/modelCatalog";
+import { instanceBox, parseModelInstances } from "../../apps/editor/src/editor/modelInstances";
 
 const scene = new SceneBuilder();
 const lua = (file: string) => readFileSync(join(ROOT, "tools/gatebreaker/lua", file), "utf8");
@@ -77,8 +79,8 @@ scene.add("Input", [0, 0, 0], {
       "move_y: w, -s, up, -down, -pad_ly",
       "look_x: mouse_dx*0.05, pad_rx",
       "look_y: mouse_dy*0.05, pad_ry",
-      "light: mouse_left, j, pad_x",
-      "heavy: mouse_right, k, pad_y",
+      "light: mouse_left, pad_x",
+      "heavy: mouse_right, pad_y",
       "dodge: space, pad_a",
       "block: shift, pad_lb",
       "skill1: q, pad_rb",
@@ -92,7 +94,8 @@ scene.add("Input", [0, 0, 0], {
 });
 scene.add("Controls", [0, 0, 0], {
   UI: {
-    text: "LMB attack · RMB heavy · Space dodge · Shift block/parry · Q E R skills · F ultimate · Tab lock · G use · C status",
+    // Two lines, so both clear the minimap (top right) on a 960 px screen.
+    text: "LMB attack · RMB heavy · Space dodge · Shift block/parry · Q E R skills · F ultimate\nTab lock · G use · C status · I bag · J quests · M map",
     anchor: "top-center",
     offsetY: 14,
     fontSize: 12,
@@ -100,14 +103,16 @@ scene.add("Controls", [0, 0, 0], {
     opacity: 0.7,
   },
 });
-// The quest tracker, left of centre: clear of the Ledger's windows (top
-// centre) and the bars (bottom left).
+// The quest tracker (at most 3 lines), left of centre: clear of the
+// Ledger's windows (top centre), the bars (bottom left) and, on a 960 x 540
+// screen, the Hunter line under the minimap.
 scene.add("Objective", [0, 0, 0], {
-  UI: { text: "", anchor: "middle-left", offsetX: 18, offsetY: -40, fontSize: 15, width: 240, color: vec(0.75, 0.88, 1), opacity: 0.95 },
+  UI: { text: "", anchor: "middle-left", offsetX: 18, offsetY: -70, fontSize: 15, width: 240, color: vec(0.75, 0.88, 1), opacity: 0.95 },
 });
-// Level, rank, gold and fangs, kept up to date by the Ledger.
+// Level, rank, gold and fangs, kept up to date by the Ledger: under the
+// minimap (top right, 210 px at its largest).
 scene.add("Hunter", [0, 0, 0], {
-  UI: { text: "", anchor: "top-right", offsetX: -18, offsetY: 44, fontSize: 15, color: vec(0.95, 0.85, 0.55), opacity: 0.95 },
+  UI: { text: "", anchor: "top-right", offsetX: -18, offsetY: 230, fontSize: 15, color: vec(0.95, 0.85, 0.55), opacity: 0.95 },
 });
 // "G: Gate Board" and the like, near a hub station.
 scene.add("Prompt", [0, 0, 0], {
@@ -1028,10 +1033,125 @@ const npc = (name: string, at: V3, yaw: number, tint: string) =>
   });
 npc("Association Clerk", [-12.2, 0.9, 58.6], Math.PI * 0.85, "#3d4a66");
 npc("Smith Kang", [10, 0.9, 59.6], Math.PI, "#6a4632");
+// Quest givers out in the district (lua/ledger.lua's side quests find them
+// by name): a ! over their heads while a quest is on offer.
+npc("Officer Yoon", [3, 0.9, 38.5], 0, "#2c3f6e"); // the Association's patrol, at the hub's open south side
+npc("Courier Bae", [-39, 0.9, 38], Math.PI / 2, "#d8782c"); // by Station A
+npc("Apprentice Jin", [18, 0.9, 178], Math.PI, "#7a5232"); // Smith Kang's apprentice, at Hangang plaza
+// "[G] Talk: Officer Yoon", above the World prompt.
+scene.add("Quest prompt", [0, 0, 0], {
+  UI: { text: "", anchor: "bottom-center", offsetY: -180, fontSize: 18, color: vec(1, 0.88, 0.45), opacity: 0.95 },
+});
 
 // -- The district around the hub (M4: district.ts, lua/world.lua) ------------
 buildDistrict(scene);
 scene.add("World", [0, 0, 0], { Script: { source: lua("world.lua"), props: {} } });
+
+// -- The district map (M4: the minimap and M, apps/editor/src/editor/minimap.ts)
+// hud.map_layout's text, read off what was built above, so it follows the
+// district when that changes: flat pads, the plaza and the river as areas,
+// the road tiles as strips, every building's footprint, the trees, and the
+// places a hunter looks for. The Map script sends it at start.
+function districtMapLayout(): string {
+  const { west, east, south, north } = DISTRICT;
+  const lines = [`bounds ${west} ${south} ${east} ${north}`];
+  const n = (v: number) => String(Math.round(v * 10) / 10);
+  // Clipped to what the map shows (the bounds and a margin).
+  const box = (x0: number, z0: number, x1: number, z1: number) => {
+    const c = [Math.max(x0, west - 12), Math.max(z0, south - 12), Math.min(x1, east + 12), Math.min(z1, north + 12)];
+    return c[0]! < c[2]! && c[1]! < c[3]! ? c.map(n).join(" ") : undefined;
+  };
+  const category = (id: number) => modelCatalog.find((m) => m.id === id);
+  const hex = (c: { x: number; y: number; z: number }, lift: number) =>
+    "#" + [c.x, c.y, c.z].map((v) => Math.round((v + (1 - v) * lift) * 255).toString(16).padStart(2, "0")).join("");
+  const roads = new Map<number, number[]>(); // z -> the x of each tile
+  for (const e of scene.entities) {
+    const c = e.components as Record<string, any>;
+    const at = c.Transform?.position;
+    const size = c.Scale?.value;
+    // Flat, visible boxes: pads, the plaza, the training mat, the river.
+    if (at && size && c.Material && c.Renderable?.visible !== false && c.Renderable?.mesh === 0 && size.y <= 0.12) {
+      const r = box(at.x - size.x / 2, at.z - size.z / 2, at.x + size.x / 2, at.z + size.z / 2);
+      const color = /river/i.test(e.name) ? "#1f4f88" : /lawn/i.test(e.name) ? "#2c5c36" : hex(c.Material.color, 0.1);
+      if (r) lines.push(`area ${r} ${color}`);
+      // The hub's paving (instanced tiles) over the plaza.
+      if (e.name === "Plaza") lines.push("area -16 40 16 64 #545263");
+    }
+    // Catalog buildings placed one by one (the Association's towers).
+    const model = c.Renderable?.mesh > 0 ? category(c.Renderable.mesh) : undefined;
+    if (at && size && model?.category === "buildings") {
+      const turned = Math.abs(Math.sin(c.Rotation?.euler.y ?? 0)) > 0.7;
+      const [w, d] = turned ? [size.z, size.x] : [size.x, size.z];
+      const r = box(at.x - w / 2, at.z - d / 2, at.x + w / 2, at.z + d / 2);
+      if (r) lines.push(`building ${r}`);
+    }
+    if (!c.ModelInstances) continue;
+    for (const instance of parseModelInstances(c.ModelInstances.instances).instances) {
+      const entry = category(instance.model);
+      const x = (at?.x ?? 0) + instance.x,
+        z = (at?.z ?? 0) + instance.z;
+      if (entry?.category === "roads") roads.set(z, [...(roads.get(z) ?? []), x]);
+      else if (entry?.category === "buildings") {
+        const { min, max } = modelBounds(instance.model);
+        const b = instanceBox(instance, { x: max[0]! - min[0]!, y: max[1]! - min[1]!, z: max[2]! - min[2]! });
+        const r = box(x - b.sx / 2, z - b.sz / 2, x + b.sx / 2, z + b.sz / 2);
+        if (r) lines.push(`building ${r}`);
+      } else if (entry?.name.startsWith("Tree") && box(x, z, x + 0.1, z + 0.1)) lines.push(`tree ${n(x)} ${n(z)}`);
+    }
+  }
+  // Road tiles (16 m) joined into strips along x.
+  for (const [z, xs] of roads) {
+    xs.sort((a, b) => a - b);
+    let start = xs[0]!;
+    xs.forEach((x, i) => {
+      if (xs[i + 1] === x + 16) return;
+      const r = box(start - 8, z - 8, x + 8, z + 8);
+      if (r) lines.push(`road ${r}`);
+      start = xs[i + 1]!;
+    });
+  }
+  // Points of interest, where their entities stand.
+  const where = (name: string) => scene.entities.find((e) => e.name === name)!.components.Transform!.position;
+  const titles: Record<string, string> = { "Station A": "Association Station", "Station B": "Hangang Station" };
+  for (const st of DISTRICT.stations) lines.push(`poi station ${st.x} ${st.z} ${titles[st.name] ?? st.name}`);
+  for (const site of DISTRICT.sites) lines.push(`poi site ${site.x} ${site.z}`);
+  for (const [kind, name, label] of [
+    ["board", "Gate Board", "Gate Board"],
+    ["smith", "Smith Kang", "Smith Kang"],
+    ["home", "Home door", "Home"],
+    ["mat", "Training mat", ""],
+  ] as const) {
+    const p = where(name);
+    lines.push(`poi ${kind} ${n(p.x)} ${n(p.z)} ${label}`.trimEnd());
+  }
+  for (const [x, z, text] of [
+    [0, 220, "Han river"],
+    [36, 24, "Association street"],
+    [-30, 120, "Midtown street"],
+    [-30, 200, "Gangbyeon street"],
+    [-32, 137, "The park"],
+    [32, 136, "Hangang plaza"],
+    [0, 92, "Hunter Association"],
+    [88, 92, "The east lot"],
+  ] as const)
+    lines.push(`label ${x} ${z} ${text}`);
+  return lines.join("\n");
+}
+scene.add("Map", [0, 0, 0], {
+  Script: {
+    source: `-- The district map: the minimap and the M map (apps/editor/src/editor/minimap.ts).
+-- Generated by tools/gatebreaker/build_game.ts from the district's own layout.
+local LAYOUT = [[
+${districtMapLayout()}
+]]
+
+function on_start()
+  hud.map_layout(LAYOUT)
+end
+`,
+    props: {},
+  },
+});
 
 const document = { format: 1, name: "GATEBREAKER", entities: scene.entities, prefabs: scene.prefabs } as SceneDocument;
 validateSceneDocument(document);

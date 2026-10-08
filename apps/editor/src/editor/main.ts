@@ -35,6 +35,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { isNonPhysical, isSettingsOnly } from "./settingsEntity";
 import { clearOffHands, holdWeapon, updateHeldWeapons, weaponGrip } from "./heldWeapons";
 import { LedgerHud } from "./ledger";
+import { DistrictMap } from "./minimap";
 import { LightPool } from "./lightPool";
 import { InkPass, attachDepth, installToonShading, markCharacter, toonUniforms } from "./manhwa";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
@@ -907,6 +908,8 @@ async function startEditor() {
   // Melee (0.78.0): fighters' bodies, impacts and the fighter HUD (combatView.ts).
   // GATEBREAKER's interface (ledger.ts): system windows, panel cutscenes, the boss bar.
   const ledger = new LedgerHud();
+  // GATEBREAKER M4: the minimap and the M map from a script's hud.map_layout (minimap.ts).
+  const districtMap = new DistrictMap();
   // At most 8 point lights shade the scene at once (lightPool.ts).
   const lightPool = new LightPool(scene);
   const combat = new CombatView(scene, {
@@ -2098,6 +2101,7 @@ async function startEditor() {
       ledger.setBoss(name, title || name);
     }
     else if (kind === "settings") openPlayerSettings();
+    else if (kind === "map_layout" || kind === "map_marker" || kind === "map_marker_clear") districtMap.host(kind, text);
     else if (kind === "prospect") {
       // "label|range|key,key,..." -- empty to stop.
       const [label = "", range = "300", keys = ""] = text.split("|");
@@ -2122,6 +2126,7 @@ async function startEditor() {
     const wantTouch = doc.mode !== "edit" && (playerSettings.touch === "on" || (playerSettings.touch === "auto" && isTouchDevice()));
     if (wantTouch && !touchControls)
       touchControls = createTouchControls(app, (code, key, down) => {
+        if (districtMap.touchKey(code, down)) return releaseHeldKeys();
         keyQueue.push([code, down ? 1 : 0]);
         if (down) heldKeys.add(code);
         else heldKeys.delete(code);
@@ -2620,6 +2625,8 @@ async function startEditor() {
   window.addEventListener("blur", () => {
     if (doc.mode !== "edit") releaseHeldKeys();
   });
+  // The M map holds every key and click while it is open (minimap.ts).
+  districtMap.bindInput(window, () => doc.mode === "play", releaseHeldKeys);
   function execute(command: unknown) {
     const result = doc.execute(command);
     log(result);
@@ -3282,6 +3289,7 @@ async function startEditor() {
     uiTextOverrides.clear();
     uiColorOverrides.clear();
     uiMarkers.clear();
+    districtMap.reset();
     uiValues.clear();
     uiVisibility.clear();
     draggingSlider = undefined;
@@ -5654,8 +5662,20 @@ async function startEditor() {
       if (ui.kind === "Bar" || ui.kind === "Slider" || ui.kind === "Toggle") hudLines.push(`${uiName || ui.kind}=${Math.round(value * 100) / 100}`);
     }
     // GATEBREAKER: panels, the Ledger's windows and the boss bar, drawn last
-    // so a window covers the scene's own UI text.
+    // so a window covers the scene's own UI text; the M map covers all.
     if (doc.mode === "play") hudLines.push(...ledger.draw(hudCtx, hud.width, hud.height, bossReadout()));
+    if (doc.mode !== "edit")
+      hudLines.push(
+        ...districtMap.draw(hudCtx, hud.width, hud.height, {
+          player: playerIndex >= 0 ? objects[playerIndex] : undefined,
+          camera: viewCamera,
+          project: (point) => (point.project(viewCamera).z > 1 ? undefined : { x: ((point.x + 1) / 2) * hud.width, y: ((1 - point.y) / 2) * hud.height }),
+          minimap: playerSettings.minimap && minimapAllowed,
+          size: (playerSettings as { minimapSize?: string }).minimapSize,
+          panels: ledger.playing,
+          window: ledger.systemText !== "",
+        }),
+      );
     const hudSummary = hudLines.join(" · ");
     if (hudText.textContent !== hudSummary) hudText.textContent = hudSummary;
   }

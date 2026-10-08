@@ -225,6 +225,9 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `hud.system_close()` | Closes the Ledger system window. |
 | `hud.panels(spec: string)` | Plays a comic-panel cutscene: one shot per line, "x y z > tx ty tz | caption | sfx | seconds". Space or Enter skips. |
 | `hud.boss(name: string, title: string)` | A boss bar (health and stagger) for the named entity; an empty name hides it. |
+| `hud.map_layout(spec: string)` | A top-down area map: the minimap (top right, while the player is inside its bounds) and the full map (M). One item per line: "bounds x0 z0 x1 z1", "area x0 z0 x1 z1 #rrggbb [label]", "road x0 z0 x1 z1", "building x0 z0 x1 z1", "tree x z", "poi kind x z [label]", "label x z text". Empty removes it. |
+| `hud.map_marker(id: string, kind: string, x: number, z: number, color: string, label: string)` | A marker on the area map and minimap: gate, station, smith, board, home, giver (a ! over the spot too), turnin (?) or target (the tracked quest, held on the minimap's rim when far); color #rrggbb or empty. The same id replaces it. |
+| `hud.clear_map_marker(id: string)` | Removes a map marker. |
 
 ## audio
 

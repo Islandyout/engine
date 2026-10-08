@@ -98,9 +98,15 @@ local KEYS = { "lv", "xp", "pts", "str", "agi", "vit", "int", "sen", "gold", "fa
   "bag", "eq", "p1", "p2", "look", "wd", "pity" }
 local TEXT = { rank = true, sh1 = true, sh2 = true, sh3 = true, bag = true, eq = true }
 local STAT_KEY = { "str", "agi", "vit", "int", "sen" }
+-- Side quests (M4: "Side quests and the quest log" below): each one's state,
+-- the patrol's kills, the day it was last handed in, the tracked quest.
+local QUEST_SAVE = { side = "000", pk = 0, pd = 0, trk = "story" }
+for _, k in ipairs({ "side", "pk", "pd", "trk" }) do KEYS[#KEYS + 1] = k end
+TEXT.side, TEXT.trk = true, true
 
 local function load()
   s = defaults()
+  for k, v in pairs(QUEST_SAVE) do s[k] = v end
   local text = save.get("gb")
   if not text then return end
   for k, v in text:gmatch("(%w+)=([^;]*)") do
@@ -310,13 +316,9 @@ local function push_feed(text, color)
   show_feed()
 end
 
-local function hub_objective()
-  if not in_hub then return end
-  local quest = QUESTS[math.min(s.q, #QUESTS)]
-  local daily = s.daily == 1 and "Daily: done. Rest at the door home to end the day."
-    or "Daily Quest: the training drill on the mat (left, by the entrance)"
-  ui.set_text("Objective", "Day " .. s.day .. "\nQuest: " .. quest .. "\n" .. daily)
-end
+-- The quest tracker out of the Gates: the tracked quest, at most 3 lines
+-- (set in "Side quests and the quest log" below).
+local hub_objective
 
 local function refresh()
   hunter_line()
@@ -341,10 +343,14 @@ local function status_body()
     s.pts > 0 and (s.pts .. " stat points: press 1-5 to spend one. C closes.") or "No stat points. C closes.")
 end
 
+local menu_at -- where the hunter stood when it opened: walking away closes it
 local function set_menu(m)
   menu = m
   close_at = nil
   if hero then world.send(world.find("Hub"), "busy", m ~= nil) end
+  local x, _, z
+  if hero and m then x, _, z = world.position(hero) end
+  menu_at = x and { x, z } or nil
 end
 
 local function close_menu()
@@ -718,9 +724,380 @@ local function smith_body(note)
     end
   end
   text = text .. "\n\nWorn gear:\n" .. (#gear > 0 and table.concat(gear, "\n") or "(nothing to upgrade: wear gear from your bag, I)") ..
-    string.format("\n\nP buys a health potion, M a mana potion: %d G each (you have %d and %d).", POTION_PRICE, s.p1, s.p2)
+    string.format("\n\nP buys a health potion, O a mana potion: %d G each (you have %d and %d).", POTION_PRICE, s.p1, s.p2)
   if note then text = note .. "\n\n" .. text end
   return text
+end
+
+-- Side quests and the quest log (M4) -----------------------------------------
+-- Three people in the district each give a side quest: a ! over their head
+-- and on the map while it's on offer, ? when it's ready to hand in. G talks
+-- to them; Enter takes the quest. J opens the quest log: the story quest,
+-- the Daily Quest and the side quests, each with its objective and reward;
+-- 1-5 there picks the quest the tracker (the Objective lines) and the map
+-- follow. Saved (QUEST_SAVE): s.side, a digit per side quest (0 on offer,
+-- 1 taken, 2 done); s.pk, the patrol's kills; s.pd, the day the patrol was
+-- last handed in (it comes back the next day, by the Ledger's s.day); s.trk,
+-- the tracked quest. Nothing here pops up by itself: progress goes to the
+-- feed and the tracker, windows open only when the hunter talks to someone.
+local SIDE = {
+  { id = "patrol", npc = "Officer Yoon", title = "DUNGEON BREAK PATROL", short = "Dungeon break patrol", daily = true, goal = 8, x = 3, z = 38.5,
+    offer = "\"Hunter. The cracks round the Gates keep spilling monsters into the streets.\nThe Association wants them thinned out.\"\n\nDefeat 8 monsters, in the streets or in any Gate. A new patrol every day.",
+    reward = "250 G, 150 XP, 2 health potions" },
+  { id = "parcel", npc = "Courier Bae", title = "A PARCEL FOR THE RIVER", short = "A parcel for the river", x = -39, z = 38,
+    offer = "\"My bike's dead, and this has to reach the kiosk at Hangang Station tonight.\nThe subway's quickest: press G at the station's entrance.\"\n\nTake the parcel to Hangang Station, by the river.",
+    reward = "150 G, 100 XP" },
+  { id = "forge", npc = "Apprentice Jin", title = "STEEL FOR THE FORGE", short = "Steel for the forge", goal = 3, x = 18, z = 178,
+    offer = "\"Smith Kang melts Gate gear down: the mana in it makes the best steel.\nBring me 3 Rare items and I'll trade you something from the forge.\"\n\nBring 3 Rare items (blue) from your bag to Apprentice Jin.",
+    reward = "an Epic item, 100 G" },
+}
+local PARCEL_TO = { x = 48, z = 175.5, r = 6 } -- Hangang Station's entrance
+local TALK_R = 2.6
+local LOG_KEYS = { "story", "daily", "patrol", "parcel", "forge" }
+local spots = {}     -- where things stand: board, smith, mat, home, each giver
+local talking, talk_mode -- the side quest being talked about; "offer" or "info"
+local quest_windows = false -- reward windows the quests started (closed after)
+local quest_tick = 0
+local last_tracker
+local shown_quest_prompt
+
+local function side_index(id)
+  for i, q in ipairs(SIDE) do
+    if q.id == id then return i end
+  end
+end
+local function side_state(i) return tonumber(s.side:sub(i, i)) or 0 end
+local function set_side(i, v)
+  local digits = {}
+  for k = 1, #SIDE do digits[k] = tostring(k == i and v or side_state(k)) end
+  s.side = table.concat(digits)
+end
+-- On offer: never taken (the patrol: not yet today).
+local function on_offer(i)
+  return side_state(i) == 0 and not (SIDE[i].daily and s.pd >= s.day)
+end
+local function rares()
+  local n = 0
+  for _, it in ipairs(bag_items()) do
+    if it.rarity == 2 then n = n + 1 end
+  end
+  return n
+end
+local function hand_in_ready(i)
+  if side_state(i) ~= 1 then return false end
+  local q = SIDE[i]
+  if q.id == "patrol" then return s.pk >= q.goal end
+  if q.id == "forge" then return rares() >= q.goal end
+  return false
+end
+
+local function side_objective(i)
+  local q, state = SIDE[i], side_state(i)
+  if state == 2 then return "done" end
+  if state == 0 then return on_offer(i) and ("talk to " .. q.npc .. " (!)") or "done today: a new patrol tomorrow" end
+  if q.id == "patrol" then
+    return s.pk >= q.goal and "report to Officer Yoon" or string.format("defeat monsters (streets or Gates): %d/%d", s.pk, q.goal)
+  elseif q.id == "parcel" then
+    return "take the parcel to Hangang Station"
+  end
+  local n = rares()
+  return n >= q.goal and "bring the Rare items to Apprentice Jin" or string.format("Rare items in your bag: %d/%d", n, q.goal)
+end
+
+local function story_text() return QUESTS[math.min(s.q, #QUESTS)] end
+local function story_reward(text)
+  for _, g in ipairs(GATES) do
+    if text:find(g.name, 1, true) then
+      return string.format("%d XP, %d G%s", g.xp, g.gold, (text:find("test") or text:find("rank up")) and ", a new rank" or "")
+    end
+  end
+  if text:find("dagger") then return "+8% damage" end
+  if text:find("Lv%.") then return "the next Gate opens" end
+  return "harder Gates, better gear"
+end
+
+-- The tracked quest (a side quest that's done falls back to the story).
+local function tracked_key()
+  local i = side_index(s.trk)
+  if i and (side_state(i) == 2 or (side_state(i) == 0 and not on_offer(i))) then return "story" end
+  if not i and s.trk ~= "daily" then return "story" end
+  return s.trk
+end
+
+-- Where the tracked quest leads (nil: anywhere) and what the map calls it.
+local function quest_target(key)
+  if key == "story" then
+    local smith = story_text():find("Smith") ~= nil
+    return smith and spots.smith or spots.board, smith and "Smith Kang" or "Gate Board"
+  elseif key == "daily" then
+    if s.daily == 1 then return spots.home, "Home: rest" end
+    return spots.mat, "Training mat"
+  end
+  local i = side_index(key)
+  local q = SIDE[i]
+  if side_state(i) == 1 then
+    if q.id == "parcel" then return PARCEL_TO, "Hangang Station" end
+    if not hand_in_ready(i) then return nil, q.short end
+  end
+  return spots[q.id], q.npc
+end
+
+local function tracker_text()
+  local key = tracked_key()
+  local title, text
+  if key == "story" then
+    title, text = "Story quest", story_text()
+  elseif key == "daily" then
+    title = "Daily Quest"
+    text = s.daily == 1 and "Done. Rest at your door to end the day." or "The training drill on the mat"
+  else
+    local i = side_index(key)
+    title, text = SIDE[i].short, side_objective(i)
+    text = text:sub(1, 1):upper() .. text:sub(2)
+  end
+  local lines = { "◆ " .. title .. "  ·  Day " .. s.day, text }
+  -- The Daily Quest while it waits, when there's room for it.
+  if key ~= "daily" and s.daily == 0 and #text <= 32 then lines[3] = "Daily: the drill on the mat" end
+  return table.concat(lines, "\n")
+end
+
+hub_objective = function()
+  if not in_hub then return end
+  last_tracker = tracker_text()
+  ui.set_text("Objective", last_tracker)
+end
+
+-- Map markers (hud.map_marker), sent only when they change.
+local sent_markers = {}
+local function marker(id, kind, spot, label)
+  local text = spot and string.format("%s|%.1f|%.1f|%s", kind, spot.x, spot.z, label) or ""
+  if sent_markers[id] == text then return end
+  sent_markers[id] = text
+  if spot then hud.map_marker(id, kind, spot.x, spot.z, "", label) else hud.clear_map_marker(id) end
+end
+local function publish_quests()
+  for i, q in ipairs(SIDE) do
+    local kind = on_offer(i) and "giver" or hand_in_ready(i) and "turnin" or nil
+    marker("npc_" .. q.id, kind, kind and spots[q.id], q.npc)
+  end
+  local spot, label = quest_target(tracked_key())
+  marker("quest", "target", spot, label)
+end
+
+local function find_spots()
+  local function at(name, x, z)
+    local id = world.find(name)
+    local px, _, pz
+    if id then px, _, pz = world.position(id) end
+    return { x = px or x, z = pz or z }
+  end
+  spots.board = at("Gate Board", -10, 58)
+  spots.smith = at("Smith Kang", 10, 59.6)
+  spots.mat = at("Training mat", -9, 45)
+  spots.home = at("Home door", 10, 40.6)
+  for _, q in ipairs(SIDE) do spots[q.id] = at(q.npc, q.x, q.z) end
+end
+
+-- Level-up windows a quest's XP queued: shown now, closed after.
+local function show_queued()
+  if not current and #queue > 0 then
+    quest_windows = true
+    show_next()
+  end
+end
+
+local function count_kill()
+  local i = side_index("patrol")
+  if side_state(i) ~= 1 or s.pk >= SIDE[i].goal then return end
+  s.pk = s.pk + 1
+  if s.pk == SIDE[i].goal then
+    push_feed("Patrol done: report to Officer Yoon", "#ffd84a")
+    hud.cue("good")
+    store()
+  else
+    push_feed(string.format("Patrol: %d/%d monsters", s.pk, SIDE[i].goal), "#ffe9a0")
+  end
+end
+
+local function accept(i)
+  local q = SIDE[i]
+  set_side(i, 1)
+  if q.id == "patrol" then s.pk = 0 end
+  s.trk = q.id
+  store()
+  push_feed("Quest taken: " .. q.short .. "  (J: quest log)", "#ffd84a")
+  hud.cue("good")
+  refresh()
+  publish_quests()
+end
+
+-- The best Gate cleared so far: the set an Epic from the forge belongs to.
+local function best_gate()
+  for n = #GATES, 1, -1 do
+    if (s["c" .. n] or 0) > 0 then return n end
+  end
+  return 1
+end
+
+local function hand_in(i)
+  local q = SIDE[i]
+  local body
+  if q.id == "patrol" then
+    set_side(i, 0)
+    s.pd, s.pk = s.day, 0
+    s.gold, s.p1 = s.gold + 250, s.p1 + 2
+    gain_xp(150)
+    body = "\"Good work, hunter. Same time tomorrow.\"\n\n+250 G   +150 XP   +2 health potions"
+  else
+    -- The three lowest Rare items go; an Epic from the best Gate cleared comes.
+    local list, kept, taken = bag_items(), {}, {}
+    table.sort(list, function(a, b)
+      if a.rarity ~= b.rarity then return a.rarity < b.rarity end
+      return a.plus < b.plus
+    end)
+    for _, it in ipairs(list) do
+      if it.rarity == 2 and #taken < q.goal then taken[#taken + 1] = it else kept[#kept + 1] = it end
+    end
+    local epic = { slot = math.random(#SLOT), rarity = 3, set = best_gate(), seed = math.random(0, 99999), plus = 0 }
+    kept[#kept + 1] = epic
+    set_bag(kept)
+    s.wd = s.wd | (1 << (epic.set + 1))
+    s.gold = s.gold + 100
+    set_side(i, 2)
+    body = "Jin takes the 3 Rare items. \"Kang says this one's yours.\"\n\n" .. describe(epic) .. "\n+100 G   (in your bag: I)"
+  end
+  store()
+  hunter_line()
+  hud.cue("discovery")
+  set_menu("talk")
+  talking, talk_mode = i, "info"
+  hud.system(q.title .. ": COMPLETE", body .. "\n\nPress Enter.")
+  refresh()
+  publish_quests()
+end
+
+local function talk(i)
+  local q = SIDE[i]
+  if hand_in_ready(i) then
+    hand_in(i)
+    return
+  end
+  set_menu("talk")
+  talking = i
+  if on_offer(i) then
+    talk_mode = "offer"
+    hud.system(q.npc:upper(), "SIDE QUEST: " .. q.title .. "\n\n" .. q.offer .. "\nReward: " .. q.reward .. "\n\nEnter takes it   ·   Backspace says no")
+  else
+    talk_mode = "info"
+    local say = side_state(i) == 1 and (q.short .. ": " .. side_objective(i) .. ".") or "\"Thanks again, hunter.\""
+    if q.daily and side_state(i) == 0 then say = "\"That's today's patrol done. Come back tomorrow.\"" end
+    hud.system(q.npc:upper(), say .. "\n\nBackspace closes.")
+  end
+end
+
+local function quest_log_body(note)
+  local key = tracked_key()
+  local lines = {}
+  local function row(n, k, head, text, reward)
+    lines[#lines + 1] = string.format("%s[%d] %s: %s", k == key and "◆ " or "", n, head, text)
+    if reward then lines[#lines + 1] = "Reward: " .. reward end
+  end
+  if note then lines[#lines + 1] = note .. "\n" end
+  row(1, "story", "STORY", story_text(), story_reward(story_text()))
+  row(2, "daily", "DAILY QUEST", s.daily == 1 and "done today. Rest at your door to end the day."
+    or "the training drill on the mat", s.daily == 0 and "+1 stat point, 50 G" or nil)
+  lines[#lines + 1] = "\nSIDE QUESTS"
+  for i, q in ipairs(SIDE) do
+    row(i + 2, q.id, q.title, side_objective(i), side_state(i) ~= 2 and q.reward or nil)
+  end
+  lines[#lines + 1] = "\n1-5 tracks a quest (◆): the map and the tracker follow it   ·   J closes"
+  return table.concat(lines, "\n")
+end
+
+local function open_quest_log()
+  set_menu("quests")
+  hud.system("QUEST LOG", quest_log_body())
+end
+
+-- The quest log's keys: 1-5 track a quest.
+local function tick_quest_log()
+  if input.pressed("KeyJ") then
+    close_menu()
+    return
+  end
+  for n, key in ipairs(LOG_KEYS) do
+    if input.pressed("Digit" .. n) then
+      local i = side_index(key)
+      if i and (side_state(i) == 2 or (side_state(i) == 0 and not on_offer(i))) then
+        hud.system("QUEST LOG", quest_log_body("That one's done."))
+      else
+        s.trk = key
+        store()
+        refresh()
+        publish_quests()
+        hud.system("QUEST LOG", quest_log_body("Tracking: " .. (i and SIDE[i].short or key == "daily" and "the Daily Quest" or "the story quest") .. "."))
+      end
+    end
+  end
+end
+
+-- A talk's keys: Enter takes an offered quest, or closes.
+local function tick_talk()
+  if input.pressed("Enter") then
+    if talk_mode == "offer" then accept(talking) end
+    close_menu()
+    show_queued()
+  end
+end
+
+local function quest_prompt(text)
+  if text ~= shown_quest_prompt then
+    shown_quest_prompt = text
+    ui.set_text("Quest prompt", text)
+  end
+end
+
+-- Every tick: the parcel's delivery, the givers' prompt and G; twice a
+-- second, the markers and the tracker.
+local function tick_quests(dt, free)
+  if not hero then return end
+  if not spots.board then find_spots() end
+  if quest_windows and not current then
+    quest_windows = false
+    hud.system_close()
+  end
+  local x, _, z = world.position(hero)
+  if not x then return end
+  local parcel = side_index("parcel")
+  if free and side_state(parcel) == 1 and (x - PARCEL_TO.x) ^ 2 + (z - PARCEL_TO.z) ^ 2 < PARCEL_TO.r * PARCEL_TO.r then
+    set_side(parcel, 2)
+    s.gold = s.gold + 150
+    push_feed("Parcel delivered: +150 G, +100 XP", "#ffd84a")
+    hud.cue("good")
+    gain_xp(100)
+    store()
+    refresh()
+    publish_quests()
+    show_queued()
+  end
+  quest_tick = quest_tick - dt
+  if quest_tick <= 0 then
+    quest_tick = 0.5
+    publish_quests()
+    if in_hub and tracker_text() ~= last_tracker then hub_objective() end
+  end
+  local near
+  for i, q in ipairs(SIDE) do
+    local spot = spots[q.id]
+    if (x - spot.x) ^ 2 + (z - spot.z) ^ 2 < TALK_R * TALK_R then near = i end
+  end
+  if not near or not free then
+    quest_prompt("")
+    return
+  end
+  local q = SIDE[near]
+  quest_prompt("[G] Talk: " .. q.npc .. (on_offer(near) and "  (!)" or hand_in_ready(near) and "  (?)" or ""))
+  if input.action_pressed("interact") or input.pressed("KeyG") then talk(near) end
 end
 
 local function tick_menu()
@@ -728,7 +1105,11 @@ local function tick_menu()
     close_menu()
     return
   end
-  if menu == "status" then
+  if menu == "quests" then
+    tick_quest_log()
+  elseif menu == "talk" then
+    tick_talk()
+  elseif menu == "status" then
     for i = 1, 5 do
       if input.pressed("Digit" .. i) and spend(i) then
         apply()
@@ -753,7 +1134,7 @@ local function tick_menu()
   elseif menu == "bag" then
     if input.pressed("KeyI") then close_menu() return end
     tick_bag()
-  elseif menu == "smith" and (input.pressed("KeyP") or input.pressed("KeyM")) then
+  elseif menu == "smith" and (input.pressed("KeyP") or input.pressed("KeyO")) then
     local key = input.pressed("KeyP") and "p1" or "p2"
     if s.gold >= POTION_PRICE then
       s.gold = s.gold - POTION_PRICE
@@ -820,6 +1201,7 @@ function on_message(name, value)
   if name == "kill" then
     local prefab, x, z = tostring(value):match("^([^|]+)|?([^|]*)|?([^|]*)$")
     local k = KILL[prefab]
+    count_kill()
     if not k then return end
     drop(prefab, tonumber(x), tonumber(z))
     run.kills = run.kills + 1
@@ -949,16 +1331,17 @@ function on_tick(dt)
     close_at = nil
     if not current and not menu then hud.system_close() end
   end
+  tick_quests(dt, not current and not menu)
   if current then
     tick_rewards(dt)
     return
   end
   if menu then
-    -- Walking away closes a station's menu.
-    if menu ~= "status" and menu ~= "bag" and hero then
+    -- Walking away closes a station's menu (the Gate Board at a Gate site
+    -- too) or a talk.
+    if (menu == "board" or menu == "smith" or menu == "talk") and hero and menu_at then
       local x, _, z = world.position(hero)
-      local station = menu == "board" and { -10, 58 } or { 10, 58.6 }
-      if x and (x - station[1]) ^ 2 + (z - station[2]) ^ 2 > 4.5 * 4.5 then close_menu() return end
+      if x and (x - menu_at[1]) ^ 2 + (z - menu_at[2]) ^ 2 > 4.5 * 4.5 then close_menu() return end
     end
     tick_menu()
   elseif input.pressed("KeyC") then
@@ -968,6 +1351,8 @@ function on_tick(dt)
     bag_page, picked = 1, nil
     set_menu("bag")
     hud.system("BAG", bag_body())
+  elseif input.pressed("KeyJ") then
+    open_quest_log()
   else
     tick_potions()
   end
