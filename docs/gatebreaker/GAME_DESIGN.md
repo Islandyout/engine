@@ -257,7 +257,7 @@ Each gap is written down, researched and fixed, then re-shot.
 | **M2** The loop | Hub, saves, the Ledger quests, 3 E–D Gates, rank-up | A 1-hour session plays end to end (done in 0.82.0) |
 | **M3** Shadows | Bind, 3 shadow roles, C–B Gates | Shadows help without being managed (done in 0.83.0) |
 | **M3.5** Items and gear | Loot, pick-up, rarity, the bag, 7 gear slots shown on the hunter, upgrades, potions, wardrobe (§13) | A Gate's drops change what the hunter wears and how he fights |
-| **M4** The world and content | The open Seoul district, Gates in the world, field enemies and respawn, subway travel, map, quests (§13); A–S Gates, all weapons and skills | Full progression E→S across the district |
+| **M4** The world and content | The open Seoul district, Gates in the world, field enemies and respawn, subway travel, map, quests (§13); A–S Gates, all weapons and skills | Full progression E→S across the district (done in 0.84.0; more weapons and skills next) |
 | **M5** Finale and polish | The Double Gate finale, story panels, balance, performance and bug pass | Zero known bugs, 60 fps throughout |
 
 ## 11. Decisions for you

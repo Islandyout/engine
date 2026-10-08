@@ -383,6 +383,16 @@ Engine version 0.79.0 starts **GATEBREAKER**, an original manhwa-style hunter ac
 
 See [F79](docs/changelog/F79.md).
 
+Engine version 0.84.0 gives GATEBREAKER **the world, from E to S**:
+
+- **The field**: dungeon breaks in the district whose packs come back out of sight, a daily field boss, and nights with stronger enemies and better drops.
+- **Gates in the world**: rank-coloured rifts at the Gate sites; walk in and press G.
+- **Finding your way**: a minimap, the district map (M), a quest log (J) and three quest givers.
+- **Day and night** on a 24-minute clock, with nights you can see in; **Esc settings**; **sprint** by holding Space.
+- **The A and S Gates**: the Bloodstone Citadel and the Eclipse Spire, two new bosses, rank-ups to S and levels to 25.
+
+See [F84](docs/changelog/F84.md).
+
 Engine version 0.83.0 gives GATEBREAKER **shadows, gear and a city**:
 
 - **Shadows**: hold G over a fallen elite or boss to raise it. A tank, a striker and an archer follow you, fight on their own, and join your ultimate and every Break.

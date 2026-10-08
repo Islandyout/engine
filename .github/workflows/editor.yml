@@ -42,6 +42,10 @@ jobs:
           node tests/browser/gatebreaker.cjs
           node tests/browser/gatebreaker_gate.cjs
           node tests/browser/gatebreaker_loop.cjs
+          node tests/browser/gatebreaker_field.cjs
+          node tests/browser/gatebreaker_map.cjs
+          node tests/browser/gatebreaker_time.cjs
+          node tests/browser/gatebreaker_high.cjs
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v5
