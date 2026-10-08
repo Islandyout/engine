@@ -49,7 +49,7 @@ const SAVE = "lv=5;xp=1500;pts=0;str=12;agi=11;vit=12;int=10;sen=13;gold=900;fan
 
     await waitHud(/Welcome back/, "the Ledger greets a returning hunter");
     await waitHud(/Lv\.5 {2}E-rank/, "the save's level and rank");
-    await waitHud(/Quest: Pass the D-rank test/, "the story quest");
+    await waitHud(/Pass the D-rank test/, "the story quest");
     await page.waitForTimeout(1500);
     await shot("hub");
 

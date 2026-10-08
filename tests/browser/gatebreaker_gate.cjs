@@ -68,7 +68,7 @@ const { chromium } = require("playwright");
     await waitHud(/E-RANK GATE: CLEARED/, "the Gate cleared");
     await waitHud(/Q: ready/, "Shadow Step Dash unlocked on Q");
     await waitHud(/THE HUNTER ASSOCIATION/, "back in the hub");
-    await waitHud(/Quest: Upgrade your daggers/, "the next quest");
+    await waitHud(/Upgrade your daggers/, "the next quest");
     await page.screenshot({ path: "build/browser-evidence/gatebreaker-gate-cleared.png" });
     assert.deepEqual(errors, []);
     console.log("GATEBREAKER M1: prologue, Ledger, tutorial, rooms 1-3, the Goblin Chieftain and the rewards passed.");

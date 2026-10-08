@@ -70,7 +70,7 @@ const SHOTS = process.env.GB_SHOTS || "build/browser-evidence";
 
     await waitHud(/Welcome back/, "the Ledger greets a returning hunter");
     await waitHud(/Lv\.20 {2}B-rank/, "the save's level and rank");
-    await waitHud(/Quest: Pass the A-rank test/, "the A-rank story quest");
+    await waitHud(/Pass the A-rank test/, "the A-rank story quest");
 
     // The Gate Board: seven Gates, the S Gate locked until A-rank.
     const board = async () => {
@@ -127,7 +127,7 @@ const SHOTS = process.env.GB_SHOTS || "build/browser-evidence";
     await shot("rankup-a");
     await page.keyboard.press("Enter");
     await waitHud(/Lv\.\d+ {2}A-rank/, "A-rank on the hunter line");
-    await waitHud(/Quest: Pass the S-rank test/, "the S-rank story quest");
+    await waitHud(/Pass the S-rank test/, "the S-rank story quest");
 
     // The S-rank test.
     await board();
@@ -153,7 +153,7 @@ const SHOTS = process.env.GB_SHOTS || "build/browser-evidence";
     await play();
     await waitHud(/Welcome back/, "back after the reload");
     await waitHud(/S-rank/, "the rank, saved");
-    await waitHud(/Quest: Rank S/, "the last quest, saved");
+    await waitHud(/Rank S\. The Double Gate/, "the last quest, saved");
     assert.deepEqual(errors, []);
     console.log("GATEBREAKER M4: the Gate Board, the A-rank test, the Castellan's phase 2, B -> A, the S-rank test, the second wave, the Herald's seal, A -> S and the save passed.");
   } catch (error) {
