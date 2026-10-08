@@ -110,7 +110,8 @@ function bot(page) {
       // simulation a few times slower than real time); then each press is
       // sized from how far the last one went, so the hunter settles on the
       // target instead of overshooting and circling it.
-      const press = metresPerMs ? Math.min(3000, Math.max(120, (far / metresPerMs) * 0.7)) : Math.min(3000, 700 + far * 200);
+      // Up to 6 s of W while far away (headless, a press covers ~0.6 m a second).
+      const press = metresPerMs ? Math.min(far > 4 ? 6000 : 3000, Math.max(120, (far / metresPerMs) * 0.7)) : Math.min(3000, 700 + far * 200);
       await hold("w", press);
       const to = await position();
       if (!to) continue;
@@ -127,7 +128,10 @@ function bot(page) {
       // A left-button drag: a middle one would lock on to the construct.
       if (Math.abs(off) > 0.1) await turn(off, "left");
     }
-    throw new Error(`never reached (${x}, ${z}); at ${JSON.stringify(await position())}`);
+    // One last look: the final press may have arrived as time ran out.
+    const last = await position();
+    if (last && (Math.hypot(x - last.x, z - last.z) < near || (until && until.test(await hud())))) return;
+    throw new Error(`never reached (${x}, ${z}); at ${JSON.stringify(last)}`);
   };
 
   // North along x = lineX, where a Gate's doorways are: first the camera is

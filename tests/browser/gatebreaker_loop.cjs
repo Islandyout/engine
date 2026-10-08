@@ -54,7 +54,7 @@ const SAVE = "lv=5;xp=1500;pts=0;str=12;agi=11;vit=12;int=10;sen=13;gold=900;fan
     await shot("hub");
 
     // Smith Kang: +1 daggers for 100 G and 6 fangs.
-    await walkTo(10, 55.6, 0.8, 240000, /\[G\] Smith Kang/);
+    await walkTo(10, 55.6, 0.8, 480000, /\[G\] Smith Kang/);
     await waitHud(/\[G\] Smith Kang/, "the smith's prompt");
     await page.keyboard.press("g");
     await waitHud(/Twin daggers \+0/, "the smith's menu");
@@ -65,7 +65,7 @@ const SAVE = "lv=5;xp=1500;pts=0;str=12;agi=11;vit=12;int=10;sen=13;gold=900;fan
     await page.keyboard.press("Backspace");
 
     // Home without the Daily Quest: the penalty quest, then a new day.
-    await walkTo(9.6, 43, 0.8, 240000, /\[G\] Go home/);
+    await walkTo(9.6, 43, 0.8, 480000, /\[G\] Go home/);
     await waitHud(/\[G\] Go home/, "the door's prompt");
     await page.keyboard.press("g");
     await waitHud(/PENALTY QUEST: survive/, "the penalty quest");
@@ -73,7 +73,7 @@ const SAVE = "lv=5;xp=1500;pts=0;str=12;agi=11;vit=12;int=10;sen=13;gold=900;fan
     await waitHud(/Day 2/, "the next day after the penalty", 60000);
 
     // The Daily Quest: the drill on the mat, a stat point, spent with C.
-    await walkTo(-7.5, 47, 0.8, 240000, /\[G\] Daily Quest/);
+    await walkTo(-7.5, 47, 0.8, 480000, /\[G\] Daily Quest/);
     await waitHud(/\[G\] Daily Quest/, "the mat's prompt");
     await page.keyboard.press("g");
     await waitHud(/DAILY DRILL/, "the drill");
@@ -86,13 +86,13 @@ const SAVE = "lv=5;xp=1500;pts=0;str=12;agi=11;vit=12;int=10;sen=13;gold=900;fan
     await page.keyboard.press("c");
 
     // Home with the drill done: a new day, saved.
-    await walkTo(9.6, 43, 0.8, 240000, /\[G\] Go home/);
+    await walkTo(9.6, 43, 0.8, 480000, /\[G\] Go home/);
     await page.keyboard.press("g");
     await waitHud(/A NEW DAY/, "resting");
     await waitHud(/Day 3/, "day 3");
 
     // The Gate Board: the D-rank test.
-    await walkTo(-9, 55, 0.8, 240000, /\[G\] Gate Board/);
+    await walkTo(-9, 55, 0.8, 480000, /\[G\] Gate Board/);
     await waitHud(/\[G\] Gate Board/, "the board's prompt");
     await page.keyboard.press("g");
     await waitHud(/\[3\] D-rank {2}Goblin Fortress/, "the board lists the D-rank test");
