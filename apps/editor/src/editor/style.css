@@ -841,6 +841,19 @@ input[readonly] {
   margin-top: 14px;
   justify-content: flex-end;
 }
+.settings-note {
+  margin: 6px 0 2px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.settings-key-cell {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: right;
+}
+.settings-key {
+  min-width: 64px;
+}
 .touch-controls {
   position: fixed;
   inset: 0;

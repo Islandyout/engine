@@ -627,6 +627,10 @@ function hud.minimap(shown) end
 --- Opens the player settings panel.
 function hud.open_settings() end
 
+--- While on, Esc (or losing the captured mouse) opens the settings panel as a pause menu: the game stops until it closes.
+---@param on boolean
+function hud.pause_menu(on) end
+
 --- The helmet visor: on or off, integrity 0-1 (cracks below), frost and heat shimmer 0-1.
 ---@param helmet boolean
 ---@param integrity number
@@ -692,6 +696,10 @@ function fx.weather(rain, fog, wind_x, wind_z) end
 ---@param ambient number
 ---@param sun number
 function fx.light(ambient, sun) end
+
+--- Lights the scene for a time of day, 0-24 (sun or moon, sky, fog and ambient over the Environment's); a negative value gives back the Environment's own light (and fx.light's).
+---@param hours number
+function fx.time_of_day(hours) end
 
 --- Dust kicked up on landing: a #rrggbb colour and 0-1 density.
 ---@param color string

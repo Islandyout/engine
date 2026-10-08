@@ -15,8 +15,9 @@
 //
 // Three scripts run it: lua/director.lua (the opening and the Gate runs),
 // lua/hub.lua (the hub's stations and the Daily Quest drill) and
-// lua/ledger.lua (levels, stats, gold, quests, menus and the save). Run from
-// apps/editor:
+// lua/ledger.lua (levels, stats, gold, quests, menus and the save); in M4
+// lua/world.lua runs the district and lua/sky.lua its clock (day and
+// night) and the Esc pause menu. Run from apps/editor:
 //
 //   npm run gatebreaker
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -96,7 +97,7 @@ scene.add("Input", [0, 0, 0], {
 scene.add("Controls", [0, 0, 0], {
   UI: {
     // Two lines, so both clear the minimap (top right) on a 960 px screen.
-    text: "LMB attack · RMB heavy · Space dodge · Shift block/parry · Q E R skills · F ultimate\nTab lock · G use · C status · I bag · J quests · M map",
+    text: "LMB attack · RMB heavy · Space dodge (hold: sprint) · Shift block/parry · Q E R skills · F ultimate\nTab lock · G use · C status · I bag · J quests · M map · Esc settings",
     anchor: "top-center",
     offsetY: 14,
     fontSize: 12,
@@ -114,6 +115,10 @@ scene.add("Objective", [0, 0, 0], {
 // minimap (top right, 210 px at its largest).
 scene.add("Hunter", [0, 0, 0], {
   UI: { text: "", anchor: "top-right", offsetX: -18, offsetY: 230, fontSize: 15, color: vec(0.95, 0.85, 0.55), opacity: 0.95 },
+});
+// The day and the hour, under it (lua/sky.lua).
+scene.add("Clock", [0, 0, 0], {
+  UI: { text: "", anchor: "top-right", offsetX: -18, offsetY: 66, fontSize: 15, color: vec(0.95, 0.9, 0.78), opacity: 0.95 },
 });
 // "G: Gate Board" and the like, near a hub station.
 scene.add("Prompt", [0, 0, 0], {
@@ -1135,7 +1140,8 @@ scene.add("Han Seo-jin", [0, 0.9, 6], {
   Player: {},
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
-  CharacterController: { mode: "ThirdPerson", walkSpeed: 5.2, sprintSpeed: 5.2 },
+  // Sprint: hold Space (dodge) out of a fight, 1.6x the walk.
+  CharacterController: { mode: "ThirdPerson", walkSpeed: 5.2, sprintSpeed: 8.5 },
   Health: { current: 220, maximum: 220 },
   Melee: { style: "Custom", moves: heroMoves, team: 0, ai: false, energy: 0, rightHand: modelId("dagger"), leftHand: modelId("dagger"), manaMax: 100, manaRegen: 9 },
   Script: { source: heroScript, props: {} },
@@ -1712,6 +1718,8 @@ end
     props: {},
   },
 });
+// Day and night: the clock, the sky's light and the Esc pause menu.
+scene.add("Sky", [0, 0, 0], { Script: { source: lua("sky.lua"), props: {} } });
 
 const document = { format: 1, name: "GATEBREAKER", entities: scene.entities, prefabs: scene.prefabs } as SceneDocument;
 validateSceneDocument(document);

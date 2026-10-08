@@ -19,7 +19,8 @@
 -- Messages in: kill ("prefab|x|z"), gate_clear ("gate:grade:seconds:damage:par"),
 -- gate_fail, hub (the hunter is back in the hub), board, smith, daily_done,
 -- rest, penalty_done, bound (a shadow's prefab name), entered (the Gate the
--- Director just sent the hunter into). Out: Director
+-- Director just sent the hunter into), time ("day" or "night") and hour (the
+-- Sky: the smith upgrades by day only). Out: Director
 -- enter_gate (n), rewards_done (n, or "rankup:D" after a rank test), penalty, shadows ("sen,tank,striker,
 -- archer"); Hub busy (true while a menu is open).
 
@@ -108,6 +109,7 @@ local reward_gate = 0
 local undo         -- stats before a level-up window's spending
 local run = { xp = 0, gold = 0, fangs = 0, kills = 0 }
 local close_at -- a passing window closes itself then
+local night, hour = false, 12 -- the Sky's clock
 
 local function defaults()
   return { lv = 1, xp = 0, pts = 0, str = 10, agi = 10, vit = 10, int = 10, sen = 10,
@@ -750,7 +752,20 @@ local function board_body()
   return table.concat(lines, "\n")
 end
 
+-- Smith Kang's forge works by day; potions sell all night. A game hour
+-- is a real minute.
+local function forge_opens()
+  local left = math.floor(((6 - hour) % 24) * 60)
+  return string.format("Opens 06:00 (in %d:%02d) · Rest at home to skip.", left // 60, left % 60)
+end
+
 local function smith_body(note)
+  if night then
+    local text = "Smith Kang: \"The forge is cold till morning. Potions I can still sell you.\"\n" ..
+      "Upgrades: " .. forge_opens() ..
+      string.format("\n\nP buys a health potion, M a mana potion: %d G each (you have %d and %d).\n\nBackspace closes.", POTION_PRICE, s.p1, s.p2)
+    return note and (note .. "\n\n" .. text) or text
+  end
   local d = derived()
   local text = "Smith Kang: \"Goblin fangs make good steel. Bring me fangs and gold.\"\n\n" ..
     string.format("Twin daggers +%d   (damage x%.2f)\n", s.dag, d.damage)
@@ -1192,7 +1207,7 @@ local function tick_menu()
     else
       hud.system("SMITH", smith_body("\"Not enough gold.\""))
     end
-  elseif menu == "smith" and not input.pressed("Enter") then
+  elseif menu == "smith" and not night and not input.pressed("Enter") then
     local eq = equipped()
     for i = 1, #SLOT do
       local it = eq[i]
@@ -1212,7 +1227,7 @@ local function tick_menu()
         end
       end
     end
-  elseif menu == "smith" and input.pressed("Enter") then
+  elseif menu == "smith" and not night and input.pressed("Enter") then
     local up = UPGRADES[s.dag + 1]
     if up and s.gold >= up[1] and s.fang >= up[2] then
       s.gold = s.gold - up[1]
@@ -1386,6 +1401,11 @@ function on_message(name, value)
     refresh()
     hud.system("A NEW DAY", "Day " .. s.day .. ". You survived the penalty. Don't skip the drill.")
     close_at = clock + 5
+  elseif name == "time" then
+    night = value == "night"
+    if menu == "smith" then hud.system("SMITH", smith_body()) end
+  elseif name == "hour" then
+    hour = tonumber(value) or hour
   end
 end
 
