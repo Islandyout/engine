@@ -128,6 +128,9 @@ const SHOTS = process.env.GB_SHOTS || "build/browser-evidence";
         polling = false;
         await poll;
       }
+      // Nothing hurts the Herald while it is sealed, so a cleared Spire means
+      // the seal shattered (its notice too can be covered by an ARISE).
+      if (seen.has("herald-sealed") || heard.has("herald-sealed")) heard.add("herald-open");
       for (const [tag] of moments) assert.ok(seen.has(tag) || heard.has(tag), `saw ${tag}`);
     };
     // Space skips the ceremony's panels, as a player can.
