@@ -97,10 +97,19 @@ const SHOTS = process.env.GB_SHOTS || "build/browser-evidence";
       // a slow machine: the HUD is also read four times a second.
       const heard = new Set();
       let polling = true;
+      // A second wave also shows as the room's count going back up (its
+      // notice can be covered at once by an ARISE window).
+      let left;
       const poll = (async () => {
         while (polling) {
           const text = await hud().catch(() => "");
           for (const [tag, pattern] of moments) if (pattern.test(text)) heard.add(tag);
+          const count = text.match(/([A-Z][A-Z ]+): defeat the [^(]*\((\d+) left\)/);
+          if (count) {
+            // The same room's count rising: a second wave came in.
+            if (left && left.room === count[1] && Number(count[2]) > left.n) heard.add("wave");
+            left = { room: count[1], n: Number(count[2]) };
+          }
           await page.waitForTimeout(250).catch(() => {});
         }
       })();
