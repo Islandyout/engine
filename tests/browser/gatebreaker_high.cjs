@@ -74,7 +74,7 @@ const SHOTS = process.env.GB_SHOTS || "build/browser-evidence";
 
     // The Gate Board: seven Gates, the S Gate locked until A-rank.
     const board = async () => {
-      await walkTo(-9, 55, 0.8, 900000, /\[G\] Gate Board/);
+      await walkTo(-9.6, 55.8, 0.8, 900000, /\[G\] Gate Board/);
       await waitHud(/\[G\] Gate Board/, "the board's prompt");
       await page.keyboard.press("g");
       await waitHud(/\[7\] S-rank {2}Eclipse Spire/, "the board lists all seven Gates");
