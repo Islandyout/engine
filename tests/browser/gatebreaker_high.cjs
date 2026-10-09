@@ -93,16 +93,33 @@ const SHOTS = process.env.GB_SHOTS || "build/browser-evidence";
       let steps = 0;
       await page.waitForTimeout(1500);
       await shot(`arrival-${lineX}`);
-      await runGate(lineX, done, Date.now() + 2700000, async () => {
-        const text = await hud();
-        for (const [tag, pattern] of moments)
-          if (!seen.has(tag) && pattern.test(text)) {
-            seen.add(tag);
-            await shot(tag);
-          }
-        if (seen.has("herald-sealed") && !seen.has("herald-open") && ++steps % 3 === 0 && /Locked on/.test(text)) await page.keyboard.press("Tab");
-      });
-      for (const [tag] of moments) assert.ok(seen.has(tag), `saw ${tag}`);
+      // A notice can show for only a few seconds, less than a fight step on
+      // a slow machine: the HUD is also read four times a second.
+      const heard = new Set();
+      let polling = true;
+      const poll = (async () => {
+        while (polling) {
+          const text = await hud().catch(() => "");
+          for (const [tag, pattern] of moments) if (pattern.test(text)) heard.add(tag);
+          await page.waitForTimeout(250).catch(() => {});
+        }
+      })();
+      try {
+        await runGate(lineX, done, Date.now() + 2700000, async () => {
+          const text = await hud();
+          for (const [tag, pattern] of moments)
+            if (!seen.has(tag) && pattern.test(text)) {
+              seen.add(tag);
+              await shot(tag);
+            }
+          if ((seen.has("herald-sealed") || heard.has("herald-sealed")) && !seen.has("herald-open") && !heard.has("herald-open") && ++steps % 3 === 0 && /Locked on/.test(text))
+            await page.keyboard.press("Tab");
+        });
+      } finally {
+        polling = false;
+        await poll;
+      }
+      for (const [tag] of moments) assert.ok(seen.has(tag) || heard.has(tag), `saw ${tag}`);
     };
     // Space skips the ceremony's panels, as a player can.
     const ceremony = async (rankUp) => {
