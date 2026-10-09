@@ -64,7 +64,7 @@ const SHOTS = process.env.GB_SHOTS || "build/browser-evidence";
 
     // M: the district map. The hunter can't walk while it is open.
     await page.keyboard.press("m");
-    await waitHud(/DISTRICT MAP: .*Gate: the/, "the map, with the open Gate sites");
+    await waitHud(/DISTRICT MAP: .*-rank Gate: /, "the map, with the open Gate sites");
     await waitHud(/DISTRICT MAP: .*Officer Yoon/, "the map, with the quest givers");
     const before = await position();
     await hold("w", 1500);
