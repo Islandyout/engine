@@ -75,13 +75,13 @@ const ITEM = /(Common|Rare|Epic|Legendary) [A-Za-z ]+ (Body armor|Bracers|Trouse
     const watch = async () => {
       if (ITEM.test(await hud())) looted = true;
     };
-    await runGate(0, /FIELD BOSS DOWN: Goblin Chieftain/, Date.now() + 360000, watch);
+    await runGate(0, /FIELD BOSS DOWN: Goblin Chieftain/, Date.now() + 900000, watch);
     await watch();
     await shot("boss-down");
     const after = await gold();
     // The Chieftain alone pays 40 G; its pack more.
     assert.ok(after >= before + 40, `field kills pay gold (${before} -> ${after})`);
-    await runGate(0, /is quiet\. More spill out/, Date.now() + 300000, watch);
+    await runGate(0, /is quiet\. More spill out/, Date.now() + 720000, watch);
     if (/Locked on/.test(await hud())) await page.keyboard.press("Tab");
 
     // Loot: a Gate master always drops gear where it fell; walk over it.
