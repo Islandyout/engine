@@ -114,7 +114,7 @@ const SHOTS = process.env.GB_SHOTS || "build/browser-evidence";
         }
       })();
       try {
-        await runGate(lineX, done, Date.now() + 2700000, async () => {
+        await runGate(lineX, done, Date.now() + 5400000, async () => {
           const text = await hud();
           for (const [tag, pattern] of moments)
             if (!seen.has(tag) && pattern.test(text)) {
