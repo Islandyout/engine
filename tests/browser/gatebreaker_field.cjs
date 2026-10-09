@@ -26,7 +26,7 @@ const ITEM = /(Common|Rare|Epic|Legendary) [A-Za-z ]+ (Body armor|Bracers|Trouse
   scene.entities.find((e) => e.name === "World").components.Script.props.fast = true;
   // Day 1: the field boss waits in zone 2, and sites 1 and 2 are open.
   move("Field zone 2", 0, 0.03, 35);
-  move("Gate site 1", 14, 3.6, 49);
+  move("Gate site 1", 0, 3.6, 53);
   scene.entities = scene.entities.filter((e) => e.name !== "Hub Construct");
   const server = await serve(scene);
   let browser;
@@ -95,7 +95,7 @@ const ITEM = /(Common|Rare|Epic|Legendary) [A-Za-z ]+ (Body armor|Bracers|Trouse
     await shot("loot");
 
     // A Gate site's rift: walking into it, G enters its Gate.
-    await walkTo(12.5, 49, 1.2, 300000, /\[G\] Enter: Goblin Cave \(E\)/);
+    await walkTo(0, 50, 1.2, 300000, /\[G\] Enter: Goblin Cave \(E\)/);
     await waitHud(/\[G\] Enter: Goblin Cave \(E\)/, "the rift's prompt");
     await shot("rift");
     await page.keyboard.press("g");
