@@ -141,6 +141,8 @@ function bot(page) {
   // then A/D line up with the doorway.
   let heading;
   let aligned = false;
+  // Where travel last made headway north, and how many calls ago.
+  let progress = { z: Infinity, calls: 0 };
   const travel = async (lineX) => {
     if (/Locked on/.test(await hud())) {
       await page.keyboard.press("Tab");
@@ -148,12 +150,24 @@ function bot(page) {
     }
     const from = await position();
     if (!from) return;
+    // Wedged by a doorway's edge (no headway for 6 calls): back well off the
+    // wall and measure the heading again.
+    if (from.z < progress.z - 0.5) progress = { z: from.z, calls: 0 };
+    else if (++progress.calls >= 6) {
+      progress = { z: from.z, calls: 0 };
+      await hold("s", 1500);
+      aligned = false;
+      return;
+    }
     const dx = from.x - lineX;
     if (aligned && Math.abs(dx) > 0.4) {
       await hold(dx > 0 ? "a" : "d", Math.min(900, 150 + Math.abs(dx) * 250));
       const after = await position();
+      // It moved away from the line: the camera has turned since it was
+      // aligned, so measure the heading again.
+      if (after && (after.x - from.x) * dx > 0.02) aligned = false;
       // Pressed against a wall: back off it first.
-      if (after && Math.abs(after.x - from.x) < 0.1) await hold("s", 500);
+      else if (after && Math.abs(after.x - from.x) < 0.1) await hold("s", 500);
       return;
     }
     await hold("w", aligned ? 2500 : 1000);
@@ -193,6 +207,7 @@ function bot(page) {
   // after every fight step (for screenshots).
   const runGate = async (lineX, done, deadline, each = async () => {}) => {
     aligned = false;
+    progress = { z: Infinity, calls: 0 };
     let logged = 0;
     let fightFrom;
     let stalled = 0;
