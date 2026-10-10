@@ -1047,7 +1047,7 @@
       }
     },
     {
-      "name": "Velocity",
+      "name": "VELOCITY — Hero",
       "components": {
         "Transform": {
           "position": {
@@ -1110,6 +1110,25 @@
           "invertY": false,
           "fov": 82,
           "headBob": 0.4
+        },
+        "Melee": {
+          "style": "Martial arts",
+          "moves": "",
+          "team": 0,
+          "ai": false,
+          "aggression": 0.5,
+          "skill": 0.7,
+          "reaction": 0.12,
+          "energy": 35,
+          "guard": 100,
+          "rightHand": 0,
+          "leftHand": 0,
+          "poise": 0,
+          "breakTime": 2.5,
+          "manaMax": 100,
+          "manaRegen": 10,
+          "range": 0,
+          "shield": false
         }
       }
     },
@@ -1162,7 +1181,7 @@
         },
         "UI": {
           "kind": "Text",
-          "text": "VELOCITY  /  FIRST RUN",
+          "text": "VELOCITY  /  HERO PROTOCOL",
           "anchor": "top-left",
           "visibleWhen": "always",
           "action": "restart",
@@ -1172,8 +1191,8 @@
           "height": 0,
           "fontSize": 20,
           "color": {
-            "x": 0.12,
-            "y": 0.78,
+            "x": 0.9,
+            "y": 0.93,
             "z": 1
           },
           "opacity": 0.94,
@@ -1199,7 +1218,7 @@
         },
         "UI": {
           "kind": "Text",
-          "text": "WASD MOVE   •   SHIFT SUPER-SPEED   •   SPACE JUMP   •   MOUSE LOOK",
+          "text": "WASD MOVE  •  SHIFT SUPER-SPEED  •  SPACE JUMP  •  MOUSE LOOK  •  LMB COMBO  •  RMB HEAVY",
           "anchor": "bottom-center",
           "visibleWhen": "always",
           "action": "restart",
@@ -1207,7 +1226,7 @@
           "offsetY": -26,
           "width": 0,
           "height": 0,
-          "fontSize": 14,
+          "fontSize": 12,
           "color": {
             "x": 0.9,
             "y": 0.95,
@@ -1236,7 +1255,7 @@
         },
         "UI": {
           "kind": "Text",
-          "text": "TEST THE LIMITS. RUN THE STREETS. HIT THE RAMPS.",
+          "text": "MISSION: CLEAR THE STREET  /  DEFEAT THE ENFORCERS",
           "anchor": "top-center",
           "visibleWhen": "always",
           "action": "restart",
@@ -1247,7 +1266,7 @@
           "fontSize": 15,
           "color": {
             "x": 1,
-            "y": 0.68,
+            "y": 0.55,
             "z": 0.25
           },
           "opacity": 0.94,
@@ -1338,6 +1357,293 @@
           "mesh": 0,
           "material": 0,
           "visible": true
+        }
+      }
+    },
+    {
+      "name": "Street Enforcer Alpha",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -2.4,
+            "y": 0.95,
+            "z": 34
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 3.141592653589793,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.85,
+            "y": 1.8,
+            "z": 0.85
+          }
+        },
+        "Renderable": {
+          "mesh": 132,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.48,
+            "y": 0.12,
+            "z": 0.1
+          },
+          "metalness": 0.02,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 0,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 70,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "Health": {
+          "current": 110,
+          "maximum": 110
+        },
+        "Melee": {
+          "style": "Martial arts",
+          "moves": "",
+          "team": 1,
+          "ai": true,
+          "aggression": 0.68,
+          "skill": 0.45,
+          "reaction": 0.3,
+          "energy": 10,
+          "guard": 70,
+          "rightHand": 0,
+          "leftHand": 0,
+          "poise": 0,
+          "breakTime": 3,
+          "manaMax": 100,
+          "manaRegen": 8,
+          "range": 0,
+          "shield": false
+        }
+      }
+    },
+    {
+      "name": "Street Enforcer Bravo",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 2.4,
+            "y": 0.95,
+            "z": 25
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 3.141592653589793,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.85,
+            "y": 1.8,
+            "z": 0.85
+          }
+        },
+        "Renderable": {
+          "mesh": 132,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.14,
+            "y": 0.16,
+            "z": 0.2
+          },
+          "metalness": 0.02,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 0,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 70,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "Health": {
+          "current": 110,
+          "maximum": 110
+        },
+        "Melee": {
+          "style": "Martial arts",
+          "moves": "",
+          "team": 1,
+          "ai": true,
+          "aggression": 0.68,
+          "skill": 0.45,
+          "reaction": 0.3,
+          "energy": 10,
+          "guard": 70,
+          "rightHand": 0,
+          "leftHand": 0,
+          "poise": 0,
+          "breakTime": 3,
+          "manaMax": 100,
+          "manaRegen": 8,
+          "range": 0,
+          "shield": false
+        }
+      }
+    },
+    {
+      "name": "Street Enforcer Heavy",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.95,
+            "z": 15
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 3.141592653589793,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1,
+            "y": 2,
+            "z": 1
+          }
+        },
+        "Renderable": {
+          "mesh": 132,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.42,
+            "y": 0.22,
+            "z": 0.08
+          },
+          "metalness": 0.02,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 0,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 95,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "Health": {
+          "current": 180,
+          "maximum": 180
+        },
+        "Melee": {
+          "style": "Martial arts",
+          "moves": "",
+          "team": 1,
+          "ai": true,
+          "aggression": 0.82,
+          "skill": 0.68,
+          "reaction": 0.2,
+          "energy": 10,
+          "guard": 100,
+          "rightHand": 0,
+          "leftHand": 0,
+          "poise": 90,
+          "breakTime": 3,
+          "manaMax": 100,
+          "manaRegen": 8,
+          "range": 0,
+          "shield": true
+        }
+      }
+    },
+    {
+      "name": "Combat Input",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "InputActions": {
+          "bindings": "move_x: d, -a, right, -left, pad_lx\nmove_y: w, -s, up, -down, -pad_ly\nlook_x: mouse_dx*0.05, pad_rx\nlook_y: mouse_dy*0.05, pad_ry\njump: space, pad_a\nsprint: shift\nlight: mouse_left, j, pad_x\nheavy: mouse_right, k, pad_y\nkick: l, pad_b\nspecial: u, pad_rb\ndodge: x, alt, pad_ls\nblock: r, pad_lb\nskill1: q, pad_rt\nskill2: e\nskill3: c\nultimate: f\nlock: tab, mouse_middle, pad_rs\ninteract: g\n"
+        }
+      }
+    },
+    {
+      "name": "Combat Controls",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "UI": {
+          "kind": "Text",
+          "text": "LMB/J LIGHT COMBO   •   RMB/K HEAVY   •   L KICK   •   U POWER BLAST   •   X DODGE   •   R BLOCK/PARRY   •   TAB LOCK-ON",
+          "anchor": "bottom-center",
+          "visibleWhen": "always",
+          "action": "restart",
+          "offsetX": 0,
+          "offsetY": -48,
+          "width": 0,
+          "height": 0,
+          "fontSize": 11,
+          "color": {
+            "x": 0.88,
+            "y": 0.92,
+            "z": 0.98
+          },
+          "opacity": 0.92,
+          "image": "",
+          "value": 0
         }
       }
     }
