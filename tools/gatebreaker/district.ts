@@ -16,7 +16,9 @@
 //
 // Everything static is instanced (ModelInstances: one entity per set), so
 // the whole district is a few dozen entities. lua/world.lua runs it: the
-// nearest open Gate site's marker, and the subway between Station A and B.
+// Gate sites (a rift in each open one, walked into to enter its Gate), the
+// field zones with their packs and the field boss, and the subway between
+// Station A and B.
 //
 // Layout rules from research (see the M4 report): roads on a 16 m tile grid
 // with 3 m+ sidewalks; something to look at every 40-60 m of a route (under
@@ -92,7 +94,19 @@ export const DISTRICT = {
     { name: "Station A", x: -46, z: 46 },
     { name: "Station B", x: 48, z: 182 },
   ],
+  // "Dungeon breaks": the field zones, on open street well away from the
+  // hub, the stations and the Gate sites (40 m+). Each pack follows its
+  // zone's anchor up and down the street (lua/world.lua's ZONES).
+  zones: [
+    { name: "Field zone 1", x: -64, z: 90 }, // the west avenue
+    { name: "Field zone 2", x: -56, z: 201 }, // the riverside
+    { name: "Field zone 3", x: 86, z: 120 }, // Midtown east
+  ],
 } as const;
+
+// A Gate's colour by its rank, E to S: the rift at a Gate site glows in it
+// (lua/world.lua keeps the same table for its prompt).
+export const GATE_RANK_COLOURS = { E: "#3fb8ff", D: "#3de07a", C: "#ffd23d", B: "#ff8a2b", A: "#ff3d5a", S: "#c04dff" } as const;
 
 const TOP = 0.01; // pads' tops: just above the editor's shadow plane at y = 0
 
@@ -371,6 +385,31 @@ export function buildDistrict(scene: SceneBuilder) {
   // -- Gate sites (hidden until a Gate opens there) ----------------------------------
   for (const s of DISTRICT.sites)
     scene.box(s.name, [s.x, 3.6, s.z], [6.5, 7.2, 0.5], "#1a0c33", { ...hidden, ...trigger }, { emissive: rgb("#6b2bff"), emissiveIntensity: 2.2, opacity: 0.85 });
+  // The rift an open site holds (lua/world.lua puts one in each open site,
+  // reusing them): a tall slab of light in its Gate's rank colour, broad
+  // side to the cordon's ways in (east and west), sparks pouring off it.
+  // No collider: the hunter walks into it.
+  for (const [rank, hex] of Object.entries(GATE_RANK_COLOURS))
+    scene.prefab(`Gate rift ${rank}`, {
+      Scale: { value: vec(0.35, 5.2, 3.4) },
+      Renderable: { mesh: 0, material: 0, visible: true },
+      Material: { color: rgb("#140a24"), emissive: rgb(hex), emissiveIntensity: 1.5, opacity: 0.8, roughness: 0.4, keepTextures: false },
+      Particles: { preset: "Sparkle", rate: 46, lifetime: 1.4, speed: 0.9, size: 0.16, color: rgb(hex), endColor: rgb("#ffffff"), endSize: 0.04, shape: "Box", shapeSize: 1.7 },
+    });
+
+  // -- Field zones ("dungeon breaks", lua/world.lua) -----------------------------------
+  // A crack in the street glowing violet, sparks rising off it and a light
+  // over it, so a zone reads from down the street; and the hidden anchor
+  // the zone's pack follows (world.lua walks it along the street).
+  for (const z of DISTRICT.zones) {
+    scene.box(z.name, [z.x, 0.03, z.z], [7, 0.05, 1.3], "#1a0830", { ...trigger, Rotation: { euler: vec(0, 0.45, 0) } }, { emissive: rgb("#b46bff"), emissiveIntensity: 1.8, roughness: 0.6 });
+    scene.add(`${z.name} glow`, [z.x, 1.4, z.z], {
+      Renderable: { visible: false },
+      Light: { type: "Point", color: rgb("#c08cff"), intensity: 14, range: 16, castShadows: false },
+      Particles: { preset: "Sparkle", rate: 30, lifetime: 1.8, speed: 1.1, size: 0.14, color: rgb("#d6b4ff"), endColor: rgb("#6a3cff"), endSize: 0.04, shape: "Box", shapeSize: 2.4 },
+    });
+    scene.add(`${z.name} anchor`, [z.x, 0.9, z.z], { Renderable: { visible: false } });
+  }
 
   // -- Subway stations ---------------------------------------------------------------
   // A dark glass canopy over the stairs, and the line-2-green pylon: the

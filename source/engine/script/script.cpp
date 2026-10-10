@@ -709,6 +709,8 @@ struct LuaApi final {
     static int melee_follow(lua_State *L) {
         return melee_call(L, "follow", {static_cast<double>(luaL_optinteger(L, 2, 0))}, {}, entity_arg(L, 1));
     }
+    // melee.revive(): back up at full health, even once defeated (pooling)
+    static int melee_revive(lua_State *L) { return melee_call(L, "revive", {}); }
     // melee.set_ai(on, aggression?, skill?)
     static int melee_set_ai(lua_State *L) {
         return melee_call(L, "set_ai",
@@ -1233,6 +1235,7 @@ struct LuaApi final {
                {"stagger", melee_stagger},
                {"tune", melee_tune},
                {"follow", melee_follow},
+               {"revive", melee_revive},
                {"mana", melee_mana}});
         table(L, self, "weapon",
               {{"fire", weapon_fire},
@@ -1273,6 +1276,12 @@ void Runtime::call(World &world, Entity entity, Instance &instance, const char *
     lua_State *const L = instance.L;
     if (!L || instance.broken)
         return;
+    // The watchdog's budget is per call: Lua's count hook keeps counting
+    // across calls, so without re-arming it a long-lived script (a game's
+    // director ticking for an hour) was stopped for its total, not for one
+    // runaway call. (A message that re-enters a running script re-arms it
+    // too, which only lengthens the outer call's budget.)
+    lua_sethook(L, instruction_watchdog, LUA_MASKCOUNT, instruction_budget);
     lua_getglobal(L, function_name);
     if (lua_isfunction(L, -1) == 0) {
         lua_pop(L, 1); // not defined: a silent no-op, not an error

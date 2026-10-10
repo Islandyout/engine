@@ -49,12 +49,12 @@ const SAVE = "lv=5;xp=1500;pts=0;str=12;agi=11;vit=12;int=10;sen=13;gold=900;fan
 
     await waitHud(/Welcome back/, "the Ledger greets a returning hunter");
     await waitHud(/Lv\.5 {2}E-rank/, "the save's level and rank");
-    await waitHud(/Quest: Pass the D-rank test/, "the story quest");
+    await waitHud(/Pass the D-rank test/, "the story quest");
     await page.waitForTimeout(1500);
     await shot("hub");
 
     // Smith Kang: +1 daggers for 100 G and 6 fangs.
-    await walkTo(10, 55.6, 0.8, 480000, /\[G\] Smith Kang/);
+    await walkTo(10, 56.3, 0.8, 480000, /\[G\] Smith Kang/);
     await waitHud(/\[G\] Smith Kang/, "the smith's prompt");
     await page.keyboard.press("g");
     await waitHud(/Twin daggers \+0/, "the smith's menu");
@@ -92,7 +92,7 @@ const SAVE = "lv=5;xp=1500;pts=0;str=12;agi=11;vit=12;int=10;sen=13;gold=900;fan
     await waitHud(/Day 3/, "day 3");
 
     // The Gate Board: the D-rank test.
-    await walkTo(-9, 55, 0.8, 480000, /\[G\] Gate Board/);
+    await walkTo(-9.6, 55.8, 0.8, 480000, /\[G\] Gate Board/);
     await waitHud(/\[G\] Gate Board/, "the board's prompt");
     await page.keyboard.press("g");
     await waitHud(/\[3\] D-rank {2}Goblin Fortress/, "the board lists the D-rank test");

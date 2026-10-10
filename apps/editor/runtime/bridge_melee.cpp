@@ -48,6 +48,10 @@ float distance_sq(engine::Vec3 p, const engine::Box &box) {
 // how far behind they catch up at once.
 constexpr float follow_leash = 16.0F;
 constexpr float follow_teleport = 28.0F;
+// Hold to sprint (Fighter::dash_sprint): calm means no hostile fighter this
+// close, and a dodge held this long is a sprint, not a tap.
+constexpr float calm_radius = 12.0F;
+constexpr float hold_to_sprint = 0.25F;
 engine::Vec3 follow_offset(int slot) {
     switch (slot) {
     case 1:
@@ -201,6 +205,9 @@ void Runtime::step_melee(engine::World &w) {
     const auto pressed = [this](const char *name) { return actions.state(engine::ActionId{name}).pressed; };
     static const char *const button_actions[]{"light",  "heavy",  "kick",   "special", "dodge",
                                               "skill1", "skill2", "skill3", "ultimate"};
+    // Bindings without a sprint action sprint on a held dodge (Fighter::dash_sprint).
+    const auto &bound = actions.map().actions;
+    const bool dodge_sprints = std::find(bound.begin(), bound.end(), engine::ActionId{"sprint"}) == bound.end();
     for (const auto self : w.query<Fighter, engine::Box, engine::physics::RigidBody>()) {
         if (stowed(self))
             continue;
@@ -288,6 +295,30 @@ void Runtime::step_melee(engine::World &w) {
                             fighter.lock = other;
                         }
                     }
+                }
+            }
+            // Hold to sprint, for bindings without a "sprint" action: while
+            // calm a held dodge sprints and a tap dodges as it's released;
+            // in a fight dodge stays instant on the press.
+            fighter.dash_sprint = false;
+            if (dodge_sprints && controller) {
+                fighter.calm = !fighter.lock;
+                for (const auto other : w.query<Fighter, engine::Box>()) {
+                    if (!fighter.calm)
+                        break;
+                    if (other != self && team_of(w, other) != my_team && alive_target(w, other) &&
+                        flat_distance(box.center, w.get<engine::Box>(other)->center) < calm_radius)
+                        fighter.calm = false;
+                }
+                const bool down = actions.state(engine::ActionId{"dodge"}).down();
+                auto &dodge = held.pressed[static_cast<int>(engine::gameplay::MeleeButton::dodge)];
+                if (down && (fighter.dodge_held >= 0 || (dodge && fighter.calm))) {
+                    fighter.dodge_held = std::max(fighter.dodge_held, 0.0F) + tick_dt;
+                    dodge = false;
+                    fighter.dash_sprint = fighter.calm && fighter.dodge_held >= hold_to_sprint;
+                } else if (!down && fighter.dodge_held >= 0) {
+                    dodge = fighter.dodge_held < hold_to_sprint;
+                    fighter.dodge_held = -1;
                 }
             }
             const float move_x = actions.state(engine::ActionId{"move_x"}).value;
@@ -586,6 +617,21 @@ bool BridgeHost::melee(engine::World &world, engine::Entity self, const std::str
         if (!args.empty())
             state.mana = std::clamp(state.mana + static_cast<float>(args[0]), 0.0F, fighter->settings.mana_max);
         out = {state.mana, fighter->settings.mana_max};
+    } else if (op == "revive") {
+        // melee.revive(): back on its feet at full health, out of any move,
+        // stun or fall. A fighter that was defeated but not yet removed (it
+        // lies there 4 s) is kept: a script can pool its enemies and reuse
+        // them instead of spawning new ones. Unlocked moves stay unlocked.
+        if (auto *health = world.get<Health>(self))
+            health->current = health->max;
+        auto locked = state.locked;
+        state = engine::gameplay::make_fighter_state(fighter->moves, fighter->settings);
+        state.locked = std::move(locked);
+        fighter->dying = 0;
+        fighter->slide = {};
+        fighter->script_move.clear();
+        fighter->counter_window = 0;
+        out = {1.0};
     } else if (op == "follow") {
         // melee.follow(leader, slot): nil leader stops following.
         fighter->leader = other;

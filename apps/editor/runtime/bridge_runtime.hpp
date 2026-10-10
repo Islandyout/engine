@@ -1966,6 +1966,8 @@ struct Runtime {
                                 intent.move_x = intent.move_y = 0;
                                 intent.sprint = false;
                                 intent.jump_pressed = false;
+                            } else if (fighter->dash_sprint) {
+                                intent.sprint = true; // a held dodge, out of a fight
                             }
                         }
                         if (const auto *arsenal = w.get<Arsenal>(entity)) {
@@ -1979,6 +1981,19 @@ struct Runtime {
                         }
                         intent.yaw = controller->first_person ? look_yaw
                                                              : std::atan2(-camera_forward_x, -camera_forward_z);
+                        // A fighter seen in third person sprints whichever way
+                        // the stick points (the controller sprints only
+                        // forward): the same move, re-expressed as forward
+                        // along it.
+                        const float stick = std::min(1.0F, std::hypot(intent.move_x, intent.move_y));
+                        if (intent.sprint && !controller->first_person && w.get<Fighter>(entity) && stick > 0.1F) {
+                            const float s = std::sin(intent.yaw), c = std::cos(intent.yaw);
+                            const float wish_x = c * intent.move_x - s * intent.move_y;
+                            const float wish_z = -s * intent.move_x - c * intent.move_y;
+                            intent.yaw = std::atan2(-wish_x, -wish_z);
+                            intent.move_x = 0;
+                            intent.move_y = stick;
+                        }
                         engine::gameplay::begin_step(w, entity, controller->state, controller->settings, intent,
                                                      physics_config.gravity * body.gravity_scale, 1.0F / 60.0F);
                     } else if (heading && heading->arcade) {
@@ -2427,6 +2442,13 @@ inline std::optional<engine::Entity> BridgeHost::spawn(engine::World &world, con
 
 inline bool BridgeHost::space(engine::World &world, const std::string &op, const std::vector<double> &args,
                        const std::string &text, std::vector<double> &out, std::string &text_out) {
+    // space.call("camera"): the camera's horizontal facing {x, z} (the
+    // last editor_set_camera_forward), with or without a SpaceSystem, so a
+    // script can keep what it spawns out of view (camera.forward()).
+    if (op == "camera") {
+        out = {runtime_.camera_forward_x, runtime_.camera_forward_z};
+        return true;
+    }
     // The scene clock (world.set_clock) works with or without a SpaceSystem.
     // space.call("settle"): everyone with a Routine stands at the stop the
     // clock says, now (0.75.0: a loaded save doesn't watch the town walk

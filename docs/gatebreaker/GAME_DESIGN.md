@@ -55,8 +55,10 @@ Hub (the Hunter Association, your apartment)
   → the Ledger's Daily Quest and story Quests point you to the next Gate
 ```
 
-A run lasts 8–15 minutes, so each sitting gives at least one complete
-loop: in, fight, grow, out.
+A run lasts 5–8 minutes at the Gate's intended level, so each sitting gives
+several complete loops: in, fight, grow, out. Each Gate has a **par** time
+(5:00 for the E Gates up to 8:30 for the S-rank test) that the clear grade
+is measured against (§5.5).
 
 ## 5. Mechanics, each with its job
 
@@ -68,7 +70,7 @@ loop: in, fight, grow, out.
 | Mouse / right stick | Camera | — |
 | **LMB** / X | **Attack**: a 4-hit combo; hold = charged finisher | The main verb: mash for combos, hold for a commitment. |
 | **RMB** / Y | **Heavy**: a guard-breaker, slower and armored | Answers blocking enemies and creates openings. |
-| **Space** / A | **Dodge**: i-frames; just before a hit = **Perfect Dodge** | The core defence. Rewards reading tells. |
+| **Space** / A | **Dodge**: i-frames; just before a hit = **Perfect Dodge**. Held out of a fight: **sprint** (M4) | The core defence. Rewards reading tells. |
 | **Shift** / LB | **Block** (hold); tap just before a hit = **Parry** | A second defence for attacks too fast to dodge. Blocking drains guard. |
 | **Q / E / R** / RB + face buttons | **Skills 1–3** (mana) | Build-defining choices; cooldowns pace the fight. |
 | **F** / RB + LB | **Ultimate** (a full gauge) | The power-fantasy moment, earned by fighting well. |
@@ -139,14 +141,21 @@ loop: in, fight, grow, out.
 - **C–B Gates**: a flooded temple and an ice fortress; armored knights,
   casters and ice ghouls (no CC0 spider model exists for the combat
   skeleton). They teach parry, Break and crowd skills.
-- **A–S Gates**: a demon castle and a red-sky ruin; elite packs and multi-phase
-  bosses.
+- **A–S Gates**: the Bloodstone Citadel (a castle of dark stone and red
+  banners, the A-rank test, Lv.15) and the Eclipse Spire (a ruin under a red
+  eclipse, the S-rank test, Lv.20); elite packs, a second wave, and bosses
+  whose phase 2 teaches something: the Crimson Castellan's Crimson Rend
+  (three red cuts in a row: dodge, never parry) and the Eclipse Herald's
+  seal (its Wardens must die first) with sigils that burn where you stand.
+  Levels go to 25.
 - **Double Gate** (the story opener and the finale): puzzle rooms with statue
   rules.
 - Each room shows its enemies before it closes. No ambush that you couldn't
   read.
-- **Clear grade** S/A/B/C on the reward screen, from time and damage taken; a
-  better grade pays more gold and XP. Job: a reason to replay a Gate well,
+- **Clear grade** S/A/B/C on the reward screen, from time against the Gate's
+  par and damage taken: S under three quarters of par with under half your
+  health lost, A under par with under all of it, B under twice your health;
+  a better grade pays more gold and XP. Job: a reason to replay a Gate well,
   not just again (§12).
 
 ## 6. The first playable target: the vertical slice (M1)
@@ -248,7 +257,7 @@ Each gap is written down, researched and fixed, then re-shot.
 | **M2** The loop | Hub, saves, the Ledger quests, 3 E–D Gates, rank-up | A 1-hour session plays end to end (done in 0.82.0) |
 | **M3** Shadows | Bind, 3 shadow roles, C–B Gates | Shadows help without being managed (done in 0.83.0) |
 | **M3.5** Items and gear | Loot, pick-up, rarity, the bag, 7 gear slots shown on the hunter, upgrades, potions, wardrobe (§13) | A Gate's drops change what the hunter wears and how he fights |
-| **M4** The world and content | The open Seoul district, Gates in the world, field enemies and respawn, subway travel, map, quests (§13); A–S Gates, all weapons and skills | Full progression E→S across the district |
+| **M4** The world and content | The open Seoul district, Gates in the world, field enemies and respawn, subway travel, map, quests (§13); A–S Gates, all weapons and skills | Full progression E→S across the district (done in 0.84.0; more weapons and skills next) |
 | **M5** Finale and polish | The Double Gate finale, story panels, balance, performance and bug pass | Zero known bugs, 60 fps throughout |
 
 ## 11. Decisions for you
@@ -315,11 +324,11 @@ one has here. Every item must change a decision the player makes.
 | **Open world** | A seamless map you travel on foot or by mount | A district of Seoul around the Association: streets, a park, the river, the subway entrance. The hub becomes part of it | A place, not a menu |
 | **Gates in the world** | Dungeons entered from the map | Gates open at spots around the district, coloured by rank; walk in to enter. They move each day | The source fantasy: Gates tearing open in the city |
 | **Field enemies and respawn** | Field monsters respawn on a timer; dungeons reset on entry | A "dungeon break" spills monsters into a zone; they respawn every few minutes while it lasts. Gates reset each time you enter. A field boss returns each day | Something to fight between Gates, farmable but never empty |
-| **Travel** | Sprint, mounts, fast travel between waypoints | Sprint (Shift while not fighting), the subway as fast travel between stations you've visited | Distances that never become a chore |
+| **Travel** | Sprint, mounts, fast travel between waypoints | Sprint (hold Space while not fighting: no lock-on, no enemy within 12 m; 1.6x the walk, free; a tap still dodges), the subway as fast travel between stations you've visited | Distances that never become a chore |
 | **Map and minimap** | M for the map; a minimap with markers | M opens the district map: Gates, stations, shops, quests. The minimap shows the nearest | Always know where to go |
 | **Quests and NPCs** | A quest log, markers, NPC dialogue | J opens the quest log; NPCs with a ! give quests; markers on the map | Direction and story between Gates |
-| **Day and night** | A clock that changes the world | Day (shops open) and night (stronger field enemies, better drops) | A reason to go out at night |
-| **Settings** | Volume, sensitivity, graphics, key binding | Esc menu: volume, mouse sensitivity, quality, key bindings | Basic comfort, expected by every player |
+| **Day and night** | A clock that changes the world | A 24-minute day: 06:00-22:00 day (Smith Kang upgrades; potions sell all hours), 22:00-06:00 night (stronger field enemies, better drops), dawn and dusk between. Night is a moonlit blue-violet that stays easy to see. The clock follows the Ledger's day: resting at home brings 06:00. Inside a Gate, the Gate's own light | A reason to go out at night |
+| **Settings** | Volume, sensitivity, graphics, key binding | Esc pauses into the settings: master, music and effects volume, brightness, quality, ink lines, impact flashes, camera shake, look sensitivity and invert Y, hold or toggle block, minimap size, and the key list with rebinding | Basic comfort, expected by every player |
 
 ### Not taken
 

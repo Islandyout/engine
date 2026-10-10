@@ -100,6 +100,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | Function | What it does |
 |---|---|
 | `camera.shake(intensity?: number, seconds?: number)` | Shakes the game camera (defaults 0.3, 0.4 s). |
+| `camera.forward()` | The camera's horizontal facing (x, z), a unit vector: keep what you spawn out of view. |
 
 ## vehicle
 
@@ -169,6 +170,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `melee.stagger(): number, number` | Its poise bar 0-1, and 1 while it's Broken. |
 | `melee.mana(add?: number): number, number` | Adds mana (a potion; capped at the max) and returns its mana and max. |
 | `melee.follow(leader?: integer, slot?: integer)` | Makes this AI fighter an ally of the leader: with no hostile within reach it walks to its slot (0 left, 1 right, 2 behind) and won't chase hostiles more than 16 m from the leader; nil stops it. |
+| `melee.revive()` | Back on its feet at full health, out of any move or fall, even once defeated (before it's removed): pool enemies and reuse them instead of spawning new ones. |
 | `melee.tune(damage: number, speed: number, crit: number, skill: number, health_max?: number, mana_max?: number): number, number, number, number` | Stats: damage dealt (times), its clock speed (0.5-2: attacks, dodges, cooldowns), crit chance 0-1 (1.5x), skill damage (times, moves that cost mana), and optionally max health and mana. -1 keeps one as is. |
 
 ## weapon
@@ -219,12 +221,16 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `hud.map(mode: string)` | off, system, surface or toggle. |
 | `hud.minimap(shown: boolean)` | Shows or hides the minimap. |
 | `hud.open_settings()` | Opens the player settings panel. |
+| `hud.pause_menu(on: boolean)` | While on, Esc (or losing the captured mouse) opens the settings panel as a pause menu: the game stops until it closes. |
 | `hud.visor(helmet: boolean, integrity: number, frost: number, heat: number)` | The helmet visor: on or off, integrity 0-1 (cracks below), frost and heat shimmer 0-1. |
 | `hud.suit_light(mode: string)` | auto, on or off. |
 | `hud.system(title: string, body: string)` | Shows a Ledger system window (title, body lines split by \n); replaces the open one. |
 | `hud.system_close()` | Closes the Ledger system window. |
 | `hud.panels(spec: string)` | Plays a comic-panel cutscene: one shot per line, "x y z > tx ty tz | caption | sfx | seconds". Space or Enter skips. |
 | `hud.boss(name: string, title: string)` | A boss bar (health and stagger) for the named entity; an empty name hides it. |
+| `hud.map_layout(spec: string)` | A top-down area map: the minimap (top right, while the player is inside its bounds) and the full map (M). One item per line: "bounds x0 z0 x1 z1", "area x0 z0 x1 z1 #rrggbb [label]", "road x0 z0 x1 z1", "building x0 z0 x1 z1", "tree x z", "poi kind x z [label]", "label x z text". Empty removes it. |
+| `hud.map_marker(id: string, kind: string, x: number, z: number, color: string, label: string)` | A marker on the area map and minimap: gate, station, smith, board, home, giver (a ! over the spot too), turnin (?) or target (the tracked quest, held on the minimap's rim when far); color #rrggbb or empty. The same id replaces it. |
+| `hud.clear_map_marker(id: string)` | Removes a map marker. |
 
 ## audio
 
@@ -239,6 +245,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 |---|---|
 | `fx.weather(rain: number, fog: number, wind_x: number, wind_z: number)` | Weather: rain and fog 0-1, wind in m/s. |
 | `fx.light(ambient: number, sun: number)` | Sets the ambient and sun intensities over the Environment's (a lit street vs a dark dungeon in one scene). |
+| `fx.time_of_day(hours: number)` | Lights the scene for a time of day, 0-24 (sun or moon, sky, fog and ambient over the Environment's); a negative value gives back the Environment's own light (and fx.light's). |
 | `fx.dust(color: string, density: number)` | Dust kicked up on landing: a #rrggbb colour and 0-1 density. |
 | `fx.soft_ground(soft: boolean)` | Whether footprints show. |
 

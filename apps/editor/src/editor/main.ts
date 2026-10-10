@@ -35,6 +35,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { isNonPhysical, isSettingsOnly } from "./settingsEntity";
 import { clearOffHands, holdWeapon, updateHeldWeapons, weaponGrip } from "./heldWeapons";
 import { LedgerHud } from "./ledger";
+import { DistrictMap } from "./minimap";
 import { LightPool } from "./lightPool";
 import { InkPass, attachDepth, installToonShading, markCharacter, toonUniforms } from "./manhwa";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
@@ -88,7 +89,21 @@ import { openGamesLibrary } from "./gamesLibrary";
 import { drawLocalMinimap, drawSurface, drawSystem, parseMapSite, surfaceImage, type LocalBlip, type MapBody, type MapSite } from "./explorerHud";
 import { ExplorerFx, parseWeather } from "./explorerFx";
 import { Ambience, ambienceLayers, playCue, type AmbienceLayer } from "./ambience";
-import { Announcer, createTouchControls, isTouchDevice, loadSettings, openSettingsPanel, qualityProfile, summarizeFrames } from "./playerSettings";
+import {
+  Announcer,
+  codeForBinding,
+  createTouchControls,
+  isTouchDevice,
+  keyForCode,
+  loadKeyRemap,
+  loadSettings,
+  openSettingsPanel,
+  qualityProfile,
+  storeKeyRemap,
+  summarizeFrames,
+  type KeyRemap,
+} from "./playerSettings";
+import { createSkyState, skyAt } from "./timeOfDay";
 import {
   applyBrush,
   decodeSculpt,
@@ -308,7 +323,50 @@ async function startEditor() {
   // the Environment's, so one scene can be a dark dungeon and a lit street.
   // Cleared when the scene is rebuilt.
   let lightOverride: { ambient: number; sun: number } | undefined;
+  // fx.time_of_day (GATEBREAKER M4): while set, the hour's sun or moon,
+  // sky colour, fog and ambient (timeOfDay.ts) stand in for the
+  // Environment's and fx.light's; cleared, those come back (a Gate keeps its
+  // own light). Updated in place: nothing is allocated per change.
+  let timeOfDay: number | undefined;
+  const skyState = createSkyState();
+  const skyBackground = new THREE.Color();
+  const skyFog = new THREE.FogExp2(0x000000, 0);
+  let currentEnvironment: EnvironmentComponent | undefined;
+  let environmentExposure = 1;
+  function applyTimeOfDay(hours: number | undefined) {
+    if (hours === undefined) {
+      if (timeOfDay === undefined) return;
+      timeOfDay = undefined;
+      environmentKey = "";
+      if (currentEnvironment) applyEnvironment(currentEnvironment);
+      return;
+    }
+    timeOfDay = hours;
+    skyAt(hours, skyState);
+    sunDirection.copy(skyState.direction);
+    sun.color.copy(skyState.sun);
+    sun.intensity = skyState.sunIntensity;
+    hemisphere.color.copy(skyState.sky);
+    hemisphere.groundColor.copy(skyState.ground);
+    hemisphere.intensity = skyState.ambient;
+    skyBackground.copy(skyState.background);
+    scene.background = skyBackground;
+    if (skyMesh) skyMesh.visible = false;
+    skyFog.color.copy(skyState.fog);
+    skyFog.density = skyState.fogDensity;
+    scene.fog = skyFog;
+    applyExposure();
+  }
+  // Tone-mapping exposure: the Environment's (or the hour's), the
+  // PostProcessing's and the player's brightness.
+  function applyExposure() {
+    if (!(renderer instanceof THREE.WebGLRenderer)) return;
+    const base = timeOfDay !== undefined ? skyState.exposure : environmentExposure;
+    renderer.toneMappingExposure = base * postSettings.exposure * playerSettings.brightness;
+  }
   function applyEnvironment(env: EnvironmentComponent) {
+    currentEnvironment = env;
+    if (skyMesh) skyMesh.visible = true;
     const elevation = THREE.MathUtils.degToRad(env.sunElevation);
     const azimuth = THREE.MathUtils.degToRad(env.sunAzimuth);
     sunDirection.set(Math.cos(elevation) * Math.sin(azimuth), Math.sin(elevation), Math.cos(elevation) * Math.cos(azimuth));
@@ -321,7 +379,8 @@ async function startEditor() {
       hemisphere.intensity = lightOverride.ambient;
       sun.intensity = lightOverride.sun;
     }
-    if (renderer instanceof THREE.WebGLRenderer) renderer.toneMappingExposure = env.exposure;
+    environmentExposure = env.exposure;
+    applyExposure();
     scene.fog =
       env.fog === "Linear"
         ? new THREE.Fog(colorOf(env.fogColor), env.fogNear, env.fogFar)
@@ -597,6 +656,7 @@ async function startEditor() {
   function applyShake(view: THREE.Camera, dt: number) {
     if (shake.remaining <= 0) return;
     shake.remaining = Math.max(0, shake.remaining - dt);
+    if (!playerSettings.shake) return;
     const amount = shake.intensity * (shake.remaining / shake.duration);
     view.position.x += (Math.random() * 2 - 1) * amount;
     view.position.y += (Math.random() * 2 - 1) * amount;
@@ -828,6 +888,12 @@ async function startEditor() {
   composer?.addPass(smaaPass);
   let gtaoPass: GTAOPass | undefined;
   let postSettings: PostSettings = defaultPostSettings;
+  // Ink lines: the scene's strength times the player's.
+  function applyInk() {
+    const ink = postSettings.ink * playerSettings.ink;
+    inkPass.enabled = !!composer && postSettings.style === "Manhwa" && ink > 0;
+    inkPass.ink = ink;
+  }
   function applyPostProcessing(settings: PostSettings) {
     postSettings = settings;
     if (bloomPass) {
@@ -835,12 +901,11 @@ async function startEditor() {
       bloomPass.radius = settings.bloomRadius;
       bloomPass.threshold = settings.bloomThreshold;
     }
-    if (renderer instanceof THREE.WebGLRenderer) renderer.toneMappingExposure *= settings.exposure;
+    applyExposure();
     const manhwa = settings.style === "Manhwa";
     toonUniforms.toonOn.value = manhwa ? 1 : 0;
     toonUniforms.toonRim.value = manhwa ? settings.rim : 0;
-    inkPass.enabled = !!composer && manhwa && settings.ink > 0;
-    inkPass.ink = settings.ink;
+    applyInk();
     combat.comic.enabled = manhwa;
     gradingPass.enabled = !!composer && gradingActive(settings);
     const uniforms = gradingPass.uniforms as Record<string, { value: number }>;
@@ -889,7 +954,10 @@ async function startEditor() {
   // sounds are positional and muffled behind solid geometry.
   let mixer: AudioMixer | undefined;
   function audioMixer(): AudioMixer {
-    mixer ??= new AudioMixer(getAudioContext());
+    if (!mixer) {
+      mixer = new AudioMixer(getAudioContext());
+      mixer.setPlayerVolumes(playerSettings.master, playerSettings.music, playerSettings.sfx);
+    }
     return mixer;
   }
   let sfx: Sfx | undefined;
@@ -907,6 +975,8 @@ async function startEditor() {
   // Melee (0.78.0): fighters' bodies, impacts and the fighter HUD (combatView.ts).
   // GATEBREAKER's interface (ledger.ts): system windows, panel cutscenes, the boss bar.
   const ledger = new LedgerHud();
+  // GATEBREAKER M4: the minimap and the M map from a script's hud.map_layout (minimap.ts).
+  const districtMap = new DistrictMap();
   // At most 8 point lights shade the scene at once (lightPool.ts).
   const lightPool = new LightPool(scene);
   const combat = new CombatView(scene, {
@@ -1451,7 +1521,6 @@ async function startEditor() {
   function updateMusic() {
     if (musicMood !== "off" && !music && audioContext) {
       music = new Music(audioContext, audioMixer().buses.music);
-      audioMixer().buses.music.gain.value = playerSettings.music;
       music.setMood(musicMood);
     }
     music?.update();
@@ -2077,11 +2146,16 @@ async function startEditor() {
     else if (kind === "light") {
       const [ambient = NaN, sunLevel = NaN] = text.split(/\s+/).map(Number);
       lightOverride = Number.isFinite(ambient) && Number.isFinite(sunLevel) ? { ambient: Math.max(0, ambient), sun: Math.max(0, sunLevel) } : undefined;
-      if (lightOverride) {
+      // (Under a time of day it waits until that's cleared.)
+      if (lightOverride && timeOfDay === undefined) {
         hemisphere.intensity = lightOverride.ambient;
         sun.intensity = lightOverride.sun;
       }
-    } else if (kind === "ui_color") {
+    } else if (kind === "time_of_day") {
+      const hours = Number(text);
+      applyTimeOfDay(Number.isFinite(hours) && hours >= 0 ? hours : undefined);
+    } else if (kind === "pause_menu") pauseMenu = text === "1";
+    else if (kind === "ui_color") {
       const [name = "", hex = ""] = text.split("|");
       if (/^#[0-9a-fA-F]{6}$/.test(hex)) uiColorOverrides.set(name, new THREE.Color(hex));
       else uiColorOverrides.delete(name);
@@ -2098,6 +2172,7 @@ async function startEditor() {
       ledger.setBoss(name, title || name);
     }
     else if (kind === "settings") openPlayerSettings();
+    else if (kind === "map_layout" || kind === "map_marker" || kind === "map_marker_clear") districtMap.host(kind, text);
     else if (kind === "prospect") {
       // "label|range|key,key,..." -- empty to stop.
       const [label = "", range = "300", keys = ""] = text.split("|");
@@ -2105,16 +2180,66 @@ async function startEditor() {
       if (!prospect) uiMarkers.delete("prospect");
     }
   }
-  function openPlayerSettings() {
-    openSettingsPanel(app, playerSettings, applyPlayerSettings, () => {
-      profileCapture = { frames: [], until: performance.now() + 60000 };
-      announcer.say("Profiling for 60 seconds");
+  // The settings panel while it's open: during Play the game waits and the
+  // keys stay with the panel (Esc closes it).
+  let settingsPanel: { close(): void } | undefined;
+  // hud.pause_menu(true) (GATEBREAKER M4): Esc, or the browser taking back
+  // a captured mouse (Esc never reaches the page then), opens it as a pause
+  // menu. A click on Resume or outside closes it; the mouse isn't captured
+  // again on its own (the browser refuses for a moment after an Esc).
+  let pauseMenu = false;
+  let unlockingUntil = 0;
+  function releasePointer() {
+    unlockingUntil = performance.now() + 500;
+    document.exitPointerLock();
+  }
+  document.addEventListener("pointerlockchange", () => {
+    if (document.pointerLockElement || doc.mode !== "play" || !pauseMenu || performance.now() < unlockingUntil) return;
+    openPlayerSettings(true);
+  });
+  // Rebound keys (the settings' Keys), per game: a pressed code -> the code
+  // the game sees.
+  let keyRemap: KeyRemap = loadKeyRemap(document.title);
+  function sceneBindings() {
+    const entity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "InputActions"));
+    return entity ? doc.scene.resolve(entity, "InputActions")?.bindings : undefined;
+  }
+  // Toggle block (a setting): the codes the game's block action is bound to.
+  let blockCodes = new Set<string>();
+  let blockCodesFor: string | undefined;
+  function isBlockCode(code: string) {
+    const text = sceneBindings() ?? "";
+    if (text !== blockCodesFor) {
+      blockCodesFor = text;
+      const names = /^\s*block\s*:(.*)$/m.exec(text)?.[1]?.split(",") ?? [];
+      blockCodes = new Set(names.map((n) => codeForBinding(n.trim())).filter((c): c is string => !!c));
+    }
+    return blockCodes.has(code);
+  }
+  function openPlayerSettings(paused = false) {
+    if (settingsPanel) return;
+    releaseHeldKeys();
+    settingsPanel = openSettingsPanel(app, playerSettings, applyPlayerSettings, {
+      paused,
+      bindings: sceneBindings(),
+      remap: keyRemap,
+      onRemap: (remap) => {
+        keyRemap = remap;
+        storeKeyRemap(document.title, remap);
+      },
+      onClose: () => (settingsPanel = undefined),
+      onProfile: () => {
+        profileCapture = { frames: [], until: performance.now() + 60000 };
+        announcer.say("Profiling for 60 seconds");
+      },
     });
   }
   function applyPlayerSettings() {
     governor.reset(presetFloor(playerSettings.quality));
     applyGovernor();
-    if (mixer) mixer.buses.music.gain.value = playerSettings.music;
+    mixer?.setPlayerVolumes(playerSettings.master, playerSettings.music, playerSettings.sfx);
+    applyExposure();
+    applyInk();
     if (explorerFx) {
       explorerFx.reducedMotion = playerSettings.reducedMotion;
       explorerFx.footprints = playerSettings.footprints;
@@ -2122,6 +2247,7 @@ async function startEditor() {
     const wantTouch = doc.mode !== "edit" && (playerSettings.touch === "on" || (playerSettings.touch === "auto" && isTouchDevice()));
     if (wantTouch && !touchControls)
       touchControls = createTouchControls(app, (code, key, down) => {
+        if (districtMap.touchKey(code, down)) return releaseHeldKeys();
         keyQueue.push([code, down ? 1 : 0]);
         if (down) heldKeys.add(code);
         else heldKeys.delete(code);
@@ -2584,6 +2710,18 @@ async function startEditor() {
       openPlayerSettings();
       return;
     }
+    if (settingsPanel) {
+      if (event.code === "Escape") {
+        event.preventDefault();
+        settingsPanel.close();
+      }
+      return;
+    }
+    if (event.code === "Escape" && pauseMenu && document.pointerLockElement !== renderer.domElement) {
+      event.preventDefault();
+      openPlayerSettings(true);
+      return;
+    }
     // Keep Space/arrows from scrolling the page, and Tab (a lock-on key)
     // from moving focus, while a game has the keys -- unless the user is
     // typing into a field.
@@ -2591,35 +2729,49 @@ async function startEditor() {
     if (!typing && (event.code === "Space" || event.code === "Tab" || event.code.startsWith("Arrow"))) event.preventDefault();
     // A panel cutscene holds the keys: Space or Enter skips it (and still
     // reaches scripts, so a director knows).
+    // A rebound key gives the game the code (and key) it stands for.
+    const code = keyRemap[event.code] ?? event.code;
     if (ledger.playing) {
       event.preventDefault();
-      if (event.code !== "Space" && event.code !== "Enter") return;
+      if (code !== "Space" && code !== "Enter") return;
       ledger.skip();
     }
-    keyQueue.push([event.code, 1]);
-    heldKeys.add(event.code);
-    const key = event.key.toLowerCase();
-    scriptKeyByCode.set(event.code, key);
+    // Toggle block: a press raises it, the next lowers it (keyup is ignored).
+    if (playerSettings.blockToggle && isBlockCode(code) && heldKeys.has(code)) {
+      gameKeyUp(code);
+      return;
+    }
+    keyQueue.push([code, 1]);
+    heldKeys.add(code);
+    const key = code === event.code ? event.key.toLowerCase() : keyForCode(code);
+    scriptKeyByCode.set(code, key);
     scriptKeyQueue.push([key, 1]);
     heldScriptKeys.add(key);
     // Scripts may also name keys by code (KeyG, Enter, Space, Digit1).
-    if (event.code && event.code !== key) {
-      scriptKeyQueue.push([event.code, 1]);
-      heldScriptKeys.add(event.code);
+    if (code && code !== key) {
+      scriptKeyQueue.push([code, 1]);
+      heldScriptKeys.add(code);
     }
   });
-  window.addEventListener("keyup", (event) => {
-    if (doc.mode === "edit") return;
-    if (heldKeys.delete(event.code)) keyQueue.push([event.code, 0]);
-    const key = scriptKeyByCode.get(event.code) ?? event.key.toLowerCase();
-    scriptKeyByCode.delete(event.code);
+  function gameKeyUp(code: string, fallbackKey = "") {
+    if (heldKeys.delete(code)) keyQueue.push([code, 0]);
+    const key = scriptKeyByCode.get(code) ?? fallbackKey;
+    scriptKeyByCode.delete(code);
     scriptKeyQueue.push([key, 0]);
     heldScriptKeys.delete(key);
-    if (heldScriptKeys.delete(event.code)) scriptKeyQueue.push([event.code, 0]);
+    if (heldScriptKeys.delete(code)) scriptKeyQueue.push([code, 0]);
+  }
+  window.addEventListener("keyup", (event) => {
+    if (doc.mode === "edit") return;
+    const code = keyRemap[event.code] ?? event.code;
+    if (playerSettings.blockToggle && isBlockCode(code)) return;
+    gameKeyUp(code, code === event.code ? event.key.toLowerCase() : keyForCode(code));
   });
   window.addEventListener("blur", () => {
     if (doc.mode !== "edit") releaseHeldKeys();
   });
+  // The M map holds every key and click while it is open (minimap.ts).
+  districtMap.bindInput(window, () => doc.mode === "play", releaseHeldKeys);
   function execute(command: unknown) {
     const result = doc.execute(command);
     log(result);
@@ -3263,7 +3415,7 @@ async function startEditor() {
       else if (kind === "game_resume") runUIAction("resume");
       else if (kind === "mouse_lock") {
         if (a === "1") void renderer.domElement.requestPointerLock?.();
-        else if (document.pointerLockElement) document.exitPointerLock();
+        else if (document.pointerLockElement) releasePointer();
       } else if (kind === "camera_shake") {
         shake.intensity = playerSettings.reducedMotion ? 0 : Math.max(0, Number(a) || 0);
         shake.duration = Math.max(0.01, Number(b) || 0.01);
@@ -3282,6 +3434,7 @@ async function startEditor() {
     uiTextOverrides.clear();
     uiColorOverrides.clear();
     uiMarkers.clear();
+    districtMap.reset();
     uiValues.clear();
     uiVisibility.clear();
     draggingSlider = undefined;
@@ -3808,6 +3961,11 @@ async function startEditor() {
   function rebuild() {
     talkerScan = -1;
     lightOverride = undefined;
+    if (timeOfDay !== undefined) {
+      timeOfDay = undefined;
+      environmentKey = "";
+    }
+    pauseMenu = false;
     clearOffHands();
     outfits.clear();
     staticBatcher.clear();
@@ -4184,7 +4342,7 @@ async function startEditor() {
   };
   el("stop").onclick = () => {
     doc.mode = "edit";
-    if (document.pointerLockElement) document.exitPointerLock();
+    if (document.pointerLockElement) releasePointer();
     accumulator = 0;
     releaseHeldKeys();
     stopSounds();
@@ -4874,7 +5032,7 @@ async function startEditor() {
       spaceView.stick.active = active;
     }
     // Landing or leaving the pilot's seat hands the mouse back.
-    if (!available && mouseStick.locked && document.pointerLockElement === renderer.domElement) document.exitPointerLock();
+    if (!available && mouseStick.locked && document.pointerLockElement === renderer.domElement) releasePointer();
     mouseStick.locked = active;
     if (!active) {
       mouseStick.x = mouseStick.y = 0;
@@ -4943,7 +5101,8 @@ async function startEditor() {
         applyStickLook(fps.look, padSnapshot.axes[2] ?? 0, padSnapshot.axes[3] ?? 0, dt, controller.lookSensitivity, controller.invertY);
       for (const [key, down] of scriptKeyQueue) runtime.ccall("editor_script_key", null, ["string", "number"], [key, down]);
       scriptKeyQueue.length = 0;
-      accumulator += dt * combat.timeScale;
+      // The settings panel pauses the game (input waits with it).
+      if (!settingsPanel) accumulator += dt * combat.timeScale;
       const tickStart = performance.now();
       const firstPersonTicks = firstPerson();
       if (firstPersonTicks) runtime._editor_set_look(fps.look.yaw, fps.look.pitch);
@@ -5299,7 +5458,7 @@ async function startEditor() {
       renderer.info.autoReset = false;
       renderer.info.reset();
     }
-    inkPass.impact = combat.comic.impact;
+    inkPass.impact = combat.comic.impact * playerSettings.flash;
     if (composer) composer.render();
     else renderer.render(scene, viewCamera);
     drawHud();
@@ -5654,8 +5813,20 @@ async function startEditor() {
       if (ui.kind === "Bar" || ui.kind === "Slider" || ui.kind === "Toggle") hudLines.push(`${uiName || ui.kind}=${Math.round(value * 100) / 100}`);
     }
     // GATEBREAKER: panels, the Ledger's windows and the boss bar, drawn last
-    // so a window covers the scene's own UI text.
+    // so a window covers the scene's own UI text; the M map covers all.
     if (doc.mode === "play") hudLines.push(...ledger.draw(hudCtx, hud.width, hud.height, bossReadout()));
+    if (doc.mode !== "edit")
+      hudLines.push(
+        ...districtMap.draw(hudCtx, hud.width, hud.height, {
+          player: playerIndex >= 0 ? objects[playerIndex] : undefined,
+          camera: viewCamera,
+          project: (point) => (point.project(viewCamera).z > 1 ? undefined : { x: ((point.x + 1) / 2) * hud.width, y: ((1 - point.y) / 2) * hud.height }),
+          minimap: playerSettings.minimap && minimapAllowed,
+          size: (playerSettings as { minimapSize?: string }).minimapSize,
+          panels: ledger.playing,
+          window: ledger.systemText !== "",
+        }),
+      );
     const hudSummary = hudLines.join(" · ");
     if (hudText.textContent !== hudSummary) hudText.textContent = hudSummary;
   }

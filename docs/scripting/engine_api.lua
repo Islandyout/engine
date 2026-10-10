@@ -420,6 +420,9 @@ function melee.mana(add) end
 ---@param slot? integer
 function melee.follow(leader, slot) end
 
+--- Back on its feet at full health, out of any move or fall, even once defeated (before it's removed): pool enemies and reuse them instead of spawning new ones.
+function melee.revive() end
+
 --- Stats: damage dealt (times), its clock speed (0.5-2: attacks, dodges, cooldowns), crit chance 0-1 (1.5x), skill damage (times, moves that cost mana), and optionally max health and mana. -1 keeps one as is.
 ---@param damage number
 ---@param speed number
@@ -585,6 +588,9 @@ function world.wear(models) end
 ---@param name string
 function world.wildlife_state(name) end
 
+--- The camera's horizontal facing (x, z), a unit vector: keep what you spawn out of view.
+function camera.forward() end
+
 --- Reads a line aloud for screen readers and shows it briefly.
 ---@param text string
 function hud.announce(text) end
@@ -621,6 +627,10 @@ function hud.minimap(shown) end
 --- Opens the player settings panel.
 function hud.open_settings() end
 
+--- While on, Esc (or losing the captured mouse) opens the settings panel as a pause menu: the game stops until it closes.
+---@param on boolean
+function hud.pause_menu(on) end
+
 --- The helmet visor: on or off, integrity 0-1 (cracks below), frost and heat shimmer 0-1.
 ---@param helmet boolean
 ---@param integrity number
@@ -649,6 +659,23 @@ function hud.panels(spec) end
 ---@param title string
 function hud.boss(name, title) end
 
+--- A top-down area map: the minimap (top right, while the player is inside its bounds) and the full map (M). One item per line: "bounds x0 z0 x1 z1", "area x0 z0 x1 z1 #rrggbb [label]", "road x0 z0 x1 z1", "building x0 z0 x1 z1", "tree x z", "poi kind x z [label]", "label x z text". Empty removes it.
+---@param spec string
+function hud.map_layout(spec) end
+
+--- A marker on the area map and minimap: gate, station, smith, board, home, giver (a ! over the spot too), turnin (?) or target (the tracked quest, held on the minimap's rim when far); color #rrggbb or empty. The same id replaces it.
+---@param id string
+---@param kind string
+---@param x number
+---@param z number
+---@param color string
+---@param label string
+function hud.map_marker(id, kind, x, z, color, label) end
+
+--- Removes a map marker.
+---@param id string
+function hud.clear_map_marker(id) end
+
 --- off, title, explore, night, flight, space, signal or tension.
 ---@param mood string
 function audio.music(mood) end
@@ -669,6 +696,10 @@ function fx.weather(rain, fog, wind_x, wind_z) end
 ---@param ambient number
 ---@param sun number
 function fx.light(ambient, sun) end
+
+--- Lights the scene for a time of day, 0-24 (sun or moon, sky, fog and ambient over the Environment's); a negative value gives back the Environment's own light (and fx.light's).
+---@param hours number
+function fx.time_of_day(hours) end
 
 --- Dust kicked up on landing: a #rrggbb colour and 0-1 density.
 ---@param color string

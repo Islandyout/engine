@@ -22,6 +22,7 @@ function space.set_wind(x, y, z) return space.call("wind", "", x, y, z) end
 function space.allow_boarding(allowed) return space.call("board_key", "", allowed and 1 or 0) end
 function world.wear(models) host.send("outfit", models or "") end
 function world.wildlife_state(name) local r = space.call("wildlife", name) return r and r[1] or -1 end
+function camera.forward() local r = space.call("camera") if not r then return 0, -1 end return r[1], r[2] end
 function hud.announce(text) host.send("announce", text) end
 function ui.set_color(name, color) host.send("ui_color", name .. "|" .. (color or "")) end
 function hud.cue(name) host.send("cue", name) end
@@ -30,16 +31,21 @@ function hud.clear_waypoint(id) host.send("waypoint_clear", id) end
 function hud.map(mode) host.send("map", mode) end
 function hud.minimap(shown) host.send("minimap", shown and "1" or "0") end
 function hud.open_settings() host.send("settings", "") end
+function hud.pause_menu(on) host.send("pause_menu", on and "1" or "0") end
 function hud.visor(helmet, integrity, frost, heat) host.send("visor", string.format("%d %.2f %.2f %.2f", helmet and 1 or 0, integrity, frost, heat)) end
 function hud.suit_light(mode) host.send("suitlight", mode) end
 function hud.system(title, body) host.send("system", title .. "|" .. (body or "")) end
 function hud.system_close() host.send("system", "") end
 function hud.panels(spec) host.send("panels", spec) end
 function hud.boss(name, title) host.send("boss", (name or "") .. "|" .. (title or "")) end
+function hud.map_layout(spec) host.send("map_layout", spec or "") end
+function hud.map_marker(id, kind, x, z, color, label) host.send("map_marker", table.concat({id, kind, string.format("%.2f", x), string.format("%.2f", z), color or "", label or ""}, "|")) end
+function hud.clear_map_marker(id) host.send("map_marker_clear", id) end
 function audio.music(mood) host.send("music", mood) end
 function audio.ambience(layer, level) host.send("audio", string.format("%s %.2f", layer, level)) end
 function fx.weather(rain, fog, wind_x, wind_z) host.send("weather", string.format("%.2f %.2f %.1f %.1f", rain, fog, wind_x, wind_z)) end
 function fx.light(ambient, sun) host.send("light", string.format("%.3f %.3f", ambient, sun)) end
+function fx.time_of_day(hours) host.send("time_of_day", string.format("%.3f", hours or -1)) end
 function fx.dust(color, density) host.send("dust", color .. " " .. density) end
 function fx.soft_ground(soft) host.send("soft", soft and "1" or "0") end
 function scanner.tune(range, time, condition) host.send("scanner", range .. " " .. time .. " " .. condition) end
