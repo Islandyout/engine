@@ -119,6 +119,9 @@
         },
         "RigidBody": {
           "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB"
         }
       }
     },
@@ -2162,6 +2165,9 @@
           "keepTextures": false,
           "texture": "",
           "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
         }
       }
     },
