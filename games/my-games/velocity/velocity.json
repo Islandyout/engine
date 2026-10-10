@@ -15,59 +15,59 @@
         "Environment": {
           "sky": "Procedural",
           "skyColor": {
-            "x": 0.035,
-            "y": 0.065,
-            "z": 0.13
+            "x": 0.31,
+            "y": 0.55,
+            "z": 0.84
           },
           "horizonColor": {
-            "x": 0.11,
-            "y": 0.16,
-            "z": 0.24
+            "x": 0.96,
+            "y": 0.82,
+            "z": 0.63
           },
           "groundColor": {
-            "x": 0.1,
-            "y": 0.12,
-            "z": 0.15
+            "x": 0.42,
+            "y": 0.46,
+            "z": 0.39
           },
-          "sunElevation": 35,
-          "sunAzimuth": 240,
-          "sunIntensity": 2.3,
+          "sunElevation": 48,
+          "sunAzimuth": 225,
+          "sunIntensity": 3.6,
           "sunColor": {
-            "x": 0.56,
-            "y": 0.72,
-            "z": 1
+            "x": 1,
+            "y": 0.93,
+            "z": 0.82
           },
-          "ambientIntensity": 0.9,
-          "fog": "Exponential",
+          "ambientIntensity": 1.35,
+          "fog": "None",
           "fogColor": {
-            "x": 0.08,
-            "y": 0.12,
-            "z": 0.19
+            "x": 0.72,
+            "y": 0.79,
+            "z": 0.84
           },
-          "fogNear": 45,
-          "fogFar": 280,
-          "fogDensity": 0.004,
+          "fogNear": 80,
+          "fogFar": 420,
+          "fogDensity": 0,
           "shadows": true,
-          "exposure": 1.1
+          "exposure": 1.15
         },
         "PostProcessing": {
           "style": "Standard",
           "ink": 0,
           "rim": 0,
           "antialias": "SMAA",
-          "ambientOcclusion": false,
-          "aoRadius": 0.5,
-          "aoIntensity": 1,
+          "ambientOcclusion": true,
+          "aoRadius": 0.35,
+          "aoIntensity": 0.65,
           "bloom": 0,
           "bloomRadius": 0,
           "bloomThreshold": 1,
-          "exposure": 1,
-          "contrast": 0.04,
-          "saturation": 0,
-          "temperature": 0,
+          "exposure": 1.08,
+          "contrast": 0.08,
+          "saturation": 0.08,
+          "temperature": 0.08,
           "vignette": 0,
           "grain": 0,
-          "shadowQuality": "Medium"
+          "shadowQuality": "High"
         },
         "Renderable": {
           "mesh": 0,
@@ -100,9 +100,9 @@
         },
         "Material": {
           "color": {
-            "x": 0.11,
-            "y": 0.14,
-            "z": 0.17
+            "x": 0.33,
+            "y": 0.36,
+            "z": 0.33
           },
           "metalness": 0.08,
           "roughness": 0.82,
@@ -150,9 +150,9 @@
         },
         "Material": {
           "color": {
-            "x": 0.055,
-            "y": 0.065,
-            "z": 0.08
+            "x": 0.15,
+            "y": 0.16,
+            "z": 0.16
           },
           "metalness": 0.08,
           "roughness": 0.82,
@@ -193,9 +193,9 @@
         },
         "Material": {
           "color": {
-            "x": 0.055,
-            "y": 0.065,
-            "z": 0.08
+            "x": 0.15,
+            "y": 0.16,
+            "z": 0.16
           },
           "metalness": 0.08,
           "roughness": 0.82,
@@ -236,9 +236,9 @@
         },
         "Material": {
           "color": {
-            "x": 0.35,
-            "y": 0.39,
-            "z": 0.43
+            "x": 0.56,
+            "y": 0.56,
+            "z": 0.51
           },
           "metalness": 0.08,
           "roughness": 0.82,
@@ -279,9 +279,9 @@
         },
         "Material": {
           "color": {
-            "x": 0.35,
-            "y": 0.39,
-            "z": 0.43
+            "x": 0.56,
+            "y": 0.56,
+            "z": 0.51
           },
           "metalness": 0.08,
           "roughness": 0.82,
@@ -322,9 +322,9 @@
         },
         "Material": {
           "color": {
-            "x": 0.35,
-            "y": 0.39,
-            "z": 0.43
+            "x": 0.56,
+            "y": 0.56,
+            "z": 0.51
           },
           "metalness": 0.08,
           "roughness": 0.82,
@@ -365,9 +365,9 @@
         },
         "Material": {
           "color": {
-            "x": 0.35,
-            "y": 0.39,
-            "z": 0.43
+            "x": 0.56,
+            "y": 0.56,
+            "z": 0.51
           },
           "metalness": 0.08,
           "roughness": 0.82,
@@ -1318,6 +1318,26 @@
         },
         "ModelInstances": {
           "instances": "29 14.8 20 180 0.82\n27 -14.2 18 0 0.9\n28 -14.3 -14 0 0.9\n28 14.3 -14 0 0.9\n30 -5 -24 0 0.8 solid\n30 5 -24 0 0.8 solid\n30 -5 -48 0 0.8 solid\n30 5 -48 0 0.8 solid\n33 5 8 0 0.9\n33 -5 -8 0 0.9"
+        }
+      }
+    },
+    {
+      "name": "Street Trees",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "ModelInstances": {
+          "instances": "45 -22 -46 20 0.9\n46 -22 -20 210 0.85\n47 -22 20 70 0.9\n45 -22 46 180 0.95\n46 22 -46 330 0.9\n47 22 -20 110 0.85\n45 22 20 250 0.9\n46 22 46 30 0.95\n51 -65 -18 0 0.95\n52 65 18 180 0.95\n53 -65 18 90 0.9\n51 65 -18 270 0.9"
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
         }
       }
     }
