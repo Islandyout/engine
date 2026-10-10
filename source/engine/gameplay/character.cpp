@@ -99,7 +99,7 @@ void begin_step(World& world, Entity entity, ControllerState& state, const Contr
     // forward = (-sin, 0, -cos), right = (cos, 0, -sin).
     const float wish_x = cos_yaw * move_x - sin_yaw * move_y;
     const float wish_z = -sin_yaw * move_x - cos_yaw * move_y;
-    const bool sprinting = !state.crouched && input.sprint && move_y > 0.1F;
+    const bool sprinting = !state.crouched && input.sprint && moving; // Sprint in every direction, including strafing and backing up.
     const float speed = state.crouched ? settings.crouch_speed : sprinting ? settings.sprint_speed
                                                                             : settings.walk_speed;
     state.sprinting = sprinting && grounded;
