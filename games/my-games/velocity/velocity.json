@@ -1,0 +1,2392 @@
+{
+  "format": 1,
+  "name": "VELOCITY — First Run",
+  "entities": [
+    {
+      "name": "Environment",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -30,
+            "z": 0
+          }
+        },
+        "Environment": {
+          "sky": "Procedural",
+          "skyColor": {
+            "x": 0.035,
+            "y": 0.065,
+            "z": 0.13
+          },
+          "horizonColor": {
+            "x": 0.11,
+            "y": 0.16,
+            "z": 0.24
+          },
+          "groundColor": {
+            "x": 0.1,
+            "y": 0.12,
+            "z": 0.15
+          },
+          "sunElevation": 35,
+          "sunAzimuth": 240,
+          "sunIntensity": 2.3,
+          "sunColor": {
+            "x": 0.56,
+            "y": 0.72,
+            "z": 1
+          },
+          "ambientIntensity": 0.9,
+          "fog": "Exponential",
+          "fogColor": {
+            "x": 0.08,
+            "y": 0.12,
+            "z": 0.19
+          },
+          "fogNear": 45,
+          "fogFar": 280,
+          "fogDensity": 0.004,
+          "shadows": true,
+          "exposure": 1.1
+        },
+        "PostProcessing": {
+          "style": "Standard",
+          "ink": 1,
+          "rim": 0.7,
+          "antialias": "SMAA",
+          "ambientOcclusion": false,
+          "aoRadius": 0.5,
+          "aoIntensity": 1,
+          "bloom": 0.55,
+          "bloomRadius": 0.5,
+          "bloomThreshold": 0.7,
+          "exposure": 1,
+          "contrast": 0.12,
+          "saturation": 0.05,
+          "temperature": 0,
+          "vignette": 0.25,
+          "grain": 0.02,
+          "shadowQuality": "Medium"
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "City Ground",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -0.12,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 180,
+            "y": 0.2,
+            "z": 180
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.11,
+            "y": 0.14,
+            "z": 0.17
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "RigidBody": {
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    },
+    {
+      "name": "Main Street",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.005,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 18,
+            "y": 0.04,
+            "z": 150
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.055,
+            "y": 0.065,
+            "z": 0.08
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "Cross Street",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.01,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 150,
+            "y": 0.04,
+            "z": 18
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.055,
+            "y": 0.065,
+            "z": 0.08
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "West Sidewalk",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -12,
+            "y": 0.06,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.12,
+            "z": 150
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.35,
+            "y": 0.39,
+            "z": 0.43
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "East Sidewalk",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 12,
+            "y": 0.06,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 4,
+            "y": 0.12,
+            "z": 150
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.35,
+            "y": 0.39,
+            "z": 0.43
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "North Sidewalk",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.06,
+            "z": -12
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 150,
+            "y": 0.12,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.35,
+            "y": 0.39,
+            "z": 0.43
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "South Sidewalk",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.06,
+            "z": 12
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 150,
+            "y": 0.12,
+            "z": 4
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.35,
+            "y": 0.39,
+            "z": 0.43
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "Lane Dash",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.04,
+            "z": -66
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.18,
+            "y": 0.03,
+            "z": 5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.72,
+            "z": 0.22
+          },
+          "metalness": 0,
+          "roughness": 0.6,
+          "emissive": {
+            "x": 0.95,
+            "y": 0.48,
+            "z": 0.06
+          },
+          "emissiveIntensity": 0.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "Lane Dash",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.04,
+            "z": -54
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.18,
+            "y": 0.03,
+            "z": 5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.72,
+            "z": 0.22
+          },
+          "metalness": 0,
+          "roughness": 0.6,
+          "emissive": {
+            "x": 0.95,
+            "y": 0.48,
+            "z": 0.06
+          },
+          "emissiveIntensity": 0.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "Lane Dash",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.04,
+            "z": -42
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.18,
+            "y": 0.03,
+            "z": 5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.72,
+            "z": 0.22
+          },
+          "metalness": 0,
+          "roughness": 0.6,
+          "emissive": {
+            "x": 0.95,
+            "y": 0.48,
+            "z": 0.06
+          },
+          "emissiveIntensity": 0.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "Lane Dash",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.04,
+            "z": -30
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.18,
+            "y": 0.03,
+            "z": 5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.72,
+            "z": 0.22
+          },
+          "metalness": 0,
+          "roughness": 0.6,
+          "emissive": {
+            "x": 0.95,
+            "y": 0.48,
+            "z": 0.06
+          },
+          "emissiveIntensity": 0.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "Lane Dash",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.04,
+            "z": -18
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.18,
+            "y": 0.03,
+            "z": 5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.72,
+            "z": 0.22
+          },
+          "metalness": 0,
+          "roughness": 0.6,
+          "emissive": {
+            "x": 0.95,
+            "y": 0.48,
+            "z": 0.06
+          },
+          "emissiveIntensity": 0.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "Lane Dash",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.04,
+            "z": -6
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.18,
+            "y": 0.03,
+            "z": 5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.72,
+            "z": 0.22
+          },
+          "metalness": 0,
+          "roughness": 0.6,
+          "emissive": {
+            "x": 0.95,
+            "y": 0.48,
+            "z": 0.06
+          },
+          "emissiveIntensity": 0.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "Lane Dash",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.04,
+            "z": 6
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.18,
+            "y": 0.03,
+            "z": 5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.72,
+            "z": 0.22
+          },
+          "metalness": 0,
+          "roughness": 0.6,
+          "emissive": {
+            "x": 0.95,
+            "y": 0.48,
+            "z": 0.06
+          },
+          "emissiveIntensity": 0.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "Lane Dash",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.04,
+            "z": 18
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.18,
+            "y": 0.03,
+            "z": 5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.72,
+            "z": 0.22
+          },
+          "metalness": 0,
+          "roughness": 0.6,
+          "emissive": {
+            "x": 0.95,
+            "y": 0.48,
+            "z": 0.06
+          },
+          "emissiveIntensity": 0.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "Lane Dash",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.04,
+            "z": 30
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.18,
+            "y": 0.03,
+            "z": 5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.72,
+            "z": 0.22
+          },
+          "metalness": 0,
+          "roughness": 0.6,
+          "emissive": {
+            "x": 0.95,
+            "y": 0.48,
+            "z": 0.06
+          },
+          "emissiveIntensity": 0.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "Lane Dash",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.04,
+            "z": 42
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.18,
+            "y": 0.03,
+            "z": 5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.72,
+            "z": 0.22
+          },
+          "metalness": 0,
+          "roughness": 0.6,
+          "emissive": {
+            "x": 0.95,
+            "y": 0.48,
+            "z": 0.06
+          },
+          "emissiveIntensity": 0.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "Lane Dash",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.04,
+            "z": 54
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.18,
+            "y": 0.03,
+            "z": 5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.72,
+            "z": 0.22
+          },
+          "metalness": 0,
+          "roughness": 0.6,
+          "emissive": {
+            "x": 0.95,
+            "y": 0.48,
+            "z": 0.06
+          },
+          "emissiveIntensity": 0.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "Lane Dash",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.04,
+            "z": 66
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.18,
+            "y": 0.03,
+            "z": 5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.72,
+            "z": 0.22
+          },
+          "metalness": 0,
+          "roughness": 0.6,
+          "emissive": {
+            "x": 0.95,
+            "y": 0.48,
+            "z": 0.06
+          },
+          "emissiveIntensity": 0.8,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "City Building 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -35,
+            "y": 5,
+            "z": -52
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 10,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.18,
+            "y": 0.25,
+            "z": 0.34
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "City Building 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -35,
+            "y": 8.5,
+            "z": -26
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 17,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.24,
+            "y": 0.29,
+            "z": 0.36
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "Neon Facade 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -35,
+            "y": 10.54,
+            "z": -18.9
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.22,
+            "y": 1.5,
+            "z": 0.18
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.05,
+            "y": 0.75,
+            "z": 1
+          },
+          "metalness": 0,
+          "roughness": 0.4,
+          "emissive": {
+            "x": 0.02,
+            "y": 0.6,
+            "z": 1
+          },
+          "emissiveIntensity": 2,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "City Building 3",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -35,
+            "y": 12,
+            "z": 26
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 24,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.19,
+            "y": 0.31,
+            "z": 0.35
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "City Building 4",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -35,
+            "y": 8,
+            "z": 52
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 16,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.28,
+            "y": 0.27,
+            "z": 0.34
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "Neon Facade 4",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -35,
+            "y": 9.92,
+            "z": 59.1
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.22,
+            "y": 1.5,
+            "z": 0.18
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.05,
+            "y": 0.75,
+            "z": 1
+          },
+          "metalness": 0,
+          "roughness": 0.4,
+          "emissive": {
+            "x": 0.02,
+            "y": 0.6,
+            "z": 1
+          },
+          "emissiveIntensity": 2,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "City Building 5",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -52,
+            "y": 11.5,
+            "z": -52
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 23,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.22,
+            "y": 0.33,
+            "z": 0.39
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "City Building 6",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -52,
+            "y": 7.5,
+            "z": -26
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 15,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.18,
+            "y": 0.25,
+            "z": 0.34
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "Neon Facade 6",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -52,
+            "y": 9.3,
+            "z": -18.9
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.22,
+            "y": 1.5,
+            "z": 0.18
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.05,
+            "y": 0.75,
+            "z": 1
+          },
+          "metalness": 0,
+          "roughness": 0.4,
+          "emissive": {
+            "x": 0.02,
+            "y": 0.6,
+            "z": 1
+          },
+          "emissiveIntensity": 2,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "City Building 7",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -52,
+            "y": 11,
+            "z": 26
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 22,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.24,
+            "y": 0.29,
+            "z": 0.36
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "City Building 8",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -52,
+            "y": 7,
+            "z": 52
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 14,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.19,
+            "y": 0.31,
+            "z": 0.35
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "Neon Facade 8",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -52,
+            "y": 8.68,
+            "z": 59.1
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.22,
+            "y": 1.5,
+            "z": 0.18
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.05,
+            "y": 0.75,
+            "z": 1
+          },
+          "metalness": 0,
+          "roughness": 0.4,
+          "emissive": {
+            "x": 0.02,
+            "y": 0.6,
+            "z": 1
+          },
+          "emissiveIntensity": 2,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "City Building 9",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 35,
+            "y": 10.5,
+            "z": -52
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 21,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.28,
+            "y": 0.27,
+            "z": 0.34
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "City Building 10",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 35,
+            "y": 6.5,
+            "z": -26
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 13,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.22,
+            "y": 0.33,
+            "z": 0.39
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "Neon Facade 10",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 35,
+            "y": 8.06,
+            "z": -33.1
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.22,
+            "y": 1.5,
+            "z": 0.18
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.05,
+            "y": 0.75,
+            "z": 1
+          },
+          "metalness": 0,
+          "roughness": 0.4,
+          "emissive": {
+            "x": 0.02,
+            "y": 0.6,
+            "z": 1
+          },
+          "emissiveIntensity": 2,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "City Building 11",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 35,
+            "y": 10,
+            "z": 26
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 20,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.18,
+            "y": 0.25,
+            "z": 0.34
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "City Building 12",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 35,
+            "y": 6,
+            "z": 52
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 12,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.24,
+            "y": 0.29,
+            "z": 0.36
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "Neon Facade 12",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 35,
+            "y": 7.4399999999999995,
+            "z": 44.9
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.22,
+            "y": 1.5,
+            "z": 0.18
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.05,
+            "y": 0.75,
+            "z": 1
+          },
+          "metalness": 0,
+          "roughness": 0.4,
+          "emissive": {
+            "x": 0.02,
+            "y": 0.6,
+            "z": 1
+          },
+          "emissiveIntensity": 2,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "City Building 13",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 52,
+            "y": 9.5,
+            "z": -52
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 19,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.19,
+            "y": 0.31,
+            "z": 0.35
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "City Building 14",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 52,
+            "y": 5.5,
+            "z": -26
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 11,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.28,
+            "y": 0.27,
+            "z": 0.34
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "Neon Facade 14",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 52,
+            "y": 6.82,
+            "z": -33.1
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.22,
+            "y": 1.5,
+            "z": 0.18
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.05,
+            "y": 0.75,
+            "z": 1
+          },
+          "metalness": 0,
+          "roughness": 0.4,
+          "emissive": {
+            "x": 0.02,
+            "y": 0.6,
+            "z": 1
+          },
+          "emissiveIntensity": 2,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "City Building 15",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 52,
+            "y": 9,
+            "z": 26
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 18,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.22,
+            "y": 0.33,
+            "z": 0.39
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "City Building 16",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 52,
+            "y": 5,
+            "z": 52
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 10,
+            "y": 10,
+            "z": 14
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.18,
+            "y": 0.25,
+            "z": 0.34
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "Neon Facade 16",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 52,
+            "y": 6.2,
+            "z": 44.9
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.22,
+            "y": 1.5,
+            "z": 0.18
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.05,
+            "y": 0.75,
+            "z": 1
+          },
+          "metalness": 0,
+          "roughness": 0.4,
+          "emissive": {
+            "x": 0.02,
+            "y": 0.6,
+            "z": 1
+          },
+          "emissiveIntensity": 2,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        }
+      }
+    },
+    {
+      "name": "Low Jump Barrier A",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -3,
+            "y": 0.65,
+            "z": -24
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 2.2,
+            "y": 1.3,
+            "z": 1.2
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.34,
+            "z": 0.12
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "Low Jump Barrier B",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 3,
+            "y": 0.65,
+            "z": -48
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 2.2,
+            "y": 1.3,
+            "z": 1.2
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.34,
+            "z": 0.12
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "Training Ramp",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.35,
+            "z": -70
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 7,
+            "y": 0.7,
+            "z": 5
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.18,
+            "y": 0.58,
+            "z": 0.72
+          },
+          "metalness": 0.08,
+          "roughness": 0.82,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    },
+    {
+      "name": "Velocity",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.95,
+            "z": 56
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.85,
+            "y": 1.8,
+            "z": 0.85
+          }
+        },
+        "Renderable": {
+          "mesh": 132,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.06,
+            "y": 0.22,
+            "z": 0.35
+          },
+          "metalness": 0.15,
+          "roughness": 0.4,
+          "emissive": {
+            "x": 0.02,
+            "y": 0.25,
+            "z": 0.8
+          },
+          "emissiveIntensity": 0.7,
+          "opacity": 1,
+          "keepTextures": false,
+          "texture": "",
+          "parts": ""
+        },
+        "Player": {},
+        "RigidBody": {
+          "mass": 70,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "CharacterController": {
+          "mode": "ThirdPerson",
+          "walkSpeed": 10,
+          "sprintSpeed": 28,
+          "crouchSpeed": 4,
+          "jumpHeight": 2.8,
+          "standHeight": 1.8,
+          "crouchHeight": 1.1,
+          "stepHeight": 0.5,
+          "acceleration": 65,
+          "airControl": 20,
+          "lookSensitivity": 1,
+          "invertY": false,
+          "fov": 82,
+          "headBob": 0.4
+        },
+        "Trail": {
+          "color": {
+            "x": 0.1,
+            "y": 0.65,
+            "z": 1
+          },
+          "width": 0.45,
+          "lifetime": 0.28,
+          "minDistance": 0.08
+        }
+      }
+    },
+    {
+      "name": "Follow Camera",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 4,
+            "z": 8
+          }
+        },
+        "CameraFollow": {
+          "target": "Velocity",
+          "offset": {
+            "x": 0,
+            "y": 4,
+            "z": 8
+          },
+          "smoothing": 0.11,
+          "lookHeight": 1.1,
+          "collision": true,
+          "orbit": true
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Game Title",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "UI": {
+          "kind": "Text",
+          "text": "VELOCITY  /  FIRST RUN",
+          "anchor": "top-left",
+          "visibleWhen": "always",
+          "action": "restart",
+          "offsetX": 24,
+          "offsetY": 22,
+          "width": 0,
+          "height": 0,
+          "fontSize": 20,
+          "color": {
+            "x": 0.12,
+            "y": 0.78,
+            "z": 1
+          },
+          "opacity": 0.94,
+          "image": "",
+          "value": 0
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Game Instructions",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "UI": {
+          "kind": "Text",
+          "text": "WASD MOVE   •   SHIFT SUPER-SPEED   •   SPACE JUMP   •   MOUSE LOOK",
+          "anchor": "bottom-center",
+          "visibleWhen": "always",
+          "action": "restart",
+          "offsetX": 0,
+          "offsetY": -26,
+          "width": 0,
+          "height": 0,
+          "fontSize": 14,
+          "color": {
+            "x": 0.9,
+            "y": 0.95,
+            "z": 1
+          },
+          "opacity": 0.94,
+          "image": "",
+          "value": 0
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Objective",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "UI": {
+          "kind": "Text",
+          "text": "TEST THE LIMITS. RUN THE STREETS. HIT THE RAMPS.",
+          "anchor": "top-center",
+          "visibleWhen": "always",
+          "action": "restart",
+          "offsetX": 0,
+          "offsetY": 26,
+          "width": 0,
+          "height": 0,
+          "fontSize": 15,
+          "color": {
+            "x": 1,
+            "y": 0.68,
+            "z": 0.25
+          },
+          "opacity": 0.94,
+          "image": "",
+          "value": 0
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        }
+      }
+    }
+  ]
+}
