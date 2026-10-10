@@ -118,7 +118,8 @@
           "parts": ""
         },
         "RigidBody": {
-          "dynamic": false
+          "dynamic": false,
+          "mass": 1
         },
         "Collider": {
           "type": "AABB"
@@ -944,7 +945,8 @@
           "type": "AABB"
         },
         "RigidBody": {
-          "dynamic": false
+          "dynamic": false,
+          "mass": 1
         }
       }
     },
@@ -993,7 +995,8 @@
           "type": "AABB"
         },
         "RigidBody": {
-          "dynamic": false
+          "dynamic": false,
+          "mass": 1
         }
       }
     },
