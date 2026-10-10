@@ -1,0 +1,8 @@
+{
+  "name": "VELOCITY",
+  "genre": "Superhero speed sandbox",
+  "description": "An original speedster's first run: sprint, jump and race through a compact neon city block.",
+  "scene": "velocity.json",
+  "accent": "#19baff",
+  "builtin": false
+}
