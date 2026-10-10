@@ -52,21 +52,21 @@
         },
         "PostProcessing": {
           "style": "Standard",
-          "ink": 1,
-          "rim": 0.7,
+          "ink": 0,
+          "rim": 0,
           "antialias": "SMAA",
           "ambientOcclusion": false,
           "aoRadius": 0.5,
           "aoIntensity": 1,
-          "bloom": 0.55,
-          "bloomRadius": 0.5,
-          "bloomThreshold": 0.7,
+          "bloom": 0,
+          "bloomRadius": 0,
+          "bloomThreshold": 1,
           "exposure": 1,
-          "contrast": 0.12,
-          "saturation": 0.05,
+          "contrast": 0.04,
+          "saturation": 0,
           "temperature": 0,
-          "vignette": 0.25,
-          "grain": 0.02,
+          "vignette": 0,
+          "grain": 0,
           "shadowQuality": "Medium"
         },
         "Renderable": {
@@ -111,7 +111,7 @@
             "y": 0,
             "z": 0
           },
-          "emissiveIntensity": 1,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -161,7 +161,7 @@
             "y": 0,
             "z": 0
           },
-          "emissiveIntensity": 1,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -204,7 +204,7 @@
             "y": 0,
             "z": 0
           },
-          "emissiveIntensity": 1,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -247,7 +247,7 @@
             "y": 0,
             "z": 0
           },
-          "emissiveIntensity": 1,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -290,7 +290,7 @@
             "y": 0,
             "z": 0
           },
-          "emissiveIntensity": 1,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -333,7 +333,7 @@
             "y": 0,
             "z": 0
           },
-          "emissiveIntensity": 1,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -376,7 +376,7 @@
             "y": 0,
             "z": 0
           },
-          "emissiveIntensity": 1,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -415,11 +415,11 @@
           "metalness": 0,
           "roughness": 0.6,
           "emissive": {
-            "x": 0.95,
-            "y": 0.48,
-            "z": 0.06
+            "x": 0,
+            "y": 0,
+            "z": 0
           },
-          "emissiveIntensity": 0.8,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -458,11 +458,11 @@
           "metalness": 0,
           "roughness": 0.6,
           "emissive": {
-            "x": 0.95,
-            "y": 0.48,
-            "z": 0.06
+            "x": 0,
+            "y": 0,
+            "z": 0
           },
-          "emissiveIntensity": 0.8,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -501,11 +501,11 @@
           "metalness": 0,
           "roughness": 0.6,
           "emissive": {
-            "x": 0.95,
-            "y": 0.48,
-            "z": 0.06
+            "x": 0,
+            "y": 0,
+            "z": 0
           },
-          "emissiveIntensity": 0.8,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -544,11 +544,11 @@
           "metalness": 0,
           "roughness": 0.6,
           "emissive": {
-            "x": 0.95,
-            "y": 0.48,
-            "z": 0.06
+            "x": 0,
+            "y": 0,
+            "z": 0
           },
-          "emissiveIntensity": 0.8,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -587,11 +587,11 @@
           "metalness": 0,
           "roughness": 0.6,
           "emissive": {
-            "x": 0.95,
-            "y": 0.48,
-            "z": 0.06
+            "x": 0,
+            "y": 0,
+            "z": 0
           },
-          "emissiveIntensity": 0.8,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -630,11 +630,11 @@
           "metalness": 0,
           "roughness": 0.6,
           "emissive": {
-            "x": 0.95,
-            "y": 0.48,
-            "z": 0.06
+            "x": 0,
+            "y": 0,
+            "z": 0
           },
-          "emissiveIntensity": 0.8,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -673,11 +673,11 @@
           "metalness": 0,
           "roughness": 0.6,
           "emissive": {
-            "x": 0.95,
-            "y": 0.48,
-            "z": 0.06
+            "x": 0,
+            "y": 0,
+            "z": 0
           },
-          "emissiveIntensity": 0.8,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -716,11 +716,11 @@
           "metalness": 0,
           "roughness": 0.6,
           "emissive": {
-            "x": 0.95,
-            "y": 0.48,
-            "z": 0.06
+            "x": 0,
+            "y": 0,
+            "z": 0
           },
-          "emissiveIntensity": 0.8,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -759,11 +759,11 @@
           "metalness": 0,
           "roughness": 0.6,
           "emissive": {
-            "x": 0.95,
-            "y": 0.48,
-            "z": 0.06
+            "x": 0,
+            "y": 0,
+            "z": 0
           },
-          "emissiveIntensity": 0.8,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -802,11 +802,11 @@
           "metalness": 0,
           "roughness": 0.6,
           "emissive": {
-            "x": 0.95,
-            "y": 0.48,
-            "z": 0.06
+            "x": 0,
+            "y": 0,
+            "z": 0
           },
-          "emissiveIntensity": 0.8,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -845,11 +845,11 @@
           "metalness": 0,
           "roughness": 0.6,
           "emissive": {
-            "x": 0.95,
-            "y": 0.48,
-            "z": 0.06
+            "x": 0,
+            "y": 0,
+            "z": 0
           },
-          "emissiveIntensity": 0.8,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -888,11 +888,11 @@
           "metalness": 0,
           "roughness": 0.6,
           "emissive": {
-            "x": 0.95,
-            "y": 0.48,
-            "z": 0.06
+            "x": 0,
+            "y": 0,
+            "z": 0
           },
-          "emissiveIntensity": 0.8,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -935,7 +935,7 @@
             "y": 0,
             "z": 0
           },
-          "emissiveIntensity": 1,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -985,7 +985,7 @@
             "y": 0,
             "z": 0
           },
-          "emissiveIntensity": 1,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -1035,7 +1035,7 @@
             "y": 0,
             "z": 0
           },
-          "emissiveIntensity": 1,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -1070,18 +1070,18 @@
         },
         "Material": {
           "color": {
-            "x": 0.06,
-            "y": 0.22,
-            "z": 0.35
+            "x": 0.18,
+            "y": 0.28,
+            "z": 0.38
           },
-          "metalness": 0.15,
-          "roughness": 0.4,
+          "metalness": 0.05,
+          "roughness": 0.78,
           "emissive": {
-            "x": 0.02,
-            "y": 0.25,
-            "z": 0.8
+            "x": 0,
+            "y": 0,
+            "z": 0
           },
-          "emissiveIntensity": 0.7,
+          "emissiveIntensity": 0,
           "opacity": 1,
           "keepTextures": false,
           "texture": "",
@@ -1110,16 +1110,6 @@
           "invertY": false,
           "fov": 82,
           "headBob": 0.4
-        },
-        "Trail": {
-          "color": {
-            "x": 0.1,
-            "y": 0.65,
-            "z": 1
-          },
-          "width": 0.45,
-          "lifetime": 0.28,
-          "minDistance": 0.08
         }
       }
     },
