@@ -496,7 +496,7 @@ async function startEditor() {
     return view;
   }
   // -- Camera rig (CameraFollow) and shake --------------------------------
-  const rig = { position: new THREE.Vector3(), yaw: 0, pitch: 0, placed: false, frameDt: 1 / 60, fovExtra: 0 };
+  const rig = { position: new THREE.Vector3(), yaw: 0, pitch: 0, placed: false, frameDt: 1 / 60, fovExtra: 0, lastTarget: undefined as THREE.Object3D | undefined, lastTargetPosition: new THREE.Vector3(), movementDirection: new THREE.Vector3(), movementSpeed: 0 };
   const shake = { intensity: 0, remaining: 0, duration: 1 };
   const rigRaycaster = new THREE.Raycaster();
   function followTarget(name: string): THREE.Object3D | undefined {
@@ -505,6 +505,23 @@ async function startEditor() {
     return index >= 0 && runtime._editor_alive(index) ? objects[index] : undefined;
   }
   function placeRig(view: THREE.Camera, follow: CameraFollowComponent, target: THREE.Object3D) {
+    // Track horizontal world-space movement, not facing rotation: strafing and
+    // backing up should make the chase camera reveal the direction of travel.
+    const delta = target.position.clone().sub(rig.lastTargetPosition);
+    delta.y = 0;
+    if (rig.lastTarget !== target || !rig.placed) {
+      rig.lastTarget = target;
+      rig.lastTargetPosition.copy(target.position);
+      rig.movementSpeed = 0;
+      rig.movementDirection.set(0, 0, 0);
+    } else {
+      const dt = Math.max(rig.frameDt, 1 / 240);
+      const distanceMoved = delta.length();
+      const instantSpeed = distanceMoved / dt;
+      rig.movementSpeed += (instantSpeed - rig.movementSpeed) * (1 - Math.exp(-dt * 8));
+      if (distanceMoved > 0.015) rig.movementDirection.copy(delta).normalize();
+      rig.lastTargetPosition.copy(target.position);
+    }
     const focus = target.position.clone();
     focus.y += follow.lookHeight;
     let distance = Math.hypot(follow.offset.x, follow.offset.y, follow.offset.z);
@@ -535,6 +552,15 @@ async function startEditor() {
       // Start from the authored offset, in the target's frame.
       rig.yaw = Math.atan2(follow.offset.x, follow.offset.z) + target.rotation.y;
       rig.pitch = Math.asin(THREE.MathUtils.clamp(follow.offset.y / Math.max(distance, 1e-6), -1, 1));
+    } else if (rig.movementSpeed > 0.65) {
+      // Auto-chase while the player is moving, even when orbit is enabled.
+      // Faster travel turns the rig more decisively; the exponential blend is
+      // frame-rate independent and keeps diagonal/sideways starts smooth.
+      const travelYaw = Math.atan2(-rig.movementDirection.x, -rig.movementDirection.z);
+      const turn = Math.atan2(Math.sin(travelYaw - rig.yaw), Math.cos(travelYaw - rig.yaw));
+      const speedBlend = THREE.MathUtils.clamp(rig.movementSpeed / 12, 0, 1);
+      const response = 3.5 + speedBlend * 8.5;
+      rig.yaw += turn * (1 - Math.exp(-rig.frameDt * response));
     } else if (!follow.orbit) {
       // Without orbit the rig swings behind the target as it turns.
       const behind = Math.atan2(follow.offset.x, follow.offset.z) + target.rotation.y;
@@ -543,6 +569,11 @@ async function startEditor() {
         rig.yaw += turn * (1 - Math.exp(-rig.frameDt * 7));
       } else rig.yaw = behind;
     }
+    // At speed, aim farther along the camera's smoothed travel heading so the
+    // player can read the road/obstacles ahead instead of staring at their back.
+    const lookAhead = Math.min(5, Math.max(0, rig.movementSpeed - 0.65) * 0.18);
+    focus.x -= Math.sin(rig.yaw) * lookAhead;
+    focus.z -= Math.cos(rig.yaw) * lookAhead;
     const desired = new THREE.Vector3(Math.sin(rig.yaw) * Math.cos(rig.pitch), Math.sin(rig.pitch), Math.cos(rig.yaw) * Math.cos(rig.pitch))
       .multiplyScalar(distance)
       .add(target.position);
