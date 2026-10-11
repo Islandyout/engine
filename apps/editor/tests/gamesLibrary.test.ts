@@ -14,7 +14,7 @@ function manifests(dir: string): string[] {
 
 test("every games/ manifest names an existing scene", () => {
   const found = manifests(path.join(root, "games"));
-  assert.ok(found.length >= 3);
+  assert.ok(found.length >= 1);
   const slugs = new Set<string>();
   for (const m of found) {
     const game = JSON.parse(readFileSync(m, "utf8"));
@@ -24,7 +24,9 @@ test("every games/ manifest names an existing scene", () => {
     assert.ok(!slugs.has(slug));
     slugs.add(slug);
   }
-  for (const s of ["last-signal", "high-heat", "pale-signal"]) assert.ok(slugs.has(s));
+  assert.ok(slugs.has("pale-signal"));
+  assert.ok(!slugs.has("last-signal"));
+  assert.ok(!slugs.has("high-heat"));
 });
 
 test("parseGamesIndex keeps valid rows and sanitises the rest", () => {
