@@ -517,9 +517,10 @@ async function startEditor() {
     } else {
       const dt = Math.max(rig.frameDt, 1 / 240);
       const distanceMoved = delta.length();
-      const instantSpeed = distanceMoved / dt;
+      const hasMovement = distanceMoved > 0.002;
+      const instantSpeed = hasMovement ? distanceMoved / dt : 0;
       rig.movementSpeed += (instantSpeed - rig.movementSpeed) * (1 - Math.exp(-dt * 8));
-      if (distanceMoved > 0.015) rig.movementDirection.copy(delta).normalize();
+      if (hasMovement) rig.movementDirection.copy(delta).normalize();
       rig.lastTargetPosition.copy(target.position);
     }
     const focus = target.position.clone();
