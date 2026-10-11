@@ -13,7 +13,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 140
+    # PR checks stay bounded; the full scheduled/manual regression includes long gameplay simulations.
+    timeout-minutes: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 240 || 60 }}
     steps:
       - uses: actions/checkout@v5
       - name: Detect whether shared engine/editor code changed
@@ -73,8 +74,14 @@ jobs:
           node tests/browser/high_heat.cjs
           node tests/browser/pale_signal.cjs
           node tests/browser/gatebreaker.cjs
-          node tests/browser/gatebreaker_gate.cjs
-          node tests/browser/gatebreaker_loop.cjs
+          # These full-length Gatebreaker playthroughs can take tens of minutes each.
+          # Keep pull-request feedback bounded; run the complete regression on schedule/manual dispatch.
+          if [[ "$GITHUB_EVENT_NAME" == "schedule" || "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            node tests/browser/gatebreaker_gate.cjs
+            node tests/browser/gatebreaker_loop.cjs
+          else
+            echo "Deferring Gatebreaker full-playthrough tests to scheduled/manual regression."
+          fi
       - name: Validate generated game library
         if: steps.changes.outputs.core != 'true' && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
         run: |
