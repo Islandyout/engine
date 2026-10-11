@@ -2,10 +2,6 @@
 
 [Open the editor](https://islandyout.github.io/engine/) — build and play games entirely through it; this is the only supported way to play what you build.
 
-**[Play LAST SIGNAL](https://islandyout.github.io/engine/last-signal.html)**, a first-person shooter built entirely in the editor's data and Lua on this engine ([design document](docs/fps/GAME_DESIGN.md)).
-
-**[Play HIGH HEAT](https://islandyout.github.io/engine/high-heat.html)**, an open-city street racer with police pursuits ([design document](docs/racing/GAME_DESIGN.md)).
-
 **[Play Pale Signal](https://islandyout.github.io/engine/pale-signal.html)**: six worlds, the Talari and two lost civilizations, gathering, survival, an autopilot, and seven signal fragments that lead to a hidden world, with no loading screens ([game document](docs/space/PALE_SIGNAL_SLICE.md)).
 
 **Games library**: the editor's **Games** button lists every game in [`games/`](games/README.md); add your own under `games/my-games/`.
