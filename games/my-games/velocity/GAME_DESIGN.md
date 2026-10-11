@@ -1,9 +1,9 @@
 # VELOCITY — Game Design & Implementation Bible
 
-**Document version:** 1.0  
-**Status:** Implementation contract for the first complete playable release  
-**Genre:** Third-person superhero action / open-zone adventure  
-**Reference:** DC Universe Online (DCUO) for player fantasy and broad activity structure; all VELOCITY characters, story, visuals, names, powers, missions, and assets are original.  
+**Document version:** 1.0
+**Status:** Implementation contract for the first complete playable release
+**Genre:** Third-person superhero action / open-zone adventure
+**Reference:** DC Universe Online (DCUO) for player fantasy and broad activity structure; all VELOCITY characters, story, visuals, names, powers, missions, and assets are original.
 **Primary scene:** `games/my-games/velocity/velocity.json`
 
 ---
@@ -243,8 +243,8 @@ Do not put all enemy types in the opening encounter. Introduce one new rule at a
 ### Boss: Breakline
 Original antagonist: a former emergency-response engineer using stolen momentum-dampening equipment. Their technology creates short-lived impact fields; it does not permanently remove the player's powers.
 
-**Phase 1 (100–70% health):** two-hit melee chain, clear shoulder wind-up, recovery after second strike. Teaches dodge and punish.  
-**Phase 2 (70–35%):** adds a ground-slam ring with a safe gap/roll response and a charge that can be baited into barriers.  
+**Phase 1 (100–70% health):** two-hit melee chain, clear shoulder wind-up, recovery after second strike. Teaches dodge and punish.
+**Phase 2 (70–35%):** adds a ground-slam ring with a safe gap/roll response and a charge that can be baited into barriers.
 **Phase 3 (35–0%):** faster combinations and a brief energy shield after a clearly signalled attack. Player must evade, let the shield expire, then punish. Do not make the boss invulnerable for long periods or require a hidden gimmick.
 
 Boss requirements:
@@ -398,12 +398,12 @@ The engine already has third-person CharacterController movement, named InputAct
 - **Collision:** static city geometry has deliberate collision; decorative props do not create invisible walls; dynamic fighters have correct mass/health/collider values.
 
 ### Suggested mission state model
-`Locked → Available → Active → ObjectiveComplete → Rewarded`  
+`Locked → Available → Active → ObjectiveComplete → Rewarded`
 Failure/abandonment returns to a defined checkpoint; mission restart resets encounter actors, objective counts, interaction flags and boss phase. Each state transition must be idempotent so a duplicate event cannot award a reward twice.
 
 ### Suggested encounter state model
-`Dormant → Alerted → Engaged → Defeated` for regular groups.  
-Boss: `Intro → Phase1 → Phase2 → Phase3 → Defeated`.  
+`Dormant → Alerted → Engaged → Defeated` for regular groups.
+Boss: `Intro → Phase1 → Phase2 → Phase3 → Defeated`.
 Death/retry resets all combatants and telegraphs. No actor can remain permanently invulnerable after reset.
 
 ### Data validation
