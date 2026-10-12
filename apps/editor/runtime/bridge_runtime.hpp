@@ -4,6 +4,7 @@
 // bridge_space.cpp and bridge_melee.cpp.
 #pragma once
 #include "bridge_components.hpp"
+#include <limits>
 
 namespace editor_bridge {
 struct Runtime;
