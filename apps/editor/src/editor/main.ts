@@ -2204,6 +2204,10 @@ async function startEditor() {
   // Takes the nearest catalogued specimen of `key` within reach out of the
   // world and tells scripts (on_ui("harvested", key)).
   function harvest(key: string) {
+    // The native bridge can transfer Player control between the walker and a
+    // vehicle during Play. Refresh the camera/readout target from that runtime
+    // ownership instead of pinning it to the authored Player index for the session.
+    if (doc.mode === "play") playerIndex = runtime._editor_controlled_player();
     const player = playerIndex >= 0 ? objects[playerIndex] : undefined;
     if (!player || !spaceScatter) return;
     let best = -1,
