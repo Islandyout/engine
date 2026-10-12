@@ -27,6 +27,7 @@ export interface RuntimeExports {
   _editor_value(index: number, field: number): number;
   _editor_alive(index: number): number;
   _editor_count(): number;
+  _editor_controlled_player(): number;
   _editor_snapshot(): number;
   _editor_take_dirty_saves(): number;
   _editor_entity_count(): number;
