@@ -126,6 +126,11 @@ struct Runtime {
     void melee_strike(engine::World &w, engine::Entity self, Fighter &fighter);
     // ---- Spaceflight (0.71.0): see SpaceSim.
     std::optional<SpaceSim> space;
+    // Runtime car handover: retain the walking entity while its PlayerMarker
+    // temporarily moves to the car, so existing car controls remain authoritative.
+    struct CarHandover final { engine::Entity walker; engine::Entity vehicle; };
+    std::optional<CarHandover> car_handover;
+    bool previous_car_interact_down{false};
     std::optional<engine::Entity> player_entity(const engine::World &w) const {
         for (const auto entity : w.query<engine::Box, PlayerMarker>())
             return entity;
@@ -444,6 +449,97 @@ struct Runtime {
         place_stowed(w);
         sp.event("boarded");
         return true;
+    }
+    // Exit only to a clear spot beside the car. Try both sides and keep the
+    // player seated if authored solid geometry blocks both placements.
+    bool car_exit_position(engine::World &w, engine::Entity walker, engine::Entity vehicle,
+                           engine::Vec3 &result) const {
+        const auto *car_box = w.get<engine::Box>(vehicle);
+        const auto *walker_box = w.get<engine::Box>(walker);
+        const auto *heading = w.get<Heading>(vehicle);
+        if (!car_box || !walker_box || !heading)
+            return false;
+        const float side = std::max(car_box->size.x, car_box->size.z) * 0.5F +
+                           std::max(walker_box->size.x, walker_box->size.z) * 0.5F + 0.65F;
+        const float right_x = std::cos(heading->yaw);
+        const float right_z = -std::sin(heading->yaw);
+        for (const float sign : {1.0F, -1.0F}) {
+            const float x = car_box->center.x + right_x * side * sign;
+            const float z = car_box->center.z + right_z * side * sign;
+            const float ground = terrain && terrain->contains(x, z) ? terrain->height_at(x, z)
+                                                                     : physics_config.ground_y;
+            const engine::Box candidate{{x, ground + walker_box->size.y * 0.5F + 0.05F, z},
+                                        walker_box->size};
+            bool blocked = false;
+            for (const auto other : w.query<engine::Box, engine::physics::Collider>()) {
+                if (other == walker || other == vehicle)
+                    continue;
+                if (engine::physics::overlaps(candidate, *w.get<engine::Box>(other))) {
+                    blocked = true;
+                    break;
+                }
+            }
+            if (!blocked) {
+                result = candidate.center;
+                return true;
+            }
+        }
+        return false;
+    }
+    void handle_car_interaction(engine::World &w, const engine::InputState &in) {
+        const bool down = in.key_down(engine::Key::e);
+        const bool pressed = down && !previous_car_interact_down;
+        previous_car_interact_down = down;
+        // E is reserved for the existing SpaceSystem board/exit flow in space scenes.
+        if (!pressed || space)
+            return;
+        if (car_handover) {
+            const auto handover = *car_handover;
+            if (!w.alive(handover.walker) || !w.alive(handover.vehicle)) {
+                car_handover.reset();
+                return;
+            }
+            engine::Vec3 exit;
+            if (!car_exit_position(w, handover.walker, handover.vehicle, exit))
+                return;
+            w.remove<PlayerMarker>(handover.vehicle);
+            w.set(handover.walker, PlayerMarker{});
+            w.get<engine::Box>(handover.walker)->center = exit;
+            if (auto *body = w.get<engine::physics::RigidBody>(handover.walker))
+                body->velocity = {};
+            car_handover.reset();
+            return;
+        }
+        const auto walker = player_entity(w);
+        if (!walker || !w.alive(*walker) || w.get<Heading>(*walker))
+            return;
+        const auto *walker_box = w.get<engine::Box>(*walker);
+        if (!walker_box)
+            return;
+        std::optional<engine::Entity> closest;
+        float closest_distance = std::numeric_limits<float>::max();
+        for (const auto vehicle : w.query<engine::Box, Heading, engine::physics::RigidBody>()) {
+            const auto *heading = w.get<Heading>(vehicle);
+            if (!heading || !heading->arcade || w.get<PlayerMarker>(vehicle) || w.get<Driver>(vehicle))
+                continue;
+            const auto &car_box = *w.get<engine::Box>(vehicle);
+            const float dx = car_box.center.x - walker_box->center.x;
+            const float dz = car_box.center.z - walker_box->center.z;
+            const float distance = std::hypot(dx, dz);
+            const float reach = std::max(car_box.size.x, car_box.size.z) * 0.5F +
+                                std::max(walker_box->size.x, walker_box->size.z) * 0.5F + 2.0F;
+            if (distance <= reach && distance < closest_distance) {
+                closest = vehicle;
+                closest_distance = distance;
+            }
+        }
+        if (!closest)
+            return;
+        w.remove<PlayerMarker>(*walker);
+        w.set(*closest, PlayerMarker{});
+        if (auto *body = w.get<engine::physics::RigidBody>(*walker))
+            body->velocity = {};
+        car_handover = CarHandover{*walker, *closest};
     }
     void space_tick(engine::World &w, const engine::InputState &in) {
         auto &sp = *space;
@@ -1936,6 +2032,7 @@ struct Runtime {
         add_timed(
             "editor.move", engine::FixedPhase::update, 0,
             [this](engine::World &w, const engine::FixedUpdateContext &context) {
+                handle_car_interaction(w, context.input);
                 for (const auto entity : w.query<engine::physics::RigidBody, PlayerMarker>()) {
                     if (stowed(entity))
                         continue;
