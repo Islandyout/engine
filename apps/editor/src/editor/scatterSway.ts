@@ -1,5 +1,5 @@
 // Swaying plants: scattered flora bends in a travelling wind wave;
-// near a Pale Signal structure it falls into step with the structure's
+// near a signal structure it falls into step with the structure's
 // breathing rings instead -- every blade on the same narrow-band clock.
 import * as THREE from "three";
 

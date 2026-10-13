@@ -9,7 +9,6 @@
     "build": "npm run typecheck && vite build",
     "fps": "tsx ../../tools/fps/build_last_signal.ts",
     "racing": "tsx ../../tools/racing/build_high_heat.ts",
-    "space": "tsx ../../tools/space/build_pale_signal.ts",
     "gatebreaker": "tsx ../../tools/gatebreaker/build_m0.ts && tsx ../../tools/gatebreaker/build_game.ts",
     "velocity": "tsx ../../tools/velocity/build_velocity.ts",
     "city": "tsx ../../tools/city/build_city_template.ts"

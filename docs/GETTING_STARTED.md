@@ -53,4 +53,4 @@ The **Problems** panel (below the Hierarchy) lists mistakes the game would other
 
 - [COMPONENTS.md](COMPONENTS.md): every component and field.
 - [SCRIPT_API.md](SCRIPT_API.md): every script callback and function.
-- The bundled games (**Games** in the toolbar) are full examples: Last Signal (first-person), High Heat (racing) and Pale Signal (space exploration).
+- The bundled games (**Games** in the toolbar) are full examples: Last Signal (first-person), High Heat (racing), GATEBREAKER (action RPG) and VELOCITY (superhero), and the City Template is a working town to start from. For space, the **Star System** template gives you a flyable ship, planets and a landing site.

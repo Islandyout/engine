@@ -68,7 +68,7 @@ struct Body final {
     // Water fills the terrain below this height (m relative to `radius`):
     // ships and walkers stand on its surface. Below -1e8 means no sea.
     double sea_level{-1e9};
-    // Not drawn or listed until revealed: Pale Signal's Nemesis.
+    // Not drawn or listed until revealed (a hidden world to find).
     bool hidden{};
     // Terrain features: impact craters (0..1 density), lava rifts
     // (glowing channels) and dune fields.
@@ -138,7 +138,7 @@ struct ShipSpec final {
     double land_slope{0.5};      // rad of terrain slope
 };
 
-// Flight assistance, Pale Signal's ownership states: the pilot always owns
+// Flight assistance, as ownership states: the pilot always owns
 // the throttle and can always override the attitude.
 enum class Assist : std::uint8_t {
     manual,     // no help: momentum and rotation persist

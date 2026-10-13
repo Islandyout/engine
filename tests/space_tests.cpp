@@ -15,7 +15,7 @@ using namespace engine::gameplay::space;
 
 constexpr double pi = 3.14159265358979323846;
 
-// A small system shaped like Pale Signal's: a temperate planet with air and
+// A small play system: a temperate planet with air and
 // a flattened site, an airless moon, and a second planet farther out.
 System make_system() {
     System system;

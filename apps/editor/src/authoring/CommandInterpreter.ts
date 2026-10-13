@@ -565,7 +565,7 @@ function defaultCollider(): ColliderComponent {
     bounciness: 0,
   };
 }
-// A new SpaceSystem's bodies (Pale Signal's inner system, scaled for play):
+// A new SpaceSystem's bodies (an inner system scaled for play):
 // a temperate planet with air, its airless moon, and a dead world farther out.
 export const defaultSpaceBodies = [
   "Tethys - 1600000 5027 0 0 60000 9 9000 1.05 300 3000 7 #4f7a4a #87b6c8",

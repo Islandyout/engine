@@ -2,7 +2,7 @@
 
 [Open the editor](https://islandyout.github.io/engine/) — build and play games entirely through it; this is the only supported way to play what you build.
 
-**[Play Pale Signal](https://islandyout.github.io/engine/pale-signal.html)**: six worlds, the Talari and two lost civilizations, gathering, survival, an autopilot, and seven signal fragments that lead to a hidden world, with no loading screens ([game document](docs/space/PALE_SIGNAL_SLICE.md)).
+**Play [GATEBREAKER](https://islandyout.github.io/engine/gatebreaker.html)** (a manhwa action RPG) or **[VELOCITY](https://islandyout.github.io/engine/velocity.html)** (a superhero slice), or start from the **[City Template](https://islandyout.github.io/engine/city-template.html)**, a working town with traffic, people and a park ([how it's built](docs/world/CITY_TEMPLATE.md)).
 
 **Games library**: the editor's **Games** button lists every game in [`games/`](games/README.md); add your own under `games/my-games/`.
 
@@ -385,6 +385,7 @@ Engine version 0.86.0 makes towns **look and work like real ones**:
 - **Foliage by rule**: groves and clearings, spacing, altitude and ground layers, leaning grass, varied tints, and far LODs.
 - **Living streets**: junction lights that traffic stops for, people who cross at the crosswalks on the walk light, and dogs on leads.
 - **The City Template**, a working town to build a game on, from the [research](docs/world/CITY_TEMPLATE.md) into how games and planners build cities and what players want from them.
+- **Pale Signal is retired as a game.** Its systems stay in the engine: spaceflight and planets (`SpaceSystem`, `Spaceship`, the **Star System** template), `Scannable`, `Site`, `Routine` and `Wildlife`.
 
 See [F86](docs/changelog/F86.md).
 

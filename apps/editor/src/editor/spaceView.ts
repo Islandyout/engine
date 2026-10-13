@@ -794,7 +794,7 @@ export class SpaceView {
   readonly landmarks: Array<
     Landmark & { anchor: THREE.Object3D; beam: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>; flare: THREE.Sprite; rings: THREE.Mesh[] }
   > = [];
-  // The Pale Signal grammar's shared clock (seconds): rings and the grass
+  // The signal grammar's shared clock (seconds): rings and the grass
   // near structures move on it.
   grammarTime = 0;
 
@@ -1163,7 +1163,7 @@ export class SpaceView {
       landmark.beam.material.opacity = 0.32 * k;
       landmark.flare.material.opacity = k;
       landmark.beam.visible = landmark.flare.visible = k > 0.01;
-      // The Pale Signal's grammar: concentric rings breathing in step,
+      // The signal grammar: concentric rings breathing in step,
       // every structure on the same narrow-band clock.
       landmark.rings.forEach((ring, i) => {
         const phase = this.grammarTime * 1.4 - i * 0.55;

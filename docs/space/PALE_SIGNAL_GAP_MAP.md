@@ -1,5 +1,7 @@
 # Pale Signal — gap map (prototype → engine, 0.76.0)
 
+> **Pale Signal was retired as a game in 0.86.0** ([F86](../changelog/F86.md)). Its systems stay in the engine: spaceflight and planets (`SpaceSystem`, `Spaceship`, the editor's **Star System** template), `Scannable`, `Site`, `Routine` and `Wildlife`. This document is kept as the design record.
+
 What the [Pale Signal](https://github.com/Islandyout/pale-signal) prototype has, compared with what the game on this engine has as of 0.76.0 ([PALE_SIGNAL_SLICE.md](PALE_SIGNAL_SLICE.md)). The first version of this map (0.72.0) listed 53 gaps. 0.73.0 worked through all seven phases it proposed, 0.74.0 closed the terrain, rotation, landing and Talari gaps, and 0.75.0 closed the rest; PWA/Android packaging was replaced by holding 45–60 fps everywhere (the frame governor).
 
 **Sources inventoried:**

@@ -13,7 +13,7 @@ its changelog in `docs/changelog/`.
 - `third_party/lua`: vendored Lua 5.4; changes there are marked `engine:`.
 - `games/`: each folder is a game in the editor's Games library
   (`games/my-games/velocity` is VELOCITY).
-- `tools/`: scene builders (`tools/gatebreaker`, `tools/space`, ...) and generators.
+- `tools/`: scene builders (`tools/gatebreaker`, `tools/city`, ...) and generators.
 - `tests/`: native tests (`*_tests.cpp`) and browser tests (`tests/browser/*.cjs`).
 
 ## Build and test
@@ -31,7 +31,7 @@ Generated files, regenerate rather than hand-edit:
 - `apps/editor/src/editor/runtimeExports.ts`: `node tools/bridge/gen_exports.mjs`
 - Lua API docs and stubs: `node tools/script_api/gen.mjs` (`--check` in CI)
 - `docs/COMPONENTS.md`: `cd apps/editor && npx tsx ../../tools/docs/gen_components.ts`
-- Game scenes: `cd apps/editor && npm run gatebreaker` (and `fps`, `space`, `racing`, `velocity`, `city`)
+- Game scenes: `cd apps/editor && npm run gatebreaker` (and `fps`, `racing`, `velocity`, `city`)
 
 ## Rules
 
