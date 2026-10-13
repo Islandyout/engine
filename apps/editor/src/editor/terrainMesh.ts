@@ -101,6 +101,32 @@ export function disposeTerrainMesh(mesh: THREE.Mesh) {
 
 export interface ScatterModel {
   scene: THREE.Object3D;
+  // The model's distant version (a "LOD1" node in its GLB), if it has one.
+  far?: THREE.Object3D;
+}
+
+// Within this many metres of the camera (to a chunk's nearest edge), a chunk
+// draws its models' full detail; past it, their far versions.
+export const lodDistance = 60;
+const lodChunks = new Set<THREE.Group>();
+
+// Shows each live chunk's near or far meshes for where the camera is, and
+// forgets chunks no longer in a scene.
+export function updateScatterLod(camera: THREE.Vector3) {
+  for (const chunk of lodChunks) {
+    let top: THREE.Object3D = chunk;
+    while (top.parent) top = top.parent;
+    if (!(top as THREE.Scene).isScene) {
+      if (!chunk.parent) lodChunks.delete(chunk);
+      continue;
+    }
+    const { x0, z0, x1, z1 } = chunk.userData.lodBounds as { x0: number; z0: number; x1: number; z1: number };
+    const p = chunk.getWorldPosition(new THREE.Vector3());
+    const dx = Math.max(x0 + p.x - camera.x, 0, camera.x - (x1 + p.x));
+    const dz = Math.max(z0 + p.z - camera.z, 0, camera.z - (z1 + p.z));
+    const near = Math.hypot(dx, dz) < lodDistance;
+    for (const child of chunk.children) child.visible = (child.userData.lod === 1) !== near;
+  }
 }
 
 // One InstancedMesh per mesh of each model, with every instance standing on
@@ -135,7 +161,9 @@ export function buildScatter(instances: ScatterInstance[], models: Map<number, S
     up = new THREE.Vector3(0, 1, 0);
   for (const [id, all] of byModel) {
     const root = models.get(id)!.scene;
+    const far = models.get(id)!.far;
     root.updateMatrixWorld(true);
+    far?.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(root);
     const bottom = bounds.min.y;
     // Small props (bushes, small rocks) don't cast shadows: they cost a full
@@ -151,11 +179,27 @@ export function buildScatter(instances: ScatterInstance[], models: Map<number, S
     let chunks = chunkInstances(all, size);
     while (all.length / chunks.size < 32 && size < scatterChunkSize * 8) chunks = chunkInstances(all, (size *= 2));
     for (const list of chunks.values()) {
-      root.traverse((child) => {
+      // With a far version, a chunk is a group of both, switched by
+      // updateScatterLod (near until it's first run).
+      let parent: THREE.Object3D = group;
+      if (far) {
+        const chunk = new THREE.Group();
+        const x0 = Math.min(...list.map((i) => i.x)), x1 = Math.max(...list.map((i) => i.x));
+        const z0 = Math.min(...list.map((i) => i.z)), z1 = Math.max(...list.map((i) => i.z));
+        chunk.userData.lodBounds = { x0, z0, x1, z1 };
+        lodChunks.add(chunk);
+        group.add(chunk);
+        parent = chunk;
+      }
+      const place = (child: THREE.Object3D, lod: number) => {
         if (!(child instanceof THREE.Mesh)) return;
         const instanced = new THREE.InstancedMesh(child.geometry, child.material, list.length);
         instanced.userData.instances = list;
         instanced.userData.chunkSize = size;
+        if (far) {
+          instanced.userData.lod = lod;
+          instanced.visible = lod === 0;
+        }
         instanced.castShadow = castShadow;
         instanced.receiveShadow = true;
         list.forEach((instance, i) => {
@@ -170,18 +214,21 @@ export function buildScatter(instances: ScatterInstance[], models: Map<number, S
         });
         instanced.instanceMatrix.needsUpdate = true;
         instanced.computeBoundingSphere();
-        group.add(instanced);
-      });
+        parent.add(instanced);
+      };
+      root.traverse((child) => place(child, 0));
+      far?.traverse((child) => place(child, 1));
     }
   }
   return group;
 }
 
-// A trunk-sized collision box for a scattered instance: a quarter of the
-// model's footprint wide, its full height tall, standing on the ground.
+// A collision box for a scattered instance: a quarter of the model's
+// footprint wide (a trunk rule: a twentieth of its height, 0.3-1.2 m), its
+// full height tall, standing on the ground.
 export function scatterObstacle(instance: ScatterInstance, nativeSize: THREE.Vector3 | undefined) {
   const size = nativeSize ?? new THREE.Vector3(2, 4, 2);
-  const width = Math.max(0.2, Math.min(size.x, size.z) * 0.25 * instance.scale);
   const height = size.y * instance.scale;
+  const width = instance.trunk ? Math.min(1.2, Math.max(0.3, height * 0.05)) : Math.max(0.2, Math.min(size.x, size.z) * 0.25 * instance.scale);
   return { x: instance.x, y: instance.y + height / 2, z: instance.z, sx: width, sy: height, sz: width };
 }

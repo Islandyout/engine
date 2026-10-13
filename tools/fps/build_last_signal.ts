@@ -202,10 +202,10 @@ add("Valley", [0, 0, 0], {
     snowHeight: 60,
     rockSlope: 0.82,
     scatter: [
-      "46 0.0012 0.8 1.3 0.85 collide",
-      "47 0.0008 0.8 1.2 0.85 collide",
-      "49 0.0022 0.9 1.5 0.8 collide",
-      "50 0.0016 0.9 1.4 0.8 collide",
+      "255 0.0012 0.55 0.85 0.85 trunk",
+      "256 0.0008 0.45 0.7 0.85 trunk",
+      "259 0.0022 0.55 0.95 0.8 trunk",
+      "260 0.0016 0.9 1.4 0.8 trunk",
       "42 0.0007 0.7 1.6 0.6 collide",
       "43 0.0012 0.8 1.3 0.6 collide",
       "37 0.004 0.8 1.3 0.8",
@@ -372,7 +372,7 @@ add("Uplink Hum", [UPLINK[0], PAD + 1, UPLINK[2]], {
 
 // The checkpoint on the approach road.
 const cp = CHECKPOINT_Z;
-model("Checkpoint Truck", 96, [2.33, 1.96, 5.44], 5.5, cp - 1, 1, { yaw: 0.25 });
+model("Checkpoint Truck", 234, [2.0, 1.89, 5.3], 5.5, cp - 1, 1, { yaw: 0.25 });
 sandbags(-5, cp - 3, 4);
 sandbags(-8, cp + 1, 3, Math.PI / 2);
 barrier(-1.5, cp - 6, 0);
@@ -381,8 +381,8 @@ model("Checkpoint Sign", 86, [0.93, 2.66, 0.21], -7, cp - 6, 1, { collide: false
 model("Checkpoint Lamp", 36, [2.4, 9, 0.5], 9, cp + 4, 0.8, { collide: false });
 block("Checkpoint Hut", -11, cp - 2, [4, 2.8, 3.4], "#77705f");
 // Wreckage along the road to break sight lines.
-model("Wreck Truck", 92, [2.36, 3.51, 6.85], -6, 86, 1, { yaw: 1.2 });
-model("Wreck Trailer", 99, [2.53, 4.22, 13.64], 11, 44, 1, { yaw: -0.4 });
+model("Wreck Truck", 228, [2.3, 3.29, 6.0], -6, 86, 1, { yaw: 1.2 });
+model("Wreck Bus", 231, [2.5, 3.74, 12.0], 11, 44, 1, { yaw: -0.4 });
 for (let i = 0; i < 6; i++) model("Pole", 36, [2.4, 9, 0.5], -7.5, 100 - i * 16, 0.85, { collide: false });
 
 // Landing zone: a pad, green signal smoke and a beacon.

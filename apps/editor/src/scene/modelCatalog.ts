@@ -26,8 +26,18 @@ export interface CatalogEntry {
 // so a comment placed between the brackets becomes a bogus, comma-bearing
 // "entry" of its own and corrupts every id parsed after it into NaN.
 export const retiredCatalogIds: readonly number[] = [
-  119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 137,
+  45, 46, 47, 48, 49, 50, 51, 52, 53, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 137,
 ];
+
+// The Aether kit's toy-like trees (45-53), vehicles (91-104) and animals
+// (105-118) are retired for realistic ones (docs/changelog/F86.md). A saved
+// scene still naming one draws its replacement here, with a note in the log
+// (main.ts catalogEntry); the four birds have no replacement and stay boxes.
+export const catalogReplacements: Readonly<Record<number, number>> = {
+  45: 258, 46: 255, 47: 256, 48: 257, 49: 259, 50: 260, 51: 257, 52: 257, 53: 257,
+  91: 229, 92: 228, 93: 231, 94: 220, 95: 227, 96: 234, 97: 235, 98: 219, 99: 228, 100: 228, 101: 222, 102: 223, 103: 224, 104: 227,
+  105: 243, 107: 236, 109: 238, 110: 243, 111: 239, 112: 240, 113: 136, 115: 241, 116: 237, 118: 136,
+};
 
 export const modelCatalog: CatalogEntry[] = [
   { id: 2, category: "buildings", name: "Apartment 1", path: "./kit/buildings/apartment-1.glb" },
@@ -81,15 +91,6 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 42, category: "nature", name: "Rock Large", path: "./kit/nature/rock-large.glb" },
   { id: 43, category: "nature", name: "Rock Medium", path: "./kit/nature/rock-medium.glb" },
   { id: 44, category: "nature", name: "Rock Small", path: "./kit/nature/rock-small.glb" },
-  { id: 45, category: "nature", name: "Tree Banana", path: "./kit/nature/tree-banana.glb" },
-  { id: 46, category: "nature", name: "Tree Broadleaf 1", path: "./kit/nature/tree-broadleaf-1.glb" },
-  { id: 47, category: "nature", name: "Tree Broadleaf 2", path: "./kit/nature/tree-broadleaf-2.glb" },
-  { id: 48, category: "nature", name: "Tree Broadleaf 3", path: "./kit/nature/tree-broadleaf-3.glb" },
-  { id: 49, category: "nature", name: "Tree Conifer 1", path: "./kit/nature/tree-conifer-1.glb" },
-  { id: 50, category: "nature", name: "Tree Conifer 2", path: "./kit/nature/tree-conifer-2.glb" },
-  { id: 51, category: "nature", name: "Tree Palm 1", path: "./kit/nature/tree-palm-1.glb" },
-  { id: 52, category: "nature", name: "Tree Palm 2", path: "./kit/nature/tree-palm-2.glb" },
-  { id: 53, category: "nature", name: "Tree Palm 3", path: "./kit/nature/tree-palm-3.glb" },
   { id: 54, category: "roads", name: "Road Bend", path: "./kit/roads/road-bend.glb" },
   { id: 55, category: "roads", name: "Road Bridge", path: "./kit/roads/road-bridge.glb" },
   { id: 56, category: "roads", name: "Road Cross Crossing", path: "./kit/roads/road-cross-crossing.glb" },
@@ -127,34 +128,6 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 88, category: "signs", name: "Signal Mast", path: "./kit/signs/signal-mast.glb" },
   { id: 89, category: "signs", name: "Signal Pedestrian", path: "./kit/signs/signal-pedestrian.glb" },
   { id: 90, category: "signs", name: "Signal Post", path: "./kit/signs/signal-post.glb" },
-  { id: 91, category: "vehicles", name: "Ambulance", path: "./kit/vehicles/ambulance.glb" },
-  { id: 92, category: "vehicles", name: "Boxtruck", path: "./kit/vehicles/boxtruck.glb" },
-  { id: 93, category: "vehicles", name: "Bus", path: "./kit/vehicles/bus.glb" },
-  { id: 94, category: "vehicles", name: "Hatchback", path: "./kit/vehicles/hatchback.glb" },
-  { id: 95, category: "vehicles", name: "Minibus", path: "./kit/vehicles/minibus.glb" },
-  { id: 96, category: "vehicles", name: "Pickup", path: "./kit/vehicles/pickup.glb" },
-  { id: 97, category: "vehicles", name: "Police", path: "./kit/vehicles/police.glb" },
-  { id: 98, category: "vehicles", name: "Sedan", path: "./kit/vehicles/sedan.glb" },
-  { id: 99, category: "vehicles", name: "Semi Trailer", path: "./kit/vehicles/semi-trailer.glb" },
-  { id: 100, category: "vehicles", name: "Semi", path: "./kit/vehicles/semi.glb" },
-  { id: 101, category: "vehicles", name: "Sports", path: "./kit/vehicles/sports.glb" },
-  { id: 102, category: "vehicles", name: "Suv", path: "./kit/vehicles/suv.glb" },
-  { id: 103, category: "vehicles", name: "Taxi", path: "./kit/vehicles/taxi.glb" },
-  { id: 104, category: "vehicles", name: "Van", path: "./kit/vehicles/van.glb" },
-  { id: 105, category: "animals", name: "Cat", path: "./kit/animals/cat.glb", animated: true },
-  { id: 106, category: "animals", name: "Chicken", path: "./kit/animals/chicken.glb", animated: true },
-  { id: 107, category: "animals", name: "Cow", path: "./kit/animals/cow.glb", animated: true },
-  { id: 108, category: "animals", name: "Crow", path: "./kit/animals/crow.glb", animated: true },
-  { id: 109, category: "animals", name: "Deer", path: "./kit/animals/deer.glb", animated: true },
-  { id: 110, category: "animals", name: "Dog", path: "./kit/animals/dog.glb", animated: true },
-  { id: 111, category: "animals", name: "Donkey", path: "./kit/animals/donkey.glb", animated: true },
-  { id: 112, category: "animals", name: "Fox", path: "./kit/animals/fox.glb", animated: true },
-  { id: 113, category: "animals", name: "Goat", path: "./kit/animals/goat.glb", animated: true },
-  { id: 114, category: "animals", name: "Gull", path: "./kit/animals/gull.glb", animated: true },
-  { id: 115, category: "animals", name: "Horse", path: "./kit/animals/horse.glb", animated: true },
-  { id: 116, category: "animals", name: "Pig", path: "./kit/animals/pig.glb", animated: true },
-  { id: 117, category: "animals", name: "Pigeon", path: "./kit/animals/pigeon.glb", animated: true },
-  { id: 118, category: "animals", name: "Sheep", path: "./kit/animals/sheep.glb", animated: true },
   // Ids 119-131 (Hero, procedurally-generated Aether kit Npc *) were removed in
   // 0.37.0, making way for an imported, skeleton-rigged character pack -- see
   // assets/CREDITS.md. Not reused: a future import gets its own fresh ids rather
@@ -278,6 +251,37 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 233, category: "vehicles", name: "Bicycle (city)", path: "./kit/vehicles/bicycle-city.glb" },
   { id: 234, category: "vehicles", name: "Pickup truck", path: "./kit/vehicles/pickup-truck.glb" },
   { id: 235, category: "vehicles", name: "Police car", path: "./kit/vehicles/police-car.glb" },
+  // Realistic animals (Quaternius, Ultimate Animated Animals, CC0) and
+  // pedestrians (Quaternius, Ultimate Modular Men and Animated Women, CC0),
+  // baked to real size by tools/models/import_creatures.mjs; trees made with
+  // ez-tree (MIT) by tools/models/make_trees.mjs, each with a far version.
+  // See assets/CREDITS.md.
+  { id: 236, category: "animals", name: "Cow", path: "./kit/animals/cow.glb", animated: true },
+  { id: 237, category: "animals", name: "Bull", path: "./kit/animals/bull.glb", animated: true },
+  { id: 238, category: "animals", name: "Deer", path: "./kit/animals/deer.glb", animated: true },
+  { id: 239, category: "animals", name: "Donkey", path: "./kit/animals/donkey.glb", animated: true },
+  { id: 240, category: "animals", name: "Fox", path: "./kit/animals/fox.glb", animated: true },
+  { id: 241, category: "animals", name: "Horse", path: "./kit/animals/horse.glb", animated: true },
+  { id: 242, category: "animals", name: "Horse (white)", path: "./kit/animals/horse-white.glb", animated: true },
+  { id: 243, category: "animals", name: "Dog (Shiba Inu)", path: "./kit/animals/shiba-inu.glb", animated: true },
+  { id: 244, category: "people", name: "Man (business)", path: "./kit/people/man-business.glb", animated: true },
+  { id: 245, category: "people", name: "Man (beach)", path: "./kit/people/man-beach.glb", animated: true },
+  { id: 246, category: "people", name: "Man (farmer)", path: "./kit/people/man-farmer.glb", animated: true },
+  { id: 247, category: "people", name: "Man (hoodie)", path: "./kit/people/man-hoodie.glb", animated: true },
+  { id: 248, category: "people", name: "Man (worker)", path: "./kit/people/man-worker.glb", animated: true },
+  { id: 249, category: "people", name: "Man (casual)", path: "./kit/people/man-casual.glb", animated: true },
+  { id: 250, category: "people", name: "Man (punk)", path: "./kit/people/man-punk.glb", animated: true },
+  { id: 251, category: "people", name: "Woman (casual)", path: "./kit/people/woman-casual.glb", animated: true },
+  { id: 252, category: "people", name: "Woman (dress)", path: "./kit/people/woman-dress.glb", animated: true },
+  { id: 253, category: "people", name: "Woman (street)", path: "./kit/people/woman-street.glb", animated: true },
+  { id: 254, category: "people", name: "Woman (tank top)", path: "./kit/people/woman-tank-top.glb", animated: true },
+  { id: 255, category: "nature", name: "Tree: oak", path: "./kit/nature/eztree-oak.glb" },
+  { id: 256, category: "nature", name: "Tree: ash", path: "./kit/nature/eztree-ash.glb" },
+  { id: 257, category: "nature", name: "Tree: aspen", path: "./kit/nature/eztree-aspen.glb" },
+  { id: 258, category: "nature", name: "Tree: young street tree", path: "./kit/nature/eztree-street-young.glb" },
+  { id: 259, category: "nature", name: "Tree: pine", path: "./kit/nature/eztree-pine.glb" },
+  { id: 260, category: "nature", name: "Tree: pine (small)", path: "./kit/nature/eztree-pine-small.glb" },
+  { id: 261, category: "nature", name: "Bush (leafy)", path: "./kit/nature/eztree-bush.glb" },
 ];
 
 export const catalogCategories = Array.from(

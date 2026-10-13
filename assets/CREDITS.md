@@ -572,3 +572,111 @@ Final sizes (length x width x height, metres) and result SHA-256:
 - `limousine.glb` (6.40 x 1.76 x 1.26): `f9b9b8362913c2cdff7693a19606643e3063730f1761de11540374a547a5260f`
 - `pickup-truck.glb` (5.30 x 2.00 x 1.89): `01b9ce7b4c38b567a3b850c75f112693d6f1d98c438bf292495f4632554f7eab`
 - `police-car.glb` (4.80 x 1.95 x 1.59): `0c3cbb56ef35e80a2206b05253fc860b3bcedf451cd2da47ab08f7a10f58bbf9`
+
+## Realistic animals, pedestrians and trees (catalog ids 236-261)
+
+These replace the Aether kit's toy-like trees (ids 45-53), vehicles (91-104, replaced by ids
+219-235 above) and animals (105-118): those 37 files are no longer in this repository, and
+`apps/editor/src/scene/modelCatalog.ts` maps each retired id to its replacement for older
+scenes (the kit row at the top of this file still covers the kit's remaining files).
+
+### Animals: `source/kit/animals/{cow,bull,deer,donkey,fox,horse,horse-white,shiba-inu}.glb`
+
+**Quaternius, Ultimate Animated Animals (July 2021)**, CC0 1.0
+(https://quaternius.com/packs/ultimateanimatedanimals.html), the pack's `glTF/` folder, from
+https://github.com/Fialuxe/MouthOfGod_System @ `459315233b3f787176e1e6d6585694b277be3610`
+(`refs/pull/169/head`; `Assets/ArtisticResources/ThirdParty/Quaternius/Ultimate Animated Animals - July 2021/`,
+with the pack's own `License.txt`, "LowPoly Models by @Quaternius ... CC0 1.0 Universal",
+SHA-256 `20b983ae0e2e555817495a65c37519bfcb2231825269db6a57d72c51ed6006e3`). The repository's
+existing wolf, husky, stag and alpaca (ids 133-136, above) come from the same pack.
+
+### People: `source/kit/people/{man-business,man-beach,man-farmer,man-hoodie,man-worker,man-casual,man-punk,woman-casual,woman-dress,woman-street,woman-tank-top}.glb`
+
+From https://github.com/schulerj89/vanta-city @ `a3fbd53398d6712742f34170a54cb450c90b1f80`, whose
+READMEs record each Poly Pizza download and its hash, with the CC0 1.0 legal code beside the
+models (`LICENSE-CC0-1.0.txt`, SHA-256 `a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499`):
+- **Quaternius, Ultimate Modular Men Pack**, CC0 1.0 (https://poly.pizza/bundle/Ultimate-Modular-Men-Pack-ZiH8muWqwQ):
+  `public/assets/characters/cc0-animated-cast/` and `public/assets/characters/ultimate-modular-men/`.
+- **Quaternius, Animated Women Pack**, CC0 1.0: `public/assets/characters/animated-women/`.
+
+What `tools/models/import_creatures.mjs` changes: only the clips the editor plays are kept,
+renamed to this project's names (`idle`, `walk`, `run`, and `graze`, `talk`, `sit` where the
+source has them; see the tool for the full list); each skinned mesh's rest pose is baked into
+its vertices (with inverse bind matrices to match) and the rig scaled uniformly to a real size
+(animals by nose-to-tail length, people by height), standing on y = 0, centred on x/z.
+Shapes and colours are unmodified. The results are CC0 like their sources.
+
+Source files (SHA-256; the tool refuses a source whose hash differs):
+- `glTF/Cow.gltf`: `b04af067688d9fadf1395b4456dbf3117c2f760fb49e704ee5c8b6391fc8adb5`
+- `glTF/Bull.gltf`: `535da2992eb125d517725159a2eddeb520b72595bcb3021985fc43d2c84bff76`
+- `glTF/Deer.gltf`: `b8afd0647e7a74332ce802c8326dfefe1a2b76da67ab925a631aaddb5ae9bdd4`
+- `glTF/Donkey.gltf`: `4cbb2eb7d057789c945b6445d99d0c73b76c0caf7ac9b37ce88a04ca718be2ff`
+- `glTF/Fox.gltf`: `2f36e3c9c75ecddda85c5f9944e98ee1e88e7c679a546534aff1cea8ecde64c7`
+- `glTF/Horse.gltf`: `3deb61550dff1d2786d04b6e8559d63ad3907d6ab606ba28ce0af074ed96341b`
+- `glTF/Horse_White.gltf`: `f137ee67bd565244f7441f35b5594a597588cda8b60ab109e2041cf13c58e1dd`
+- `glTF/ShibaInu.gltf`: `3236979b94a840eb72d9ce091b1361da327a96f5ce068e666680297480f30f6b`
+- `cc0-animated-cast/business-man.glb`: `82b81257c1e94cd9ee48cb1dcbe5ff506e81c9ce67cd0c5af542d8712dca546e`
+- `cc0-animated-cast/beach-character.glb`: `67c366f8c1e9ba3d3767213bc8660579a4f8028ed647a33c53d05596e8dd888c`
+- `cc0-animated-cast/farmer.glb`: `f7ae6e2596c6521d296fa5948783f1dac717807456ce5355e48719e81d15e9a6`
+- `cc0-animated-cast/hoodie-character.glb`: `0de1bcd789d409214cf82f66f61daeb53d2f7de6d914b23e7b3660bfb3dee61e`
+- `cc0-animated-cast/worker.glb`: `9c28614f465b7dc105f908c20c22fc045f4b07caf8c5ef0e9f8049eceb6dd38d`
+- `ultimate-modular-men/casual-character.glb`: `fea7e71271203e7073f1a073fa1208de7402df276f87f80e149bf7589b5d46b4`
+- `ultimate-modular-men/punk-character.glb`: `94afa8718093cc7f9e51cdc0b35f4432c1c2f1901177f98fbbbcb4c6fd79b163`
+- `animated-women/casual.glb`: `99c4df0aaabd19022809facc68f5fb5f564d35df3a9893c273a31fdaacf68e96`
+- `animated-women/dress.glb`: `53db49ba84193beb60173e94396764c86f7805752582a81dfdfd7f0889a10783`
+- `animated-women/street.glb`: `bae371b11e0dcd5dbd26442025567ca9f7041781f3410259d6ec379bffcbac27`
+- `animated-women/tank-top.glb`: `9809532f4562ebfd3976bd96eeebd1efc1008d781aa71a15048db5bf5ae7344c`
+
+Results (length x width x height in metres, triangles; SHA-256):
+animals/cow.glb (2.50 x 0.72 x 1.42, 2450 triangles, 1303 KB, clips Death graze run idle Idle_Headlow walk): 66e0bcd2372e561b2ca60685a3800e82d9198388520ca07b79776608f17ba8f4
+animals/bull.glb (2.70 x 0.84 x 1.54, 2418 triangles, 1299 KB, clips Death graze run idle Idle_Headlow walk): 0822e5e8c4d77e3e70f2f2ca3956c119fc7b1be2ea195ddb4d56d6e305979a17
+animals/deer.glb (1.80 x 0.60 x 1.75, 2098 triangles, 1367 KB, clips Death graze run idle Idle_Headlow walk): da43ba46c553d9e5ee5e871b10dc3eea9daff72763fccfa9fccd8fb70186d099
+animals/donkey.glb (2.00 x 0.50 x 1.68, 2000 triangles, 1417 KB, clips Death graze run idle Idle_Headlow walk): 945ddf7e593d83f712d1e4ba130498a67a991fa555b6312f2b34d350beade160
+animals/fox.glb (1.10 x 0.21 x 0.52, 1848 triangles, 972 KB, clips Death graze run idle walk): 14c4f6af03e8e78d466d6a73ca408a88bdba2e308e254ab05b897412ef81034e
+animals/horse.glb (2.50 x 0.62 x 2.12, 2182 triangles, 1445 KB, clips Death graze run idle Idle_Headlow walk): 356d42cb836c22d35938e429f3645918fb60f55e3c178c50e0cf6b03fdd13240
+animals/horse-white.glb (2.50 x 0.62 x 2.12, 2182 triangles, 1444 KB, clips Death graze run idle Idle_Headlow walk): 519056d7e5f774e0b3a144a7235bfaad453eed81a890e02706b491b752ffdaf8
+animals/shiba-inu.glb (0.80 x 0.21 x 0.59, 1950 triangles, 927 KB, clips Death graze run idle walk): 55115ddda969239dddd3b63f00200e3fa6cf02f8d029be65ec33461a8da9d9ce
+people/man-business.glb (0.63 x 0.60 x 1.80, 6634 triangles, 1292 KB, clips Death HitRecieve idle talk run walk Wave): 2632e32d5848e3cc95dbbb1cad1e4d5b87506b6226bf2c1e24974200d0a57378
+people/man-beach.glb (0.61 x 0.58 x 1.76, 6574 triangles, 1268 KB, clips Death HitRecieve idle talk run walk Wave): bf2e4534b64c61e0b7fc4748723c9c0b5f6e25d7c76ae690d377d9cc1e718df5
+people/man-farmer.glb (0.62 x 0.59 x 1.78, 5476 triangles, 1082 KB, clips Death HitRecieve idle talk run walk Wave): 98a8a4cb79b3320495488fc60a30efe5c0c53baa2e0ae9b48a09f9454a7e0037
+people/man-hoodie.glb (0.61 x 0.59 x 1.75, 6206 triangles, 1202 KB, clips Death HitRecieve idle talk run walk Wave): 06f8f19932e85f280bd62dcbe03156f00d7a4c8c5b85f825ef1b1fdef3257b9b
+people/man-worker.glb (0.63 x 0.60 x 1.82, 5240 triangles, 1046 KB, clips Death HitRecieve idle talk run walk Wave): b8d451b388d1b52d593aba167d52e665d9270fb8c599d601fb25118635ea698b
+people/man-casual.glb (0.63 x 0.59 x 1.78, 5776 triangles, 1156 KB, clips Death HitRecieve idle talk run walk Wave): 6f09dd6f86fe844a533e47ea7afc06c3def2eb56d38cb3eeee0b242a41873cc2
+people/man-punk.glb (0.59 x 0.55 x 1.77, 5500 triangles, 1087 KB, clips Death HitRecieve idle talk run walk Wave): 0ef7fbcb431691946a8ededa5ccbae5640a1a4824b625326db03b93d4494ec22
+people/woman-casual.glb (0.29 x 0.50 x 1.66, 2776 triangles, 619 KB, clips Clapping Death idle run sit walk): d4e6ca18d6921f7e7ad60a6f77dfcfdc8c80de03b4eb4dd65e28f577e76ac556
+people/woman-dress.glb (0.43 x 0.49 x 1.64, 1786 triangles, 471 KB, clips Clapping Death idle run sit walk): 62f6f0a7c937ec3e0be04244f9c6620d322199a342b3d8fac54830dea33ec0a7
+people/woman-street.glb (0.29 x 0.51 x 1.68, 2004 triangles, 510 KB, clips Clapping Death idle run sit walk): 3844ed7e6a63ea528c063bd74823fa3e461901be725a8d9f0ca845c011d499f3
+people/woman-tank-top.glb (0.29 x 0.50 x 1.65, 1983 triangles, 538 KB, clips Clapping Death idle run sit walk): 1ea869556a7b73542f05d2529f18c6b1ed3afa6dc3d5850bb0472d6bc2637f9d
+
+### Trees: `source/kit/nature/eztree-{oak,ash,aspen,street-young,pine,pine-small,bush}.glb`
+
+Made by `tools/models/make_trees.mjs` with **ez-tree** by Daniel Greenheck (MIT; the notice is
+`third_party/ez-tree/LICENSE`, shipped with the editor as `EZ-TREE-LICENSE.txt`), from the
+`@dgreenheck/ez-tree` 1.1.0 npm package (https://www.npmjs.com/package/@dgreenheck/ez-tree;
+`dgreenheck-ez-tree-1.1.0.tgz`, SHA-256 `4147b49d22b01f09c9d7f3c3c34f788ad37841103a758da25e399af3cbce2f98`).
+Each tree is grown from one of the package's presets with fewer sides and leaf cards, scaled
+to a real height, and holds two models: `LOD0` and a far `LOD1` (a branch level fewer and
+bigger cards) that the editor draws for instances past 60 m. The embedded images are the
+package's own: bark colour maps (its `src/lib/assets/bark/README.md` names the sources:
+Oak, https://polyhaven.com/a/bark_brown_02, and Willow, https://polyhaven.com/a/bark_willow_02,
+both CC0; Birch, https://www.texturecan.com/details/221/, and Pine,
+https://www.texturecan.com/details/588/, CC0) and leaf cards (part of the MIT package).
+
+Images embedded (SHA-256, checked by the tool):
+- `src/lib/assets/bark/oak_color_1k.jpg`: `053794dc9d3d5c39fc00f2d0f0fc5f6f5c9b81b58c016af26c4aba0335d01722`
+- `src/lib/assets/bark/pine_color_1k.jpg`: `01389d2297e901a583d3d3f824c829689fce8afcffcb0eaabcb666688a781e70`
+- `src/lib/assets/bark/birch_color_1k.jpg`: `aba7bb86f3d85abffe564c04990c8cfe3d341eea51739e7d48210cc3f550dc2a`
+- `src/lib/assets/bark/willow_color_1k.jpg`: `25d93112579146c55fa51cbf9749ef1de36a97f7620b9f5dc4ce5f5a9ab0f04e`
+- `src/lib/assets/leaves/oak_color.png`: `24451223cf396d22910a4932b8bb996a7274e63d81e24128c96a430ab67822b1`
+- `src/lib/assets/leaves/ash_color.png`: `5ec987db3829a839856c32c79b18a33a78f209e911cad55c65abfb77f30e2d29`
+- `src/lib/assets/leaves/aspen_color.png`: `6c8cbfa3eda0f070df6ebb3c8ec6899400f3c966d1658fcfd9ae518347c2dcb9`
+- `src/lib/assets/leaves/pine_color.png`: `88be36a2387554ac4b7c7d1549eae454a37ad896e8e33a7d6ae5956bd169ab08`
+
+Results (near / far triangles; SHA-256):
+- `eztree-oak.glb` (Oak Medium, 11.8 x 13.0 x 12.0 m, 7542 / 1580 triangles): `ceb0630fd5245701423fab9e012d2c1370c583093c8e6ba8ea9c135fc6b6083e`
+- `eztree-ash.glb` (Ash Medium, 14.0 x 15.0 x 10.8 m, 7312 / 1792 triangles): `3081100b689cb3189a8fe794e61a9d42be2c5529ae296e3572fd554f986ec732`
+- `eztree-aspen.glb` (Aspen Medium, 7.2 x 14.0 x 7.3 m, 3562 / 552 triangles): `3236cfe0b28221d8713e5bfc547192dcd994a378d520339e9920ca67a6a31d24`
+- `eztree-street-young.glb` (Oak Small, 5.4 x 7.0 x 5.4 m, 3974 / 816 triangles): `41ffd4c929e99f345e7157d6ebea6354d9f2a82816e7b30b3d49168f58cdfef5`
+- `eztree-pine.glb` (Pine Medium, 9.7 x 16.0 x 10.6 m, 7452 / 1500 triangles): `afeecf9ec70d99129b1040e0ac7c000f8bd657cec88418600ef898c25adbf108`
+- `eztree-pine-small.glb` (Pine Small, 3.2 x 7.0 x 3.1 m, 6420 / 1298 triangles): `8e85ef4203c361864a79cb42c1ee8a7338a6895df58a4d6f10db5c9f80393286`
+- `eztree-bush.glb` (Bush 2, 1.8 x 1.6 x 1.7 m, 2236 / 388 triangles): `6253b3d992d719f285e033739c51e485515ef524eab84136b76fcfa0f4827f36`

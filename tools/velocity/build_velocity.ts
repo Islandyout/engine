@@ -206,8 +206,8 @@ scene.prefab("Breakline", {
 // The runaway rig (Mission 2 and the Runaway Rig incident): a delivery van an
 // AI driver takes along the route the director gives it.
 scene.prefab("Runaway Rig", {
-  Scale: { value: vec(2.4, 2.86, 5.3) },
-  Renderable: { mesh: 104, material: 0, visible: true },
+  Scale: { value: vec(2.0, 2.29, 5.0) },
+  Renderable: { mesh: 227, material: 0, visible: true },
   RigidBody: { mass: 1800, dynamic: true },
   Collider: {},
   Vehicle: { model: "Arcade", topSpeed: 24, acceleration: 7, braking: 20, grip: 1.1, steering: 30, nitroBoost: 0, gears: 5 },

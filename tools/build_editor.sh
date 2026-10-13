@@ -37,6 +37,7 @@ cp -r assets/source/kit build/site/kit
 cp -r assets/source/audio build/site/audio
 cp assets/CREDITS.md build/site/ASSET-CREDITS.txt
 cp third_party/aether/LICENSE build/site/AETHER-LICENSE.txt
+cp third_party/ez-tree/LICENSE build/site/EZ-TREE-LICENSE.txt
 # Every game under games/ (LAST SIGNAL, HIGH HEAT, Pale Signal and any you add;
 # see games/README.md) as <folder>.html next to the editor, plus games.json for
 # the editor's Games library.

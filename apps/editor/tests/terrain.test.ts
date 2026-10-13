@@ -65,10 +65,13 @@ test("sculpt offsets round-trip and brushes raise, lower, flatten and smooth", (
 });
 
 test("scatter rules parse, place deterministically on gentle slopes, and heights encode", () => {
-  const { rules, errors } = parseScatter("# trees\n46 0.002 0.8 1.4 0.9 collide\n42 0.001\nbad line here\n");
-  assert.equal(rules.length, 2);
-  assert.deepEqual(rules[0], { model: 46, density: 0.002, minScale: 0.8, maxScale: 1.4, maxSlope: 0.9, collide: true });
-  assert.deepEqual(rules[1], { model: 42, density: 0.001, minScale: 1, maxScale: 1, maxSlope: 0.8, collide: false });
+  const { rules, errors } = parseScatter("# trees\n46 0.002 0.8 1.4 0.9 collide\n42 0.001\nbad line here\n255 0.001 0.5 trunk\n");
+  assert.equal(rules.length, 3);
+  assert.deepEqual(rules[0], { model: 46, density: 0.002, minScale: 0.8, maxScale: 1.4, maxSlope: 0.9, collide: true, trunk: false });
+  assert.deepEqual(rules[1], { model: 42, density: 0.001, minScale: 1, maxScale: 1, maxSlope: 0.8, collide: false, trunk: false });
+  // "trunk" collides too, as a trunk rather than a quarter of the footprint.
+  assert.deepEqual(rules[2], { model: 255, density: 0.001, minScale: 0.5, maxScale: 0.5, maxSlope: 0.8, collide: true, trunk: true });
+  rules.pop();
   assert.equal(errors.length, 1);
   const heights = generateHeights(base);
   const a = scatterInstances(base, heights, rules);

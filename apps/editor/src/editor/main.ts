@@ -48,7 +48,7 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { LocalStorageSceneStore } from "../authoring/CommandInterpreter";
 import { EditorDocument } from "./Document";
-import { modelCatalog, catalogCategories } from "../scene/modelCatalog";
+import { modelCatalog, catalogCategories, catalogReplacements, retiredCatalogIds } from "../scene/modelCatalog";
 import { soundCatalog } from "../scene/soundCatalog";
 import { pickClipName, groundSpeed } from "./animationClips";
 import { loadOnce } from "./loadOnce";
@@ -114,7 +114,7 @@ import {
   type BrushMode,
   type TerrainParams,
 } from "./terrain";
-import { buildScatter, buildTerrainMesh, disposeTerrainMesh, scatterObstacle, shapeTerrain, type TerrainLook } from "./terrainMesh";
+import { buildScatter, buildTerrainMesh, disposeTerrainMesh, scatterObstacle, shapeTerrain, updateScatterLod, type ScatterModel, type TerrainLook } from "./terrainMesh";
 import { defaultEnvironment } from "../authoring/CommandInterpreter";
 import "./style.css";
 
@@ -1513,6 +1513,8 @@ async function startEditor() {
     // their origin at their feet, so they're shifted by this to sit centered
     // on the entity's collision box.
     nativeCenter: THREE.Vector3;
+    // Its distant version, if the GLB has one (see loadCatalogModel).
+    far?: THREE.Object3D;
   }
   const catalogCache = new Map<number, CachedModel>();
   const catalogPromises = new Map<number, Promise<CachedModel>>();
@@ -1522,8 +1524,19 @@ async function startEditor() {
   // each rebuild() re-clones the whole scene, so N would be O(N) redundant
   // full-scene rebuilds for what is, functionally, one load finishing.
   const pendingCatalogRebuilds = new Set<number>();
+  // A retired id (a saved scene from before its model was replaced) draws
+  // its replacement, and says so once.
+  const retiredNoted = new Set<number>();
   function catalogEntry(meshId: number) {
-    return modelCatalog.find((m) => m.id === meshId);
+    const replacement = catalogReplacements[meshId];
+    if (replacement !== undefined && !retiredNoted.has(meshId)) {
+      retiredNoted.add(meshId);
+      log(`Model ${meshId} is retired: drawing ${replacement} (${modelCatalog.find((m) => m.id === replacement)?.name}) in its place.`);
+    } else if (replacement === undefined && retiredCatalogIds.includes(meshId) && !retiredNoted.has(meshId)) {
+      retiredNoted.add(meshId);
+      log(`Model ${meshId} is retired and has no replacement: it is drawn as a box.`);
+    }
+    return modelCatalog.find((m) => m.id === (replacement ?? meshId));
   }
   // Options for AnimationState.clip's inspector dropdown: this entity's own
   // Renderable model's clip names, not a fixed list -- unlike Sound.clip
@@ -1540,10 +1553,15 @@ async function startEditor() {
     let promise = catalogPromises.get(meshId);
     if (!promise) {
       promise = gltfLoader.loadAsync(entry.path).then((gltf) => {
+        // A model with a distant version (a root "LOD1" node, e.g. the
+        // trees): one instance draws the near one; instanced copies switch
+        // (terrainMesh.ts updateScatterLod).
+        const far = gltf.scene.children.find((child) => child.name === "LOD1");
+        if (far) gltf.scene.remove(far);
         const bounds = new THREE.Box3().setFromObject(gltf.scene);
         const nativeSize = bounds.getSize(new THREE.Vector3());
         const nativeCenter = bounds.getCenter(new THREE.Vector3());
-        const cached = { scene: gltf.scene, clips: gltf.animations, nativeSize, nativeCenter };
+        const cached = { scene: gltf.scene, far, clips: gltf.animations, nativeSize, nativeCenter };
         if (entry.animated) {
           markCharacter(gltf.scene);
           // Where its lowest foot bone stands in the rest pose, relative to
@@ -1871,7 +1889,7 @@ async function startEditor() {
         if (p) keep.push({ x: p.x, z: p.z, r: Math.max(size.x, size.z) * 0.75 + 3 });
       });
     const placed = spaceView.scatter(spaceSpecies, space.evaRange * 0.92, away ? 22 : 75, keep, qualityProfile(playerSettings.quality).scatter);
-    const models = new Map<number, { scene: THREE.Object3D }>();
+    const models = new Map<number, ScatterModel>();
     for (const p of placed) {
       const cached = catalogCache.get(p.species.model);
       if (cached) models.set(p.species.model, cached);
@@ -3739,7 +3757,7 @@ async function startEditor() {
   function buildInstancesObject(text: string): THREE.Object3D {
     const { instances, errors } = parseModelInstances(text);
     if (errors.length) log(`ModelInstances: ${errors.slice(0, 3).join("; ")}`);
-    const models = new Map<number, { scene: THREE.Object3D }>();
+    const models = new Map<number, ScatterModel>();
     for (const id of new Set(instances.map((i) => i.model))) {
       const cached = catalogCache.get(id);
       if (cached) models.set(id, cached);
@@ -3769,7 +3787,7 @@ async function startEditor() {
     const { rules, errors, exclusions } = parseScatter(t.scatter);
     if (errors.length) log(`Terrain scatter: ${errors.join("; ")}`);
     if (rules.length) {
-      const models = new Map<number, { scene: THREE.Object3D }>();
+      const models = new Map<number, ScatterModel>();
       for (const rule of rules) {
         const cached = catalogCache.get(rule.model);
         if (cached) models.set(rule.model, cached);
@@ -5532,6 +5550,7 @@ async function startEditor() {
       if (doc.mode === "play") updateScanner(dt, viewCamera);
     }
     updateSunShadow();
+    updateScatterLod(viewCamera.getWorldPosition(new THREE.Vector3()));
     renderPass.camera = viewCamera;
     if (gtaoPass) gtaoPass.camera = viewCamera;
     inkPass.camera = viewCamera;

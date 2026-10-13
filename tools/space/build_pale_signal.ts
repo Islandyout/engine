@@ -268,11 +268,11 @@ function routine(role: string, home: [number, number], work: [number, number], m
 // Wildlife prefabs (released by the director on other worlds) and herds.
 const FAUNA: Record<string, { mesh: number; scale: V3; species: string; name: string; tint?: string }> = {
   Grazer: { mesh: 135, scale: [0.7, 1.6, 1.8], species: "te_graze", name: "Flat Grazer" },
-  Skimmer: { mesh: 108, scale: [1.2, 0.8, 1.2], species: "te_skim", name: "Ridge Skimmer", tint: "#5b6f8a" },
-  Crawler: { mesh: 116, scale: [1.1, 0.8, 1.6], species: "ci_crawl", name: "Slag Crawler", tint: "#3a2018" },
+  Skimmer: { mesh: 238, scale: [0.55, 1.6, 1.65], species: "te_skim", name: "Ridge Skimmer", tint: "#5b6f8a" },
+  Crawler: { mesh: 237, scale: [0.6, 1.0, 1.75], species: "ci_crawl", name: "Slag Crawler", tint: "#3a2018" },
   Husk: { mesh: 136, scale: [0.9, 1.3, 1.5], species: "os_husk", name: "Dust Husk", tint: "#6f6555" },
-  Drifter: { mesh: 114, scale: [3.2, 1.6, 3.2], species: "ho_drift", name: "Mist Drifter", tint: "#3a6f8f" },
-  Strider: { mesh: 112, scale: [0.6, 0.9, 1.3], species: "ve_strider", name: "Rime Strider", tint: "#c9d8e6" },
+  Drifter: { mesh: 242, scale: [0.8, 2.75, 3.25], species: "ho_drift", name: "Mist Drifter", tint: "#3a6f8f" },
+  Strider: { mesh: 240, scale: [0.3, 0.7, 1.45], species: "ve_strider", name: "Rime Strider", tint: "#c9d8e6" },
   Watcher: { mesh: 133, scale: [0.8, 1.2, 1.7], species: "ne_watcher", name: "Pale Watcher", tint: "#b9a6e6" },
 };
 for (const [prefab, f] of Object.entries(FAUNA))
@@ -454,7 +454,11 @@ for (let i = 0; i < 520; i++) {
   const a = random() * Math.PI * 2, r = 50 + Math.sqrt(random()) * 950;
   const x = Math.cos(a) * r, z = Math.sin(a) * r;
   if (clear(x, z)) continue;
-  if (random() < 0.78) trees.push(`${pick([49, 50, 46, 47, 48])} ${x.toFixed(1)} ${z.toFixed(1)} ${Math.floor(random() * 360)} ${(0.8 + random() * 0.6).toFixed(2)}`);
+  // Each tree with its size factor (the catalog trees are real heights).
+  if (random() < 0.78) {
+    const [tree, factor] = pick([[259, 0.63], [260, 1], [255, 0.67], [256, 0.42], [257, 0.74]] as const);
+    trees.push(`${tree} ${x.toFixed(1)} ${z.toFixed(1)} ${Math.floor(random() * 360)} ${((0.8 + random() * 0.6) * factor).toFixed(2)}`);
+  }
   else rocks.push(`${pick([42, 43])} ${x.toFixed(1)} ${z.toFixed(1)} ${Math.floor(random() * 360)} ${(0.7 + random() * 1.4).toFixed(2)}`);
 }
 add("Forest", [0, 0, 0], { ModelInstances: { instances: trees.join("\n") } });

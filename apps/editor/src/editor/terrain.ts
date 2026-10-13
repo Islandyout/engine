@@ -181,6 +181,7 @@ export interface ScatterRule {
   maxScale: number;
   maxSlope: number; // minimum normal y to place on (1 = only flat)
   collide: boolean;
+  trunk: boolean; // collides as a trunk-sized post (trees), not a quarter of its footprint
 }
 
 // A rectangle (local x/z) no scatter is placed in: "exclude x0 z0 x1 z1".
@@ -191,7 +192,7 @@ export interface ScatterExclusion {
   z1: number;
 }
 
-// "model density [minScale maxScale] [minNormalY] [collide]" per line, plus
+// "model density [minScale maxScale] [minNormalY] [collide|trunk]" per line, plus
 // "exclude x0 z0 x1 z1" lines that keep scatter out of a rectangle.
 export function parseScatter(text: string): { rules: ScatterRule[]; errors: string[]; exclusions: ScatterExclusion[] } {
   const rules: ScatterRule[] = [];
@@ -208,12 +209,13 @@ export function parseScatter(text: string): { rules: ScatterRule[]; errors: stri
       exclusions.push({ x0: Math.min(x0!, x1!), z0: Math.min(z0!, z1!), x1: Math.max(x0!, x1!), z1: Math.max(z0!, z1!) });
       return;
     }
-    const collide = words[words.length - 1] === "collide";
+    const trunk = words[words.length - 1] === "trunk";
+    const collide = trunk || words[words.length - 1] === "collide";
     if (collide) words.pop();
     const [model, density, minScale = "1", maxScale = minScale, maxSlope = "0.8"] = words.map(String);
     const numbers = [model, density, minScale, maxScale, maxSlope].map(Number);
     if (words.length < 2 || words.length > 5 || numbers.some((v) => !Number.isFinite(v)) || numbers[1]! < 0 || numbers[2]! <= 0)
-      return void errors.push(`line ${index + 1}: expected "model density [minScale maxScale] [minNormalY] [collide]"`);
+      return void errors.push(`line ${index + 1}: expected "model density [minScale maxScale] [minNormalY] [collide|trunk]"`);
     rules.push({
       model: numbers[0]!,
       density: Math.min(numbers[1]!, 1),
@@ -221,6 +223,7 @@ export function parseScatter(text: string): { rules: ScatterRule[]; errors: stri
       maxScale: Math.max(numbers[2]!, numbers[3]!),
       maxSlope: numbers[4]!,
       collide,
+      trunk,
     });
   });
   return { rules, errors, exclusions };
@@ -234,6 +237,7 @@ export interface ScatterInstance {
   scale: number;
   yaw: number;
   collide: boolean;
+  trunk?: boolean;
 }
 
 // Deterministic placements for every rule, at most 4000 in total.
@@ -260,6 +264,7 @@ export function scatterInstances(
         scale: rule.minScale + (rule.maxScale - rule.minScale) * hash(k, r + 57, params.seed),
         yaw: hash(k, r + 91, params.seed) * Math.PI * 2,
         collide: rule.collide,
+        trunk: rule.trunk,
       });
       placed++;
     }

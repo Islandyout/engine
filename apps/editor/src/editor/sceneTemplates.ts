@@ -118,7 +118,7 @@ export const sceneTemplates: SceneTemplate[] = [
           components: {
             ...at(0, 0.65, 0),
             ...size(1.8, 1.3, 4),
-            Renderable: { mesh: 98, material: 0, visible: true },
+            Renderable: { mesh: 219, material: 0, visible: true },
             Player: {},
             Vehicle: { archetype: 0 },
           },
