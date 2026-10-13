@@ -387,8 +387,8 @@ void substep_ship(ShipState& state, const ShipSpec& spec, const ShipInput& input
             state.angular_velocity = state.angular_velocity * std::exp(-(0.3 + density * 2.0) * h);
             break;
         case Assist::stabilized:
-            // Near a surface the ship levels itself to the horizon (Pale
-            // Signal's STABILIZED); in space it just stops rotating.
+            // Near a surface the ship levels itself to the horizon; in
+            // space it just stops rotating.
             if (body && altitude < std::max(body->atmosphere_top(), 4000.0))
                 aim(state, spec, level_attitude(radial, ship_forward(state)), h);
             else
@@ -1201,8 +1201,8 @@ RoutePlan plan_route(const ShipState& state, const ShipSpec& spec, const System&
             }
             if (best < 1e17) {
                 // What the autopilot actually spends, flying it: course
-                // corrections and braking losses (measured on Pale Signal's
-                // routes); falling inward toward the star costs more than
+                // corrections and braking losses (measured on a six-world
+                // system's routes); falling inward toward the star costs more than
                 // the ideal coast suggests.
                 const double origin_orbit = inside ? system.bodies[static_cast<std::size_t>(from)].orbit_radius : length(r0);
                 transfer = best * 1.3 * (goal.orbit_radius < origin_orbit ? 1.25 : 1.0);
@@ -1237,9 +1237,9 @@ RoutePlan plan_route(const ShipState& state, const ShipSpec& spec, const System&
     plan.delta_v = dv;
     const double accel = spec.thrust / spec.mass;
     // Flown, not ideal: climbing through air, course corrections and the
-    // approach cost the autopilot about this much more (measured on Pale
-    // Signal's routes, 0.75.0; with the 0.76.0 moon transfers, plans land
-    // within about 0.9-1.5x of the fuel flown, more on a few outward legs).
+    // approach cost the autopilot about this much more (measured on a
+    // six-world system's routes; with moon transfers, plans land within
+    // about 0.9-1.5x of the fuel flown, more on a few outward legs).
     plan.fuel_needed = dv / accel * spec.burn * 2.0;
     plan.status = state.fuel >= plan.fuel_needed * 1.25 ? 0 : state.fuel >= plan.fuel_needed ? 1 : 2;
     return plan;

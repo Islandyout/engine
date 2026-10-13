@@ -14,6 +14,13 @@ const { serve, bot } = require("./gatebreaker_bot.cjs");
   const scene = JSON.parse(await fs.readFile("games/my-games/velocity/velocity.json", "utf8"));
   // props.fast: enemies spawn nearly beaten and the rig waits for Velocity.
   for (const entity of scene.entities) if (entity.name === "Director") entity.components.Script.props.fast = true;
+  // The campaign checks progression, not the picture (velocity.cjs covers
+  // that): without shadows and post-processing the software renderer keeps
+  // the simulation fast enough for the walks' and chases' time limits.
+  for (const entity of scene.entities) {
+    if (entity.components.Environment) entity.components.Environment.shadows = false;
+    delete entity.components.PostProcessing;
+  }
   const server = await serve(scene);
   let browser;
   try {

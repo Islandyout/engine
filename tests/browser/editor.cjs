@@ -268,10 +268,12 @@ const { chromium } = require("playwright");
     // exercise that path too, and let a few real animation frames elapse
     // (rebuild() etc. keep running below) before checking for page errors.
     await page.locator("#catalog-category").selectOption("animals");
+    // Not the Wolf: a later step adds one and finds it by name.
+    await page.locator("#catalog-model").selectOption({ label: "Cow" });
     await page.locator("#catalog-add").click();
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".entity")].some((e) =>
-        e.textContent.includes("Cat"),
+        e.textContent.includes("Cow"),
       ),
     );
     assert.equal(await page.locator(".entity").count(), 6);
@@ -1225,8 +1227,8 @@ const { chromium } = require("playwright");
     // F53: an Animator state machine on a real animated model. A trigger
     // set from on_start moves idle -> hop, the hop state's event reaches
     // on_anim_event, `end` returns to idle, and on_anim_state reports both.
-    const cat = await run({ command: "spawn_entity", name: "Animated Cat", transform: [6, 0.5, 6] });
-    await run({ command: "set_component", entity: cat.entity, type: "Renderable", value: { mesh: 105, material: 0, visible: true } });
+    const cat = await run({ command: "spawn_entity", name: "Animated Dog", transform: [6, 0.5, 6] });
+    await run({ command: "set_component", entity: cat.entity, type: "Renderable", value: { mesh: 243, material: 0, visible: true } });
     await page.waitForTimeout(1500); // let the model load so its clips exist
     await run({
       command: "set_component",
@@ -1432,6 +1434,28 @@ const { chromium } = require("playwright");
       await page.click("#stop");
     }
 
+    // Spaceflight: the Space starter's ship lifts off its pad and sets
+    // back down, so the flight model stays covered without a space game.
+    if (!process.env.EDITOR_NO_WEBGL) {
+      await page.click("#new");
+      page.once("dialog", (dialog) => dialog.accept());
+      await page.click('[aria-label="Space starter"]');
+      await page.click("#play");
+      const flight = (pattern, what) =>
+        page
+          .waitForFunction((source) => new RegExp(source).test(document.querySelector("#hud-text").textContent), pattern.source, { timeout: 90000 })
+          .catch(async () => assert.fail(`${what}: ${await page.locator("#hud-text").textContent()}`));
+      await flight(/ALT 0 m.*LANDED/, "in the pilot's seat, landed on the pad");
+      await page.keyboard.down("Space");
+      await flight(/ALT ([3-9]|\d\d+) m.*FLYING/, "the belly thrusters lift the ship");
+      await page.keyboard.up("Space");
+      await page.keyboard.down("c");
+      await flight(/LANDED/, "sinking sets the ship down");
+      await page.keyboard.up("c");
+      await page.screenshot({ path: "build/browser-evidence/space-starter.png" });
+      await page.click("#stop");
+    }
+
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -1441,7 +1465,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), a CameraFollow rig with shake, keyboard/mouse input through native actions, and interactive UI (script Button, Toggle, Slider, Bar), shaped/world-space particles with bursts plus a Trail, and asset import (model/image/sound, IndexedDB) with the Stats overlay, and the Martial-arts dojo (fighter HUD, lock-on, a landed punch) passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), a CameraFollow rig with shake, keyboard/mouse input through native actions, and interactive UI (script Button, Toggle, Slider, Bar), shaped/world-space particles with bursts plus a Trail, and asset import (model/image/sound, IndexedDB) with the Stats overlay, the Martial-arts dojo (fighter HUD, lock-on, a landed punch), and the Space starter (lift off, set down) passed.",
     );
   } catch (error) {
     await saveFailure("editor", error, browser);

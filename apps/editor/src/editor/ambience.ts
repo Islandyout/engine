@@ -1,5 +1,5 @@
 // Ambience layers: wind, rain, a settlement's murmur, wildlife
-// calls and the Pale Signal hum, each a synthesized loop whose level the
+// calls and the signal structures' hum, each a synthesized loop whose level the
 // game sets by context (host.send("audio", "<layer> <0..1>")) and the view
 // sets from the air (wind needs air to carry). Plus short UI and discovery
 // cues. Everything goes to the mixer's ambient/ui buses.

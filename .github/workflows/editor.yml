@@ -72,7 +72,7 @@ jobs:
           node tests/browser/fps.cjs
           node tests/browser/last_signal.cjs
           node tests/browser/high_heat.cjs
-          node tests/browser/pale_signal.cjs
+          node tests/browser/city.cjs
           node tests/browser/gatebreaker.cjs
           # These full-length Gatebreaker playthroughs can take tens of minutes each.
           # Keep pull-request feedback bounded; run the complete regression on schedule/manual dispatch.

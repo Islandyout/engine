@@ -182,14 +182,14 @@ for (const [x, z, sx, sz] of [
 
 // ---------------------------------------------------------------- vehicles --
 const CAR_SIZE: Record<number, [number, number, number]> = {
-  101: [2.2, 1.5, 4.5], // sports
-  97: [2.25, 1.9, 4.8], // police
-  98: [2.15, 1.7, 4.7], // sedan
-  94: [2.1, 1.7, 4.0], // hatchback
-  103: [2.15, 1.9, 4.7], // taxi
-  104: [2.35, 2.6, 5.3], // van
-  102: [2.3, 2.1, 4.8], // suv
-  93: [2.8, 3.5, 11.5], // bus
+  222: [1.95, 1.41, 4.6], // sports
+  235: [1.95, 1.59, 4.8], // police
+  219: [1.95, 1.31, 4.7], // sedan
+  220: [1.85, 1.42, 4.1], // compact wagon
+  224: [1.95, 1.46, 4.7], // taxi
+  227: [2.0, 2.29, 5.0], // van
+  223: [1.95, 1.71, 4.7], // suv
+  231: [2.5, 3.74, 12.0], // bus
 };
 const car = (
   mesh: number,
@@ -329,7 +329,7 @@ const EVENTS = [
 add("Player", [at(-1) + 3.5, 0.9, at(-2) + 40], {
   Player: {},
   Rotation: { euler: vec(0, Math.PI, 0) },
-  ...car(101, SPORTS, {}, "#e8b62a"),
+  ...car(222, SPORTS, {}, "#e8b62a"),
 });
 // The chase camera.
 add("Chase Camera", [0, 5, 0], {
@@ -354,7 +354,7 @@ const RIVALS: Array<[string, string, Record<string, unknown>, number]> = [
 const PARKING: P2[] = RIVALS.map((_, i) => [-60 + i * 12, EDGE + 40]);
 RIVALS.forEach(([name, tint, handling, skill], i) =>
   add(name, [PARKING[i]![0], 0.9, PARKING[i]![1]], {
-    ...car(101, handling, {
+    ...car(222, handling, {
       Driver: component("Driver", { mode: "Off", route: "", loop: false, skill, aggression: 0.4, speedScale: 1 }),
     }, tint),
   }),
@@ -381,12 +381,12 @@ for (const [name, nodes] of PATROL_LOOPS) {
   const points = line(nodes, true, 4, 10);
   patrolRoutes[name] = route(points);
   add(name, [points[0]![0], 0.95, points[0]![1]], {
-    ...car(97, COP, {
+    ...car(235, COP, {
       Driver: component("Driver", { mode: "Traffic", route: route(points), loop: true, skill: 0.8, aggression: 0.4, speedScale: 0.85 }),
     }),
   });
 }
-const CIVILIANS = [98, 94, 103, 104, 102, 98, 94, 103, 93, 98, 102, 94, 103, 98];
+const CIVILIANS = [219, 220, 224, 227, 223, 219, 220, 224, 231, 219, 223, 220, 224, 219];
 CIVILIANS.forEach((mesh, k) => {
   const i0 = (k % 4) * 2 - 4,
     j0 = Math.floor(k / 4) * 2 - 4;
@@ -492,12 +492,12 @@ function RGBish(hex: string) {
 // ---------------------------------------------------------------- prefabs --
 const prefabs: Record<string, { components: Components }> = {
   Cruiser: {
-    components: car(97, COP, {
+    components: car(235, COP, {
       Driver: component("Driver", { mode: "Pursuit", route: "", loop: false, target: "", skill: 0.75, aggression: 0.45, speedScale: 1 }),
     }),
   },
   Interceptor: {
-    components: car(97, { ...COP, topSpeed: 64, acceleration: 12.5, nitroBoost: 8, nitroSeconds: 3 }, {
+    components: car(235, { ...COP, topSpeed: 64, acceleration: 12.5, nitroBoost: 8, nitroSeconds: 3 }, {
       Driver: component("Driver", { mode: "Pursuit", route: "", loop: false, target: "", skill: 0.9, aggression: 0.85, speedScale: 1 }),
     }, "#202428"),
   },

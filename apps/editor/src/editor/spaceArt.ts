@@ -122,7 +122,7 @@ export function milkyWay() {
   return group;
 }
 
-// A Pale Signal structure: a black monolith ringed by kneeling dishes all
+// A signal structure: a black monolith ringed by kneeling dishes all
 // facing the same patch of sky, with glyph light along its edges. Built
 // standing on +y at the origin; tens of metres tall.
 export function signalStructure(color: string, kind = "array") {
@@ -145,7 +145,7 @@ export function signalStructure(color: string, kind = "array") {
       group.add(strip);
     }
   };
-  // The Pale Signal's grammar: concentric, coherent rings around
+  // The signal grammar: concentric, coherent rings around
   // every structure, pulsing in step (spaceView animates userData.rings).
   const rings: THREE.Mesh[] = [];
   const addRings = (inner: number, count: number, y = 0.3) => {

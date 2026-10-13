@@ -94,6 +94,10 @@ void editor_space_body_features(double, int, int, double);
 double editor_space_body_spin(int, int);
 void editor_space_member(int, int);
 void editor_set_routine(int, const char *, double);
+void editor_set_signal(int, double, double, double, double, double);
+void editor_set_walker(int, const char *, double, int, const char *, double);
+int editor_signal_state(int);
+int editor_walker_waiting(int);
 void editor_set_wildlife(int, double, double, double, double);
 int editor_wildlife_state(int);
 double editor_space_body_value(int, int);
@@ -1799,6 +1803,64 @@ int main() {
         editor_begin();
         editor_space_begin(6.4e12, 0, 0, 0, 0, 800, 0);
         editor_space_body("Lost", 3, 1000, 10, 0, 0, 100, 1, 0, 0, 0, 100, 1);
+        check(editor_commit() == 0);
+    }
+    {
+        // Streets: a junction's lights stop traffic on red and let it go on
+        // green; someone on foot waits at the kerb for the walk light.
+        editor_begin();
+        // 0: a junction at the origin, stop lines 8 m out; offset 15 s, so
+        // traffic along x (axis 1) has the first green and along z waits.
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_signal(0, 10, 3, 2, 15, 8);
+        // 1: a traffic car 60 m south, driving north through it.
+        check(editor_add(2, 0.8, -60, 0, 0, 0, 2, 1.4, 4.4, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_car(1, 0, 40, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6);
+        editor_set_driver(1, 3, 0, 0.8, 0.2, 1);
+        editor_set_driver_text(1, 0, "2,-40 2,80");
+        // 2: someone at the south-west kerb, crossing north over the road
+        // along x (so with the z traffic's green), then on up the sidewalk.
+        // A solid, dynamic pedestrian, as the City Template's people are.
+        check(editor_add(-10, 0.9, -7, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0.5, 0, 0) == 1);
+        editor_set_body(2, 1, 70, 1);
+        editor_set_walker(2, "-10,-7* -10,7 -10,20", 1.4, 0, "", 1.5);
+        // 3: a dog on a lead behind them.
+        check(editor_add(-10, 0.4, -9, 0, 0, 0, 0.3, 0.6, 0.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_name(2, "Owner");
+        editor_set_walker(3, "", 1.4, 1, "Owner", 1.2);
+        check(editor_commit() == 1);
+        check(editor_signal_state(0) == 2 + 3 * 0); // z red, x green
+        for (int i = 0; i < 60 * 12; ++i)
+            editor_tick();
+        // At 12 s the light along z is still red: the car waits at its line.
+        check(editor_signal_state(0) % 3 == 2);
+        check(editor_value(1, 2) < -9.5 && editor_value(1, 2) > -20 && editor_vehicle_value(1, 0) < 0.5);
+        // Waiting at the kerb, standing still there.
+        check(editor_walker_waiting(2) == 1 && std::abs(editor_value(2, 2) + 7) < 0.5 && std::abs(editor_value(2, 0) + 10) < 0.5);
+        for (int i = 0; i < 60 * 14; ++i)
+            editor_tick();
+        // Green from 15 s: the car is through, the walker across, the dog behind.
+        check(editor_value(1, 2) > 12);
+        check(editor_walker_waiting(2) == 0 && editor_value(2, 2) > 7);
+        check(editor_value(3, 2) > 4 && editor_value(3, 2) < editor_value(2, 2));
+        check(editor_walker_waiting(1) == -1 && editor_signal_state(1) == -1);
+        // Two people meeting head-on on one sidewalk line keep right and
+        // pass, rather than pushing against each other for good.
+        editor_begin();
+        for (const double z : {-12.0, 12.0}) {
+            check(editor_add(0, 0.9, z, 0, 0, 0, 0.6, 1.75, 0.6, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0.5, 0, 0) == 1);
+            editor_set_body(z < 0 ? 0 : 1, 1, 70, 1);
+        }
+        editor_set_walker(0, "0,-12 0,14", 1.4, 0, "", 1.5);
+        editor_set_walker(1, "0,12 0,-14", 1.4, 0, "", 1.5);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 60 * 25; ++i)
+            editor_tick();
+        check(editor_value(0, 2) > 13 && editor_value(1, 2) < -13);
+        // Bad values fail the commit, with a reason.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_walker(0, "1,2 three,4", 1.4, 1, "", 1.5);
         check(editor_commit() == 0);
     }
     {

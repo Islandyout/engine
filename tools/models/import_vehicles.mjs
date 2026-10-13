@@ -18,6 +18,7 @@
 //     --src quaternius=<beep2bleep/FreeAssetsByKenneyNLandQuaternius> \
 //     --src carsbundle=<schulerj89/vanta-city> \
 //     --src worldexplorer=<RRG314/WorldExplorer3D> \
+//     --src anarchy=<First-Hour-Games/anarchy-intelligence> \
 //     [--out <dir>] [--only <name,...>]
 import { createHash } from "node:crypto";
 import { readFileSync, mkdirSync } from "node:fs";
@@ -43,6 +44,9 @@ const VEHICLES = [
   { name: "sports-gt", src: "carsbundle", file: `${QCARS}/sport-coupe.glb`, sha256: "bbb1c718d2aaf5f4344e9fb2cd66d8332a998a515b09ddd4dfa14698d787124e", length: 4.6, width: 1.95 },
   { name: "suv-crossover", src: "carsbundle", file: `${QCARS}/suv.glb`, sha256: "1a9ce2bba813dca5005abab09715b01b8b5f4a9c48d7260463afdfeb876aa8b6", length: 4.7, width: 1.95 },
   { name: "taxi-sedan", src: "carsbundle", file: `${QCARS}/taxi-sedan.glb`, sha256: "14b2f982f8a501565702ecb56f917c82e9abae914fa3f76d2f622a8670598af1", length: 4.7, width: 1.95 },
+  { name: "pickup-truck", src: "carsbundle", file: `${QCARS}/pickup-truck.glb`, sha256: "9d6b2e33af0d37bf42b2e7af850949f4efd0ddbb9a88077812d152d8b4c1c3eb", length: 5.3, width: 2.0 },
+  // The same bundle's Police Car, from a second copy (vanta-city records the same hash but doesn't ship it).
+  { name: "police-car", src: "anarchy", file: "assets/local_licensed/cars_bundle/Police Car.glb", sha256: "2ad6705f58bae2acf806eddb28acd9fc2ff6dc65a726575be5c180631b3132d0", length: 4.8, width: 1.95 },
   // Quaternius, Truck (from the Zombie Apocalypse Kit), as downloaded from Poly Pizza.
   { name: "step-van", src: "worldexplorer", file: `${WEX}/service-truck-v1.glb`, sha256: "a5d107b5b06f8ca2d8d7e66ae6309f2e1a25cac577c5db8ebb661b3f0ca5ed8f", length: 6.0, width: 2.3 },
   // Quaternius, Public Transport Pack (Feb 2017): the two bicycles. The pack's FBX left

@@ -47,23 +47,23 @@ const M = {
   lamp: 35,
   bush1: 37,
   planter: 41,
-  broadleaf1: 46,
-  broadleaf2: 47,
-  broadleaf3: 48,
-  conifer1: 49,
+  oak: 255,
+  ash: 256,
+  aspen: 257,
+  pine: 259,
   roadCross: 56,
   roadCrossing: 62,
   road: 64,
   roadT: 66,
   signWarning: 86,
   signalPost: 90,
-  bus: 93,
-  hatchback: 94,
-  sedan: 98,
-  suv: 102,
-  taxi: 103,
-  van: 104,
-  boxtruck: 92,
+  bus: 231,
+  hatchback: 220,
+  sedan: 219,
+  suv: 223,
+  taxi: 224,
+  van: 227,
+  boxtruck: 228,
 } as const;
 
 // Where the director finds things (keep in step with lua/director.lua).
@@ -90,8 +90,8 @@ export function buildWard(scene: SceneBuilder) {
   // One instanced set: "id x z yaw [scale] [solid]" per line.
   const set = () => {
     const lines: string[] = [];
-    const put = (id: number, x: number, z: number, yawDeg = 0, solid = true, scale = 1) =>
-      lines.push(`${id} ${x.toFixed(2)} ${z.toFixed(2)} ${yawDeg}${scale !== 1 ? ` ${scale}` : ""}${solid ? " solid" : ""}`);
+    const put = (id: number, x: number, z: number, yawDeg = 0, solid: boolean | "trunk" = true, scale = 1) =>
+      lines.push(`${id} ${x.toFixed(2)} ${z.toFixed(2)} ${yawDeg}${scale !== 1 ? ` ${scale}` : ""}${solid === "trunk" ? " trunk" : solid ? " solid" : ""}`);
     return { lines, put };
   };
   const flush = (name: string, y: number, s: { lines: string[] }) => scene.add(name, [0, y, 0], { ModelInstances: { instances: s.lines.join("\n") } });
@@ -270,20 +270,20 @@ export function buildWard(scene: SceneBuilder) {
     [20, -86, 270],
   ] as const)
     pk.put(M.bench, x, z, yaw);
-  const trees = [M.broadleaf1, M.broadleaf3, M.broadleaf2, M.conifer1];
+  const trees = [M.oak, M.aspen, M.ash, M.pine];
   let t = 0;
   for (const x of [-92, -76, -60, 60, 76, 92]) {
-    pk.put(trees[t++ % 4]!, x, -80, (t * 47) % 360, true, 0.8);
-    pk.put(trees[t++ % 4]!, x, -100, (t * 47) % 360, true, 0.8);
+    pk.put(trees[t++ % 4]!, x, -80, (t * 47) % 360, "trunk", 0.7);
+    pk.put(trees[t++ % 4]!, x, -100, (t * 47) % 360, "trunk", 0.7);
   }
   // Meridian Green (x -56..-8, z -56..-8): trees round the edge, benches inside.
   for (const x of [-50, -38, -26, -14]) {
-    pk.put(trees[t++ % 4]!, x, -52, (t * 47) % 360, true, 0.8);
-    pk.put(trees[t++ % 4]!, x, -12, (t * 47) % 360, true, 0.8);
+    pk.put(trees[t++ % 4]!, x, -52, (t * 47) % 360, "trunk", 0.7);
+    pk.put(trees[t++ % 4]!, x, -12, (t * 47) % 360, "trunk", 0.7);
   }
   for (const z of [-40, -24]) {
-    pk.put(trees[t++ % 4]!, -52, z, (t * 47) % 360, true, 0.8);
-    pk.put(trees[t++ % 4]!, -12, z, (t * 47) % 360, true, 0.8);
+    pk.put(trees[t++ % 4]!, -52, z, (t * 47) % 360, "trunk", 0.7);
+    pk.put(trees[t++ % 4]!, -12, z, (t * 47) % 360, "trunk", 0.7);
   }
   pk.put(M.bench, -32, -36, 0);
   pk.put(M.bench, -32, -28, 180);

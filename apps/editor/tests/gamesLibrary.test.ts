@@ -24,7 +24,8 @@ test("every games/ manifest names an existing scene", () => {
     assert.ok(!slugs.has(slug));
     slugs.add(slug);
   }
-  assert.ok(slugs.has("pale-signal"));
+  assert.ok(slugs.has("city-template"));
+  assert.ok(!slugs.has("pale-signal"), "Pale Signal is retired (its systems stay in the engine)");
   assert.ok(!slugs.has("last-signal"));
   assert.ok(!slugs.has("high-heat"));
 });
@@ -32,15 +33,15 @@ test("every games/ manifest names an existing scene", () => {
 test("parseGamesIndex keeps valid rows and sanitises the rest", () => {
   const games = parseGamesIndex({
     games: [
-      { slug: "pale-signal", name: "Pale Signal", group: "engine", accent: "#7fd1c7" },
+      { slug: "city-template", name: "City Template", group: "engine", accent: "#8fbf6a" },
       { slug: "../evil", name: "x" },
       { slug: "mine", name: "Mine", group: "bogus", accent: "red;background:url(x)" },
       { name: "no slug" },
     ],
   });
   assert.equal(games.length, 2);
-  assert.equal(games[0].page, "pale-signal.html");
-  assert.equal(games[0].scene, "games/pale-signal.json");
+  assert.equal(games[0].page, "city-template.html");
+  assert.equal(games[0].scene, "games/city-template.json");
   assert.equal(games[1].group, "folder");
   assert.equal(games[1].accent, "#8ab4ff");
   assert.deepEqual(parseGamesIndex(null), []);

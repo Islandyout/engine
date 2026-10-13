@@ -97,6 +97,8 @@ const componentNames = [
   "Site",
   "Routine",
   "Wildlife",
+  "TrafficSignal",
+  "Walker",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -563,7 +565,7 @@ function defaultCollider(): ColliderComponent {
     bounciness: 0,
   };
 }
-// A new SpaceSystem's bodies (Pale Signal's inner system, scaled for play):
+// A new SpaceSystem's bodies (an inner system scaled for play):
 // a temperate planet with air, its airless moon, and a dead world farther out.
 export const defaultSpaceBodies = [
   "Tethys - 1600000 5027 0 0 60000 9 9000 1.05 300 3000 7 #4f7a4a #87b6c8",
@@ -651,6 +653,10 @@ export function defaultComponent(
       return { stops: "8 0 0; 18 10 0", speed: 1.4 };
     case "Wildlife":
       return { wary: 44, flee: 16, speed: 7, leash: 80 };
+    case "TrafficSignal":
+      return { green: 14, yellow: 3, clearance: 2, offset: 0, radius: 9 };
+    case "Walker":
+      return { route: "0,0 10,0", speed: 1.4, loop: true, follow: "", gap: 1.5 };
     case "AnimationState":
       return { clip: "", time: 0, looping: true };
     case "Renderable":

@@ -1,0 +1,8 @@
+{
+  "name": "City Template",
+  "genre": "Template",
+  "description": "A working town to build on: signalised junctions with a green wave, zoned blocks, furnished streets, traffic that stops on red, people who cross with the light, dogs, and a park with wildlife.",
+  "scene": "../../examples/city/city-template.json",
+  "accent": "#8fbf6a",
+  "builtin": true
+}
