@@ -129,7 +129,14 @@ struct Runtime {
     std::optional<SpaceSim> space;
     // Runtime car handover: retain the walking entity while its PlayerMarker
     // temporarily moves to the car, so existing car controls remain authoritative.
-    struct CarHandover final { engine::Entity walker; engine::Entity vehicle; };
+    // The walker rides along as a kinematic trigger (its own collider and body
+    // type are restored on exit).
+    struct CarHandover final {
+        engine::Entity walker;
+        engine::Entity vehicle;
+        bool trigger{};
+        engine::physics::BodyType type{engine::physics::BodyType::Dynamic};
+    };
     std::optional<CarHandover> car_handover;
     bool previous_car_interact_down{false};
     std::optional<engine::Entity> player_entity(const engine::World &w) const {
@@ -473,7 +480,7 @@ struct Runtime {
                                         walker_box->size};
             bool blocked = false;
             for (const auto other : w.query<engine::Box, engine::physics::Collider>()) {
-                if (other == walker || other == vehicle)
+                if (other == walker || other == vehicle || w.get<engine::physics::Collider>(other)->is_trigger)
                     continue;
                 if (engine::physics::overlaps(candidate, *w.get<engine::Box>(other))) {
                     blocked = true;
@@ -487,10 +494,16 @@ struct Runtime {
         }
         return false;
     }
+    // Marker moves are deferred: this runs inside the editor.move system.
     void handle_car_interaction(engine::World &w, const engine::InputState &in) {
         const bool down = in.key_down(engine::Key::e);
         const bool pressed = down && !previous_car_interact_down;
         previous_car_interact_down = down;
+        if (car_handover && w.alive(car_handover->walker) && w.alive(car_handover->vehicle)) {
+            w.get<engine::Box>(car_handover->walker)->center = w.get<engine::Box>(car_handover->vehicle)->center;
+            if (auto *body = w.get<engine::physics::RigidBody>(car_handover->walker))
+                body->velocity = {};
+        }
         // E is reserved for the existing SpaceSystem board/exit flow in space scenes.
         if (!pressed || space)
             return;
@@ -503,11 +516,15 @@ struct Runtime {
             engine::Vec3 exit;
             if (!car_exit_position(w, handover.walker, handover.vehicle, exit))
                 return;
-            w.remove<PlayerMarker>(handover.vehicle);
-            w.set(handover.walker, PlayerMarker{});
+            w.defer_remove<PlayerMarker>(handover.vehicle);
+            w.defer_set(handover.walker, PlayerMarker{});
             w.get<engine::Box>(handover.walker)->center = exit;
-            if (auto *body = w.get<engine::physics::RigidBody>(handover.walker))
+            if (auto *collider = w.get<engine::physics::Collider>(handover.walker))
+                collider->is_trigger = handover.trigger;
+            if (auto *body = w.get<engine::physics::RigidBody>(handover.walker)) {
+                body->type = handover.type;
                 body->velocity = {};
+            }
             car_handover.reset();
             return;
         }
@@ -536,11 +553,19 @@ struct Runtime {
         }
         if (!closest)
             return;
-        w.remove<PlayerMarker>(*walker);
-        w.set(*closest, PlayerMarker{});
-        if (auto *body = w.get<engine::physics::RigidBody>(*walker))
+        CarHandover handover{*walker, *closest};
+        if (auto *collider = w.get<engine::physics::Collider>(*walker)) {
+            handover.trigger = collider->is_trigger;
+            collider->is_trigger = true;
+        }
+        if (auto *body = w.get<engine::physics::RigidBody>(*walker)) {
+            handover.type = body->type;
+            body->type = engine::physics::BodyType::Kinematic;
             body->velocity = {};
-        car_handover = CarHandover{*walker, *closest};
+        }
+        w.defer_remove<PlayerMarker>(*walker);
+        w.defer_set(*closest, PlayerMarker{});
+        car_handover = handover;
     }
     void space_tick(engine::World &w, const engine::InputState &in) {
         auto &sp = *space;

@@ -44,6 +44,11 @@ export interface RuntimeExports {
   _editor_weapon_value(index: number, field: number): number;
   _editor_take_weapon_events(): number;
   _editor_weapon_event(index: number, field: number): number;
+  _editor_set_melee_extra(index: number, poise: number, breakTime: number, manaMax: number, manaRegen: number, range: number, shield: number): void;
+  _editor_set_melee_yaw(index: number, yaw: number): void;
+  _editor_fighter_value(index: number, field: number): number;
+  _editor_take_melee_events(): number;
+  _editor_melee_event(index: number, field: number): number;
   _editor_space_begin(starGm: number, siteBody: number, siteLatitude: number, siteLongitude: number, siteRadius: number, evaRange: number, startTime: number): void;
   _editor_space_stick(yaw: number, pitch: number): void;
   _editor_space_body_sea(seaLevel: number): void;
@@ -65,11 +70,6 @@ export interface RuntimeExports {
   _editor_space_wet(x: number, z: number): number;
   _editor_space_path(count: number, horizon: number): number;
   _editor_space_path_value(i: number, axis: number): number;
-  _editor_set_melee_extra(index: number, poise: number, breakTime: number, manaMax: number, manaRegen: number, range: number, shield: number): void;
-  _editor_set_melee_yaw(index: number, yaw: number): void;
-  _editor_fighter_value(index: number, field: number): number;
-  _editor_take_melee_events(): number;
-  _editor_melee_event(index: number, field: number): number;
 }
 
 // Called with runtime.ccall(name, ...) because a string crosses the boundary.
@@ -99,11 +99,11 @@ export const ccallExports = {
   editor_set_weapons: { returns: "void", args: ["number", "string"] },
   editor_weapons_error: { returns: "string", args: [] },
   editor_weapon_text: { returns: "string", args: ["number", "number", "number"] },
-  editor_space_body: { returns: "void", args: ["string", "number", "number", "number", "number", "number", "number", "number", "number", "number", "number", "number", "number"] },
-  editor_space_site: { returns: "void", args: ["number", "string", "number", "number", "number", "number"] },
-  editor_set_routine: { returns: "void", args: ["number", "string", "number"] },
   editor_set_melee: { returns: "void", args: ["number", "number", "string", "number", "number", "number", "number", "number", "number", "number"] },
   editor_melee_error: { returns: "string", args: [] },
   editor_fighter_text: { returns: "string", args: ["number", "number", "number"] },
+  editor_space_body: { returns: "void", args: ["string", "number", "number", "number", "number", "number", "number", "number", "number", "number", "number", "number", "number"] },
+  editor_space_site: { returns: "void", args: ["number", "string", "number", "number", "number", "number"] },
+  editor_set_routine: { returns: "void", args: ["number", "string", "number"] },
 } as const;
 export type CcallExport = keyof typeof ccallExports;
