@@ -42,15 +42,6 @@ const { serve, bot } = require("./gatebreaker_bot.cjs");
     const MIN = 60000;
     await b.waitHud(/FREE ROAM[\s\S]*Next: STREETLIGHT/, "the save skips Mission 0");
 
-    // Presses `key` every 300 ms until the HUD matches `pattern`.
-    const until = async (key, pattern, what, timeout = 6 * MIN) => {
-      const end = Date.now() + timeout;
-      while (!pattern.test(await b.hud())) {
-        if (Date.now() > end) throw new Error(`${what}: HUD never matched ${pattern} -- HUD: ${await b.hud()}`);
-        await page.keyboard.press(key);
-        await page.waitForTimeout(300);
-      }
-    };
     // Fights until the HUD matches `pattern`: locked on, a jab string, and
     // now and then a step back, so a fighter pressed up against Velocity
     // isn't inside the blows' reach.
@@ -62,6 +53,17 @@ const { serve, bot } = require("./gatebreaker_bot.cjs");
         if (i % 4 === 3) await b.hold("s", 250);
         await page.keyboard.press("j");
         await page.waitForTimeout(250);
+      }
+    };
+    // Walks up to (x, z) until `prompt` shows, presses G, and repeats
+    // (stepping back up if Velocity drifted off) until `done` matches.
+    const use = async (x, z, prompt, done, what, timeout = 8 * MIN) => {
+      const end = Date.now() + timeout;
+      while (!done.test(await b.hud())) {
+        if (Date.now() > end) throw new Error(`${what}: HUD never matched ${done} -- HUD: ${await b.hud()}`);
+        if (!prompt.test(await b.hud())) await b.walkTo(x, z, 1.2, 4 * MIN, prompt);
+        await page.keyboard.press("g");
+        await page.waitForTimeout(600);
       }
     };
     const route = async (points, near = 2, timeout = 10 * MIN, stop = undefined) => {
@@ -79,9 +81,7 @@ const { serve, bot } = require("./gatebreaker_bot.cjs");
     await start(32, -8, "STREETLIGHT");
     await fight(/Beat the Shield Heavy/, "the robbers");
     await fight(/Inspect the dropped device/, "the Shield Heavy");
-    await b.walkTo(33, 5.5, 1.5, 6 * MIN, /G\s+Inspect the device/);
-    await page.keyboard.press("g");
-    await b.waitHud(/FREE ROAM[\s\S]*Next: NO BRAKES/, "Streetlight done");
+    await use(33, 5.5, /G\s+Inspect the device/, /FREE ROAM[\s\S]*Next: NO BRAKES/, "the device");
     await page.screenshot({ path: "build/browser-evidence/velocity-campaign-1-streetlight.png" });
 
     // Mission 2: No Brakes. The rig heads north up Central Avenue; Velocity
@@ -92,19 +92,13 @@ const { serve, bot } = require("./gatebreaker_bot.cjs");
     await b.walkTo(0, 60, 3, 10 * MIN, /Disable the cell rig/);
     await b.waitHud(/Disable the cell rig/, "the rig caught twice");
     await route([[0, 64], [-64, 64], [-64, 26]], 2.5, 10 * MIN, /G\s+Disable/);
-    await b.walkTo(-64, 18, 2, 6 * MIN, /G\s+Disable/);
-    await b.waitHud(/G\s+Disable the kinetic cells/, "at the stopped rig");
-    await page.keyboard.press("g");
-    await b.waitHud(/FREE ROAM[\s\S]*Next: AFTERSHOCK/, "No Brakes done");
+    await use(-64, 18, /G\s+Disable the kinetic cells/, /FREE ROAM[\s\S]*Next: AFTERSHOCK/, "the stopped rig");
 
     // Mission 3: Aftershock. The worker by the ramp, the one on the deck,
     // then the one in the yard's far corner.
     await route([[-64, 64], [56, 64], [66, 40]]);
     await start(66, 30, "AFTERSHOCK");
-    const rescue = async (x, z, n) => {
-      await b.walkTo(x, z, 2, 8 * MIN, /G\s+Get them out/);
-      await until("g", new RegExp(`Rescue the workers \\(${n}/3\\)|FREE ROAM`), `worker ${n}`, 2 * MIN);
-    };
+    const rescue = (x, z, n) => use(x, z, /G\s+Get them out/, new RegExp(`Rescue the workers \\(${n}/3\\)|FREE ROAM`), `worker ${n}`);
     await route([[66, 8], [80, 8]]);
     await rescue(80, 12, 1);
     await route([[86, 14], [86, 30]]);

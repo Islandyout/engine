@@ -35,7 +35,7 @@ local INCIDENT = { x = 0, z = -4 }
 local CIVILIAN = { x = -4, z = -9 } -- Mission 0's civilian, by the crossing
 local SAVE_KEY = "velocity.save"
 local KO = 0.12 -- knocked out below this fraction of health
-local USE_R = 2.8 -- close enough to use (G)
+local USE_R = 3.2 -- close enough to use (G)
 local START_R = 6 -- close enough to start an activity
 local REST = 60 -- seconds an incident rests after it's done
 
