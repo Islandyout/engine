@@ -86,8 +86,9 @@ const { serve, bot } = require("./gatebreaker_bot.cjs");
 
     // Mission 2: No Brakes. The rig heads north up Central Avenue; Velocity
     // runs with it, then follows its route to the roadblock on West Avenue.
-    await route([[24, -40], [0, -54]]);
-    await start(0, -50, "NO BRAKES");
+    // (Routes keep to the streets: the blocks are solid.)
+    await route([[12, 2], [9, -16]]);
+    await start(6, -22, "NO BRAKES");
     await b.walkTo(0, 60, 3, 10 * MIN, /Disable the cell rig/);
     await b.waitHud(/Disable the cell rig/, "the rig caught twice");
     await route([[0, 64], [-64, 64], [-64, 26]], 2.5, 10 * MIN, /G\s+Disable/);
@@ -108,13 +109,13 @@ const { serve, bot } = require("./gatebreaker_bot.cjs");
     await rescue(80, 12, 1);
     await route([[86, 14], [86, 30]]);
     await rescue(86, 38, 2);
-    await route([[86, 50], [94, 52]]);
+    await route([[86, 50], [94, 54]]);
     await rescue(97, 50, 3);
     await b.waitHud(/FREE ROAM[\s\S]*Next: BREAKLINE/, "Aftershock done");
     await page.screenshot({ path: "build/browser-evidence/velocity-campaign-3-aftershock.png" });
 
     // Mission 4: Breakline at Meridian Junction.
-    await route([[64, 56], [64, 100], [8, 100]]);
+    await route([[94, 57], [64, 58], [64, 100], [8, 100]]);
     await start(0, 100, "BREAKLINE");
     await b.walkTo(0, 118, 3, 6 * MIN, /Defeat Breakline/);
     await b.waitHud(/Defeat Breakline/, "the boss appears");
@@ -123,7 +124,7 @@ const { serve, bot } = require("./gatebreaker_bot.cjs");
     await b.waitHud(/The ward is yours/, "the campaign is done");
 
     // Ward Dispatch: a mastery pick, and Heroic (open after the finale).
-    await route([[0, 64], [9, 10], [9, -46], [0, -60], [3, -84]]);
+    await route([[0, 64], [9, 10], [9, -56], [0, -62], [3, -84]]);
     await b.walkTo(5, -88, 1.5, 6 * MIN, /G\s+Ward Dispatch/);
     await page.keyboard.press("g");
     await b.waitHud(/WARD DISPATCH[\s\S]*Swift/, "the Dispatch window");

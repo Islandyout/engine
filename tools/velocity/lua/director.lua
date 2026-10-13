@@ -313,23 +313,24 @@ MISSIONS.m1 = {
   },
 }
 
--- Mission 2: No Brakes. A rogue delivery van with stolen kinetic cells:
--- catch it twice on the move, then it runs into the roadblock on West
--- Avenue, where Velocity disables the cells.
-local RIG_ROUTE = "0,-30 0,40 0,64 -30,64 -64,64 -64,30 -64,8"
+-- Mission 2: No Brakes. A rogue delivery van with stolen kinetic cells
+-- (it starts north of Mission 0's barrier): catch it twice on the move up
+-- Central Avenue, then it runs into the roadblock on West Avenue, where
+-- Velocity disables the cells.
+local RIG_ROUTE = "0,0 0,40 0,64 -30,64 -64,64 -64,30 -64,8"
 local ROADBLOCK = { x = -64, z = 4 }
 MISSIONS.m2 = {
   title = "NO BRAKES",
-  start = { 0, -50, "No Brakes" },
+  start = { 6, -22, "No Brakes" },
   reward = "Mastery tier 2 opens at Ward Dispatch",
   merit = 2,
   steps = {
     {
       objective = "Catch the runaway rig (0/2)",
       hint = "Sprint alongside it: get close and stay with it",
-      checkpoint = { x = 0, y = 0.9, z = -50 },
+      checkpoint = { x = 6, y = 0.9, z = -24 },
       enter = function(s)
-        start_rig(s, 0, -40, RIG_ROUTE)
+        start_rig(s, 0, -10, RIG_ROUTE)
         s.catches, s.cool = 0, 0
         audio.music("tension")
       end,
