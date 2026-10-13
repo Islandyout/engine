@@ -469,13 +469,47 @@ export function buildCity(scene: SceneBuilder, options: CityOptions): City {
     }
     return pts.join(" ");
   };
+  // Or up one side of a street for a block or two, across at the
+  // junction, back down the other side and across again: an errand
+  // over the road, two signalised crossings a loop. Roads along z
+  // (alongZ) sit at x = xs[line]; u is across the road, v along it.
+  const streetLoop = (alongZ: boolean, line: number, a: number, b: number): string => {
+    const cross = alongZ ? zs : xs;
+    const at = (alongZ ? xs : zs)[line]!;
+    const pts: string[] = [];
+    const add = (u: number, v: number, kerb = false) =>
+      pts.push(`${fmt(alongZ ? at + u : v)},${fmt(alongZ ? v : at + u)}${kerb ? "*" : ""}`);
+    const c = CROSSWALK;
+    add(THROUGH, cross[a]! + c);
+    for (let k = a + 1; k < b; k++) {
+      add(c, cross[k]! - THROUGH, true);
+      add(c, cross[k]! + THROUGH);
+    }
+    add(THROUGH, cross[b]! - c, true);
+    add(-THROUGH, cross[b]! - c);
+    for (let k = b - 1; k > a; k--) {
+      add(-c, cross[k]! + THROUGH, true);
+      add(-c, cross[k]! - THROUGH);
+    }
+    add(-THROUGH, cross[a]! + c, true);
+    return pts.join(" ");
+  };
   const walkerNames: string[] = [];
   for (let k = 0; k < options.walkers; k++) {
-    const i0 = Math.floor(rand() * nx),
-      j0 = Math.floor(rand() * nz);
-    const i1 = Math.min(nx, i0 + 1 + Math.floor(rand() * 2)),
-      j1 = Math.min(nz, j0 + 1 + Math.floor(rand() * 2));
-    const route = walkLoop(i0, j0, i1, j1);
+    let route: string;
+    if (rand() < 0.5) {
+      const alongZ = rand() < 0.5;
+      const blocks = alongZ ? nz : nx;
+      const line = Math.floor(rand() * ((alongZ ? nx : nz) + 1));
+      const a = Math.floor(rand() * blocks);
+      route = streetLoop(alongZ, line, a, Math.min(blocks, a + 1 + Math.floor(rand() * 2)));
+    } else {
+      const i0 = Math.floor(rand() * nx),
+        j0 = Math.floor(rand() * nz);
+      const i1 = Math.min(nx, i0 + 1 + Math.floor(rand() * 2)),
+        j1 = Math.min(nz, j0 + 1 + Math.floor(rand() * 2));
+      route = walkLoop(i0, j0, i1, j1);
+    }
     // Start at one of the route's points, heading round it.
     const points = route.split(" ");
     const startAt = Math.floor(rand() * points.length);

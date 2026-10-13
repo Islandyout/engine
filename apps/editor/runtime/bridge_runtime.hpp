@@ -1059,7 +1059,26 @@ struct Runtime {
                 walker.next = following;
             }
             const auto &goal = walker.route[walker.next];
-            move(goal.x, goal.z, walker.speed);
+            const float gd = std::max(std::hypot(goal.x - at.x, goal.z - at.z), 1e-3F);
+            const float gx = (goal.x - at.x) / gd, gz = (goal.z - at.z) / gd;
+            // Someone on the line ahead (coming the other way, or slower):
+            // step aside, away from their side (right when dead ahead), so
+            // two people meeting on a sidewalk pass instead of pushing.
+            float side = 0;
+            for (const auto other : w.query<engine::Box, Walker>()) {
+                const auto &them = *w.get<Walker>(other);
+                if (other == entity || them.waiting || them.leader == entity)
+                    continue;
+                const auto o = w.get<engine::Box>(other)->center;
+                const float ahead = (o.x - at.x) * gx + (o.z - at.z) * gz;
+                const float across = (o.x - at.x) * -gz + (o.z - at.z) * gx;
+                if (ahead > 0 && ahead < 2.5F && std::abs(across) < 1.0F) {
+                    const float push = (1.0F - ahead / 2.5F) * (across > 0 ? -1.0F : 1.0F);
+                    if (std::abs(push) > std::abs(side))
+                        side = push;
+                }
+            }
+            move(at.x + gx - gz * side * 1.2F, at.z + gz + gx * side * 1.2F, walker.speed);
         }
     }
     void step_wildlife(engine::World &w) {

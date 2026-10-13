@@ -66,7 +66,7 @@ We read human-written discussion: GTAForums, Steam and GameFAQs boards, ResetEra
 | Building setback | 0.5 m commercial, 4 m residential (front gardens) | `buildCity` |
 | Zoning | downtown (towers, offices) centre; mixed (shops, apartments) round it; residential outside; industrial (warehouses, garages) on an edge; one park | `defaultZones` |
 | Park | groves (cluster 0.7–0.8, 11 m spacing), bushes in clumps, two paths, benches | foliage rules |
-| People | 1.2–1.55 m/s; loop the outer sidewalks of 1–2 × 1–2 blocks, crossing side streets at the junctions | `Walker` |
+| People | 1.2–1.55 m/s. Half loop the outer sidewalks of 1–2 × 1–2 blocks, crossing side streets at the junctions. Half run errands over the road: up one side of a street for 1–2 blocks, across, and back down the other side | `Walker`, `walkLoop`, `streetLoop` |
 | Dogs | follow their owner 1.4 m behind | `Walker.follow` |
 | Wildlife | foxes and a deer in the park: wary at 18 m, flee at 8 m, stay within 30 m | `Wildlife` |
 

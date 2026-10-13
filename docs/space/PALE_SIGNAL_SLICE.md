@@ -1,6 +1,6 @@
 # Pale Signal on this engine
 
-> **Pale Signal was retired as a game in 0.86.0** ([F86](../changelog/F86.md)). Its systems stay in the engine: spaceflight and planets (`SpaceSystem`, `Spaceship`, the editor's **Star System** template), `Scannable`, `Site`, `Routine` and `Wildlife`. This document is kept as the design record.
+> **Pale Signal was retired as a game in 0.86.0** ([F86](../changelog/F86.md)). Its systems stay in the engine: spaceflight and planets (`SpaceSystem`, `Spaceship`, the editor's **Space starter** template), `Scannable`, `Site`, `Routine` and `Wildlife`. This document is kept as the design record.
 
 [Pale Signal](https://github.com/Islandyout/pale-signal) is a planetary exploration, xenoarchaeology and spaceflight game. Its signature promise: the player physically flies the same vessel from the surface, through the atmosphere, into space, and back down somewhere else, with no travel cutscenes. Engine version 0.71.0 adds what that needs, and this slice proves it end to end. The engine work is documented in [F71](../IMPLEMENTATION_STATUS.md).
 

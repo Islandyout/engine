@@ -18,7 +18,7 @@ for v in props.lines:gmatch("[^,]+") do lines[#lines + 1] = tonumber(v) end
 local KERB, STOP = 4, 7
 local cars, people, dogs = {}, {}, {}
 local clock, report = 0, 0
-local stats = { moved = 0, stops = 0, waits = 0, jay = 0, far = 0 }
+local stats = { moved = 0, walked = 0, stops = 0, waits = 0, jay = 0, far = 0 }
 local function nearest(v)
   local best, at = 1e9, 0
   for _, l in ipairs(lines) do if math.abs(v - l) < best then best, at = math.abs(v - l), l end end
@@ -29,7 +29,7 @@ function on_start()
     local id = world.find("Traffic " .. k)
     if id then local x, _, z = world.position(id); cars[#cars + 1] = { id = id, x0 = x, z0 = z, far = 0, still = 0, counted = false, lx = x, lz = z } end
     id = world.find("Pedestrian " .. k)
-    if id then local x, _, z = world.position(id); people[#people + 1] = { id = id, still = 0, counted = false, lx = x, lz = z } end
+    if id then local x, _, z = world.position(id); people[#people + 1] = { id = id, still = 0, counted = false, lx = x, lz = z, x0 = x, z0 = z, far = 0 } end
   end
   for pair in props.dogs:gmatch("[^;]+") do
     local dog, owner = pair:match("([^=]+)=(.+)")
@@ -57,6 +57,7 @@ function on_tick(dt)
       local x, _, z = world.position(p.id)
       local moved = math.sqrt((x - p.lx) ^ 2 + (z - p.lz) ^ 2)
       p.lx, p.lz = x, z
+      p.far = math.max(p.far, math.sqrt((x - p.x0) ^ 2 + (z - p.z0) ^ 2))
       p.still = moved < 0.01 and p.still + dt or 0
       local _, dx = nearest(x)
       local _, dz = nearest(z)
@@ -80,8 +81,10 @@ function on_tick(dt)
     report = 0
     stats.moved = 0
     for _, c in ipairs(cars) do if c.far > 40 then stats.moved = stats.moved + 1 end end
-    ui.set_text("Check", string.format("CITY t=%d cars=%d moved=%d stops=%d people=%d waits=%d jay=%d dogfar=%d",
-      math.floor(clock), #cars, stats.moved, stats.stops, #people, stats.waits, stats.jay, stats.far))
+    stats.walked = 0
+    for _, p in ipairs(people) do if p.far > 20 then stats.walked = stats.walked + 1 end end
+    ui.set_text("Check", string.format("CITY t=%d cars=%d moved=%d stops=%d people=%d walked=%d waits=%d jay=%d dogfar=%d",
+      math.floor(clock), #cars, stats.moved, stats.stops, #people, stats.walked, stats.waits, stats.jay, stats.far))
   end
 end
 `;
@@ -126,12 +129,13 @@ end
     assert.ok(read("cars") >= 10 && read("people") >= 30, `the town is populated: ${hud}`);
     assert.ok(read("moved") >= read("cars") * 0.6, `traffic flows: ${hud}`);
     assert.ok(read("stops") >= 3, `cars stop at red lights: ${hud}`);
+    assert.ok(read("walked") >= read("people") * 0.8, `people walk their routes: ${hud}`);
     assert.ok(read("waits") >= 3, `people wait at the kerb to cross: ${hud}`);
     assert.equal(read("jay"), 0, `nobody walks in the road away from a crosswalk: ${hud}`);
     assert.equal(read("dogfar"), 0, `dogs stay with their owners: ${hud}`);
     await page.screenshot({ path: "build/browser-evidence/city-minute.png" });
     assert.deepEqual(errors, []);
-    console.log("CITY TEMPLATE: traffic flows and stops on red, people wait to cross and keep off the road, dogs follow, no errors.");
+    console.log("CITY TEMPLATE: traffic flows and stops on red, people walk, wait to cross and keep off the road, dogs follow, no errors.");
   } catch (error) {
     await saveFailure("city", error, browser);
     throw error;

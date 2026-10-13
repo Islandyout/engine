@@ -385,7 +385,7 @@ Engine version 0.86.0 makes towns **look and work like real ones**:
 - **Foliage by rule**: groves and clearings, spacing, altitude and ground layers, leaning grass, varied tints, and far LODs.
 - **Living streets**: junction lights that traffic stops for, people who cross at the crosswalks on the walk light, and dogs on leads.
 - **The City Template**, a working town to build a game on, from the [research](docs/world/CITY_TEMPLATE.md) into how games and planners build cities and what players want from them.
-- **Pale Signal is retired as a game.** Its systems stay in the engine: spaceflight and planets (`SpaceSystem`, `Spaceship`, the **Star System** template), `Scannable`, `Site`, `Routine` and `Wildlife`.
+- **Pale Signal is retired as a game.** Its systems stay in the engine: spaceflight and planets (`SpaceSystem`, `Spaceship`, the **Space starter** template), `Scannable`, `Site`, `Routine` and `Wildlife`.
 
 See [F86](docs/changelog/F86.md).
 

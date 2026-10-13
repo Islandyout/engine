@@ -1841,6 +1841,19 @@ int main() {
         check(editor_walker_waiting(2) == 0 && editor_value(2, 2) > 7);
         check(editor_value(3, 2) > 4 && editor_value(3, 2) < editor_value(2, 2));
         check(editor_walker_waiting(1) == -1 && editor_signal_state(1) == -1);
+        // Two people meeting head-on on one sidewalk line keep right and
+        // pass, rather than pushing against each other for good.
+        editor_begin();
+        for (const double z : {-12.0, 12.0}) {
+            check(editor_add(0, 0.9, z, 0, 0, 0, 0.6, 1.75, 0.6, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0.5, 0, 0) == 1);
+            editor_set_body(z < 0 ? 0 : 1, 1, 70, 1);
+        }
+        editor_set_walker(0, "0,-12 0,14", 1.4, 0, "", 1.5);
+        editor_set_walker(1, "0,12 0,-14", 1.4, 0, "", 1.5);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 60 * 25; ++i)
+            editor_tick();
+        check(editor_value(0, 2) > 13 && editor_value(1, 2) < -13);
         // Bad values fail the commit, with a reason.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
