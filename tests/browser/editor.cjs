@@ -268,10 +268,12 @@ const { chromium } = require("playwright");
     // exercise that path too, and let a few real animation frames elapse
     // (rebuild() etc. keep running below) before checking for page errors.
     await page.locator("#catalog-category").selectOption("animals");
+    // Not the Wolf: a later step adds one and finds it by name.
+    await page.locator("#catalog-model").selectOption({ label: "Cow" });
     await page.locator("#catalog-add").click();
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".entity")].some((e) =>
-        e.textContent.includes("Wolf"),
+        e.textContent.includes("Cow"),
       ),
     );
     assert.equal(await page.locator(".entity").count(), 6);
