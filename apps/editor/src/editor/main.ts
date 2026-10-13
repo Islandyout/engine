@@ -166,6 +166,7 @@ function wireResizer(handle: HTMLElement, axis: "x" | "y", cssVar: string, min: 
 type Runtime = RuntimeExports & {
   HEAPF64: Float64Array;
   HEAPF32: Float32Array;
+  HEAPU8: Uint8Array;
   _malloc(bytes: number): number;
   _free(ptr: number): void;
   ccall(name: "editor_input_key", returnType: null, argTypes: ["string", "number"], args: [string, number]): void;
@@ -200,6 +201,33 @@ type Runtime = RuntimeExports & {
   ccall(name: "editor_take_animation_request", returnType: "string", argTypes: ["number"], args: [number]): string;
 };
 declare const createEditorRuntime: () => Runtime | Promise<Runtime>;
+// ccall copies string arguments onto the small wasm stack, and scene
+// scripts run past 100 KB: copy them to the heap instead, freed after the call.
+function heapStrings(runtime: Runtime) {
+  const ccall = runtime.ccall.bind(runtime);
+  const encoder = new TextEncoder();
+  runtime.ccall = ((name: string, returnType: "string" | "number" | null, argTypes: Array<"string" | "number">, args: Array<string | number>) => {
+    const pointers: number[] = [];
+    const heapArgs = args.slice();
+    try {
+      const types = argTypes.map((type, i) => {
+        const value = args[i];
+        if (type !== "string" || typeof value !== "string") return type;
+        const bytes = encoder.encode(value);
+        const ptr = runtime._malloc(bytes.length + 1);
+        if (!ptr) throw new Error(`${name}: out of memory for a ${bytes.length}-byte string`);
+        runtime.HEAPU8.set(bytes, ptr);
+        runtime.HEAPU8[ptr + bytes.length] = 0;
+        pointers.push(ptr);
+        heapArgs[i] = ptr;
+        return "number";
+      });
+      return ccall(name, returnType, types, heapArgs);
+    } finally {
+      for (const ptr of pointers) runtime._free(ptr);
+    }
+  }) as Runtime["ccall"];
+}
 async function startEditor() {
   const doc = new EditorDocument(new LocalStorageSceneStore("game-engine-editor:command-scene:"));
   const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -1691,6 +1719,7 @@ async function startEditor() {
   let runtime: Runtime;
   try {
     runtime = await createEditorRuntime();
+    heapStrings(runtime);
     el("runtime").textContent = "C++ runtime ready";
   } catch (error) {
     el("status").textContent = "Runtime failed to load. Reload or check build.";
