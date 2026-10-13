@@ -59,6 +59,10 @@ const char *editor_weapons_error();
 const char *editor_last_error();
 double editor_weapon_value(int, int);
 const char *editor_weapon_text(int, int, int);
+void editor_set_aim(double, double, double, double, double, double, double, double, double, int, int);
+void editor_set_aim_assist(int, double, double);
+void editor_aim_assist(int, double, int, int, double);
+double editor_aim_assist_value(int);
 int editor_take_weapon_events();
 double editor_weapon_event(int, int);
 void editor_set_melee(int, int, const char *, double, int, double, double, double, double, double);
@@ -1354,6 +1358,85 @@ int main() {
         editor_input_mouse_button(0, 1, 0, 0);
         editor_tick();
         check(count_events(1) == 1 && editor_value(1, 3) == 1);
+
+        // Third person: the shot leaves the muzzle for whatever the
+        // crosshair ray (from the camera over the shoulder) is on, not along
+        // the stale first-person look straight ahead.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 1, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        editor_set_weapons(0, "pistol: model=pistol held=pistol-1 damage=50 equip=0 spread=0 aim_spread=0");
+        check(editor_add(3, 0.9, -10, 0, 0, 0, 1, 1.8, 1, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(1, 1, 1, 0);
+        check(editor_commit() == 1);
+        check(std::string(editor_weapon_text(0, 0, 2)) == "pistol-1");
+        {
+            const double cx = 0.6, cy = 2.0, cz = 4.0;
+            const double dx = 3 - cx, dy = 0.9 - cy, dz = -10 - cz, d = std::sqrt(dx * dx + dy * dy + dz * dz);
+            editor_input_begin_frame();
+            editor_set_look(0, 0);
+            editor_set_aim(cx, cy, cz, dx / d, dy / d, dz / d, 0.3, 1.3, -0.4, 1, 0);
+            editor_input_mouse_button(0, 1, 0, 0);
+            editor_tick();
+            check(editor_value(1, 3) == 0.5); // hit: 50 of 100
+            int muzzle_shots = 0;
+            const int events = editor_take_weapon_events();
+            for (int e = 0; e < events; ++e)
+                muzzle_shots += editor_weapon_event(e, 0) == 0 && std::abs(editor_weapon_event(e, 3) - 0.3) < 1e-4 &&
+                                std::abs(editor_weapon_event(e, 4) - 1.3) < 1e-4;
+            check(muzzle_shots == 1);
+            editor_input_begin_frame();
+            editor_input_mouse_button(0, 0, 0, 0);
+            editor_tick();
+        }
+        // Forgetting the ray (first person) fires along the look again: a miss.
+        editor_set_aim(0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
+        editor_input_begin_frame();
+        editor_input_mouse_button(0, 1, 0, 0);
+        editor_tick();
+        check(editor_value(1, 3) == 0.5);
+        editor_input_begin_frame();
+        editor_input_mouse_button(0, 0, 0, 0);
+
+        // Aim assist: a hostile soldier near the crosshair slows the view and
+        // pulls it toward them on a gamepad; a mouse only slows; a wall hides
+        // them; a bystander with Health is never a target.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 1, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        editor_set_weapons(0, "pistol: model=pistol");
+        editor_set_aim_assist(0, 0.6, 60);
+        check(editor_add(0, 0.9, -12, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(1, 1, 1, 0);
+        editor_set_soldier(1, 1, 1, 30, 120, 20, 0.3, 0.5, 10, 3, 3, 0.5, 0, 0, 10);
+        check(editor_add(-3, 0.9, -12, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(2, 1, 1, 0); // a bystander: Health, no team
+        check(editor_commit() == 1);
+        {
+            // From the eye height, 1.5 degrees left of the soldier's chest (yaw +1.5).
+            const double cy = 1.17, ty = 0.9 + 1.8 * 0.15, a = 1.5 * 3.14159265 / 180;
+            const double pitch = std::atan2(ty - cy, 12.0);
+            editor_set_aim(0, cy, 0, -std::sin(a) * std::cos(pitch), std::sin(pitch), -std::cos(a) * std::cos(pitch),
+                           0, 0, 0, 0, 0);
+            editor_aim_assist(1, 0, 1, 0, 1.0 / 60);
+            check(editor_aim_assist_value(3) == 1);
+            check(editor_aim_assist_value(0) < 1);
+            check(editor_aim_assist_value(1) < 0); // the soldier is to the right: turn right
+            editor_aim_assist(0, 0, 1, 0, 1.0 / 60);
+            check(editor_aim_assist_value(3) == 1 && editor_aim_assist_value(1) == 0 && editor_aim_assist_value(0) < 1);
+            // Straight at the bystander: nothing.
+            const double b = std::atan2(3.0, 12.0);
+            editor_set_aim(0, cy, 0, -std::sin(b) * std::cos(pitch), std::sin(pitch), -std::cos(b) * std::cos(pitch), 0,
+                           0, 0, 0, 0);
+            editor_aim_assist(1, 0, 1, 0, 1.0 / 60);
+            check(editor_aim_assist_value(3) == -1 && editor_aim_assist_value(4) == -1 && editor_aim_assist_value(0) == 1);
+        }
+        // Out-of-range settings fail loudly.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_weapons(0, "pistol: model=pistol");
+        editor_set_aim_assist(0, 1.5, 60);
+        check(editor_commit() == 0 && std::string(editor_last_error()).find("aimAssist") != std::string::npos);
 
         // A scripted turret fires a splash launcher with weapon.fire(dir); the
         // explosion damages both targets in range and the victims' scripts

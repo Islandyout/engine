@@ -10,6 +10,7 @@
 #include "engine/gameplay/melee.hpp"
 #include "engine/gameplay/space.hpp"
 #include "engine/gameplay/street.hpp"
+#include "engine/gameplay/aim_assist.hpp"
 #include "engine/gameplay/weapons.hpp"
 #include "engine/nav/nav.hpp"
 #include "engine/physics/physics.hpp"
@@ -553,6 +554,8 @@ struct Arsenal final {
     bool script_reload{false};
     int script_select{-1};
     std::optional<engine::Vec3> script_aim;
+    // Aim assist for a Player (Weapons.aimAssist, editor_set_aim_assist).
+    engine::gameplay::AimAssistSettings assist;
 };
 
 // Combat AI: a soldier that perceives hostiles (sight cone with

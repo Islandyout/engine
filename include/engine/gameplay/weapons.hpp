@@ -24,6 +24,9 @@ struct WeaponDef final {
     // Which first-person model the editor draws: rifle, pistol, shotgun,
     // smg, sniper or launcher.
     std::string model{"rifle"};
+    // The catalog gun seen in the hands in third person (a model file name in
+    // kit/weapons, e.g. pistol-1 or rifle-2); empty for the model's default.
+    std::string held;
     FireMode mode{FireMode::Semi};
     int burst{3};          // shots per trigger pull in Burst mode
     float rpm{600.0F};     // rounds per minute
@@ -55,7 +58,7 @@ struct WeaponParse final {
 };
 
 // Parses a loadout. `#` starts a comment; blank lines are ignored. Keys:
-// model, mode (semi|auto|burst), burst, rpm, damage, headshot, pellets, mag,
+// model, held, mode (semi|auto|burst), burst, rpm, damage, headshot, pellets, mag,
 // reserve, reload, per_shell, spread, aim_spread, move_spread, recoil, range,
 // falloff, min_damage, projectile, speed, gravity, splash, zoom, equip.
 [[nodiscard]] WeaponParse parse_weapons(std::string_view text);

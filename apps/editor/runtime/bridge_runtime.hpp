@@ -74,6 +74,22 @@ struct Runtime {
     // any display rate). yaw 0 looks down -z; pitch > 0 looks up.
     float look_yaw{0.0F};
     float look_pitch{0.0F};
+    // Third person: the ray through the crosshair (the camera and its
+    // direction) and where the held gun's muzzle is, set by editor_set_aim()
+    // once per rendered frame. A third-person Player's shots go from the
+    // muzzle to whatever the crosshair ray hits first, so they land where
+    // the crosshair is, not where the camera's offset would put them.
+    struct AimRay final {
+        engine::Vec3 origin{};
+        engine::Vec3 direction{0, 0, -1};
+        std::optional<engine::Vec3> muzzle;
+    };
+    std::optional<AimRay> aim_ray;
+    // The latest aim-assist result (editor_aim_assist), for the editor to
+    // apply to the view and the crosshair.
+    engine::gameplay::AimAssist aim_assist_result;
+    int aim_assist_target{-1}; // entity index of aim_assist_result.target
+    int aim_over_target{-1};   // entity index of aim_assist_result.over
     // Physics settings shared by every system that steps or queries it.
     engine::physics::Config physics_config{};
     // The scene's terrain (editor_set_terrain), if any; physics_config and
@@ -2464,6 +2480,33 @@ struct Runtime {
                               const float cos_pitch = std::cos(look_pitch);
                               direction = {-std::sin(look_yaw) * cos_pitch, std::sin(look_pitch),
                                            -std::cos(look_yaw) * cos_pitch};
+                              if (controller && !controller->first_person && aim_ray) {
+                                  // From the muzzle (or the eyes, when the
+                                  // muzzle is through a wall) to what the
+                                  // crosshair is on.
+                                  const auto &ray = *aim_ray;
+                                  const auto &weapon = arsenal.weapons[static_cast<std::size_t>(arsenal.state.current)];
+                                  const auto seen = trace(w, ray.origin, ray.direction, weapon.range, entity);
+                                  const float reach = seen ? seen->distance : weapon.range;
+                                  const engine::Vec3 point{ray.origin.x + ray.direction.x * reach,
+                                                           ray.origin.y + ray.direction.y * reach,
+                                                           ray.origin.z + ray.direction.z * reach};
+                                  if (ray.muzzle) {
+                                      const engine::Vec3 out{ray.muzzle->x - origin.x, ray.muzzle->y - origin.y,
+                                                             ray.muzzle->z - origin.z};
+                                      const float length = std::sqrt(out.x * out.x + out.y * out.y + out.z * out.z);
+                                      const auto blocked =
+                                          length > 1e-4F ? trace(w, origin, {out.x / length, out.y / length, out.z / length},
+                                                                 length, entity)
+                                                         : std::nullopt;
+                                      if (!blocked)
+                                          origin = *ray.muzzle;
+                                  }
+                                  const engine::Vec3 to{point.x - origin.x, point.y - origin.y, point.z - origin.z};
+                                  const float length = std::sqrt(to.x * to.x + to.y * to.y + to.z * to.z);
+                                  direction = length > 1e-4F ? engine::Vec3{to.x / length, to.y / length, to.z / length}
+                                                             : ray.direction;
+                              }
                           }
                           if (arsenal.script_fire)
                               trigger.fire_down = trigger.fire_pressed = true;

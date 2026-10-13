@@ -99,6 +99,18 @@ WeaponParse parse_weapons(std::string_view text) {
                 weapon.model = value;
                 continue;
             }
+            if (key == "held") {
+                // A kit/weapons file name: lower-case words joined by dashes.
+                const bool name = !value.empty() && value.size() <= 40 && value.front() != '-' &&
+                                  value.back() != '-' &&
+                                  std::all_of(value.begin(), value.end(), [](char c) {
+                                      return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
+                                  });
+                if (!name)
+                    return fail("held must be a weapon model name like pistol-1");
+                weapon.held = value;
+                continue;
+            }
             if (key == "mode") {
                 if (value == "semi")
                     weapon.mode = FireMode::Semi;

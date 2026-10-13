@@ -41,6 +41,10 @@ int main() {
             check(parse_weapons("a: rpm=0").error == "line 1: \"rpm\" is out of range", "rpm must be positive");
             check(parse_weapons("a: bogus=1").error == "line 1: unknown key \"bogus\"", "unknown key");
             check(parse_weapons("a: model=bazooka").error.find("model must be") != std::string::npos, "bad model");
+            check(parse_weapons("a: held=rifle-2").weapons[0].held == "rifle-2", "held names the gun in the hands");
+            check(parse_weapons("a: mag=3").weapons[0].held.empty(), "held defaults to empty");
+            for (const char *bad : {"a: held=Rifle", "a: held=../x", "a: held=-x", "a: held=a_b"})
+                check(parse_weapons(bad).error.find("held must be") != std::string::npos, "a bad held name is rejected");
             check(parse_weapons("\na: mag=3\na: mag=4").error == "line 3: weapon \"a\" is defined twice", "duplicate");
             check(parse_weapons("no colon here").error.rfind("line 1:", 0) == 0, "missing colon");
             // Windows (CRLF) files and trailing tabs/spaces parse like clean ones.
