@@ -379,6 +379,17 @@ Engine version 0.79.0 starts **GATEBREAKER**, an original manhwa-style hunter ac
 
 See [F79](docs/changelog/F79.md).
 
+Engine version 0.85.0 makes **VELOCITY** a full superhero slice ([how to play](games/my-games/velocity/README.md)):
+
+- **Meridian Ward** in daylight, with a minimap and map.
+- **A five-mission campaign**: the tutorial, a robbery with a Shield Heavy, a runaway-rig chase, a rescue, and the three-phase boss Breakline.
+- **Four enemy kinds** with readable red attacks.
+- **Five replayable street incidents**.
+- **Mastery picks and Heroic** at Ward Dispatch.
+- **Checkpoints and a save.**
+
+See [F85](docs/changelog/F85.md).
+
 Engine version 0.84.0 gives GATEBREAKER **the world, from E to S**:
 
 - **The field**: dungeon breaks in the district whose packs come back out of sight, a daily field boss, and nights with stronger enemies and better drops.
