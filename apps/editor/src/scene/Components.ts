@@ -69,7 +69,7 @@ export interface ScriptComponent {
   props: Record<string, number | boolean | string>;
 }
 // model "Classic" is the original constant-turn-rate drive on a Player
-// (archetype picks its tuning); "Arcade" (0.70.0) is engine::gameplay car
+// (archetype picks its tuning); "Arcade" is engine::gameplay car
 // dynamics -- grip, drifting, handbrake, nitro, gears -- driven by the
 // Player or by a Driver. Speeds m/s, accelerations m/s^2, grip in g.
 export type VehicleModel = "Classic" | "Arcade";
@@ -86,7 +86,7 @@ export interface VehicleComponent {
   nitroSeconds: number;
   gears: number;
 }
-// An AI driver for an Arcade Vehicle (0.70.0): races along `route`
+// An AI driver for an Arcade Vehicle: races along `route`
 // ("x,z x,z ..."), chases `target` (an entity Name; "" = the Player) in
 // Pursuit, or cruises the route as Traffic, braking for cars ahead.
 export type DriverMode = "Off" | "Race" | "Pursuit" | "Traffic";
@@ -99,14 +99,14 @@ export interface DriverComponent {
   aggression: number; // 0..1
   speedScale: number;
 }
-// Many copies of catalog models from one entity (0.70.0): one per line,
+// Many copies of catalog models from one entity: one per line,
 // "model x z [yaw degrees] [scale] [solid]", positions relative to the
 // entity. Drawn instanced in chunks; "solid" ones collide with their full
 // footprint. For cities: road tiles, buildings, street furniture.
 export interface ModelInstancesComponent {
   instances: string;
 }
-// A star system to fly through (0.71.0). `bodies` is one planet or moon per
+// A star system to fly through. `bodies` is one planet or moon per
 // line: "name parent orbitRadius period phase inclination radius gravity
 // atmosphereHeight atmosphereDensity terrainAmplitude terrainScale seed
 // color haze" -- parent "-" for the star, metres/seconds/degrees, colors as
@@ -126,13 +126,13 @@ export interface SpaceSystemComponent {
   // Surface landmarks, one per line: "body latitude longitude #color label"
   // -- beacons seen from orbit and marked on the flight HUD.
   landmarks: string;
-  // Species to find on the bodies (0.72.0), one per line: "id body class
+  // Species to find on the bodies, one per line: "id body class
   // model weight scale Name | description" -- class flora, mineral or
   // fauna; flora and minerals are scattered (catalog model, relative
   // weight, size) around wherever you walk, and all can be scanned.
   species: string;
 }
-// The ship the SpaceSystem flies (0.71.0). kg, N, rad/s^2 (rcs), degrees/s
+// The ship the SpaceSystem flies. kg, N, rad/s^2 (rcs), degrees/s
 // (maxRate), tank units and units/s (burn). startOrbit >= 0 starts in orbit
 // that high above the site body; otherwise landed where authored.
 export interface SpaceshipComponent {
@@ -151,7 +151,7 @@ export interface SpaceshipComponent {
   // is hidden); "" keeps the authored look.
   model: string;
 }
-// Something the scanner can study (0.72.0): hold F facing it within range
+// Something the scanner can study: hold F facing it within range
 // and a scan completes, calling on_ui("scan", id) in every script.
 export type ScanKind = "Flora" | "Fauna" | "Mineral" | "Culture" | "Landmark";
 export interface ScannableComponent {
@@ -160,7 +160,7 @@ export interface ScannableComponent {
   kind: ScanKind;
   range: number;
 }
-// A second (third, ...) place in a SpaceSystem scene (0.73.0): its child
+// A second (third, ...) place in a SpaceSystem scene: its child
 // entities are authored around this surface point (metres, +y up, the
 // Site entity at the origin) and only exist -- solid and drawn -- while the
 // frame is there, which happens when the ship lands within `radius`.
@@ -171,14 +171,14 @@ export interface SiteComponent {
   longitude: number;
   radius: number;
 }
-// A daily routine (0.73.0): "hour x z" stops separated by ";" -- the entity
+// A daily routine: "hour x z" stops separated by ";" -- the entity
 // walks to the latest stop whose hour has passed on the scene clock
 // (world.set_clock) and waits there.
 export interface RoutineComponent {
   stops: string;
   speed: number;
 }
-// Wildlife (0.73.0): calm, then wary (stops and watches) inside `wary`
+// Wildlife: calm, then wary (stops and watches) inside `wary`
 // metres of the player or a running ship, fleeing inside `flee`, never
 // more than `leash` metres from home.
 export interface WildlifeComponent {
@@ -224,7 +224,7 @@ export interface SoundComponent {
   minDistance: number;
   maxDistance: number;
 }
-// Scene audio mix (0.64.0): bus volumes (0-2), room reverb (0-1), and
+// Scene audio mix: bus volumes (0-2), room reverb (0-1), and
 // whether sounds behind solid geometry are muffled. The first entity with
 // one sets the mix; scripts can change bus volumes with sound.volume().
 export interface AudioSettingsComponent {
@@ -256,7 +256,7 @@ export interface LightComponent {
   intensity: number;
   range: number;
   angle: number;
-  // Casts real-time shadows (0.52.0). Off by default: every shadow-casting
+  // Casts real-time shadows. Off by default: every shadow-casting
   // Point light renders the scene six more times.
   castShadows: boolean;
 }
@@ -291,7 +291,7 @@ export interface ParticlesComponent {
   space: "Local" | "World"; // World: particles stay behind a moving emitter
   burst: number; // particles emitted at once when Play starts
 }
-// A ribbon following the entity's recent path during Play (0.57.0).
+// A ribbon following the entity's recent path during Play.
 export interface TrailComponent {
   color: Vec3;
   width: number; // world units at the head
@@ -341,7 +341,7 @@ export type UIAnchor =
   | "bottom-center"
   | "bottom-right";
 export type UIVisibility = "always" | "play" | "pause";
-// "script" (0.56.0): a click calls on_ui(name, "click") in every script.
+// "script": a click calls on_ui(name, "click") in every script.
 export type UIAction = "restart" | "resume" | "pause" | "quit" | "script";
 export interface UIComponent {
   kind: UIKind;
@@ -349,7 +349,7 @@ export interface UIComponent {
   anchor: UIAnchor;
   visibleWhen: UIVisibility;
   action: UIAction;
-  // Layout and look (0.56.0; older scenes get these defaults). Offsets move
+  // Layout and look (older scenes get these defaults). Offsets move
   // the element from its anchor in screen pixels (+y down); a width/height
   // of 0 sizes it automatically (see uiLayout.ts).
   offsetX: number;
@@ -389,7 +389,7 @@ export interface EntityRef {
   generation: number;
 }
 
-// Scene-wide look (0.52.0): sky, sun, ambient light, fog, shadows and
+// Scene-wide look: sky, sun, ambient light, fog, shadows and
 // exposure. The first entity carrying one wins; without any, the scene keeps
 // the defaults below, which reproduce the editor's original fixed lighting.
 export type SkyMode = "Color" | "Gradient" | "Procedural";
@@ -415,7 +415,7 @@ export interface EnvironmentComponent {
   shadows: boolean;
   exposure: number;
 }
-// A game camera (0.52.0). During Play the highest-priority Camera entity
+// A game camera. During Play the highest-priority Camera entity
 // renders the game view from its own position and Rotation instead of the
 // editor's orbit camera.
 export type CameraProjection = "Perspective" | "Orthographic";
@@ -427,7 +427,7 @@ export interface CameraComponent {
   orthoSize: number; // half the view height, world units
   priority: number;
 }
-// Surface appearance override (0.52.0). On the placeholder box it replaces
+// Surface appearance override. On the placeholder box it replaces
 // the default material; on a catalog model it tints every mesh, keeping the
 // model's own textures when keepTextures is on.
 export interface MaterialComponent {
@@ -438,21 +438,21 @@ export interface MaterialComponent {
   emissiveIntensity: number;
   opacity: number;
   keepTextures: boolean;
-  // Color texture (0.58.0): a URL, or "asset:<file>" for an imported image.
+  // Color texture: a URL, or "asset:<file>" for an imported image.
   texture: string;
-  // Which parts of a catalog model it applies to (0.75.0): meshes whose
+  // Which parts of a catalog model it applies to: meshes whose
   // own material's name contains one of these comma-separated words
   // ("Cloth" tints a character's clothes, not their skin); empty for all.
   parts: string;
 }
 
-// Animation state machine (0.53.0), authored as text -- see
+// Animation state machine, authored as text -- see
 // src/editor/animator.ts for the syntax.
 export interface AnimatorComponent {
   graph: string;
 }
 
-// Camera rig (0.54.0), on the same entity as a Camera: during Play the
+// Camera rig, on the same entity as a Camera: during Play the
 // camera follows a target from `offset` (in the target's frame when
 // orbit is off: +z is behind), eases toward it over `smoothing` seconds,
 // looks at the target raised by `lookHeight`, pulls in front of anything
@@ -467,7 +467,7 @@ export interface CameraFollowComponent {
   orbit: boolean;
 }
 
-// A character controller (0.60.0) for the Player: acceleration-based
+// A character controller for the Player: acceleration-based
 // movement from the named input actions (move_x/move_y, jump, sprint,
 // crouch), coyote time, jump buffering, step climbing and crouching (see
 // engine::gameplay, include/engine/gameplay/character.hpp). FirstPerson puts
@@ -493,7 +493,7 @@ export interface CharacterControllerComponent {
   headBob: number; // 0 = off, 1 = normal
 }
 
-// Weapons (0.61.0): a loadout, one weapon per line as `name: key=value ...`
+// Weapons: a loadout, one weapon per line as `name: key=value ...`
 // (see engine::gameplay::parse_weapons in include/engine/gameplay/weapons.hpp
 // for every key). A Player fires with the fire/aim/reload/next_weapon/
 // weapon_scroll actions and 1-9; any other entity fires from its script with
@@ -502,7 +502,7 @@ export interface WeaponsComponent {
   loadout: string;
 }
 
-// Melee (0.78.0): martial-arts fighting. `style` picks a built-in move
+// Melee: martial-arts fighting. `style` picks a built-in move
 // list (Martial arts: punches, kicks, heavies, air and dash attacks, rolls
 // and four specials; Sword) or Custom, which uses `moves`: one move per line
 // as `name: key=value ...` (see engine::gameplay::parse_moves in
@@ -525,7 +525,7 @@ export interface MeleeComponent {
   // Catalog models held in each hand (0: empty), e.g. twin daggers.
   rightHand: number;
   leftHand: number;
-  // GATEBREAKER (0.80.0): a stagger bar that Breaks it (0: none) and how
+  // GATEBREAKER: a stagger bar that Breaks it (0: none) and how
   // long the Break floors it; the mana pool skills spend and its refill per
   // second; a ranged brain's distance (0: melee); a shield-bearer's guard.
   poise: number;
@@ -536,7 +536,7 @@ export interface MeleeComponent {
   shield: boolean;
 }
 
-// Combat AI (0.62.0): a soldier on `team` (the Player is team 0) that
+// Combat AI: a soldier on `team` (the Player is team 0) that
 // perceives hostiles (a sight cone with line of sight, gunfire within
 // hearingRange, being shot), patrols its comma-separated `patrol` waypoint
 // Names / guards its spawn / hunts the nearest hostile, fights from
@@ -562,7 +562,7 @@ export interface AICombatComponent {
   meleeDamage: number; // without Weapons
 }
 
-// Terrain (0.63.0): a square heightfield of `size` centered on the entity's
+// Terrain: a square heightfield of `size` centered on the entity's
 // Transform (Rotation and Scale don't apply), from seeded fractal noise
 // (height, frequency in features per 100 units, octaves) plus sculpted
 // offsets painted with the viewport's Sculpt tool. Colored sand / grass /
@@ -588,7 +588,7 @@ export interface TerrainComponent {
   scatter: string;
 }
 
-// Post-processing (0.65.0): anti-aliasing, ambient occlusion, bloom, color
+// Post-processing: anti-aliasing, ambient occlusion, bloom, color
 // grading (contrast, saturation, temperature), vignette, film grain and sun
 // shadow quality. The first entity with one sets the scene's look; without
 // one the editor keeps its original subtle bloom.
@@ -617,7 +617,7 @@ export interface PostProcessingComponent {
   shadowQuality: ShadowQuality;
 }
 
-// Named input actions (0.55.0): one `action: source, source` per line (see
+// Named input actions: one `action: source, source` per line (see
 // apps/editor/runtime/bindings.hpp). The first entity with one sets the
 // scene's bindings; without one the defaults below apply.
 export interface InputActionsComponent {

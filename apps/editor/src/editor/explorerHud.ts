@@ -1,4 +1,4 @@
-// Exploration HUD (0.73.0): the minimaps (flight: the bodies around the
+// Exploration HUD: the minimaps (flight: the bodies around the
 // ship; on foot: what's around the walker) and the full-screen map (the
 // system from above, or the current world's surface with its known sites).
 // Pure drawing from plain data, so main.ts gathers and this only paints.

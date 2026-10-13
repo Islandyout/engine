@@ -1,4 +1,4 @@
-// Generative music (0.75.0): a small adaptive score synthesized in Web Audio
+// Generative music: a small adaptive score synthesized in Web Audio
 // -- a pad, a bass drone and bell arpeggios over a slow chord progression,
 // in a reverb -- with one mood per context (title, exploring by day or
 // night, flight, open space, the signal, a storm). Moods crossfade; nothing
@@ -19,7 +19,7 @@ interface MoodSpec {
   bass: number;
   bright: number; // pad filter cutoff (Hz)
   tremolo?: number; // Hz, for unease
-  // A composed phrase (0.76.0): [scale degree, beats] pairs (degree null is
+  // A composed phrase: [scale degree, beats] pairs (degree null is
   // a rest), played as a lead voice every `motifEvery` chords over the
   // chord it starts on, so each mood has a tune you can recognise.
   motif?: Array<[number | null, number]>;

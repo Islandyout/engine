@@ -103,7 +103,7 @@ export interface SceneComponents {
 // the runtime check (CommandInterpreter, SceneSerializer) and the
 // compile-time PrefabableComponent type below, so the two can never drift.
 export const prefabableComponentNames = [
-  // Scale (0.66.0): a prefab's default size, which also sizes instances a
+  // Scale: a prefab's default size, which also sizes instances a
   // script spawns at runtime (world.spawn); a placed instance's own Scale
   // still wins.
   "Scale",

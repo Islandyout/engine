@@ -136,7 +136,7 @@ function ruinVariant(scene) {
       await page.keyboard.up("KeyF");
       await waitHud(page, /Survey Kestra/, "the survey begins");
       await page.screenshot({ path: "build/browser-evidence/pale-signal-eva.png" });
-      // Pause, open Settings (0.75.0: mouse steering and music volume).
+      // Pause, open Settings (mouse steering and music volume).
       await page.keyboard.press("KeyP");
       await page.waitForTimeout(1500);
       await clickCenter(page, 0);

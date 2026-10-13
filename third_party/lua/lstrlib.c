@@ -361,6 +361,7 @@ typedef struct MatchState {
   const char *p_end;  /* end ('\0') of pattern */
   lua_State *L;
   int matchdepth;  /* control for recursive depth (to avoid C stack overflow) */
+  long steps;  /* engine: match steps left for this call (see MAXMATCHSTEPS) */
   unsigned char level;  /* total number of captures (finished or unfinished) */
   struct {
     const char *init;
@@ -376,6 +377,13 @@ static const char *match (MatchState *ms, const char *s, const char *p);
 /* maximum recursion depth for 'match' */
 #if !defined(MAXCCALLS)
 #define MAXCCALLS	200
+#endif
+
+/* engine: match() calls allowed per string.find/match/gmatch/gsub call. A
+   few million is far beyond any legitimate pattern on a script's strings
+   and runs in milliseconds; a catastrophic pattern stops there. */
+#if !defined(MAXMATCHSTEPS)
+#define MAXMATCHSTEPS	4000000L
 #endif
 
 
@@ -568,6 +576,10 @@ static const char *match_capture (MatchState *ms, const char *s, int l) {
 
 
 static const char *match (MatchState *ms, const char *s, const char *p) {
+  /* engine: a backtracking pattern can take exponential time inside one C
+     call, where the VM's instruction hook never fires; bound the work. */
+  if (l_unlikely(--ms->steps < 0))
+    luaL_error(ms->L, "pattern too complex (step limit)");
   if (l_unlikely(ms->matchdepth-- == 0))
     luaL_error(ms->L, "pattern too complex");
   init: /* using goto to optimize tail recursion */
@@ -758,6 +770,7 @@ static void prepstate (MatchState *ms, lua_State *L,
                        const char *s, size_t ls, const char *p, size_t lp) {
   ms->L = L;
   ms->matchdepth = MAXCCALLS;
+  ms->steps = MAXMATCHSTEPS;
   ms->src_init = s;
   ms->src_end = s + ls;
   ms->p_end = p + lp;

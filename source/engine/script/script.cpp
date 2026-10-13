@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstddef>
 #include <cstdlib>
 
 extern "C" {
@@ -23,6 +24,38 @@ constexpr int instruction_budget = 2'000'000;
 
 void instruction_watchdog(lua_State *L, lua_Debug *) {
     luaL_error(L, "exceeded its per-call instruction budget (a runaway loop?)");
+}
+
+// Each VM's memory, capped: no instruction budget bounds what a script
+// allocates (one string.rep or table fill can take gigabytes, and in the
+// browser that kills the whole runtime). Past the cap the allocation fails
+// and Lua raises "not enough memory" in the script, like any other error.
+constexpr std::size_t memory_budget = 64u << 20;
+
+struct MemoryUse {
+    std::size_t used{};
+};
+
+void *capped_alloc(void *ud, void *ptr, std::size_t old_size, std::size_t new_size) {
+    auto *use = static_cast<MemoryUse *>(ud);
+    // Lua passes the block's type, not a size, as old_size when ptr is null.
+    const std::size_t old = ptr ? old_size : 0;
+    if (new_size == 0) {
+        std::free(ptr);
+        use->used -= old;
+        return nullptr;
+    }
+    if (new_size > old && use->used - old + new_size > memory_budget)
+        return nullptr;
+    void *block = std::realloc(ptr, new_size);
+    if (block)
+        use->used = use->used - old + new_size;
+    return block;
+}
+
+int lua_panic(lua_State *L) {
+    std::fprintf(stderr, "Lua panic: %s\n", lua_tostring(L, -1));
+    return 0;
 }
 
 // save.set(key, value): the C side of the `save` table every VM gets — see
@@ -216,6 +249,9 @@ end
 
 struct Runtime::Instance final {
     lua_State *L{};
+    // What L has allocated (capped_alloc's user data): it outlives L, which
+    // is closed in the destructor below.
+    MemoryUse memory;
     bool broken{false};
     // Whether `compiled_source` reflects an actual compile attempt yet --
     // distinct from compiled_source itself being empty, since "" is a
@@ -913,7 +949,7 @@ struct LuaApi final {
         return 1;
     }
     // space.call(op, text, n1, n2, ...) -> {n1, n2, ..., text = "..."} or nil:
-    // any SpaceSystem operation by name (0.73.0) -- plan, autopilot,
+    // any SpaceSystem operation by name -- plan, autopilot,
     // reserve, part, reveal, bodies, wind, board_key -- without a binding
     // per operation. See BridgeHost::space for the list.
     static int space_generic(lua_State *L) {
@@ -944,7 +980,7 @@ struct LuaApi final {
     }
     // host.send(kind, text): a message to the host application (the editor
     // or player), for presentation the engine doesn't own -- maps, weather,
-    // waypoints, settings (0.73.0). Unknown kinds are ignored there.
+    // waypoints, settings. Unknown kinds are ignored there.
     static int host_send(lua_State *L) {
         const char *kind = luaL_checkstring(L, 1);
         size_t length = 0;
@@ -1024,7 +1060,7 @@ struct LuaApi final {
         return 0;
     }
 
-    // -- Native input (0.55.0) ------------------------------------------
+    // -- Native input ------------------------------------------
     static const ActionState *action_state(lua_State *L) {
         auto &self = runtime(L);
         const char *name = luaL_checkstring(L, 1);
@@ -1416,7 +1452,9 @@ void Runtime::step(World &world, float dt) {
             instance->started = false;
             instance->compiled_source = script.source;
             instance->broken = false;
-            instance->L = luaL_newstate();
+            instance->memory = {};
+            instance->L = lua_newstate(capped_alloc, &instance->memory);
+            lua_atpanic(instance->L, lua_panic);
             open_sandboxed_libs(instance->L, this);
             LuaApi::install(instance->L, this);
             lua_newtable(instance->L);

@@ -1,4 +1,4 @@
-// Melee combat in the view (0.78.0): what a fighter's body does, and how a
+// Melee combat in the view: what a fighter's body does, and how a
 // blow feels. The simulation (bridge_melee.cpp) owns every decision; this
 // draws it:
 //   - the martial-arts clip library (kit/people/combat_clips.glb), shared by

@@ -1,4 +1,4 @@
-// The editor runtime's readout fields (0.77.0), in one place. Run
+// The editor runtime's readout fields, in one place. Run
 // `node tools/bridge/gen_fields.mjs` after changing this: it writes the C++
 // enums (apps/editor/runtime/bridge_fields.hpp) and the TypeScript constants
 // (apps/editor/src/editor/bridgeFields.ts), so both sides name a field the
@@ -77,7 +77,7 @@ export const entityFields = [
   ["aiState", 5, "AIState order (Idle, Walking, ...), -1 without an AI"],
 ];
 
-// editor_fighter_value(index, field) (0.78.0)
+// editor_fighter_value(index, field)
 export const fighterFields = [
   ["has", 0, "1 with a Melee fighter"],
   ["mode", 1, "0 idle, 1 move, 2 block, 3 stun, 4 airborne, 5 down, 6 getup, 7 dead"],
@@ -96,7 +96,7 @@ export const fighterFields = [
   ["active", 14, "1 while the move's blow is live"],
   ["team", 15],
   ["stunLeft", 16, "seconds of hit-stun left"],
-  // GATEBREAKER (0.80.0)
+  // GATEBREAKER
   ["mana", 17, "0..1"],
   ["stagger", 18, "0..1 of the poise bar, -1 without one"],
   ["broken", 19, "seconds of Break left"],
@@ -109,7 +109,7 @@ export const fighterFields = [
   ["slotUltimate", 26],
 ];
 
-// editor_melee_event(index, field) (0.78.0)
+// editor_melee_event(index, field)
 export const meleeEventFields = [
   ["kind", 0, "0 start, 1 hit, 2 blocked, 3 parried, 4 dodged, 5 guard_break, 6 fire, 7 land, 8 ko, 9 broken"],
   ["attacker", 1],

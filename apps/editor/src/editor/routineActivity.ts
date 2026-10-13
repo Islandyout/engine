@@ -1,4 +1,4 @@
-// Routine activities (0.75.0; out of main.ts in 0.76.0). A Routine stop may
+// Routine activities (out of main.ts in 0.76.0). A Routine stop may
 // name one ("6 120 40 sit"): the clip to play once there, if the model has
 // it (a few aliases help).
 export const activityAliases: Record<string, string[]> = {

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <string>
 #include <stdexcept>
 
 namespace {
@@ -42,6 +43,19 @@ int main() {
             check(parse_weapons("a: model=bazooka").error.find("model must be") != std::string::npos, "bad model");
             check(parse_weapons("\na: mag=3\na: mag=4").error == "line 3: weapon \"a\" is defined twice", "duplicate");
             check(parse_weapons("no colon here").error.rfind("line 1:", 0) == 0, "missing colon");
+            // Windows (CRLF) files and trailing tabs/spaces parse like clean ones.
+            const auto crlf = parse_weapons("a: mag=3 \t\r\nb: mag=4\r\n");
+            check(crlf.error.empty() && crlf.weapons.size() == 2 && crlf.weapons[0].magazine == 3 &&
+                      crlf.weapons[1].magazine == 4 && crlf.weapons[1].name == "b",
+                  "CRLF line ends and trailing whitespace are trimmed");
+            // Every spread is 0..<90 degrees: negative and 90 are rejected, 89 is fine.
+            for (const char *key : {"spread", "aim_spread", "move_spread"}) {
+                const std::string k = key;
+                check(!parse_weapons("a: " + k + "=-1").error.empty(), "a negative spread is rejected");
+                check(!parse_weapons("a: " + k + "=90").error.empty(), "a 90-degree spread is rejected");
+                check(parse_weapons("a: " + k + "=89").error.empty(), "an 89-degree spread is accepted");
+            }
+            check(parse_weapons("a: move_spread=7").weapons[0].move_spread == 7, "move_spread is stored");
             check(parse_weapons("  # only comments\n").error == "line 0: no weapons defined", "empty loadout");
             check(parse_weapons("a: mag=2.5").error == "line 1: \"mag\" is out of range", "integer counts");
         }

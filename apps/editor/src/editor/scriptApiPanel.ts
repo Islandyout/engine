@@ -1,4 +1,4 @@
-// The Script API reference (0.77.0): a searchable list of every callback,
+// The Script API reference: a searchable list of every callback,
 // built-in function and named helper, opened from the Script card. Clicking
 // an entry copies its signature into the clipboard for pasting.
 import { scriptApi } from "./scriptApi";

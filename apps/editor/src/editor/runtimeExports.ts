@@ -8,6 +8,7 @@ export interface RuntimeExports {
   _editor_set_collider(index: number, isTrigger: number, layer: number, mask: number, bounciness: number): void;
   _editor_set_rotation(index: number, x: number, y: number, z: number): void;
   _editor_set_controller(index: number, mode: number, walk: number, sprint: number, crouch: number, jump: number, stand: number, crouched: number, step: number, accel: number, air: number): void;
+  _editor_set_terrain(x: number, y: number, z: number, size: number, resolution: number, heights: number, count: number): void;
   _editor_add_obstacle(x: number, y: number, z: number, sx: number, sy: number, sz: number): void;
   _editor_line_blocked(x1: number, y1: number, z1: number, x2: number, y2: number, z2: number): number;
   _editor_terrain_height(x: number, z: number): number;
@@ -74,11 +75,11 @@ export interface RuntimeExports {
 
 // Called with runtime.ccall(name, ...) because a string crosses the boundary.
 export const ccallExports = {
-  editor_set_terrain: { returns: "void", args: ["number", "number", "number", "number", "number", "string"] },
   editor_set_script_source: { returns: "void", args: ["number", "string"] },
   editor_set_script_props: { returns: "void", args: ["number", "string"] },
   editor_set_name: { returns: "void", args: ["number", "string"] },
   editor_template_begin: { returns: "void", args: ["string"] },
+  editor_last_error: { returns: "string", args: [] },
   editor_input_key: { returns: "void", args: ["string", "number"] },
   editor_set_input_bindings: { returns: "void", args: ["string"] },
   editor_bindings_error: { returns: "string", args: [] },

@@ -1,4 +1,4 @@
-// The built-in Melee move lists (0.78.0), mirrored from
+// The built-in Melee move lists, mirrored from
 // engine::gameplay::default_moves_text / sword_moves_text (melee.cpp; a test
 // keeps the two in step). A Custom-style Melee component starts from the
 // martial-arts list.

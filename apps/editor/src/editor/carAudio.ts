@@ -1,4 +1,4 @@
-// Car sounds (0.70.0), synthesized: an engine note that follows the revs and
+// Car sounds, synthesized: an engine note that follows the revs and
 // throttle, tyre screech that follows the slide, and a two-tone siren.
 // Each voice runs continuously into the node it's given until stop().
 

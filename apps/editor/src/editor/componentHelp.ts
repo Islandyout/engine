@@ -1,4 +1,4 @@
-// What each component is for, and the fields that need explaining (0.77.0).
+// What each component is for, and the fields that need explaining.
 // The inspector shows these as tooltips and a line under each card's title;
 // tools/gen_component_docs.mjs builds docs/COMPONENTS.md from the same table,
 // so the editor and the reference never disagree.

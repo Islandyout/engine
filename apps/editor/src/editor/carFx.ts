@@ -1,4 +1,4 @@
-// Car presentation (0.70.0): body roll and pitch, brake and police lights,
+// Car presentation: body roll and pitch, brake and police lights,
 // nitro flames, skid marks and tyre smoke for arcade cars, plus the driving
 // HUD (speedometer, gear, nitro) and a minimap. Driven by the runtime's car
 // state; it never changes the simulation.

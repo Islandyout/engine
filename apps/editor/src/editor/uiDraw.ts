@@ -1,4 +1,4 @@
-// Paints the UI component kinds on the HUD canvas (0.77.0, out of main.ts):
+// Paints the UI component kinds on the HUD canvas (out of main.ts):
 // Text (wrapped, outlined), Button and Panel, Image, Bar and Slider, Toggle.
 import type { UIComponent, Vec3 } from "../scene/Components";
 import type { UIRect } from "./uiLayout";
@@ -60,7 +60,7 @@ export class UIPainter {
     switch (ui.kind) {
       case "Text": {
         // A stroke outline instead of a backdrop -- legible over any scene.
-        // Lines break at "\n" and wrap to the authored width (0.73.0); the
+        // Lines break at "\n" and wrap to the authored width; the
         // authored colour is used unless it's the dark default.
         this.ctx.textAlign = "left";
         this.ctx.textBaseline = "top";

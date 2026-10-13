@@ -1,4 +1,4 @@
-// Ambience layers (0.73.0): wind, rain, a settlement's murmur, wildlife
+// Ambience layers: wind, rain, a settlement's murmur, wildlife
 // calls and the Pale Signal hum, each a synthesized loop whose level the
 // game sets by context (host.send("audio", "<layer> <0..1>")) and the view
 // sets from the air (wind needs air to carry). Plus short UI and discovery

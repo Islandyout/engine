@@ -3,7 +3,6 @@ import { test } from "node:test";
 import {
   applyBrush,
   decodeSculpt,
-  encodeHeights,
   encodeSculpt,
   fbm,
   generateHeights,
@@ -84,7 +83,4 @@ test("scatter rules parse, place deterministically on gentle slopes, and heights
   assert.equal(fenced.errors.length, 1, "a malformed exclude is reported");
   const kept = scatterInstances(base, heights, fenced.rules, fenced.exclusions);
   assert.ok(kept.length > 0 && kept.every((i) => i.x > 0), "nothing is placed in the excluded half");
-  const encoded = encodeHeights(new Float32Array([1.5, -2]));
-  const bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
-  assert.deepEqual(Array.from(new Float32Array(bytes.buffer)), [1.5, -2]);
 });

@@ -1,4 +1,4 @@
-// Static batching (0.76.0): while playing, scenery that never moves (no
+// Static batching: while playing, scenery that never moves (no
 // script, rig, AI or physics body) is merged into one mesh per material and
 // site, so a town of hundreds of buildings is a few dozen draw calls instead
 // of hundreds. The original meshes stay in the scene, hidden, so picking,
