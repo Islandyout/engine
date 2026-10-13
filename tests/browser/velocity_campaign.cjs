@@ -51,6 +51,19 @@ const { serve, bot } = require("./gatebreaker_bot.cjs");
         await page.waitForTimeout(300);
       }
     };
+    // Fights until the HUD matches `pattern`: locked on, a jab string, and
+    // now and then a step back, so a fighter pressed up against Velocity
+    // isn't inside the blows' reach.
+    const fight = async (pattern, what, timeout = 8 * MIN) => {
+      const end = Date.now() + timeout;
+      for (let i = 0; !pattern.test(await b.hud()); i++) {
+        if (Date.now() > end) throw new Error(`${what}: HUD never matched ${pattern} -- HUD: ${await b.hud()}`);
+        if (!/Locked on/.test(await b.hud())) await page.keyboard.press("Tab");
+        if (i % 4 === 3) await b.hold("s", 250);
+        await page.keyboard.press("j");
+        await page.waitForTimeout(250);
+      }
+    };
     const route = async (points, near = 2, timeout = 10 * MIN, stop = undefined) => {
       for (const [x, z] of points) await b.walkTo(x, z, near, timeout, stop);
     };
@@ -64,8 +77,8 @@ const { serve, bot } = require("./gatebreaker_bot.cjs");
     // Mission 1: Streetlight.
     await route([[0, -60], [24, -10]]);
     await start(32, -8, "STREETLIGHT");
-    await until("j", /Beat the Shield Heavy/, "the robbers");
-    await until("j", /Inspect the dropped device/, "the Shield Heavy");
+    await fight(/Beat the Shield Heavy/, "the robbers");
+    await fight(/Inspect the dropped device/, "the Shield Heavy");
     await b.walkTo(33, 5.5, 1.5, 6 * MIN, /G\s+Inspect the device/);
     await page.keyboard.press("g");
     await b.waitHud(/FREE ROAM[\s\S]*Next: NO BRAKES/, "Streetlight done");
@@ -106,7 +119,7 @@ const { serve, bot } = require("./gatebreaker_bot.cjs");
     await b.walkTo(0, 118, 3, 6 * MIN, /Defeat Breakline/);
     await b.waitHud(/Defeat Breakline/, "the boss appears");
     await page.screenshot({ path: "build/browser-evidence/velocity-campaign-4-breakline.png" });
-    await until("j", /FREE ROAM/, "Breakline", 8 * MIN);
+    await fight(/FREE ROAM/, "Breakline");
     await b.waitHud(/The ward is yours/, "the campaign is done");
 
     // Ward Dispatch: a mastery pick, and Heroic (open after the finale).
