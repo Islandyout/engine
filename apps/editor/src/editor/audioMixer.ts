@@ -58,6 +58,9 @@ export class AudioMixer {
   readonly buses: Record<Bus, GainNode>;
   private readonly reverbSend: GainNode;
   private settings: MixerSettings = { ...defaultMixerSettings };
+  // The player's own volumes (their settings) over the scene's mix: master,
+  // music, and effects (sounds, ambience and interface cues).
+  private player = { master: 1, music: 1, effects: 1 };
 
   constructor(private readonly context: BaseAudioContext) {
     const compressor = context.createDynamicsCompressor();
@@ -80,12 +83,18 @@ export class AudioMixer {
 
   apply(settings: MixerSettings) {
     this.settings = { ...settings };
-    this.master.gain.value = settings.master;
-    this.buses.sfx.gain.value = settings.sfx;
-    this.buses.music.gain.value = settings.music;
-    this.buses.ambient.gain.value = settings.ambient;
-    this.buses.ui.gain.value = settings.ui;
+    const player = this.player;
+    this.master.gain.value = settings.master * player.master;
+    this.buses.sfx.gain.value = settings.sfx * player.effects;
+    this.buses.music.gain.value = settings.music * player.music;
+    this.buses.ambient.gain.value = settings.ambient * player.effects;
+    this.buses.ui.gain.value = settings.ui * player.effects;
     this.reverbSend.gain.value = settings.reverb;
+  }
+
+  setPlayerVolumes(master: number, music: number, effects: number) {
+    this.player = { master, music, effects };
+    this.apply(this.settings);
   }
 
   get occlusion() {

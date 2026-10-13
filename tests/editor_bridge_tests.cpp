@@ -2233,6 +2233,85 @@ int main() {
         const double dx = editor_value(1, 0) - editor_value(0, 0), dz = editor_value(1, 2) - editor_value(0, 2);
         check(std::hypot(dx, dz) < 3.2); // in its slot, 2.4 m behind
         check(editor_value(1, 2) > -4);  // never went after the goblin at z = -22
+
+        // GATEBREAKER M4: melee.revive keeps a defeated fighter (it would be
+        // removed 4 s after falling) and stands it back up at full health,
+        // and camera.forward() reads the camera's facing.
+        editor_begin();
+        add_player(0);
+        check(editor_add(0, 0.725, -6, 0, 0, 0, 0.5, 1.45, 0.5, 0, 0, 0, 80, 80, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_melee(1, 0, "", 1, 0, 0.5, 0.5, 0.25, 0, 60);
+        editor_set_script_source(1, "t = 0\nfunction on_tick() t = t + 1\n"
+                                    " if t == 2 then world.damage(self.id, 500) end\n"
+                                    " if t == 60 then melee.revive() local x, z = camera.forward()\n"
+                                    "  log(string.format('%.1f %.1f', x, z)) end end");
+        check(editor_add(0, -0.5, 0, 0, 0, 0, 40, 1, 40, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(2, 1, 1, 0);
+        check(editor_commit() == 1);
+        editor_set_camera_forward(0, 3);
+        std::string camera_log;
+        for (int i = 0; i < 400; ++i) {
+            editor_tick();
+            if (i == 20)
+                check(editor_fighter_value(1, 1) == 7); // down (dead)
+            const int commands = editor_take_commands();
+            for (int c = 0; c < commands; ++c)
+                if (std::string(editor_command_text(c, 0)) == "log")
+                    camera_log = editor_command_text(c, 1);
+        }
+        check(editor_alive(1) == 1);                  // still here long past 4 s
+        check(editor_fighter_value(1, 1) == 0);       // idle again
+        check(std::abs(editor_value(1, 3) - 1.0) < 1e-6); // full health
+        check(camera_log == "0.0 1.0");
+        // GATEBREAKER M4: with no sprint action bound, a held dodge sprints
+        // out of a fight (whichever way the stick points, in third person)
+        // and a tap dodges as it's released; with a hostile fighter near,
+        // dodge is instant on the press again.
+        const auto sprint_scene = [&](bool hostile) {
+            editor_begin();
+            check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            editor_set_controller(0, 1, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+            editor_set_melee(0, 0, "", 0, 0, 0.5, 0.5, 0.25, 0, 60);
+            editor_set_input_bindings("move_x: d, -a\nmove_y: w, -s\ndodge: space\nblock: shift\nlight: j\n");
+            if (hostile) {
+                check(editor_add(0, 0.9, -8, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+                editor_set_melee(1, 0, "", 1, 0, 0.5, 0.5, 0.25, 0, 60);
+            }
+            check(editor_commit() == 1);
+            settle();
+            editor_input_begin_frame();
+            editor_set_camera_forward(1, 0); // the camera faces +x
+        };
+        const auto key = [&](const char *code, int down) {
+            editor_input_begin_frame();
+            editor_input_key(code, down);
+        };
+        sprint_scene(false);
+        key("KeyS", 1); // toward the camera
+        key("Space", 1);
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(std::abs(editor_controller_value(0, 4) - 7.5) < 0.05 && editor_controller_value(0, 5) == 1);
+        check(editor_value(0, 0) < -3 && std::string(editor_fighter_text(0, -1, 0)).empty()); // ran -x, no roll
+        key("Space", 0);
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(std::abs(editor_controller_value(0, 4) - 4.5) < 0.05); // walking again, no roll on release
+        check(std::string(editor_fighter_text(0, -1, 0)).empty());
+        key("KeyS", 0);
+        key("Space", 1);
+        editor_tick();
+        editor_tick();
+        check(std::string(editor_fighter_text(0, -1, 0)).empty()); // a tap waits for its release...
+        key("Space", 0);
+        editor_tick();
+        check(std::string(editor_fighter_text(0, -1, 0)) == "roll"); // ...then rolls
+        sprint_scene(true);
+        key("Space", 1);
+        editor_tick();
+        check(std::string(editor_fighter_text(0, -1, 0)) == "roll"); // in a fight: at once
+        key("Space", 0);
+        editor_tick();
     }
 
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
@@ -2252,5 +2331,5 @@ int main() {
                  "(crouch/sit) freezing Player WASD input while held, authored "
                  "RigidBody mass/kinematic and Collider trigger/layer settings, the script host "
                  "(prefab templates for world.spawn, names, props, sound/ui/log commands), and native "
-                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill), and combat soldiers (sight, bursts, hearing, investigating around cover, reloading in cover, melee hunters, patrols), terrain (walking up a hill, scripted raycasts, obstacles), and game-support script APIs (heal, give_ammo, markers, pause), and arcade cars (driving, AI racing, pursuit, vehicle.* API), and spaceflight (landed start, hover, touchdown, exiting and boarding, walking anywhere, space.* API), and melee (jab/cross/hook chains, kicks and knockback, block and parry, launch/land/get up, an AI fighter, defeat) passed.\n";
+                 "keyboard/mouse/gamepad input with default and custom action bindings, rotated (oriented) colliders, first/third-person CharacterControllers, and weapons (hitscan, headshots, auto fire, reload, switching, cover, scripted splash projectiles, on_damaged/on_death/on_kill), and combat soldiers (sight, bursts, hearing, investigating around cover, reloading in cover, melee hunters, patrols), terrain (walking up a hill, scripted raycasts, obstacles), and game-support script APIs (heal, give_ammo, markers, pause), and arcade cars (driving, AI racing, pursuit, vehicle.* API), and spaceflight (landed start, hover, touchdown, exiting and boarding, walking anywhere, space.* API), and melee (jab/cross/hook chains, kicks and knockback, block and parry, launch/land/get up, an AI fighter, defeat, hold-to-sprint out of a fight) passed.\n";
 }
