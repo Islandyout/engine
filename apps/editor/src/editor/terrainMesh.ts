@@ -158,7 +158,10 @@ export function buildScatter(instances: ScatterInstance[], models: Map<number, S
   const matrix = new THREE.Matrix4(),
     placement = new THREE.Matrix4(),
     rotation = new THREE.Quaternion(),
-    up = new THREE.Vector3(0, 1, 0);
+    up = new THREE.Vector3(0, 1, 0),
+    lean = new THREE.Quaternion(),
+    tiltTo = new THREE.Vector3(),
+    tint = new THREE.Color();
   for (const [id, all] of byModel) {
     const root = models.get(id)!.scene;
     const far = models.get(id)!.far;
@@ -204,6 +207,9 @@ export function buildScatter(instances: ScatterInstance[], models: Map<number, S
         instanced.receiveShadow = true;
         list.forEach((instance, i) => {
           rotation.setFromAxisAngle(up, instance.yaw);
+          // A tilted rule's instance leans to its ground (foliage.ts).
+          if (instance.up) rotation.premultiply(lean.setFromUnitVectors(up, tiltTo.set(...instance.up)));
+          if (instance.tint !== undefined) instanced.setColorAt(i, tint.setScalar(instance.tint));
           placement.compose(
             new THREE.Vector3(instance.x, instance.y - bottom * instance.scale, instance.z),
             rotation,
@@ -213,6 +219,7 @@ export function buildScatter(instances: ScatterInstance[], models: Map<number, S
           instanced.setMatrixAt(i, matrix);
         });
         instanced.instanceMatrix.needsUpdate = true;
+        if (instanced.instanceColor) instanced.instanceColor.needsUpdate = true;
         instanced.computeBoundingSphere();
         parent.add(instanced);
       };

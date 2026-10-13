@@ -3597,7 +3597,7 @@ async function startEditor() {
         runtime._free(ptr);
       }
       const scatter = parseScatter(terrain.scatter);
-      for (const instance of scatterInstances(params, heights, scatter.rules, scatter.exclusions)) {
+      for (const instance of scatterInstances(params, heights, scatter.rules, scatter.exclusions, terrain)) {
         if (!instance.collide) continue;
         const box = scatterObstacle(instance, catalogCache.get(instance.model)?.nativeSize);
         runtime._editor_add_obstacle(center.x + box.x, center.y + box.y, center.z + box.z, box.sx, box.sy, box.sz);
@@ -3802,7 +3802,7 @@ async function startEditor() {
             (error) => log(`Catalog model ${rule.model} failed to load: ${String(error)}`),
           );
       }
-      group.add(buildScatter(scatterInstances(params, heights, rules, exclusions), models));
+      group.add(buildScatter(scatterInstances(params, heights, rules, exclusions, t), models));
     }
     terrainMeshes.set(index, { mesh, params, look, offsets });
     return group;

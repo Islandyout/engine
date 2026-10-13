@@ -568,8 +568,9 @@ export interface AICombatComponent {
 // offsets painted with the viewport's Sculpt tool. Colored sand / grass /
 // rock (by slope) / snow by height. `scatter` places catalog models on it,
 // one rule per line: "model density [minScale maxScale] [minNormalY]
-// [collide]" (see terrain.ts). Bodies stand on it, rays hit it, and steep
-// slopes block AI paths. The first Terrain in a scene is the simulated one.
+// [collide|trunk] [spacing= cluster= clusterSize= height= on= tilt= tint=]"
+// (see foliage.ts). Bodies stand on it, rays hit it, and steep slopes block
+// AI paths. The first Terrain in a scene is the simulated one.
 export interface TerrainComponent {
   size: number;
   resolution: number;

@@ -14,7 +14,7 @@ export interface TerrainParams {
 }
 
 // Deterministic integer hash -> [0, 1).
-function hash(x: number, y: number, seed: number): number {
+export function hash(x: number, y: number, seed: number): number {
   let h = (x * 374761393 + y * 668265263 + seed * 2147483647) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   h ^= h >>> 16;
@@ -174,26 +174,22 @@ export function applyBrush(
     }
 }
 
-export interface ScatterRule {
-  model: number; // catalog id
-  density: number; // instances per square world unit
-  minScale: number;
-  maxScale: number;
-  maxSlope: number; // minimum normal y to place on (1 = only flat)
-  collide: boolean;
-  trunk: boolean; // collides as a trunk-sized post (trees), not a quarter of its footprint
-}
+import { parseFoliageOption, placeFoliage, type ScatterInstance, type ScatterRule } from "./foliage";
+export type { ScatterRule, ScatterInstance } from "./foliage";
 
-// A rectangle (local x/z) no scatter is placed in: "exclude x0 z0 x1 z1".
+// Where no scatter is placed: a rectangle, "exclude x0 z0 x1 z1", or a
+// circle, "exclude x z radius" (local x/z).
 export interface ScatterExclusion {
   x0: number;
   z0: number;
   x1: number;
   z1: number;
+  radius?: number; // a circle round (x0, z0)
 }
 
-// "model density [minScale maxScale] [minNormalY] [collide|trunk]" per line, plus
-// "exclude x0 z0 x1 z1" lines that keep scatter out of a rectangle.
+// "model density [minScale maxScale] [minNormalY] [collide|trunk] [key=value
+// ...]" per line (the options: foliage.ts), plus "exclude" lines that keep
+// scatter out of a rectangle or circle.
 export function parseScatter(text: string): { rules: ScatterRule[]; errors: string[]; exclusions: ScatterExclusion[] } {
   const rules: ScatterRule[] = [];
   const errors: string[] = [];
@@ -201,22 +197,25 @@ export function parseScatter(text: string): { rules: ScatterRule[]; errors: stri
   text.split("\n").forEach((raw, index) => {
     const line = raw.replace(/#.*$/, "").trim();
     if (!line) return;
-    const words = line.split(/\s+/);
-    if (words[0] === "exclude") {
-      const [x0, z0, x1, z1] = words.slice(1).map(Number);
-      if (words.length !== 5 || [x0, z0, x1, z1].some((v) => !Number.isFinite(v)))
-        return void errors.push(`line ${index + 1}: expected "exclude x0 z0 x1 z1"`);
-      exclusions.push({ x0: Math.min(x0!, x1!), z0: Math.min(z0!, z1!), x1: Math.max(x0!, x1!), z1: Math.max(z0!, z1!) });
+    const all = line.split(/\s+/);
+    if (all[0] === "exclude") {
+      const numbers = all.slice(1).map(Number);
+      if ((all.length !== 5 && all.length !== 4) || numbers.some((v) => !Number.isFinite(v)) || (all.length === 4 && !(numbers[2]! > 0)))
+        return void errors.push(`line ${index + 1}: expected "exclude x0 z0 x1 z1" or "exclude x z radius"`);
+      const [a, b, c, d] = numbers as [number, number, number, number];
+      exclusions.push(all.length === 4 ? { x0: a, z0: b, x1: a, z1: b, radius: c } : { x0: Math.min(a, c), z0: Math.min(b, d), x1: Math.max(a, c), z1: Math.max(b, d) });
       return;
     }
+    const words = all.filter((w) => !w.includes("="));
+    const options = all.filter((w) => w.includes("="));
     const trunk = words[words.length - 1] === "trunk";
     const collide = trunk || words[words.length - 1] === "collide";
     if (collide) words.pop();
     const [model, density, minScale = "1", maxScale = minScale, maxSlope = "0.8"] = words.map(String);
     const numbers = [model, density, minScale, maxScale, maxSlope].map(Number);
     if (words.length < 2 || words.length > 5 || numbers.some((v) => !Number.isFinite(v)) || numbers[1]! < 0 || numbers[2]! <= 0)
-      return void errors.push(`line ${index + 1}: expected "model density [minScale maxScale] [minNormalY] [collide|trunk]"`);
-    rules.push({
+      return void errors.push(`line ${index + 1}: expected "model density [minScale maxScale] [minNormalY] [collide|trunk] [key=value ...]"`);
+    const rule: ScatterRule = {
       model: numbers[0]!,
       density: Math.min(numbers[1]!, 1),
       minScale: numbers[2]!,
@@ -224,50 +223,58 @@ export function parseScatter(text: string): { rules: ScatterRule[]; errors: stri
       maxSlope: numbers[4]!,
       collide,
       trunk,
-    });
+    };
+    for (const option of options) {
+      const error = parseFoliageOption(rule, option);
+      if (error) return void errors.push(`line ${index + 1}: ${error}`);
+    }
+    rules.push(rule);
   });
   return { rules, errors, exclusions };
 }
 
-export interface ScatterInstance {
-  model: number;
-  x: number; // local to the terrain
-  y: number;
-  z: number;
-  scale: number;
-  yaw: number;
-  collide: boolean;
-  trunk?: boolean;
+// The terrain's ground layer at a point, by its own colouring rules:
+// sand below sandHeight, snow above snowHeight, rock where steeper than
+// rockSlope, grass elsewhere.
+export interface TerrainLayers {
+  sandHeight: number;
+  snowHeight: number;
+  rockSlope: number;
+}
+export function terrainLayer(layers: TerrainLayers, height: number, normalY: number): string {
+  if (height < layers.sandHeight) return "sand";
+  if (height > layers.snowHeight) return "snow";
+  if (normalY < layers.rockSlope) return "rock";
+  return "grass";
 }
 
-// Deterministic placements for every rule, at most 4000 in total.
+// Deterministic placements for every rule, at most 4000 in total
+// (foliage.ts placeFoliage, on this heightfield).
 export function scatterInstances(
   params: TerrainParams,
   heights: Float32Array,
   rules: ScatterRule[],
   exclusions: ScatterExclusion[] = [],
+  layers?: TerrainLayers,
 ): ScatterInstance[] {
-  const out: ScatterInstance[] = [];
-  rules.forEach((rule, r) => {
-    const count = Math.min(4000 - out.length, Math.round(rule.density * params.size * params.size));
-    let placed = 0;
-    for (let k = 0; k < count * 3 && placed < count; k++) {
-      const x = (hash(k, r, params.seed + 7) - 0.5) * params.size * 0.98;
-      const z = (hash(k, r + 31, params.seed + 13) - 0.5) * params.size * 0.98;
-      if (normalY(heights, params.resolution, params.size, x, z) < rule.maxSlope) continue;
-      if (exclusions.some((e) => x >= e.x0 && x <= e.x1 && z >= e.z0 && z <= e.z1)) continue;
-      out.push({
-        model: rule.model,
-        x,
-        y: sampleHeight(heights, params.resolution, params.size, x, z),
-        z,
-        scale: rule.minScale + (rule.maxScale - rule.minScale) * hash(k, r + 57, params.seed),
-        yaw: hash(k, r + 91, params.seed) * Math.PI * 2,
-        collide: rule.collide,
-        trunk: rule.trunk,
-      });
-      placed++;
-    }
-  });
-  return out;
+  const { size, resolution } = params;
+  const e = size / (resolution - 1);
+  const at = (x: number, z: number) => sampleHeight(heights, resolution, size, x, z);
+  return placeFoliage(
+    rules,
+    {
+      height: at,
+      normal: (x, z) => {
+        const dx = (at(x + e, z) - at(x - e, z)) / (2 * e);
+        const dz = (at(x, z + e) - at(x, z - e)) / (2 * e);
+        const l = Math.sqrt(1 + dx * dx + dz * dz);
+        return [-dx / l, 1 / l, -dz / l];
+      },
+      layer: layers ? (_x, _z, height, ny) => terrainLayer(layers, height, ny) : undefined,
+      blocked: (x, z) =>
+        exclusions.some((ex) => (ex.radius !== undefined ? Math.hypot(x - ex.x0, z - ex.z0) < ex.radius : x >= ex.x0 && x <= ex.x1 && z >= ex.z0 && z <= ex.z1)),
+    },
+    { x0: -size * 0.49, z0: -size * 0.49, x1: size * 0.49, z1: size * 0.49, countArea: size * size },
+    params.seed,
+  );
 }

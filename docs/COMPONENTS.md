@@ -495,7 +495,7 @@ A heightfield ground with noise, sculpting, colour bands and scattered models.
 | `sandHeight` | -2.5 | Sand below height |
 | `snowHeight` | 9 | Snow above height |
 | `rockSlope` | 0.82 | Rock where slope normal y < |
-| `scatter` | "" | Scatter (model density [min max] [minNormalY] [collide]). One rule per line: model id, density (per 100 m²), optional height range, steepest slope and 'collide'. |
+| `scatter` | "" | Scatter (model density [min max] [minNormalY] [collide]). One rule per line: model id, density (per square metre), optional scale range, flattest-allowed slope (minimum normal y), 'collide' or 'trunk', then options: spacing=M (no two closer), cluster=0..1 and clusterSize=M (groves and clearings), height=A..B, on=grass,sand,rock,snow, tilt=0..1 (lean with the slope), tint=0..1 (vary brightness). 'exclude x0 z0 x1 z1' or 'exclude x z r' keeps an area clear. |
 
 ### ModelInstances
 
@@ -503,7 +503,7 @@ Many copies of catalog models placed cheaply (forests, rocks): one line per copy
 
 | Field | Default | Notes |
 |---|---|---|
-| `instances` | "" | Instances (model x z [yaw] [scale] [solid], one per line). One copy per line: model id, x, z, then optional yaw (degrees), scale and 'solid'. |
+| `instances` | "" | Instances (model x z [yaw] [scale] [solid], one per line). One copy per line: model id, x, z, then optional yaw (degrees), scale and 'solid' (its whole footprint blocks) or 'trunk' (a tree: only its trunk does). |
 
 ### SpaceSystem
 

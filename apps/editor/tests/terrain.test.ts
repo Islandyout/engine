@@ -12,6 +12,7 @@ import {
   scatterInstances,
   type TerrainParams,
 } from "../src/editor/terrain";
+import { placeFoliage } from "../src/editor/foliage";
 
 const base: TerrainParams = { size: 100, resolution: 33, height: 8, seed: 3, frequency: 2, octaves: 4, sculpt: "" };
 
@@ -81,9 +82,46 @@ test("scatter rules parse, place deterministically on gentle slopes, and heights
     assert.ok(Math.abs(instance.x) <= 50 && Math.abs(instance.z) <= 50);
     assert.ok(Math.abs(instance.y - sampleHeight(heights, 33, 100, instance.x, instance.z)) < 1e-6);
   }
-  const fenced = parseScatter("46 0.01\nexclude -50 -50 0 50\nexclude 1 2 3\n");
-  assert.deepEqual(fenced.exclusions, [{ x0: -50, z0: -50, x1: 0, z1: 50 }]);
+  const fenced = parseScatter("46 0.01\nexclude -50 -50 0 50\nexclude 1 2\nexclude 25 0 12\n");
+  assert.deepEqual(fenced.exclusions, [
+    { x0: -50, z0: -50, x1: 0, z1: 50 },
+    { x0: 25, z0: 0, x1: 25, z1: 0, radius: 12 },
+  ]);
   assert.equal(fenced.errors.length, 1, "a malformed exclude is reported");
   const kept = scatterInstances(base, heights, fenced.rules, fenced.exclusions);
   assert.ok(kept.length > 0 && kept.every((i) => i.x > 0), "nothing is placed in the excluded half");
+  assert.ok(kept.every((i) => Math.hypot(i.x - 25, i.z) >= 12), "nor in the excluded circle");
+});
+
+test("foliage options: spacing, groves, height bands, layers, tilt and tint", () => {
+  const flat = { height: () => 0, normal: (): [number, number, number] => [0, 1, 0] };
+  const area = { x0: -100, z0: -100, x1: 100, z1: 100 };
+  const rule = (extra: string) => {
+    const { rules, errors } = parseScatter(`255 0.01 0.8 1.2 ${extra}`);
+    assert.deepEqual(errors, []);
+    return rules;
+  };
+  // Spacing: no two instances closer than their scaled spacing.
+  const spaced = placeFoliage(rule("spacing=6"), flat, area, 3);
+  for (const a of spaced) for (const b of spaced) if (a !== b) assert.ok(Math.hypot(a.x - b.x, a.z - b.z) >= 6 * Math.min(a.scale, b.scale) - 1e-9);
+  // Clustering gathers the same count into groves: the mean distance to the
+  // nearest neighbour drops against an even scatter.
+  const even = placeFoliage(rule(""), flat, area, 3);
+  const groves = placeFoliage(rule("cluster=1 clusterSize=50"), flat, area, 3);
+  assert.equal(groves.length, even.length);
+  const nearest = (list: { x: number; z: number }[]) =>
+    list.reduce((sum, a) => sum + Math.min(...list.filter((b) => b !== a).map((b) => Math.hypot(a.x - b.x, a.z - b.z))), 0) / list.length;
+  assert.ok(nearest(groves) < nearest(even) * 0.85, "groves are tighter than an even scatter");
+  // Height bands and layers.
+  const hill = { height: (x: number) => x, normal: (): [number, number, number] => [0, 1, 0], layer: (_x: number, _z: number, h: number) => (h > 50 ? "snow" : "grass") };
+  assert.ok(placeFoliage(rule("height=-20..20"), hill, area, 3).every((i) => i.y >= -20 && i.y <= 20));
+  assert.ok(placeFoliage(rule("on=grass"), hill, area, 3).every((i) => i.y <= 50));
+  assert.match(parseScatter("255 0.01 on=lava").errors[0]!, /on must list/);
+  assert.match(parseScatter("255 0.01 wind=3").errors[0]!, /unknown option "wind"/);
+  // Tilt leans with the ground by its fraction; tint varies brightness.
+  const slope = { height: () => 0, normal: (): [number, number, number] => [0.6, 0.8, 0] };
+  const leaning = placeFoliage(rule("0.5 tilt=1 tint=0.2"), slope, area, 3);
+  assert.ok(leaning.length > 0 && leaning.every((i) => Math.abs(i.up![0] - 0.6) < 1e-9 && i.tint! >= 0.8 && i.tint! <= 1.2));
+  // Without options, placement is the plain scatter's (no up, no tint).
+  assert.ok(even.every((i) => i.up === undefined && i.tint === undefined));
 });

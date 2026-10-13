@@ -54,8 +54,9 @@ export const fieldHelp: Record<string, string> = {
   "Wildlife.wary": "Within this distance of a threat the animal stops and watches.",
   "Wildlife.flee": "Within this distance it runs (twice as far from a sprinting player).",
   "Wildlife.leash": "It never runs farther than this from where it started.",
-  "ModelInstances.instances": "One copy per line: model id, x, z, then optional yaw (degrees), scale and 'solid'.",
-  "Terrain.scatter": "One rule per line: model id, density (per 100 m²), optional height range, steepest slope and 'collide'.",
+  "ModelInstances.instances": "One copy per line: model id, x, z, then optional yaw (degrees), scale and 'solid' (its whole footprint blocks) or 'trunk' (a tree: only its trunk does).",
+  "Terrain.scatter":
+    "One rule per line: model id, density (per square metre), optional scale range, flattest-allowed slope (minimum normal y), 'collide' or 'trunk', then options: spacing=M (no two closer), cluster=0..1 and clusterSize=M (groves and clearings), height=A..B, on=grass,sand,rock,snow, tilt=0..1 (lean with the slope), tint=0..1 (vary brightness). 'exclude x0 z0 x1 z1' or 'exclude x z r' keeps an area clear.",
   "SpaceSystem.bodies":
     "One body per line with key=value pairs (name, parent, orbit, period, radius, g, air, craters, ...). Errors are listed under the field.",
   "Animator.graph": "Lines like 'state idle clip=idle', 'any -> hop when trigger go', 'hop -> idle when end', 'event hop 0.5 midway'.",
