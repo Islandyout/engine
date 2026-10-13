@@ -276,6 +276,8 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 231, category: "vehicles", name: "Coach bus", path: "./kit/vehicles/coach-bus.glb" },
   { id: 232, category: "vehicles", name: "Bicycle", path: "./kit/vehicles/bicycle.glb" },
   { id: 233, category: "vehicles", name: "Bicycle (city)", path: "./kit/vehicles/bicycle-city.glb" },
+  { id: 234, category: "vehicles", name: "Pickup truck", path: "./kit/vehicles/pickup-truck.glb" },
+  { id: 235, category: "vehicles", name: "Police car", path: "./kit/vehicles/police-car.glb" },
 ];
 
 export const catalogCategories = Array.from(

@@ -494,9 +494,9 @@ their source. SHA-256:
 - `gear-feet.glb`: `368c80b970fdc46a77e22991d74d94b569cb67955501e05df572bff264a22a29`
 - `gear-shoulders.glb`: `d937477a6691aaa7adeed5789ca3a3bdfe36979e79cd65a77e040dfdfdd42da1`
 
-## GATEBREAKER traffic vehicles (catalog ids 219-233)
+## GATEBREAKER traffic vehicles (catalog ids 219-235)
 
-`source/kit/vehicles/{sedan-family,compact-wagon,coupe,sports-gt,suv-crossover,taxi-sedan,step-van,bicycle,bicycle-city,firetruck,coach-bus,ambulance-van,panel-van,roadster,limousine}.glb`,
+`source/kit/vehicles/{sedan-family,compact-wagon,coupe,sports-gt,suv-crossover,taxi-sedan,step-van,bicycle,bicycle-city,firetruck,coach-bus,ambulance-van,panel-van,roadster,limousine,pickup-truck,police-car}.glb`,
 made by `tools/models/import_vehicles.mjs` (with `tools/models/fbx_io.mjs`) from three CC0
 creators' packs, taken from these GitHub copies:
 
@@ -533,6 +533,8 @@ Source files (SHA-256; the tool refuses a source whose hash differs):
 - `quaternius-cars/sport-coupe.glb` ("Sports Car", SportsCar2): `bbb1c718d2aaf5f4344e9fb2cd66d8332a998a515b09ddd4dfa14698d787124e`
 - `quaternius-cars/suv.glb` ("SUV"): `1a9ce2bba813dca5005abab09715b01b8b5f4a9c48d7260463afdfeb876aa8b6`
 - `quaternius-cars/taxi-sedan.glb` ("Taxi"): `14b2f982f8a501565702ecb56f917c82e9abae914fa3f76d2f622a8670598af1`
+- `quaternius-cars/pickup-truck.glb` ("Pickup Truck"): `9d6b2e33af0d37bf42b2e7af850949f4efd0ddbb9a88077812d152d8b4c1c3eb`
+- `cars_bundle/Police Car.glb` (anarchy-intelligence copy, "Police Car"): `2ad6705f58bae2acf806eddb28acd9fc2ff6dc65a726575be5c180631b3132d0`
 - `traffic/service-truck-v1.glb` ("Truck"): `a5d107b5b06f8ca2d8d7e66ae6309f2e1a25cac577c5db8ebb661b3f0ca5ed8f`
 - `Public Transport Pack - Feb 2017/FBX/Bicycle.fbx`: `bffdb5f8155338ed898d38bf1e40b1ed383a0f49f420994d588f0d56ee1d113c`
 - `Public Transport Pack - Feb 2017/FBX/SquareFrameBicycle.fbx`: `6cc459d81128671c11e3196fd0a412497d477456deea494e3f6a29fc70cd0a3d`
@@ -568,3 +570,5 @@ Final sizes (length x width x height, metres) and result SHA-256:
 - `panel-van.glb` (5.00 x 2.00 x 2.29): `961ed6a180d67dd3cbf1c5cd59da147a8b34d8f131b371a19139249550b71df7`
 - `roadster.glb` (4.00 x 1.80 x 1.29): `6755e12388c2352607d6259e93150f05024cf0c0428126317e1f2729c07b79b0`
 - `limousine.glb` (6.40 x 1.76 x 1.26): `f9b9b8362913c2cdff7693a19606643e3063730f1761de11540374a547a5260f`
+- `pickup-truck.glb` (5.30 x 2.00 x 1.89): `01b9ce7b4c38b567a3b850c75f112693d6f1d98c438bf292495f4632554f7eab`
+- `police-car.glb` (4.80 x 1.95 x 1.59): `0c3cbb56ef35e80a2206b05253fc860b3bcedf451cd2da47ab08f7a10f58bbf9`
