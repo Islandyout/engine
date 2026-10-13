@@ -1434,6 +1434,30 @@ const { chromium } = require("playwright");
       await page.click("#stop");
     }
 
+    // Spaceflight: the Space starter's ship lifts off its pad and sets
+    // back down, so the flight model stays covered without a space game.
+    if (!process.env.EDITOR_NO_WEBGL) {
+      await page.click("#new");
+      page.once("dialog", (dialog) => dialog.accept());
+      await page.click('[aria-label="Space starter"]');
+      await page.click("#play");
+      const flight = (pattern, what) =>
+        page
+          .waitForFunction((source) => new RegExp(source).test(document.querySelector("#hud-text").textContent), pattern.source, { timeout: 90000 })
+          .catch(async () => assert.fail(`${what}: ${await page.locator("#hud-text").textContent()}`));
+      await flight(/E board ship/, "the boarding prompt beside the ship");
+      await page.keyboard.press("e");
+      await flight(/ALT 0 m.*LANDED/, "the pilot's seat, landed");
+      await page.keyboard.down("Space");
+      await flight(/ALT ([3-9]|\d\d+) m.*FLYING/, "the belly thrusters lift the ship");
+      await page.keyboard.up("Space");
+      await page.keyboard.down("c");
+      await flight(/LANDED/, "sinking sets the ship down");
+      await page.keyboard.up("c");
+      await page.screenshot({ path: "build/browser-evidence/space-starter.png" });
+      await page.click("#stop");
+    }
+
     await fs.mkdir("build/browser-evidence", { recursive: true });
     await page.screenshot({
       path: process.env.EDITOR_NO_WEBGL
@@ -1443,7 +1467,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), a CameraFollow rig with shake, keyboard/mouse input through native actions, and interactive UI (script Button, Toggle, Slider, Bar), shaped/world-space particles with bursts plus a Trail, and asset import (model/image/sound, IndexedDB) with the Stats overlay, and the Martial-arts dojo (fighter HUD, lock-on, a landed punch) passed.",
+      "Editor browser: C++ startup, create, select, rename, property edits, components, duplicate, undo/redo, play/pause/stop, bench, catalog, animated catalog models, player WASD movement, Collider box obstacle blocking, melee/blast combat, vehicle driving, Collider sphere obstacle blocking, AIState/Pedestrian wander/chase, Script (Lua on_tick, error surfacing), prefabs (create/place/live-shared edits/unlink), Sound (Web Audio play/pause/resume/stop), save/load, invalid-load preservation, authoring console, Quaternius catalog additions (Mannequin F, Wolf), per-model AnimationState clip selection/preview, grouped Add-component list, inline Renderable clip picker, Vehicle/Pedestrian archetype handling profiles, Light component, Particles component, UI component (Button click actually pauses), Script save/progress (persists across a Play restart via localStorage), Lua world.spawn of a prefab, @prop values, ui.set_text and log, Environment (procedural sky, fog, shadows), Material override, a game Camera, and an Animator state machine (trigger, event, end), a CameraFollow rig with shake, keyboard/mouse input through native actions, and interactive UI (script Button, Toggle, Slider, Bar), shaped/world-space particles with bursts plus a Trail, and asset import (model/image/sound, IndexedDB) with the Stats overlay, the Martial-arts dojo (fighter HUD, lock-on, a landed punch), and the Space starter (board, lift off, set down) passed.",
     );
   } catch (error) {
     await saveFailure("editor", error, browser);

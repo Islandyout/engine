@@ -89,6 +89,11 @@ end
 (async () => {
   const scene = JSON.parse(await fs.readFile("examples/city/city-template.json", "utf8"));
   const lines = [...new Set(scene.entities.filter((e) => e.name.startsWith("Signal ")).map((e) => e.components.Transform.position.x))].sort((a, b) => a - b);
+  // The watcher checks the simulation, not the picture: drop shadows and
+  // post-processing so the software renderer keeps a usable frame rate.
+  const environment = scene.entities.find((e) => e.name === "Environment").components;
+  environment.Environment.shadows = false;
+  delete environment.PostProcessing;
   const dogs = scene.entities.filter((e) => e.name.startsWith("Dog ")).map((e) => `${e.name}=${e.components.Walker.follow}`).join(";");
   // A HUD line for the watcher, shaped like VELOCITY's own text UI.
   const velocity = JSON.parse(await fs.readFile("games/my-games/velocity/velocity.json", "utf8"));
@@ -102,7 +107,7 @@ end
   try {
     browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
     await fs.mkdir("build/browser-evidence", { recursive: true });
-    const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
+    const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => {
