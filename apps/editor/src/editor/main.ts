@@ -3564,7 +3564,8 @@ async function startEditor() {
     const bindingsEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "InputActions"));
     const bindings = bindingsEntity && doc.scene.resolve(bindingsEntity, "InputActions");
     if (bindings) runtime.ccall("editor_set_input_bindings", null, ["string"], [bindings.bindings]);
-    if (!runtime._editor_commit()) throw new Error("Runtime scene commit failed");
+    if (!runtime._editor_commit())
+      throw new Error(`Runtime scene commit failed: ${runtime.ccall("editor_last_error", "string", [], []) || "no reason given"}`);
     const bindingsError = runtime.ccall("editor_bindings_error", "string", [], []);
     if (bindingsError) log(`Input bindings: ${bindingsError} (using the defaults)`);
     const weaponsError = runtime.ccall("editor_weapons_error", "string", [], []);
@@ -4584,10 +4585,11 @@ async function startEditor() {
   };
   function populateCatalogModels() {
     const category = el<HTMLSelectElement>("catalog-category").value;
-    el<HTMLSelectElement>("catalog-model").innerHTML = modelCatalog
-      .filter((m) => m.category === category)
-      .map((m) => `<option value="${m.id}">${m.name}</option>`)
-      .join("");
+    // Option elements, not innerHTML: imported models carry their file names,
+    // which are user text (and persist in IndexedDB).
+    el<HTMLSelectElement>("catalog-model").replaceChildren(
+      ...modelCatalog.filter((m) => m.category === category).map((m) => new Option(m.name, String(m.id))),
+    );
   }
   el("catalog-category").onchange = populateCatalogModels;
   populateCatalogModels();

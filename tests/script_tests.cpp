@@ -1,12 +1,14 @@
 #include "engine/physics/physics.hpp"
 #include "engine/script/script.hpp"
 
+#include <chrono>
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
 #include <map>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -200,6 +202,37 @@ int main() {
             runtime.set_error_handler([&](Entity, const std::string &) { error_reported = true; });
             runtime.step(world, 1.0F / 60); // returns instead of hanging, or this test never completes
             check(error_reported, "a runaway on_tick loop is caught by the instruction watchdog");
+        }
+        // The two holes the instruction watchdog can't see: a catastrophic
+        // pattern runs inside one C call (the hook never fires), and no
+        // instruction count bounds memory. Each must end in a script error,
+        // quickly, not a hung tick or a runtime killed by the allocator.
+        for (const auto &[source, what] : {
+                 std::pair<const char *, const char *>{
+                     "function on_tick(dt) string.find(string.rep('a', 46), string.rep('a*', 46) .. 'b') end",
+                     "a catastrophic pattern stops at the matcher's step limit"},
+                 {"function on_tick(dt) local t = {} for i = 1, 1e9 do t[i] = string.rep('x', 1024) .. i end end",
+                  "a script allocating without bound stops at its memory cap"},
+                 {"function on_tick(dt) local s = string.rep('x', 1 << 30) end",
+                  "one huge string.rep stops at the memory cap"},
+             }) {
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            const auto entity = world.create();
+            world.set(entity, Box{{0, 5, 0}, {1, 1, 1}});
+            world.set(entity, RigidBody{});
+            world.set(entity, Script{source});
+            Runtime runtime;
+            bool error_reported = false;
+            runtime.set_error_handler([&](Entity, const std::string &) { error_reported = true; });
+            const auto start = std::chrono::steady_clock::now();
+            runtime.step(world, 1.0F / 60);
+            const auto seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+            check(error_reported, what);
+            check(seconds < 5.0, what);
         }
         {
             // The watchdog's budget is per call: a script that does honest work

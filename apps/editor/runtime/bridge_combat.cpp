@@ -28,7 +28,7 @@ EXPORT void editor_set_soldier(int index, double team, double behavior, double s
                        burst == std::floor(burst) && burst_pause >= 0 && burst_pause <= 10 && flee_health >= 0 &&
                        flee_health <= 1 && melee >= 0 && melee <= 100000;
     if (!valid) {
-        failed = true;
+        fail("an AI soldier setting out of range");
         return;
     }
     Soldier soldier;
@@ -91,11 +91,11 @@ EXPORT void editor_set_car(int index, double yaw, double top_speed, double accel
         return;
     for (const double v : {top_speed, acceleration, braking, grip, drift_grip, steering, nitro_seconds, gears})
         if (!(std::isfinite(v) && v > 0)) {
-            failed = true;
+            fail("a vehicle tuning value that is not positive and finite");
             return;
         }
     if (!std::isfinite(yaw) || !(std::isfinite(nitro_boost) && nitro_boost >= 0)) {
-        failed = true;
+        fail("a vehicle yaw or nitro boost that is invalid");
         return;
     }
     auto &world = *target->first;
@@ -126,7 +126,7 @@ EXPORT void editor_set_driver(int index, int mode, int loop, double skill, doubl
         return;
     if (mode < 0 || mode > 3 || !std::isfinite(skill) || !std::isfinite(aggression) ||
         !(std::isfinite(speed_scale) && speed_scale > 0)) {
-        failed = true;
+        fail("an AI driver mode, skill, aggression or speed scale that is invalid");
         return;
     }
     Driver driver;

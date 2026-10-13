@@ -55,6 +55,7 @@ void editor_set_look(double, double);
 double editor_controller_value(int, int);
 void editor_set_weapons(int, const char *);
 const char *editor_weapons_error();
+const char *editor_last_error();
 double editor_weapon_value(int, int);
 const char *editor_weapon_text(int, int, int);
 int editor_take_weapon_events();
@@ -139,9 +140,13 @@ int main() {
     editor_begin();
     check(add_unit(std::numeric_limits<double>::infinity(), 0, 0, 0, 0, 0) == 0);
     check(editor_commit() == 0);
+    // The failed commit says why, and which entity (not just that it failed).
+    check(std::string(editor_last_error()).find("position") != std::string::npos);
+    check(std::string(editor_last_error()).find("entity #0") != std::string::npos);
     check(std::abs(editor_value(0, 0) - 6) < 1e-4);
     editor_begin();
     check(editor_commit() == 1);
+    check(std::string(editor_last_error()).empty());
     check(editor_count() == 0);
     editor_begin();
     for (int i = 0; i < 1024; ++i)

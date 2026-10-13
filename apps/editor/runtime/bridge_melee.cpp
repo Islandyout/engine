@@ -670,7 +670,7 @@ EXPORT void editor_set_melee(int index, int style, const char *moves, double tea
         return;
     for (const double v : {team, aggression, skill, reaction, energy, guard})
         if (!std::isfinite(v)) {
-            failed = true;
+            fail("a Melee team, aggression, skill, reaction, energy or guard that is not finite");
             return;
         }
     Fighter fighter;

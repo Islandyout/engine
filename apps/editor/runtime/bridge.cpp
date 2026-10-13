@@ -8,6 +8,7 @@ extern "C" {
 EXPORT void editor_begin() {
     staging = std::make_unique<Runtime>();
     failed = false;
+    failure.clear();
 }
 // sx/sy/sz are the entity's authored world-space box dimensions (its Scale), so ground
 // and future collider resolution rests the box's actual visible bounds, not a hardcoded
@@ -65,35 +66,35 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
                        double is_pedestrian, double collider_shape, double collider_radius,
                        double vehicle_archetype, double pedestrian_archetype) {
     if (!staging || (!staging->adding_template && staging->entities.size() >= 1024)) {
-        failed = true;
+        fail("a scene over the 1024-entity limit (or no editor_begin)", true);
         return 0;
     }
     for (double v : {x, y, z, vx, vy, vz, hp_current, hp_max})
         if (!std::isfinite(v) || std::abs(v) > 1000000) {
-            failed = true;
+            fail("a position, velocity or health that is not finite or beyond +/-1,000,000", true);
             return 0;
         }
     for (double v : {sx, sy, sz})
         if (!std::isfinite(v) || v <= 0 || v > 1000000) {
-            failed = true;
+            fail("a scale that is not positive and finite (at most 1,000,000)", true);
             return 0;
         }
     if (is_collider != 0 &&
         (!std::isfinite(collider_radius) || collider_radius <= 0 || collider_radius > 1000000)) {
-        failed = true;
+        fail("a collider radius that is not positive and finite", true);
         return 0;
     }
     if (is_vehicle != 0 && !(vehicle_archetype >= 0 &&
                               vehicle_archetype < static_cast<double>(std::size(vehicle_tuning)) &&
                               vehicle_archetype == std::floor(vehicle_archetype))) {
-        failed = true;
+        fail("an unknown vehicle archetype", true);
         return 0;
     }
     if (is_pedestrian != 0 &&
         !(pedestrian_archetype >= 0 &&
           pedestrian_archetype < static_cast<double>(std::size(pedestrian_tuning)) &&
           pedestrian_archetype == std::floor(pedestrian_archetype))) {
-        failed = true;
+        fail("an unknown pedestrian archetype", true);
         return 0;
     }
     auto &target = staging->adding_template ? staging->templates : staging->world;
@@ -170,7 +171,7 @@ EXPORT void editor_set_body(int index, int authored, double mass, int dynamic) {
     if (!body || !authored)
         return;
     if (!std::isfinite(mass) || mass <= 0 || mass > 1000000) {
-        failed = true;
+        fail("a RigidBody mass that is not positive and finite (at most 1,000,000)");
         return;
     }
     body->mass = static_cast<float>(mass);
@@ -189,7 +190,7 @@ EXPORT void editor_set_collider(int index, int is_trigger, double layer, double 
     if (!(layer >= 0 && layer <= 31 && layer == std::floor(layer)) ||
         !(mask >= 0 && mask <= 4294967295.0 && mask == std::floor(mask)) ||
         !(bounciness >= 0 && bounciness <= 1)) {
-        failed = true;
+        fail("a Collider layer (0-31), mask or bounciness (0-1) out of range");
         return;
     }
     collider->is_trigger = is_trigger != 0;
@@ -209,7 +210,7 @@ EXPORT void editor_set_rotation(int index, double x, double y, double z) {
         return;
     for (const double v : {x, y, z})
         if (!std::isfinite(v) || std::abs(v) > 1000) {
-            failed = true;
+            fail("a rotation that is not finite or beyond +/-1000");
             return;
         }
     collider->rotation = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)};
@@ -229,11 +230,11 @@ EXPORT void editor_set_controller(int index, int mode, double walk, double sprin
         return;
     for (const double v : {walk, sprint, crouch, jump, stand, crouched, accel, air})
         if (!std::isfinite(v) || v <= 0 || v > 1000) {
-            failed = true;
+            fail("a CharacterController speed, height or acceleration that is not positive and finite (at most 1000)");
             return;
         }
     if (!std::isfinite(step) || step < 0 || step > 10 || crouched > stand) {
-        failed = true;
+        fail("a CharacterController step height out of 0-10, or a crouched height above the standing one");
         return;
     }
     Controller controller;
@@ -296,7 +297,7 @@ EXPORT void editor_set_terrain(double x, double y, double z, double size, int re
     if (resolution < 2 || resolution > 1025 || !std::isfinite(size) || size <= 0 || size > 100000 ||
         !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) || !decode_base64(heights, bytes) ||
         bytes.size() != count * 4) {
-        failed = true;
+        fail("a terrain's resolution (2-1025), size, position or height data that is invalid");
         return;
     }
     engine::physics::Heightfield field;
@@ -307,7 +308,7 @@ EXPORT void editor_set_terrain(double x, double y, double z, double size, int re
     std::memcpy(field.heights.data(), bytes.data(), bytes.size());
     for (const float h : field.heights)
         if (!std::isfinite(h) || std::abs(h) > 100000) {
-            failed = true;
+            fail("a terrain height that is not finite or beyond +/-100,000");
             return;
         }
     staging->terrain = std::move(field);
@@ -413,10 +414,13 @@ EXPORT void editor_template_begin(const char *name) {
 }
 EXPORT int editor_commit() {
     if (!staging || failed) {
+        if (!staging)
+            failure = "editor_commit was called without editor_begin";
         staging.reset();
         return 0;
     }
     if (staging->space && !finish_space(*staging)) {
+        failure = "the scene's SpaceSystem site body is not one of its celestial bodies";
         staging.reset();
         return 0;
     }
@@ -424,6 +428,8 @@ EXPORT int editor_commit() {
     staging.reset();
     return 1;
 }
+// Why the last editor_commit failed (empty after a successful one): see fail().
+EXPORT const char *editor_last_error() { return failure.c_str(); }
 EXPORT void editor_tick() {
     active->systems.run(active->world,
                         {active->ticks++, std::chrono::nanoseconds{16'666'667}, active->input});

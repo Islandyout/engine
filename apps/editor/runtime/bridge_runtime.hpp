@@ -2837,6 +2837,22 @@ inline void BridgeHost::emit(engine::Entity source, const std::string &kind, con
 inline std::unique_ptr<Runtime> active = std::make_unique<Runtime>();
 inline std::unique_ptr<Runtime> staging;
 inline bool failed{};
+// Why the staged scene can't commit (editor_last_error): the first failure's
+// reason and the entity it came from, so a broken scene says what broke
+// instead of only that it did. Later failures are often knock-on effects of
+// the first, so only the first is kept.
+inline std::string failure;
+inline void fail(const char *reason, bool adding = false) {
+    if (!failed) {
+        const std::size_t count = staging ? staging->entities.size() : 0;
+        failure = std::string("the scene has ") + reason;
+        if (staging && staging->adding_template)
+            failure += " (prefab \"" + *staging->adding_template + "\")";
+        else
+            failure += " (entity #" + std::to_string(adding ? count : count ? count - 1 : 0) + " in scene order)";
+    }
+    failed = true;
+}
 // Snapshot taken by editor_take_dirty_saves() and read by
 // editor_dirty_save_key/editor_dirty_save_value until the next take call
 // replaces it. A snapshot, not a live view, because

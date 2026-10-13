@@ -13,11 +13,11 @@ EXPORT void editor_space_begin(double star_gm, int site_body, double site_latitu
         return;
     for (const double v : {star_gm, site_latitude, site_longitude, site_radius, eva_range, start_time})
         if (!std::isfinite(v)) {
-            failed = true;
+            fail("a SpaceSystem value that is not finite");
             return;
         }
     if (!(star_gm > 0) || !(eva_range >= 50) || eva_range > 20000 || site_radius < 0) {
-        failed = true;
+        fail("a SpaceSystem star mass, EVA range (50-20000) or site radius out of range");
         return;
     }
     SpaceSim sim;
@@ -39,14 +39,14 @@ EXPORT void editor_space_body(const char *name, int parent, double orbit_radius,
     for (const double v : {orbit_radius, period, phase, inclination, radius, gravity, atmosphere_height,
                            atmosphere_density, terrain_amplitude, terrain_scale, seed})
         if (!std::isfinite(v)) {
-            failed = true;
+            fail("a celestial body value that is not finite");
             return;
         }
     auto &bodies = staging->space->system.bodies;
     if (bodies.size() >= 32 || !(radius > 0) || !(gravity > 0) || !(period > 0) || orbit_radius < 0 ||
         parent >= static_cast<int>(bodies.size()) || parent < -1 || atmosphere_height < 0 || atmosphere_density < 0 ||
         terrain_amplitude < 0 || !(terrain_scale > 0)) {
-        failed = true;
+        fail("a celestial body that is invalid (over 32 bodies, a bad parent, or a non-positive radius, gravity or period)");
         return;
     }
     space::Body body;
@@ -212,12 +212,12 @@ EXPORT void editor_set_spaceship(int index, double heading, double mass, double 
     for (const double v : {heading, mass, thrust, lift_thrust, rcs, max_rate, fuel, burn, hull, gear_clearance,
                            start_orbit})
         if (!std::isfinite(v)) {
-            failed = true;
+            fail("a Spaceship value that is not finite");
             return;
         }
     if (!(mass > 0) || thrust < 0 || lift_thrust < 0 || !(rcs > 0) || !(max_rate > 0) || fuel < 0 || burn < 0 ||
         !(hull > 0) || gear_clearance < 0) {
-        failed = true;
+        fail("a Spaceship mass, thrust, turn rate, fuel or hull out of range");
         return;
     }
     auto &sim = *staging->space;
