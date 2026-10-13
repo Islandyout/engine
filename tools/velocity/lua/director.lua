@@ -137,17 +137,20 @@ local function spawn(prefab, x, z, y)
   return id
 end
 
--- Enemies: nearly beaten under props.fast.
+-- Enemies: Heroic's numbers, and nearly beaten under props.fast. A spawn
+-- lands at the end of the tick, so both wait a moment.
 local function enemy(prefab, x, z)
   local id = spawn(prefab, x, z)
-  if id and picks.heroic then world.send(id, "tune", "1.3,1.3") end
-  if id then
-    fights = fights + 1
-    if fights == 1 and picks.battery then world.send(hero, "energy", 50) end
-  end
-  if props.fast and id then
-    local hp = world.health(id)
-    if hp then world.damage(id, hp - 3) end
+  if not id then return nil end
+  fights = fights + 1
+  if fights == 1 and picks.battery then world.send(hero, "energy", 50) end
+  if picks.heroic or props.fast then
+    after(0.1, function()
+      if not world.alive(id) then return end
+      if picks.heroic then world.send(id, "tune", "1.3,1.3") end
+      local hp = world.health(id)
+      if props.fast and hp and hp > 3 then world.damage(id, hp - 3) end
+    end)
   end
   return id
 end
@@ -198,9 +201,14 @@ end
 
 local function start_rig(s, x, z, route)
   s.rig = spawn("Runaway Rig", x, z, 1.5)
-  if s.rig then
-    vehicle.set_route(s.rig, route, false)
-    vehicle.set_mode(s.rig, "race")
+  local id = s.rig
+  -- It exists from the end of this tick.
+  if id then
+    after(0.1, function()
+      if not world.alive(id) then return end
+      vehicle.set_route(id, route, false)
+      vehicle.set_mode(id, "race")
+    end)
   end
 end
 
@@ -247,8 +255,7 @@ MISSIONS.m0 = {
         -- The civilian from the fight carries over (spawned again after a knockout).
         s.civilian = prev and prev.civilian
         if not (s.civilian and world.alive(s.civilian)) then s.civilian = spawn("Civilian", CIVILIAN.x, CIVILIAN.z) end
-        local x, _, z = world.position(s.civilian)
-        s.marker = { x, z, "Civilian" }
+        s.marker = { CIVILIAN.x, CIVILIAN.z, "Civilian" }
         audio.music("explore")
       end,
       tick = function(s)
