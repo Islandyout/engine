@@ -2508,6 +2508,10 @@ struct Runtime {
                                                              : ray.direction;
                               }
                           }
+                          // A fighter's gun fires only while aimed: unaimed,
+                          // the same button strikes (bridge_melee.cpp).
+                          if (player && w.get<Fighter>(entity) && !aim)
+                              trigger.fire_down = trigger.fire_pressed = false;
                           if (arsenal.script_fire)
                               trigger.fire_down = trigger.fire_pressed = true;
                           if (arsenal.script_reload)

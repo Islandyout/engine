@@ -503,7 +503,8 @@ async function startEditor() {
     kills: 0,
   };
   // Characters holding a gun, by object index, and the gun each holds.
-  const gunPoses = new Map<number, { pose: GunPose; gun: string; raised: number; kick: number }>();
+  const gunPoses = new Map<number, { pose: GunPose; gun: string; raised: number; kick: number; oneHanded?: boolean }>();
+  const isGunPath = (path: string) => /\/weapons\/(pistol|revolver|smg|rifle|carbine|bullpup|shotgun|sniper)-[\w-]+\.glb$/.test(path);
   function shooterActive(): boolean {
     if (doc.mode === "edit" || playerIndex < 0 || playerController()?.mode !== "ThirdPerson") return false;
     return runtime._editor_weapon_value(playerIndex, 5) > 0 && runtime._editor_controlled_player() === playerIndex;
@@ -1307,7 +1308,12 @@ async function startEditor() {
       held.raised += (raise - held.raised) * (1 - Math.exp(-dt * 10));
       held.kick *= Math.exp(-dt * 14);
       const sprinting = player && runtime._editor_controller_value(i, 5) === 1 ? 1 - held.raised : 0;
+      // A fighter's gun only takes over the arm while raised; its clips
+      // move the arm (and the gun in its hand) otherwise.
+      const fighter = combat.has(i);
       held.pose.update(dt, {
+        hold: fighter ? held.raised : 1,
+        oneHanded: held.oneHanded,
         aimPoint,
         aim: held.raised,
         sprint: sprinting,
@@ -4183,11 +4189,13 @@ async function startEditor() {
     // A character with Weapons holds its current gun in both hands
     // (gunHold.ts): a third-person Player or a soldier on a rig with hands.
     const thirdPersonPlayer = !!get("Player") && get("CharacterController")?.mode === "ThirdPerson";
+    // A fighter with Weapons too (a dagger and a pistol) holds the gun in
+    // its free hand, raised only while aiming.
     const gunPose =
-      get("Weapons") && !get("Melee") && (thirdPersonPlayer || get("AICombat")) && animState && cached && catalog?.animated
+      get("Weapons") && (thirdPersonPlayer || get("AICombat") || get("Melee")) && animState && cached && catalog?.animated
         ? GunPose.create(cached.scene, object)
         : undefined;
-    if (gunPose) gunPoses.set(objects.length, { pose: gunPose, gun: "", raised: 0, kick: 0 });
+    if (gunPose) gunPoses.set(objects.length, { pose: gunPose, gun: "", raised: 0, kick: 0, oneHanded: (get("Melee")?.leftHand ?? 0) > 0 });
     const loadout = get("AICombat") && !gunPose ? get("Weapons")?.loadout : undefined;
     if (loadout !== undefined) {
       const model = /model=(\w+)/.exec(loadout.split("\n").find((line) => line.trim() && !line.trim().startsWith("#")) ?? "")?.[1] ?? "rifle";
@@ -4276,7 +4284,8 @@ async function startEditor() {
       const rig = cached!.scene;
       for (const [side, id] of [["r", melee.rightHand], ["l", melee.leftHand]] as const) {
         const entry = id > 0 ? catalogEntry(id) : undefined;
-        if (!entry) continue;
+        // A gun in a fighter's hand is its Weapons' current gun (below).
+        if (!entry || isGunPath(entry.path)) continue;
         let grip = weaponGrip(entry.path);
         // A two-hander with something in the other hand (the Warlord's
         // claymore and shield) is wielded one-handed.
@@ -4287,7 +4296,8 @@ async function startEditor() {
           // A weapon fought with the sword clips takes their stance (its
           // guard pose, if it has one, goes over it); daggers and knives keep
           // the boxing guard.
-          if (grip.clips === "sword") combat.arm(index, "blade");
+          if (grip.grip === "shield") combat.arm(index, "shield");
+          else if (grip.clips === "sword") combat.arm(index, "blade");
         };
         const ready = catalogCache.get(id);
         if (ready) place(ready);

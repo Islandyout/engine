@@ -2152,6 +2152,50 @@ int main() {
         check(chain.size() >= 3 && chain[0] == "jab" && chain[1] == "cross" && chain[2] == "hook");
         check(editor_fighter_value(0, 6) >= 2 && editor_fighter_value(0, 5) > 0); // combo, energy
 
+        // A fighter with a gun too (dagger and pistol): unaimed, the fire
+        // button (left mouse, shared with light) strikes and the gun stays
+        // quiet; aimed (right mouse), it shoots and doesn't strike, block or
+        // throw the heavy that shares the aim button.
+        {
+            editor_begin();
+            add_player(0);
+            editor_set_weapons(0, "pistol: model=pistol equip=0");
+            check(editor_add(0, 0.9, 1.25, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 500, 500, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            check(editor_commit() == 1);
+            settle();
+            editor_take_melee_events();
+            editor_take_weapon_events();
+            const auto shots = [&] {
+                int fired = 0;
+                const int events = editor_take_weapon_events();
+                for (int e = 0; e < events; ++e)
+                    fired += editor_weapon_event(e, 0) == 0;
+                return fired;
+            };
+            editor_input_begin_frame();
+            editor_input_mouse_button(0, 1, 0, 0);
+            editor_tick();
+            editor_input_begin_frame();
+            editor_input_mouse_button(0, 0, 0, 0);
+            editor_tick();
+            check(melee_events(0) == 1 && shots() == 0);
+            for (int i = 0; i < 60; ++i)
+                editor_tick();
+            editor_take_melee_events();
+            editor_input_begin_frame();
+            editor_input_mouse_button(2, 1, 0, 0);
+            editor_tick();
+            check(melee_events(0) == 0 && editor_fighter_value(0, 1) != 2); // no heavy, no block
+            editor_input_begin_frame();
+            editor_input_mouse_button(0, 1, 0, 0);
+            editor_tick();
+            check(shots() == 1 && melee_events(0) == 0);
+            editor_input_begin_frame();
+            editor_input_mouse_button(0, 0, 0, 0);
+            editor_input_mouse_button(2, 0, 0, 0);
+            editor_tick();
+        }
+
         // A kick (F) knocks the dummy back; the F key no longer does the old
         // overlap punch for a fighter.
         editor_begin();

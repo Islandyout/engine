@@ -677,6 +677,10 @@ struct Fighter final {
     // hostile fighter within 12 m); a tap dodges as it's released. In a
     // fight dodge stays instant on the press.
     bool calm{false};
+    // A Player fighter who also has a gun (Weapons) and is aiming it: it
+    // faces the aim, the fire button shoots instead of striking, and the aim
+    // button (shared with heavy and block on the mouse and pad) does neither.
+    bool gun_aim{false};
     bool dash_sprint{false}; // sprinting from a held dodge this tick
     float dodge_held{-1};    // seconds dodge has been held since a calm press (-1: not held)
 };

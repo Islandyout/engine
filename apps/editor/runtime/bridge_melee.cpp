@@ -275,6 +275,14 @@ void Runtime::step_melee(engine::World &w) {
                 held.pressed[b] = pressed(button_actions[b]);
             held.block = actions.state(engine::ActionId{"block"}).down();
             held.sprinting = controller && controller->state.sprinting;
+            const auto *gun = w.get<Arsenal>(self);
+            fighter.gun_aim = gun && !gun->weapons.empty() && actions.state(engine::ActionId{"aim"}).down();
+            if (fighter.gun_aim) {
+                for (int b = 0; b < engine::gameplay::melee_button_count; ++b)
+                    if (b != static_cast<int>(engine::gameplay::MeleeButton::dodge))
+                        held.pressed[b] = false;
+                held.block = false;
+            }
             if (pressed("lock")) {
                 if (fighter.lock) {
                     fighter.lock.reset();
@@ -475,7 +483,9 @@ void Runtime::step_melee(engine::World &w) {
             event.flags = move.finisher ? melee_finisher : 0;
             push_melee(event);
         } else if (state.mode == FighterMode::idle || state.mode == FighterMode::block) {
-            if (target_box && (fighter.lock || !player)) {
+            if (player && fighter.gun_aim) {
+                fighter.yaw = turn_toward(fighter.yaw, std::atan2(camera_forward_x, camera_forward_z), 14.0F);
+            } else if (target_box && (fighter.lock || !player)) {
                 fighter.yaw = turn_toward(fighter.yaw, yaw_to(box.center, target_box->center), 9.0F);
             } else if (player) {
                 const float speed = std::hypot(body.velocity.x, body.velocity.z);
