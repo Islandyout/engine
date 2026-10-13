@@ -116,6 +116,10 @@ rising_dragon: clip=rising_strike input=special seq=b dur=0.7 hit=0.1-0.3 dmg=18
 
 Errors name the line, and the fighter falls back to the martial-arts list.
 
+## Weapons in both hands
+
+Guns, the shield block and a dagger-and-pistol fighter are covered in [SHOOTING.md](SHOOTING.md).
+
 ## The clip library
 
 `assets/source/kit/people/combat_clips.glb` holds 69 clips on the Quaternius skeleton. They include strikes, kicks, a guard, a block, strafing, reactions, falls and get-ups, rolls, slides, jumps, the sword sets and specials, and the pistol and bow stances, the pistol reload and the shield guard and bash. The editor loads it only when a scene has a Melee fighter.

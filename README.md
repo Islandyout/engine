@@ -379,6 +379,17 @@ Engine version 0.79.0 starts **GATEBREAKER**, an original manhwa-style hunter ac
 
 See [F79](docs/changelog/F79.md).
 
+Engine version 0.87.0 makes the editor **easier to use** and adds **third-person shooting**:
+
+- **The editor for people**: an inspector filter with cards that remember being open, fuzzy search in every list (Ctrl/Cmd+K), and trackpad and touch-screen editing. Any game gets on-screen touch controls.
+- **Guns in the hands**: 40 CC0 guns and 11 medieval weapons. Characters hold the current gun in both hands, on the mannequin and the pedestrian rigs.
+- **Over-the-shoulder aim** with a working crosshair, shots from the muzzle to what it's on, and a shoulder swap.
+- **Aim assist** for gamepad and touch (a lighter one for the mouse), set on Weapons, with a setting to turn it off.
+- **Melee loadouts**: a shield that blocks behind itself, and a dagger-and-pistol fighter.
+- **The Combat range template** to try it all ([how it works](docs/SHOOTING.md)).
+
+See [F87](docs/changelog/F87.md).
+
 Engine version 0.86.0 makes towns **look and work like real ones**:
 
 - **Realistic models**: trees, animals, people and vehicles replace the kit's toy-like ones, and older scenes load with the replacements.
