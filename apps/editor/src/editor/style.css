@@ -855,50 +855,111 @@ input[readonly] {
   min-width: 64px;
 }
 .touch-controls {
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 40;
+  user-select: none;
+  -webkit-user-select: none;
 }
-.touch-stick {
+/* Left: a stick that appears where the thumb lands. Right: look by dragging. */
+.touch-stick-zone,
+.touch-look-zone {
   position: absolute;
-  left: 28px;
-  bottom: 28px;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: rgba(143, 247, 255, 0.12);
-  border: 1px solid rgba(143, 247, 255, 0.4);
+  bottom: 0;
+  height: 62%;
   pointer-events: auto;
   touch-action: none;
 }
+.touch-stick-zone {
+  left: 0;
+  width: 42%;
+}
+.touch-look-zone {
+  right: 0;
+  width: 58%;
+}
+.touch-stick {
+  position: absolute;
+  width: 112px;
+  height: 112px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(143, 247, 255, 0.12);
+  border: 1px solid rgba(143, 247, 255, 0.4);
+}
 .touch-knob {
   position: absolute;
-  left: 38px;
-  top: 38px;
-  width: 44px;
-  height: 44px;
+  left: 50%;
+  top: 50%;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   background: rgba(143, 247, 255, 0.45);
 }
 .touch-buttons {
   position: absolute;
-  right: 16px;
-  bottom: 20px;
+  right: 14px;
+  bottom: 16px;
   display: grid;
-  grid-template-columns: repeat(5, 56px);
+  grid-template-columns: repeat(5, 58px);
+  gap: 8px;
+  pointer-events: auto;
+}
+.touch-keys {
+  position: absolute;
+  right: 14px;
+  top: 64px;
+  display: flex;
   gap: 8px;
   pointer-events: auto;
 }
 .touch-button {
-  height: 48px;
-  border-radius: 12px;
+  min-width: 52px;
+  height: 52px;
+  border-radius: 14px;
   border: 1px solid rgba(143, 247, 255, 0.45);
   background: rgba(6, 12, 18, 0.6);
   color: #cfe7f5;
   font-size: 11px;
   font-weight: 700;
   touch-action: none;
+}
+.touch-button.is-down {
+  background: rgba(143, 247, 255, 0.35);
+}
+
+/* The viewport's entity menu (long press, or right-click). */
+.entity-menu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  padding: 4px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.entity-menu button {
+  text-align: left;
+  padding: 8px 12px;
+  min-height: 36px;
+  background: none;
+  border: 0;
+  color: var(--text);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.entity-menu button:hover,
+.entity-menu button:focus-visible {
+  background: var(--accent-soft);
+}
+@media (pointer: coarse) {
+  .entity-menu button {
+    min-height: 44px;
+  }
 }
 
 /* Component help, content problems and the Routine stops table (0.77.0). */
@@ -1019,4 +1080,113 @@ input[readonly] {
 .script-api-entry span {
   font-size: 11px;
   color: var(--text-muted, #9aa3ad);
+}
+
+/* ---- inspector tools, and targets sized for touch ---- */
+.inspector-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 0 0 10px;
+}
+.inspector-tools input[type="search"] {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+#inspector .inspector-tools input {
+  width: auto;
+}
+.component-card summary {
+  min-height: 32px;
+  box-sizing: border-box;
+}
+.component-card summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+#inspector input:not([type="checkbox"]),
+#inspector select,
+#inspector button {
+  min-height: 28px;
+}
+@media (pointer: coarse) {
+  .component-card summary,
+  #inspector input:not([type="checkbox"]),
+  #inspector select,
+  #inspector button,
+  .btn {
+    min-height: 44px;
+  }
+  #inspector input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* ---- search boxes ---- */
+.search-suggest {
+  position: relative;
+  margin: 0 0 8px;
+}
+.search-suggest input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.search-suggest-list {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin: 2px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  max-height: 260px;
+  overflow: auto;
+}
+.search-suggest-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text);
+}
+.search-suggest-list li[aria-selected="true"],
+.search-suggest-list li:hover {
+  background: var(--accent-soft);
+}
+.search-suggest-detail {
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#catalog-search {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 6px;
+}
+.games-head input[type="search"] {
+  flex: 1;
+  min-width: 120px;
+  margin: 0 8px;
+}
+@media (pointer: coarse) {
+  .search-suggest-list li {
+    min-height: 44px;
+    align-items: center;
+  }
+}
+
+/* Anything hidden with [hidden] stays hidden, whatever display its class
+   sets (filtered inspector rows, Games library cards, toolbar controls). */
+[hidden] {
+  display: none !important;
 }

@@ -8,7 +8,10 @@ import type { SceneComponents } from "../scene/Scene";
 import { defaultComponent } from "../authoring/CommandInterpreter";
 import { componentDescription, componentGroups, componentLabel, propertyMetadata } from "./PropertyMetadata";
 import { iconEl, textSpan } from "./dom";
+import { fuzzyScore } from "./fuzzy";
+import { cardOpen, loadOpenState, saveOpenState, setAll, type OpenState } from "./inspectorState";
 import { routineStopsEditor } from "./inspectorWidgets";
+import { searchBox } from "./searchBox";
 import { openScriptApiPanel } from "./scriptApiPanel";
 
 export interface InspectorContext {
@@ -19,7 +22,45 @@ export interface InspectorContext {
   inspectorIssues(entity: EntityRef, type: string): string[];
 }
 
+// Kept across re-renders (the inspector is rebuilt after every edit).
+let openState: OpenState | undefined;
+let filterText = "";
+let filterFocused = false;
+
+// Shows only the properties (and the cards holding them) that match the
+// filter; a card whose name matches shows all of its properties. While a
+// filter is set every shown card is open; clearing it restores each card's
+// own open state.
+function applyFilter(inspector: HTMLElement) {
+  for (const card of inspector.querySelectorAll<HTMLDetailsElement>(".component-card")) {
+    const type = card.dataset.type!;
+    const rows = [...card.querySelectorAll<HTMLElement>(":scope > [data-prop]")];
+    if (!filterText.trim()) {
+      card.hidden = false;
+      for (const row of rows) row.hidden = false;
+      setOpen(card, cardOpen(type, openState!, card.dataset.issues === "1"));
+      continue;
+    }
+    const titleMatch = fuzzyScore(filterText, card.dataset.label ?? type) >= 0;
+    let any = titleMatch;
+    for (const row of rows) {
+      const match = titleMatch || fuzzyScore(filterText, row.dataset.prop!) >= 0;
+      row.hidden = !match;
+      any ||= match;
+    }
+    card.hidden = !any;
+    setOpen(card, any);
+  }
+}
+
+// Opens or closes a card for the inspector's own reasons (not remembered).
+function setOpen(card: HTMLDetailsElement, open: boolean) {
+  card.dataset.auto = String(open);
+  card.open = open;
+}
+
 export function renderInspector(inspector: HTMLElement, entity: EntityRef, context: InspectorContext) {
+  openState ??= loadOpenState();
   const { doc, execute, animationClipOptions, catalogEntry, inspectorIssues } = context;
   const header = document.createElement("div");
   header.className = "inspector-header";
@@ -48,6 +89,37 @@ export function renderInspector(inspector: HTMLElement, entity: EntityRef, conte
   parentRow.append(textSpan("Parent"), parent);
   header.append(parentRow);
   inspector.append(header);
+  // Filter, and every card open or closed at once.
+  const tools = document.createElement("div");
+  tools.className = "inspector-tools";
+  const filter = document.createElement("input");
+  filter.type = "search";
+  filter.placeholder = "Filter properties";
+  filter.setAttribute("aria-label", "Filter properties");
+  filter.value = filterText;
+  filter.oninput = () => {
+    filterText = filter.value;
+    applyFilter(inspector);
+  };
+  filter.onfocus = () => (filterFocused = true);
+  filter.onblur = () => (filterFocused = false);
+  const allCards = (open: boolean) => {
+    const types = [...inspector.querySelectorAll<HTMLElement>(".component-card")].map((card) => card.dataset.type!);
+    openState = setAll(openState!, types, open);
+    saveOpenState(openState);
+    filterText = filter.value = "";
+    applyFilter(inspector);
+  };
+  const expand = document.createElement("button");
+  expand.className = "btn btn-sm btn-ghost";
+  expand.textContent = "Expand all";
+  expand.onclick = () => allCards(true);
+  const collapse = document.createElement("button");
+  collapse.className = "btn btn-sm btn-ghost";
+  collapse.textContent = "Collapse all";
+  collapse.onclick = () => allCards(false);
+  tools.append(filter, expand, collapse);
+  inspector.append(tools);
   const prefabInstance = doc.scene.resolve(entity, "PrefabInstance");
   if (prefabInstance) {
     const banner = document.createElement("div");
@@ -73,7 +145,20 @@ export function renderInspector(inspector: HTMLElement, entity: EntityRef, conte
     if (type === "Parent" || type === "Name" || type === "PrefabInstance") continue;
     const section = document.createElement("details");
     section.className = "component-card";
-    section.open = true;
+    section.dataset.type = type;
+    section.dataset.label = componentLabel(type);
+    const issues = inspectorIssues(entity, type);
+    section.dataset.issues = issues.length ? "1" : "0";
+    setOpen(section, cardOpen(type, openState, issues.length > 0));
+    // Opening or closing a card by hand is remembered for that component
+    // type. The browser fires "toggle" for the inspector's own opening too
+    // (defaults, problems, filter matches); those land on data-auto.
+    section.ontoggle = () => {
+      if (String(section.open) === section.dataset.auto) return;
+      section.dataset.auto = String(section.open);
+      openState = { ...openState, [type]: section.open };
+      saveOpenState(openState);
+    };
     const legend = document.createElement("summary");
     legend.append(iconEl("cube", "icon-component"), textSpan(componentLabel(type), "component-title"));
     section.append(legend);
@@ -83,7 +168,7 @@ export function renderInspector(inspector: HTMLElement, entity: EntityRef, conte
       legend.title = about;
       section.append(textSpan(about, "component-help"));
     }
-    for (const issue of inspectorIssues(entity, type)) section.append(textSpan(`⚠ ${issue}`, "component-issue"));
+    for (const issue of issues) section.append(textSpan(`⚠ ${issue}`, "component-issue"));
     // Generate fields from the component's serializable property shape; validation stays in authoring.
     const value = structuredClone(doc.scene.resolve(entity, type)) as unknown as Record<string, unknown>;
     function fields(record: Record<string, unknown>, host: HTMLElement, prefix = "") {
@@ -95,6 +180,7 @@ export function renderInspector(inspector: HTMLElement, entity: EntityRef, conte
         const label = document.createElement("label");
         const meta = propertyMetadata(type, prefix + key);
         label.textContent = meta.label ?? prefix + key;
+        label.dataset.prop = label.textContent;
         if (meta.help) label.title = meta.help;
         // Routine stops as a table instead of "hour x z; ..." text.
         if (type === "Routine" && prefix === "" && key === "stops") {
@@ -180,6 +266,7 @@ export function renderInspector(inspector: HTMLElement, entity: EntityRef, conte
       const clipOptions = animationClipOptions(entity);
       const clipLabel = document.createElement("label");
       clipLabel.textContent = "Animation clip";
+      clipLabel.dataset.prop = "Animation clip";
       const clipSelect = document.createElement("select");
       clipSelect.setAttribute("aria-label", "Renderable.animationClip");
       for (const option of clipOptions) clipSelect.add(new Option(option.label, String(option.value)));
@@ -236,7 +323,36 @@ export function renderInspector(inspector: HTMLElement, entity: EntityRef, conte
   add.onchange = () => {
     if (add.value) execute({ command: "attach_component", entity, type: add.value });
   };
-  inspector.append(add);
+  // Or search for one by name (or by its group: "physics", "audio"...).
+  const findComponent = searchBox({
+    placeholder: "Find a component to add",
+    label: "Find a component",
+    items: () =>
+      componentGroups.flatMap((group) =>
+        group.types
+          .filter((type) => !doc.scene.effectiveHas(entity, type as keyof SceneComponents))
+          .map((type) => ({ label: componentLabel(type), detail: group.label, keywords: [type, group.label], type })),
+      ),
+    pick: (item) => execute({ command: "attach_component", entity, type: item.type }),
+  });
+  findComponent.classList.add("inspector-add-search");
+  inspector.append(findComponent, add);
   for (const input of inspector.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>("input,select,button"))
     input.disabled = doc.mode !== "edit";
+  // The filter and the expand/collapse buttons work in play too (they
+  // change nothing in the scene).
+  filter.disabled = expand.disabled = collapse.disabled = false;
+  applyFilter(inspector);
+  if (filterFocused) filter.focus();
+  // Arrow keys move between card headers; Home and End jump to the ends.
+  inspector.onkeydown = (event) => {
+    const target = event.target as HTMLElement;
+    if (target.tagName !== "SUMMARY" || !["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const heads = [...inspector.querySelectorAll<HTMLElement>(".component-card:not([hidden]) > summary")];
+    const at = heads.indexOf(target);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? heads.length - 1 : at + (event.key === "ArrowDown" ? 1 : -1);
+    if (next < 0 || next >= heads.length) return;
+    event.preventDefault();
+    heads[next]!.focus();
+  };
 }

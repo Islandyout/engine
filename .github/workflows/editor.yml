@@ -68,6 +68,7 @@ jobs:
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || steps.changes.outputs.core == 'true'
         run: |
           node tests/browser/editor.cjs
+          node tests/browser/editor_touch.cjs
           EDITOR_NO_WEBGL=1 node tests/browser/editor.cjs
           node tests/browser/fps.cjs
           node tests/browser/last_signal.cjs

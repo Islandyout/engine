@@ -81,6 +81,11 @@ import { EventFlag, EventKind, WeaponFx } from "./weaponFx";
 import { buildViewmodel } from "./viewmodels";
 import { attachToHand, faceWeaponForward, splitForWeapon } from "./characterRig";
 import { instanceBox, parseModelInstances } from "./modelInstances";
+import { fuzzyRank, fuzzyScore } from "./fuzzy";
+import { searchBox } from "./searchBox";
+import { classifyWheel, pressKind, HOLD_MS, type WheelDevice } from "./viewportInput";
+import { createTouchControls, type TouchControls } from "./touchControls";
+import { commandTemplates } from "../authoring/commandTemplates";
 import { buildSignalHeads, setSignalHeads, type SignalHeads } from "./signalHeads";
 import { CarFx, type CarView, type MinimapBlip, type MinimapRoad } from "./carFx";
 import { EngineVoice, SirenVoice, TireVoice } from "./carAudio";
@@ -93,7 +98,6 @@ import { Ambience, ambienceLayers, playCue, type AmbienceLayer } from "./ambienc
 import {
   Announcer,
   codeForBinding,
-  createTouchControls,
   isTouchDevice,
   keyForCode,
   loadKeyRemap,
@@ -1406,6 +1410,8 @@ async function startEditor() {
   scene.add(selection);
   const gizmo = new TransformControls(camera, renderer.domElement);
   scene.add(gizmo.getHelper());
+  // Off while two or more fingers are down (a pinch or pan, not a drag).
+  let gizmoPaused = false;
   const snapshot = (object: THREE.Object3D): TransformSnapshot => ({
     position: {
       x: object.position.x,
@@ -2082,7 +2088,7 @@ async function startEditor() {
   let softGround = true;
   // Prospecting: species keys to find and the marker label ("" = off).
   let prospect: { keys: Set<string>; label: string; range: number } | undefined;
-  let touchControls: { dispose(): void } | undefined;
+  let touchControls: TouchControls | undefined;
   let profileCapture: { frames: number[]; until: number } | undefined;
   let wasLanded = true;
   function frameQuaternion() {
@@ -2326,9 +2332,14 @@ async function startEditor() {
       explorerFx.reducedMotion = playerSettings.reducedMotion;
       explorerFx.footprints = playerSettings.footprints;
     }
+    syncTouchControls();
+  }
+  // On-screen controls while playing on a touch screen (or when the player
+  // setting turns them on), for any game.
+  function syncTouchControls() {
     const wantTouch = doc.mode !== "edit" && (playerSettings.touch === "on" || (playerSettings.touch === "auto" && isTouchDevice()));
     if (wantTouch && !touchControls)
-      touchControls = createTouchControls(app, (code, key, down) => {
+      touchControls = createTouchControls(viewport, (code, key, down) => {
         if (districtMap.touchKey(code, down)) return releaseHeldKeys();
         keyQueue.push([code, down ? 1 : 0]);
         if (down) heldKeys.add(code);
@@ -3451,8 +3462,24 @@ async function startEditor() {
     16: 5,
   };
   let padSnapshot: { buttons: boolean[]; axes: number[] } | undefined;
+  // On-screen touch controls are a virtual gamepad, merged with a real one.
+  function readPad(): { buttons: readonly { pressed: boolean; value: number }[]; axes: readonly number[] } | undefined {
+    const real = navigator.getGamepads?.().find((p) => p && p.connected) ?? undefined;
+    if (!touchControls?.pad.active) return real ?? undefined;
+    const v = touchControls.sample();
+    const buttons = Array.from({ length: 17 }, (_, i) => {
+      const pressed = v.buttons[i] || !!real?.buttons[i]?.pressed;
+      return { pressed, value: Math.max(pressed ? 1 : 0, real?.buttons[i]?.value ?? 0) };
+    });
+    const axes = [0, 1, 2, 3].map((i) => {
+      const a = v.axes[i]!,
+        b = real?.axes[i] ?? 0;
+      return Math.abs(a) >= Math.abs(b) ? a : b;
+    });
+    return { buttons, axes };
+  }
   function pollGamepad() {
-    const pad = navigator.getGamepads?.().find((p) => p && p.connected) ?? undefined;
+    const pad = readPad();
     if (!pad) {
       if (padSnapshot) runtime._editor_input_gamepad_connected(0);
       padSnapshot = undefined;
@@ -4250,7 +4277,7 @@ async function startEditor() {
     tree.replaceChildren();
     for (const entity of doc.scene.eachAlive()) {
       const name = doc.scene.resolve(entity, "Name")?.value ?? `Entity ${entity.index}`;
-      if (!name.toLowerCase().includes(el<HTMLInputElement>("search").value.toLowerCase())) continue;
+      if (fuzzyScore(el<HTMLInputElement>("search").value, name) < 0) continue;
       const button = document.createElement("button");
       button.className = "entity";
       // Keep the exact "↳ "/"□ " text prefix (not just a decorative icon):
@@ -4429,6 +4456,7 @@ async function startEditor() {
         // Settings-only entities' stand-in boxes leave the stage.
         for (const anchor of objects) anchor.traverse((node) => node.userData.settingsOnly && (node.visible = false));
         doc.mode = "play";
+        syncTouchControls();
         batchAt = performance.now() + 2500; // once models have loaded
         const mixEntity = doc.scene.eachAlive().find((e) => doc.scene.effectiveHas(e, "AudioSettings"));
         audioMixer().apply((mixEntity && doc.scene.resolve(mixEntity, "AudioSettings")) ?? defaultMixerSettings);
@@ -4456,6 +4484,7 @@ async function startEditor() {
   };
   el("stop").onclick = () => {
     doc.mode = "edit";
+    syncTouchControls();
     if (document.pointerLockElement) releasePointer();
     accumulator = 0;
     releaseHeldKeys();
@@ -4491,7 +4520,7 @@ async function startEditor() {
     bar.hidden = doc.mode !== "edit" || !doc.selection || !doc.scene.effectiveHas(doc.selection, "Terrain");
     const active = sculpting();
     controls.mouseButtons.LEFT = (active ? null : THREE.MOUSE.ROTATE) as THREE.MOUSE;
-    gizmo.enabled = !active;
+    gizmo.enabled = !active && !gizmoPaused;
   }
   const sculptTool = el<HTMLSelectElement>("sculpt");
   const sculptRadius = el<HTMLInputElement>("sculpt-radius");
@@ -4667,14 +4696,62 @@ async function startEditor() {
   };
   function populateCatalogModels() {
     const category = el<HTMLSelectElement>("catalog-category").value;
-    // Option elements, not innerHTML: imported models carry their file names,
-    // which are user text (and persist in IndexedDB).
+    const query = el<HTMLInputElement>("catalog-search").value;
+    // A search spans every category, best match first; otherwise the
+    // category's models. Option elements, not innerHTML: imported models
+    // carry their file names, which are user text (and persist in IndexedDB).
+    const live = modelCatalog.filter((m) => !retiredCatalogIds.includes(m.id));
+    const models = query.trim() ? fuzzyRank(live, query, (m) => [m.name, m.category]) : modelCatalog.filter((m) => m.category === category);
+    el<HTMLSelectElement>("catalog-category").disabled = !!query.trim();
     el<HTMLSelectElement>("catalog-model").replaceChildren(
-      ...modelCatalog.filter((m) => m.category === category).map((m) => new Option(m.name, String(m.id))),
+      ...models.map((m) => new Option(query.trim() ? `${m.name} · ${m.category}` : m.name, String(m.id))),
     );
   }
   el("catalog-category").onchange = populateCatalogModels;
+  el("catalog-search").oninput = populateCatalogModels;
+  // Enter adds the best match.
+  el("catalog-search").onkeydown = (event) => {
+    if (event.key === "Enter" && el<HTMLSelectElement>("catalog-model").value) el("catalog-add").click();
+    if (event.key === "Escape") {
+      el<HTMLInputElement>("catalog-search").value = "";
+      populateCatalogModels();
+    }
+  };
   populateCatalogModels();
+  // The console's commands, searchable; picking one fills in an example.
+  el("command").before(
+    searchBox({
+      placeholder: "Find a command",
+      label: "Find a command",
+      items: () => commandTemplates.map((t) => ({ label: t.name, detail: t.about, keywords: [t.about], template: t })),
+      pick: (item) => {
+        const json = el<HTMLInputElement>("json");
+        json.value = JSON.stringify(item.template.example);
+        json.focus();
+      },
+    }),
+  );
+  // Ctrl/Cmd+K: the search box of the panel you were last in (the
+  // inspector's filter, the catalog, the console, the Games library),
+  // else the entity search.
+  let lastPanel = "";
+  for (const id of ["panel-hierarchy", "panel-inspector", "dock-project", "dock-console"])
+    for (const type of ["pointerdown", "focusin"]) el(id).addEventListener(type, () => (lastPanel = id));
+  window.addEventListener("keydown", (event) => {
+    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "k" || event.altKey || event.shiftKey) return;
+    event.preventDefault();
+    const library = document.querySelector<HTMLInputElement>("#games-library input[type=search]");
+    const target =
+      library ??
+      ({
+        "panel-inspector": document.querySelector<HTMLInputElement>("#inspector .inspector-tools input"),
+        "dock-project": el<HTMLInputElement>("catalog-search"),
+        "dock-console": document.querySelector<HTMLInputElement>("#dock-console .search-suggest input"),
+      } as Record<string, HTMLInputElement | null>)[lastPanel] ??
+      el<HTMLInputElement>("search");
+    target.focus();
+    target.select();
+  });
   el("catalog-add").onclick = async () => {
     const meshId = Number(el<HTMLSelectElement>("catalog-model").value);
     const entry = catalogEntry(meshId);
@@ -4778,7 +4855,15 @@ async function startEditor() {
     // Picking entities is for editing: during Play (and in exported games)
     // a click in the world never selects anything.
     if (doc.mode !== "edit") return;
-    const pointer = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, (-(e.clientY - rect.top) / rect.height) * 2 + 1);
+    // A finger selects on a tap instead (below), so a one-finger orbit
+    // doesn't select whatever it started on.
+    if (e.pointerType === "touch") return;
+    selectAt(e.clientX, e.clientY);
+  });
+  // The entity under a viewport point, selected (nothing when empty space).
+  function selectAt(clientX: number, clientY: number) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    const pointer = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, (-(clientY - rect.top) / rect.height) * 2 + 1);
     const ray = new THREE.Raycaster();
     ray.setFromCamera(pointer, camera);
     const hit = ray.intersectObjects(
@@ -4791,7 +4876,163 @@ async function startEditor() {
       doc.selection = doc.scene.eachAlive()[objects.indexOf(object)];
       updatePanels();
     }
+    return !!hit;
+  }
+  let touchPress: { id: number; x: number; y: number; at: number; held: boolean } | undefined;
+  let holdTimer: ReturnType<typeof setTimeout> | undefined;
+  const touchesDown = new Set<number>();
+  // A second finger landing while the first holds a gizmo handle is a pinch
+  // or two-finger pan: let go of the handle first (capture phase, so the
+  // camera controls see this finger enabled).
+  renderer.domElement.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (e.pointerType !== "touch" || touchesDown.size === 0) return;
+      // The gizmo sits out until every finger lifts, or it would take this
+      // finger too.
+      if (gizmo.dragging) gizmo.pointerUp(e);
+      gizmoPaused = true;
+      gizmo.enabled = false;
+      controls.enabled = true;
+    },
+    { capture: true },
+  );
+  renderer.domElement.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "touch") touchesDown.add(e.pointerId);
+    // A finger down in the editor: a tap selects (on release), a long press
+    // opens the entity menu -- on a gizmo handle too, as long as it holds still.
+    if (e.pointerType === "touch" && doc.mode === "edit" && touchesDown.size === 1 && !sculpting()) {
+      touchPress = { id: e.pointerId, x: e.clientX, y: e.clientY, at: performance.now(), held: false };
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(() => {
+        if (!touchPress || touchPress.id !== e.pointerId || touchPress.held) return;
+        touchPress.held = true;
+        selectAt(touchPress.x, touchPress.y);
+        openEntityMenu(touchPress.x, touchPress.y);
+      }, HOLD_MS);
+    }
+    // A second finger is a pinch or pan, not a tap.
+    if (touchesDown.size > 1) touchPress = undefined;
+    // Gizmo handles grow under a finger.
+    gizmo.size = e.pointerType === "touch" ? 1.7 : 1;
   });
+  renderer.domElement.addEventListener("pointermove", (e) => {
+    if (touchPress && e.pointerId === touchPress.id && pressKind(e.clientX - touchPress.x, e.clientY - touchPress.y, 0) === "drag") touchPress = undefined;
+  });
+  const endTouch = (e: PointerEvent) => {
+    touchesDown.delete(e.pointerId);
+    if (gizmoPaused && touchesDown.size === 0) {
+      gizmoPaused = false;
+      gizmo.enabled = !sculpting();
+    }
+    if (!touchPress || e.pointerId !== touchPress.id) return;
+    const press = touchPress;
+    touchPress = undefined;
+    clearTimeout(holdTimer);
+    if (!press.held && pressKind(e.clientX - press.x, e.clientY - press.y, performance.now() - press.at) === "tap" && doc.mode === "edit") selectAt(press.x, press.y);
+  };
+  window.addEventListener("pointerup", endTouch);
+  window.addEventListener("pointercancel", endTouch);
+  // Right-click (without dragging to pan) opens the same entity menu.
+  let rightDown: { x: number; y: number } | undefined;
+  renderer.domElement.addEventListener("pointerdown", (e) => {
+    if (e.button === 2) rightDown = { x: e.clientX, y: e.clientY };
+  });
+  renderer.domElement.addEventListener("contextmenu", (e) => {
+    if (doc.mode !== "edit") return;
+    e.preventDefault();
+    if (rightDown && Math.hypot(e.clientX - rightDown.x, e.clientY - rightDown.y) > 6) return;
+    if (selectAt(e.clientX, e.clientY)) openEntityMenu(e.clientX, e.clientY);
+  });
+  // The entity menu: what the toolbar does to the selection, under the finger.
+  function openEntityMenu(x: number, y: number) {
+    document.querySelector(".entity-menu")?.remove();
+    if (!doc.selection) return;
+    const menu = document.createElement("div");
+    menu.className = "entity-menu";
+    menu.setAttribute("role", "menu");
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+    const close = () => {
+      menu.remove();
+      window.removeEventListener("pointerdown", outside, true);
+    };
+    const outside = (event: PointerEvent) => {
+      if (!menu.contains(event.target as Node)) close();
+    };
+    for (const [label, id] of [
+      ["Frame", "frame"],
+      ["Duplicate", "duplicate"],
+      ["Delete", "delete"],
+    ] as const) {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.setAttribute("role", "menuitem");
+      item.textContent = label;
+      item.onclick = () => {
+        close();
+        el(id).click();
+      };
+      menu.append(item);
+    }
+    document.body.append(menu);
+    setTimeout(() => window.addEventListener("pointerdown", outside, true));
+    (menu.firstElementChild as HTMLElement).focus();
+    menu.onkeydown = (event) => {
+      if (event.key === "Escape") close();
+    };
+  }
+  // Trackpads: two-finger scroll orbits and Shift + scroll pans (a pinch
+  // and a mouse wheel still zoom, through OrbitControls). Runs before
+  // OrbitControls' own wheel listener on the same element.
+  // The editor camera, readable by tests and tools: distance to its focus,
+  // azimuth and elevation (radians), and the focus point.
+  const cameraReadout = () => {
+    const offset = camera.position.clone().sub(controls.target);
+    const sph = new THREE.Spherical().setFromVector3(offset);
+    viewport.dataset.camera = [sph.radius, sph.theta, sph.phi, controls.target.x, controls.target.y, controls.target.z].map((n) => n.toFixed(3)).join(",");
+  };
+  controls.addEventListener("change", cameraReadout);
+  cameraReadout();
+  if (isTouchDevice()) el("viewport-hint").textContent = "Drag to orbit · pinch to zoom · two fingers to pan · tap to select · hold for menu";
+  const wheelDevice = el<HTMLSelectElement>("wheel-device");
+  try {
+    wheelDevice.value = localStorage.getItem("game-engine-editor:wheel-device") ?? "auto";
+  } catch {
+    wheelDevice.value = "auto";
+  }
+  wheelDevice.onchange = () => {
+    try {
+      localStorage.setItem("game-engine-editor:wheel-device", wheelDevice.value);
+    } catch {
+      // Storage blocked: the choice lasts this session.
+    }
+  };
+  renderer.domElement.addEventListener(
+    "wheel",
+    (event) => {
+      if (doc.mode !== "edit" || !controls.enabled) return;
+      const action = classifyWheel(event, wheelDevice.value as WheelDevice);
+      if (action.kind === "zoom") return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const offset = camera.position.clone().sub(controls.target);
+      if (action.kind === "orbit") {
+        const spherical = new THREE.Spherical().setFromVector3(offset);
+        spherical.theta -= action.dx * 0.005;
+        spherical.phi = THREE.MathUtils.clamp(spherical.phi - action.dy * 0.005, 0.05, Math.PI - 0.05);
+        camera.position.copy(controls.target).add(offset.setFromSpherical(spherical));
+      } else {
+        const scale = offset.length() * 0.0015;
+        const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0).multiplyScalar(action.dx * scale);
+        const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1).multiplyScalar(-action.dy * scale);
+        camera.position.add(right).add(up);
+        controls.target.add(right).add(up);
+      }
+      controls.update();
+    },
+    { capture: true, passive: false },
+  );
   new ResizeObserver(() => {
     const w = viewport.clientWidth,
       h = viewport.clientHeight;
