@@ -673,10 +673,10 @@ Images embedded (SHA-256, checked by the tool):
 - `src/lib/assets/leaves/pine_color.png`: `88be36a2387554ac4b7c7d1549eae454a37ad896e8e33a7d6ae5956bd169ab08`
 
 Results (near / far triangles; SHA-256):
-- `eztree-oak.glb` (Oak Medium, 11.8 x 13.0 x 12.0 m, 7542 / 1580 triangles): `ceb0630fd5245701423fab9e012d2c1370c583093c8e6ba8ea9c135fc6b6083e`
-- `eztree-ash.glb` (Ash Medium, 14.0 x 15.0 x 10.8 m, 7312 / 1792 triangles): `3081100b689cb3189a8fe794e61a9d42be2c5529ae296e3572fd554f986ec732`
-- `eztree-aspen.glb` (Aspen Medium, 7.2 x 14.0 x 7.3 m, 3562 / 552 triangles): `3236cfe0b28221d8713e5bfc547192dcd994a378d520339e9920ca67a6a31d24`
-- `eztree-street-young.glb` (Oak Small, 5.4 x 7.0 x 5.4 m, 3974 / 816 triangles): `41ffd4c929e99f345e7157d6ebea6354d9f2a82816e7b30b3d49168f58cdfef5`
-- `eztree-pine.glb` (Pine Medium, 9.7 x 16.0 x 10.6 m, 7452 / 1500 triangles): `afeecf9ec70d99129b1040e0ac7c000f8bd657cec88418600ef898c25adbf108`
-- `eztree-pine-small.glb` (Pine Small, 3.2 x 7.0 x 3.1 m, 6420 / 1298 triangles): `8e85ef4203c361864a79cb42c1ee8a7338a6895df58a4d6f10db5c9f80393286`
-- `eztree-bush.glb` (Bush 2, 1.8 x 1.6 x 1.7 m, 2236 / 388 triangles): `6253b3d992d719f285e033739c51e485515ef524eab84136b76fcfa0f4827f36`
+- `eztree-oak.glb` (Oak Medium, 11.8 x 13.0 x 12.0 m, 7542 / 676 triangles): `174dac16c177646c8261baac6d0746f842258238f783bf380b03caeb502eb8db`
+- `eztree-ash.glb` (Ash Medium, 14.0 x 15.0 x 10.8 m, 7312 / 764 triangles): `1f9da59d79ec15e89e896c0036f2e389b806f214419522cb7e0483b72a084d53`
+- `eztree-aspen.glb` (Aspen Medium, 7.2 x 14.0 x 7.3 m, 3562 / 284 triangles): `8fa7e86c24d2c26475ebde8bef3dfd907a389d48ca73cf03fb61a9621bb4bb77`
+- `eztree-street-young.glb` (Oak Small, 5.4 x 7.0 x 5.4 m, 3974 / 400 triangles): `f72d6481276f313a30e4cd67a56c3fd1ffb00110365a95d86cf929aaaba4f04c`
+- `eztree-pine.glb` (Pine Medium, 9.7 x 16.0 x 10.6 m, 7452 / 838 triangles): `4ba8ae990f41ecb3f12c88f977eac230cb807395132aca9844837f43a5e289e1`
+- `eztree-pine-small.glb` (Pine Small, 3.2 x 7.0 x 3.1 m, 6420 / 928 triangles): `92f80ae120e6189b40d48403173cc29793b213a09d78223e78fabd8734cdd209`
+- `eztree-bush.glb` (Bush 2, 1.8 x 1.6 x 1.7 m, 2236 / 240 triangles): `3dc77e530d767a15374d3d1f680129805dfd37ee492500a109b20d523ff32cd7`

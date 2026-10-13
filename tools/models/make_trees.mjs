@@ -42,13 +42,13 @@ const IMAGES = {
 // share of the preset's leaf cards kept. far: the distant model's branch levels
 // dropped and leaf share (it has the fewest sides; see FAR below).
 const TREES = [
-  { name: "oak", preset: "Oak Medium", height: 13, lod: { sections: [6, 4, 3, 1], segments: [6, 4, 3, 3], leaves: 0.45 }, far: { levels: 1, leaves: 0.35 } },
-  { name: "ash", preset: "Ash Medium", height: 15, lod: { sections: [6, 4, 3, 1], segments: [6, 4, 3, 3], leaves: 0.35 }, far: { levels: 1, leaves: 0.35 } },
-  { name: "aspen", preset: "Aspen Medium", height: 14, lod: { sections: [6, 4, 3, 1], segments: [6, 4, 3, 3], leaves: 1 }, far: { levels: 1, leaves: 0.6 } },
-  { name: "street-young", preset: "Oak Small", height: 7, lod: { sections: [5, 4, 2, 1], segments: [5, 4, 3, 3], leaves: 0.8 }, far: { levels: 1, leaves: 0.5 } },
-  { name: "pine", preset: "Pine Medium", height: 16, lod: { sections: [6, 3, 2, 1], segments: [6, 3, 3, 3], leaves: 0.6 }, far: { levels: 0, leaves: 0.1, sections: [3, 1, 1, 1], segments: [4, 3, 2, 2] } },
-  { name: "pine-small", preset: "Pine Small", height: 7, lod: { sections: [5, 3, 2, 1], segments: [5, 3, 3, 3], leaves: 0.6 }, far: { levels: 0, leaves: 0.1, sections: [3, 1, 1, 1], segments: [4, 3, 2, 2] } },
-  { name: "bush", preset: "Bush 2", height: 1.6, lod: { sections: [3, 3, 2, 1], segments: [4, 3, 3, 3], leaves: 1 }, far: { levels: 1, leaves: 0.6 } },
+  { name: "oak", preset: "Oak Medium", height: 13, lod: { sections: [6, 4, 3, 1], segments: [6, 4, 3, 3], leaves: 0.45 }, far: { levels: 1, leaves: 0.12 } },
+  { name: "ash", preset: "Ash Medium", height: 15, lod: { sections: [6, 4, 3, 1], segments: [6, 4, 3, 3], leaves: 0.35 }, far: { levels: 1, leaves: 0.12 } },
+  { name: "aspen", preset: "Aspen Medium", height: 14, lod: { sections: [6, 4, 3, 1], segments: [6, 4, 3, 3], leaves: 1 }, far: { levels: 1, leaves: 0.3 } },
+  { name: "street-young", preset: "Oak Small", height: 7, lod: { sections: [5, 4, 2, 1], segments: [5, 4, 3, 3], leaves: 0.8 }, far: { levels: 1, leaves: 0.2 } },
+  { name: "pine", preset: "Pine Medium", height: 16, lod: { sections: [6, 3, 2, 1], segments: [6, 3, 3, 3], leaves: 0.6 }, far: { levels: 0, leaves: 0.04, sections: [3, 1, 1, 1], segments: [3, 3, 2, 2] } },
+  { name: "pine-small", preset: "Pine Small", height: 7, lod: { sections: [5, 3, 2, 1], segments: [5, 3, 3, 3], leaves: 0.6 }, far: { levels: 0, leaves: 0.04, sections: [3, 1, 1, 1], segments: [3, 3, 2, 2] } },
+  { name: "bush", preset: "Bush 2", height: 1.6, lod: { sections: [3, 3, 2, 1], segments: [4, 3, 3, 3], leaves: 1 }, far: { levels: 1, leaves: 0.3 } },
 ];
 
 const args = process.argv.slice(2);
@@ -110,7 +110,7 @@ function grow(spec, lod, levels = 0, grow = 1) {
 // to cover what the near model's leaves cover (a little less: big cards read
 // as blobs). Both go in one GLB, as root nodes "LOD0" and "LOD1" sharing the
 // images; the editor draws LOD1 for instances far from the camera.
-const FAR = { sections: [4, 2, 2, 1], segments: [5, 3, 3, 3] };
+const FAR = { sections: [3, 1, 1, 1], segments: [4, 3, 2, 2] };
 
 for (const spec of TREES) {
   if (only && !only.includes(spec.name)) continue;

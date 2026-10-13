@@ -203,7 +203,9 @@ export function buildScatter(instances: ScatterInstance[], models: Map<number, S
           instanced.userData.lod = lod;
           instanced.visible = lod === 0;
         }
-        instanced.castShadow = castShadow;
+        // Far versions cast no shadow: a whole forest's worth of far trees
+        // in the shadow pass costs as much again as drawing them.
+        instanced.castShadow = castShadow && lod === 0;
         instanced.receiveShadow = true;
         list.forEach((instance, i) => {
           rotation.setFromAxisAngle(up, instance.yaw);
