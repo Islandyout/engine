@@ -641,6 +641,13 @@ struct Fighter final {
     // won't chase a hostile far from them.
     std::optional<engine::Entity> leader;
     int follow_slot{0};
+    // Hold to sprint (GATEBREAKER M4): a Player whose bindings have no
+    // "sprint" action sprints by holding dodge while calm (no lock-on, no
+    // hostile fighter within 12 m); a tap dodges as it's released. In a
+    // fight dodge stays instant on the press.
+    bool calm{false};
+    bool dash_sprint{false}; // sprinting from a held dodge this tick
+    float dodge_held{-1};    // seconds dodge has been held since a calm press (-1: not held)
 };
 // What the editor hears about melee each frame (editor_take_melee_events).
 enum class MeleeEventKind : int { start, hit, blocked, parried, dodged, guard_break, fire, land, ko, broken };

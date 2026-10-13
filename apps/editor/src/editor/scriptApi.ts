@@ -530,6 +530,12 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "melee"
   },
   {
+    "name": "melee.revive",
+    "signature": "melee.revive()",
+    "doc": "Back on its feet at full health, out of any move or fall, even once defeated (before it's removed): pool enemies and reuse them instead of spawning new ones.",
+    "group": "melee"
+  },
+  {
     "name": "melee.tune",
     "signature": "melee.tune(damage: number, speed: number, crit: number, skill: number, health_max?: number, mana_max?: number): number, number, number, number",
     "doc": "Stats: damage dealt (times), its clock speed (0.5-2: attacks, dodges, cooldowns), crit chance 0-1 (1.5x), skill damage (times, moves that cost mana), and optionally max health and mana. -1 keeps one as is.",
@@ -746,6 +752,12 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "world"
   },
   {
+    "name": "camera.forward",
+    "signature": "camera.forward()",
+    "doc": "The camera's horizontal facing (x, z), a unit vector: keep what you spawn out of view.",
+    "group": "camera"
+  },
+  {
     "name": "hud.announce",
     "signature": "hud.announce(text: string)",
     "doc": "Reads a line aloud for screen readers and shows it briefly.",
@@ -794,6 +806,12 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "hud"
   },
   {
+    "name": "hud.pause_menu",
+    "signature": "hud.pause_menu(on: boolean)",
+    "doc": "While on, Esc (or losing the captured mouse) opens the settings panel as a pause menu: the game stops until it closes.",
+    "group": "hud"
+  },
+  {
     "name": "hud.visor",
     "signature": "hud.visor(helmet: boolean, integrity: number, frost: number, heat: number)",
     "doc": "The helmet visor: on or off, integrity 0-1 (cracks below), frost and heat shimmer 0-1.",
@@ -830,6 +848,24 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "hud"
   },
   {
+    "name": "hud.map_layout",
+    "signature": "hud.map_layout(spec: string)",
+    "doc": "A top-down area map: the minimap (top right, while the player is inside its bounds) and the full map (M). One item per line: \"bounds x0 z0 x1 z1\", \"area x0 z0 x1 z1 #rrggbb [label]\", \"road x0 z0 x1 z1\", \"building x0 z0 x1 z1\", \"tree x z\", \"poi kind x z [label]\", \"label x z text\". Empty removes it.",
+    "group": "hud"
+  },
+  {
+    "name": "hud.map_marker",
+    "signature": "hud.map_marker(id: string, kind: string, x: number, z: number, color: string, label: string)",
+    "doc": "A marker on the area map and minimap: gate, station, smith, board, home, giver (a ! over the spot too), turnin (?) or target (the tracked quest, held on the minimap's rim when far); color #rrggbb or empty. The same id replaces it.",
+    "group": "hud"
+  },
+  {
+    "name": "hud.clear_map_marker",
+    "signature": "hud.clear_map_marker(id: string)",
+    "doc": "Removes a map marker.",
+    "group": "hud"
+  },
+  {
     "name": "audio.music",
     "signature": "audio.music(mood: string)",
     "doc": "off, title, explore, night, flight, space, signal or tension.",
@@ -851,6 +887,12 @@ export const scriptApi: ScriptApiEntry[] = [
     "name": "fx.light",
     "signature": "fx.light(ambient: number, sun: number)",
     "doc": "Sets the ambient and sun intensities over the Environment's (a lit street vs a dark dungeon in one scene).",
+    "group": "fx"
+  },
+  {
+    "name": "fx.time_of_day",
+    "signature": "fx.time_of_day(hours: number)",
+    "doc": "Lights the scene for a time of day, 0-24 (sun or moon, sky, fog and ambient over the Environment's); a negative value gives back the Environment's own light (and fx.light's).",
     "group": "fx"
   },
   {

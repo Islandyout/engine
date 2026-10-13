@@ -437,6 +437,12 @@ Combat clip library SHA-256:
   unmodified, renamed to kebab case (`torch_mounted.gltf.glb` → `torch-mounted.glb`).
   One derived piece: `wall-doorway-open.glb` is `wall-doorway.glb` with its door
   node unhooked (`tools/models/make_open_doorway.mjs`), CC0 like its source.
+- The A and S Gates (M4: the Bloodstone Citadel, the Eclipse Spire) add no new
+  files. They reuse the CC0 pieces credited here: the dungeon kit above for
+  their rooms, and, re-tinted and rescaled, the hunter (Bloodstone Knight,
+  Eclipse Warden, Crimson Castellan, Eclipse Herald, each in tinted gear
+  pieces), the goblin (Castle Imp), the Talari (Blood Mage) and Mannequin F
+  (Hollow), with the Quaternius hand weapons below.
 
 ## GATEBREAKER hand weapons (M0)
 

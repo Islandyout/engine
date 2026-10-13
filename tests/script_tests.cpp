@@ -202,6 +202,28 @@ int main() {
             check(error_reported, "a runaway on_tick loop is caught by the instruction watchdog");
         }
         {
+            // The watchdog's budget is per call: a script that does honest work
+            // every tick for a long session (a game's director) is never
+            // stopped for the instructions it ran on earlier ticks. Lua's count
+            // hook keeps counting across calls, so each call starts it afresh.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            world.register_component<Script>("script");
+            const auto entity = world.create();
+            world.set(entity, Box{{0, 5, 0}, {1, 1, 1}});
+            world.set(entity, RigidBody{});
+            // ~100k instructions a tick; 40 ticks are twice the budget in all.
+            world.set(entity, Script{"ticks = 0\nfunction on_tick(dt) local x = 0 for i = 1, 25000 do x = x + i end ticks = ticks + 1 end"});
+            Runtime runtime;
+            bool error_reported = false;
+            runtime.set_error_handler([&](Entity, const std::string &) { error_reported = true; });
+            for (int i = 0; i < 40; ++i)
+                runtime.step(world, 1.0F / 60);
+            check(!error_reported, "the instruction budget is per call, not per script lifetime");
+        }
+        {
             // Removing Script (or destroying the entity) stops it from running
             // on the very next step(), and doesn't leak or crash.
             World world;
