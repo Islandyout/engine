@@ -352,8 +352,9 @@ Each pack's own `addons/*/License.txt` (by Quaternius) grants CC0 1.0 Universal.
 ## Combat clip library (0.78.0)
 
 `assets/source/kit/people/combat_clips.glb` holds a bare copy of Mannequin F's
-65-bone Quaternius skeleton (no mesh) and 55 martial-arts animation clips, built
-by `tools/models/import_combat_clips.mjs`. The editor binds them by bone name to
+65-bone Quaternius skeleton (no mesh) and 69 animation clips (55 martial-arts clips;
+since 0.87.0 also the pistol and bow stances, the pistol reload, and the shield guard and
+bash, from the same UAL packs), built by `tools/models/import_combat_clips.mjs`. The editor binds them by bone name to
 any model on that skeleton (Mannequin F, the Talari) when it has a Melee component.
 
 Sources:
@@ -403,7 +404,7 @@ Sources:
 
 Combat clip library SHA-256:
 
-- `assets/source/kit/people/combat_clips.glb`: `f7eb7aed6b2aa2a1647324796463d34a98e88d0be9bfe9b3479332b234616009`
+- `assets/source/kit/people/combat_clips.glb`: `f32cf3d452ac828fb8a003bbdb6eb08afd925bc9885f3923be5b62a7c3daaa42`
 
 ## GATEBREAKER characters and dungeon kit (M0)
 
