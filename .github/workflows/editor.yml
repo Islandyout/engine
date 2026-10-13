@@ -83,6 +83,8 @@ jobs:
             node tests/browser/gatebreaker_map.cjs
             node tests/browser/gatebreaker_time.cjs
             node tests/browser/gatebreaker_high.cjs
+            node tests/browser/velocity.cjs
+            node tests/browser/velocity_campaign.cjs
           else
             echo "Deferring Gatebreaker full-playthrough tests to scheduled/manual regression."
           fi

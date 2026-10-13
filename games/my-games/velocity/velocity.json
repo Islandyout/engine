@@ -1,1651 +1,3230 @@
 {
-  "format": 1,
-  "name": "VELOCITY — First Run",
-  "entities": [
-    {
-      "name": "Environment",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": -30,
-            "z": 0
-          }
-        },
-        "Environment": {
-          "sky": "Procedural",
-          "skyColor": {
-            "x": 0.31,
-            "y": 0.55,
-            "z": 0.84
-          },
-          "horizonColor": {
-            "x": 0.96,
-            "y": 0.82,
-            "z": 0.63
-          },
-          "groundColor": {
-            "x": 0.42,
-            "y": 0.46,
-            "z": 0.39
-          },
-          "sunElevation": 48,
-          "sunAzimuth": 225,
-          "sunIntensity": 3.6,
-          "sunColor": {
-            "x": 1,
-            "y": 0.93,
-            "z": 0.82
-          },
-          "ambientIntensity": 1.35,
-          "fog": "None",
-          "fogColor": {
-            "x": 0.72,
-            "y": 0.79,
-            "z": 0.84
-          },
-          "fogNear": 80,
-          "fogFar": 420,
-          "fogDensity": 0,
-          "shadows": true,
-          "exposure": 1.15
-        },
-        "PostProcessing": {
-          "style": "Standard",
-          "ink": 0,
-          "rim": 0,
-          "antialias": "SMAA",
-          "ambientOcclusion": true,
-          "aoRadius": 0.35,
-          "aoIntensity": 0.65,
-          "bloom": 0,
-          "bloomRadius": 0,
-          "bloomThreshold": 1,
-          "exposure": 1.08,
-          "contrast": 0.08,
-          "saturation": 0.08,
-          "temperature": 0.08,
-          "vignette": 0,
-          "grain": 0,
-          "shadowQuality": "High"
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": false
-        }
-      }
+ "format": 1,
+ "name": "VELOCITY",
+ "entities": [
+  {
+   "name": "Environment",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -30,
+      "z": 0
+     }
     },
-    {
-      "name": "City Ground",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": -0.12,
-            "z": 0
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 180,
-            "y": 0.2,
-            "z": 180
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.33,
-            "y": 0.36,
-            "z": 0.33
-          },
-          "metalness": 0.08,
-          "roughness": 0.82,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        },
-        "RigidBody": {
-          "dynamic": false,
-          "mass": 1
-        },
-        "Collider": {
-          "type": "AABB"
-        }
-      }
+    "Environment": {
+     "sky": "Procedural",
+     "skyColor": {
+      "x": 0.30980392156862746,
+      "y": 0.5490196078431373,
+      "z": 0.8392156862745098
+     },
+     "horizonColor": {
+      "x": 0.9607843137254902,
+      "y": 0.8235294117647058,
+      "z": 0.6352941176470588
+     },
+     "groundColor": {
+      "x": 0.4196078431372549,
+      "y": 0.4588235294117647,
+      "z": 0.38823529411764707
+     },
+     "sunElevation": 52,
+     "sunAzimuth": 215,
+     "sunIntensity": 3.4,
+     "sunColor": {
+      "x": 1,
+      "y": 0.9411764705882353,
+      "z": 0.8392156862745098
+     },
+     "ambientIntensity": 1.3,
+     "fog": "Linear",
+     "fogColor": {
+      "x": 0.7686274509803922,
+      "y": 0.8274509803921568,
+      "z": 0.8784313725490196
+     },
+     "fogNear": 120,
+     "fogFar": 460,
+     "fogDensity": 0.015,
+     "shadows": true,
+     "exposure": 1.12
     },
-    {
-      "name": "Main Street",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.005,
-            "z": 0
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 18,
-            "y": 0.04,
-            "z": 150
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.15,
-            "y": 0.16,
-            "z": 0.16
-          },
-          "metalness": 0.08,
-          "roughness": 0.82,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "Cross Street",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.01,
-            "z": 0
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 150,
-            "y": 0.04,
-            "z": 18
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.15,
-            "y": 0.16,
-            "z": 0.16
-          },
-          "metalness": 0.08,
-          "roughness": 0.82,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "West Sidewalk",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": -12,
-            "y": 0.06,
-            "z": 0
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 4,
-            "y": 0.12,
-            "z": 150
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.56,
-            "y": 0.56,
-            "z": 0.51
-          },
-          "metalness": 0.08,
-          "roughness": 0.82,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "East Sidewalk",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 12,
-            "y": 0.06,
-            "z": 0
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 4,
-            "y": 0.12,
-            "z": 150
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.56,
-            "y": 0.56,
-            "z": 0.51
-          },
-          "metalness": 0.08,
-          "roughness": 0.82,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "North Sidewalk",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.06,
-            "z": -12
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 150,
-            "y": 0.12,
-            "z": 4
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.56,
-            "y": 0.56,
-            "z": 0.51
-          },
-          "metalness": 0.08,
-          "roughness": 0.82,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "South Sidewalk",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.06,
-            "z": 12
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 150,
-            "y": 0.12,
-            "z": 4
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.56,
-            "y": 0.56,
-            "z": 0.51
-          },
-          "metalness": 0.08,
-          "roughness": 0.82,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "Lane Dash",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.04,
-            "z": -66
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 0.18,
-            "y": 0.03,
-            "z": 5
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.95,
-            "y": 0.72,
-            "z": 0.22
-          },
-          "metalness": 0,
-          "roughness": 0.6,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "Lane Dash",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.04,
-            "z": -54
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 0.18,
-            "y": 0.03,
-            "z": 5
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.95,
-            "y": 0.72,
-            "z": 0.22
-          },
-          "metalness": 0,
-          "roughness": 0.6,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "Lane Dash",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.04,
-            "z": -42
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 0.18,
-            "y": 0.03,
-            "z": 5
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.95,
-            "y": 0.72,
-            "z": 0.22
-          },
-          "metalness": 0,
-          "roughness": 0.6,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "Lane Dash",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.04,
-            "z": -30
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 0.18,
-            "y": 0.03,
-            "z": 5
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.95,
-            "y": 0.72,
-            "z": 0.22
-          },
-          "metalness": 0,
-          "roughness": 0.6,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "Lane Dash",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.04,
-            "z": -18
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 0.18,
-            "y": 0.03,
-            "z": 5
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.95,
-            "y": 0.72,
-            "z": 0.22
-          },
-          "metalness": 0,
-          "roughness": 0.6,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "Lane Dash",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.04,
-            "z": -6
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 0.18,
-            "y": 0.03,
-            "z": 5
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.95,
-            "y": 0.72,
-            "z": 0.22
-          },
-          "metalness": 0,
-          "roughness": 0.6,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "Lane Dash",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.04,
-            "z": 6
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 0.18,
-            "y": 0.03,
-            "z": 5
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.95,
-            "y": 0.72,
-            "z": 0.22
-          },
-          "metalness": 0,
-          "roughness": 0.6,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "Lane Dash",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.04,
-            "z": 18
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 0.18,
-            "y": 0.03,
-            "z": 5
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.95,
-            "y": 0.72,
-            "z": 0.22
-          },
-          "metalness": 0,
-          "roughness": 0.6,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "Lane Dash",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.04,
-            "z": 30
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 0.18,
-            "y": 0.03,
-            "z": 5
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.95,
-            "y": 0.72,
-            "z": 0.22
-          },
-          "metalness": 0,
-          "roughness": 0.6,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "Lane Dash",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.04,
-            "z": 42
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 0.18,
-            "y": 0.03,
-            "z": 5
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.95,
-            "y": 0.72,
-            "z": 0.22
-          },
-          "metalness": 0,
-          "roughness": 0.6,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "Lane Dash",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.04,
-            "z": 54
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 0.18,
-            "y": 0.03,
-            "z": 5
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.95,
-            "y": 0.72,
-            "z": 0.22
-          },
-          "metalness": 0,
-          "roughness": 0.6,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "Lane Dash",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.04,
-            "z": 66
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 0.18,
-            "y": 0.03,
-            "z": 5
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.95,
-            "y": 0.72,
-            "z": 0.22
-          },
-          "metalness": 0,
-          "roughness": 0.6,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        }
-      }
-    },
-    {
-      "name": "Low Jump Barrier A",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": -3,
-            "y": 0.65,
-            "z": -24
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 2.2,
-            "y": 1.3,
-            "z": 1.2
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.95,
-            "y": 0.34,
-            "z": 0.12
-          },
-          "metalness": 0.08,
-          "roughness": 0.82,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        },
-        "Collider": {
-          "type": "AABB"
-        },
-        "RigidBody": {
-          "dynamic": false,
-          "mass": 1
-        }
-      }
-    },
-    {
-      "name": "Low Jump Barrier B",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 3,
-            "y": 0.65,
-            "z": -48
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 2.2,
-            "y": 1.3,
-            "z": 1.2
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.95,
-            "y": 0.34,
-            "z": 0.12
-          },
-          "metalness": 0.08,
-          "roughness": 0.82,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        },
-        "Collider": {
-          "type": "AABB"
-        },
-        "RigidBody": {
-          "dynamic": false,
-          "mass": 1
-        }
-      }
-    },
-    {
-      "name": "Training Ramp",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.35,
-            "z": -70
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 7,
-            "y": 0.7,
-            "z": 5
-          }
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.18,
-            "y": 0.58,
-            "z": 0.72
-          },
-          "metalness": 0.08,
-          "roughness": 0.82,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        },
-        "Collider": {
-          "type": "AABB"
-        }
-      }
-    },
-    {
-      "name": "VELOCITY — Hero",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.95,
-            "z": 56
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 0.85,
-            "y": 1.8,
-            "z": 0.85
-          }
-        },
-        "Renderable": {
-          "mesh": 132,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.18,
-            "y": 0.28,
-            "z": 0.38
-          },
-          "metalness": 0.05,
-          "roughness": 0.78,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        },
-        "Player": {},
-        "RigidBody": {
-          "mass": 70,
-          "dynamic": true
-        },
-        "Collider": {
-          "type": "AABB"
-        },
-        "CharacterController": {
-          "mode": "ThirdPerson",
-          "walkSpeed": 10,
-          "sprintSpeed": 28,
-          "crouchSpeed": 4,
-          "jumpHeight": 2.8,
-          "standHeight": 1.8,
-          "crouchHeight": 1.1,
-          "stepHeight": 0.5,
-          "acceleration": 65,
-          "airControl": 20,
-          "lookSensitivity": 1,
-          "invertY": false,
-          "fov": 82,
-          "headBob": 0.4
-        },
-        "Melee": {
-          "style": "Martial arts",
-          "moves": "",
-          "team": 0,
-          "ai": false,
-          "aggression": 0.5,
-          "skill": 0.7,
-          "reaction": 0.12,
-          "energy": 35,
-          "guard": 100,
-          "rightHand": 0,
-          "leftHand": 0,
-          "poise": 0,
-          "breakTime": 2.5,
-          "manaMax": 100,
-          "manaRegen": 10,
-          "range": 0,
-          "shield": false
-        }
-      }
-    },
-    {
-      "name": "Follow Camera",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 4,
-            "z": 8
-          }
-        },
-        "CameraFollow": {
-          "target": "Velocity",
-          "offset": {
-            "x": 0,
-            "y": 4,
-            "z": 8
-          },
-          "smoothing": 0.11,
-          "lookHeight": 1.1,
-          "collision": true,
-          "orbit": true
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": false
-        },
-        "Camera": {
-          "projection": "Perspective",
-          "fov": 72,
-          "near": 0.1,
-          "far": 900,
-          "orthoSize": 10,
-          "priority": 1
-        }
-      }
-    },
-    {
-      "name": "Game Title",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "UI": {
-          "kind": "Text",
-          "text": "VELOCITY  /  HERO PROTOCOL",
-          "anchor": "top-left",
-          "visibleWhen": "always",
-          "action": "restart",
-          "offsetX": 24,
-          "offsetY": 22,
-          "width": 0,
-          "height": 0,
-          "fontSize": 20,
-          "color": {
-            "x": 0.9,
-            "y": 0.93,
-            "z": 1
-          },
-          "opacity": 0.94,
-          "image": "",
-          "value": 0
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": false
-        }
-      }
-    },
-    {
-      "name": "Game Instructions",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "UI": {
-          "kind": "Text",
-          "text": "WASD MOVE  •  SHIFT SUPER-SPEED  •  SPACE JUMP  •  MOUSE LOOK  •  LMB COMBO  •  RMB HEAVY",
-          "anchor": "bottom-center",
-          "visibleWhen": "always",
-          "action": "restart",
-          "offsetX": 0,
-          "offsetY": -26,
-          "width": 0,
-          "height": 0,
-          "fontSize": 12,
-          "color": {
-            "x": 0.9,
-            "y": 0.95,
-            "z": 1
-          },
-          "opacity": 0.94,
-          "image": "",
-          "value": 0
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": false
-        }
-      }
-    },
-    {
-      "name": "Objective",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "UI": {
-          "kind": "Text",
-          "text": "MISSION: CLEAR THE STREET  /  DEFEAT THE ENFORCERS",
-          "anchor": "top-center",
-          "visibleWhen": "always",
-          "action": "restart",
-          "offsetX": 0,
-          "offsetY": 26,
-          "width": 0,
-          "height": 0,
-          "fontSize": 15,
-          "color": {
-            "x": 1,
-            "y": 0.55,
-            "z": 0.25
-          },
-          "opacity": 0.94,
-          "image": "",
-          "value": 0
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": false
-        }
-      }
-    },
-    {
-      "name": "City Buildings",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "ModelInstances": {
-          "instances": "14 -35 -52 180 0.92 solid\n2 -35 -26 90 0.96 solid\n8 -35 26 180 0.90 solid\n17 -35 52 90 0.92 solid\n20 -52 -52 180 0.86 solid\n3 -52 -26 90 0.92 solid\n21 -52 26 180 0.88 solid\n15 -52 52 90 0.92 solid\n9 35 -52 0 0.90 solid\n14 35 -26 270 0.94 solid\n3 35 26 0 0.90 solid\n17 35 52 270 0.92 solid\n22 52 -52 0 0.84 solid\n8 52 -26 270 0.92 solid\n20 52 26 0 0.86 solid\n16 52 52 270 0.92 solid"
-        }
-      }
-    },
-    {
-      "name": "Streetlights",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "ModelInstances": {
-          "instances": "35 -14.5 -58 0 0.9\n35 14.5 -58 180 0.9\n35 -14.5 -32 0 0.9\n35 14.5 -32 180 0.9\n35 -14.5 32 0 0.9\n35 14.5 32 180 0.9\n35 -14.5 58 0 0.9\n35 14.5 58 180 0.9"
-        }
-      }
-    },
-    {
-      "name": "Parked Cars",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "ModelInstances": {
-          "instances": "94 -7 -10 90 0.8 solid\n98 7 -38 270 0.82 solid\n96 -7 22 90 0.8 solid\n94 7 38 270 0.82 solid"
-        }
-      }
-    },
-    {
-      "name": "Street Props",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "ModelInstances": {
-          "instances": "29 14.8 20 180 0.82\n27 -14.2 18 0 0.9\n28 -14.3 -14 0 0.9\n28 14.3 -14 0 0.9\n30 -5 -24 0 0.8 solid\n30 5 -24 0 0.8 solid\n30 -5 -48 0 0.8 solid\n30 5 -48 0 0.8 solid\n33 5 8 0 0.9\n33 -5 -8 0 0.9"
-        }
-      }
-    },
-    {
-      "name": "Street Trees",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "ModelInstances": {
-          "instances": "45 -22 -46 20 0.9\n46 -22 -20 210 0.85\n47 -22 20 70 0.9\n45 -22 46 180 0.95\n46 22 -46 330 0.9\n47 22 -20 110 0.85\n45 22 20 250 0.9\n46 22 46 30 0.95\n51 -65 -18 0 0.95\n52 65 18 180 0.95\n53 -65 18 90 0.9\n51 65 -18 270 0.9"
-        },
-        "Renderable": {
-          "mesh": 0,
-          "material": 0,
-          "visible": true
-        }
-      }
-    },
-    {
-      "name": "Street Enforcer Alpha",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": -2.4,
-            "y": 0.95,
-            "z": 34
-          }
-        },
-        "Rotation": {
-          "euler": {
-            "x": 0,
-            "y": 3.141592653589793,
-            "z": 0
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 0.85,
-            "y": 1.8,
-            "z": 0.85
-          }
-        },
-        "Renderable": {
-          "mesh": 132,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.48,
-            "y": 0.12,
-            "z": 0.1
-          },
-          "metalness": 0.02,
-          "roughness": 0.82,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        },
-        "RigidBody": {
-          "mass": 70,
-          "dynamic": true
-        },
-        "Collider": {
-          "type": "AABB"
-        },
-        "Health": {
-          "current": 110,
-          "maximum": 110
-        },
-        "Melee": {
-          "style": "Martial arts",
-          "moves": "",
-          "team": 1,
-          "ai": true,
-          "aggression": 0.68,
-          "skill": 0.45,
-          "reaction": 0.3,
-          "energy": 10,
-          "guard": 70,
-          "rightHand": 0,
-          "leftHand": 0,
-          "poise": 0,
-          "breakTime": 3,
-          "manaMax": 100,
-          "manaRegen": 8,
-          "range": 0,
-          "shield": false
-        }
-      }
-    },
-    {
-      "name": "Street Enforcer Bravo",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 2.4,
-            "y": 0.95,
-            "z": 25
-          }
-        },
-        "Rotation": {
-          "euler": {
-            "x": 0,
-            "y": 3.141592653589793,
-            "z": 0
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 0.85,
-            "y": 1.8,
-            "z": 0.85
-          }
-        },
-        "Renderable": {
-          "mesh": 132,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.14,
-            "y": 0.16,
-            "z": 0.2
-          },
-          "metalness": 0.02,
-          "roughness": 0.82,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        },
-        "RigidBody": {
-          "mass": 70,
-          "dynamic": true
-        },
-        "Collider": {
-          "type": "AABB"
-        },
-        "Health": {
-          "current": 110,
-          "maximum": 110
-        },
-        "Melee": {
-          "style": "Martial arts",
-          "moves": "",
-          "team": 1,
-          "ai": true,
-          "aggression": 0.68,
-          "skill": 0.45,
-          "reaction": 0.3,
-          "energy": 10,
-          "guard": 70,
-          "rightHand": 0,
-          "leftHand": 0,
-          "poise": 0,
-          "breakTime": 3,
-          "manaMax": 100,
-          "manaRegen": 8,
-          "range": 0,
-          "shield": false
-        }
-      }
-    },
-    {
-      "name": "Street Enforcer Heavy",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0.95,
-            "z": 15
-          }
-        },
-        "Rotation": {
-          "euler": {
-            "x": 0,
-            "y": 3.141592653589793,
-            "z": 0
-          }
-        },
-        "Scale": {
-          "value": {
-            "x": 1,
-            "y": 2,
-            "z": 1
-          }
-        },
-        "Renderable": {
-          "mesh": 132,
-          "material": 0,
-          "visible": true
-        },
-        "Material": {
-          "color": {
-            "x": 0.42,
-            "y": 0.22,
-            "z": 0.08
-          },
-          "metalness": 0.02,
-          "roughness": 0.82,
-          "emissive": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "emissiveIntensity": 0,
-          "opacity": 1,
-          "keepTextures": false,
-          "texture": "",
-          "parts": ""
-        },
-        "RigidBody": {
-          "mass": 95,
-          "dynamic": true
-        },
-        "Collider": {
-          "type": "AABB"
-        },
-        "Health": {
-          "current": 180,
-          "maximum": 180
-        },
-        "Melee": {
-          "style": "Martial arts",
-          "moves": "",
-          "team": 1,
-          "ai": true,
-          "aggression": 0.82,
-          "skill": 0.68,
-          "reaction": 0.2,
-          "energy": 10,
-          "guard": 100,
-          "rightHand": 0,
-          "leftHand": 0,
-          "poise": 90,
-          "breakTime": 3,
-          "manaMax": 100,
-          "manaRegen": 8,
-          "range": 0,
-          "shield": true
-        }
-      }
-    },
-    {
-      "name": "Combat Input",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "InputActions": {
-          "bindings": "move_x: d, -a, right, -left, pad_lx\nmove_y: w, -s, up, -down, -pad_ly\nlook_x: mouse_dx*0.05, pad_rx\nlook_y: mouse_dy*0.05, pad_ry\njump: space, pad_a\nsprint: shift\nlight: mouse_left, j, pad_x\nheavy: mouse_right, k, pad_y\nkick: l, pad_b\nspecial: u, pad_rb\ndodge: x, alt, pad_ls\nblock: r, pad_lb\nskill1: q, pad_rt\nskill2: e\nskill3: c\nultimate: f\nlock: tab, mouse_middle, pad_rs\ninteract: g\n"
-        }
-      }
-    },
-    {
-      "name": "Combat Controls",
-      "components": {
-        "Transform": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          }
-        },
-        "UI": {
-          "kind": "Text",
-          "text": "LMB/J LIGHT COMBO   •   RMB/K HEAVY   •   L KICK   •   U POWER BLAST   •   X DODGE   •   R BLOCK/PARRY   •   TAB LOCK-ON",
-          "anchor": "bottom-center",
-          "visibleWhen": "always",
-          "action": "restart",
-          "offsetX": 0,
-          "offsetY": -48,
-          "width": 0,
-          "height": 0,
-          "fontSize": 11,
-          "color": {
-            "x": 0.88,
-            "y": 0.92,
-            "z": 0.98
-          },
-          "opacity": 0.92,
-          "image": "",
-          "value": 0
-        }
-      }
+    "PostProcessing": {
+     "style": "Standard",
+     "ink": 1,
+     "rim": 0.6,
+     "antialias": "SMAA",
+     "ambientOcclusion": true,
+     "aoRadius": 0.35,
+     "aoIntensity": 0.6,
+     "bloom": 0.12,
+     "bloomRadius": 0.3,
+     "bloomThreshold": 0.95,
+     "exposure": 1.06,
+     "contrast": 0.08,
+     "saturation": 0.08,
+     "temperature": 0.06,
+     "vignette": 0.12,
+     "grain": 0,
+     "shadowQuality": "High"
     }
-  ]
+   }
+  },
+  {
+   "name": "Input",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "InputActions": {
+     "bindings": "move_x: d, -a, right, -left, pad_lx\nmove_y: w, -s, up, -down, -pad_ly\nlook_x: mouse_dx*0.05, pad_rx\nlook_y: mouse_dy*0.05, pad_ry\njump: space, pad_a\nsprint: shift, pad_ls\nlight: mouse_left, j, pad_x\nheavy: mouse_right, k, pad_y\nkick: l, pad_b\nspecial: u, pad_rb\ndodge: x, alt, pad_lt\nblock: r, pad_lb\nlock: tab, mouse_middle, pad_rs\ninteract: g, pad_up\nrestart: backspace, pad_back\n"
+    }
+   }
+  },
+  {
+   "name": "Title",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "VELOCITY",
+     "anchor": "top-left",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 22,
+     "offsetY": 18,
+     "width": 0,
+     "height": 0,
+     "fontSize": 18,
+     "color": {
+      "x": 0.6235294117647059,
+      "y": 0.9019607843137255,
+      "z": 1
+     },
+     "opacity": 0.95,
+     "image": "",
+     "value": 0
+    }
+   }
+  },
+  {
+   "name": "Mission",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "top-left",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 22,
+     "offsetY": 48,
+     "width": 0,
+     "height": 0,
+     "fontSize": 13,
+     "color": {
+      "x": 1,
+      "y": 0.8117647058823529,
+      "z": 0.47843137254901963
+     },
+     "opacity": 0.95,
+     "image": "",
+     "value": 0
+    }
+   }
+  },
+  {
+   "name": "Objective",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "top-left",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 22,
+     "offsetY": 68,
+     "width": 300,
+     "height": 0,
+     "fontSize": 16,
+     "color": {
+      "x": 1,
+      "y": 1,
+      "z": 1
+     },
+     "opacity": 0.95,
+     "image": "",
+     "value": 0
+    }
+   }
+  },
+  {
+   "name": "Prompt",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "bottom-center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": -130,
+     "width": 0,
+     "height": 0,
+     "fontSize": 20,
+     "color": {
+      "x": 1,
+      "y": 1,
+      "z": 1
+     },
+     "opacity": 0.95,
+     "image": "",
+     "value": 0
+    }
+   }
+  },
+  {
+   "name": "Hint",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "bottom-center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": -96,
+     "width": 0,
+     "height": 0,
+     "fontSize": 14,
+     "color": {
+      "x": 0.8470588235294118,
+      "y": 0.9019607843137255,
+      "z": 0.9490196078431372
+     },
+     "opacity": 0.9,
+     "image": "",
+     "value": 0
+    }
+   }
+  },
+  {
+   "name": "Speed",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "",
+     "anchor": "bottom-right",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": -24,
+     "offsetY": -24,
+     "width": 0,
+     "height": 0,
+     "fontSize": 22,
+     "color": {
+      "x": 0.6235294117647059,
+      "y": 0.9019607843137255,
+      "z": 1
+     },
+     "opacity": 0.95,
+     "image": "",
+     "value": 0
+    }
+   }
+  },
+  {
+   "name": "Controls",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Text",
+     "text": "WASD move · Shift sprint · Space jump · LMB/J light · RMB/K heavy · L kick\nU burst · X dodge · R block · Tab lock · G use · M map · Backspace checkpoint · Esc pause",
+     "anchor": "top-center",
+     "visibleWhen": "always",
+     "action": "restart",
+     "offsetX": 0,
+     "offsetY": 12,
+     "width": 0,
+     "height": 0,
+     "fontSize": 11,
+     "color": {
+      "x": 1,
+      "y": 1,
+      "z": 1
+     },
+     "opacity": 0.6,
+     "image": "",
+     "value": 0
+    }
+   }
+  },
+  {
+   "name": "Velocity",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0.9,
+      "z": -96
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.16470588235294117,
+      "y": 0.37254901960784315,
+      "z": 0.7215686274509804
+     },
+     "metalness": 0.1,
+     "roughness": 0.55,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "Player": {},
+    "RigidBody": {
+     "mass": 75,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "CharacterController": {
+     "mode": "ThirdPerson",
+     "walkSpeed": 9.5,
+     "sprintSpeed": 24,
+     "crouchSpeed": 2.2,
+     "jumpHeight": 2.6,
+     "standHeight": 1.8,
+     "crouchHeight": 1.1,
+     "stepHeight": 0.5,
+     "acceleration": 60,
+     "airControl": 24,
+     "lookSensitivity": 1,
+     "invertY": false,
+     "fov": 75,
+     "headBob": 1
+    },
+    "Health": {
+     "current": 240,
+     "maximum": 240
+    },
+    "Melee": {
+     "style": "Custom",
+     "moves": "# Punches (light): jab, cross, hook, uppercut\njab: clip=jab input=light dur=0.55 hit=0.10-0.16 cancel=0.2 dmg=6 reach=0.9 lunge=0.25 stun=0.3 limb=hand_l\ncross: clip=cross input=light after=jab dur=0.62 hit=0.15-0.22 cancel=0.26 dmg=8 reach=1.0 lunge=0.3 stun=0.35 limb=hand_r\nhook: clip=hook input=light after=cross dur=0.72 hit=0.15-0.23 cancel=0.32 dmg=10 reach=1.0 lunge=0.35 knock=2.5 stun=0.4 limb=hand_r\nuppercut: clip=uppercut input=light after=hook dur=0.78 hit=0.18-0.28 cancel=0.45 dmg=13 reach=0.9 lunge=0.3 launch=7.5 knock=1 stun=0.6 stop=0.1 limb=hand_r\n# Kicks: front kick, roundhouse, side kick (alternating legs)\nfront_kick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=10 reach=1.25 height=0.55 lunge=0.4 knock=3.5 stun=0.4 limb=foot_r\nroundhouse: clip=roundhouse_l input=kick after=front_kick|jab|cross dur=0.9 hit=0.38-0.48 cancel=0.6 dmg=14 reach=1.3 height=0.8 lunge=0.35 knock=4.5 stun=0.5 stop=0.09 limb=foot_l\nside_kick: clip=side_kick_r input=kick after=roundhouse|hook dur=0.92 hit=0.30-0.40 cancel=0.62 dmg=16 reach=1.45 height=0.65 lunge=0.35 knock=8 stun=0.7 stop=0.11 knockdown finisher limb=foot_r\n# Heavies\npower_hook: clip=hook input=heavy dur=0.95 hit=0.22-0.32 cancel=0.55 dmg=15 reach=1.05 lunge=0.5 knock=4.5 stun=0.55 stop=0.1 armor limb=hand_r\nlauncher: clip=uppercut input=heavy after=jab|cross dur=0.85 hit=0.2-0.3 cancel=0.5 dmg=11 reach=0.95 lunge=0.35 launch=8.5 stun=0.7 stop=0.1 limb=hand_r\nknee_strike: clip=knee input=heavy after=hook|power_hook dur=0.8 hit=0.36-0.46 cancel=0.6 dmg=14 reach=0.75 lunge=0.6 knock=2 stun=0.7 stop=0.1 limb=calf_r\n# In the air (after a jump, or chasing a launched target)\nair_punch: clip=cross input=light air after=air_punch|air_kick|start dur=0.45 hit=0.10-0.18 cancel=0.2 dmg=6 reach=1.0 launch=3.5 stun=0.4 lunge=0 limb=hand_r\nair_kick: clip=roundhouse_r input=kick air after=air_punch|start dur=0.6 hit=0.25-0.36 cancel=0.4 dmg=9 reach=1.2 launch=3 knock=2 stun=0.5 lunge=0 limb=foot_r\n# Running\ndash_attack: clip=shoulder_dash input=light sprint dur=0.75 hit=0.08-0.35 cancel=0.5 dmg=10 reach=0.9 lunge=2.4 knock=7 stun=0.6 stop=0.08 limb=upperarm_l\n# Dodges (invulnerable while rolling)\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis\nslide: clip=slide input=dodge sprint dur=0.7 hit=0-0 cancel=0.55 dmg=0 lunge=4.2 free iframes=0-0.45 track=0 limb=pelvis\n# Specials (energy, built by landing hits): neutral, forward, back, back-forward\nenergy_blast: clip=energy_throw input=special dur=0.8 hit=0.26-0.3 cancel=0.55 dmg=18 projectile=18 knock=5 stun=0.6 cost=25 cooldown=0.6 lunge=0 limb=hand_r locked\nflying_strike: clip=dash_strike input=special seq=f dur=1.0 hit=0.15-0.45 cancel=0.75 dmg=20 reach=1.1 lunge=4 knock=6 stun=0.7 stop=0.1 cost=35 armor limb=hand_r locked\nrising_dragon: clip=rising_strike input=special seq=b dur=0.7 hit=0.1-0.3 cancel=0.55 dmg=18 reach=1.0 launch=10 stun=0.9 stop=0.12 cost=35 iframes=0-0.15 lunge=0.3 limb=hand_r locked\nmeteor_smash: clip=ground_pound input=special seq=bf dur=1.1 hit=0.3-0.42 cancel=0.9 dmg=35 aoe=3 knock=9 launch=4 stun=1 stop=0.16 cost=70 armor knockdown unblockable finisher lunge=0.2 limb=hand_r locked\n",
+     "team": 0,
+     "ai": false,
+     "aggression": 0.5,
+     "skill": 0.5,
+     "reaction": 0.25,
+     "energy": 0,
+     "guard": 110,
+     "rightHand": 0,
+     "leftHand": 0,
+     "poise": 0,
+     "breakTime": 2.5,
+     "manaMax": 100,
+     "manaRegen": 8,
+     "range": 0,
+     "shield": false
+    },
+    "Trail": {
+     "color": {
+      "x": 0.6235294117647059,
+      "y": 0.9019607843137255,
+      "z": 1
+     },
+     "width": 0.18,
+     "lifetime": 0.16,
+     "minDistance": 0.25
+    },
+    "Particles": {
+     "preset": "Sparkle",
+     "color": {
+      "x": 0.803921568627451,
+      "y": 0.9529411764705882,
+      "z": 1
+     },
+     "rate": 0,
+     "lifetime": 0.45,
+     "speed": 0.6,
+     "size": 0.1,
+     "endColor": {
+      "x": 0.24705882352941178,
+      "y": 0.6627450980392157,
+      "z": 1
+     },
+     "endSize": 0.02,
+     "gravityScale": 1,
+     "shape": "Box",
+     "shapeSize": 0.5,
+     "coneAngle": 25,
+     "space": "Local",
+     "burst": 0
+    },
+    "Script": {
+     "source": "-- Velocity's own script (tools/velocity/build_velocity.ts): the speed\n-- effects, the speed readout, and what the director asks of the fighter\n-- (\"unlock\" a move, \"revive\" after a knockout).\n\nlocal FAST = 13       -- m/s: sparks stream off him above this\nlocal streaming = false\nlocal shown = -1\nlocal clock = 0\n\nfunction on_start()\n  particles.set_emitting(false)\nend\n\nfunction on_message(name, value)\n  if name == \"unlock\" and type(value) == \"string\" then\n    for move in value:gmatch(\"[%w_]+\") do melee.unlock(move) end\n  elseif name == \"mastery\" and type(value) == \"string\" then\n    -- Damage, speed (the fighter's clock), crit chance, max health.\n    local d, sp, c, h = value:match(\"^([%d.]+),([%d.]+),([%d.]+),([%d.]+)$\")\n    if d then melee.tune(tonumber(d), tonumber(sp), tonumber(c), -1, tonumber(h)) end\n  elseif name == \"energy\" then\n    local _, _, energy = melee.state()\n    melee.set_energy(math.max(energy or 0, value))\n  elseif name == \"revive\" then\n    melee.lock()\n    melee.revive()\n  end\nend\n\nfunction on_tick(dt)\n  clock = clock + dt\n  if clock < 0.1 then return end\n  clock = 0\n  local speed = math.sqrt(self.vx * self.vx + self.vz * self.vz)\n  local fast = speed > FAST\n  if fast ~= streaming then\n    streaming = fast\n    particles.set_emitting(fast)\n  end\n  -- The readout changes only when the shown number does.\n  local kmh = math.floor(speed * 3.6 / 5 + 0.5) * 5\n  if kmh ~= shown then\n    shown = kmh\n    ui.set_text(\"Speed\", kmh > 0 and string.format(\"%d km/h\", kmh) or \"\")\n  end\nend\n",
+     "props": {}
+    }
+   }
+  },
+  {
+   "name": "Camera",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 4,
+      "z": -102
+     }
+    },
+    "Camera": {
+     "projection": "Perspective",
+     "fov": 62,
+     "near": 0.1,
+     "far": 700,
+     "orthoSize": 10,
+     "priority": 0
+    },
+    "CameraFollow": {
+     "target": "",
+     "offset": {
+      "x": 0,
+      "y": 2.4,
+      "z": -5.2
+     },
+     "smoothing": 0.1,
+     "lookHeight": 1.15,
+     "collision": true,
+     "orbit": true
+    }
+   }
+  },
+  {
+   "name": "Dispatcher Vance",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 5,
+      "y": 0.9,
+      "z": -90
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.23137254901960785,
+      "y": 0.37254901960784315,
+      "z": 0.47843137254901963
+     },
+     "metalness": 0,
+     "roughness": 0.8,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 3.141592653589793,
+      "z": 0
+     }
+    }
+   }
+  },
+  {
+   "name": "Ward ground",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -0.5,
+      "z": 10
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 220,
+      "y": 1,
+      "z": 272
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Ward base",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -1.05,
+      "z": 10
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 420,
+      "y": 2,
+      "z": 460
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.36470588235294116,
+      "y": 0.37254901960784315,
+      "z": 0.38823529411764707
+     },
+     "metalness": 0,
+     "roughness": 0.95,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Civic Plaza",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -0.04,
+      "z": -95
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.04,
+      "z": 46
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.788235294117647,
+      "y": 0.7607843137254902,
+      "z": 0.7058823529411765
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Plaza lawn W",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -74,
+      "y": -0.04,
+      "z": -95
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 52,
+      "y": 0.04,
+      "z": 46
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.37254901960784315,
+      "y": 0.5411764705882353,
+      "z": 0.2901960784313726
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Plaza lawn E",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 74,
+      "y": -0.04,
+      "z": -95
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 52,
+      "y": 0.04,
+      "z": 46
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.37254901960784315,
+      "y": 0.5411764705882353,
+      "z": 0.2901960784313726
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Meridian Green",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -32,
+      "y": -0.04,
+      "z": -32
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 48,
+      "y": 0.04,
+      "z": 48
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.37254901960784315,
+      "y": 0.5411764705882353,
+      "z": 0.2901960784313726
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Transit plaza",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 32,
+      "y": -0.04,
+      "z": 96
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 48,
+      "y": 0.04,
+      "z": 48
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.7490196078431373,
+      "y": 0.7254901960784313,
+      "z": 0.6784313725490196
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Construction yard",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 88,
+      "y": -0.04,
+      "z": 32
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 32,
+      "y": 0.04,
+      "z": 48
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5411764705882353,
+      "y": 0.4823529411764706,
+      "z": 0.3843137254901961
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block -104 -56",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -88,
+      "y": -0.04,
+      "z": -32
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 32,
+      "y": 0.04,
+      "z": 48
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6392156862745098,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block -104 8",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -88,
+      "y": -0.04,
+      "z": 32
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 32,
+      "y": 0.04,
+      "z": 48
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6392156862745098,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block -104 72",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -88,
+      "y": -0.04,
+      "z": 96
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 32,
+      "y": 0.04,
+      "z": 48
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6392156862745098,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block -104 136",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -88,
+      "y": -0.04,
+      "z": 138
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 32,
+      "y": 0.04,
+      "z": 4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6392156862745098,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block -56 8",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -32,
+      "y": -0.04,
+      "z": 32
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 48,
+      "y": 0.04,
+      "z": 48
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6392156862745098,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block -56 72",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -32,
+      "y": -0.04,
+      "z": 96
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 48,
+      "y": 0.04,
+      "z": 48
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6392156862745098,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block -56 136",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -32,
+      "y": -0.04,
+      "z": 138
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 48,
+      "y": 0.04,
+      "z": 4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6392156862745098,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block 8 -56",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 32,
+      "y": -0.04,
+      "z": -32
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 48,
+      "y": 0.04,
+      "z": 48
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6392156862745098,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block 8 8",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 32,
+      "y": -0.04,
+      "z": 32
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 48,
+      "y": 0.04,
+      "z": 48
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6392156862745098,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block 8 136",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 32,
+      "y": -0.04,
+      "z": 138
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 48,
+      "y": 0.04,
+      "z": 4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6392156862745098,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block 72 -56",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 88,
+      "y": -0.04,
+      "z": -32
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 32,
+      "y": 0.04,
+      "z": 48
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6392156862745098,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block 72 72",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 88,
+      "y": -0.04,
+      "z": 96
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 32,
+      "y": 0.04,
+      "z": 48
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6392156862745098,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block 72 136",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 88,
+      "y": -0.04,
+      "z": 138
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 32,
+      "y": 0.04,
+      "z": 4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6392156862745098,
+      "z": 0.6078431372549019
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Ward edge W",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -104.6,
+      "y": 6,
+      "z": 10
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1,
+      "y": 12,
+      "z": 262
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Ward edge E",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 104.6,
+      "y": 6,
+      "z": 10
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1,
+      "y": 12,
+      "z": 262
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Ward edge S",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 6,
+      "z": -120.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 210,
+      "y": 12,
+      "z": 1
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Ward edge N",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 6,
+      "z": 140.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 210,
+      "y": 12,
+      "z": 1
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Ward roads",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -0.13,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "64 -96.00 -64.00 90\n64 -80.00 -64.00 90\n66 -64.00 -64.00 0\n64 -48.00 -64.00 90\n64 -32.00 -64.00 90\n64 -16.00 -64.00 90\n66 0.00 -64.00 0\n64 16.00 -64.00 90\n64 32.00 -64.00 90\n64 48.00 -64.00 90\n66 64.00 -64.00 0\n64 80.00 -64.00 90\n64 96.00 -64.00 90\n64 -96.00 0.00 90\n64 -80.00 0.00 90\n56 -64.00 0.00 180\n64 -48.00 0.00 90\n64 -32.00 0.00 90\n64 -16.00 0.00 90\n56 0.00 0.00 180\n64 16.00 0.00 90\n64 32.00 0.00 90\n64 48.00 0.00 90\n56 64.00 0.00 180\n64 80.00 0.00 90\n64 96.00 0.00 90\n64 -96.00 64.00 90\n64 -80.00 64.00 90\n56 -64.00 64.00 180\n64 -48.00 64.00 90\n64 -32.00 64.00 90\n64 -16.00 64.00 90\n56 0.00 64.00 180\n64 16.00 64.00 90\n64 32.00 64.00 90\n64 48.00 64.00 90\n56 64.00 64.00 180\n64 80.00 64.00 90\n64 96.00 64.00 90\n64 -96.00 128.00 90\n64 -80.00 128.00 90\n66 -64.00 128.00 180\n64 -48.00 128.00 90\n64 -32.00 128.00 90\n64 -16.00 128.00 90\n66 0.00 128.00 180\n64 16.00 128.00 90\n64 32.00 128.00 90\n64 48.00 128.00 90\n66 64.00 128.00 180\n64 80.00 128.00 90\n64 96.00 128.00 90\n62 -64.00 -48.00 0\n64 -64.00 -32.00 0\n64 -64.00 -16.00 0\n64 -64.00 16.00 0\n64 -64.00 32.00 0\n62 -64.00 48.00 0\n64 -64.00 80.00 0\n64 -64.00 96.00 0\n64 -64.00 112.00 0\n62 0.00 -48.00 0\n64 0.00 -32.00 0\n64 0.00 -16.00 0\n64 0.00 16.00 0\n64 0.00 32.00 0\n62 0.00 48.00 0\n64 0.00 80.00 0\n64 0.00 96.00 0\n64 0.00 112.00 0\n62 64.00 -48.00 0\n64 64.00 -32.00 0\n64 64.00 -16.00 0\n64 64.00 16.00 0\n64 64.00 32.00 0\n62 64.00 48.00 0\n64 64.00 80.00 0\n64 64.00 96.00 0\n64 64.00 112.00 0\n62 0.00 -80.00 0"
+    }
+   }
+  },
+  {
+   "name": "Ward buildings",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "10 0.00 -112.00 0 1.2 solid\n21 -60.00 -104.00 0 0.8 solid\n20 60.00 -104.00 0 0.8 solid\n2 -88.00 -44.00 90 solid\n4 -88.00 -20.00 90 solid\n8 32.00 -44.00 0 solid\n9 32.00 -20.00 180 0.9 solid\n17 -17.50 16.00 90 solid\n17 17.50 16.00 270 solid\n18 -17.50 28.00 90 solid\n19 17.50 28.00 270 solid\n19 -17.50 40.00 90 solid\n19 17.50 40.00 270 solid\n17 -17.50 52.00 90 solid\n17 17.50 52.00 270 solid\n15 -44.00 32.00 90 0.9 solid\n16 44.00 32.00 270 0.9 solid\n3 -97.00 24.00 90 0.85 solid\n3 -97.00 48.00 90 0.85 solid\n4 -79.00 20.00 270 0.75 solid\n2 -79.00 48.00 270 0.75 solid\n2 -88.00 84.00 90 solid\n4 -88.00 108.00 90 solid\n3 -32.00 84.00 0 solid\n2 -32.00 110.00 180 solid\n22 88.00 96.00 0 0.9 solid\n20 -132.00 -100.00 90\n2 132.00 -100.00 270\n8 -132.00 -68.00 90\n21 132.00 -68.00 270\n22 -132.00 -36.00 90\n10 132.00 -36.00 270\n2 -132.00 -4.00 90\n20 132.00 -4.00 270\n21 -132.00 28.00 90\n8 132.00 28.00 270\n10 -132.00 60.00 90\n22 132.00 60.00 270\n20 -132.00 92.00 90\n2 132.00 92.00 270\n8 -132.00 124.00 90\n21 132.00 124.00 270\n20 -90.00 168.00 180\n2 -45.00 168.00 180\n20 0.00 168.00 180\n2 45.00 168.00 180\n20 90.00 168.00 180"
+    }
+   }
+  },
+  {
+   "name": "Ward street",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "35 -9.50 -40.00 180\n35 9.50 -40.00 0\n35 -73.50 -40.00 0\n35 73.50 -40.00 180\n35 -9.50 -16.00 180\n35 9.50 -16.00 0\n35 -73.50 -16.00 0\n35 73.50 -16.00 180\n35 -9.50 24.00 180\n35 9.50 24.00 0\n35 -73.50 24.00 0\n35 73.50 24.00 180\n35 -9.50 44.00 180\n35 9.50 44.00 0\n35 -73.50 44.00 0\n35 73.50 44.00 180\n35 -9.50 88.00 180\n35 9.50 88.00 0\n35 -73.50 88.00 0\n35 73.50 88.00 180\n35 -9.50 108.00 180\n35 9.50 108.00 0\n35 -73.50 108.00 0\n35 73.50 108.00 180\n90 -9.00 -9.00 0\n90 9.00 9.00 0\n90 -9.00 55.00 0\n90 9.00 73.00 0\n90 -55.00 -9.00 0\n90 55.00 9.00 0\n98 -6.00 -28.00 0 solid\n103 6.00 -50.00 180 solid\n94 -6.00 30.00 0 solid\n102 6.00 84.00 180 solid\n104 -58.00 40.00 0 solid\n98 58.00 -30.00 180 solid\n103 -30.00 6.00 90 solid\n94 30.00 58.00 270 solid\n98 80.00 -50.00 90 solid\n98 96.00 -50.00 270 solid\n102 80.00 -38.00 90 solid\n104 96.00 -38.00 270 solid\n94 80.00 -26.00 90 solid\n94 96.00 -26.00 270 solid\n103 80.00 -14.00 90 solid\n103 96.00 -14.00 270 solid\n29 20.00 74.00 0 solid\n93 40.00 70.00 90 solid\n29 40.00 116.00 180 solid\n27 -10.00 -60.00 0 solid\n27 10.00 60.00 0 solid\n32 -10.00 20.00 0 solid\n32 10.00 -20.00 0 solid\n27 -60.00 10.00 0 solid\n32 60.00 100.00 0 solid"
+    }
+   }
+  },
+  {
+   "name": "Ward plaza and park",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "41 -32.00 -76.00 0 solid\n41 -32.00 -114.00 0 solid\n41 -16.00 -76.00 0 solid\n41 -16.00 -114.00 0 solid\n41 16.00 -76.00 0 solid\n41 16.00 -114.00 0 solid\n41 32.00 -76.00 0 solid\n41 32.00 -114.00 0 solid\n1 -20.00 -96.00 90 solid\n1 20.00 -96.00 270 solid\n1 -20.00 -86.00 90 solid\n1 20.00 -86.00 270 solid\n46 -92.00 -80.00 47 0.8 solid\n48 -92.00 -100.00 94 0.8 solid\n47 -76.00 -80.00 141 0.8 solid\n49 -76.00 -100.00 188 0.8 solid\n46 -60.00 -80.00 235 0.8 solid\n48 -60.00 -100.00 282 0.8 solid\n47 60.00 -80.00 329 0.8 solid\n49 60.00 -100.00 16 0.8 solid\n46 76.00 -80.00 63 0.8 solid\n48 76.00 -100.00 110 0.8 solid\n47 92.00 -80.00 157 0.8 solid\n49 92.00 -100.00 204 0.8 solid\n46 -50.00 -52.00 251 0.8 solid\n48 -50.00 -12.00 298 0.8 solid\n47 -38.00 -52.00 345 0.8 solid\n49 -38.00 -12.00 32 0.8 solid\n46 -26.00 -52.00 79 0.8 solid\n48 -26.00 -12.00 126 0.8 solid\n47 -14.00 -52.00 173 0.8 solid\n49 -14.00 -12.00 220 0.8 solid\n46 -52.00 -40.00 267 0.8 solid\n48 -12.00 -40.00 314 0.8 solid\n47 -52.00 -24.00 1 0.8 solid\n49 -12.00 -24.00 48 0.8 solid\n1 -32.00 -36.00 0 solid\n1 -32.00 -28.00 180 solid\n26 74.00 12.00 90 solid\n26 74.00 16.00 90 solid\n26 74.00 20.00 90 solid\n26 74.00 24.00 90 solid\n26 74.00 28.00 90 solid\n26 74.00 32.00 90 solid\n26 74.00 36.00 90 solid\n26 74.00 40.00 90 solid\n26 74.00 44.00 90 solid\n26 74.00 48.00 90 solid\n26 74.00 52.00 90 solid\n30 72.50 16.00 0\n30 72.50 32.00 0\n30 72.50 48.00 0\n86 73.00 24.00 90\n92 96.00 14.00 0 solid"
+    }
+   }
+  },
+  {
+   "name": "Rise ramp",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 86,
+      "y": 0.45,
+      "z": 24
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 8,
+      "y": 0.4,
+      "z": 14
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.611764705882353,
+      "y": 0.5411764705882353,
+      "z": 0.41568627450980394
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Rotation": {
+     "euler": {
+      "x": -0.32,
+      "y": 0,
+      "z": 0
+     }
+    }
+   }
+  },
+  {
+   "name": "Rise deck",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 86,
+      "y": 2.4,
+      "z": 39
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 12,
+      "y": 0.4,
+      "z": 16
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.5607843137254902,
+      "y": 0.4980392156862745,
+      "z": 0.3843137254901961
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Rise post",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 80.5,
+      "y": 1.1,
+      "z": 31.5
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.4,
+      "y": 2.2,
+      "z": 0.4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.7686274509803922,
+      "y": 0.5411764705882353,
+      "z": 0.16470588235294117
+     },
+     "metalness": 0.5,
+     "roughness": 0.5,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Rise post",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 91.5,
+      "y": 1.1,
+      "z": 31.5
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.4,
+      "y": 2.2,
+      "z": 0.4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.7686274509803922,
+      "y": 0.5411764705882353,
+      "z": 0.16470588235294117
+     },
+     "metalness": 0.5,
+     "roughness": 0.5,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Rise post",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 80.5,
+      "y": 1.1,
+      "z": 46.5
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.4,
+      "y": 2.2,
+      "z": 0.4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.7686274509803922,
+      "y": 0.5411764705882353,
+      "z": 0.16470588235294117
+     },
+     "metalness": 0.5,
+     "roughness": 0.5,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Rise post",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 91.5,
+      "y": 1.1,
+      "z": 46.5
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.4,
+      "y": 2.2,
+      "z": 0.4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.7686274509803922,
+      "y": 0.5411764705882353,
+      "z": 0.16470588235294117
+     },
+     "metalness": 0.5,
+     "roughness": 0.5,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Avenue barrier",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "26 -6.00 -36.00 0 solid\n26 -3.60 -36.00 0 solid\n26 -1.20 -36.00 0 solid\n26 1.20 -36.00 0 solid\n26 3.60 -36.00 0 solid\n26 6.00 -36.00 0 solid\n86 -7.20 -37.00 0"
+    }
+   }
+  },
+  {
+   "name": "Civic beacon",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 26,
+      "z": -112
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    },
+    "Light": {
+     "type": "Point",
+     "color": {
+      "x": 1,
+      "y": 0.8352941176470589,
+      "z": 0.6039215686274509
+     },
+     "intensity": 10,
+     "range": 30,
+     "angle": 0.5235987755982988,
+     "castShadows": false
+    }
+   }
+  },
+  {
+   "name": "Director",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "Script": {
+     "source": "-- VELOCITY's director (tools/velocity/build_velocity.ts): the campaign and\n-- the street incidents in Meridian Ward (GAME_DESIGN.md 7 and 8).\n--\n-- An activity (a story mission or an incident) is a list of steps. Each\n-- step has an objective (the tracker), an optional hint and marker,\n-- `enter` (spawns what the step needs) and `done` (checked every tick).\n-- Finishing the last step grants the reward once and saves. Knocked out\n-- (below 12% health), Velocity is healed and put back at the step's\n-- checkpoint, and the step starts over: what it spawned is removed and\n-- spawned again, so nothing is left half-beaten.\n--\n-- Free roam: the next story mission waits at its start marker (walk in and\n-- press G); incidents show on the map and start the same way. A finished\n-- incident rests a minute before it can be replayed. Incidents never gate\n-- the story.\n--\n-- Mastery (GAME_DESIGN.md 9): each of Missions 1-3 opens a tier of two\n-- sidegrades, picked (and changed for free) at Ward Dispatch. After the\n-- finale, Dispatch also switches Heroic on and off (enemies hit harder and\n-- last longer).\n--\n-- The save (save key \"velocity.save\"): \"1|m0,m1|merit|swift,steady\" -- the\n-- format version, the missions done, the merit earned and the picks\n-- (mastery and \"heroic\"). Anything else reads as a new game.\n-- @prop fast false\n--\n-- props.fast (tests): enemies spawn nearly beaten, the rig waits for\n-- Velocity, and timed incidents allow ten times as long.\n\nlocal MAP = [[bounds -104 -120 104 140\narea -40 -118 40 -72 #c9c2b4 Civic Plaza\narea -56 -56 -8 -8 #5f8a4a Meridian Green\narea 8 72 56 120 #bfb9ad Transit Plaza\narea 72 8 104 56 #8a7b62 Construction Rise\narea -56 8 56 56 #a7a39b Market Row\nroad -104 -72 104 -56\nroad -104 -8 104 8\nroad -104 56 104 72\nroad -104 120 104 136\nroad -72 -72 -56 136\nroad -8 -72 8 136\nroad 56 -72 72 136\nlabel -88 30 Service Alley]]\nlocal START = { x = 0, y = 0.9, z = -96 }\nlocal CONTACT = { x = 5, z = -90 }\nlocal BARRIER_Z = -36\nlocal INCIDENT = { x = 0, z = -4 }\nlocal CIVILIAN = { x = -4, z = -9 } -- Mission 0's civilian, by the crossing\nlocal SAVE_KEY = \"velocity.save\"\nlocal KO = 0.12 -- knocked out below this fraction of health\nlocal USE_R = 2.8 -- close enough to use (G)\nlocal START_R = 6 -- close enough to start an activity\nlocal REST = 60 -- seconds an incident rests after it's done\n\nlocal hero\nlocal progress = {} -- progress.m0 = true once Mission 0 is done\nlocal merit = 0\nlocal act -- the running activity: { kind, id, def, step, actors }\nlocal checkpoint = START\nlocal prompt_text, hint_text = \"\", \"\"\nlocal clock = 0\nlocal rested = {} -- incident id -> clock time it can run again\nlocal picks = {} -- picks.swift = true ...; picks.heroic = true for Heroic\nlocal menu_open = false\nlocal fights = 0 -- enemies spawned by the running activity\n\n-- Mastery: tier -> its two choices (id, name, what it does). A tier opens\n-- with the mission that grants it.\nlocal TIERS = {\n  { opens = \"m1\", { \"swift\", \"Swift\", \"attacks and dodges 10% quicker\" }, { \"heavy\", \"Heavy Hands\", \"+15% damage\" } },\n  { opens = \"m2\", { \"steady\", \"Steady\", \"+25% max health\" }, { \"edge\", \"Edge\", \"12% critical hits\" } },\n  { opens = \"m3\", { \"battery\", \"Battery\", \"start each fight with half an energy bar\" }, { \"wind\", \"Second Wind\", \"recover 25% health when a fight ends\" } },\n}\n\n-- -- Save ----------------------------------------------------------------------\nlocal function load_save()\n  local text = save.get(SAVE_KEY)\n  if not text then return end\n  local version, done, m, p = text:match(\"^(%d+)|([%w_,]*)|?(%d*)|?([%w_,]*)$\")\n  if version ~= \"1\" then return end\n  for id in done:gmatch(\"[%w_]+\") do progress[id] = true end\n  merit = tonumber(m) or 0\n  for id in p:gmatch(\"[%w_]+\") do picks[id] = true end\nend\n\nlocal function write_save()\n  local done = {}\n  for id in pairs(progress) do done[#done + 1] = id end\n  table.sort(done)\n  local chosen = {}\n  for id in pairs(picks) do chosen[#chosen + 1] = id end\n  table.sort(chosen)\n  save.set(SAVE_KEY, \"1|\" .. table.concat(done, \",\") .. \"|\" .. merit .. \"|\" .. table.concat(chosen, \",\"))\nend\n\n-- -- Helpers ---------------------------------------------------------------------\nlocal function hero_at()\n  local x, y, z = world.position(hero)\n  return x or START.x, y or START.y, z or START.z\nend\n\nlocal function near(x, z, r)\n  local hx, _, hz = hero_at()\n  return (hx - x) ^ 2 + (hz - z) ^ 2 <= r * r\nend\n\nlocal function defeated(id)\n  if not id or not world.alive(id) then return true end\n  local hp = world.health(id)\n  return not hp or hp <= 0\nend\n\nlocal function all_defeated(list)\n  for _, id in ipairs(list) do\n    if not defeated(id) then return false end\n  end\n  return true\nend\n\nlocal function left(list)\n  local n = 0\n  for _, id in ipairs(list) do\n    if not defeated(id) then n = n + 1 end\n  end\n  return n\nend\n\nlocal function interact()\n  return input.action_pressed(\"interact\") or input.pressed(\"KeyG\")\nend\n\n-- Text that only changes when it changes (no per-tick rebuilding).\nlocal function set_prompt(text)\n  if text ~= prompt_text then\n    prompt_text = text\n    ui.set_text(\"Prompt\", text)\n  end\nend\n\nlocal function set_hint(text)\n  if text ~= hint_text then\n    hint_text = text\n    ui.set_text(\"Hint\", text)\n  end\nend\n\nlocal function spawn(prefab, x, z, y)\n  local id = world.spawn(prefab, x, y or 0.9, z)\n  if id and act then act.actors[#act.actors + 1] = id end\n  return id\nend\n\n-- Enemies: nearly beaten under props.fast.\nlocal function enemy(prefab, x, z)\n  local id = spawn(prefab, x, z)\n  if id and picks.heroic then world.send(id, \"tune\", \"1.3,1.3\") end\n  if id then\n    fights = fights + 1\n    if fights == 1 and picks.battery then world.send(hero, \"energy\", 50) end\n  end\n  if props.fast and id then\n    local hp = world.health(id)\n    if hp then world.damage(id, hp - 3) end\n  end\n  return id\nend\n\nlocal function clear_actors()\n  if not act then return end\n  for _, id in ipairs(act.actors) do\n    if world.alive(id) then world.destroy(id) end\n  end\n  act.actors = {}\nend\n\nlocal function marker(x, z, label)\n  if x then\n    ui.marker(\"objective\", x, 1.5, z, label)\n    hud.map_marker(\"objective\", \"target\", x, z, \"#ffcf7a\", label)\n  else\n    ui.clear_marker(\"objective\")\n    hud.clear_map_marker(\"objective\")\n  end\nend\n\n-- A step that uses something at (x, z): the prompt near it, done on G.\nlocal function use_tick(s, x, z, text)\n  local close = x and near(x, z, USE_R)\n  set_prompt(close and (\"G  \" .. text) or \"\")\n  if close and interact() then s.used = true end\nend\n\n-- A step that fights `list`: the tracker counts down.\nlocal function fight_objective(text, list)\n  return string.format(\"%s (%d left)\", text, left(list))\nend\n\n-- -- The rig: an AI van on a route, kept just ahead of Velocity -------------------\nlocal function rig_pace(id, keep)\n  if not id or not world.alive(id) then return 999 end\n  local x, _, z = world.position(id)\n  local hx, _, hz = hero_at()\n  local d = math.sqrt((hx - x) ^ 2 + (hz - z) ^ 2)\n  -- Never out of reach: slows when Velocity falls behind, so a missed\n  -- interception is a catch-up, not a restart.\n  local scale = d > keep * 2 and 0.35 or d > keep and 0.7 or 1\n  if props.fast then scale = math.min(scale, 0.4) end\n  vehicle.set_speed_scale(id, scale)\n  return d\nend\n\nlocal function start_rig(s, x, z, route)\n  s.rig = spawn(\"Runaway Rig\", x, z, 1.5)\n  if s.rig then\n    vehicle.set_route(s.rig, route, false)\n    vehicle.set_mode(s.rig, \"race\")\n  end\nend\n\n-- -- Story missions (GAME_DESIGN.md 7) ---------------------------------------------\nlocal MISSIONS = {}\n\n-- Mission 0: First Response (the tutorial). Starts by itself on a new game.\nMISSIONS.m0 = {\n  title = \"FIRST RESPONSE\",\n  reward = \"Kinetic Burst unlocked: U (costs energy, built by landing hits)\",\n  unlock = \"energy_blast\",\n  merit = 0,\n  steps = {\n    {\n      objective = \"Sprint to Market Row\",\n      hint = \"Hold Shift to sprint (it works in every direction)\",\n      marker = { INCIDENT.x, INCIDENT.z, \"Market Row\" },\n      checkpoint = START,\n      tick = function()\n        local _, _, z = hero_at()\n        if z < BARRIER_Z and z > BARRIER_Z - 16 then\n          set_hint(\"Space to jump the barrier, or take the sidewalk\")\n        elseif z >= BARRIER_Z then\n          set_hint(\"Hold Shift to sprint\")\n        end\n      end,\n      done = function() return near(INCIDENT.x, INCIDENT.z, 20) end,\n    },\n    {\n      objective = \"Stop the Street Enforcer\",\n      hint = \"LMB/J light combo · RMB/K heavy · X dodge · R block (tap to parry)\",\n      checkpoint = { x = 0, y = 0.9, z = -26 },\n      enter = function(s)\n        s.enemy = enemy(\"Street Enforcer\", INCIDENT.x + 3, INCIDENT.z + 7)\n        s.civilian = spawn(\"Civilian\", CIVILIAN.x, CIVILIAN.z)\n        audio.music(\"tension\")\n      end,\n      done = function(s) return defeated(s.enemy) end,\n    },\n    {\n      objective = \"Help the civilian\",\n      checkpoint = { x = 0, y = 0.9, z = -26 },\n      enter = function(s, prev)\n        -- The civilian from the fight carries over (spawned again after a knockout).\n        s.civilian = prev and prev.civilian\n        if not (s.civilian and world.alive(s.civilian)) then s.civilian = spawn(\"Civilian\", CIVILIAN.x, CIVILIAN.z) end\n        local x, _, z = world.position(s.civilian)\n        s.marker = { x, z, \"Civilian\" }\n        audio.music(\"explore\")\n      end,\n      tick = function(s)\n        local x, _, z = world.position(s.civilian)\n        use_tick(s, x, z, \"Help the civilian\")\n      end,\n      done = function(s) return s.used end,\n    },\n  },\n}\n\n-- Mission 1: Streetlight. A robbery on Market Row: two enforcers, then a\n-- Shield Heavy; then the device they dropped.\nlocal M1 = { x = 32, z = 2 }\nMISSIONS.m1 = {\n  title = \"STREETLIGHT\",\n  start = { M1.x, M1.z - 10, \"Streetlight\" },\n  reward = \"Kinetic Lunge unlocked (forward + U). Mastery opens at Ward Dispatch\",\n  unlock = \"flying_strike\",\n  merit = 2,\n  steps = {\n    {\n      objective = \"Stop the robbery\",\n      hint = \"Tab locks on (Tab again to switch) · R blocks; tap it as a blow lands to parry\",\n      checkpoint = { x = M1.x, y = 0.9, z = M1.z - 14 },\n      enter = function(s)\n        s.enemies = { enemy(\"Street Enforcer\", M1.x - 3, M1.z + 4), enemy(\"Street Enforcer\", M1.x + 3, M1.z + 5) }\n        audio.music(\"tension\")\n      end,\n      tick = function(s) ui.set_text(\"Objective\", fight_objective(\"Stop the robbery\", s.enemies)) end,\n      done = function(s) return all_defeated(s.enemies) end,\n    },\n    {\n      objective = \"Beat the Shield Heavy\",\n      hint = \"It guards its front: circle it, kick or heavy it. Dodge the red slam (X)\",\n      checkpoint = { x = M1.x, y = 0.9, z = M1.z - 14 },\n      enter = function(s)\n        s.heavy = enemy(\"Shield Heavy\", M1.x, M1.z + 8)\n        hud.boss(\"Shield Heavy\", \"Shield Heavy\")\n      end,\n      done = function(s) return defeated(s.heavy) end,\n      leave = function() hud.boss(\"\", \"\") end,\n    },\n    {\n      objective = \"Inspect the dropped device\",\n      checkpoint = { x = M1.x, y = 0.9, z = M1.z - 14 },\n      enter = function(s)\n        s.device = spawn(\"Cell Device\", M1.x + 1, M1.z + 6, 0.55)\n        s.marker = { M1.x + 1, M1.z + 6, \"Device\" }\n        audio.music(\"explore\")\n      end,\n      tick = function(s) use_tick(s, M1.x + 1, M1.z + 6, \"Inspect the device\") end,\n      done = function(s) return s.used end,\n    },\n  },\n}\n\n-- Mission 2: No Brakes. A rogue delivery van with stolen kinetic cells:\n-- catch it twice on the move, then it runs into the roadblock on West\n-- Avenue, where Velocity disables the cells.\nlocal RIG_ROUTE = \"0,-30 0,40 0,64 -30,64 -64,64 -64,30 -64,8\"\nlocal ROADBLOCK = { x = -64, z = 4 }\nMISSIONS.m2 = {\n  title = \"NO BRAKES\",\n  start = { 0, -50, \"No Brakes\" },\n  reward = \"Mastery tier 2 opens at Ward Dispatch\",\n  merit = 2,\n  steps = {\n    {\n      objective = \"Catch the runaway rig (0/2)\",\n      hint = \"Sprint alongside it: get close and stay with it\",\n      checkpoint = { x = 0, y = 0.9, z = -50 },\n      enter = function(s)\n        start_rig(s, 0, -40, RIG_ROUTE)\n        s.catches, s.cool = 0, 0\n        audio.music(\"tension\")\n      end,\n      tick = function(s, dt)\n        local d = rig_pace(s.rig, 25)\n        s.cool = math.max(0, s.cool - dt)\n        if d < 7 and s.cool <= 0 then\n          s.catches = s.catches + 1\n          s.cool = 4\n          hud.cue(\"good\")\n          ui.set_text(\"Objective\", string.format(\"Catch the runaway rig (%d/2)\", s.catches))\n        end\n        if s.rig and world.alive(s.rig) then\n          local x, _, z = world.position(s.rig)\n          marker(x, z, \"Rig\")\n        end\n      end,\n      done = function(s) return s.catches >= 2 end,\n    },\n    {\n      objective = \"Disable the cell rig at the roadblock\",\n      checkpoint = { x = ROADBLOCK.x, y = 0.9, z = ROADBLOCK.z + 20 },\n      enter = function(s, prev)\n        -- The rig drives on down its route to the roadblock (after a\n        -- knockout, a new one starts just short of it).\n        s.rig = prev and prev.rig\n        if not (s.rig and world.alive(s.rig)) then start_rig(s, ROADBLOCK.x, ROADBLOCK.z + 40, \"-64,8\") end\n        vehicle.set_speed_scale(s.rig, 1)\n        for x = -70, -58, 4 do spawn(\"Roadblock\", x, ROADBLOCK.z + 6, 0.52) end\n        s.marker = { ROADBLOCK.x, ROADBLOCK.z + 10, \"Roadblock\" }\n      end,\n      tick = function(s)\n        if not (s.rig and world.alive(s.rig)) then return end\n        local x, _, z = world.position(s.rig)\n        if not s.stopped and z < ROADBLOCK.z + 14 then\n          s.stopped = true\n          vehicle.set_mode(s.rig, \"off\")\n          vehicle.freeze(s.rig, true)\n        end\n        if s.stopped then use_tick(s, x, z, \"Disable the kinetic cells\") end\n      end,\n      done = function(s) return s.used end,\n    },\n  },\n}\n\n-- Mission 3: Aftershock. The scaffolding at Construction Rise came down\n-- after a device overload: three people to get out, in any order, each\n-- with a threat nearby.\nlocal RISE = { { x = 86, z = 40, y = 2.6 + 0.9 }, { x = 80, z = 14 }, { x = 98, z = 50 } }\nMISSIONS.m3 = {\n  title = \"AFTERSHOCK\",\n  start = { 66, 30, \"Aftershock\" },\n  reward = \"Rising Strike (back + U) and Meteor Smash (back, forward + U) unlocked. Mastery tier 3 at Dispatch\",\n  unlock = \"rising_dragon meteor_smash\",\n  merit = 3,\n  steps = {\n    {\n      objective = \"Rescue the workers (0/3)\",\n      hint = \"Any order. Deal with the threat near each one, then G\",\n      checkpoint = { x = 66, y = 0.9, z = 30 },\n      enter = function(s)\n        s.people, s.saved, s.threats = {}, {}, {}\n        for i, p in ipairs(RISE) do\n          s.people[i] = spawn(\"Civilian\", p.x, p.z, p.y)\n        end\n        s.threats = { enemy(\"Street Enforcer\", 84, 30), enemy(\"Rusher\", 78, 20), enemy(\"Suppressor\", 96, 44) }\n        s.count = 0\n        audio.music(\"tension\")\n      end,\n      tick = function(s)\n        local text = \"\"\n        for i, id in ipairs(s.people) do\n          if not s.saved[i] and world.alive(id) then\n            local x, _, z = world.position(id)\n            if near(x, z, USE_R) then\n              text = \"G  Get them out\"\n              if interact() then\n                s.saved[i] = true\n                s.count = s.count + 1\n                hud.cue(\"good\")\n                ui.set_text(\"Objective\", string.format(\"Rescue the workers (%d/3)\", s.count))\n                local id_now = id\n                after(1.5, function() if world.alive(id_now) then world.set_position(id_now, 66, 0.9, 6 + i * 2) end end)\n              end\n            end\n          end\n        end\n        set_prompt(text)\n        -- The marker leads to the nearest one still trapped.\n        local best, bx, bz\n        local hx, _, hz = hero_at()\n        for i, id in ipairs(s.people) do\n          if not s.saved[i] and world.alive(id) then\n            local x, _, z = world.position(id)\n            local d = (hx - x) ^ 2 + (hz - z) ^ 2\n            if not best or d < best then best, bx, bz = d, x, z end\n          end\n        end\n        if bx then marker(bx, bz, \"Worker\") end\n      end,\n      done = function(s) return s.count >= 3 end,\n    },\n  },\n}\n\n-- Mission 4: Breakline. The finale at Meridian Junction, in three phases\n-- (70% and 35%, each announced once).\nlocal JUNCTION = { x = 0, z = 128 }\nMISSIONS.m4 = {\n  title = \"BREAKLINE\",\n  start = { 0, 100, \"Breakline\" },\n  reward = \"Meridian Ward is safe. Heroic mode is open at Ward Dispatch\",\n  merit = 5,\n  steps = {\n    {\n      objective = \"Find Breakline at Meridian Junction\",\n      marker = { JUNCTION.x, JUNCTION.z, \"Junction\" },\n      checkpoint = { x = 0, y = 0.9, z = 100 },\n      done = function() return near(JUNCTION.x, JUNCTION.z, 16) end,\n    },\n    {\n      objective = \"Defeat Breakline\",\n      hint = \"Watch the shoulder: the charge is red, dodge it (X), then punish\",\n      checkpoint = { x = 0, y = 0.9, z = 112 },\n      enter = function(s)\n        s.boss = enemy(\"Breakline\", JUNCTION.x, JUNCTION.z + 4)\n        s.phase = 1\n        hud.boss(\"Breakline\", \"BREAKLINE\")\n        audio.music(\"tension\")\n      end,\n      tick = function(s)\n        if defeated(s.boss) then return end\n        local hp, max = world.health(s.boss)\n        local f = hp / max\n        if s.phase < 2 and f < 0.7 then\n          s.phase = 2\n          world.send(s.boss, \"phase\", 2)\n          hud.announce(\"Breakline: \\\"Fast. Let's see you outrun this.\\\" The slam ring is red: get clear or roll through it\")\n          set_hint(\"Phase 2: the slam ring. Get clear, then strike while it recovers\")\n        end\n        if s.phase < 3 and f < 0.35 then\n          s.phase = 3\n          world.send(s.boss, \"phase\", 3)\n          hud.announce(\"Breakline overloads. After each slam an impact field soaks hits for three seconds: wait, then strike\")\n          set_hint(\"Phase 3: after a slam, wait out the field (sparks), then punish\")\n        end\n      end,\n      done = function(s) return defeated(s.boss) end,\n      leave = function() hud.boss(\"\", \"\") end,\n    },\n  },\n}\n\nlocal STORY = { \"m0\", \"m1\", \"m2\", \"m3\", \"m4\" }\n\n-- -- Street incidents (GAME_DESIGN.md 8): short, repeatable, never required ----------\nlocal INCIDENTS = {}\n\nINCIDENTS.robbery = {\n  title = \"ROBBERY IN PROGRESS\",\n  start = { -32, -2, \"Robbery\" },\n  reward = \"Merit +1\",\n  merit = 1,\n  steps = {\n    {\n      objective = \"Stop the robbers\",\n      checkpoint = { x = -32, y = 0.9, z = -10 },\n      enter = function(s)\n        s.enemies = { enemy(\"Street Enforcer\", -35, 4), enemy(\"Street Enforcer\", -29, 5), enemy(\"Rusher\", -32, 10) }\n      end,\n      tick = function(s) ui.set_text(\"Objective\", fight_objective(\"Stop the robbers\", s.enemies)) end,\n      done = function(s) return all_defeated(s.enemies) end,\n    },\n  },\n}\n\nINCIDENTS.medical = {\n  title = \"MEDICAL DASH\",\n  start = { -32, -32, \"Medical Dash\" },\n  reward = \"Merit +1\",\n  merit = 1,\n  steps = {\n    {\n      objective = \"Grab the first-aid kit\",\n      checkpoint = { x = -32, y = 0.9, z = -32 },\n      enter = function(s)\n        s.kit = spawn(\"Aid Kit\", -30, -30, 0.2)\n        s.marker = { -30, -30, \"Aid kit\" }\n      end,\n      tick = function(s) use_tick(s, -30, -30, \"Take the kit\") end,\n      done = function(s) return s.used end,\n      leave = function(s) if s.kit and world.alive(s.kit) then world.destroy(s.kit) end end,\n    },\n    {\n      objective = \"Get the kit to the Transit Plaza\",\n      checkpoint = { x = -32, y = 0.9, z = -32 },\n      enter = function(s)\n        s.limit = props.fast and 400 or 40\n        s.t = 0\n        s.patient = spawn(\"Civilian\", 30, 96)\n        s.marker = { 30, 96, \"Patient\" }\n      end,\n      tick = function(s, dt)\n        s.t = s.t + dt\n        local left_s = math.max(0, math.ceil(s.limit - s.t))\n        ui.set_text(\"Objective\", string.format(\"Get the kit to the Transit Plaza (%d s)\", left_s))\n        if s.t > s.limit then s.failed = true end\n        use_tick(s, 30, 96, \"Hand over the kit\")\n      end,\n      done = function(s) return s.used end,\n    },\n  },\n}\n\nINCIDENTS.rig = {\n  title = \"RUNAWAY RIG\",\n  start = { 64, -50, \"Runaway Rig\" },\n  reward = \"Merit +1\",\n  merit = 1,\n  steps = {\n    {\n      objective = \"Catch the runaway rig\",\n      hint = \"Get close and stay with it\",\n      checkpoint = { x = 64, y = 0.9, z = -50 },\n      enter = function(s) start_rig(s, 64, -40, \"64,-30 64,60 64,110\") end,\n      tick = function(s)\n        local d = rig_pace(s.rig, 25)\n        if d < 7 then s.caught = true end\n        if s.rig and world.alive(s.rig) then\n          local x, _, z = world.position(s.rig)\n          marker(x, z, \"Rig\")\n        end\n      end,\n      done = function(s) return s.caught end,\n    },\n  },\n}\n\nINCIDENTS.devices = {\n  title = \"DEVICE SHUTDOWN\",\n  start = { 32, 66, \"Device Shutdown\" },\n  reward = \"Merit +1\",\n  merit = 1,\n  steps = {\n    {\n      objective = \"Shut down the devices (0/3)\",\n      hint = \"Any order. The Suppressors fire from range: close in or break their line of sight\",\n      checkpoint = { x = 32, y = 0.9, z = 66 },\n      enter = function(s)\n        s.spots = { { 14, 86 }, { 46, 100 }, { 26, 112 } }\n        s.off, s.count = {}, 0\n        s.devices = {}\n        for i, p in ipairs(s.spots) do s.devices[i] = spawn(\"Cell Device\", p[1], p[2], 0.55) end\n        enemy(\"Suppressor\", 30, 104)\n        enemy(\"Suppressor\", 44, 84)\n      end,\n      tick = function(s)\n        local text = \"\"\n        for i, p in ipairs(s.spots) do\n          if not s.off[i] and near(p[1], p[2], USE_R) then\n            text = \"G  Shut it down\"\n            if interact() then\n              s.off[i] = true\n              s.count = s.count + 1\n              if world.alive(s.devices[i]) then world.destroy(s.devices[i]) end\n              hud.cue(\"good\")\n              ui.set_text(\"Objective\", string.format(\"Shut down the devices (%d/3)\", s.count))\n            end\n          end\n        end\n        set_prompt(text)\n      end,\n      done = function(s) return s.count >= 3 end,\n    },\n  },\n}\n\n-- Roofline Relay: five gates through Construction Rise and back, timed.\n-- Medals by time; any finish counts.\nlocal GATES = { { 66, 20 }, { 86, 22 }, { 86, 40, 2.6 }, { 64, 52 }, { 32, 64 } }\nINCIDENTS.relay = {\n  title = \"ROOFLINE RELAY\",\n  start = { 54, 4, \"Roofline Relay\" },\n  reward = \"Merit +1\",\n  merit = 1,\n  steps = {\n    {\n      objective = \"Run the relay: gate 1/5\",\n      hint = \"Through the gates in order. Up the ramp, across the deck\",\n      checkpoint = { x = 54, y = 0.9, z = 4 },\n      enter = function(s)\n        s.next, s.t = 1, 0\n        s.gate = spawn(\"Relay Gate\", GATES[1][1], GATES[1][2], 1.7)\n        s.marker = { GATES[1][1], GATES[1][2], \"Gate 1\" }\n      end,\n      tick = function(s, dt)\n        s.t = s.t + dt\n        local g = GATES[s.next]\n        if g and near(g[1], g[2], 2.6) then\n          hud.cue(\"good\")\n          s.next = s.next + 1\n          if s.gate and world.alive(s.gate) then world.destroy(s.gate) end\n          local n = GATES[s.next]\n          if n then\n            s.gate = spawn(\"Relay Gate\", n[1], n[2], (n[3] or 0) + 1.7)\n            marker(n[1], n[2], \"Gate \" .. s.next)\n            ui.set_text(\"Objective\", string.format(\"Run the relay: gate %d/5\", s.next))\n          end\n        end\n        set_hint(string.format(\"%.1f s\", s.t))\n      end,\n      done = function(s) return s.next > #GATES end,\n      leave = function(s)\n        local medal = s.t < 25 and \"Gold\" or s.t < 35 and \"Silver\" or \"Bronze\"\n        hud.announce(string.format(\"Relay: %.1f s. %s medal.\", s.t, medal))\n      end,\n    },\n  },\n}\n\nlocal INCIDENT_ORDER = { \"robbery\", \"medical\", \"rig\", \"devices\", \"relay\" }\n\n-- -- Running an activity -----------------------------------------------------------\nlocal function next_story()\n  for _, id in ipairs(STORY) do\n    if not progress[id] then return id end\n  end\nend\n\nlocal function begin_step(index, prev)\n  local def = act.def.steps[index]\n  act.step = { index = index }\n  checkpoint = def.checkpoint or checkpoint\n  ui.set_text(\"Objective\", def.objective)\n  set_hint(def.hint or \"\")\n  set_prompt(\"\")\n  if def.enter then def.enter(act.step, prev) end\n  local m = act.step.marker or def.marker\n  if m then marker(m[1], m[2], m[3]) else marker() end\nend\n\n-- Free roam: the next story mission's marker, and the incidents on the map.\nlocal function show_free_roam()\n  ui.set_text(\"Mission\", \"FREE ROAM\")\n  local story = next_story()\n  if story then\n    local s = MISSIONS[story].start\n    ui.set_text(\"Objective\", \"Next: \" .. MISSIONS[story].title)\n    marker(s[1], s[2], s[3])\n  else\n    ui.set_text(\"Objective\", \"The ward is yours. Incidents are on the map (M)\")\n    marker()\n  end\n  for _, id in ipairs(INCIDENT_ORDER) do\n    local s = INCIDENTS[id].start\n    if progress.m0 then hud.map_marker(\"incident_\" .. id, \"giver\", s[1], s[2], \"#ff8a5c\", s[3]) end\n  end\n  set_hint(merit > 0 and string.format(\"Merit %d\", merit) or \"\")\n  set_prompt(\"\")\n  checkpoint = START\n  audio.music(\"explore\")\nend\n\nlocal function start_activity(kind, id)\n  local def = kind == \"story\" and MISSIONS[id] or INCIDENTS[id]\n  act = { kind = kind, id = id, def = def, actors = {} }\n  fights = 0\n  ui.set_text(\"Mission\", def.title)\n  if kind == \"incident\" then hud.clear_map_marker(\"incident_\" .. id) end\n  begin_step(1)\nend\n\nlocal function leave_step()\n  local def = act.def.steps[act.step.index]\n  if def.leave then def.leave(act.step) end\nend\n\nlocal function finish()\n  local def, id = act.def, act.id\n  leave_step()\n  if act.kind == \"story\" then\n    -- Idempotent: a mission's reward is granted once, however it ends.\n    if not progress[id] then\n      progress[id] = true\n      merit = merit + (def.merit or 0)\n      if def.unlock then world.send(hero, \"unlock\", def.unlock) end\n      write_save()\n      hud.announce(\"MISSION COMPLETE: \" .. def.title .. \". \" .. def.reward)\n      hud.cue(\"discovery\")\n    end\n  else\n    merit = merit + (def.merit or 0)\n    rested[id] = clock + REST\n    write_save()\n    hud.announce(\"INCIDENT CLEARED: \" .. def.title .. \". \" .. def.reward)\n    hud.cue(\"discovery\")\n  end\n  if picks.wind and fights > 0 then\n    local _, max = world.health(hero)\n    if max then world.heal(hero, max * 0.25) end\n  end\n  -- Those helped get away; enemies are already down.\n  local leaving = act.actors\n  after(3, function()\n    for _, a in ipairs(leaving) do\n      if world.alive(a) then world.destroy(a) end\n    end\n  end)\n  act = nil\n  show_free_roam()\nend\n\n-- A timed incident that runs out: nothing lost, it can be tried again.\nlocal function abandon(reason)\n  leave_step()\n  clear_actors()\n  local id = act.id\n  act = nil\n  hud.announce(reason)\n  hud.cue(\"bad\")\n  rested[id] = clock + 5\n  show_free_roam()\nend\n\nlocal function advance()\n  local index = act.step.index\n  if index >= #act.def.steps then\n    finish()\n  else\n    local prev = act.step\n    leave_step()\n    begin_step(index + 1, prev)\n  end\nend\n\n-- Knocked out: healed, back at the checkpoint, the step starts over.\nlocal function knockout(reason)\n  local _, max = world.health(hero)\n  world.send(hero, \"revive\")\n  world.heal(hero, max or 999)\n  world.set_velocity(hero, 0, 0, 0)\n  world.set_position(hero, checkpoint.x, checkpoint.y, checkpoint.z)\n  hud.announce(reason or \"Knocked down. Back on your feet at the last checkpoint.\")\n  hud.cue(\"bad\")\n  if act then\n    fights = 0\n    leave_step()\n    clear_actors()\n    begin_step(act.step.index)\n  end\nend\n\n-- -- Mastery and Dispatch ------------------------------------------------------------\nlocal function apply_mastery()\n  world.send(hero, \"mastery\", string.format(\"%s,%s,%s,%s\",\n    picks.heavy and 1.15 or 1, picks.swift and 1.1 or 1, picks.edge and 0.12 or 0, picks.steady and 300 or 240))\nend\n\nlocal function menu_text()\n  local lines = {}\n  local open_any = false\n  for t, tier in ipairs(TIERS) do\n    if progress[tier.opens] then\n      open_any = true\n      local a, b = tier[1], tier[2]\n      local function row(key, c)\n        return string.format(\"%d  %s%s: %s\", key, picks[c[1]] and \"[x] \" or \"[ ] \", c[2], c[3])\n      end\n      lines[#lines + 1] = \"Tier \" .. t\n      lines[#lines + 1] = row(t * 2 - 1, a)\n      lines[#lines + 1] = row(t * 2, b)\n    end\n  end\n  if not open_any then lines[#lines + 1] = \"Finish Streetlight to open mastery.\" end\n  if progress.m4 then lines[#lines + 1] = \"H  Heroic: \" .. (picks.heroic and \"ON\" or \"off\") end\n  lines[#lines + 1] = \"G  Close   (changes are free)\"\n  return table.concat(lines, \"\\n\")\nend\n\nlocal function menu_tick()\n  local choice\n  for k = 1, 6 do\n    if input.pressed(\"Digit\" .. k) then choice = k end\n  end\n  if choice then\n    local tier = TIERS[math.ceil(choice / 2)]\n    if tier and progress[tier.opens] then\n      local pick, other = tier[(choice - 1) % 2 + 1], tier[choice % 2 + 1]\n      picks[pick[1]] = true\n      picks[other[1]] = nil\n      apply_mastery()\n      write_save()\n      hud.cue(\"good\")\n      hud.system(\"WARD DISPATCH\", menu_text())\n    end\n  end\n  if progress.m4 and input.pressed(\"KeyH\") then\n    picks.heroic = not picks.heroic or nil\n    write_save()\n    hud.cue(\"good\")\n    hud.system(\"WARD DISPATCH\", menu_text())\n  end\n  if interact() or not near(CONTACT.x, CONTACT.z, USE_R + 2) then\n    menu_open = false\n    hud.system_close()\n  end\nend\n\n-- Free roam: walk up to a start marker and press G.\nlocal function free_roam_tick()\n  if menu_open then\n    menu_tick()\n    return\n  end\n  local text = \"\"\n  if progress.m0 and near(CONTACT.x, CONTACT.z, USE_R) then\n    text = \"G  Ward Dispatch: mastery\"\n    if interact() then\n      menu_open = true\n      hud.system(\"WARD DISPATCH\", menu_text())\n      set_prompt(\"\")\n      return\n    end\n  end\n  local story = next_story()\n  if story and story ~= \"m0\" then\n    local s = MISSIONS[story].start\n    if near(s[1], s[2], START_R) then\n      text = \"G  Start: \" .. MISSIONS[story].title\n      if interact() then start_activity(\"story\", story) return end\n    end\n  end\n  if progress.m0 then\n    for _, id in ipairs(INCIDENT_ORDER) do\n      local s = INCIDENTS[id].start\n      if near(s[1], s[2], START_R) then\n        if clock < (rested[id] or 0) then\n          text = INCIDENTS[id].title .. \": quiet for now\"\n        else\n          text = \"G  Respond: \" .. INCIDENTS[id].title\n          if interact() then start_activity(\"incident\", id) return end\n        end\n      end\n    end\n  end\n  set_prompt(text)\nend\n\n-- -- Callbacks ---------------------------------------------------------------------\nfunction on_start()\n  hero = world.find(\"Velocity\")\n  hud.pause_menu(true)\n  hud.map_layout(MAP)\n  hud.map_marker(\"dispatch\", \"home\", CONTACT.x, CONTACT.z, \"#9fe6ff\", \"Ward Dispatch\")\n  load_save()\n  for _, id in ipairs(STORY) do\n    if progress[id] then\n      if MISSIONS[id].unlock then world.send(hero, \"unlock\", MISSIONS[id].unlock) end\n    end\n  end\n  apply_mastery()\n  if not progress.m0 then start_activity(\"story\", \"m0\") else show_free_roam() end\nend\n\nfunction on_tick(dt)\n  clock = clock + dt\n  if not hero then return end\n  local hp, max = world.health(hero)\n  if hp and max and hp < max * KO then\n    knockout()\n    return\n  end\n  if not act then\n    free_roam_tick()\n    return\n  end\n  if input.action_pressed(\"restart\") then\n    knockout(\"Back to the checkpoint.\")\n    return\n  end\n  local def = act.def.steps[act.step.index]\n  if def.tick then def.tick(act.step, dt) end\n  if act.step.failed then\n    abandon(\"Out of time. The incident is still open: try again.\")\n    return\n  end\n  if def.done(act.step) then advance() end\nend\n",
+     "props": {
+      "fast": false
+     }
+    }
+   }
+  }
+ ],
+ "prefabs": {
+  "Civilian": {
+   "components": {
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.8509803921568627,
+      "y": 0.6431372549019608,
+      "z": 0.2549019607843137
+     },
+     "metalness": 0,
+     "roughness": 0.8,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  "Street Enforcer": {
+   "components": {
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.47843137254901963,
+      "y": 0.1803921568627451,
+      "z": 0.14901960784313725
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 80,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Health": {
+     "current": 70,
+     "maximum": 70
+    },
+    "Melee": {
+     "style": "Martial arts",
+     "moves": "# Punches (light): jab, cross, hook, uppercut\njab: clip=jab input=light dur=0.55 hit=0.10-0.16 cancel=0.2 dmg=6 reach=0.9 lunge=0.25 stun=0.3 limb=hand_l\ncross: clip=cross input=light after=jab dur=0.62 hit=0.15-0.22 cancel=0.26 dmg=8 reach=1.0 lunge=0.3 stun=0.35 limb=hand_r\nhook: clip=hook input=light after=cross dur=0.72 hit=0.15-0.23 cancel=0.32 dmg=10 reach=1.0 lunge=0.35 knock=2.5 stun=0.4 limb=hand_r\nuppercut: clip=uppercut input=light after=hook dur=0.78 hit=0.18-0.28 cancel=0.45 dmg=13 reach=0.9 lunge=0.3 launch=7.5 knock=1 stun=0.6 stop=0.1 limb=hand_r\n# Kicks: front kick, roundhouse, side kick (alternating legs)\nfront_kick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=10 reach=1.25 height=0.55 lunge=0.4 knock=3.5 stun=0.4 limb=foot_r\nroundhouse: clip=roundhouse_l input=kick after=front_kick|jab|cross dur=0.9 hit=0.38-0.48 cancel=0.6 dmg=14 reach=1.3 height=0.8 lunge=0.35 knock=4.5 stun=0.5 stop=0.09 limb=foot_l\nside_kick: clip=side_kick_r input=kick after=roundhouse|hook dur=0.92 hit=0.30-0.40 cancel=0.62 dmg=16 reach=1.45 height=0.65 lunge=0.35 knock=8 stun=0.7 stop=0.11 knockdown finisher limb=foot_r\n# Heavies\npower_hook: clip=hook input=heavy dur=0.95 hit=0.22-0.32 cancel=0.55 dmg=15 reach=1.05 lunge=0.5 knock=4.5 stun=0.55 stop=0.1 armor limb=hand_r\nlauncher: clip=uppercut input=heavy after=jab|cross dur=0.85 hit=0.2-0.3 cancel=0.5 dmg=11 reach=0.95 lunge=0.35 launch=8.5 stun=0.7 stop=0.1 limb=hand_r\nknee_strike: clip=knee input=heavy after=hook|power_hook dur=0.8 hit=0.36-0.46 cancel=0.6 dmg=14 reach=0.75 lunge=0.6 knock=2 stun=0.7 stop=0.1 limb=calf_r\n# In the air (after a jump, or chasing a launched target)\nair_punch: clip=cross input=light air after=air_punch|air_kick|start dur=0.45 hit=0.10-0.18 cancel=0.2 dmg=6 reach=1.0 launch=3.5 stun=0.4 lunge=0 limb=hand_r\nair_kick: clip=roundhouse_r input=kick air after=air_punch|start dur=0.6 hit=0.25-0.36 cancel=0.4 dmg=9 reach=1.2 launch=3 knock=2 stun=0.5 lunge=0 limb=foot_r\n# Running\ndash_attack: clip=shoulder_dash input=light sprint dur=0.75 hit=0.08-0.35 cancel=0.5 dmg=10 reach=0.9 lunge=2.4 knock=7 stun=0.6 stop=0.08 limb=upperarm_l\n# Dodges (invulnerable while rolling)\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis\nslide: clip=slide input=dodge sprint dur=0.7 hit=0-0 cancel=0.55 dmg=0 lunge=4.2 free iframes=0-0.45 track=0 limb=pelvis\n# Specials (energy, built by landing hits): neutral, forward, back, back-forward\nenergy_blast: clip=energy_throw input=special dur=0.8 hit=0.26-0.3 cancel=0.55 dmg=18 projectile=18 knock=5 stun=0.6 cost=25 cooldown=0.6 lunge=0 limb=hand_r\nflying_strike: clip=dash_strike input=special seq=f dur=1.0 hit=0.15-0.45 cancel=0.75 dmg=20 reach=1.1 lunge=4 knock=6 stun=0.7 stop=0.1 cost=35 armor limb=hand_r\nrising_dragon: clip=rising_strike input=special seq=b dur=0.7 hit=0.1-0.3 cancel=0.55 dmg=18 reach=1.0 launch=10 stun=0.9 stop=0.12 cost=35 iframes=0-0.15 lunge=0.3 limb=hand_r\nmeteor_smash: clip=ground_pound input=special seq=bf dur=1.1 hit=0.3-0.42 cancel=0.9 dmg=35 aoe=3 knock=9 launch=4 stun=1 stop=0.16 cost=70 armor knockdown unblockable finisher lunge=0.2 limb=hand_r\n",
+     "team": 1,
+     "ai": true,
+     "aggression": 0.5,
+     "skill": 0.3,
+     "reaction": 0.35,
+     "energy": 0,
+     "guard": 60,
+     "rightHand": 0,
+     "leftHand": 0,
+     "poise": 0,
+     "breakTime": 2.5,
+     "manaMax": 100,
+     "manaRegen": 8,
+     "range": 0,
+     "shield": false
+    },
+    "Script": {
+     "source": "-- A street enemy (tools/velocity): the director tunes it for Heroic.\nfunction on_message(name, value)\n  if name == \"tune\" and type(value) == \"string\" then\n    local d, h = value:match(\"^([%d.]+),([%d.]+)$\")\n    local _, max = world.health(self.id)\n    if d and max then melee.tune(tonumber(d), -1, -1, -1, max * tonumber(h)) end\n  end\nend\n",
+     "props": {}
+    }
+   }
+  },
+  "Rusher": {
+   "components": {
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.7686274509803922,
+      "y": 0.39215686274509803,
+      "z": 0.16470588235294117
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 80,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Health": {
+     "current": 60,
+     "maximum": 60
+    },
+    "Melee": {
+     "style": "Custom",
+     "moves": "# Rusher: jabs up close; from range, a straight-line shoulder charge (red: dodge it)\njab: clip=jab input=light dur=0.6 hit=0.18-0.24 cancel=0.3 dmg=6 reach=0.95 lunge=0.3 stun=0.3 limb=hand_l\ncross: clip=cross input=light after=jab dur=0.65 hit=0.2-0.26 cancel=0.32 dmg=7 reach=1.0 lunge=0.3 stun=0.35 limb=hand_r\ncharge: clip=shoulder_dash input=heavy dur=1.5 hit=0.7-1.1 cancel=1.3 dmg=14 reach=1.0 lunge=9 knock=8 stun=0.7 stop=0.1 armor unblockable track=40 limb=upperarm_l\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3 free iframes=0.03-0.36 track=0 limb=pelvis\n",
+     "team": 1,
+     "ai": true,
+     "aggression": 0.7,
+     "skill": 0.25,
+     "reaction": 0.35,
+     "energy": 0,
+     "guard": 40,
+     "rightHand": 0,
+     "leftHand": 0,
+     "poise": 0,
+     "breakTime": 2.5,
+     "manaMax": 100,
+     "manaRegen": 8,
+     "range": 0,
+     "shield": false
+    },
+    "Script": {
+     "source": "-- A street enemy (tools/velocity): the director tunes it for Heroic.\nfunction on_message(name, value)\n  if name == \"tune\" and type(value) == \"string\" then\n    local d, h = value:match(\"^([%d.]+),([%d.]+)$\")\n    local _, max = world.health(self.id)\n    if d and max then melee.tune(tonumber(d), -1, -1, -1, max * tonumber(h)) end\n  end\nend\n",
+     "props": {}
+    }
+   }
+  },
+  "Suppressor": {
+   "components": {
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.16470588235294117,
+      "y": 0.4980392156862745,
+      "z": 0.47843137254901963
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 80,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Health": {
+     "current": 50,
+     "maximum": 50
+    },
+    "Melee": {
+     "style": "Custom",
+     "moves": "# Suppressor: kinetic bursts from range; a shove up close\nburst: clip=energy_throw input=light dur=1.1 hit=0.6-0.65 cancel=0.9 dmg=8 projectile=16 knock=2 stun=0.3 track=60 lunge=0 limb=hand_r\nshove: clip=jab input=kick dur=0.62 hit=0.2-0.26 cancel=0.3 dmg=5 reach=0.95 lunge=0.3 knock=4 stun=0.3 limb=hand_l\nhop: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.5 free iframes=0.03-0.36 track=0 limb=pelvis\n",
+     "team": 1,
+     "ai": true,
+     "aggression": 0.55,
+     "skill": 0.3,
+     "reaction": 0.35,
+     "energy": 0,
+     "guard": 30,
+     "rightHand": 0,
+     "leftHand": 0,
+     "poise": 0,
+     "breakTime": 2.5,
+     "manaMax": 100,
+     "manaRegen": 8,
+     "range": 9,
+     "shield": false
+    },
+    "Script": {
+     "source": "-- A street enemy (tools/velocity): the director tunes it for Heroic.\nfunction on_message(name, value)\n  if name == \"tune\" and type(value) == \"string\" then\n    local d, h = value:match(\"^([%d.]+),([%d.]+)$\")\n    local _, max = world.health(self.id)\n    if d and max then melee.tune(tonumber(d), -1, -1, -1, max * tonumber(h)) end\n  end\nend\n",
+     "props": {}
+    }
+   }
+  },
+  "Shield Heavy": {
+   "components": {
+    "Scale": {
+     "value": {
+      "x": 0.75,
+      "y": 1.95,
+      "z": 0.75
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.2901960784313726,
+      "y": 0.30980392156862746,
+      "z": 0.3607843137254902
+     },
+     "metalness": 0,
+     "roughness": 0.85,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 120,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Health": {
+     "current": 160,
+     "maximum": 160
+    },
+    "Melee": {
+     "style": "Custom",
+     "moves": "# Shield Heavy: guards its front, bashes, and slams to break a guard (red: dodge it)\nbash: clip=cross input=light dur=0.8 hit=0.3-0.38 cancel=0.45 dmg=9 reach=1.0 lunge=0.4 knock=4 stun=0.5 limb=hand_l\nkick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=8 reach=1.15 height=0.55 lunge=0.4 knock=5 stun=0.4 limb=foot_r\nslam: clip=ground_pound input=heavy dur=1.5 hit=0.8-0.9 cancel=1.2 dmg=18 aoe=2.4 knock=7 stun=0.8 stop=0.12 armor unblockable limb=hand_r\n",
+     "team": 1,
+     "ai": true,
+     "aggression": 0.4,
+     "skill": 0.55,
+     "reaction": 0.35,
+     "energy": 0,
+     "guard": 200,
+     "rightHand": 0,
+     "leftHand": 212,
+     "poise": 70,
+     "breakTime": 2.5,
+     "manaMax": 100,
+     "manaRegen": 8,
+     "range": 0,
+     "shield": true
+    },
+    "Script": {
+     "source": "-- A street enemy (tools/velocity): the director tunes it for Heroic.\nfunction on_message(name, value)\n  if name == \"tune\" and type(value) == \"string\" then\n    local d, h = value:match(\"^([%d.]+),([%d.]+)$\")\n    local _, max = world.health(self.id)\n    if d and max then melee.tune(tonumber(d), -1, -1, -1, max * tonumber(h)) end\n  end\nend\n",
+     "props": {}
+    }
+   }
+  },
+  "Breakline": {
+   "components": {
+    "Scale": {
+     "value": {
+      "x": 0.75,
+      "y": 2,
+      "z": 0.75
+     }
+    },
+    "Renderable": {
+     "mesh": 132,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.23137254901960785,
+      "y": 0.20784313725490197,
+      "z": 0.3137254901960784
+     },
+     "metalness": 0,
+     "roughness": 0.6,
+     "emissive": {
+      "x": 1,
+      "y": 0.47843137254901963,
+      "z": 0.16470588235294117
+     },
+     "emissiveIntensity": 0.25,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 140,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Health": {
+     "current": 520,
+     "maximum": 520
+    },
+    "Melee": {
+     "style": "Custom",
+     "moves": "# Breakline: a two-hit chain, the charge, and (phase 2 on) the slam ring\nstrike: clip=hook input=light dur=0.85 hit=0.35-0.43 cancel=0.5 dmg=12 reach=1.2 lunge=0.6 knock=3 stun=0.5 limb=hand_r\nstrike2: clip=uppercut input=light after=strike dur=0.95 hit=0.4-0.5 cancel=0.75 dmg=14 reach=1.1 lunge=0.4 knock=5 stun=0.6 stop=0.1 limb=hand_r\nkick: clip=side_kick_r input=kick after=strike|strike2 dur=0.9 hit=0.3-0.4 cancel=0.6 dmg=12 reach=1.4 knock=7 stun=0.6 limb=foot_r\ncharge: clip=shoulder_dash input=heavy dur=1.6 hit=0.75-1.15 cancel=1.4 dmg=18 reach=1.1 lunge=10 knock=9 stun=0.8 stop=0.12 armor unblockable track=35 limb=upperarm_l\nring: clip=ground_pound input=special dur=1.6 hit=0.85-0.95 cancel=1.3 dmg=20 aoe=4 knock=8 launch=3 stun=0.9 stop=0.14 armor unblockable cooldown=6 locked limb=hand_r\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3 free iframes=0.03-0.36 track=0 limb=pelvis\n",
+     "team": 1,
+     "ai": true,
+     "aggression": 0.6,
+     "skill": 0.6,
+     "reaction": 0.35,
+     "energy": 100,
+     "guard": 160,
+     "rightHand": 0,
+     "leftHand": 0,
+     "poise": 120,
+     "breakTime": 2.5,
+     "manaMax": 100,
+     "manaRegen": 8,
+     "range": 0,
+     "shield": false
+    },
+    "Script": {
+     "source": "-- Breakline (GAME_DESIGN.md 6, \"Boss: Breakline\"): the director sends the\n-- phase as its health crosses 70% and 35%, once each.\n--\n-- Phase 1: a two-hit chain and a telegraphed shoulder charge.\n-- Phase 2: adds the ground-slam ring (red: dodge out or roll through).\n-- Phase 3: faster, and after each slam a short impact field soaks damage\n--          for three seconds (sparks around it); wait it out, then punish.\n\nlocal phase = 1\nlocal field_until = -1\nlocal clock = 0\nlocal slamming = false\n\nfunction on_start()\n  particles.set_emitting(false)\nend\n\nfunction on_message(name, value)\n  if name == \"phase\" then\n    phase = value\n    if phase >= 2 then melee.unlock(\"ring\") end\n    if phase >= 3 then melee.tune(-1, 1.15, -1, -1) end\n  elseif name == \"tune\" and type(value) == \"string\" then\n    local d, h = value:match(\"^([%d.]+),([%d.]+)$\")\n    if d then melee.tune(tonumber(d), -1, -1, -1, tonumber(h)) end\n  end\nend\n\nfunction on_damaged(amount)\n  -- The field: what lands while it's up is given back.\n  if clock < field_until then world.heal(self.id, amount) end\nend\n\nfunction on_tick(dt)\n  clock = clock + dt\n  local move = melee.move()\n  if move == \"ring\" then\n    slamming = true\n  elseif slamming then\n    slamming = false\n    if phase >= 3 then\n      field_until = clock + 3\n      particles.set_emitting(true)\n    end\n  end\n  if field_until > 0 and clock >= field_until then\n    field_until = -1\n    particles.set_emitting(false)\n  end\nend\n",
+     "props": {}
+    },
+    "Particles": {
+     "preset": "Sparkle",
+     "color": {
+      "x": 1,
+      "y": 0.8156862745098039,
+      "z": 0.6274509803921569
+     },
+     "rate": 60,
+     "lifetime": 0.5,
+     "speed": 1.2,
+     "size": 0.14,
+     "endColor": {
+      "x": 1,
+      "y": 0.41568627450980394,
+      "z": 0.16470588235294117
+     },
+     "endSize": 0.03,
+     "gravityScale": 1,
+     "shape": "Sphere",
+     "shapeSize": 1.2,
+     "coneAngle": 25,
+     "space": "Local",
+     "burst": 0
+    }
+   }
+  },
+  "Runaway Rig": {
+   "components": {
+    "Scale": {
+     "value": {
+      "x": 2.4,
+      "y": 2.86,
+      "z": 5.3
+     }
+    },
+    "Renderable": {
+     "mesh": 104,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1800,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 24,
+     "acceleration": 7,
+     "braking": 20,
+     "grip": 1.1,
+     "driftGrip": 0.45,
+     "steering": 30,
+     "nitroBoost": 0,
+     "nitroSeconds": 4,
+     "gears": 5
+    },
+    "Driver": {
+     "mode": "Off",
+     "route": "",
+     "loop": true,
+     "target": "",
+     "skill": 0.8,
+     "aggression": 0.2,
+     "speedScale": 1
+    }
+   }
+  },
+  "Roadblock": {
+   "components": {
+    "Scale": {
+     "value": {
+      "x": 2,
+      "y": 1.04,
+      "z": 0.5
+     }
+    },
+    "Renderable": {
+     "mesh": 26,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  "Cell Device": {
+   "components": {
+    "Scale": {
+     "value": {
+      "x": 0.8,
+      "y": 1.1,
+      "z": 0.8
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.12549019607843137,
+      "y": 0.14901960784313725,
+      "z": 0.1803921568627451
+     },
+     "metalness": 0,
+     "roughness": 0.5,
+     "emissive": {
+      "x": 1,
+      "y": 0.7058823529411765,
+      "z": 0.22745098039215686
+     },
+     "emissiveIntensity": 1.2,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  "Aid Kit": {
+   "components": {
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 0.4,
+      "z": 0.4
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.9490196078431372,
+      "y": 0.9490196078431372,
+      "z": 0.9490196078431372
+     },
+     "metalness": 0,
+     "roughness": 0.5,
+     "emissive": {
+      "x": 1,
+      "y": 0.30196078431372547,
+      "z": 0.30196078431372547
+     },
+     "emissiveIntensity": 1.2,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  "Relay Gate": {
+   "components": {
+    "Scale": {
+     "value": {
+      "x": 3.4,
+      "y": 3.4,
+      "z": 0.25
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.054901960784313725,
+      "y": 0.16470588235294117,
+      "z": 0.22745098039215686
+     },
+     "metalness": 0,
+     "roughness": 0.5,
+     "emissive": {
+      "x": 0.37254901960784315,
+      "y": 0.8156862745098039,
+      "z": 1
+     },
+     "emissiveIntensity": 1.2,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Particles": {
+     "preset": "Sparkle",
+     "color": {
+      "x": 0.7490196078431373,
+      "y": 0.9411764705882353,
+      "z": 1
+     },
+     "rate": 24,
+     "lifetime": 0.8,
+     "speed": 0.5,
+     "size": 0.12,
+     "endColor": {
+      "x": 0.24705882352941178,
+      "y": 0.6627450980392157,
+      "z": 1
+     },
+     "endSize": 0.03,
+     "gravityScale": 1,
+     "shape": "Box",
+     "shapeSize": 1.6,
+     "coneAngle": 25,
+     "space": "Local",
+     "burst": 0
+    }
+   }
+  }
+ }
 }
