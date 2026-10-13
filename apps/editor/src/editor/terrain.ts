@@ -266,11 +266,3 @@ export function scatterInstances(
   });
   return out;
 }
-
-// Float32 heights as base64 for the runtime (editor_set_terrain).
-export function encodeHeights(heights: Float32Array): string {
-  const bytes = new Uint8Array(heights.buffer, heights.byteOffset, heights.byteLength);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(binary);
-}

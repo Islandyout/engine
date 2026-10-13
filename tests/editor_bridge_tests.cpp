@@ -72,7 +72,7 @@ void editor_set_soldier(int, double, double, double, double, double, double, dou
                         int, double, double);
 void editor_set_soldier_patrol(int, const char *);
 double editor_soldier_value(int, int);
-void editor_set_terrain(double, double, double, double, int, const char *);
+void editor_set_terrain(double, double, double, double, int, const float *, int);
 void editor_add_obstacle(double, double, double, double, double, double);
 double editor_terrain_height(double, double);
 void editor_set_car(int, double, double, double, double, double, double, double, double, double, double);
@@ -100,22 +100,6 @@ double editor_planet_height(int, double, double, double);
 int editor_space_path(int, double);
 }
 namespace {
-std::string base64_floats(const std::vector<float> &values) {
-    static const char *alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    std::string bytes(reinterpret_cast<const char *>(values.data()), values.size() * sizeof(float));
-    std::string out;
-    for (std::size_t i = 0; i < bytes.size(); i += 3) {
-        const unsigned b0 = static_cast<unsigned char>(bytes[i]);
-        const unsigned b1 = i + 1 < bytes.size() ? static_cast<unsigned char>(bytes[i + 1]) : 0;
-        const unsigned b2 = i + 2 < bytes.size() ? static_cast<unsigned char>(bytes[i + 2]) : 0;
-        const unsigned triple = (b0 << 16) | (b1 << 8) | b2;
-        out += alphabet[(triple >> 18) & 63];
-        out += alphabet[(triple >> 12) & 63];
-        out += i + 1 < bytes.size() ? alphabet[(triple >> 6) & 63] : '=';
-        out += i + 2 < bytes.size() ? alphabet[triple & 63] : '=';
-    }
-    return out;
-}
 int add_unit(double x, double y, double z, double vx, double vy, double vz) {
     return editor_add(x, y, z, vx, vy, vz, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0);
 }
@@ -1880,7 +1864,7 @@ int main() {
         std::vector<float> big(131 * 131);
         for (std::size_t i = 0; i < big.size(); ++i)
             big[i] = static_cast<float>((i * 7919) % 13) * 0.5F;
-        editor_set_terrain(0, 0, 0, 260, 131, base64_floats(big).c_str());
+        editor_set_terrain(0, 0, 0, 260, 131, big.data(), static_cast<int>(big.size()));
         check(editor_commit() == 1);
         for (int i = 0; i < 180; ++i)
             editor_tick();
@@ -1900,7 +1884,8 @@ int main() {
         check(editor_add(0, 20, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         editor_set_script_source(1, "function on_tick(dt) local hit, d, x, y, z = world.raycast(5, 30, 0, 0, -1, 0, 100) "
                                     "if hit == 'ground' then log(string.format('%.2f', y)) end end");
-        editor_set_terrain(0, 1, 0, 40, 3, base64_floats({0, 0, 0, 0, 4, 0, 0, 0, 0}).c_str());
+        const std::vector<float> hill{0, 0, 0, 0, 4, 0, 0, 0, 0};
+        editor_set_terrain(0, 1, 0, 40, 3, hill.data(), 9);
         editor_add_obstacle(-15, 1, 8, 4, 4, 1);
         check(editor_add(-15, 1.5, 4, 0, 0, 6, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         check(editor_commit() == 1);
@@ -1928,7 +1913,10 @@ int main() {
         check(editor_value(2, 2) < 8 - 0.5 - 0.49); // stopped by the obstacle's near face (z = 7.5)
 
         editor_begin();
-        editor_set_terrain(0, 0, 0, 40, 3, "AAAA");
+        editor_set_terrain(0, 0, 0, 40, 3, hill.data(), 8); // one height short
+        check(editor_commit() == 0);
+        editor_begin();
+        editor_set_terrain(0, 0, 0, 40, 3, nullptr, 9);
         check(editor_commit() == 0);
     }
 

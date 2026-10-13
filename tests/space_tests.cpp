@@ -68,6 +68,40 @@ int main() {
         const System system = make_system();
         const ShipSpec spec;
         {
+            // Vector and rotation math with asymmetric inputs, so a flipped sign
+            // or a swapped term can't hide behind symmetry.
+            check(near(dot({1, 2, 3}, {4, -5, 6}), 12, 1e-12), "dot product");
+            const DVec3 c = cross({1, 2, 3}, {4, 5, 6});
+            check(near(c.x, -3, 1e-12) && near(c.y, 6, 1e-12) && near(c.z, -3, 1e-12), "cross product");
+            const DVec3 turned = rotate(axis_angle({0, 0, 1}, pi / 2), {1, 0, 0});
+            check(near(turned.x, 0, 1e-9) && near(turned.y, 1, 1e-9) && near(turned.z, 0, 1e-9),
+                  "a quarter turn about +z takes +x to +y");
+            const DVec3 back = rotate(conjugate(axis_angle({0, 0, 1}, pi / 2)), turned);
+            check(near(back.x, 1, 1e-9) && near(back.y, 0, 1e-9), "the conjugate turns it back");
+            const DVec3 target = normalized(DVec3{1, 2, -2});
+            const DVec3 mapped = rotate(between({1, 0, 0}, target), {1, 0, 0});
+            check(length(mapped - target) < 1e-9, "between() takes one direction onto another");
+        }
+        {
+            // An elliptical orbit (10% faster than circular at the same height):
+            // its elements match vis-viva.
+            ShipState ship;
+            place_in_orbit(ship, system, 1, 8000);
+            ship.velocity = ship.velocity * 1.1;
+            const double mu = system.bodies[1].gm();
+            const double r = length(ship.position);
+            const double v = length(ship.velocity);
+            const double a = 1 / (2 / r - v * v / mu);
+            const double ra = 2 * a - r;
+            const OrbitElements e = orbit_elements(ship, system);
+            check(e.valid && e.closed, "a 10% faster orbit is still closed");
+            check(near(e.semi_major_axis, a, a * 0.005), "semi-major axis from vis-viva");
+            check(near(e.eccentricity, (ra - r) / (ra + r), 1e-3), "eccentricity");
+            check(near(e.periapsis + system.bodies[1].radius, r, 60), "periapsis is where the ship starts");
+            check(near(e.apoapsis + system.bodies[1].radius, ra, ra * 0.01), "apoapsis on the far side");
+            check(near(e.period, 2 * pi * std::sqrt(a * a * a / mu), e.period * 0.005), "period from Kepler's third law");
+        }
+        {
             // Bodies on rails: circular orbits, children carried by parents,
             // velocity matching the motion.
             const DVec3 p0 = body_position(system, 0, 0);

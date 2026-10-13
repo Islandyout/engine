@@ -253,50 +253,18 @@ EXPORT void editor_set_controller(int index, int mode, double walk, double sprin
     engine::gameplay::configure_body(*box, settings);
     world.set(target->second, controller);
 }
-namespace {
-// Standard base64 (RFC 4648) to bytes; returns false on malformed input.
-bool decode_base64(const char *text, std::vector<unsigned char> &out) {
-    out.clear();
-    unsigned value = 0;
-    int bits = 0;
-    for (const char *c = text; *c; ++c) {
-        int digit;
-        if (*c >= 'A' && *c <= 'Z')
-            digit = *c - 'A';
-        else if (*c >= 'a' && *c <= 'z')
-            digit = *c - 'a' + 26;
-        else if (*c >= '0' && *c <= '9')
-            digit = *c - '0' + 52;
-        else if (*c == '+')
-            digit = 62;
-        else if (*c == '/')
-            digit = 63;
-        else if (*c == '=')
-            break;
-        else
-            return false;
-        value = (value << 6) | static_cast<unsigned>(digit);
-        bits += 6;
-        if (bits >= 8) {
-            bits -= 8;
-            out.push_back(static_cast<unsigned char>((value >> bits) & 0xFF));
-        }
-    }
-    return true;
-}
-} // namespace
 // The scene's terrain (0.63.0), between editor_begin() and editor_commit():
 // a resolution x resolution heightfield over a `size` square centered on
-// (x, z), heights relative to y, as base64 little-endian float32 (row-major,
-// x fastest). Replaces any earlier terrain. Bad input fails the commit.
-EXPORT void editor_set_terrain(double x, double y, double z, double size, int resolution, const char *heights) {
-    if (!staging || !heights)
+// (x, z), heights relative to y, as `count` float32s in wasm memory (row-major,
+// x fastest; the caller allocates and frees them). Replaces any earlier
+// terrain. Bad input fails the commit.
+EXPORT void editor_set_terrain(double x, double y, double z, double size, int resolution, const float *heights, int count) {
+    if (!staging)
         return;
-    std::vector<unsigned char> bytes;
-    const auto count = static_cast<std::size_t>(resolution) * static_cast<std::size_t>(std::max(resolution, 0));
+    const auto expected = static_cast<std::size_t>(std::max(resolution, 0)) * static_cast<std::size_t>(std::max(resolution, 0));
     if (resolution < 2 || resolution > 1025 || !std::isfinite(size) || size <= 0 || size > 100000 ||
-        !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) || !decode_base64(heights, bytes) ||
-        bytes.size() != count * 4) {
+        !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) || !heights || count < 0 ||
+        static_cast<std::size_t>(count) != expected) {
         fail("a terrain's resolution (2-1025), size, position or height data that is invalid");
         return;
     }
@@ -304,8 +272,7 @@ EXPORT void editor_set_terrain(double x, double y, double z, double size, int re
     field.center = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)};
     field.size = static_cast<float>(size);
     field.resolution = resolution;
-    field.heights.resize(count);
-    std::memcpy(field.heights.data(), bytes.data(), bytes.size());
+    field.heights.assign(heights, heights + expected);
     for (const float h : field.heights)
         if (!std::isfinite(h) || std::abs(h) > 100000) {
             fail("a terrain height that is not finite or beyond +/-100,000");

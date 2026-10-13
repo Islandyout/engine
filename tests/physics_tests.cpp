@@ -571,6 +571,59 @@ int main() {
             check(low->normal.y > 0.9F && low->normal.z < -0.2F, "ramp hit normal tilts with the surface");
         }
         {
+            // Oriented boxes about the other two axes (the tests above only turn
+            // about y and tilt about x): a ramp rolled about z, and a box pitched
+            // about x, each with the normal's sign checked, so a flipped term in
+            // the oriented-box math can't pass.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Collider>("collider");
+            const auto ramp = world.create();
+            world.set(ramp, Box{{0, 0, 0}, {8, 1, 4}});
+            Collider rolled{};
+            rolled.rotation = {0, 0, 0.35F};
+            world.set(ramp, rolled);
+            const physics::Config config{.gravity = -18.0F, .ground_y = -100.0F};
+            // Rolled +0.35 about z, the top normal is (-sin, cos, 0): the surface rises toward +x.
+            const auto left = physics::raycast(world, {-3, 10, 0}, {0, -1, 0}, 20.0F, config);
+            const auto right = physics::raycast(world, {3, 10, 0}, {0, -1, 0}, 20.0F, config);
+            check(left && right && left->entity == ramp && right->entity == ramp, "rays hit the rolled ramp");
+            check(right->point.y > left->point.y + 1.5F, "the rolled ramp rises toward +x");
+            check(std::abs(left->normal.x + std::sin(0.35F)) < 0.01F && std::abs(left->normal.y - std::cos(0.35F)) < 0.01F &&
+                      std::abs(left->normal.z) < 0.01F,
+                  "the rolled ramp's hit normal is (-sin, cos, 0)");
+            // A body resting on it touches with a normal along the slope (a and
+            // b may come in either order, so the check is on the tilt itself).
+            const auto body = world.create();
+            world.set(body, Box{{0, 4, 0}, {0.6F, 1, 0.6F}});
+            world.set(body, RigidBody{});
+            physics::Events events;
+            for (int i = 0; i < 120; ++i) {
+                events.events.clear();
+                physics::step(world, 1.0F / 60, config, &events);
+            }
+            check(world.get<RigidBody>(body)->grounded, "a body on the rolled ramp is grounded");
+            bool tilted = false;
+            for (const auto &event : events.events)
+                if (!event.trigger)
+                    tilted = tilted || (std::abs(event.normal.y) > 0.8F && std::abs(event.normal.x) > 0.2F &&
+                                        event.normal.x * event.normal.y < 0 && std::abs(event.normal.z) < 0.05F);
+            check(tilted, "the contact normal on the rolled ramp follows its slope");
+            // Pitched about x the other way (+0.35): the top normal is (0, cos, sin), rising toward -z.
+            const auto pitched = world.create();
+            world.set(pitched, Box{{20, 0, 0}, {4, 1, 8}});
+            Collider pitch{};
+            pitch.rotation = {0.35F, 0, 0};
+            world.set(pitched, pitch);
+            const auto back = physics::raycast(world, {20, 10, -3}, {0, -1, 0}, 20.0F, config);
+            const auto front = physics::raycast(world, {20, 10, 3}, {0, -1, 0}, 20.0F, config);
+            check(back && front && back->entity == pitched && front->entity == pitched, "rays hit the pitched box");
+            check(back->point.y > front->point.y + 1.5F, "the pitched box rises toward -z");
+            check(std::abs(front->normal.z - std::sin(0.35F)) < 0.01F && std::abs(front->normal.x) < 0.01F,
+                  "the pitched box's hit normal is (0, cos, sin)");
+        }
+        {
             // Raycast normals for an axis-aligned box face, a sphere and the ground.
             World world;
             world.register_component<Box>("box");
