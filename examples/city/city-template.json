@@ -1,0 +1,4818 @@
+{
+ "format": 1,
+ "name": "City Template",
+ "entities": [
+  {
+   "name": "Environment",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -30,
+      "z": 0
+     }
+    },
+    "Environment": {
+     "sky": "Procedural",
+     "skyColor": {
+      "x": 0.35294117647058826,
+      "y": 0.5764705882352941,
+      "z": 0.8470588235294118
+     },
+     "horizonColor": {
+      "x": 0.9490196078431372,
+      "y": 0.8470588235294118,
+      "z": 0.6901960784313725
+     },
+     "groundColor": {
+      "x": 0.4196078431372549,
+      "y": 0.4588235294117647,
+      "z": 0.38823529411764707
+     },
+     "sunElevation": 48,
+     "sunAzimuth": 220,
+     "sunIntensity": 3.3,
+     "sunColor": {
+      "x": 1,
+      "y": 0.9450980392156862,
+      "z": 0.8549019607843137
+     },
+     "ambientIntensity": 1.25,
+     "fog": "Linear",
+     "fogColor": {
+      "x": 0.7843137254901961,
+      "y": 0.8392156862745098,
+      "z": 0.8862745098039215
+     },
+     "fogNear": 140,
+     "fogFar": 520,
+     "fogDensity": 0.015,
+     "shadows": true,
+     "exposure": 1.1
+    },
+    "PostProcessing": {
+     "style": "Standard",
+     "ink": 1,
+     "rim": 0.6,
+     "antialias": "SMAA",
+     "ambientOcclusion": true,
+     "aoRadius": 0.35,
+     "aoIntensity": 0.55,
+     "bloom": 0.1,
+     "bloomRadius": 0.3,
+     "bloomThreshold": 0.95,
+     "exposure": 1.05,
+     "contrast": 0.06,
+     "saturation": 0.06,
+     "temperature": 0.04,
+     "vignette": 0.1,
+     "grain": 0,
+     "shadowQuality": "High"
+    }
+   }
+  },
+  {
+   "name": "City ground",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -0.06,
+      "z": 0
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 368,
+      "y": 0.1,
+      "z": 368
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.23137254901960785,
+      "y": 0.23921568627450981,
+      "z": 0.25882352941176473
+     },
+     "metalness": 0,
+     "roughness": 0.95,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block 0,0 (mixed)",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -96,
+      "y": 0.06,
+      "z": -96
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.12,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6352941176470588,
+      "z": 0.6039215686274509
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block 1,0 (mixed)",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0.06,
+      "z": -96
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.12,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6352941176470588,
+      "z": 0.6039215686274509
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block 2,0 (park)",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 96,
+      "y": 0.06,
+      "z": -96
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.12,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.36470588235294116,
+      "y": 0.4980392156862745,
+      "z": 0.27058823529411763
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block 0,1 (mixed)",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -96,
+      "y": 0.06,
+      "z": 0
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.12,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6352941176470588,
+      "z": 0.6039215686274509
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block 1,1 (downtown)",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0.06,
+      "z": 0
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.12,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6352941176470588,
+      "z": 0.6039215686274509
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block 2,1 (mixed)",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 96,
+      "y": 0.06,
+      "z": 0
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.12,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6352941176470588,
+      "z": 0.6039215686274509
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block 0,2 (industrial)",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -96,
+      "y": 0.06,
+      "z": 96
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.12,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.4823529411764706,
+      "y": 0.47843137254901963,
+      "z": 0.4549019607843137
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block 1,2 (mixed)",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0.06,
+      "z": 96
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.12,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6352941176470588,
+      "z": 0.6039215686274509
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Block 2,2 (mixed)",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 96,
+      "y": 0.06,
+      "z": 96
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.12,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.6549019607843137,
+      "y": 0.6352941176470588,
+      "z": 0.6039215686274509
+     },
+     "metalness": 0,
+     "roughness": 0.92,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Town edge W",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -184.5,
+      "y": 3,
+      "z": 0
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1,
+      "y": 6,
+      "z": 368
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Town edge E",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 184.5,
+      "y": 3,
+      "z": 0
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1,
+      "y": 6,
+      "z": 368
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Town edge N",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 3,
+      "z": -184.5
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 368,
+      "y": 6,
+      "z": 1
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Town edge S",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 3,
+      "z": 184.5
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 368,
+      "y": 6,
+      "z": 1
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": false
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Roads",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "56 -144 -144 0\n56 -144 -48 0\n56 -144 48 0\n56 -144 144 0\n56 -48 -144 0\n56 -48 -48 0\n56 -48 48 0\n56 -48 144 0\n56 48 -144 0\n56 48 -48 0\n56 48 48 0\n56 48 144 0\n56 144 -144 0\n56 144 -48 0\n56 144 48 0\n56 144 144 0\n64 -144 -176 0\n64 -144 -160 0\n64 -144 -128 0\n64 -144 -112 0\n64 -144 -96 0\n64 -144 -80 0\n64 -144 -64 0\n64 -144 -32 0\n64 -144 -16 0\n64 -144 0 0\n64 -144 16 0\n64 -144 32 0\n64 -144 64 0\n64 -144 80 0\n64 -144 96 0\n64 -144 112 0\n64 -144 128 0\n64 -144 160 0\n64 -144 176 0\n64 -48 -176 0\n64 -48 -160 0\n64 -48 -128 0\n64 -48 -112 0\n64 -48 -96 0\n64 -48 -80 0\n64 -48 -64 0\n64 -48 -32 0\n64 -48 -16 0\n64 -48 0 0\n64 -48 16 0\n64 -48 32 0\n64 -48 64 0\n64 -48 80 0\n64 -48 96 0\n64 -48 112 0\n64 -48 128 0\n64 -48 160 0\n64 -48 176 0\n64 48 -176 0\n64 48 -160 0\n64 48 -128 0\n64 48 -112 0\n62 48 -96 0\n64 48 -80 0\n64 48 -64 0\n64 48 -32 0\n64 48 -16 0\n64 48 0 0\n64 48 16 0\n64 48 32 0\n64 48 64 0\n64 48 80 0\n64 48 96 0\n64 48 112 0\n64 48 128 0\n64 48 160 0\n64 48 176 0\n64 144 -176 0\n64 144 -160 0\n64 144 -128 0\n64 144 -112 0\n62 144 -96 0\n64 144 -80 0\n64 144 -64 0\n64 144 -32 0\n64 144 -16 0\n64 144 0 0\n64 144 16 0\n64 144 32 0\n64 144 64 0\n64 144 80 0\n64 144 96 0\n64 144 112 0\n64 144 128 0\n64 144 160 0\n64 144 176 0\n64 -176 -144 90\n64 -160 -144 90\n64 -128 -144 90\n64 -112 -144 90\n64 -96 -144 90\n64 -80 -144 90\n64 -64 -144 90\n64 -32 -144 90\n64 -16 -144 90\n64 0 -144 90\n64 16 -144 90\n64 32 -144 90\n64 64 -144 90\n64 80 -144 90\n64 96 -144 90\n64 112 -144 90\n64 128 -144 90\n64 160 -144 90\n64 176 -144 90\n64 -176 -48 90\n64 -160 -48 90\n64 -128 -48 90\n64 -112 -48 90\n64 -96 -48 90\n64 -80 -48 90\n64 -64 -48 90\n64 -32 -48 90\n64 -16 -48 90\n64 0 -48 90\n64 16 -48 90\n64 32 -48 90\n64 64 -48 90\n64 80 -48 90\n64 96 -48 90\n64 112 -48 90\n64 128 -48 90\n64 160 -48 90\n64 176 -48 90\n64 -176 48 90\n64 -160 48 90\n64 -128 48 90\n64 -112 48 90\n64 -96 48 90\n64 -80 48 90\n64 -64 48 90\n64 -32 48 90\n64 -16 48 90\n64 0 48 90\n64 16 48 90\n64 32 48 90\n64 64 48 90\n64 80 48 90\n64 96 48 90\n64 112 48 90\n64 128 48 90\n64 160 48 90\n64 176 48 90\n64 -176 144 90\n64 -160 144 90\n64 -128 144 90\n64 -112 144 90\n64 -96 144 90\n64 -80 144 90\n64 -64 144 90\n64 -32 144 90\n64 -16 144 90\n64 0 144 90\n64 16 144 90\n64 32 144 90\n64 64 144 90\n64 80 144 90\n64 96 144 90\n64 112 144 90\n64 128 144 90\n64 160 144 90\n64 176 144 90"
+    }
+   }
+  },
+  {
+   "name": "Signal 1",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -144,
+      "y": 0.1,
+      "z": -144
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 0,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Signal 2",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -144,
+      "y": 0.1,
+      "z": -48
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 0,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Signal 3",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -144,
+      "y": 0.1,
+      "z": 48
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 0,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Signal 4",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -144,
+      "y": 0.1,
+      "z": 144
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 0,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Signal 5",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -48,
+      "y": 0.1,
+      "z": -144
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 8.7,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Signal 6",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -48,
+      "y": 0.1,
+      "z": -48
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 8.7,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Signal 7",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -48,
+      "y": 0.1,
+      "z": 48
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 8.7,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Signal 8",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -48,
+      "y": 0.1,
+      "z": 144
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 8.7,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Signal 9",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 48,
+      "y": 0.1,
+      "z": -144
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 17.5,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Signal 10",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 48,
+      "y": 0.1,
+      "z": -48
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 17.5,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Signal 11",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 48,
+      "y": 0.1,
+      "z": 48
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 17.5,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Signal 12",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 48,
+      "y": 0.1,
+      "z": 144
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 17.5,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Signal 13",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 144,
+      "y": 0.1,
+      "z": -144
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 26.2,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Signal 14",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 144,
+      "y": 0.1,
+      "z": -48
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 26.2,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Signal 15",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 144,
+      "y": 0.1,
+      "z": 48
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 26.2,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Signal 16",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 144,
+      "y": 0.1,
+      "z": 144
+     }
+    },
+    "TrafficSignal": {
+     "green": 14,
+     "yellow": 3,
+     "clearance": 2,
+     "offset": 26.2,
+     "radius": 7
+    }
+   }
+  },
+  {
+   "name": "Buildings",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "17 -131.24 -128.34 180 solid\n17 -120.72 -128.34 180 solid\n10 -106.84 -127.34 180 solid\n2 -89.07 -128.25 180 solid\n16 -67.95 -124.29 180 solid\n15 -125.11 -65.49 0 solid\n19 -109.35 -64.53 0 solid\n16 -93.03 -67.71 0 solid\n3 -73.79 -65.2 0 solid\n19 -62.16 -64.53 0 solid\n3 -126.8 -104.32 270 solid\n17 -128.34 -91.79 270 solid\n14 -67.19 -99.63 90 solid\n16 -28.53 -124.29 180 solid\n19 -12.2 -127.47 180 solid\n10 0.77 -127.34 180 solid\n19 13.74 -127.47 180 solid\n4 26.23 -127.05 180 solid\n18 -34.55 -63.1 0 solid\n18 -22.64 -63.1 0 solid\n19 -12.32 -64.53 0 solid\n16 4 -67.71 0 solid\n3 23.24 -65.2 0 solid\n19 34.87 -64.53 0 solid\n16 -28.29 -99.62 270 solid\n2 32.25 -102.43 90 solid\n17 32.34 -88.02 90 solid\n10 -127.89 -31.34 180 solid\n4 -111.14 -31.05 180 solid\n17 -97.75 -32.34 180 solid\n18 -86.54 -32.9 180 solid\n14 -68.63 -28.81 180 solid\n17 -131.24 32.34 0 solid\n17 -120.72 32.34 0 solid\n3 -108.19 30.8 0 solid\n14 -88.97 28.81 0 solid\n17 -71.75 32.34 0 solid\n17 -61.23 32.34 0 solid\n3 -126.8 -9.36 270 solid\n2 -128.25 7.07 270 solid\n14 -67.19 -4.67 90 solid\n19 -64.53 11.64 90 solid\n10 -31.89 -31.34 180 solid\n21 -7.69 -26.54 180 solid\n21 23.48 -26.54 180 solid\n22 -26.44 27.87 0 solid\n20 3.41 26.42 0 solid\n9 28.47 30.24 0 solid\n9 -30.24 -2.81 270 solid\n9 30.24 -2.81 90 solid\n18 61.45 -32.9 180 solid\n16 79.38 -28.29 180 solid\n2 100.5 -32.25 180 solid\n4 117.78 -31.05 180 solid\n17 131.17 -32.34 180 solid\n16 67.47 28.29 0 solid\n10 88.05 31.34 0 solid\n10 105.28 31.34 0 solid\n17 119.15 32.34 0 solid\n17 129.67 32.34 0 solid\n16 67.71 -3.62 270 solid\n3 126.8 -8.32 90 solid\n17 128.34 4.21 90 solid\n13 -123.37 69.55 180 solid\n11 -93.56 69.62 180 solid\n25 -114.14 125.59 0 solid\n11 -75.09 122.38 0 solid\n19 -36.14 64.53 180 solid\n17 -26.52 63.66 180 solid\n17 -16 63.66 180 solid\n10 -2.13 64.66 180 solid\n4 14.62 64.95 180 solid\n17 28.01 63.66 180 solid\n2 -31.34 128.25 0 solid\n16 -10.22 124.29 0 solid\n3 9.02 126.8 0 solid\n10 24.9 127.34 0 solid\n10 -31.34 83.52 270 solid\n2 -32.25 101.29 270 solid\n2 32.25 84.06 90 solid\n4 31.05 101.35 90 solid\n10 64.11 64.66 180 solid\n16 84.7 67.71 180 solid\n16 108.63 67.71 180 solid\n18 126.56 63.1 180 solid\n19 59.86 127.47 0 solid\n4 72.35 127.05 0 solid\n4 88.61 127.05 0 solid\n3 104 126.8 0 solid\n2 120.43 128.25 0 solid\n2 63.75 89.57 270 solid\n3 65.2 105.99 270 solid\n15 126.51 91.81 90 solid\n19 127.47 107.56 90 solid"
+    }
+   }
+  },
+  {
+   "name": "Courtyards",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "223 -112 -108.09 179.87 solid\n220 -112 -96.59 358.5 solid\n222 -109.4 -108.09 178.03 solid\n220 -109.4 -96.59 357.14 solid\n227 -106.8 -108.09 182.9 solid\n220 -106.8 -96.59 359.43 solid\n224 -104.2 -108.09 179.21 solid\n234 -104.2 -96.59 1.26 solid\n234 -101.6 -96.59 359.47 solid\n221 -99 -108.09 180.16 solid\n221 -96.4 -108.09 181.96 solid\n221 -93.8 -96.59 2.52 solid\n221 -91.2 -108.09 179.86 solid\n227 -88.6 -108.09 180.31 solid\n221 -88.6 -96.59 0.22 solid\n227 -86 -108.09 180.43 solid\n222 -83.4 -96.59 1.19 solid\n224 -112 -91.09 177.97 solid\n222 -109.4 -91.09 180.66 solid\n221 -104.2 -91.09 177.54 solid\n224 -101.6 -91.09 182.79 solid\n221 -99 -91.09 177.4 solid\n227 -83.4 -91.09 178.7 solid\n222 -13.59 -108.09 181.28 solid\n224 -10.99 -108.09 180.73 solid\n221 -10.99 -96.59 1.99 solid\n220 -8.39 -108.09 181.34 solid\n223 -8.39 -96.59 0.31 solid\n219 -3.19 -108.09 178.72 solid\n222 -3.19 -96.59 2.46 solid\n227 -0.59 -96.59 358.67 solid\n227 2.01 -108.09 181.06 solid\n227 4.61 -108.09 182.82 solid\n220 7.21 -108.09 181.52 solid\n219 7.21 -96.59 2.47 solid\n223 9.81 -108.09 178.57 solid\n222 12.41 -96.59 2.88 solid\n219 15.01 -108.09 179.29 solid\n221 17.61 -108.09 179.99 solid\n222 17.61 -96.59 359.62 solid\n220 20.21 -108.09 181.63 solid\n224 20.21 -96.59 1.99 solid\n220 -13.59 -91.09 181.3 solid\n234 -8.39 -91.09 180.87 solid\n219 -5.79 -91.09 177.64 solid\n221 -0.59 -91.09 180.11 solid\n223 2.01 -91.09 179.56 solid\n224 7.21 -91.09 178.02 solid\n220 9.81 -91.09 182.28 solid\n219 12.41 -91.09 182.64 solid\n223 17.61 -91.09 181.23 solid\n223 20.21 -91.09 177.45 solid\n224 -114.6 -13.13 182.07 solid\n223 -114.6 -1.63 359.22 solid\n227 -112 -13.13 178.64 solid\n221 -112 -1.63 359.09 solid\n224 -101.6 -13.13 181.13 solid\n222 -101.6 -1.63 0.96 solid\n220 -99 -13.13 179.98 solid\n224 -99 -1.63 359.56 solid\n224 -96.4 -1.63 0.12 solid\n222 -93.8 -13.13 181.89 solid\n223 -93.8 -1.63 0.24 solid\n224 -91.2 -13.13 177.47 solid\n227 -91.2 -1.63 1.27 solid\n224 -88.6 -13.13 178.9 solid\n234 -86 -13.13 179.68 solid\n222 -86 -1.63 358.35 solid\n227 -114.6 3.87 178 solid\n220 -114.6 15.37 357.26 solid\n219 -109.4 3.87 179.89 solid\n221 -109.4 15.37 0.22 solid\n223 -106.8 15.37 1.17 solid\n219 -104.2 3.87 180.81 solid\n223 -104.2 15.37 359.72 solid\n234 -101.6 3.87 181.45 solid\n234 -101.6 15.37 0.16 solid\n223 -99 15.37 0.6 solid\n234 -96.4 3.87 181.33 solid\n224 -93.8 15.37 357.9 solid\n227 -91.2 3.87 178.22 solid\n224 -88.6 3.87 180.11 solid\n220 -86 3.87 178.96 solid\n221 -83.4 3.87 177.65 solid\n227 -83.4 15.37 357.57 solid\n221 -17.49 -8.59 181.4 solid\n224 -17.49 2.91 357.03 solid\n227 -14.89 2.91 0.65 solid\n234 -12.29 -8.59 178.65 solid\n224 -12.29 2.91 1.59 solid\n224 -9.69 -8.59 179.28 solid\n220 -9.69 2.91 357.38 solid\n220 -7.09 -8.59 181.57 solid\n221 -7.09 2.91 357.59 solid\n227 -4.49 -8.59 182.33 solid\n224 -4.49 2.91 2.18 solid\n220 -1.89 -8.59 178.24 solid\n222 -1.89 2.91 357.92 solid\n221 0.71 -8.59 177.05 solid\n224 0.71 2.91 359.55 solid\n219 3.31 -8.59 179.63 solid\n224 5.91 2.91 2.91 solid\n234 8.51 2.91 1.9 solid\n224 13.71 -8.59 178.93 solid\n234 13.71 2.91 359.04 solid\n223 16.31 2.91 0.47 solid\n222 -17.49 8.41 180.98 solid\n219 -12.29 8.41 180.45 solid\n219 -9.69 8.41 177.3 solid\n220 -7.09 8.41 181.06 solid\n227 5.91 8.41 182.46 solid\n227 8.51 8.41 182.54 solid\n227 11.11 8.41 181.77 solid\n222 13.71 8.41 178.69 solid\n227 16.31 8.41 181.4 solid\n234 82.41 -12.09 181.5 solid\n224 82.41 -0.59 0.72 solid\n234 85.01 -0.59 2.51 solid\n222 87.61 -12.09 181.43 solid\n222 90.21 -12.09 182.66 solid\n224 92.81 -12.09 178.41 solid\n222 92.81 -0.59 0.27 solid\n224 95.41 -12.09 180.64 solid\n220 98.01 -12.09 182.16 solid\n234 98.01 -0.59 358.91 solid\n221 100.61 -12.09 181.86 solid\n220 100.61 -0.59 359.81 solid\n219 103.21 -12.09 182.83 solid\n224 103.21 -0.59 0.08 solid\n234 105.81 -12.09 182.58 solid\n219 105.81 -0.59 358.11 solid\n220 108.41 -12.09 178.83 solid\n220 108.41 -0.59 357.63 solid\n224 111.01 -12.09 182.68 solid\n224 111.01 -0.59 359.82 solid\n219 113.61 -12.09 178.93 solid\n223 113.61 -0.59 2.37 solid\n221 82.41 4.91 177.43 solid\n224 85.01 4.91 182.6 solid\n234 87.61 4.91 182.72 solid\n227 90.21 4.91 182.02 solid\n219 92.81 4.91 178.45 solid\n221 98.01 4.91 181.75 solid\n222 100.61 4.91 180.05 solid\n224 105.81 4.91 178.73 solid\n227 108.41 4.91 181.96 solid\n222 111.01 4.91 180.72 solid\n219 -132 87.74 178.57 solid\n221 -126.8 99.24 359.24 solid\n222 -124.2 87.74 178.17 solid\n221 -124.2 99.24 0.19 solid\n224 -121.6 87.74 182.67 solid\n227 -119 87.74 182.02 solid\n234 -116.4 99.24 2.5 solid\n220 -113.8 99.24 359.44 solid\n219 -111.2 87.74 181.68 solid\n220 -111.2 99.24 359.58 solid\n227 -108.6 87.74 181.25 solid\n227 -108.6 99.24 358.92 solid\n223 -106 87.74 180.01 solid\n234 -103.4 99.24 2.72 solid\n222 -100.8 99.24 358.33 solid\n219 -98.2 87.74 177.95 solid\n220 -95.6 87.74 180.35 solid\n227 -93 87.74 182.56 solid\n219 -93 99.24 357.22 solid\n227 -90.4 87.74 182.2 solid\n223 -90.4 99.24 1.26 solid\n219 -87.8 99.24 1.03 solid\n220 -85.2 87.74 179.94 solid\n219 -85.2 99.24 358.5 solid\n234 -82.6 99.24 2.29 solid\n222 -80 87.74 182.1 solid\n234 -80 99.24 359.4 solid\n234 -77.4 87.74 177.88 solid\n220 -77.4 99.24 358.39 solid\n223 -74.8 99.24 359.07 solid\n219 -72.2 87.74 177.49 solid\n224 -72.2 99.24 358.6 solid\n224 -69.6 87.74 180.44 solid\n222 -69.6 99.24 359.34 solid\n227 -67 87.74 178.81 solid\n224 -64.4 87.74 182.21 solid\n234 -61.8 87.74 180.48 solid\n227 -61.8 99.24 1.77 solid\n221 -19.69 78.41 177.01 solid\n223 -14.49 78.41 180.01 solid\n221 -14.49 89.91 359.48 solid\n224 -9.29 78.41 179.22 solid\n219 -9.29 89.91 358.06 solid\n221 -6.69 78.41 180.36 solid\n224 -4.09 78.41 177.19 solid\n222 -1.49 78.41 180.5 solid\n224 1.11 78.41 179.7 solid\n221 1.11 89.91 359.65 solid\n220 3.71 78.41 180.56 solid\n219 6.31 78.41 181.62 solid\n223 8.91 78.41 177.84 solid\n234 11.51 78.41 179.28 solid\n223 14.11 78.41 178.92 solid\n224 14.11 89.91 0.3 solid\n220 16.71 89.91 359.13 solid\n219 -19.69 95.41 179.33 solid\n223 -19.69 106.91 2.67 solid\n227 -17.09 95.41 177.31 solid\n221 -17.09 106.91 2.32 solid\n220 -14.49 106.91 2.95 solid\n227 -9.29 106.91 0.93 solid\n223 -6.69 95.41 181.44 solid\n219 -6.69 106.91 2.68 solid\n224 -1.49 95.41 182.47 solid\n222 -1.49 106.91 359.58 solid\n223 1.11 95.41 179.11 solid\n227 1.11 106.91 357.97 solid\n219 3.71 95.41 179.22 solid\n223 3.71 106.91 2.86 solid\n222 8.91 95.41 181.66 solid\n220 11.51 95.41 178.66 solid\n234 14.11 95.41 182.72 solid\n221 14.11 106.91 359.64 solid\n219 16.71 95.41 179.88 solid\n220 16.71 106.91 358.79 solid\n219 77.4 83.91 180.29 solid\n220 77.4 95.41 358.06 solid\n224 80 83.91 178.56 solid\n224 80 95.41 357.59 solid\n221 82.6 83.91 181.16 solid\n223 85.2 83.91 178.1 solid\n234 85.2 95.41 358.88 solid\n221 87.8 95.41 0.3 solid\n222 95.6 83.91 181.45 solid\n219 98.2 83.91 181.86 solid\n220 98.2 95.41 0.14 solid\n234 100.8 83.91 178.87 solid\n234 100.8 95.41 1.11 solid\n222 103.4 95.41 1.94 solid\n221 106 95.41 0.94 solid\n223 108.6 83.91 182.49 solid\n223 108.6 95.41 358.47 solid\n220 111.2 95.41 357.95 solid\n224 113.8 83.91 180.15 solid\n220 113.8 95.41 1.48 solid\n220 77.4 112.41 359.01 solid\n224 80 100.91 177.72 solid\n227 80 112.41 0.1 solid\n227 82.6 100.91 180.63 solid\n219 85.2 112.41 2.53 solid\n221 87.8 100.91 182.88 solid\n227 87.8 112.41 2.49 solid\n219 90.4 112.41 359.61 solid\n223 93 112.41 359.9 solid\n224 95.6 100.91 181.43 solid\n222 98.2 112.41 358.83 solid\n219 100.8 112.41 2.11 solid\n222 103.4 112.41 357.47 solid\n222 106 100.91 178.24 solid\n222 106 112.41 2.9 solid\n224 108.6 100.91 182.57 solid\n223 108.6 112.41 358.82 solid\n227 111.2 100.91 177.46 solid\n223 113.8 100.91 177.35 solid"
+    }
+   }
+  },
+  {
+   "name": "Street trees and lamps",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "29 -137.6 -120 90 solid\n258 -139.2 -129 144.25 0.91 trunk\n35 -139.5 -114 90 trunk\n258 -139.2 -109 111.97 1.03 trunk\n258 -139.2 -99 86.04 0.91 trunk\n258 -139.2 -89 7.94 0.89 trunk\n35 -139.5 -84 90 trunk\n258 -139.2 -79 278.49 1.11 trunk\n258 -139.2 -69 120.49 1.11 trunk\n258 -139.2 -59 315.42 1.07 trunk\n29 -137.6 -24 90 solid\n258 -139.2 -33 84.06 1.04 trunk\n35 -139.5 -18 90 trunk\n258 -139.2 -13 4.75 0.88 trunk\n258 -139.2 -3 189.86 0.93 trunk\n258 -139.2 7 74.9 0.94 trunk\n35 -139.5 12 90 trunk\n258 -139.2 17 280.41 0.92 trunk\n258 -139.2 27 275.6 0.91 trunk\n258 -139.2 37 216.97 0.95 trunk\n35 -139.5 78 90 trunk\n35 -139.5 108 90 trunk\n29 -54.4 -120 270 solid\n258 -52.8 -129 262.46 1.02 trunk\n35 -52.5 -114 270 trunk\n258 -52.8 -109 304.74 0.91 trunk\n258 -52.8 -99 155.09 0.98 trunk\n258 -52.8 -89 71.14 1.11 trunk\n35 -52.5 -84 270 trunk\n258 -52.8 -79 231.71 1.07 trunk\n258 -52.8 -69 196.23 0.86 trunk\n258 -52.8 -59 348.53 1.08 trunk\n29 -54.4 -24 270 solid\n258 -52.8 -33 109.31 1.04 trunk\n35 -52.5 -18 270 trunk\n258 -52.8 -13 284.87 0.95 trunk\n258 -52.8 -3 103.08 0.9 trunk\n258 -52.8 7 173.64 1.12 trunk\n35 -52.5 12 270 trunk\n258 -52.8 17 320.44 0.91 trunk\n258 -52.8 27 201.11 1.03 trunk\n258 -52.8 37 162.38 0.96 trunk\n35 -52.5 78 270 trunk\n35 -52.5 108 270 trunk\n29 -41.6 -120 90 solid\n258 -43.2 -129 115.16 1.1 trunk\n35 -43.5 -114 90 trunk\n258 -43.2 -109 209.68 1.12 trunk\n258 -43.2 -99 257.72 1.01 trunk\n258 -43.2 -89 220.59 0.89 trunk\n35 -43.5 -84 90 trunk\n258 -43.2 -79 262.84 1.09 trunk\n258 -43.2 -69 346.34 1.09 trunk\n258 -43.2 -59 269.29 1.03 trunk\n29 -41.6 -24 90 solid\n258 -43.2 -33 58.39 1.15 trunk\n35 -43.5 -18 90 trunk\n258 -43.2 -13 224.35 1 trunk\n258 -43.2 -3 269.17 0.9 trunk\n258 -43.2 7 67.05 0.95 trunk\n35 -43.5 12 90 trunk\n258 -43.2 17 85.27 1.03 trunk\n258 -43.2 27 258.41 1.05 trunk\n258 -43.2 37 240.21 0.99 trunk\n29 -41.6 72 90 solid\n258 -43.2 63 163.5 0.85 trunk\n35 -43.5 78 90 trunk\n258 -43.2 83 87.69 0.9 trunk\n258 -43.2 93 4.98 0.89 trunk\n258 -43.2 103 200.91 0.91 trunk\n35 -43.5 108 90 trunk\n258 -43.2 113 41.78 1 trunk\n258 -43.2 123 204.25 1.01 trunk\n258 -43.2 133 94.41 0.94 trunk\n29 41.6 -120 270 solid\n258 43.2 -129 65.5 1.09 trunk\n35 43.5 -114 270 trunk\n258 43.2 -109 119.98 0.95 trunk\n258 43.2 -99 9.35 0.97 trunk\n258 43.2 -89 151.37 1.11 trunk\n35 43.5 -84 270 trunk\n258 43.2 -79 316.05 1.13 trunk\n258 43.2 -69 187.98 1.03 trunk\n258 43.2 -59 143.47 1.09 trunk\n29 41.6 -24 270 solid\n258 43.2 -33 76.74 0.97 trunk\n35 43.5 -18 270 trunk\n258 43.2 -13 217.03 0.87 trunk\n258 43.2 -3 255.54 1.03 trunk\n258 43.2 7 225.23 0.91 trunk\n35 43.5 12 270 trunk\n258 43.2 17 5.12 0.92 trunk\n258 43.2 27 171.55 0.89 trunk\n258 43.2 37 295.5 1.03 trunk\n29 41.6 72 270 solid\n258 43.2 63 99.5 0.87 trunk\n35 43.5 78 270 trunk\n258 43.2 83 37.87 0.9 trunk\n258 43.2 93 44.79 1.07 trunk\n258 43.2 103 265.03 1.12 trunk\n35 43.5 108 270 trunk\n258 43.2 113 51.73 0.89 trunk\n258 43.2 123 160.64 0.86 trunk\n258 43.2 133 277.5 0.98 trunk\n29 54.4 -24 90 solid\n258 52.8 -33 159.17 1.08 trunk\n35 52.5 -18 90 trunk\n258 52.8 -13 57.57 0.97 trunk\n258 52.8 -3 174.31 0.93 trunk\n258 52.8 7 276.62 0.98 trunk\n35 52.5 12 90 trunk\n258 52.8 17 259.61 1.04 trunk\n258 52.8 27 159.34 0.86 trunk\n258 52.8 37 92.88 1.07 trunk\n29 54.4 72 90 solid\n258 52.8 63 178.5 0.99 trunk\n35 52.5 78 90 trunk\n258 52.8 83 258 1.06 trunk\n258 52.8 93 59.81 1.02 trunk\n258 52.8 103 258.91 0.91 trunk\n35 52.5 108 90 trunk\n258 52.8 113 240.49 0.89 trunk\n258 52.8 123 192.76 1.13 trunk\n258 52.8 133 260.42 0.9 trunk\n29 137.6 -24 270 solid\n258 139.2 -33 233.64 0.94 trunk\n35 139.5 -18 270 trunk\n258 139.2 -13 259.98 1.04 trunk\n258 139.2 -3 161.6 1.04 trunk\n258 139.2 7 24.95 0.98 trunk\n35 139.5 12 270 trunk\n258 139.2 17 129.51 0.91 trunk\n258 139.2 27 193.17 0.91 trunk\n258 139.2 37 5.42 1.13 trunk\n29 137.6 72 270 solid\n258 139.2 63 311.13 0.91 trunk\n35 139.5 78 270 trunk\n258 139.2 83 265.37 1.07 trunk\n258 139.2 93 53.86 0.93 trunk\n258 139.2 103 197.07 0.94 trunk\n35 139.5 108 270 trunk\n258 139.2 113 324.89 1.13 trunk\n258 139.2 123 16.35 0.98 trunk\n258 139.2 133 130.67 0.94 trunk\n29 -120 -137.6 0 solid\n258 -129 -139.2 266.19 0.89 trunk\n35 -114 -139.5 0 trunk\n258 -109 -139.2 173.14 1.13 trunk\n258 -99 -139.2 3.69 0.89 trunk\n258 -89 -139.2 193.97 0.96 trunk\n35 -84 -139.5 0 trunk\n258 -79 -139.2 105.12 1.09 trunk\n258 -69 -139.2 171.9 0.92 trunk\n258 -59 -139.2 310.58 0.9 trunk\n29 -24 -137.6 0 solid\n258 -33 -139.2 128.68 0.92 trunk\n35 -18 -139.5 0 trunk\n258 -13 -139.2 77.9 1.07 trunk\n258 -3 -139.2 103.49 1.13 trunk\n258 7 -139.2 326.14 1.12 trunk\n35 12 -139.5 0 trunk\n258 17 -139.2 163.01 0.92 trunk\n258 27 -139.2 226.05 0.95 trunk\n258 37 -139.2 183.51 1.14 trunk\n29 -120 -54.4 180 solid\n258 -129 -52.8 40.67 1.02 trunk\n35 -114 -52.5 180 trunk\n258 -109 -52.8 316.3 0.88 trunk\n258 -99 -52.8 202.09 0.94 trunk\n258 -89 -52.8 50.27 1.02 trunk\n35 -84 -52.5 180 trunk\n258 -79 -52.8 298.73 0.97 trunk\n258 -69 -52.8 240.37 1.14 trunk\n258 -59 -52.8 177.48 0.88 trunk\n29 -24 -54.4 180 solid\n258 -33 -52.8 260.08 0.99 trunk\n35 -18 -52.5 180 trunk\n258 -13 -52.8 300.51 1.14 trunk\n258 -3 -52.8 104.37 1.12 trunk\n258 7 -52.8 203.27 1.06 trunk\n35 12 -52.5 180 trunk\n258 17 -52.8 357.64 0.94 trunk\n258 27 -52.8 19.05 1.06 trunk\n258 37 -52.8 279.66 0.96 trunk\n29 -120 -41.6 0 solid\n258 -129 -43.2 357.04 0.91 trunk\n35 -114 -43.5 0 trunk\n258 -109 -43.2 14.23 0.86 trunk\n258 -99 -43.2 58.82 1.06 trunk\n258 -89 -43.2 119.48 1.03 trunk\n35 -84 -43.5 0 trunk\n258 -79 -43.2 52.4 1.08 trunk\n258 -69 -43.2 296.3 0.88 trunk\n258 -59 -43.2 50.06 1.07 trunk\n29 -24 -41.6 0 solid\n258 -33 -43.2 165.98 1.04 trunk\n35 -18 -43.5 0 trunk\n258 -13 -43.2 62.88 1.13 trunk\n258 -3 -43.2 302.56 0.88 trunk\n258 7 -43.2 272.51 1.08 trunk\n35 12 -43.5 0 trunk\n258 17 -43.2 2 1.13 trunk\n258 27 -43.2 267.47 0.98 trunk\n258 37 -43.2 9.97 0.91 trunk\n29 72 -41.6 0 solid\n258 63 -43.2 103.67 0.92 trunk\n35 78 -43.5 0 trunk\n258 83 -43.2 188.96 0.97 trunk\n258 93 -43.2 197.03 1.03 trunk\n258 103 -43.2 113.06 1.01 trunk\n35 108 -43.5 0 trunk\n258 113 -43.2 207.15 1.12 trunk\n258 123 -43.2 93.99 1.07 trunk\n258 133 -43.2 320.23 0.9 trunk\n29 -120 41.6 180 solid\n258 -129 43.2 217.99 0.86 trunk\n35 -114 43.5 180 trunk\n258 -109 43.2 317.34 0.96 trunk\n258 -99 43.2 0.24 0.95 trunk\n258 -89 43.2 265.7 1.03 trunk\n35 -84 43.5 180 trunk\n258 -79 43.2 317.71 0.9 trunk\n258 -69 43.2 48.28 0.95 trunk\n258 -59 43.2 257.92 1.11 trunk\n29 -24 41.6 180 solid\n258 -33 43.2 147.9 1.13 trunk\n35 -18 43.5 180 trunk\n258 -13 43.2 194.56 0.9 trunk\n258 -3 43.2 115.41 0.98 trunk\n258 7 43.2 192.65 1.01 trunk\n35 12 43.5 180 trunk\n258 17 43.2 209.91 0.96 trunk\n258 27 43.2 194.21 1.12 trunk\n258 37 43.2 280.59 0.93 trunk\n29 72 41.6 180 solid\n258 63 43.2 12.86 1.15 trunk\n35 78 43.5 180 trunk\n258 83 43.2 158.78 0.88 trunk\n258 93 43.2 210.79 1.11 trunk\n258 103 43.2 75.21 0.95 trunk\n35 108 43.5 180 trunk\n258 113 43.2 269.98 0.85 trunk\n258 123 43.2 342.3 0.87 trunk\n258 133 43.2 81.74 0.89 trunk\n35 -114 52.5 0 trunk\n35 -84 52.5 0 trunk\n29 -24 54.4 0 solid\n258 -33 52.8 176.87 0.87 trunk\n35 -18 52.5 0 trunk\n258 -13 52.8 235.84 0.88 trunk\n258 -3 52.8 46.49 0.9 trunk\n258 7 52.8 127.96 1.04 trunk\n35 12 52.5 0 trunk\n258 17 52.8 193.09 1.15 trunk\n258 27 52.8 92.87 0.86 trunk\n258 37 52.8 299.22 0.87 trunk\n29 72 54.4 0 solid\n258 63 52.8 43.47 1.03 trunk\n35 78 52.5 0 trunk\n258 83 52.8 183.58 0.91 trunk\n258 93 52.8 209.32 1 trunk\n258 103 52.8 329.61 1.04 trunk\n35 108 52.5 0 trunk\n258 113 52.8 215.95 1.14 trunk\n258 123 52.8 107.9 1.08 trunk\n258 133 52.8 54.98 0.86 trunk\n35 -114 139.5 180 trunk\n35 -84 139.5 180 trunk\n29 -24 137.6 180 solid\n258 -33 139.2 167.02 1.07 trunk\n35 -18 139.5 180 trunk\n258 -13 139.2 222.55 0.98 trunk\n258 -3 139.2 16.91 1.04 trunk\n258 7 139.2 17.64 0.91 trunk\n35 12 139.5 180 trunk\n258 17 139.2 257.61 1.15 trunk\n258 27 139.2 106.82 1.01 trunk\n258 37 139.2 284.3 1.04 trunk\n29 72 137.6 180 solid\n258 63 139.2 215.22 1.05 trunk\n35 78 139.5 180 trunk\n258 83 139.2 98.98 0.97 trunk\n258 93 139.2 152.18 1.02 trunk\n258 103 139.2 188.55 0.97 trunk\n35 108 139.5 180 trunk\n258 113 139.2 0.41 1.01 trunk\n258 123 139.2 55.86 0.96 trunk\n258 133 139.2 201.79 1.04 trunk"
+    }
+   }
+  },
+  {
+   "name": "Street furniture",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "32 -139.2 -134 270\n27 -139.2 -116.8 0\n27 -139.2 -58 0\n32 -139.2 -38 270\n27 -139.2 -20.8 0\n27 -139.2 38 0\n32 -139.2 58 270\n27 -139.2 134 0\n32 -52.8 -134 90\n27 -52.8 -116.8 0\n27 -52.8 -58 0\n32 -52.8 -38 90\n27 -52.8 -20.8 0\n27 -52.8 38 0\n32 -52.8 58 90\n27 -52.8 134 0\n32 -43.2 -134 270\n27 -43.2 -116.8 0\n27 -43.2 -58 0\n32 -43.2 -38 270\n27 -43.2 -20.8 0\n27 -43.2 38 0\n32 -43.2 58 270\n27 -43.2 75.2 0\n27 -43.2 134 0\n32 43.2 -134 90\n27 43.2 -116.8 0\n27 43.2 -58 0\n32 43.2 -38 90\n27 43.2 -20.8 0\n27 43.2 38 0\n32 43.2 58 90\n27 43.2 75.2 0\n27 43.2 134 0\n32 52.8 -38 270\n27 52.8 -20.8 0\n27 52.8 38 0\n32 52.8 58 270\n27 52.8 75.2 0\n27 52.8 134 0\n32 139.2 -38 90\n27 139.2 -20.8 0\n27 139.2 38 0\n32 139.2 58 90\n27 139.2 75.2 0\n27 139.2 134 0\n32 -134 -139.2 180\n27 -116.8 -139.2 0\n27 -58 -139.2 0\n32 -38 -139.2 180\n27 -20.8 -139.2 0\n27 38 -139.2 0\n32 -134 -52.8 0\n27 -116.8 -52.8 0\n27 -58 -52.8 0\n32 -38 -52.8 0\n27 -20.8 -52.8 0\n27 38 -52.8 0\n32 -134 -43.2 180\n27 -116.8 -43.2 0\n27 -58 -43.2 0\n32 -38 -43.2 180\n27 -20.8 -43.2 0\n27 38 -43.2 0\n32 58 -43.2 180\n27 75.2 -43.2 0\n27 134 -43.2 0\n32 -134 43.2 0\n27 -116.8 43.2 0\n27 -58 43.2 0\n32 -38 43.2 0\n27 -20.8 43.2 0\n27 38 43.2 0\n32 58 43.2 0\n27 75.2 43.2 0\n27 134 43.2 0\n32 -134 52.8 180\n27 -58 52.8 0\n32 -38 52.8 180\n27 -20.8 52.8 0\n27 38 52.8 0\n32 58 52.8 180\n27 75.2 52.8 0\n27 134 52.8 0\n32 -134 139.2 0\n27 -58 139.2 0\n32 -38 139.2 0\n27 -20.8 139.2 0\n27 38 139.2 0\n32 58 139.2 0\n27 75.2 139.2 0\n27 134 139.2 0"
+    }
+   }
+  },
+  {
+   "name": "Park path NS",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 96,
+      "y": 0.13,
+      "z": -96
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 3.5,
+      "y": 0.02,
+      "z": 80
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.7254901960784313,
+      "y": 0.6784313725490196,
+      "z": 0.5803921568627451
+     },
+     "metalness": 0,
+     "roughness": 0.95,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Park path EW",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 96,
+      "y": 0.135,
+      "z": -96
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 80,
+      "y": 0.02,
+      "z": 3.5
+     }
+    },
+    "Renderable": {
+     "mesh": 0,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.7254901960784313,
+      "y": 0.6784313725490196,
+      "z": 0.5803921568627451
+     },
+     "metalness": 0,
+     "roughness": 0.95,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 1,
+     "inverseMass": 1,
+     "dynamic": false
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": true,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    }
+   }
+  },
+  {
+   "name": "Park",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "ModelInstances": {
+     "instances": "255 58.9 -84.23 294.74 0.89 trunk\n255 101.94 -87.84 350.18 0.86 trunk\n255 125.7 -108.52 54.3 0.82 trunk\n255 114.26 -100.68 296.73 1.04 trunk\n255 116.46 -63.61 59.54 0.88 trunk\n255 74.65 -69.35 32.01 0.98 trunk\n255 117.45 -121.5 148.07 0.93 trunk\n255 130.96 -68.64 68.82 0.79 trunk\n255 82.81 -102.18 317.24 0.93 trunk\n255 120.75 -86.29 133.17 0.91 trunk\n259 67.72 -89.38 50.08 0.57 trunk\n261 78.39 -90.37 201.81 0.76\n261 128.89 -122.73 149.55 0.76\n261 81.22 -89.63 186.68 0.98\n261 101.99 -129.99 185.85 1.15\n261 71.53 -123.66 150.56 0.76\n261 59.51 -69.67 254.51 1.04\n261 78.15 -119.6 115.52 1.38\n261 130.57 -89.06 91.99 1.1\n261 62.58 -113.1 176.62 0.73\n261 91.48 -62.77 115.87 0.87\n261 87.63 -76.58 215.78 1.37\n261 104.86 -70.05 4.71 0.96\n261 131.76 -116.51 231.6 1.21\n261 62.91 -65.11 134 0.74\n261 104.97 -126.6 14.45 1\n261 58.53 -63.19 276.27 1.26\n261 109.45 -74.01 165.22 1.06\n261 108.29 -127.89 18.69 1.02\n261 64.22 -106.25 276.98 0.74\n261 60.93 -131.14 257.9 1.04\n261 67.8 -118.36 247.14 0.79\n261 61.67 -123.77 26.63 0.8\n1 98.6 -122 270\n1 70 -98.6 0\n1 98.6 -108 270\n1 84 -98.6 0\n1 98.6 -84 270\n1 108 -98.6 0\n1 98.6 -70 270\n1 122 -98.6 0\n27 98.6 -77 0"
+    }
+   }
+  },
+  {
+   "name": "Park fox 1",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 114,
+      "y": 0.26,
+      "z": -116
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.25,
+      "y": 0.52,
+      "z": 1.1
+     }
+    },
+    "Renderable": {
+     "mesh": 240,
+     "material": 0,
+     "visible": true
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 2
+    },
+    "Wildlife": {
+     "wary": 18,
+     "flee": 8,
+     "speed": 6,
+     "leash": 30
+    }
+   }
+  },
+  {
+   "name": "Park fox 2",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 74,
+      "y": 0.26,
+      "z": -80
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.25,
+      "y": 0.52,
+      "z": 1.1
+     }
+    },
+    "Renderable": {
+     "mesh": 240,
+     "material": 0,
+     "visible": true
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 2
+    },
+    "Wildlife": {
+     "wary": 18,
+     "flee": 8,
+     "speed": 6,
+     "leash": 30
+    }
+   }
+  },
+  {
+   "name": "Park deer",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 80,
+      "y": 0.875,
+      "z": -118
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 1.8
+     }
+    },
+    "Renderable": {
+     "mesh": 238,
+     "material": 0,
+     "visible": true
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 2
+    },
+    "Wildlife": {
+     "wary": 18,
+     "flee": 8,
+     "speed": 6,
+     "leash": 30
+    }
+   }
+  },
+  {
+   "name": "Traffic 1",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 139.47150400234386,
+      "y": 1.1973711783353311,
+      "z": -139.52849599765614
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2,
+      "y": 2.294742356670662,
+      "z": 5
+     }
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 0.7853981633974483,
+      "z": 0
+     }
+    },
+    "Renderable": {
+     "mesh": 227,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 22,
+     "acceleration": 5,
+     "braking": 18,
+     "grip": 1.1,
+     "driftGrip": 0.45,
+     "steering": 30,
+     "nitroBoost": 0,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "142,-137 142,-55 137,-50 55,-50 50,-55 50,-137 55,-142 137,-142",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.776887479564175
+    }
+   }
+  },
+  {
+   "name": "Traffic 2",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -49.26730075934902,
+      "y": 0.7596012874133788,
+      "z": 44.26730075934902
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.8500000000000003,
+      "y": 1.4192025748267576,
+      "z": 4.1
+     }
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 2.356194490192345,
+      "z": 0
+     }
+    },
+    "Renderable": {
+     "mesh": 220,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 22,
+     "acceleration": 5,
+     "braking": 18,
+     "grip": 1.1,
+     "driftGrip": 0.45,
+     "steering": 30,
+     "nitroBoost": 0,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "-46,41 -46,-137 -55,-146 -137,-146 -146,-137 -146,41 -137,50 -55,50",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.9196226278785616
+    }
+   }
+  },
+  {
+   "name": "Traffic 3",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 53.3934965361841,
+      "y": 1.1973711783353311,
+      "z": -140.3934965361841
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2,
+      "y": 2.294742356670662,
+      "z": 5
+     }
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 2.356194490192345,
+      "z": 0
+     }
+    },
+    "Renderable": {
+     "mesh": 227,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 22,
+     "acceleration": 5,
+     "braking": 18,
+     "grip": 1.1,
+     "driftGrip": 0.45,
+     "steering": 30,
+     "nitroBoost": 0,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "55,-142 137,-142 142,-137 142,41 137,46 55,46 50,41 50,-137",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.7829626972787083
+    }
+   }
+  },
+  {
+   "name": "Traffic 4",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 146,
+      "y": 0.7546996781292731,
+      "z": 44.97661127913743
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.9500000000000002,
+      "y": 1.409399356258546,
+      "z": 4.6
+     }
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 3.141592653589793,
+      "z": 0
+     }
+    },
+    "Renderable": {
+     "mesh": 222,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 22,
+     "acceleration": 5,
+     "braking": 18,
+     "grip": 1.1,
+     "driftGrip": 0.45,
+     "steering": 30,
+     "nitroBoost": 0,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "146,-41 137,-50 -41,-50 -50,-41 -50,137 -41,146 137,146 146,137",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.8985506127588451
+    }
+   }
+  },
+  {
+   "name": "Traffic 5",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 142,
+      "y": 0.7796373116000382,
+      "z": -66.73179168123751
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.95,
+      "y": 1.4592746232000764,
+      "z": 4.7
+     }
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "Renderable": {
+     "mesh": 224,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 22,
+     "acceleration": 5,
+     "braking": 18,
+     "grip": 1.1,
+     "driftGrip": 0.45,
+     "steering": 30,
+     "nitroBoost": 0,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "142,41 137,46 -41,46 -46,41 -46,-137 -41,-142 137,-142 142,-137",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.8552213590592146
+    }
+   }
+  },
+  {
+   "name": "Traffic 6",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 45.64442037018016,
+      "y": 0.7596012874133788,
+      "z": 141.35557962981983
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.8500000000000003,
+      "y": 1.4192025748267576,
+      "z": 4.1
+     }
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 2.356194490192345,
+      "z": 0
+     }
+    },
+    "Renderable": {
+     "mesh": 220,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 22,
+     "acceleration": 5,
+     "braking": 18,
+     "grip": 1.1,
+     "driftGrip": 0.45,
+     "steering": 30,
+     "nitroBoost": 0,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "50,137 50,55 41,46 -137,46 -146,55 -146,137 -137,146 41,146",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.8493475251831114
+    }
+   }
+  },
+  {
+   "name": "Traffic 7",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 52.683156424667686,
+      "y": 0.995563662572273,
+      "z": 139.6831564246677
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2,
+      "y": 1.891127325144546,
+      "z": 5.300000000000001
+     }
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": -2.356194490192345,
+      "z": 0
+     }
+    },
+    "Renderable": {
+     "mesh": 234,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 22,
+     "acceleration": 5,
+     "braking": 18,
+     "grip": 1.1,
+     "driftGrip": 0.45,
+     "steering": 30,
+     "nitroBoost": 0,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "50,137 50,55 55,50 137,50 142,55 142,137 137,142 55,142",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.8785090829711407
+    }
+   }
+  },
+  {
+   "name": "Traffic 8",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -46.87429172266275,
+      "y": 0.7050392646499367,
+      "z": 51.87429172266275
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.9500000000000002,
+      "y": 1.3100785292998733,
+      "z": 4.5
+     }
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": -0.7853981633974483,
+      "z": 0
+     }
+    },
+    "Renderable": {
+     "mesh": 221,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 22,
+     "acceleration": 5,
+     "braking": 18,
+     "grip": 1.1,
+     "driftGrip": 0.45,
+     "steering": 30,
+     "nitroBoost": 0,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "-50,55 -50,137 -41,146 41,146 50,137 50,55 41,46 -41,46",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.7723671381361783
+    }
+   }
+  },
+  {
+   "name": "Traffic 9",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -52.871575869619846,
+      "y": 0.7546996781292731,
+      "z": 52.128424130380154
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.9500000000000002,
+      "y": 1.409399356258546,
+      "z": 4.6
+     }
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 0.7853981633974483,
+      "z": 0
+     }
+    },
+    "Renderable": {
+     "mesh": 222,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 22,
+     "acceleration": 5,
+     "braking": 18,
+     "grip": 1.1,
+     "driftGrip": 0.45,
+     "steering": 30,
+     "nitroBoost": 0,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "-50,55 -50,137 -55,142 -137,142 -142,137 -142,55 -137,50 -55,50",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.775338314846158
+    }
+   }
+  },
+  {
+   "name": "Traffic 10",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 50,
+      "y": 0.7796373116000382,
+      "z": 3.406564161740242
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.95,
+      "y": 1.4592746232000764,
+      "z": 4.7
+     }
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 3.141592653589793,
+      "z": 0
+     }
+    },
+    "Renderable": {
+     "mesh": 224,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 22,
+     "acceleration": 5,
+     "braking": 18,
+     "grip": 1.1,
+     "driftGrip": 0.45,
+     "steering": 30,
+     "nitroBoost": 0,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "50,-41 41,-50 -41,-50 -50,-41 -50,41 -41,50 41,50 50,41",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.8027179645374417
+    }
+   }
+  },
+  {
+   "name": "Traffic 11",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 50,
+      "y": 0.995563662572273,
+      "z": 112.12356490194797
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2,
+      "y": 1.891127325144546,
+      "z": 5.300000000000001
+     }
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 3.141592653589793,
+      "z": 0
+     }
+    },
+    "Renderable": {
+     "mesh": 234,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 22,
+     "acceleration": 5,
+     "braking": 18,
+     "grip": 1.1,
+     "driftGrip": 0.45,
+     "steering": 30,
+     "nitroBoost": 0,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "50,55 55,50 137,50 142,55 142,137 137,142 55,142 50,137",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.7807057249359787
+    }
+   }
+  },
+  {
+   "name": "Traffic 12",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 45.780164941679686,
+      "y": 1.1973711783353311,
+      "z": -45.219835058320314
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2,
+      "y": 2.294742356670662,
+      "z": 5
+     }
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": -2.356194490192345,
+      "z": 0
+     }
+    },
+    "Renderable": {
+     "mesh": 227,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 22,
+     "acceleration": 5,
+     "braking": 18,
+     "grip": 1.1,
+     "driftGrip": 0.45,
+     "steering": 30,
+     "nitroBoost": 0,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "41,-50 -41,-50 -50,-41 -50,41 -41,50 41,50 50,41 50,-41",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.871556488936767
+    }
+   }
+  },
+  {
+   "name": "Traffic 13",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -142,
+      "y": 0.7796373116000382,
+      "z": 91.16976579446344
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 1.95,
+      "y": 1.4592746232000764,
+      "z": 4.7
+     }
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 3.141592653589793,
+      "z": 0
+     }
+    },
+    "Renderable": {
+     "mesh": 224,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 22,
+     "acceleration": 5,
+     "braking": 18,
+     "grip": 1.1,
+     "driftGrip": 0.45,
+     "steering": 30,
+     "nitroBoost": 0,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "-142,55 -137,50 -55,50 -50,55 -50,137 -55,142 -137,142 -142,137",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.9458731442224234
+    }
+   }
+  },
+  {
+   "name": "Traffic 14",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 140.8119820477441,
+      "y": 0.995563662572273,
+      "z": -49.811982047744095
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 2,
+      "y": 1.891127325144546,
+      "z": 5.300000000000001
+     }
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 2.356194490192345,
+      "z": 0
+     }
+    },
+    "Renderable": {
+     "mesh": 234,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 1300,
+     "inverseMass": 0.0007692307692307692,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Vehicle": {
+     "archetype": 0,
+     "model": "Arcade",
+     "topSpeed": 22,
+     "acceleration": 5,
+     "braking": 18,
+     "grip": 1.1,
+     "driftGrip": 0.45,
+     "steering": 30,
+     "nitroBoost": 0,
+     "nitroSeconds": 4,
+     "gears": 6
+    },
+    "Driver": {
+     "mode": "Traffic",
+     "route": "146,-55 146,-137 137,-146 55,-146 46,-137 46,-55 55,-46 137,-46",
+     "loop": true,
+     "target": "",
+     "skill": 0.6,
+     "aggression": 0.1,
+     "speedScale": 0.8371583383530379
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 1",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 137.6,
+      "y": 0.9,
+      "z": -41.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 244,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "137.6,41.6 54.4,43* 41.6,43 -41.6,41.6 -41.6,-41.6 41.6,-43* 54.4,-43 137.6,-41.6",
+     "speed": 1.5354050036054103,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 2",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 54.4,
+      "y": 0.9,
+      "z": 53
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 245,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "137.6,54.4 137.6,137.6 54.4,139* 41.6,139 -41.6,137.6 -41.6,54.4 41.6,53* 54.4,53",
+     "speed": 1.5474844458512962,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 3",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 41.6,
+      "y": 0.9,
+      "z": 54.4
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 246,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "41.6,137.6 -41.6,137.6 -41.6,54.4 41.6,54.4",
+     "speed": 1.5492441811831668,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 4",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 41.6,
+      "y": 0.9,
+      "z": 41.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 247,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "-41.6,41.6 -43,-41.6* -43,-54.4 -41.6,-137.6 41.6,-137.6 43,-54.4* 43,-41.6 41.6,41.6",
+     "speed": 1.2106215383741072,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 5",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 54.4,
+      "y": 0.9,
+      "z": -41.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 248,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "137.6,-41.6 137.6,41.6 54.4,41.6 54.4,-41.6",
+     "speed": 1.3544488406274466,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 6",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 54.4,
+      "y": 0.9,
+      "z": -137.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 249,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "137.6,-137.6 137.6,-54.4 54.4,-54.4 54.4,-137.6",
+     "speed": 1.460916793218348,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 7",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 53,
+      "y": 0.9,
+      "z": 41.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 250,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "54.4,-41.6 137.6,-41.6 139,41.6* 139,54.4 137.6,137.6 54.4,137.6 53,54.4* 53,41.6",
+     "speed": 1.4024433682556263,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 8",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 137.6,
+      "y": 0.9,
+      "z": -137.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 251,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "139,-54.4* 139,-41.6 137.6,41.6 54.4,41.6 53,-41.6* 53,-54.4 54.4,-137.6 137.6,-137.6",
+     "speed": 1.2843026762711816,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 9",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -54.4,
+      "y": 0.9,
+      "z": 137.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 252,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "-137.6,137.6 -137.6,54.4 -54.4,54.4 -54.4,137.6",
+     "speed": 1.4343126695021056,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 10",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 43,
+      "y": 0.9,
+      "z": 41.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 253,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "43,54.4 41.6,137.6 -41.6,139* -54.4,139 -137.6,137.6 -139,54.4* -139,41.6 -137.6,-41.6 -54.4,-43* -41.6,-43 41.6,-41.6 43,41.6*",
+     "speed": 1.21587785044685,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 11",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -41.6,
+      "y": 0.9,
+      "z": 41.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 254,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "-43,-41.6* -43,-54.4 -41.6,-137.6 41.6,-137.6 43,-54.4* 43,-41.6 41.6,41.6 -41.6,41.6",
+     "speed": 1.3016161528998054,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 12",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 137.6,
+      "y": 0.9,
+      "z": -137.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 244,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "137.6,-54.4 54.4,-54.4 54.4,-137.6 137.6,-137.6",
+     "speed": 1.443634841684252,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 13",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -54.4,
+      "y": 0.9,
+      "z": 41.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 245,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "-137.6,41.6 -139,-41.6* -139,-54.4 -137.6,-137.6 -54.4,-137.6 -53,-54.4* -53,-41.6 -54.4,41.6",
+     "speed": 1.2881756601389498,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 14",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -41.6,
+      "y": 0.9,
+      "z": 54.4
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 246,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "41.6,53* 54.4,53 137.6,54.4 137.6,137.6 54.4,139* 41.6,139 -41.6,137.6 -41.6,54.4",
+     "speed": 1.369588297989685,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 15",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 43,
+      "y": 0.9,
+      "z": -41.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 247,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "41.6,41.6 -41.6,43* -54.4,43 -137.6,41.6 -139,-41.6* -139,-54.4 -137.6,-137.6 -54.4,-139* -41.6,-139 41.6,-137.6 43,-54.4* 43,-41.6",
+     "speed": 1.2109617121168412,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 16",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 54.4,
+      "y": 0.9,
+      "z": 54.4
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 248,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "137.6,54.4 137.6,137.6 54.4,137.6 54.4,54.4",
+     "speed": 1.3088254401576704,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 17",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 43,
+      "y": 0.9,
+      "z": 54.4
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 249,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "41.6,137.6 -41.6,137.6 -43,54.4* -43,41.6 -41.6,-41.6 41.6,-41.6 43,41.6* 43,54.4",
+     "speed": 1.2621729769278318,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 18",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 41.6,
+      "y": 0.9,
+      "z": -137.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 250,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "41.6,-54.4 -41.6,-54.4 -41.6,-137.6 41.6,-137.6",
+     "speed": 1.2024177291779778,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 19",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -54.4,
+      "y": 0.9,
+      "z": 41.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 251,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "-137.6,41.6 -137.6,-41.6 -54.4,-41.6 -54.4,41.6",
+     "speed": 1.4656046975404022,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 20",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 137.6,
+      "y": 0.9,
+      "z": 54.4
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 252,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "137.6,137.6 54.4,137.6 54.4,54.4 137.6,54.4",
+     "speed": 1.3679498020326717,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 21",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 137.6,
+      "y": 0.9,
+      "z": -54.4
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 253,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "54.4,-53* 41.6,-53 -41.6,-54.4 -41.6,-137.6 41.6,-139* 54.4,-139 137.6,-137.6 137.6,-54.4",
+     "speed": 1.483837253053207,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 22",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -54.4,
+      "y": 0.9,
+      "z": -139
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 254,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "-41.6,-139 41.6,-137.6 43,-54.4* 43,-41.6 41.6,41.6 -41.6,43* -54.4,43 -137.6,41.6 -139,-41.6* -139,-54.4 -137.6,-137.6 -54.4,-139*",
+     "speed": 1.4807427099091,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 23",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 54.4,
+      "y": 0.9,
+      "z": 54.4
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 244,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "137.6,54.4 137.6,137.6 54.4,137.6 54.4,54.4",
+     "speed": 1.547736844222527,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 24",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 54.4,
+      "y": 0.9,
+      "z": 137.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 245,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "54.4,54.4 137.6,54.4 137.6,137.6 54.4,137.6",
+     "speed": 1.3723196896142325,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 25",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 54.4,
+      "y": 0.9,
+      "z": -137.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 246,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "137.6,-137.6 139,-54.4* 139,-41.6 137.6,41.6 54.4,41.6 53,-41.6* 53,-54.4 54.4,-137.6",
+     "speed": 1.4807547722477465,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 26",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -41.6,
+      "y": 0.9,
+      "z": -54.4
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 247,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "-41.6,-137.6 41.6,-139* 54.4,-139 137.6,-137.6 137.6,-54.4 54.4,-53* 41.6,-53 -41.6,-54.4",
+     "speed": 1.5055841660127043,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 27",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -137.6,
+      "y": 0.9,
+      "z": 137.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 248,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "-137.6,54.4 -54.4,54.4 -54.4,137.6 -137.6,137.6",
+     "speed": 1.4272584937280044,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 28",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 54.4,
+      "y": 0.9,
+      "z": -43
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 249,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "137.6,-41.6 137.6,41.6 54.4,43* 41.6,43 -41.6,41.6 -41.6,-41.6 41.6,-43* 54.4,-43",
+     "speed": 1.4438688790542074,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 29",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -41.6,
+      "y": 0.9,
+      "z": -41.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 250,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "41.6,-41.6 41.6,41.6 -41.6,41.6 -41.6,-41.6",
+     "speed": 1.4611989947850814,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 30",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 41.6,
+      "y": 0.9,
+      "z": -54.4
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 251,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "-41.6,-54.4 -41.6,-137.6 41.6,-137.6 41.6,-54.4",
+     "speed": 1.2368805668782443,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 31",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 139,
+      "y": 0.9,
+      "z": -41.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 252,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "137.6,41.6 54.4,41.6 53,-41.6* 53,-54.4 54.4,-137.6 137.6,-137.6 139,-54.4* 139,-41.6",
+     "speed": 1.209513973153662,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 32",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 53,
+      "y": 0.9,
+      "z": -41.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 253,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "53,-54.4 54.4,-137.6 137.6,-137.6 139,-54.4* 139,-41.6 137.6,41.6 54.4,41.6 53,-41.6*",
+     "speed": 1.4241098692640661,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 33",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 54.4,
+      "y": 0.9,
+      "z": -139
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 254,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "137.6,-137.6 139,-54.4* 139,-41.6 137.6,41.6 54.4,43* 41.6,43 -41.6,41.6 -43,-41.6* -43,-54.4 -41.6,-137.6 41.6,-139* 54.4,-139",
+     "speed": 1.5059002342284655,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 34",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 137.6,
+      "y": 0.9,
+      "z": 41.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 244,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "54.4,41.6 53,-41.6* 53,-54.4 54.4,-137.6 137.6,-137.6 139,-54.4* 139,-41.6 137.6,41.6",
+     "speed": 1.245962176239118,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 35",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 41.6,
+      "y": 0.9,
+      "z": -41.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 245,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "41.6,41.6 -41.6,41.6 -41.6,-41.6 41.6,-41.6",
+     "speed": 1.3629355614189989,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Pedestrian 36",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -41.6,
+      "y": 0.9,
+      "z": -41.6
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.75,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 246,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 0
+    },
+    "Walker": {
+     "route": "41.6,-43* 54.4,-43 137.6,-41.6 137.6,41.6 54.4,43* 41.6,43 -41.6,41.6 -41.6,-41.6",
+     "speed": 1.232469935400877,
+     "loop": true,
+     "follow": "",
+     "gap": 1.5
+    }
+   }
+  },
+  {
+   "name": "Dog 1",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 42.4,
+      "y": 0.3,
+      "z": 55.199999999999996
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.21,
+      "y": 0.59,
+      "z": 0.8
+     }
+    },
+    "Renderable": {
+     "mesh": 243,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 12,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 1
+    },
+    "Walker": {
+     "route": "",
+     "speed": 1.4,
+     "loop": true,
+     "follow": "Pedestrian 3",
+     "gap": 1.4
+    }
+   }
+  },
+  {
+   "name": "Dog 2",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 138.4,
+      "y": 0.3,
+      "z": -136.79999999999998
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.21,
+      "y": 0.59,
+      "z": 0.8
+     }
+    },
+    "Renderable": {
+     "mesh": 243,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 12,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 1
+    },
+    "Walker": {
+     "route": "",
+     "speed": 1.4,
+     "loop": true,
+     "follow": "Pedestrian 8",
+     "gap": 1.4
+    }
+   }
+  },
+  {
+   "name": "Dog 3",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -53.6,
+      "y": 0.3,
+      "z": 42.4
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.21,
+      "y": 0.59,
+      "z": 0.8
+     }
+    },
+    "Renderable": {
+     "mesh": 243,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 12,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 1
+    },
+    "Walker": {
+     "route": "",
+     "speed": 1.4,
+     "loop": true,
+     "follow": "Pedestrian 13",
+     "gap": 1.4
+    }
+   }
+  },
+  {
+   "name": "Dog 4",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 42.4,
+      "y": 0.3,
+      "z": -136.79999999999998
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.21,
+      "y": 0.59,
+      "z": 0.8
+     }
+    },
+    "Renderable": {
+     "mesh": 243,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 12,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 1
+    },
+    "Walker": {
+     "route": "",
+     "speed": 1.4,
+     "loop": true,
+     "follow": "Pedestrian 18",
+     "gap": 1.4
+    }
+   }
+  },
+  {
+   "name": "Dog 5",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 55.199999999999996,
+      "y": 0.3,
+      "z": 55.199999999999996
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.21,
+      "y": 0.59,
+      "z": 0.8
+     }
+    },
+    "Renderable": {
+     "mesh": 243,
+     "material": 0,
+     "visible": true
+    },
+    "RigidBody": {
+     "mass": 12,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "AIState": {
+     "state": "Walking"
+    },
+    "Pedestrian": {
+     "archetype": 1
+    },
+    "Walker": {
+     "route": "",
+     "speed": 1.4,
+     "loop": true,
+     "follow": "Pedestrian 23",
+     "gap": 1.4
+    }
+   }
+  },
+  {
+   "name": "Player",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -41.6,
+      "y": 0.9,
+      "z": 0
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Renderable": {
+     "mesh": 249,
+     "material": 0,
+     "visible": true
+    },
+    "Player": {},
+    "RigidBody": {
+     "mass": 75,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "CharacterController": {
+     "mode": "ThirdPerson",
+     "walkSpeed": 3.4,
+     "sprintSpeed": 7,
+     "crouchSpeed": 2.2,
+     "jumpHeight": 1,
+     "standHeight": 1.8,
+     "crouchHeight": 1.1,
+     "stepHeight": 0.5,
+     "acceleration": 30,
+     "airControl": 6,
+     "lookSensitivity": 1,
+     "invertY": false,
+     "fov": 75,
+     "headBob": 1
+    }
+   }
+  },
+  {
+   "name": "Camera",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -41.6,
+      "y": 4,
+      "z": -6
+     }
+    },
+    "Camera": {
+     "projection": "Perspective",
+     "fov": 60,
+     "near": 0.1,
+     "far": 800,
+     "orthoSize": 10,
+     "priority": 0
+    },
+    "CameraFollow": {
+     "target": "",
+     "offset": {
+      "x": 0,
+      "y": 2.2,
+      "z": -4.6
+     },
+     "smoothing": 0.12,
+     "lookHeight": 1.3,
+     "collision": true,
+     "orbit": true
+    }
+   }
+  }
+ ],
+ "prefabs": {}
+}

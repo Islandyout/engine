@@ -379,6 +379,15 @@ Engine version 0.79.0 starts **GATEBREAKER**, an original manhwa-style hunter ac
 
 See [F79](docs/changelog/F79.md).
 
+Engine version 0.86.0 makes towns **look and work like real ones**:
+
+- **Realistic models**: trees, animals, people and vehicles replace the kit's toy-like ones, and older scenes load with the replacements.
+- **Foliage by rule**: groves and clearings, spacing, altitude and ground layers, leaning grass, varied tints, and far LODs.
+- **Living streets**: junction lights that traffic stops for, people who cross at the crosswalks on the walk light, and dogs on leads.
+- **The City Template**, a working town to build a game on, from the [research](docs/world/CITY_TEMPLATE.md) into how games and planners build cities and what players want from them.
+
+See [F86](docs/changelog/F86.md).
+
 Engine version 0.85.0 makes **VELOCITY** a full superhero slice ([how to play](games/my-games/velocity/README.md)):
 
 - **Meridian Ward** in daylight, with a minimap and map.

@@ -271,7 +271,7 @@ const { chromium } = require("playwright");
     await page.locator("#catalog-add").click();
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".entity")].some((e) =>
-        e.textContent.includes("Cat"),
+        e.textContent.includes("Wolf"),
       ),
     );
     assert.equal(await page.locator(".entity").count(), 6);
@@ -1225,8 +1225,8 @@ const { chromium } = require("playwright");
     // F53: an Animator state machine on a real animated model. A trigger
     // set from on_start moves idle -> hop, the hop state's event reaches
     // on_anim_event, `end` returns to idle, and on_anim_state reports both.
-    const cat = await run({ command: "spawn_entity", name: "Animated Cat", transform: [6, 0.5, 6] });
-    await run({ command: "set_component", entity: cat.entity, type: "Renderable", value: { mesh: 105, material: 0, visible: true } });
+    const cat = await run({ command: "spawn_entity", name: "Animated Dog", transform: [6, 0.5, 6] });
+    await run({ command: "set_component", entity: cat.entity, type: "Renderable", value: { mesh: 243, material: 0, visible: true } });
     await page.waitForTimeout(1500); // let the model load so its clips exist
     await run({
       command: "set_component",

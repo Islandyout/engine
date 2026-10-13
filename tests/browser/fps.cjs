@@ -243,7 +243,7 @@ const { chromium } = require("playwright");
         size: 80, resolution: 33, height: 0, seed: 1, frequency: 1.5, octaves: 4, sculpt: "",
         grassColor: { x: 0.33, y: 0.48, z: 0.2 }, rockColor: { x: 0.42, y: 0.4, z: 0.38 },
         sandColor: { x: 0.76, y: 0.7, z: 0.5 }, snowColor: { x: 0.95, y: 0.96, z: 1 },
-        sandHeight: -2.5, snowHeight: 9, rockSlope: 0.82, scatter: "46 0.002 1 1 0.5 collide\n",
+        sandHeight: -2.5, snowHeight: 9, rockSlope: 0.82, scatter: "255 0.002 0.6 0.6 0.5 collide\n",
       },
     });
     await page.click("#play");

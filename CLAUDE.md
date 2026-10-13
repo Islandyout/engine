@@ -31,7 +31,7 @@ Generated files, regenerate rather than hand-edit:
 - `apps/editor/src/editor/runtimeExports.ts`: `node tools/bridge/gen_exports.mjs`
 - Lua API docs and stubs: `node tools/script_api/gen.mjs` (`--check` in CI)
 - `docs/COMPONENTS.md`: `cd apps/editor && npx tsx ../../tools/docs/gen_components.ts`
-- Game scenes: `cd apps/editor && npm run gatebreaker` (and `fps`, `space`, `racing`, `velocity`)
+- Game scenes: `cd apps/editor && npm run gatebreaker` (and `fps`, `space`, `racing`, `velocity`, `city`)
 
 ## Rules
 
