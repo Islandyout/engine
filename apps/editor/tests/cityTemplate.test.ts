@@ -5,9 +5,26 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { validateSceneDocument } from "../src/scene/SceneSerializer";
-import { parseModelInstances } from "../src/editor/modelInstances";
+import { instanceBox, parseModelInstances } from "../src/editor/modelInstances";
+import { modelCatalog } from "../src/scene/modelCatalog";
 
 const committed = new URL("../../../examples/city/city-template.json", import.meta.url);
+// A catalog model's size, from its GLB's position bounds (as the editor's
+// nativeSize).
+function modelSize(id: number) {
+  const entry = modelCatalog.find((m) => m.id === id)!;
+  const bytes = readFileSync(new URL(`../../../assets/source/${entry.path.replace(/^\.\//, "")}`, import.meta.url));
+  const json = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString("utf8"));
+  const min = [Infinity, Infinity, Infinity],
+    max = [-Infinity, -Infinity, -Infinity];
+  for (const mesh of json.meshes)
+    for (const p of mesh.primitives)
+      for (let k = 0; k < 3; k++) {
+        min[k] = Math.min(min[k]!, json.accessors[p.attributes.POSITION].min[k]);
+        max[k] = Math.max(max[k]!, json.accessors[p.attributes.POSITION].max[k]);
+      }
+  return { x: max[0]! - min[0]!, y: max[1]! - min[1]!, z: max[2]! - min[2]! };
+}
 type Entity = { name: string; components: Record<string, any> };
 
 test("examples/city/city-template.json is what tools/city/build_city_template.ts generates", () => {
@@ -53,6 +70,32 @@ test("the City Template keeps the rules of a real street", () => {
           z = p.xz[1] + (q.xz[1] - p.xz[1]) * t;
         if (onSidewalk(x, z)) continue;
         assert.ok(p.kerb && toJunction(x, z) < 11, `${w.name}: walks in the road at (${x.toFixed(1)}, ${z.toFixed(1)}) away from a crosswalk`);
+      }
+    });
+  }
+  // Nothing solid stands on a walker's line: people are 0.6 m across, and
+  // a shelter or trunk on the line stops them for good.
+  const solids = entities.flatMap((e) => {
+    if (!e.components.ModelInstances) return [];
+    const at = e.components.Transform?.position ?? { x: 0, z: 0 };
+    return parseModelInstances(e.components.ModelInstances.instances)
+      .instances.filter((i) => i.solid)
+      .map((i) => {
+        const box = instanceBox(i, modelSize(i.model));
+        return { model: i.model, x: at.x + box.x, z: at.z + box.z, hx: box.sx / 2 + 0.3, hz: box.sz / 2 + 0.3 };
+      });
+  });
+  for (const w of walkers) {
+    const pts = w.components.Walker.route.split(" ").map((t: string) => t.replace("*", "").split(",").map(Number) as [number, number]);
+    pts.forEach((p: [number, number], k: number) => {
+      const q = pts[(k + 1) % pts.length]!;
+      const near = solids.filter((b) => Math.min(p[0], q[0]) - b.hx < b.x && b.x < Math.max(p[0], q[0]) + b.hx && Math.min(p[1], q[1]) - b.hz < b.z && b.z < Math.max(p[1], q[1]) + b.hz);
+      const steps = Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 0.2);
+      for (let n = 0; n <= steps; n++) {
+        const x = p[0] + ((q[0] - p[0]) * n) / steps,
+          z = p[1] + ((q[1] - p[1]) * n) / steps;
+        const hit = near.find((b) => Math.abs(x - b.x) < b.hx && Math.abs(z - b.z) < b.hz);
+        assert.ok(!hit, `${w.name}: model ${hit?.model} at (${hit?.x.toFixed(1)}, ${hit?.z.toFixed(1)}) blocks the route at (${x.toFixed(1)}, ${z.toFixed(1)})`);
       }
     });
   }

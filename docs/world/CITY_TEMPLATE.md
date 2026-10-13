@@ -51,7 +51,7 @@ We read human-written discussion: GTAForums, Steam and GameFAQs boards, ResetEra
 |---|---|---|
 | Road spacing (centre to centre) | 96 m (80 m blocks) | `GRID` |
 | Carriageway | 2 lanes × 4 m; right-hand traffic, lane line 2 m off centre | kit tile, `LANE` |
-| Sidewalk | 4 m: furniture zone at 0.8 m from the kerb, people walk at 2.4 m | `FURNITURE`, `THROUGH` |
+| Sidewalk | 4 m: furniture zone at 0.8 m from the kerb, people walk at 2.6 m | `FURNITURE`, `THROUGH` |
 | Stop line | 7 m from the junction centre (before the crosswalk) | `STOP`, `TrafficSignal.radius` |
 | Signal cycle | 14 s green, 3 s yellow, 2 s all red per road (38 s) | `TrafficSignal` |
 | Green wave | offset = travel time between junctions at ~11 m/s | `buildCity` |
@@ -61,7 +61,7 @@ We read human-written discussion: GTAForums, Steam and GameFAQs boards, ResetEra
 | Street trees | every 10 m in the furniture zone; none within 10 m of a junction (sight triangle), 4 m of a hydrant or 6 m of a bus stop; none on industrial streets | `streetSide` |
 | Lamps | midway between every third pair of trees | `streetSide` |
 | Hydrant | one per block side, ~10 m from the corner | `streetSide` |
-| Bus stops | on downtown and mixed streets, past the first junction, with a bin | `streetSide` |
+| Bus stops | on downtown and mixed streets, past the first junction, with a bin; the shelter stands at the kerb, clear of the through zone | `streetSide` |
 | Parking | courtyard lots only: 2.6 × 5.5 m stalls on a 6 m aisle, ~70% full; never in a traffic lane | `buildCity` |
 | Building setback | 0.5 m commercial, 4 m residential (front gardens) | `buildCity` |
 | Zoning | downtown (towers, offices) centre; mixed (shops, apartments) round it; residential outside; industrial (warehouses, garages) on an edge; one park | `defaultZones` |

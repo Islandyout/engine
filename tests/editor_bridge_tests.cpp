@@ -1820,7 +1820,9 @@ int main() {
         editor_set_driver_text(1, 0, "2,-40 2,80");
         // 2: someone at the south-west kerb, crossing north over the road
         // along x (so with the z traffic's green), then on up the sidewalk.
-        check(editor_add(-10, 0.9, -7, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        // A solid, dynamic pedestrian, as the City Template's people are.
+        check(editor_add(-10, 0.9, -7, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0.5, 0, 0) == 1);
+        editor_set_body(2, 1, 70, 1);
         editor_set_walker(2, "-10,-7* -10,7 -10,20", 1.4, 0, "", 1.5);
         // 3: a dog on a lead behind them.
         check(editor_add(-10, 0.4, -9, 0, 0, 0, 0.3, 0.6, 0.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -1833,7 +1835,8 @@ int main() {
         // At 12 s the light along z is still red: the car waits at its line.
         check(editor_signal_state(0) % 3 == 2);
         check(editor_value(1, 2) < -9.5 && editor_value(1, 2) > -20 && editor_vehicle_value(1, 0) < 0.5);
-        check(editor_walker_waiting(2) == 1 && editor_value(2, 2) < -6); // waiting at the kerb
+        // Waiting at the kerb, standing still there.
+        check(editor_walker_waiting(2) == 1 && std::abs(editor_value(2, 2) + 7) < 0.5 && std::abs(editor_value(2, 0) + 10) < 0.5);
         for (int i = 0; i < 60 * 14; ++i)
             editor_tick();
         // Green from 15 s: the car is through, the walker across, the dog behind.

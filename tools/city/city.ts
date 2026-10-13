@@ -42,7 +42,7 @@ export const GRID = 96; // road centre to road centre: 80 m blocks
 export const LANE = 2; // lane centre from the road's centre line
 export const KERB = 4; // carriageway half width
 export const FURNITURE = KERB + 0.8; // furniture zone line (trees, lamps)
-export const THROUGH = KERB + 2.4; // where people walk
+export const THROUGH = KERB + 2.6; // where people walk, clear of the bus shelters
 export const CROSSWALK = KERB + 1; // where they cross, from the junction's centre
 export const STOP = 7; // stop lines from a junction's centre
 
@@ -312,10 +312,11 @@ export function buildCity(scene: SceneBuilder, options: CityOptions): City {
     const hydrant = start;
     furniture.put(M.hydrant, ...p(hydrant), faceRoad);
     // A bus stop on the far side of the first junction, on the busier
-    // streets (downtown and mixed); a bench and a bin beside it.
+    // streets (downtown and mixed); a bench and a bin beside it. The
+    // shelter (2.1 m deep) stands at the kerb, out of the through zone.
     const stopAt = zone === "downtown" || zone === "mixed" ? start + 14 : undefined;
     if (stopAt !== undefined) {
-      street.put(M.busstop, ...p(stopAt, 1.6), faceRoad + 180, "solid");
+      street.put(M.busstop, ...p(stopAt, KERB + 1 - FURNITURE), faceRoad + 180, "solid");
       furniture.put(M.bin, ...p(stopAt + 3.2), 0);
     }
     // Trees every 10 m (not by the hydrant, the stop or a park's crosswalk),
@@ -444,28 +445,37 @@ export function buildCity(scene: SceneBuilder, options: CityOptions): City {
     const pts: string[] = [];
     const add = (x: number, z: number, kerb = false) => pts.push(`${fmt(x)},${fmt(z)}${kerb ? "*" : ""}`);
     // Each crossing steps onto the crosswalk (CROSSWALK from the
-    // junction's centre), waits at the kerb, crosses, and steps back.
+    // junction's centre), waits at the kerb, crosses, and steps back
+    // onto the walking line.
     const c = CROSSWALK;
     // North edge, west to east, crossing each street at x = xs[i].
     add(xa, za);
     for (let i = i0 + 1; i < i1; i++) {
+      add(xs[i]! - THROUGH, za);
       add(xs[i]! - THROUGH, zs[j0]! + c, true);
       add(xs[i]! + THROUGH, zs[j0]! + c);
+      add(xs[i]! + THROUGH, za);
     }
     add(xb, za);
     for (let j = j0 + 1; j < j1; j++) {
+      add(xb, zs[j]! - THROUGH);
       add(xs[i1]! - c, zs[j]! - THROUGH, true);
       add(xs[i1]! - c, zs[j]! + THROUGH);
+      add(xb, zs[j]! + THROUGH);
     }
     add(xb, zb);
     for (let i = i1 - 1; i > i0; i--) {
+      add(xs[i]! + THROUGH, zb);
       add(xs[i]! + THROUGH, zs[j1]! - c, true);
       add(xs[i]! - THROUGH, zs[j1]! - c);
+      add(xs[i]! - THROUGH, zb);
     }
     add(xa, zb);
     for (let j = j1 - 1; j > j0; j--) {
+      add(xa, zs[j]! + THROUGH);
       add(xs[i0]! + c, zs[j]! + THROUGH, true);
       add(xs[i0]! + c, zs[j]! - THROUGH);
+      add(xa, zs[j]! - THROUGH);
     }
     return pts.join(" ");
   };
@@ -482,14 +492,18 @@ export function buildCity(scene: SceneBuilder, options: CityOptions): City {
     const c = CROSSWALK;
     add(THROUGH, cross[a]! + c);
     for (let k = a + 1; k < b; k++) {
+      add(THROUGH, cross[k]! - THROUGH);
       add(c, cross[k]! - THROUGH, true);
       add(c, cross[k]! + THROUGH);
+      add(THROUGH, cross[k]! + THROUGH);
     }
     add(THROUGH, cross[b]! - c, true);
     add(-THROUGH, cross[b]! - c);
     for (let k = b - 1; k > a; k--) {
+      add(-THROUGH, cross[k]! + THROUGH);
       add(-c, cross[k]! + THROUGH, true);
       add(-c, cross[k]! - THROUGH);
+      add(-THROUGH, cross[k]! - THROUGH);
     }
     add(-THROUGH, cross[a]! + c, true);
     return pts.join(" ");
@@ -510,10 +524,20 @@ export function buildCity(scene: SceneBuilder, options: CityOptions): City {
         j1 = Math.min(nz, j0 + 1 + Math.floor(rand() * 2));
       route = walkLoop(i0, j0, i1, j1);
     }
-    // Start at one of the route's points, heading round it.
+    // Start somewhere along the loop (not in a crosswalk), mid-stride.
     const points = route.split(" ");
-    const startAt = Math.floor(rand() * points.length);
-    const [sx, sz] = points[startAt]!.replace("*", "").split(",").map(Number) as [number, number];
+    const xy = points.map((t) => t.replace("*", "").split(",").map(Number) as [number, number]);
+    const leg = (k: number) => Math.hypot(xy[(k + 1) % xy.length]![0] - xy[k]![0], xy[(k + 1) % xy.length]![1] - xy[k]![1]);
+    let along = rand() * xy.reduce((sum, _, k) => sum + leg(k), 0);
+    let startAt = 0;
+    while (along > leg(startAt)) along -= leg(startAt++);
+    if (points[startAt]!.endsWith("*")) {
+      startAt = (startAt + 1) % xy.length;
+      along = 0;
+    }
+    const next = xy[(startAt + 1) % xy.length]!;
+    const f = along / Math.max(leg(startAt), 1e-6);
+    const [sx, sz] = [xy[startAt]![0] + (next[0] - xy[startAt]![0]) * f, xy[startAt]![1] + (next[1] - xy[startAt]![1]) * f];
     const rotated = [...points.slice(startAt + 1), ...points.slice(0, startAt + 1)].join(" ");
     const mesh = M.people[k % M.people.length]!;
     const name = `Pedestrian ${k + 1}`;
