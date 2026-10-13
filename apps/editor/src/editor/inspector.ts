@@ -320,8 +320,14 @@ export function renderInspector(inspector: HTMLElement, entity: EntityRef, conte
     for (const type of available) optgroup.append(new Option(componentLabel(type), type));
     add.add(optgroup);
   }
+  // A component just added opens, whatever its type's remembered state.
+  const attach = (type: string) => {
+    openState = { ...openState!, [type]: true };
+    saveOpenState(openState);
+    execute({ command: "attach_component", entity, type });
+  };
   add.onchange = () => {
-    if (add.value) execute({ command: "attach_component", entity, type: add.value });
+    if (add.value) attach(add.value);
   };
   // Or search for one by name (or by its group: "physics", "audio"...).
   const findComponent = searchBox({
@@ -333,7 +339,7 @@ export function renderInspector(inspector: HTMLElement, entity: EntityRef, conte
           .filter((type) => !doc.scene.effectiveHas(entity, type as keyof SceneComponents))
           .map((type) => ({ label: componentLabel(type), detail: group.label, keywords: [type, group.label], type })),
       ),
-    pick: (item) => execute({ command: "attach_component", entity, type: item.type }),
+    pick: (item) => attach(item.type),
   });
   findComponent.classList.add("inspector-add-search");
   inspector.append(findComponent, add);

@@ -154,13 +154,13 @@ async function serveSite() {
       await find.press("Enter");
       const particles = page.locator('#inspector details[data-type="Particles"]');
       await particles.waitFor();
-      assert.equal(await particles.evaluate((d) => d.open), false, "a non-main component starts collapsed");
+      assert.equal(await particles.evaluate((d) => d.open), true, "a component just added opens");
       assert.equal(await page.locator('#inspector details[data-type="Transform"]').evaluate((d) => d.open), true, "Transform starts open");
       await particles.locator("summary").click();
-      await page.waitForFunction(() => document.querySelector('#inspector details[data-type="Particles"]')?.open);
+      await page.waitForFunction(() => document.querySelector('#inspector details[data-type="Particles"]')?.open === false);
       // Remembered across selections and edits.
       await run(page, { command: "attach_component", entity: { index: 0, generation: 0 }, type: "Particles" });
-      await page.waitForFunction(() => document.querySelector('#inspector details[data-type="Particles"]')?.open === true);
+      await page.waitForFunction(() => document.querySelector('#inspector details[data-type="Particles"]')?.open === false);
       await page.getByRole("button", { name: "Collapse all" }).click();
       assert.deepEqual([...new Set(await page.locator("#inspector details.component-card").evaluateAll((ds) => ds.map((d) => d.open)))], [false]);
       await page.getByRole("button", { name: "Expand all" }).click();
