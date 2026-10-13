@@ -103,6 +103,8 @@ const metadata: Record<string, PropertyMetadata> = {
   "AICombat.fleeHealth": { label: "Flee below health (0-1, 0 = never)", step: "0.05" },
   "AICombat.meleeDamage": { label: "Melee damage (without Weapons)", step: "1" },
   "Weapons.loadout": { label: "Loadout (name: key=value ...)", multiline: true },
+  "Weapons.aimAssist": { label: "Aim assist (0 off - 1)", step: "0.05" },
+  "Weapons.assistRange": { label: "Aim assist range (m)", step: "1" },
   "Melee.style": { options: choice(["Martial arts", "Sword", "Custom"]) },
   "Melee.moves": { label: "Moves (Custom style; name: key=value ...)", multiline: true },
   "Melee.team": { label: "Team (Player is 0)", step: "1" },

@@ -33,6 +33,7 @@ export interface PlayerSettings {
   flash: number; // impact-frame flashes, 0..1
   shake: boolean; // camera shake
   blockToggle: boolean; // block: one press raises it, the next lowers it
+  aimAssist: boolean; // a scene's Weapons aim assist (off: none at all)
   minimapSize: MinimapSize; // read by the minimap
 }
 
@@ -54,6 +55,7 @@ export const defaultSettings: PlayerSettings = {
   flash: 1,
   shake: true,
   blockToggle: false,
+  aimAssist: true,
   minimapSize: "medium",
 };
 
@@ -81,6 +83,7 @@ export function parseSettings(text: string | null): PlayerSettings {
       flash: clampNumber(v.flash, 0, 1, d.flash),
       shake: v.shake !== false,
       blockToggle: v.blockToggle === true,
+      aimAssist: v.aimAssist !== false,
       minimapSize: v.minimapSize === "small" || v.minimapSize === "large" ? v.minimapSize : "medium",
     };
   } catch {
@@ -358,7 +361,7 @@ export function openSettingsPanel(root: HTMLElement, settings: PlayerSettings, o
     input.oninput = () => update({ [key]: Number(input.value) });
     panel.append(row(text, input));
   };
-  type BoolKey = "invertY" | "reducedMotion" | "minimap" | "footprints" | "shake";
+  type BoolKey = "invertY" | "reducedMotion" | "minimap" | "footprints" | "shake" | "aimAssist";
   const check = (key: BoolKey, text: string) => {
     const box = document.createElement("input");
     box.type = "checkbox";
@@ -389,6 +392,7 @@ export function openSettingsPanel(root: HTMLElement, settings: PlayerSettings, o
   section("Controls");
   slider("sensitivity", "Look sensitivity", 0.5, 1.5);
   check("invertY", "Invert look Y");
+  check("aimAssist", "Aim assist (gamepad and touch; lighter with a mouse)");
   const rows = options.bindings ? bindingRows(options.bindings) : [];
   if (rows.some((r) => r.action === "block"))
     choice("Block", settings.blockToggle ? "toggle" : "hold", [["hold", "Hold"], ["toggle", "Toggle (press again to lower)"]], (v) => update({ blockToggle: v === "toggle" }));

@@ -240,6 +240,136 @@ export const sceneTemplates: SceneTemplate[] = [
       ],
     },
   },
+  {
+    id: "combat-range",
+    name: "Combat range",
+    description:
+      "Third-person shooting: an over-the-shoulder camera, every imported gun held in two hands, aim assist on a gamepad or touch screen, hostile targets down three lanes, and a sparring ring with sword, sword and shield, dagger and bare-hand fighters.",
+    scene: {
+      format: 1,
+      name: "Combat range",
+      entities: [
+        { name: "Environment", components: { Environment: { sky: "Procedural", shadows: true, sunElevation: 38, sunAzimuth: 150 } } },
+        ground(45),
+        // Three lanes downrange (-z), split by low walls, with cover.
+        ...[-6, 6].map((x, i) => box(`Lane Wall ${i + 1}`, [x, 0.5, -20], [0.4, 1, 30], [0.62, 0.6, 0.55], fixed)),
+        ...[
+          [-9, -9],
+          [0, -14],
+          [9, -9],
+          [-3, -24],
+          [4, -28],
+        ].map(([x, z], i) => box(`Cover ${i + 1}`, [x!, 0.6, z!], [2, 1.2, 0.6], [0.5, 0.42, 0.3], fixed)),
+        box("Backstop", [0, 3, -37], [20, 6, 1], [0.4, 0.38, 0.36], fixed),
+        // Hostile targets: soldiers (team 1) that hold still until shot.
+        ...[
+          [-9, -12],
+          [0, -18],
+          [9, -12],
+          [-3, -30],
+          [5, -33],
+        ].map(([x, z], i) => ({
+          name: `Target ${i + 1}`,
+          components: {
+            ...at(x!, 0.9, z!),
+            ...size(0.6, 1.8, 0.6),
+            Renderable: { mesh: 132, material: 0, visible: true },
+            Material: { color: { x: 0.85, y: 0.25, z: 0.2 }, keepTextures: true, parts: "" },
+            RigidBody: { mass: 70, dynamic: true },
+            Collider: { type: "AABB" },
+            Health: { current: 100, maximum: 100 },
+            AICombat: { team: 1, behavior: "Guard", sightRange: 4, hearingRange: 0, moveSpeed: 1.2, meleeDamage: 4, useCover: false },
+          },
+        })),
+        // The range staff (team 0, the Player's side), on the pedestrian rig:
+        // a rifle and a revolver in their hands.
+        ...[
+          { name: "Range Officer", mesh: 248, x: -12, loadout: "carbine: model=rifle held=carbine-2 mode=auto rpm=700 damage=20 mag=30" },
+          { name: "Instructor", mesh: 249, x: 12, loadout: "revolver: model=pistol held=revolver-1 rpm=150 damage=60 mag=6" },
+        ].map(({ name, mesh, x, loadout }) => ({
+          name,
+          components: {
+            ...at(x, 0.9, -2),
+            ...size(0.6, 1.8, 0.6),
+            Rotation: { euler: { x: 0, y: Math.PI, z: 0 } },
+            Renderable: { mesh, material: 0, visible: true },
+            RigidBody: { mass: 70, dynamic: true },
+            Collider: { type: "AABB" },
+            AICombat: { team: 0, behavior: "Guard", sightRange: 1, hearingRange: 0 },
+            Weapons: { loadout },
+          },
+        })),
+        {
+          name: "Player",
+          components: {
+            ...at(0, 0.9, 0),
+            ...size(0.6, 1.8, 0.6),
+            // Facing downrange (-z).
+            Rotation: { euler: { x: 0, y: Math.PI, z: 0 } },
+            Renderable: { mesh: 132, material: 0, visible: true },
+            Player: {},
+            RigidBody: { mass: 70, dynamic: true },
+            Collider: { type: "AABB" },
+            CharacterController: { mode: "ThirdPerson" },
+            Health: { current: 200, maximum: 200 },
+            Weapons: {
+              loadout: [
+                "pistol: model=pistol held=pistol-1 mode=semi rpm=380 damage=34 mag=12 reserve=-1 reload=1.3 spread=1.6 aim_spread=0.3 recoil=1.8 range=120 falloff=30 zoom=0.85 equip=0.3",
+                "smg: model=smg held=smg-2 mode=auto rpm=850 damage=17 mag=32 reserve=192 reload=1.8 spread=2.6 aim_spread=0.6 recoil=0.6 range=90 falloff=25 zoom=0.85",
+                "rifle: model=rifle held=rifle-2 mode=auto rpm=620 damage=24 mag=30 reserve=180 reload=2.1 spread=2.2 aim_spread=0.35 recoil=0.9 range=200 falloff=45 zoom=0.75",
+                "shotgun: model=shotgun held=shotgun-1 mode=semi rpm=80 pellets=9 damage=12 mag=6 reserve=36 reload=0.5 per_shell spread=6 aim_spread=4.5 recoil=4.5 range=45 falloff=10 min_damage=0.2 zoom=0.9 equip=0.5",
+                "sniper: model=sniper held=sniper-2 mode=semi rpm=45 damage=95 mag=5 reserve=25 reload=2.6 spread=3 aim_spread=0.05 recoil=3.5 range=400 falloff=200 zoom=0.35 equip=0.6",
+              ].join("\n"),
+              aimAssist: 0.6,
+            },
+          },
+        },
+        followCamera({ x: 0, y: 2.2, z: -4 }, { orbit: true, lookHeight: 1.4 }),
+        // The gun wall behind the firing line: all forty guns, by class.
+        box("Gun Wall", [0, 1.6, 8.2], [26, 3.2, 0.2], [0.3, 0.32, 0.34], fixed),
+        ...Array.from({ length: 40 }, (_, i) => ({
+          name: `Wall Gun ${i + 1}`,
+          components: {
+            ...at(-11.25 + (i % 10) * 2.5, 2.6 - Math.floor(i / 10) * 0.6, 7.95),
+            Rotation: { euler: { x: 0, y: Math.PI / 2, z: 0 } },
+            Renderable: { mesh: 262 + i, material: 0, visible: true },
+          },
+        })),
+        // The sparring ring: one loadout each, fighting each other.
+        { name: "Ring", components: { ...at(30, 0.03, -6), ...size(10, 0.06, 10), ...fixed, Renderable: { mesh: 0, material: 0, visible: true }, ...color(0.55, 0.16, 0.12) } },
+        ...[
+          { name: "Sword and Shield", x: 28, z: -8, team: 2, rightHand: 205, leftHand: 212 },
+          { name: "Sword", x: 32, z: -8, team: 3, rightHand: 205, leftHand: 0 },
+          { name: "Dagger", x: 28, z: -4, team: 3, rightHand: 0, leftHand: 203 },
+          { name: "Bare Hands", x: 32, z: -4, team: 2, rightHand: 0, leftHand: 0 },
+        ].map(({ name, x, z, team, rightHand, leftHand }) => ({
+          name,
+          components: {
+            ...at(x, 0.9, z),
+            ...size(0.6, 1.8, 0.6),
+            Renderable: { mesh: 132, material: 0, visible: true },
+            RigidBody: { mass: 70, dynamic: true },
+            Collider: { type: "AABB" },
+            Health: { current: 400, maximum: 400 },
+            Melee: { team, ai: true, aggression: 0.5, skill: 0.6, rightHand, leftHand, shield: leftHand === 212, style: rightHand ? "Sword" : "Martial arts" },
+          },
+        })),
+        {
+          name: "Controls",
+          components: {
+            UI: {
+              text: "Left click fire · right click aim · R reload · 1-5 guns · V shoulder · Shift run",
+              anchor: "bottom-center",
+              offsetY: -16,
+              fontSize: 14,
+              color: { x: 1, y: 1, z: 1 },
+              opacity: 0.8,
+            },
+          },
+        },
+      ],
+    },
+  },
 ];
 
 const isPlain = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);

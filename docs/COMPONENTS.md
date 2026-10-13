@@ -152,7 +152,9 @@ Guns the entity carries.
 
 | Field | Default | Notes |
 |---|---|---|
-| `loadout` | "rifle: model=rifle mode=auto rpm=620 da… | Loadout (name: key=value ...). One weapon per line: name: key=value ... (damage, rate, range, magazine, ...). |
+| `loadout` | "rifle: model=rifle mode=auto rpm=620 da… | Loadout (name: key=value ...). One weapon per line: name: key=value ... (damage, rate, range, magazine, held gun, ...). |
+| `aimAssist` | 0.6 | Aim assist (0 off - 1). How much a gamepad or touch player is helped onto hostile targets: slowdown, pull and a snap on aim. A mouse gets a lighter slowdown only. |
+| `assistRange` | 60 | Aim assist range (m). Hostile targets farther than this get no aim assist. |
 
 ### Melee
 

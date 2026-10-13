@@ -54,6 +54,8 @@ export interface CombatHud {
   health: number; // 0..1, or < 0 without Health
   slot: number;
   weaponNames: string[];
+  // A hostile is under the crosshair: it turns red.
+  onTarget?: boolean;
 }
 
 function radialTexture(inner: string, outer: string, size = 64) {
@@ -534,9 +536,11 @@ export class WeaponFx {
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, width, height);
     }
-    // Crosshair: four lines whose gap follows the real spread cone.
-    ctx.strokeStyle = "rgba(255,255,255,0.92)";
-    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    // Crosshair: four lines whose gap follows the real spread cone, red
+    // over a hostile.
+    const crosshair = hud.onTarget ? "rgba(255,70,60,0.95)" : "rgba(255,255,255,0.92)";
+    ctx.strokeStyle = crosshair;
+    ctx.fillStyle = crosshair;
     ctx.lineWidth = 2;
     if (hud.aiming) {
       ctx.beginPath();

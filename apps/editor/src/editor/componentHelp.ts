@@ -69,7 +69,9 @@ export const fieldHelp: Record<string, string> = {
   "Driver.route": "Waypoints as x,z pairs separated by spaces.",
   "AICombat.patrol": "Entity names to walk between, comma-separated.",
   "CameraFollow.target": "The name of the entity to follow; empty follows the Player.",
-  "Weapons.loadout": "One weapon per line: name: key=value ... (damage, rate, range, magazine, ...).",
+  "Weapons.loadout": "One weapon per line: name: key=value ... (damage, rate, range, magazine, held gun, ...).",
+  "Weapons.aimAssist": "How much a gamepad or touch player is helped onto hostile targets: slowdown, pull and a snap on aim. A mouse gets a lighter slowdown only.",
+  "Weapons.assistRange": "Hostile targets farther than this get no aim assist.",
   "Melee.style": "Martial arts and Sword are built-in move lists; Custom uses the Moves text below.",
   "Melee.moves":
     "One move per line: name: clip=... input=light|heavy|kick|special|dodge|skill1|skill2|skill3|ultimate after=a|b seq=bf dur= hit=a-b cancel= dmg= reach= knock= launch= stun= lunge= cost= ... (see docs/COMBAT.md).",

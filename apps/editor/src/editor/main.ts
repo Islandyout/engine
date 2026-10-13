@@ -121,6 +121,8 @@ import {
 } from "./terrain";
 import { buildScatter, buildTerrainMesh, disposeTerrainMesh, scatterObstacle, shapeTerrain, updateScatterLod, type ScatterModel, type TerrainLook } from "./terrainMesh";
 import { defaultEnvironment } from "../authoring/CommandInterpreter";
+import { GunPose, gunModel, heldGunName, loadoutGun } from "./gunHold";
+import { ShooterView, aimDeviceCode } from "./shooterView";
 import "./style.css";
 
 // Each preset's emission shape/motion. `direction` is the base emit
@@ -482,6 +484,30 @@ async function startEditor() {
     previous: new THREE.Vector3(),
     current: new THREE.Vector3(),
   };
+  // Third-person shooting (shooterView.ts, gunHold.ts): a Player with a
+  // ThirdPerson controller and Weapons aims over the shoulder, and every
+  // character with Weapons holds its current gun.
+  const tps = {
+    view: new ShooterView(),
+    camera: new THREE.PerspectiveCamera(60, 1, 0.05, 2000),
+    kick: 0,
+    lastFire: -Infinity,
+    aimWasDown: false,
+    // Aim assist's look slowdown for the next look input, and the hostile
+    // under the crosshair (-1 none).
+    lookScale: 1,
+    over: -1,
+    padSwap: false,
+    // Hits and kills this Play, for the HUD's hit markers and tests.
+    hits: 0,
+    kills: 0,
+  };
+  // Characters holding a gun, by object index, and the gun each holds.
+  const gunPoses = new Map<number, { pose: GunPose; gun: string; raised: number; kick: number }>();
+  function shooterActive(): boolean {
+    if (doc.mode === "edit" || playerIndex < 0 || playerController()?.mode !== "ThirdPerson") return false;
+    return runtime._editor_weapon_value(playerIndex, 5) > 0 && runtime._editor_controlled_player() === playerIndex;
+  }
   function playerController() {
     if (playerIndex < 0) return undefined;
     const entity = doc.scene.eachAlive()[playerIndex];
@@ -547,6 +573,7 @@ async function startEditor() {
     if (doc.mode === "edit") return undefined;
     if (firstPerson()) return placeFirstPerson(rig.frameDt);
     if (deathView()) return placeDeathView(rig.frameDt);
+    if (shooterActive() && objects[playerIndex]) return placeShooterCamera(rig.frameDt);
     let best: { component: CameraComponent; index: number } | undefined;
     doc.scene.eachAlive().forEach((entity, index) => {
       const component = doc.scene.resolve(entity, "Camera");
@@ -673,30 +700,9 @@ async function startEditor() {
       .multiplyScalar(distance)
       .add(target.position);
     if (follow.collision) {
-      const toCamera = desired.clone().sub(focus);
-      const length = toCamera.length();
-      rigRaycaster.set(focus, toCamera.normalize());
-      rigRaycaster.far = length;
-      // Sprites (car light glows) need a camera to be raycast.
-      rigRaycaster.camera = view;
-      // Only objects whose bounds reach the camera's line are raycast (a
-      // town is hundreds of objects; most are nowhere near it).
-      const blockers = objects.filter((o) => {
-        if (o === target || !o.visible) return false;
-        let radius = o.userData.blockRadius as number | undefined;
-        if (radius === undefined) {
-          new THREE.Box3().setFromObject(o).getBoundingSphere(blockSphere);
-          radius = blockSphere.radius + blockSphere.center.distanceTo(o.position);
-          o.userData.blockRadius = Number.isFinite(radius) ? radius / Math.max(o.scale.x, o.scale.y, o.scale.z, 1e-6) : Infinity;
-          radius = o.userData.blockRadius as number;
-        }
-        radius *= Math.max(o.scale.x, o.scale.y, o.scale.z);
-        blockSegment.set(focus, desired);
-        blockSegment.closestPointToPoint(o.position, true, blockPoint);
-        return blockPoint.distanceTo(o.position) < radius + 1;
-      });
-      const hit = rigRaycaster.intersectObjects(blockers, true)[0];
-      if (hit) desired.copy(focus).addScaledVector(toCamera, Math.max(0.3, hit.distance - 0.3));
+      const toCamera = desired.clone().sub(focus).normalize();
+      const blocked = cameraBlock(focus, desired, target, view);
+      if (blocked !== undefined) desired.copy(focus).addScaledVector(toCamera, Math.max(0.3, blocked - 0.3));
     }
     if (!rig.placed || follow.smoothing <= 0) rig.position.copy(desired);
     else rig.position.lerp(desired, 1 - Math.exp(-rig.frameDt / follow.smoothing));
@@ -707,6 +713,64 @@ async function startEditor() {
   const blockSphere = new THREE.Sphere(),
     blockSegment = new THREE.Line3(),
     blockPoint = new THREE.Vector3();
+  // How far along from `from` to `to` the first thing other than `target`
+  // is in the way of a camera; undefined when nothing is.
+  function cameraBlock(from: THREE.Vector3, to: THREE.Vector3, target: THREE.Object3D, view: THREE.Camera): number | undefined {
+    const toCamera = to.clone().sub(from);
+    const length = toCamera.length();
+    if (length < 1e-4) return undefined;
+    rigRaycaster.set(from, toCamera.normalize());
+    rigRaycaster.far = length;
+    // Sprites (car light glows) need a camera to be raycast.
+    rigRaycaster.camera = view;
+    // Only objects whose bounds reach the camera's line are raycast (a
+    // town is hundreds of objects; most are nowhere near it).
+    const blockers = objects.filter((o) => {
+      if (o === target || !o.visible) return false;
+      let radius = o.userData.blockRadius as number | undefined;
+      if (radius === undefined) {
+        new THREE.Box3().setFromObject(o).getBoundingSphere(blockSphere);
+        radius = blockSphere.radius + blockSphere.center.distanceTo(o.position);
+        o.userData.blockRadius = Number.isFinite(radius) ? radius / Math.max(o.scale.x, o.scale.y, o.scale.z, 1e-6) : Infinity;
+        radius = o.userData.blockRadius as number;
+      }
+      radius *= Math.max(o.scale.x, o.scale.y, o.scale.z);
+      blockSegment.set(from, to);
+      blockSegment.closestPointToPoint(o.position, true, blockPoint);
+      return blockPoint.distanceTo(o.position) < radius + 1;
+    });
+    return rigRaycaster.intersectObjects(blockers, true)[0]?.distance;
+  }
+  // The shooter's over-the-shoulder view (shooterView.ts). Its field of view
+  // and far plane come from the scene's Camera, if it has one.
+  function placeShooterCamera(dt: number): THREE.PerspectiveCamera {
+    const body = objects[playerIndex]!;
+    const view = tps.camera;
+    let fov = 62;
+    let best = -Infinity;
+    for (const entity of doc.scene.eachAlive()) {
+      const camera = doc.scene.resolve(entity, "Camera");
+      if (camera && camera.projection === "Perspective" && camera.priority > best) {
+        best = camera.priority;
+        fov = camera.fov;
+        view.far = camera.far;
+      }
+    }
+    view.aspect = viewport.clientWidth / Math.max(viewport.clientHeight, 1);
+    const height = playerController()?.standHeight ?? 1.8;
+    if (!tps.view.ready) tps.view.reset(body.rotation.y);
+    const feet = body.position.clone();
+    feet.y -= height / 2;
+    tps.view.place(view, feet, {
+      height,
+      aiming: runtime._editor_weapon_value(playerIndex, 7) === 1,
+      zoom: runtime._editor_weapon_value(playerIndex, 9) || 1,
+      fov,
+      dt,
+      clear: (from, to) => cameraBlock(from, to, body, view),
+    });
+    return view;
+  }
   // Orbit: dragging on the viewport during Play turns the rig.
   let orbitDrag: { x: number; y: number } | undefined;
   renderer.domElement.addEventListener("pointerdown", (event) => {
@@ -714,7 +778,7 @@ async function startEditor() {
   });
   window.addEventListener("pointerup", () => (orbitDrag = undefined));
   window.addEventListener("pointermove", (event) => {
-    if (!orbitDrag) return;
+    if (!orbitDrag || shooterActive()) return;
     const look = 0.005 * playerSettings.sensitivity;
     rig.yaw -= (event.clientX - orbitDrag.x) * look;
     rig.pitch = THREE.MathUtils.clamp(rig.pitch + (event.clientY - orbitDrag.y) * look * (playerSettings.invertY ? -1 : 1), -0.2, 1.4);
@@ -1146,6 +1210,118 @@ async function startEditor() {
     const current = slot ?? runtime._editor_weapon_value(playerIndex, 0);
     return runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [playerIndex, current, 1]);
   }
+  // Once per frame before the ticks: the shooter's stick look (a gamepad,
+  // or the touch controls' look area), then the crosshair ray from the
+  // camera and the muzzle for this frame's shots, and aim assist.
+  function updateShooterAim(dt: number) {
+    if (!shooterActive()) {
+      runtime._editor_set_aim(0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
+      tps.over = -1;
+      tps.lookScale = 1;
+      return;
+    }
+    const zoom = 1 + ((runtime._editor_weapon_value(playerIndex, 9) || 1) - 1) * tps.view.aimBlend;
+    if (padSnapshot) {
+      // Any stick or button marks the pad (or the touch controls) as what
+      // the player aims with.
+      if (padSnapshot.axes.some((a) => Math.abs(a) > 0.15) || padSnapshot.buttons.some(Boolean)) tps.view.device = touchControls?.pad.active ? "touch" : "gamepad";
+      const swap = !!padSnapshot.buttons[14];
+      if (swap && !tps.padSwap) tps.view.swapShoulder();
+      tps.padSwap = swap;
+      const x = padSnapshot.axes[2] ?? 0,
+        y = padSnapshot.axes[3] ?? 0;
+      applyStickLook(tps.view, x, y, dt, playerSettings.sensitivity * zoom * tps.lookScale, playerSettings.invertY);
+    }
+    if (!tps.view.ready) return;
+    const origin = tps.camera.position;
+    const direction = tps.view.aimDirection();
+    const muzzle = gunPoses.get(playerIndex)?.pose.muzzleWorld(new THREE.Vector3());
+    runtime._editor_set_aim(origin.x, origin.y, origin.z, direction.x, direction.y, direction.z, muzzle?.x ?? 0, muzzle?.y ?? 0, muzzle?.z ?? 0, muzzle ? 1 : 0, 0);
+    const aiming = runtime._editor_weapon_value(playerIndex, 7) === 1;
+    const moving = runtime._editor_controller_value(playerIndex, 4) > 0.5;
+    runtime._editor_aim_assist(aimDeviceCode[tps.view.device], tps.view.lookSpeed, moving ? 1 : 0, aiming && !tps.aimWasDown ? 1 : 0, dt);
+    tps.aimWasDown = aiming;
+    tps.over = runtime._editor_aim_assist_value(4);
+    if (playerSettings.aimAssist) {
+      tps.lookScale = runtime._editor_aim_assist_value(0);
+      tps.view.look(runtime._editor_aim_assist_value(1), runtime._editor_aim_assist_value(2));
+    } else tps.lookScale = 1;
+    // For tests, like data-camera: the view, the hostile under the
+    // crosshair, the held gun, the shoulder, and this Play's hits and kills.
+    const held = gunPoses.get(playerIndex);
+    viewport.dataset.shooter = [tps.view.yaw.toFixed(4), tps.view.pitch.toFixed(4), tps.view.aimBlend.toFixed(2), tps.over, held?.pose.holding?.name ?? "", tps.view.shoulder, tps.hits, tps.kills, tps.view.device].join(",");
+  }
+  // Every gun in a character's hands, posed after the animation (gunHold.ts).
+  // A third-person Player's points where the crosshair does, raised while
+  // aiming or just after a shot and at the ready otherwise; a soldier's
+  // points where it faces, raised while it fights.
+  const missingGuns = new Set<string>();
+  function updateGunPoses(dt: number) {
+    const now = performance.now();
+    tps.kick *= Math.exp(-dt * 14);
+    let holding = 0,
+      gap = 0;
+    for (const [i, held] of gunPoses) {
+      const object = objects[i];
+      const entity = doc.scene.eachAlive()[i];
+      if (!object || !object.visible || !entity) continue;
+      // Which gun: the current weapon in Play, the loadout's first before.
+      const playing = doc.mode !== "edit" && runtime._editor_weapon_value(i, 5) > 0;
+      const slot = playing ? runtime._editor_weapon_value(i, 0) : 0;
+      const text = (field: number) => runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [i, slot, field]) as string;
+      const name = playing ? heldGunName(text(1), text(2)) : loadoutGun(doc.scene.resolve(entity, "Weapons")?.loadout ?? "");
+      if (name !== held.gun) {
+        held.gun = name;
+        held.pose.setGun(undefined);
+        const entry = modelCatalog.find((m) => m.path === `./kit/weapons/${name}.glb`);
+        if (!entry) {
+          if (name && !missingGuns.has(name)) {
+            missingGuns.add(name);
+            log(`Weapons: no gun model named "${name}" in kit/weapons (held=), so nothing is drawn in the hands.`);
+          }
+        } else {
+          const place = (model: CachedModel) => {
+            if (held.gun !== name) return;
+            const gun = gunModel(name, model.scene);
+            if (gun) held.pose.setGun(gun);
+            else log(`Weapons: ${name}.glb has no offhand/muzzle sockets (tools/models/import_weapons.mjs).`);
+          };
+          const ready = catalogCache.get(entry.id);
+          if (ready) place(ready);
+          else loadCatalogModel(entry.id)?.then(place, (error) => log(`Catalog model ${entry.id} failed to load: ${String(error)}`));
+        }
+      }
+      if (!held.pose.holding) continue;
+      const player = i === playerIndex && shooterActive();
+      const soldierMode = runtime._editor_soldier_value(i, 0);
+      let aimPoint: THREE.Vector3;
+      let raise: number;
+      if (player) {
+        aimPoint = tps.camera.position.clone().addScaledVector(tps.view.aimDirection(), 25);
+        raise = runtime._editor_weapon_value(i, 7) === 1 || now - tps.lastFire < 1200 ? 1 : 0;
+      } else {
+        const yaw = soldierMode >= 0 ? runtime._editor_soldier_value(i, 1) : object.rotation.y;
+        aimPoint = object.position.clone().add(new THREE.Vector3(Math.sin(yaw) * 20, 0.3, Math.cos(yaw) * 20));
+        raise = soldierMode === 2 ? 1 : 0;
+      }
+      held.raised += (raise - held.raised) * (1 - Math.exp(-dt * 10));
+      held.kick *= Math.exp(-dt * 14);
+      const sprinting = player && runtime._editor_controller_value(i, 5) === 1 ? 1 - held.raised : 0;
+      held.pose.update(dt, {
+        aimPoint,
+        aim: held.raised,
+        sprint: sprinting,
+        reload: playing ? runtime._editor_weapon_value(i, 3) : -1,
+        equip: playing ? runtime._editor_weapon_value(i, 6) : -1,
+        kick: held.kick,
+      });
+      holding++;
+      gap = Math.max(gap, held.pose.gap.left, held.pose.gap.right);
+    }
+    // For tests: how many characters hold a gun, and the worst hand gap.
+    if (gunPoses.size) viewport.dataset.guns = `${holding},${gap.toFixed(3)},${gunPoses.size}`;
+    else delete viewport.dataset.guns;
+  }
   // Drains this frame's weapon events into effects, sounds, recoil and HUD.
   function processCombatEvents() {
     const count = runtime._editor_take_weapon_events();
@@ -1153,8 +1329,10 @@ async function startEditor() {
     let pending: { shooter: number; origin: THREE.Vector3; direction: THREE.Vector3; hits: number } | undefined;
     const listener = viewCamera.getWorldPosition(new THREE.Vector3());
     const distanceVolume = (point: THREE.Vector3) => 1 / (1 + point.distanceTo(listener) / 10);
-    const muzzleOf = (shooter: number, origin: THREE.Vector3, direction: THREE.Vector3) =>
-      shooter === playerIndex && firstPerson() ? weaponFx.muzzleWorld(fps.camera, new THREE.Vector3()) : origin.clone().addScaledVector(direction, 0.5);
+    const muzzleOf = (index: number, origin: THREE.Vector3, direction: THREE.Vector3) =>
+      index === playerIndex && firstPerson()
+        ? weaponFx.muzzleWorld(fps.camera, new THREE.Vector3())
+        : (gunPoses.get(index)?.pose.muzzleWorld(new THREE.Vector3()) ?? origin.clone().addScaledVector(direction, 0.5));
     const finishShot = () => {
       if (pending && pending.hits === 0)
         weaponFx.tracer(muzzleOf(pending.shooter, pending.origin, pending.direction), pending.origin.clone().addScaledVector(pending.direction, 80));
@@ -1173,14 +1351,19 @@ async function startEditor() {
         case EventKind.fire: {
           finishShot();
           pending = { shooter, origin: point, direction: normal, hits: 0 };
+          const held = gunPoses.get(shooter);
+          if (held) held.kick = 1;
           const model = runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [shooter, flags, 1]);
           if (mine) {
             weaponFx.fire(value);
             sounds().gunshot(model);
             // Recoil climbs the aim; aiming halves it.
             const aimed = runtime._editor_weapon_value(playerIndex, 7) === 1;
-            fps.look.pitch = Math.min(1.55, fps.look.pitch + THREE.MathUtils.degToRad(value) * (aimed ? 0.4 : 0.7));
-            fps.look.yaw += THREE.MathUtils.degToRad(value) * 0.3 * (Math.random() - 0.5);
+            const look = shooterActive() ? tps.view : fps.look;
+            look.pitch = Math.min(1.2, look.pitch + THREE.MathUtils.degToRad(value) * (aimed ? 0.4 : 0.7));
+            look.yaw += THREE.MathUtils.degToRad(value) * 0.3 * (Math.random() - 0.5);
+            tps.kick = 1;
+            tps.lastFire = performance.now();
           } else soundsAt(point).gunshot(model);
           weaponFx.muzzleFlashAt(muzzleOf(shooter, point, normal));
           break;
@@ -1198,6 +1381,8 @@ async function startEditor() {
         case EventKind.damaged: {
           const killed = (flags & EventFlag.killed) !== 0;
           if (mine && target !== playerIndex) {
+            tps.hits++;
+            if (killed) tps.kills++;
             weaponFx.hit(killed, (flags & EventFlag.headshot) !== 0);
             sounds().hitmarker(killed);
           }
@@ -3230,7 +3415,10 @@ async function startEditor() {
       );
     // Weapons: see editor_set_weapons (bridge.cpp).
     const weapons = get("Weapons");
-    if (weapons && !isChild) runtime.ccall("editor_set_weapons", null, ["number", "string"], [index, weapons.loadout]);
+    if (weapons && !isChild) {
+      runtime.ccall("editor_set_weapons", null, ["number", "string"], [index, weapons.loadout]);
+      runtime._editor_set_aim_assist(index, weapons.aimAssist, weapons.assistRange);
+    }
     // Melee: see editor_set_melee (bridge_melee.cpp).
     const melee = get("Melee");
     if (melee && !isChild) {
@@ -3437,6 +3625,12 @@ async function startEditor() {
         controller.lookSensitivity * playerSettings.sensitivity,
         controller.invertY !== playerSettings.invertY,
       );
+    else if (shooterActive()) {
+      // Aiming turns slower with the zoom; aim assist slows it near a target.
+      tps.view.device = "mouse";
+      const zoom = 1 + ((runtime._editor_weapon_value(playerIndex, 9) || 1) - 1) * tps.view.aimBlend;
+      applyMouseLook(tps.view, event.movementX, event.movementY, playerSettings.sensitivity * zoom * tps.lookScale, playerSettings.invertY);
+    }
     pointerQueue.push(() => runtime._editor_input_mouse_move(0, 0, event.movementX, event.movementY));
   });
   function flushPointerInput() {
@@ -3859,7 +4053,10 @@ async function startEditor() {
         const mixer = new THREE.AnimationMixer(object);
         // An armed soldier: locomotion on the legs, a weapon-holding
         // clip on the upper body, so its own arms hold the gun it carries.
-        const armed = get("AICombat") && get("Weapons") ? splitForWeapon(object, cached.clips) : undefined;
+        const armed =
+          (get("AICombat") || (get("Player") && get("CharacterController")?.mode === "ThirdPerson")) && get("Weapons") && !get("Melee")
+            ? splitForWeapon(object, cached.clips)
+            : undefined;
         const actions = new Map((armed?.lower ?? cached.clips).map((clip) => [clip.name, mixer.clipAction(clip)]));
         animState = { mixer, actions, prevPosition: new THREE.Vector3() };
         if (armed) {
@@ -3983,7 +4180,15 @@ async function startEditor() {
     }
     if (get("Vehicle")) carSizes.set(anchor, new THREE.Vector3(s?.x ?? 1, s?.y ?? 1, s?.z ?? 1));
     // A soldier with Weapons visibly holds its first weapon.
-    const loadout = get("AICombat") ? get("Weapons")?.loadout : undefined;
+    // A character with Weapons holds its current gun in both hands
+    // (gunHold.ts): a third-person Player or a soldier on a rig with hands.
+    const thirdPersonPlayer = !!get("Player") && get("CharacterController")?.mode === "ThirdPerson";
+    const gunPose =
+      get("Weapons") && !get("Melee") && (thirdPersonPlayer || get("AICombat")) && animState && cached && catalog?.animated
+        ? GunPose.create(cached.scene, object)
+        : undefined;
+    if (gunPose) gunPoses.set(objects.length, { pose: gunPose, gun: "", raised: 0, kick: 0 });
+    const loadout = get("AICombat") && !gunPose ? get("Weapons")?.loadout : undefined;
     if (loadout !== undefined) {
       const model = /model=(\w+)/.exec(loadout.split("\n").find((line) => line.trim() && !line.trim().startsWith("#")) ?? "")?.[1] ?? "rifle";
       const held = buildViewmodel(model).group;
@@ -4093,6 +4298,10 @@ async function startEditor() {
     deathStates.push(undefined);
   }
   function rebuild() {
+    for (const held of gunPoses.values()) held.pose.dispose();
+    gunPoses.clear();
+    tps.view.reset(0);
+    tps.hits = tps.kills = 0;
     talkerScan = -1;
     lightOverride = undefined;
     if (timeOfDay !== undefined) {
@@ -4737,6 +4946,12 @@ async function startEditor() {
   let lastPanel = "";
   for (const id of ["panel-hierarchy", "panel-inspector", "dock-project", "dock-console"])
     for (const type of ["pointerdown", "focusin"]) el(id).addEventListener(type, () => (lastPanel = id));
+  // V (or the d-pad's left) swaps the shooter's shoulder.
+  window.addEventListener("keydown", (event) => {
+    if (event.code !== "KeyV" || event.repeat || !shooterActive()) return;
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+    tps.view.swapShoulder();
+  });
   window.addEventListener("keydown", (event) => {
     if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "k" || event.altKey || event.shiftKey) return;
     event.preventDefault();
@@ -4847,8 +5062,9 @@ async function startEditor() {
       else runUIAction(hit.action);
       return;
     }
-    // First person: a click in the viewport captures the mouse for look.
-    if (doc.mode === "play" && firstPerson()) {
+    // First person and the over-the-shoulder shooter: a click in the
+    // viewport captures the mouse for look.
+    if (doc.mode === "play" && (firstPerson() || (shooterActive() && e.pointerType === "mouse"))) {
       if (document.pointerLockElement !== renderer.domElement) void renderer.domElement.requestPointerLock?.();
       return;
     }
@@ -5457,6 +5673,7 @@ async function startEditor() {
       const controller = playerController();
       if (controller?.mode === "FirstPerson" && padSnapshot)
         applyStickLook(fps.look, padSnapshot.axes[2] ?? 0, padSnapshot.axes[3] ?? 0, dt, controller.lookSensitivity, controller.invertY);
+      updateShooterAim(dt);
       for (const [key, down] of scriptKeyQueue) runtime.ccall("editor_script_key", null, ["string", "number"], [key, down]);
       scriptKeyQueue.length = 0;
       // The settings panel pauses the game (input waits with it).
@@ -5625,6 +5842,7 @@ async function startEditor() {
     if (doc.mode === "play") combat.plant(dt);
     // Weapon guards and two-handed grips, over the clips' poses.
     updateHeldWeapons(animDt, (body) => combat.guarding(body));
+    updateGunPoses(animDt);
     // Same reasoning as mixers above -- a Particles emitter is as "always on"
     // as a Light, not gated to Play mode like Script/Sound.
     particleScale.value = viewport.clientHeight / 2;
@@ -5674,7 +5892,13 @@ async function startEditor() {
         // Without this, a walk/run clip plays while the mesh keeps whatever
         // fixed orientation it was authored with, sliding sideways or
         // backwards instead of visibly running toward where it's going.
-        if (
+        // A third-person shooter with the gun raised faces the aim (strafing).
+        const aimingBody = i === playerIndex && shooterActive() && (gunPoses.get(i)?.raised ?? 0) > 0.3;
+        if (aimingBody) {
+          const diff = Math.atan2(Math.sin(tps.view.bodyYaw - object.rotation.y), Math.cos(tps.view.bodyYaw - object.rotation.y));
+          const maxTurn = 14 * tickDt;
+          object.rotation.y += Math.max(-maxTurn, Math.min(maxTurn, diff));
+        } else if (
           speed > 0.15 &&
           // Runtime-spawned objects (world.spawn) have no authored entity:
           // a spawned soldier faces where its AI looks, like authored ones.
@@ -5971,7 +6195,7 @@ async function startEditor() {
   }
   // Crosshair, and a hint while the mouse isn't captured.
   // Returns text for the HUD's screen-reader mirror.
-  function drawFirstPersonOverlay(): string[] {
+  function drawFirstPersonOverlay(fov = fps.camera.fov, onTarget = false): string[] {
     const cx = hud.width / 2,
       cy = hud.height / 2;
     const weaponCount = runtime._editor_weapon_value(playerIndex, 5);
@@ -5987,7 +6211,8 @@ async function startEditor() {
         reloadProgress: runtime._editor_weapon_value(playerIndex, 3),
         spread: runtime._editor_weapon_value(playerIndex, 4),
         aiming: runtime._editor_weapon_value(playerIndex, 7) === 1,
-        fov: fps.camera.fov,
+        fov,
+        onTarget,
         health: runtime._editor_value(playerIndex, EntityField.health),
         slot,
         weaponNames: names,
@@ -6025,7 +6250,7 @@ async function startEditor() {
       hudCtx.textAlign = "center";
       hudCtx.textBaseline = "top";
       hudCtx.fillStyle = "rgba(10, 16, 24, 0.7)";
-      const text = "Click to look around (Esc releases) · right-drag also looks";
+      const text = shooterActive() ? "Click to aim with the mouse (Esc releases)" : "Click to look around (Esc releases) · right-drag also looks";
       const width = hudCtx.measureText(text).width + 20;
       hudCtx.fillRect(cx - width / 2, cy + 110, width, 26);
       hudCtx.fillStyle = "#fff";
@@ -6089,6 +6314,7 @@ async function startEditor() {
       drawWaypoints();
     }
     if (firstPerson()) hudLines.push(...drawFirstPersonOverlay());
+    else if (shooterActive()) hudLines.push(...drawFirstPersonOverlay(tps.camera.fov, tps.over >= 0));
     // Melee: health, energy, guard, combo and lock-on.
     if (doc.mode === "play" && !ledger.playing)
       hudLines.push(

@@ -522,8 +522,15 @@ export interface CharacterControllerComponent {
 // for every key). A Player fires with the fire/aim/reload/next_weapon/
 // weapon_scroll actions and 1-9; any other entity fires from its script with
 // weapon.fire(dx, dy, dz). Invalid text falls back to the default loadout.
+// In third person a Player holds the current weapon (its `held=` gun, or
+// one for its model) and aims over the shoulder; aimAssist (0 off .. 1)
+// helps a gamepad or touch player stay on hostile targets within
+// assistRange metres (a mouse gets a lighter slowdown only), and the
+// player's own settings can turn it off.
 export interface WeaponsComponent {
   loadout: string;
+  aimAssist: number;
+  assistRange: number;
 }
 
 // Melee: martial-arts fighting. `style` picks a built-in move

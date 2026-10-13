@@ -312,7 +312,7 @@ const ik = {
 };
 
 // Turns `bone` in world space by `delta`.
-function rotateWorld(bone: THREE.Object3D, delta: THREE.Quaternion) {
+export function rotateWorld(bone: THREE.Object3D, delta: THREE.Quaternion) {
   bone.getWorldQuaternion(ik.q);
   ik.q.premultiply(delta);
   bone.parent!.getWorldQuaternion(ik.pq);
@@ -324,7 +324,7 @@ const clampUnit = (x: number) => Math.min(1, Math.max(-1, x));
 
 // Analytic two-bone IK in the arm's own bend plane: the hand bone to `t`,
 // then turned to `rot` (world).
-function solveArm(upper: THREE.Object3D, lower: THREE.Object3D, hand: THREE.Object3D, t: THREE.Vector3, rot: THREE.Quaternion) {
+export function solveArm(upper: THREE.Object3D, lower: THREE.Object3D, hand: THREE.Object3D, t: THREE.Vector3, rot: THREE.Quaternion) {
   const a = upper.getWorldPosition(ik.a);
   const b = lower.getWorldPosition(ik.b);
   const c = hand.getWorldPosition(ik.c);

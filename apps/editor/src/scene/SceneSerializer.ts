@@ -666,8 +666,18 @@ export function normalizeComponent(
         meleeDamage: nonNegativeNumber(value.meleeDamage, "AICombat.meleeDamage"),
       };
     }
-    case "Weapons":
-      return { loadout: string(value.loadout, "Weapons.loadout") };
+    case "Weapons": {
+      const within = (v: unknown, label: string, min: number, max: number) => {
+        const n = number(v, label);
+        if (n < min || n > max) throw new Error(`${label} must be from ${min} to ${max}.`);
+        return n;
+      };
+      return {
+        loadout: string(value.loadout, "Weapons.loadout"),
+        aimAssist: value.aimAssist === undefined ? 0.6 : within(value.aimAssist, "Weapons.aimAssist", 0, 1),
+        assistRange: value.assistRange === undefined ? 60 : within(value.assistRange, "Weapons.assistRange", 1, 1000),
+      };
+    }
     case "Melee": {
       const style = value.style;
       if (style !== "Martial arts" && style !== "Sword" && style !== "Custom")

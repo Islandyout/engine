@@ -69,6 +69,7 @@ jobs:
         run: |
           node tests/browser/editor.cjs
           node tests/browser/editor_touch.cjs
+          node tests/browser/combat_range.cjs
           EDITOR_NO_WEBGL=1 node tests/browser/editor.cjs
           node tests/browser/fps.cjs
           node tests/browser/last_signal.cjs
