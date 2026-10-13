@@ -33,6 +33,7 @@ const physical = [
   "Weapons",
   "Routine",
   "Wildlife",
+  "Walker",
   "Spaceship",
   "Terrain",
 ] as const;

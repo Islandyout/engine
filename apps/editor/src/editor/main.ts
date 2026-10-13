@@ -81,6 +81,7 @@ import { EventFlag, EventKind, WeaponFx } from "./weaponFx";
 import { buildViewmodel } from "./viewmodels";
 import { attachToHand, faceWeaponForward, splitForWeapon } from "./characterRig";
 import { instanceBox, parseModelInstances } from "./modelInstances";
+import { buildSignalHeads, setSignalHeads, type SignalHeads } from "./signalHeads";
 import { CarFx, type CarView, type MinimapBlip, type MinimapRoad } from "./carFx";
 import { EngineVoice, SirenVoice, TireVoice } from "./carAudio";
 import { SpaceView, drawFlightHud, latLonDirection, parseLandmarks, parseSpaceBodies, parseSpecies, type SpaceRuntime, type Species } from "./spaceView";
@@ -3205,6 +3206,17 @@ async function startEditor() {
     if (routine && !isChild && index >= 0) runtime.ccall("editor_set_routine", null, ["number", "string", "number"], [index, routine.stops, routine.speed]);
     const wildlife = get("Wildlife");
     if (wildlife && !isChild && index >= 0) runtime._editor_set_wildlife(index, wildlife.wary, wildlife.flee, wildlife.speed, wildlife.leash);
+    // Streets: see editor_set_signal/editor_set_walker (bridge_street.cpp).
+    const signal = get("TrafficSignal");
+    if (signal && !isChild && index >= 0) runtime._editor_set_signal(index, signal.green, signal.yellow, signal.clearance, signal.offset, signal.radius);
+    const walker = get("Walker");
+    if (walker && !isChild)
+      runtime.ccall(
+        "editor_set_walker",
+        null,
+        ["number", "string", "number", "number", "string", "number"],
+        [index, walker.route, walker.speed, walker.loop ? 1 : 0, walker.follow, walker.gap],
+      );
     // Weapons: see editor_set_weapons (bridge.cpp).
     const weapons = get("Weapons");
     if (weapons && !isChild) runtime.ccall("editor_set_weapons", null, ["number", "string"], [index, weapons.loadout]);
@@ -3935,6 +3947,13 @@ async function startEditor() {
     // the box's center.
     if (cached && !terrainComponent) object.position.copy(cached.nativeCenter).negate();
     anchor.add(object);
+    // A junction's signal heads, lit each frame from the simulation.
+    const signalComponent = get("TrafficSignal");
+    if (signalComponent) {
+      const heads = buildSignalHeads(signalComponent.radius);
+      anchor.add(heads.group);
+      anchor.userData.signalHeads = heads;
+    }
     if (get("Vehicle")) carSizes.set(anchor, new THREE.Vector3(s?.x ?? 1, s?.y ?? 1, s?.z ?? 1));
     // A soldier with Weapons visibly holds its first weapon.
     const loadout = get("AICombat") ? get("Weapons")?.loadout : undefined;
@@ -5033,6 +5052,7 @@ async function startEditor() {
     "Pedestrian",
     "Routine",
     "Wildlife",
+    "Walker",
     "Vehicle",
     "Player",
     "Spaceship",
@@ -5551,6 +5571,11 @@ async function startEditor() {
     }
     updateSunShadow();
     updateScatterLod(viewCamera.getWorldPosition(new THREE.Vector3()));
+    if (doc.mode === "play")
+      objects.forEach((o, i) => {
+        const heads = o?.userData.signalHeads as SignalHeads | undefined;
+        if (heads) setSignalHeads(heads, runtime._editor_signal_state(i));
+      });
     renderPass.camera = viewCamera;
     if (gtaoPass) gtaoPass.camera = viewCamera;
     inkPass.camera = viewCamera;

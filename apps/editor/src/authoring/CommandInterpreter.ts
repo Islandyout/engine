@@ -97,6 +97,8 @@ const componentNames = [
   "Site",
   "Routine",
   "Wildlife",
+  "TrafficSignal",
+  "Walker",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -651,6 +653,10 @@ export function defaultComponent(
       return { stops: "8 0 0; 18 10 0", speed: 1.4 };
     case "Wildlife":
       return { wary: 44, flee: 16, speed: 7, leash: 80 };
+    case "TrafficSignal":
+      return { green: 14, yellow: 3, clearance: 2, offset: 0, radius: 9 };
+    case "Walker":
+      return { route: "0,0 10,0", speed: 1.4, loop: true, follow: "", gap: 1.5 };
     case "AnimationState":
       return { clip: "", time: 0, looping: true };
     case "Renderable":

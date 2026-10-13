@@ -938,6 +938,130 @@ struct Runtime {
             }
         }
     }
+    // The fastest a car at `position` heading (fx, fz) may go for the
+    // junction lights ahead of it.
+    float signal_speed(engine::World &w, engine::Vec3 position, float fx, float fz, float speed) {
+        float limit = 1.0e6F;
+        const int axis = std::abs(fz) >= std::abs(fx) ? 0 : 1;
+        for (const auto junction : w.query<engine::Box, TrafficSignal>()) {
+            const auto &signal = *w.get<TrafficSignal>(junction);
+            const auto c = w.get<engine::Box>(junction)->center;
+            // Distance to the centre along the travel, and across it.
+            const float ahead = axis == 0 ? (c.z - position.z) * (fz >= 0 ? 1.0F : -1.0F) : (c.x - position.x) * (fx >= 0 ? 1.0F : -1.0F);
+            const float across = axis == 0 ? std::abs(c.x - position.x) : std::abs(c.z - position.z);
+            // Front bumper to the line (the car's centre sits about 2.5 m
+            // back); a car whose nose is 2 m over it is in the junction and
+            // clears it, one that only crept over waits where it is.
+            const float distance = ahead - signal.radius - 2.5F;
+            if (across > signal.radius || distance < -2.0F || ahead > signal.radius + 80.0F)
+                continue;
+            const auto light = engine::gameplay::signal_light(signal.timing, signal.time, axis);
+            // Planned at a gentle 3 m/s^2 with a metre to spare: the speed
+            // controller lags its target, and real drivers stop short.
+            limit = std::min(limit, engine::gameplay::stop_line_speed(light, std::max(0.0F, distance - 1.0F), speed, 3.0F));
+        }
+        return limit;
+    }
+    // Whether someone on foot at `from` may set off across to `to`: with the
+    // walk light of a junction there, else when no car is coming.
+    bool safe_to_cross(engine::World &w, const Walker::Point &from, const Walker::Point &to, float speed) {
+        const float dx = to.x - from.x, dz = to.z - from.z;
+        const float mx = (from.x + to.x) / 2, mz = (from.z + to.z) / 2;
+        const int axis = std::abs(dz) >= std::abs(dx) ? 0 : 1;
+        for (const auto junction : w.query<engine::Box, TrafficSignal>()) {
+            const auto &signal = *w.get<TrafficSignal>(junction);
+            const auto c = w.get<engine::Box>(junction)->center;
+            if (std::hypot(c.x - mx, c.z - mz) <= signal.radius + 12.0F)
+                return engine::gameplay::may_cross(signal.timing, signal.time, axis, std::hypot(dx, dz) / speed + 1.0F);
+        }
+        for (const auto car : w.query<engine::Box, Heading>()) {
+            const auto at = w.get<engine::Box>(car)->center;
+            const auto &state = w.get<Heading>(car)->car;
+            const float d = std::hypot(at.x - mx, at.z - mz);
+            if (d < 4.0F || (d < 24.0F && std::abs(state.forward_speed) > 1.0F))
+                return false;
+        }
+        return true;
+    }
+    void step_streets(engine::World &w) {
+        constexpr float dt = 1.0F / 60.0F;
+        for (const auto junction : w.query<TrafficSignal>())
+            w.get<TrafficSignal>(junction)->time += dt;
+        std::size_t n = 0;
+        for (const auto entity : w.query<engine::Box, Walker, engine::physics::RigidBody>()) {
+            auto &walker = *w.get<Walker>(entity);
+            auto &body = *w.get<engine::physics::RigidBody>(entity);
+            const auto at = w.get<engine::Box>(entity)->center;
+            if (parked(entity) || sim_skip(at, n++))
+                continue;
+            auto *agent = w.get<AIAgent>(entity);
+            const auto move = [&](float x, float z, float pace) {
+                const float dx = x - at.x, dz = z - at.z, d = std::max(std::hypot(dx, dz), 1e-3F);
+                body.velocity.x = dx / d * pace;
+                body.velocity.z = dz / d * pace;
+                if (agent)
+                    agent->state = pace > 0 ? AIState::Walking : AIState::Idle;
+            };
+            const auto stand = [&] {
+                body.velocity.x = body.velocity.z = 0;
+                if (agent)
+                    agent->state = AIState::Idle;
+            };
+            if (!walker.follow.empty()) {
+                if (walker.leader && !w.alive(*walker.leader))
+                    walker.leader.reset();
+                if (!walker.leader)
+                    for (const auto other : w.query<EntityName>())
+                        if (w.get<EntityName>(other)->value == walker.follow && other != entity) {
+                            walker.leader = other;
+                            break;
+                        }
+                if (!walker.leader || !w.get<engine::Box>(*walker.leader)) {
+                    stand();
+                    continue;
+                }
+                const auto lead = w.get<engine::Box>(*walker.leader)->center;
+                const float d = std::hypot(lead.x - at.x, lead.z - at.z);
+                // Catch up briskly when left behind, stop at the lead's length.
+                if (d > walker.gap)
+                    move(lead.x, lead.z, std::min(walker.speed * 2.2F, walker.speed + (d - walker.gap)));
+                else
+                    stand();
+                continue;
+            }
+            if (walker.route.size() < 2) {
+                stand();
+                continue;
+            }
+            const std::size_t count = walker.route.size();
+            if (walker.next >= count) {
+                if (!walker.loop) {
+                    stand();
+                    continue;
+                }
+                walker.next = 0;
+            }
+            auto &point = walker.route[walker.next];
+            if (std::hypot(point.x - at.x, point.z - at.z) < 0.5F) {
+                const std::size_t following = (walker.next + 1) % count;
+                if (!walker.loop && walker.next + 1 >= count) {
+                    walker.next = count;
+                    stand();
+                    continue;
+                }
+                // At a kerb: wait for the light, or a gap in the traffic.
+                if (point.kerb && !safe_to_cross(w, point, walker.route[following], walker.speed)) {
+                    walker.waiting = true;
+                    stand();
+                    continue;
+                }
+                walker.waiting = false;
+                walker.next = following;
+            }
+            const auto &goal = walker.route[walker.next];
+            move(goal.x, goal.z, walker.speed);
+        }
+    }
     void step_wildlife(engine::World &w) {
         std::vector<std::pair<engine::Vec3, float>> threats; // position, flee scale
         if (const auto player = player_entity(w); player && !stowed(*player)) {
@@ -1096,7 +1220,7 @@ struct Runtime {
             const auto hit = engine::physics::raycast(targets, origin, Vec3{fx, 0, fz}, range, physics_config, filter);
             if (!hit || hit->hit_ground)
                 return std::nullopt;
-            return std::pair{hit->distance, w.get<Heading>(hit->entity) != nullptr};
+            return std::pair{hit->distance, w.get<Heading>(hit->entity) != nullptr || w.get<Walker>(hit->entity) != nullptr};
         };
         Vec3 target = position;
         float target_speed = 0;
@@ -1227,9 +1351,18 @@ struct Runtime {
             if (driver.mode == DriveMode::Race)
                 control.nitro = driver.skill > 0.6F && target_speed > speed + 12.0F && car.nitro > 0.2F;
         }
+        // Traffic stops at a junction's line on red (and on yellow when
+        // it can stop comfortably); racers and police run it.
+        const float signal_limit = driver.mode == DriveMode::Traffic ? signal_speed(w, position, fx, fz, std::abs(speed)) : 1.0e6F;
+        target_speed = std::min(target_speed, signal_limit);
         control = [&] {
             auto steered = engine::gameplay::steer_toward(car, spec, position, target, target_speed);
             steered.nitro = control.nitro;
+            // Holding at the line: brakes on, no creeping.
+            if (signal_limit < 1.0F) {
+                steered.throttle = 0;
+                steered.brake = 1;
+            }
             return steered;
         }();
         // Traffic ahead: traffic brakes for it; racers and police go around.
@@ -2039,6 +2172,10 @@ struct Runtime {
                   [this](engine::World &w, const engine::FixedUpdateContext &) { step_routines(w); });
         add_timed("editor.wildlife", engine::FixedPhase::update, 7,
                   [this](engine::World &w, const engine::FixedUpdateContext &) { step_wildlife(w); });
+        // Junction lights tick, and people on foot walk their routes (after
+        // routines, before physics).
+        add_timed("editor.streets", engine::FixedPhase::update, 7,
+                  [this](engine::World &w, const engine::FixedUpdateContext &) { step_streets(w); });
         // After the Player's input (0), scripts (2) and the other brains,
         // before physics (10) integrates the lunges and knockback it sets.
         add_timed("editor.melee", engine::FixedPhase::update, 8,
@@ -2498,6 +2635,8 @@ inline void register_components(engine::World &w) {
     w.register_component<Spaceship>("editor.spaceship");
     w.register_component<Routine>("editor.routine");
     w.register_component<Wildlife>("editor.wildlife");
+    w.register_component<TrafficSignal>("editor.traffic_signal");
+    w.register_component<Walker>("editor.walker");
     w.register_component<AIAgent>("editor.ai_agent");
     w.register_component<Pedestrian>("editor.pedestrian");
     w.register_component<engine::script::Script>("editor.script");
@@ -2551,6 +2690,7 @@ inline std::optional<engine::Entity> BridgeHost::spawn(engine::World &world, con
     copy_component<Pedestrian>(from, source, world, entity);
     copy_component<Routine>(from, source, world, entity);
     copy_component<Wildlife>(from, source, world, entity);
+    copy_component<Walker>(from, source, world, entity);
     copy_component<engine::script::Script>(from, source, world, entity);
     copy_component<Controller>(from, source, world, entity);
     copy_component<Arsenal>(from, source, world, entity);

@@ -175,7 +175,7 @@ target_link_libraries(engine_nav PUBLIC GameEngine::World GameEngine::Graphics G
 engine_set_project_warnings(engine_nav)
 
 add_library(engine_gameplay STATIC source/engine/gameplay/character.cpp source/engine/gameplay/weapons.cpp source/engine/gameplay/car.cpp
-            source/engine/gameplay/space.cpp source/engine/gameplay/melee.cpp)
+            source/engine/gameplay/space.cpp source/engine/gameplay/melee.cpp source/engine/gameplay/street.cpp)
 add_library(GameEngine::Gameplay ALIAS engine_gameplay)
 target_link_libraries(engine_gameplay PUBLIC GameEngine::World GameEngine::Graphics GameEngine::Physics)
 engine_set_project_warnings(engine_gameplay)
@@ -259,6 +259,10 @@ if(ENGINE_BUILD_TESTS)
     target_link_libraries(engine_car_tests PRIVATE GameEngine::Gameplay)
     engine_set_project_warnings(engine_car_tests)
     add_test(NAME engine_car_tests COMMAND engine_car_tests)
+    add_executable(engine_street_tests tests/street_tests.cpp)
+    target_link_libraries(engine_street_tests PRIVATE GameEngine::Gameplay)
+    engine_set_project_warnings(engine_street_tests)
+    add_test(NAME engine_street_tests COMMAND engine_street_tests)
     add_executable(engine_space_tests tests/space_tests.cpp)
     target_link_libraries(engine_space_tests PRIVATE GameEngine::Gameplay)
     engine_set_project_warnings(engine_space_tests)
@@ -303,7 +307,8 @@ endif()
 
 if(ENGINE_BUILD_TESTS)
     add_executable(engine_editor_bridge_tests tests/editor_bridge_tests.cpp apps/editor/runtime/bridge.cpp
-        apps/editor/runtime/bridge_combat.cpp apps/editor/runtime/bridge_space.cpp apps/editor/runtime/bridge_melee.cpp)
+        apps/editor/runtime/bridge_combat.cpp apps/editor/runtime/bridge_space.cpp apps/editor/runtime/bridge_melee.cpp
+        apps/editor/runtime/bridge_street.cpp)
     target_link_libraries(engine_editor_bridge_tests PRIVATE GameEngine::World GameEngine::Physics GameEngine::Nav GameEngine::Script GameEngine::Gameplay)
     engine_set_project_warnings(engine_editor_bridge_tests)
     add_test(NAME engine_editor_bridge_tests COMMAND engine_editor_bridge_tests)

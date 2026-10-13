@@ -9,6 +9,7 @@
 #include "engine/gameplay/car.hpp"
 #include "engine/gameplay/melee.hpp"
 #include "engine/gameplay/space.hpp"
+#include "engine/gameplay/street.hpp"
 #include "engine/gameplay/weapons.hpp"
 #include "engine/nav/nav.hpp"
 #include "engine/physics/physics.hpp"
@@ -121,6 +122,33 @@ struct Routine final {
     std::vector<engine::Vec3> path;
     int path_stop{-1};
     float path_frame{-1};
+};
+// A signalised junction (engine/gameplay/street.hpp) at the entity's
+// position: its light cycle, and how far from the centre its stop lines
+// are. Traffic-mode drivers stop at them on red; Walkers cross with them.
+struct TrafficSignal final {
+    engine::gameplay::SignalTiming timing;
+    float radius{9.0F};
+    float time{0.0F};
+};
+// Someone on foot following a route of sidewalk points (looping), who
+// waits at a point marked as a kerb until it is safe to cross to the next:
+// the walk light of a TrafficSignal there, or, at an unsignalised
+// crossing, no car coming. With `follow`, it keeps `gap` metres behind the
+// named entity instead (a dog on a lead).
+struct Walker final {
+    struct Point final {
+        float x{}, z{};
+        bool kerb{};
+    };
+    std::vector<Point> route;
+    bool loop{true};
+    std::size_t next{0};
+    float speed{1.4F};
+    std::string follow;
+    std::optional<engine::Entity> leader;
+    float gap{1.5F};
+    bool waiting{false};
 };
 // Wildlife: calm (its own wander, if it has an AIAgent) -> wary
 // (stops and watches) inside `wary` metres of a threat -> flees inside

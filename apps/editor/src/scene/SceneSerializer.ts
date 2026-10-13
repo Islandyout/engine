@@ -229,6 +229,8 @@ const componentNames = [
   "Site",
   "Routine",
   "Wildlife",
+  "TrafficSignal",
+  "Walker",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -494,6 +496,22 @@ export function normalizeComponent(
         flee: positiveNumber(value.flee, "Wildlife.flee"),
         speed: positiveNumber(value.speed, "Wildlife.speed"),
         leash: positiveNumber(value.leash, "Wildlife.leash"),
+      };
+    case "TrafficSignal":
+      return {
+        green: positiveNumber(value.green, "TrafficSignal.green"),
+        yellow: nonNegativeNumber(value.yellow, "TrafficSignal.yellow"),
+        clearance: nonNegativeNumber(value.clearance, "TrafficSignal.clearance"),
+        offset: number(value.offset, "TrafficSignal.offset"),
+        radius: positiveNumber(value.radius, "TrafficSignal.radius"),
+      };
+    case "Walker":
+      return {
+        route: string(value.route, "Walker.route"),
+        speed: positiveNumber(value.speed, "Walker.speed"),
+        loop: boolean(value.loop, "Walker.loop"),
+        follow: string(value.follow, "Walker.follow"),
+        gap: positiveNumber(value.gap, "Walker.gap"),
       };
     case "AnimationState":
       return {

@@ -272,6 +272,30 @@ An animal that grows wary of the player and flees, staying near home.
 | `speed` | 7 | Run speed (m/s) |
 | `leash` | 80 | Leash from home (m). It never runs farther than this from where it started. |
 
+### TrafficSignal
+
+A junction's traffic lights: AI traffic stops on red, people on foot cross on the walk light.
+
+| Field | Default | Notes |
+|---|---|---|
+| `green` | 14 | Green (s) |
+| `yellow` | 3 | Yellow (s) |
+| `clearance` | 2 | All red (s) |
+| `offset` | 0 | Offset (s). Shifts the cycle. Match the drive time between junctions for a green wave. |
+| `radius` | 9 | Stop lines from centre (m). How far from the centre traffic stops: half the junction's width. |
+
+### Walker
+
+Someone on foot walking a sidewalk route, waiting at kerbs to cross safely; or following someone.
+
+| Field | Default | Notes |
+|---|---|---|
+| `route` | "0,0 10,0" | Route (x,z; * = kerb). Points 'x,z' separated by spaces. End a point with * to wait there for a safe crossing to the next. |
+| `speed` | 1.4 | Walking speed (m/s) |
+| `loop` | true |  |
+| `follow` | "" | Follow (entity name). An entity's name to follow instead of walking the route. |
+| `gap` | 1.5 | Gap behind (m) |
+
 ## Appearance & Animation
 
 ### Renderable

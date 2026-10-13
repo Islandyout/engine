@@ -187,6 +187,30 @@ export interface WildlifeComponent {
   speed: number;
   leash: number;
 }
+// A signalised junction at the entity's position (engine/gameplay/
+// street.hpp): green, yellow and all-red seconds for each road in turn
+// (traffic along z first), the cycle's offset (seconds; a green wave when
+// it follows the travel time between junctions), and how far from the
+// centre the stop lines are. Traffic-mode drivers stop at them on red;
+// Walkers cross on the walk light.
+export interface TrafficSignalComponent {
+  green: number;
+  yellow: number;
+  clearance: number;
+  offset: number;
+  radius: number;
+}
+// Someone on foot: "x,z x,z* ..." sidewalk points (a trailing * marks a
+// kerb to wait at until it is safe to cross to the next point: the walk
+// light, or no car coming), walked at `speed` m/s, looping or not; or, with
+// `follow` naming an entity, `gap` metres behind it (a dog on a lead).
+export interface WalkerComponent {
+  route: string;
+  speed: number;
+  loop: boolean;
+  follow: string;
+  gap: number;
+}
 // clip names a clip on the entity's own animated Renderable model (e.g.
 // "idle"/"walk"/"wave") -- "" means no authored override, so main.ts's
 // automatic ground-speed-based clip selection (animationClips.ts's
