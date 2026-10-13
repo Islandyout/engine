@@ -1,4 +1,4 @@
-// First-person weapon models (0.61.0), built from primitives so the engine
+// First-person weapon models, built from primitives so the engine
 // ships usable guns without external assets. In first person the player's
 // character model holds them (weaponFx.ts, characterRig.ts). Each model is in camera space:
 // -z forward (the barrel), +y up, origin at the grip. `muzzle` marks where

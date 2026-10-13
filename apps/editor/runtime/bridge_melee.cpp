@@ -1,4 +1,4 @@
-// Melee (0.78.0): the fixed-tick fighter system (Runtime::step_melee) and the
+// Melee: the fixed-tick fighter system (Runtime::step_melee) and the
 // editor runtime exports for fighters. The moves, state machine and brain
 // are engine::gameplay's (include/engine/gameplay/melee.hpp); this file puts
 // them in the world -- input, facing, lunges, hit spheres, knockback.
@@ -650,7 +650,7 @@ bool BridgeHost::melee(engine::World &world, engine::Entity self, const std::str
 } // namespace editor_bridge
 
 extern "C" {
-// Makes the entity a melee fighter (0.78.0), after editor_add for the same
+// Makes the entity a melee fighter, after editor_add for the same
 // index: style 0 martial arts, 1 sword, 2 the `moves` text (see
 // engine::gameplay::parse_moves); team (0 = the Player's side); ai 1 for a
 // melee brain with aggression and skill 0..1 and a reaction time; the
@@ -715,7 +715,7 @@ EXPORT void editor_set_melee(int index, int style, const char *moves, double tea
         world.remove<AIAgent>(entity);
 }
 EXPORT const char *editor_melee_error() { return active->melee_error.c_str(); }
-// GATEBREAKER fighter settings (0.80.0), after editor_set_melee: a poise
+// GATEBREAKER fighter settings, after editor_set_melee: a poise
 // (stagger) bar and how long a Break floors it (poise 0: none), the mana
 // pool and its regeneration per second, a ranged brain's preferred distance
 // (0: melee) and a shield-bearer's raised guard.

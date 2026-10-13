@@ -1,4 +1,4 @@
-// Frame governor (0.75.0): holds play at 45-60 fps on whatever runs it.
+// Frame governor: holds play at 45-60 fps on whatever runs it.
 // It watches the frame interval and steps through quality tiers -- render
 // resolution first (cheap to change, most of a weak GPU's cost), then
 // shadows, bloom, scatter density, terrain streaming and how often distant
@@ -182,7 +182,7 @@ export function presetFloor(preset: "low" | "medium" | "high") {
   return preset === "high" ? 0 : preset === "medium" ? 2 : 4;
 }
 
-// What holds the frame rate back (0.77.0), for the Stats panel: a frame's
+// What holds the frame rate back, for the Stats panel: a frame's
 // interval is the CPU's work (the C++ simulation ticks, then everything else
 // the editor does) or, when the CPU finishes well inside it, the GPU.
 export function limitReason(intervalMs: number, cpuFrameMs: number, tickMs: number): string {

@@ -7,7 +7,7 @@
 
 namespace engine::gameplay::space {
 
-// Spaceflight (0.71.0): a star system on rails and a ship flown through
+// Spaceflight: a star system on rails and a ship flown through
 // it by hand, from a planet's surface through its atmosphere to orbit and
 // on to another world, with no scene change on the way. Everything is in
 // double precision: a system is millions of metres across, which floats
@@ -68,14 +68,14 @@ struct Body final {
     // Water fills the terrain below this height (m relative to `radius`):
     // ships and walkers stand on its surface. Below -1e8 means no sea.
     double sea_level{-1e9};
-    // Not drawn or listed until revealed (0.73.0): Pale Signal's Nemesis.
+    // Not drawn or listed until revealed: Pale Signal's Nemesis.
     bool hidden{};
-    // Terrain features (0.74.0): impact craters (0..1 density), lava rifts
+    // Terrain features: impact craters (0..1 density), lava rifts
     // (glowing channels) and dune fields.
     double craters{};
     bool rifts{};
     bool dunes{};
-    // Seconds per turn about the body's +y axis (0.74.0); 0 doesn't turn.
+    // Seconds per turn about the body's +y axis; 0 doesn't turn.
     // Surfaces, sites and landmarks are fixed to the body and turn with it;
     // ships fly in the non-rotating frame.
     double day{};
@@ -111,7 +111,7 @@ double surface_radius(const Body& body, DVec3 direction);
 DVec3 surface_normal(const Body& body, DVec3 direction);
 // How much of a lava rift is under a direction (0..1), for drawing.
 double lava(const Body& body, DVec3 direction);
-// The body's turn at time t: body-fixed -> non-rotating (0.74.0).
+// The body's turn at time t: body-fixed -> non-rotating.
 DQuat body_spin(const Body& body, double t);
 // The ground's own velocity at a non-rotating position (omega x r).
 DVec3 surface_velocity(const Body& body, DVec3 position);
@@ -147,7 +147,7 @@ enum class Assist : std::uint8_t {
     prograde,   // NAV: the nose follows the velocity
     retrograde, // NAV: the nose points against the velocity (to brake)
     target,     // NAV: the nose points along `target_direction`
-    autopilot,  // NAV transfer (0.73.0): see autopilot_command
+    autopilot,  // NAV transfer: see autopilot_command
 };
 
 struct ShipInput final {
@@ -156,7 +156,7 @@ struct ShipInput final {
     double vertical{};             // -1..1 belly thrusters (down..up)
     Assist assist{Assist::stabilized};
     DVec3 target_direction{};      // for Assist::target, in the system frame
-    DVec3 wind{};                  // m/s of moving air, in the reference body's frame (0.73.0)
+    DVec3 wind{};                  // m/s of moving air, in the reference body's frame
 };
 
 struct Touchdown final {
@@ -191,12 +191,12 @@ struct ShipState final {
     // caller clears them after reading.
     bool touched_down{}, lifted_off{}, changed_ref{};
     Touchdown last_touchdown{};
-    // Ship components (0.73.0), condition 0..100 each. Worn by rough
+    // Ship components, condition 0..100 each. Worn by rough
     // landings (gear), overheating (engine) and hard manoeuvring (rcs);
     // their efficiency scales thrust, turning and landing tolerance. The
     // scanner's condition is the game's to use.
     double engine{100}, rcs_condition{100}, gear{100}, scanner{100};
-    // The autopilot's memory of the transfer it is flying (0.76.0): its
+    // The autopilot's memory of the transfer it is flying: its
     // target, when it meets it, when a coast is next checked and when it
     // was planned. Each ship keeps its own; autopilot_command updates it.
     struct AutopilotMemory final {
@@ -241,7 +241,7 @@ OrbitElements orbit_elements(const ShipState& state, const System& system);
 // body over `horizon` seconds, under that body's gravity alone (no thrust,
 // drag or body changes). Stops early at the surface. Given the time now
 // (t >= 0), the points are body-fixed: over the turning ground at the time
-// the ship gets there (0.75.0).
+// the ship gets there.
 std::vector<DVec3> predict_path(const ShipState& state, const System& system, double horizon, int count,
                                 double t = -1);
 
@@ -253,7 +253,7 @@ DVec3 ship_up(const ShipState& state);
 // easing down to 0.35 at zero (the prototype's compEff curve).
 double component_efficiency(double condition);
 
-// The NAV autopilot (0.73.0): climb clear of the current body's air, burn
+// The NAV autopilot: climb clear of the current body's air, burn
 // toward where the target is, coast, flip and brake, arriving slow above
 // the target's atmosphere. What the bridge feeds the ship each tick; the
 // pilot's own input always wins over it.
@@ -266,7 +266,7 @@ struct AutopilotCommand final {
 AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec, const System& system, double t,
                                    int target);
 
-// A fuel estimate for flying to `target` (0.73.0): the NAV board's route
+// A fuel estimate for flying to `target`: the NAV board's route
 // plan. status: 0 OK (fuel with a quarter to spare), 1 MARGINAL, 2
 // INSUFFICIENT.
 struct RoutePlan final {

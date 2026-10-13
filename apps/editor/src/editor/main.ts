@@ -180,8 +180,8 @@ type Runtime = RuntimeExports & {
   ccall(name: "editor_script_notify", returnType: null, argTypes: ["number", "string", "string"], args: [number, string, string]): void;
   ccall(name: "editor_spawned_prefab", returnType: "string", argTypes: ["number"], args: [number]): string;
   ccall(name: "editor_command_text", returnType: "string", argTypes: ["number", "number"], args: [number, number]): string;
-  // Arcade cars and AI drivers (0.70.0): see editor_set_car/editor_set_driver/editor_vehicle_value.
-  // Spaceflight (0.71.0): see editor_space_* and editor_set_spaceship.
+  // Arcade cars and AI drivers: see editor_set_car/editor_set_driver/editor_vehicle_value.
+  // Spaceflight: see editor_space_* and editor_set_spaceship.
   // Catch-all for text calls added from 0.59.0 on.
   ccall(name: string, returnType: "string" | "number" | null, argTypes: Array<"string" | "number">, args: Array<string | number>): any;
   // editor_set_script_source/editor_script_error/editor_seed_save/
@@ -210,7 +210,7 @@ async function startEditor() {
   function log(value: unknown) {
     el("log").textContent = JSON.stringify(value, null, 2);
   }
-  // Content checks (0.77.0): the scene's authoring mistakes, by entity
+  // Content checks: the scene's authoring mistakes, by entity
   // (problemsPanel.ts).
   const problems = new ProblemsPanel(el("problems"), {
     scene: () => doc.scene,
@@ -230,7 +230,7 @@ async function startEditor() {
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    // Real-time shadows (0.52.0): the sun, plus any Light with castShadows.
+    // Real-time shadows: the sun, plus any Light with castShadows.
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   } catch {
@@ -291,7 +291,7 @@ async function startEditor() {
   shadowGround.rotation.x = -Math.PI / 2;
   shadowGround.receiveShadow = true;
   scene.add(shadowGround);
-  // Environment (0.52.0): sky, sun, ambient, fog, exposure. Applied on every
+  // Environment: sky, sun, ambient, fog, exposure. Applied on every
   // rebuild(); the sky and its image-based lighting are only regenerated
   // when the Environment's values actually change.
   let environmentKey = "";
@@ -431,12 +431,12 @@ async function startEditor() {
     // tuned for; scaled down so image-based lighting adds fill, not glare.
     scene.environmentIntensity = 0.6;
   }
-  // Game cameras (0.52.0): during Play the highest-priority Camera entity
+  // Game cameras: during Play the highest-priority Camera entity
   // renders the view from its own position and rotation.
   const gamePerspective = new THREE.PerspectiveCamera();
   const shakeCamera = new THREE.PerspectiveCamera();
   const gameOrthographic = new THREE.OrthographicCamera();
-  // -- First-person view (0.60.0) ----------------------------------------
+  // -- First-person view ----------------------------------------
   // The editor owns look (mouse, right-drag, right stick) so it stays smooth
   // at any display rate, and sends it to the runtime every frame
   // (editor_set_look). The camera sits at the player's feet, interpolated
@@ -493,7 +493,7 @@ async function startEditor() {
     return view;
   }
   // A first-person player who died: the view stays where they fell,
-  // sinking toward the ground and rolling over (0.66.0).
+  // sinking toward the ground and rolling over.
   let deathRoll = 0;
   function deathView() {
     return doc.mode !== "edit" && playerController()?.mode === "FirstPerson" && playerIndex >= 0 && runtime._editor_alive(playerIndex) === 0;
@@ -587,7 +587,7 @@ async function startEditor() {
     const focus = target.position.clone();
     focus.y += follow.lookHeight;
     let distance = Math.hypot(follow.offset.x, follow.offset.y, follow.offset.z);
-    // Following an arcade car (0.70.0): the rig trails its heading with a
+    // Following an arcade car: the rig trails its heading with a
     // little lag (a drift shows the car's flank), pulls back with speed,
     // and the field of view opens up with speed and nitro.
     const carIndex = objects.indexOf(target);
@@ -599,7 +599,7 @@ async function startEditor() {
       view.fov += rig.fovExtra;
       view.updateProjectionMatrix();
     }
-    // Melee lock-on (0.78.0): the rig swings behind the Player toward its
+    // Melee lock-on: the rig swings behind the Player toward its
     // locked-on opponent and frames both, a little over the right shoulder
     // so the Player never hides the opponent.
     const lock = target === objects[playerIndex] ? combat.lockTarget() : -1;
@@ -808,7 +808,7 @@ async function startEditor() {
   const gestureBones = new WeakMap<AnimState, GestureBones>();
   const probe = new ReflectionProbe();
   let probeScanAt = 0;
-  // Static batching (0.76.0): still scenery merged per material while playing.
+  // Static batching: still scenery merged per material while playing.
   const staticBatcher = new StaticBatcher();
   let batchAt = Infinity;
   let batchCheckAt = 0;
@@ -875,11 +875,11 @@ async function startEditor() {
       gl_FragColor = vec4(vColor * (1.0 - d * 4.0), 1.0);
     }`;
   const particleScale = { value: 500 };
-  // Weapons (0.61.0): viewmodel, effects and combat HUD (weaponFx.ts), and
+  // Weapons: viewmodel, effects and combat HUD (weaponFx.ts), and
   // the viewmodel's own render pass after the world (depth cleared, so the
   // gun never clips into walls).
   const weaponFx = new WeaponFx(scene, makeEffectPoints);
-  // Arcade cars' presentation and HUD (0.70.0).
+  // Arcade cars' presentation and HUD.
   const carFx = new CarFx(scene, makeEffectPoints);
   // Each car's box size (width, height, length), recorded when built.
   const carSizes = new WeakMap<THREE.Object3D, THREE.Vector3>();
@@ -909,7 +909,7 @@ async function startEditor() {
   composer?.insertPass(viewmodelPass, 1);
   // Right after the scene (and the viewmodel): it needs the depth the scene left.
   composer?.insertPass(inkPass, 2);
-  // Post-processing (0.65.0; postFx.ts): grading and anti-aliasing after
+  // Post-processing (postFx.ts): grading and anti-aliasing after
   // tone mapping, ambient occlusion on the world before the viewmodel.
   const gradingPass = new ShaderPass(gradingShader);
   gradingPass.enabled = false;
@@ -984,7 +984,7 @@ async function startEditor() {
     // About 2 px at 720p, scaling with the view so lines keep their weight.
     inkPass.width = ratio * Math.max(1.5, h / 360);
   }
-  // Audio (0.64.0): every sound goes through the mixer's buses; world
+  // Audio: every sound goes through the mixer's buses; world
   // sounds are positional and muffled behind solid geometry.
   let mixer: AudioMixer | undefined;
   function audioMixer(): AudioMixer {
@@ -1006,7 +1006,7 @@ async function startEditor() {
       audioMixer().occlusion && runtime._editor_line_blocked(listenerPosition.x, listenerPosition.y, listenerPosition.z, point.x, point.y + 0.3, point.z) === 1;
     return sounds().at(audioMixer().source("sfx", point, { occluded, volume }).input);
   }
-  // Melee (0.78.0): fighters' bodies, impacts and the fighter HUD (combatView.ts).
+  // Melee: fighters' bodies, impacts and the fighter HUD (combatView.ts).
   // GATEBREAKER's interface (ledger.ts): system windows, panel cutscenes, the boss bar.
   const ledger = new LedgerHud();
   // GATEBREAKER M4: the minimap and the M map from a script's hud.map_layout (minimap.ts).
@@ -1081,7 +1081,7 @@ async function startEditor() {
   // Ease in/out of the aim-down-sights zoom.
   let zoomBlend = 0;
   let viewmodelStudio: THREE.Texture | undefined;
-  // First-person arms (0.69.0): the player's own animated Renderable (it may
+  // First-person arms: the player's own animated Renderable (it may
   // be invisible) or, without one, the Mannequin, holds the weapons, tinted
   // by the player's Material.
   const firstPersonBodyFallback = 132;
@@ -1257,7 +1257,7 @@ async function startEditor() {
     attributes.color!.needsUpdate = true;
     attributes.size!.needsUpdate = true;
   }
-  // Trails (0.57.0): a camera-facing ribbon behind each Trail entity,
+  // Trails: a camera-facing ribbon behind each Trail entity,
   // recorded during Play (trail.ts builds the geometry).
   interface TrailState {
     component: TrailComponent;
@@ -1483,7 +1483,7 @@ async function startEditor() {
     nativeSize: THREE.Vector3;
     // Center of the model's own bounds: catalog models are authored with
     // their origin at their feet, so they're shifted by this to sit centered
-    // on the entity's collision box (0.66.0).
+    // on the entity's collision box.
     nativeCenter: THREE.Vector3;
   }
   const catalogCache = new Map<number, CachedModel>();
@@ -1549,7 +1549,7 @@ async function startEditor() {
   // trigger (a melee hit landing, a footstep) -- that needs the bridge to
   // expose which tick an event actually fired, which this round doesn't add.
   let audioContext: AudioContext | undefined;
-  // Generative music (0.75.0): scripts pick the mood (host.send("music", ...)).
+  // Generative music: scripts pick the mood (host.send("music", ...)).
   let music: Music | undefined;
   let musicMood = "off";
   function updateMusic() {
@@ -1637,7 +1637,7 @@ async function startEditor() {
   // ("coin" plays "Coin Pickup").
   function playOneShot(clip: string, position?: THREE.Vector3, volume = 1) {
     const wanted = clip.trim().toLowerCase();
-    // "sfx:<name>" plays a synthesized sound (0.64.0).
+    // "sfx:<name>" plays a synthesized sound.
     if (wanted.startsWith("sfx:")) {
       const voice = position ? soundsAt(position, volume) : sounds();
       const [name = "", detail = ""] = wanted.slice(4).split(":");
@@ -1707,12 +1707,12 @@ async function startEditor() {
   // fixed for the rest of that session, matching the fact that entities
   // can't be added or removed while playing.
   let playerIndex = -1;
-  // -- Spaceflight (0.71.0): the scene's SpaceSystem, drawn by SpaceView ---
+  // -- Spaceflight: the scene's SpaceSystem, drawn by SpaceView ---
   let shipIndex = -1;
   let spaceView: SpaceView | undefined;
   let spaceGround: THREE.Mesh<THREE.BufferGeometry, THREE.ShadowMaterial> | undefined;
   let spacePass: RenderPass | undefined;
-  // Walking anywhere (0.72.0): the frame the scatter and ground were built
+  // Walking anywhere: the frame the scatter and ground were built
   // for, the plants and rocks around it, and authored objects hidden while
   // the frame is away from the site.
   let spaceFrame = -1;
@@ -1721,11 +1721,11 @@ async function startEditor() {
   let scatterTargets: ScanTarget[] = [];
   let scatterModelsReady = false;
   const hiddenAway = new Set<number>();
-  // Sites (0.73.0): the Site entities' indices, and each entity's site
+  // Sites: the Site entities' indices, and each entity's site
   // (-1: the home site).
   let siteIndices: number[] = [];
   let memberSite: number[] = [];
-  // The scanner (0.72.0), for any scene with Scannable entities or species.
+  // The scanner, for any scene with Scannable entities or species.
   const scanner = new Scanner();
   let scannableIndices: number[] = [];
   function spaceComponent() {
@@ -1937,7 +1937,7 @@ async function startEditor() {
     const frame = runtime._editor_space_value(SpaceField.frameGeneration);
     if (frame !== spaceFrame) {
       spaceFrame = frame;
-      // Re-anchored on foot (0.75.0): what moved with the walker, the
+      // Re-anchored on foot: what moved with the walker, the
       // camera included, shifts by the same amount, so nothing visibly jumps.
       const shift = new THREE.Vector3(
         runtime._editor_space_value(SpaceField.reframeShiftX),
@@ -1952,7 +1952,7 @@ async function startEditor() {
         rig.position.add(shift);
         view.position.add(shift);
         controls.target.add(shift);
-        // The new frame's axes turn too (0.76.0): the camera swings round
+        // The new frame's axes turn too: the camera swings round
         // the walker by the same angle and the look keeps its heading.
         const turn = runtime._editor_space_value(SpaceField.reframeYaw);
         const walker = playerIndex >= 0 ? objects[playerIndex] : undefined;
@@ -1968,7 +1968,7 @@ async function startEditor() {
       }
       rebuildSpaceFrame();
     }
-    // Canals and glossy floors reflect their surroundings (0.76.0), while
+    // Canals and glossy floors reflect their surroundings, while
     // the governor still has shadows to spare.
     if (doc.mode === "play" && renderer instanceof THREE.WebGLRenderer && governorTier().shadows > 0) {
       const now = performance.now();
@@ -1978,7 +1978,7 @@ async function startEditor() {
       }
       probe.update(renderer, scene, view.position, now, spaceView.skyColor, spaceView.horizonColor);
     }
-    // Weather fog (0.73.0) thickens the haze.
+    // Weather fog thickens the haze.
     const fog = explorerFx?.weather.fog ?? 0;
     if (fog > 0.01)
       scene.fog = new THREE.FogExp2(
@@ -2010,12 +2010,12 @@ async function startEditor() {
     });
   }
 
-  // -- Exploration (0.73.0): maps, weather, harvesting, settings ----------
+  // -- Exploration: maps, weather, harvesting, settings ----------
   // Scripts drive these through host.send(kind, text); see handleHost.
   const playerSettings = loadSettings();
   const announcer = new Announcer(app);
   let explorerFx: ExplorerFx | undefined;
-  // The visor and the suit light (0.75.0).
+  // The visor and the suit light.
   const visor = new Visor();
   let suitLight: THREE.SpotLight | undefined;
   let suitLightMode: "auto" | "on" | "off" = "auto";
@@ -2412,7 +2412,7 @@ async function startEditor() {
     }
     if (!suitLight) {
       suitLight = new THREE.SpotLight(0xf4f2ea, 0, 30, 0.45, 0.6, 1.6);
-      // Shadows from the suit light (0.76.0): a small map, near range.
+      // Shadows from the suit light: a small map, near range.
       suitLight.shadow.mapSize.set(512, 512);
       suitLight.shadow.camera.near = 0.3;
       suitLight.shadow.camera.far = 30;
@@ -2629,7 +2629,7 @@ async function startEditor() {
     const forward = viewCamera.getWorldDirection(new THREE.Vector3());
     return Math.atan2(forward.x, -forward.z);
   }
-  // Hold F to scan (0.72.0): Scannable entities, scattered species and
+  // Hold F to scan: Scannable entities, scattered species and
   // landmarks; a finished scan calls on_ui("scan", key) in every script.
   function scanCandidates(): ScanTarget[] {
     const list: ScanTarget[] = [];
@@ -3035,6 +3035,10 @@ async function startEditor() {
     // now actually resolves the shape it's told, not always an AABB from Scale.
     const colliderShape = collider?.type === "Sphere" ? 1 : 0;
     const colliderRadius = collider?.radius ?? 0.5;
+    // An AABB collider's box is Scale times twice its halfExtents (0.5, the
+    // default, fills the unit cube Scale stretches).
+    const he = collider?.type === "AABB" ? collider.halfExtents : undefined;
+    const box = he ? { x: s.x * 2 * he.x, y: s.y * 2 * he.y, z: s.z * 2 * he.z } : s;
     const isVehicle = get("Vehicle") ? 1 : 0;
     const isAi = get("AIState") ? 1 : 0;
     const isPedestrian = get("Pedestrian") ? 1 : 0;
@@ -3057,9 +3061,9 @@ async function startEditor() {
         v.x,
         v.y,
         v.z,
-        s.x,
-        s.y,
-        s.z,
+        box.x,
+        box.y,
+        box.z,
         // Settings-only entities ride along like hierarchy children: no body.
         isChild || (isNonPhysical(get) ? 1 : 0),
         isPlayer,
@@ -3083,7 +3087,7 @@ async function startEditor() {
     const body = get("RigidBody");
     runtime._editor_set_body(index, body ? 1 : 0, body?.mass ?? 1, body?.dynamic === false ? 0 : 1);
     if (collider) runtime._editor_set_collider(index, collider.isTrigger ? 1 : 0, collider.layer, collider.mask, collider.bounciness);
-    // CharacterController (0.60.0): see editor_set_controller (bridge.cpp).
+    // CharacterController: see editor_set_controller (bridge.cpp).
     const controller = get("CharacterController");
     if (controller && !isChild)
       runtime._editor_set_controller(
@@ -3099,7 +3103,7 @@ async function startEditor() {
         controller.acceleration,
         controller.airControl,
       );
-    // Arcade Vehicle and Driver (0.70.0): see editor_set_car and
+    // Arcade Vehicle and Driver: see editor_set_car and
     // editor_set_driver (bridge.cpp). Steering is authored in degrees.
     const vehicle = get("Vehicle");
     if (vehicle?.model === "Arcade" && !isChild) {
@@ -3130,7 +3134,7 @@ async function startEditor() {
         if (driver.target) runtime.ccall("editor_set_driver_text", null, ["number", "number", "string"], [index, 1, driver.target]);
       }
     }
-    // Spaceship (0.71.0): see editor_set_spaceship (bridge.cpp); the first
+    // Spaceship: see editor_set_spaceship (bridge.cpp); the first
     // one is flown by the scene's SpaceSystem.
     const ship = get("Spaceship");
     if (ship && !isChild && index >= 0 && index === shipIndex)
@@ -3149,15 +3153,15 @@ async function startEditor() {
         ship.startPiloting ? 1 : 0,
         ship.startOrbit,
       );
-    // Routine and Wildlife (0.73.0): see editor_set_routine/editor_set_wildlife.
+    // Routine and Wildlife: see editor_set_routine/editor_set_wildlife.
     const routine = get("Routine");
     if (routine && !isChild && index >= 0) runtime.ccall("editor_set_routine", null, ["number", "string", "number"], [index, routine.stops, routine.speed]);
     const wildlife = get("Wildlife");
     if (wildlife && !isChild && index >= 0) runtime._editor_set_wildlife(index, wildlife.wary, wildlife.flee, wildlife.speed, wildlife.leash);
-    // Weapons (0.61.0): see editor_set_weapons (bridge.cpp).
+    // Weapons: see editor_set_weapons (bridge.cpp).
     const weapons = get("Weapons");
     if (weapons && !isChild) runtime.ccall("editor_set_weapons", null, ["number", "string"], [index, weapons.loadout]);
-    // Melee (0.78.0): see editor_set_melee (bridge_melee.cpp).
+    // Melee: see editor_set_melee (bridge_melee.cpp).
     const melee = get("Melee");
     if (melee && !isChild) {
       runtime.ccall(
@@ -3171,7 +3175,7 @@ async function startEditor() {
     }
     // A Terrain entity's own body must never fall or move.
     if (get("Terrain")) runtime._editor_set_body(index, 1, 1, 0);
-    // AICombat (0.62.0): see editor_set_soldier (bridge.cpp).
+    // AICombat: see editor_set_soldier (bridge.cpp).
     const combat = get("AICombat");
     if (combat && !isChild) {
       runtime._editor_set_soldier(
@@ -3193,7 +3197,7 @@ async function startEditor() {
       );
       if (combat.patrol) runtime.ccall("editor_set_soldier_patrol", null, ["number", "string"], [index, combat.patrol]);
     }
-    // A rotated Box collider collides as an oriented box (0.59.0).
+    // A rotated Box collider collides as an oriented box.
     const rotation = get("Rotation")?.euler;
     if (collider && rotation && (rotation.x || rotation.y || rotation.z)) runtime._editor_set_rotation(index, rotation.x, rotation.y, rotation.z);
     if (name !== undefined) runtime.ccall("editor_set_name", null, ["number", "string"], [index, name]);
@@ -3225,7 +3229,7 @@ async function startEditor() {
   const tickSnapshotAlive = (i: number) => (tickSnapshot && i < tickSnapshot[0]! ? tickSnapshot[1 + i * 6] === 1 : runtime._editor_alive(i) === 1);
   const tickSnapshotFlags = (i: number) => (tickSnapshot && i < tickSnapshot[0]! ? tickSnapshot[1 + i * 6 + 5]! : -1);
   let tickAlpha = 1;
-  // Arcade car sounds and HUD state (0.70.0; see updateCars), declared
+  // Arcade car sounds and HUD state (see updateCars), declared
   // before the player-mode bootstrap, which rebuilds and starts Play.
   let engineVoice: EngineVoice | undefined;
   let tireVoice: TireVoice | undefined;
@@ -3243,7 +3247,7 @@ async function startEditor() {
   const uiTextOverrides = new Map<string, string>();
   // ui.set_color: a UI element's text colour, by name (cleared like the text).
   const uiColorOverrides = new Map<string, THREE.Color>();
-  // Script waypoints (ui.marker), by name (0.66.0).
+  // Script waypoints (ui.marker), by name.
   const uiMarkers = new Map<string, { position: THREE.Vector3; label: string }>();
   // Runtime-spawned prefab instances (world.spawn) get render objects at the
   // same index the bridge appended them at.
@@ -3259,7 +3263,7 @@ async function startEditor() {
         z: runtime._editor_value(index, EntityField.z),
       };
       createEntityObject((type) => (type === "Transform" ? ({ position } as SceneComponents[typeof type]) : components[type]));
-      // Spawned scannables (0.73.0: wildlife a script releases) can be scanned too.
+      // Spawned scannables (wildlife a script releases) can be scanned too.
       if (components.Scannable) spawnedScans.set(index, components.Scannable);
     }
   }
@@ -3286,7 +3290,7 @@ async function startEditor() {
     }
     runtime.ccall("editor_script_notify", null, ["number", "string", "string"], [i, "on_anim_state", result.entered.state.name]);
   }
-  // -- Mouse, touch and gamepad (0.55.0) ---------------------------------
+  // -- Mouse, touch and gamepad ---------------------------------
   // Pointer events cover mouse, pen and touch alike (a tap is a left click).
   // Positions are viewport pixels; queued and applied once per frame with
   // the keys, so every tick of a frame sees the same edges.
@@ -3302,7 +3306,7 @@ async function startEditor() {
   renderer.domElement.addEventListener("pointermove", (event) => {
     if (doc.mode !== "play") return;
     // Flying with the mouse captured: it moves the virtual stick
-    // (0.75.0). Otherwise dragging looks around the ship.
+    //. Otherwise dragging looks around the ship.
     if (spaceView?.stick.active && document.pointerLockElement === renderer.domElement) {
       const gain = 0.0035 * playerSettings.sensitivity;
       mouseStick.x += event.movementX * gain;
@@ -3486,7 +3490,7 @@ async function startEditor() {
       const components = definition.components as Partial<SceneComponents>;
       addToRuntime((type) => components[type], 0, -1, name);
     }
-    // Sites (0.73.0): a Site's direct children are simulated like top-level
+    // Sites: a Site's direct children are simulated like top-level
     // entities, at their site-local positions (the Site itself sits at the
     // origin while playing).
     const alive = doc.scene.eachAlive();
@@ -3552,7 +3556,7 @@ async function startEditor() {
         runtime._editor_add_obstacle(center.x + box.x, center.y + box.y, center.z + box.z, box.sx, box.sy, box.sz);
       }
     }
-    // Solid ModelInstances (0.70.0) as static obstacles, footprint and all.
+    // Solid ModelInstances as static obstacles, footprint and all.
     for (const entity of doc.scene.eachAlive()) {
       const mi = doc.scene.resolve(entity, "ModelInstances");
       if (!mi) continue;
@@ -3678,7 +3682,7 @@ async function startEditor() {
   // Particles, animation state) and appends it to objects[]/animStates[]/
   // particleStates[]/deathStates[] at the next index. Used for every scene
   // entity by rebuild() and for runtime-spawned prefab instances by frame().
-  // -- Terrain (0.63.0) ---------------------------------------------------
+  // -- Terrain ---------------------------------------------------
   function terrainParams(t: TerrainComponent): TerrainParams {
     return {
       size: t.size,
@@ -3767,7 +3771,7 @@ async function startEditor() {
       if (catalog?.animated) {
         object = SkeletonUtils.clone(cached.scene);
         const mixer = new THREE.AnimationMixer(object);
-        // An armed soldier (0.69.0): locomotion on the legs, a weapon-holding
+        // An armed soldier: locomotion on the legs, a weapon-holding
         // clip on the upper body, so its own arms hold the gun it carries.
         const armed = get("AICombat") && get("Weapons") ? splitForWeapon(object, cached.clips) : undefined;
         const actions = new Map((armed?.lower ?? cached.clips).map((clip) => [clip.name, mixer.clipAction(clip)]));
@@ -3814,8 +3818,8 @@ async function startEditor() {
         );
       object = new THREE.Mesh(geometry, material);
     }
-    // Terrain (0.63.0) replaces the placeholder with its own mesh and scatter;
-    // ModelInstances (0.70.0) with its instanced models. Neither takes the
+    // Terrain replaces the placeholder with its own mesh and scatter;
+    // ModelInstances with its instanced models. Neither takes the
     // entity's Rotation or Scale.
     const terrainComponent = get("Terrain");
     const instancesComponent = get("ModelInstances");
@@ -3843,7 +3847,7 @@ async function startEditor() {
     }
     animators.push(animator);
     // Scene-wide settings (a UI label, the Environment) have no body of
-    // their own: their stand-in box shows only while editing (0.78.0).
+    // their own: their stand-in box shows only while editing.
     // Settings holders and invisible helpers (a light, a camera, a director
     // script): their stand-in box shows only while editing.
     // Instanced models (ModelInstances) stay out of the simulation but are
@@ -3885,12 +3889,12 @@ async function startEditor() {
     if (cached && !terrainComponent) object.position.copy(cached.nativeCenter).negate();
     anchor.add(object);
     if (get("Vehicle")) carSizes.set(anchor, new THREE.Vector3(s?.x ?? 1, s?.y ?? 1, s?.z ?? 1));
-    // A soldier with Weapons visibly holds its first weapon (0.62.0).
+    // A soldier with Weapons visibly holds its first weapon.
     const loadout = get("AICombat") ? get("Weapons")?.loadout : undefined;
     if (loadout !== undefined) {
       const model = /model=(\w+)/.exec(loadout.split("\n").find((line) => line.trim() && !line.trim().startsWith("#")) ?? "")?.[1] ?? "rifle";
       const held = buildViewmodel(model).group;
-      // In the hands of a rig playing a weapon-holding clip (0.69.0): posed
+      // In the hands of a rig playing a weapon-holding clip: posed
       // once, then the gun rides the right hand bone.
       let inHand = false;
       if (animState?.upper) {
@@ -3937,7 +3941,7 @@ async function startEditor() {
     });
     // A still model (no rig, nothing scripted on it) never moves inside its
     // anchor: its nodes' local matrices are composed once, not every frame
-    // (0.75.0; a town is thousands of nodes).
+    // (a town is thousands of nodes).
     if (cached && !animState && !get("Script") && !get("Spaceship") && !loadout)
       object.traverse((node) => {
         node.updateMatrix();
@@ -4084,7 +4088,7 @@ async function startEditor() {
     el<HTMLButtonElement>("prefab-place").disabled = !hasPrefabs || doc.mode !== "edit";
     el("prefab-hint").hidden = hasPrefabs;
   }
-  // Site view (0.75.0): a scene's Sites keep their children at site-local
+  // Site view: a scene's Sites keep their children at site-local
   // positions, which in the editor would pile on top of the home layout.
   // "Show" picks everything, home, or one site; selecting an entity that
   // lives elsewhere switches to it.
@@ -4229,7 +4233,7 @@ async function startEditor() {
     doc.redo();
     rebuild();
   };
-  // New (0.77.0): pick a starting point -- empty, or a small playable
+  // New: pick a starting point -- empty, or a small playable
   // starter for a kind of game (sceneTemplates.ts).
   el("new").onclick = () => {
     if (doc.mode !== "edit") return;
@@ -4291,7 +4295,7 @@ async function startEditor() {
     // Models still loading when Play is pressed would stay placeholder boxes
     // for the whole session (they're swapped in by an edit-mode rebuild), so
     // their clips and Animators would never run: wait for them first, up to
-    // 10 s (0.76.1). Nothing pending, nothing awaited: Play starts at once.
+    // 10 s. Nothing pending, nothing awaited: Play starts at once.
     if (doc.mode === "edit" && pendingCatalogRebuilds.size) {
       if (playStarting) return;
       playStarting = true;
@@ -4305,7 +4309,7 @@ async function startEditor() {
     }
     try {
       if (doc.mode === "edit") {
-        // Content checks before Play (0.77.0): warn, never block.
+        // Content checks before Play: warn, never block.
         const issues = runContentCheck();
         if (issues.length) log(`Playing with ${issues.length} content problem${issues.length > 1 ? "s" : ""} (see Problems): ${formatIssue(issues[0]!)}`);
         prePlayTarget = controls.target.clone();
@@ -4395,7 +4399,7 @@ async function startEditor() {
     endSpaceView();
     rebuild();
   };
-  // -- Terrain sculpting (0.63.0) -------------------------------------------
+  // -- Terrain sculpting -------------------------------------------
   // Looked up on use: updatePanels() can run before this section has.
   const sculptElement = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
   const sculptMode = () => sculptElement<HTMLSelectElement>("sculpt")?.value ?? "off";
@@ -4455,7 +4459,7 @@ async function startEditor() {
     // One undoable edit per stroke.
     execute({ command: "set_component", entity, type: "Terrain", value: { ...current, sculpt: encodeSculpt(live.offsets) } });
   });
-  // -- Imported assets (0.58.0; see userAssets.ts) ------------------------
+  // -- Imported assets (see userAssets.ts) ------------------------
   // Object URLs for imported images, by file name ("asset:<name>").
   const importedImages = new Map<string, string>();
   let storedAssets: StoredAsset[] = [];
@@ -4516,7 +4520,7 @@ async function startEditor() {
       }
     })
     .catch((error) => log(`Imported assets unavailable: ${String(error)}`));
-  // -- Stats overlay (0.58.0) --------------------------------------------
+  // -- Stats overlay --------------------------------------------
   const statsPanel = document.createElement("pre");
   statsPanel.id = "stats-panel";
   statsPanel.hidden = true;
@@ -4558,6 +4562,7 @@ async function startEditor() {
       `Governor     tier ${governorTier() === governor.settings ? governor.tier : governor.floor} (${(governorTier().scale * 100).toFixed(0)}% res)`,
       `Limited by   ${limitReason((now - stats.since) / stats.frames, stats.frameMs / stats.frames, stats.tickMs / stats.frames)}`,
       `Triangles    ${info?.render.triangles ?? "-"}`,
+      `GPU memory   ${info ? `${info.memory.geometries} geometries, ${info.memory.textures} textures` : "-"}`,
       `Entities     ${doc.scene.entityCount} (+${Math.max(0, objects.length - doc.scene.eachAlive().length)} spawned)`,
       ...(systems.length ? ["Systems (last tick):", ...systems] : []),
     ].join("\n");
@@ -4757,7 +4762,7 @@ async function startEditor() {
         // would place no foliage, and Play never rebuilds again.
         const terrain = doc.scene.resolve(entity, "Terrain");
         if (terrain) for (const rule of parseScatter(terrain.scatter).rules) meshIds.add(rule.model);
-        // ModelInstances models (0.70.0).
+        // ModelInstances models.
         const mi = doc.scene.resolve(entity, "ModelInstances");
         if (mi) for (const instance of parseModelInstances(mi.instances).instances) meshIds.add(instance.model);
         // The first-person arms' fallback character (holdFirstPersonWeapons).
@@ -4847,7 +4852,7 @@ async function startEditor() {
       }
     }
   }
-  // -- Arcade cars (0.70.0): effects, sounds and the HUD's car ------------
+  // -- Arcade cars: effects, sounds and the HUD's car ------------
   function stopCarSounds() {
     engineVoice?.stop();
     tireVoice?.stop();
@@ -4914,7 +4919,7 @@ async function startEditor() {
       }
     carFx.update(dt);
   }
-  // Frame governor (0.75.0): while playing, holds 45-60 fps by stepping
+  // Frame governor: while playing, holds 45-60 fps by stepping
   // through quality tiers (resolution, shadows, bloom, scatter, terrain
   // streaming, distant animation) -- see frameGovernor.ts. Edit mode always
   // draws at the best tier the player's preset allows.
@@ -5013,7 +5018,7 @@ async function startEditor() {
       staticBatcher.check((i) => !tickSnapshotAlive(i));
     } else staticBatcher.syncVisibility();
   }
-  // Resting activities (0.75.0). A Routine stop may name one ("6 120 40
+  // Resting activities. A Routine stop may name one ("6 120 40
   // sit"): the clip to play once there, if the model has it (a few
   // aliases help). Two people standing close turn to each other and talk.
   // Calm animals graze, on and off.
@@ -5056,7 +5061,7 @@ async function startEditor() {
     }
     return undefined;
   }
-  // Mouse steering (0.75.0): while flying with the mouse captured, its
+  // Mouse steering: while flying with the mouse captured, its
   // motion moves a virtual stick (yaw right, pitch up for the mouse moving
   // up) that eases back to centre once the mouse rests; keys still win.
   const mouseStick = { x: 0, y: 0, idle: 0, sent: false, locked: false };
@@ -5289,7 +5294,7 @@ async function startEditor() {
       }
       state.mixer.update(animDt + (state.skipped ?? 0));
       state.skipped = 0;
-      // Each near character's own gestures over a shared clip (0.76.0).
+      // Each near character's own gestures over a shared clip.
       const kind = doc.mode === "play" && object && object.position.distanceToSquared(eye) < 40 * 40 ? gestureFor(state.current) : undefined;
       if (kind && object) {
         let bones = gestureBones.get(state);
@@ -5393,7 +5398,7 @@ async function startEditor() {
         // `clipName !== state.current` check below makes this a no-op once
         // it's already showing, so it's harmless in the ordinary case too.
         const restoringPin = !sitClip && overridden;
-        // Standing still (0.75.0): an activity -- a job at a routine's
+        // Standing still: an activity -- a job at a routine's
         // stop, talking with whoever stands close, grazing -- before plain idle.
         const resting = !sitClip && !overridden && speed < 0.15 && i !== playerIndex ? restingClip(i, state, entities[i], object, tickDt) : undefined;
         const clipName = sitClip ?? (overridden ? override!.clip : (resting ?? pickClipName([...state.actions.keys()], speed)));
@@ -5758,7 +5763,7 @@ async function startEditor() {
       drawWaypoints();
     }
     if (firstPerson()) hudLines.push(...drawFirstPersonOverlay());
-    // Melee (0.78.0): health, energy, guard, combo and lock-on.
+    // Melee: health, energy, guard, combo and lock-on.
     if (doc.mode === "play" && !ledger.playing)
       hudLines.push(
         ...combat.drawHud(
@@ -5772,12 +5777,12 @@ async function startEditor() {
           objects,
         ),
       );
-    // Scanner reticle (0.72.0).
+    // Scanner reticle.
     if (doc.mode === "play" && (scannableIndices.length || scatterTargets.length)) {
       const text = scanner.draw(hudCtx, hud.width, hud.height, scanHeld());
       if (text) hudLines.push(text);
     }
-    // Flight HUD (0.71.0).
+    // Flight HUD.
     if (doc.mode !== "edit" && spaceView) {
       const ship = shipIndex >= 0 ? objects[shipIndex] : undefined;
       const me = playerIndex >= 0 ? objects[playerIndex] : undefined;
@@ -5797,7 +5802,7 @@ async function startEditor() {
         );
       else if (nearShip && !uiTextOverrides.has("Prompt")) hudLines.push("E board ship");
     }
-    // Driving HUD (0.70.0): when the player is an arcade car.
+    // Driving HUD: when the player is an arcade car.
     if (doc.mode !== "edit" && playerIndex >= 0 && runtime._editor_alive(playerIndex) && runtime._editor_vehicle_value(playerIndex, 11)) {
       const car = carView(playerIndex);
       const playerEntity = doc.scene.eachAlive()[playerIndex];

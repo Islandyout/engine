@@ -1028,7 +1028,7 @@ int main() {
         check(std::string(editor_command_text(1, 1)) == "state run");
     }
     {
-        // Native input (0.55.0): any key by DOM code drives both the default
+        // Native input: any key by DOM code drives both the default
         // actions and the bound movement; mouse and gamepad reach scripts.
         editor_begin();
         check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // Player
@@ -1489,7 +1489,7 @@ int main() {
     }
 
     {
-        // Arcade cars (0.70.0): the player's car accelerates on W and turns
+        // Arcade cars: the player's car accelerates on W and turns
         // right on D; an AI racer follows its route around a square; a police
         // car chases the player; scripts read state and reset/freeze cars.
         editor_begin();
@@ -1560,7 +1560,7 @@ int main() {
     }
 
     {
-        // Spaceflight (0.71.0): a ship landed at a site on a small planet
+        // Spaceflight: a ship landed at a site on a small planet
         // lifts off on its belly thrusters, hovers, sets down, lets the
         // pilot out onto the curved ground and back in, and scripts read
         // the flight through space.*.
@@ -1644,7 +1644,7 @@ int main() {
         }
         check(saw_liftoff && saw_touchdown && saw_exit && saw_state);
 
-        // Walking anywhere (0.72.0): landed on Vell, far from the site, the
+        // Walking anywhere: landed on Vell, far from the site, the
         // frame follows the ship -- the pilot can step out onto the moon --
         // and returns home when the ship lands back at the site.
         editor_begin();
@@ -1687,7 +1687,7 @@ int main() {
         }
         check(saw_moon && saw_home);
 
-        // Re-anchoring on foot (0.75.0): walking far across a wilderness
+        // Re-anchoring on foot: walking far across a wilderness
         // frame moves the frame under the walker -- no edge -- and the
         // ground is still under their feet.
         editor_begin();
@@ -1732,7 +1732,7 @@ int main() {
             saw_reframe |= std::string(editor_command_text(i, 1)) == "ev reframe";
         check(saw_reframe);
 
-        // Sites (0.73.0): landing at a second site moves the frame there,
+        // Sites: landing at a second site moves the frame there,
         // wakes its own entities and parks home's; scripts see the site.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -1768,7 +1768,7 @@ int main() {
         }
         check(saw_site && saw_back);
 
-        // A turning world (0.74.0): the site and the landed ship turn with
+        // A turning world: the site and the landed ship turn with
         // it, so in the site frame nothing drifts; stepping out still works.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -1801,14 +1801,14 @@ int main() {
         check(editor_commit() == 0);
     }
     {
-        // Routines and wildlife (0.73.0): a walker heads for the stop the
+        // Routines and wildlife: a walker heads for the stop the
         // scene clock says; an animal flees a player inside its radius.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         check(editor_add(10, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         editor_set_wildlife(1, 44, 16, 7, 80);
         check(editor_add(0, 0.9, -30, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
-        editor_set_routine(2, "0 0 -30 sit; 12 20 -30 talk", 1.5); // activity words (0.75.0) are skipped
+        editor_set_routine(2, "0 0 -30 sit; 12 20 -30 talk", 1.5); // activity words are skipped
         check(editor_add(0, 30, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         editor_set_script_source(3, "function on_tick(dt) world.set_clock(13) end");
         check(editor_commit() == 1);
@@ -1821,7 +1821,7 @@ int main() {
         check(editor_routine_stop(2) == 1 && editor_routine_stop(0) == -1);
     }
     {
-        // Around walls (0.76.0): a walker whose stop is behind a wall goes
+        // Around walls: a walker whose stop is behind a wall goes
         // round it on the nav grid instead of pressing into it.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -1833,7 +1833,7 @@ int main() {
         check(editor_value(0, 2) < -20); // past the wall
     }
     {
-        // Settling (0.75.0): after a load, everyone with a Routine stands at
+        // Settling: after a load, everyone with a Routine stands at
         // the stop the clock says at once.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -1846,7 +1846,7 @@ int main() {
         check(std::abs(editor_value(0, 0) - 30) < 0.5 && std::abs(editor_value(0, 2) + 20) < 0.5);
     }
     {
-        // Soft radii (0.75.0): the walker and a big animal ease apart.
+        // Soft radii: the walker and a big animal ease apart.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         check(editor_add(0.4, 0.8, 0, 0, 0, 0, 2.4, 1.6, 1.4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -1921,7 +1921,7 @@ int main() {
     }
 
     {
-        // Game-support Lua APIs (0.66.0): world.heal caps at max, world.give_ammo
+        // Game-support Lua APIs: world.heal caps at max, world.give_ammo
         // tops up another entity's reserve, ui.marker / game.pause queue commands.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 40, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -1948,7 +1948,7 @@ int main() {
 
 
     {
-        // Melee (0.78.0). A Player fighter facing a training dummy: a light
+        // Melee. A Player fighter facing a training dummy: a light
         // press throws the jab, which lands inside its active window; mashing
         // chains jab -> cross -> hook; the hits build a combo and energy.
         const auto melee_events = [&](int kind) {
@@ -2131,7 +2131,7 @@ int main() {
             check(editor_value(1, 3) < 1);
         }
 
-        // GATEBREAKER (0.80.0): a locked skill stays shut until melee.unlock,
+        // GATEBREAKER: a locked skill stays shut until melee.unlock,
         // and filling an enemy's poise bar Breaks it (a broken event).
         {
             editor_begin();

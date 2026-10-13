@@ -19,7 +19,7 @@ int main() {
         using physics::RigidBody;
 
         {
-            // The broadphase (0.75.0): a body far out among hundreds of
+            // The broadphase: a body far out among hundreds of
             // static obstacles lands on the one under it, and a floor larger
             // than the grid's bucket limit still holds bodies up.
             World world;

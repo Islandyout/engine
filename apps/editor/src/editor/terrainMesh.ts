@@ -1,4 +1,4 @@
-// Terrain rendering (0.63.0): the heightfield mesh, colored by height and
+// Terrain rendering: the heightfield mesh, colored by height and
 // slope (sand, grass, rock, snow) over a tiling detail texture, and
 // instanced foliage/rock scatter from catalog models.
 import * as THREE from "three";

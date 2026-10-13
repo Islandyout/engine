@@ -1,4 +1,4 @@
-// Terrain (0.63.0): heights from seeded fractal noise plus sculpted offsets,
+// Terrain: heights from seeded fractal noise plus sculpted offsets,
 // independent of three.js so it can be unit tested. main.ts builds the mesh
 // and foliage from it and sends the heights to the C++ runtime, which
 // collides, raycasts and paths against the same grid.

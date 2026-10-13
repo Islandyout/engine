@@ -1,4 +1,4 @@
-// The inspector (0.77.0, out of main.ts): the selected entity's name and
+// The inspector (out of main.ts): the selected entity's name and
 // parent, its prefab status, a card per component with fields generated
 // from the component's shape (help, validation, and form editors where the
 // field is text underneath), and the grouped "Add component" list.
@@ -77,7 +77,7 @@ export function renderInspector(inspector: HTMLElement, entity: EntityRef, conte
     const legend = document.createElement("summary");
     legend.append(iconEl("cube", "icon-component"), textSpan(componentLabel(type), "component-title"));
     section.append(legend);
-    // What the component is for (0.77.0), and anything wrong with it.
+    // What the component is for, and anything wrong with it.
     const about = componentDescription(type);
     if (about) {
       legend.title = about;
@@ -96,7 +96,7 @@ export function renderInspector(inspector: HTMLElement, entity: EntityRef, conte
         const meta = propertyMetadata(type, prefix + key);
         label.textContent = meta.label ?? prefix + key;
         if (meta.help) label.title = meta.help;
-        // Routine stops as a table (0.77.0) instead of "hour x z; ..." text.
+        // Routine stops as a table instead of "hour x z; ..." text.
         if (type === "Routine" && prefix === "" && key === "stops") {
           host.append(
             routineStopsEditor(
@@ -160,7 +160,7 @@ export function renderInspector(inspector: HTMLElement, entity: EntityRef, conte
       }
     }
     fields(value, section);
-    // Scripts get the API reference (0.77.0).
+    // Scripts get the API reference.
     if (type === "Script") {
       const api = document.createElement("button");
       api.className = "btn btn-sm btn-ghost";

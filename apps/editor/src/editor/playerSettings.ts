@@ -1,4 +1,4 @@
-// Player settings and platform helpers (0.73.0): a settings panel (quality
+// Player settings and platform helpers: a settings panel (quality
 // preset, look sensitivity and inversion, reduced motion, minimap,
 // footprints, touch controls), a screen-reader announcer, on-screen touch
 // controls that press the same keys a keyboard would, and a frame-time
@@ -21,7 +21,7 @@ export interface PlayerSettings {
   minimap: boolean;
   footprints: boolean;
   touch: "auto" | "on" | "off";
-  // Flying (0.75.0): the mouse steers the ship (a virtual stick, captured
+  // Flying: the mouse steers the ship (a virtual stick, captured
   // by a click) or only looks around it.
   flightMouse: "steer" | "look";
   // Volumes 0..1 over the scene's own mix.

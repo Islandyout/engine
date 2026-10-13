@@ -1,4 +1,4 @@
-// ModelInstances (0.70.0): many copies of catalog models from one entity,
+// ModelInstances: many copies of catalog models from one entity,
 // one per line, "model x z [yaw degrees] [scale] [solid]". Drawn with the
 // terrain scatter's chunked instancing (terrainMesh.ts buildScatter); solid
 // ones become static obstacles covering their whole rotated footprint.

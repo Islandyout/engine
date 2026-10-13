@@ -215,7 +215,7 @@ EXPORT void editor_set_rotation(int index, double x, double y, double z) {
         }
     collider->rotation = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)};
 }
-// Makes the entity a CharacterController (0.60.0), after editor_add for the
+// Makes the entity a CharacterController, after editor_add for the
 // same index. mode 0 = first person, 1 = third person. Resizes its Box to the
 // controller's footprint and standing height, keeping its feet in place.
 // Ignored for an entity without a RigidBody (a child).
@@ -253,7 +253,7 @@ EXPORT void editor_set_controller(int index, int mode, double walk, double sprin
     engine::gameplay::configure_body(*box, settings);
     world.set(target->second, controller);
 }
-// The scene's terrain (0.63.0), between editor_begin() and editor_commit():
+// The scene's terrain, between editor_begin() and editor_commit():
 // a resolution x resolution heightfield over a `size` square centered on
 // (x, z), heights relative to y, as `count` float32s in wasm memory (row-major,
 // x fastest; the caller allocates and frees them). Replaces any earlier
@@ -516,7 +516,7 @@ engine::Key key_for_code(const std::string &code) {
     const auto found = named.find(code);
     return found == named.end() ? Key::unknown : found->second;
 }
-// Any key by its KeyboardEvent.code (0.55.0). Replaces editor_key for the
+// Any key by its KeyboardEvent.code. Replaces editor_key for the
 // browser: F and G still set the melee/blast edges.
 EXPORT void editor_input_key(const char *code, int down) {
     if (!code)
@@ -635,7 +635,7 @@ EXPORT int editor_alive(int index) {
     return active->world.alive(active->entities[static_cast<std::size_t>(index)]) ? 1 : 0;
 }
 EXPORT int editor_count() { return static_cast<int>(active->world.size()); }
-// Every entity's tick state in one call (0.75.0): the index count, then six
+// Every entity's tick state in one call: the index count, then six
 // doubles per index -- alive (0/1), position x, y, z, the yaw the renderer
 // faces it along (a soldier's look, else its Heading), and flags (1 a
 // soldier, 2 an arcade car). Returns a pointer into the module's
@@ -792,7 +792,7 @@ EXPORT int editor_command_entity(int index) {
                ? pending_commands[static_cast<std::size_t>(index)].entity_index
                : -1;
 }
-// The frame governor's sim stride (0.76.0): far routines and wildlife
+// The frame governor's sim stride: far routines and wildlife
 // decide every `stride` ticks.
 EXPORT void editor_set_sim_stride(int stride) { active->sim_stride = std::clamp(stride, 1, 8); }
 // "system=ms;system=ms" for the most recent tick (Stats overlay).

@@ -444,7 +444,7 @@ int main() {
         }
 
         {
-            // Spaceflight in the playground (0.75.0): throttle climbs, the
+            // Spaceflight in the playground: throttle climbs, the
             // ship burns fuel and moves, the orrery draws, and G engages the
             // autopilot toward the moon.
             playground::SpaceDemo space;
@@ -472,7 +472,7 @@ int main() {
             check(space.autopilot, "G engages the autopilot");
         }
         {
-            // Down to the ground (0.76.0): low over the planet the view is
+            // Down to the ground: low over the planet the view is
             // its terrain, and L sets the ship down softly.
             namespace sp = engine::gameplay::space;
             playground::SpaceDemo space;

@@ -1,4 +1,4 @@
-// Writes apps/editor/src/editor/runtimeExports.ts (0.77.0): the TypeScript
+// Writes apps/editor/src/editor/runtimeExports.ts: the TypeScript
 // type of every EXPORT function in apps/editor/runtime/bridge*.cpp, read from
 // the C++ signatures themselves, so the editor can't call a function that
 // doesn't exist or pass the wrong number of arguments. Functions taking or

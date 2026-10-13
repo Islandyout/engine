@@ -1,4 +1,4 @@
-// A local reflection probe (0.76.0): canals and other still, glossy flats
+// A local reflection probe: canals and other still, glossy flats
 // reflect what is actually around them -- the buildings on their banks and
 // the sky's own colours (sunset included) -- from a small cube map
 // re-rendered every few seconds near the camera, instead of nothing at all.

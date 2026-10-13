@@ -215,7 +215,7 @@ const { chromium } = require("playwright");
         .inputValue(),
       "3",
     );
-    // The bench is id 1 in the model catalog now (0.21.0), not a standalone
+    // The bench is id 1 in the model catalog now, not a standalone
     // button — same "Add from catalog" flow as everything else. Selected
     // explicitly by id rather than relying on it being first alphabetically.
     await page.locator("#catalog-category").selectOption("furniture");
@@ -487,7 +487,7 @@ const { chromium } = require("playwright");
       .first()
       .click();
     // Archetypes tune the Classic driving model; a newly added Vehicle
-    // defaults to Arcade (0.70.0, engine::gameplay car dynamics).
+    // defaults to Arcade (engine::gameplay car dynamics).
     await page.locator('[aria-label="Vehicle.model"]').selectOption("Classic");
     const archetypeSelect = page.locator('[aria-label="Vehicle.archetype"]');
     const archetypeOptions = await archetypeSelect.locator("option").allTextContents();
@@ -826,7 +826,7 @@ const { chromium } = require("playwright");
       await audioEventCount("stop"),
       "every started source must have a matching stop -- nothing left playing across the whole Sound sequence",
     );
-    // The Quaternius CC0 additions (0.32.0, see assets/CREDITS.md) go through
+    // The Quaternius CC0 additions (see assets/CREDITS.md) go through
     // the same animated-catalog path the Aether Cat entry above already
     // exercises; just confirm both new entries are actually reachable by
     // label from their respective categories and load without a page error.
@@ -851,7 +851,7 @@ const { chromium } = require("playwright");
       await page.locator(".entity").count(),
       entitiesBeforeQuaternius + 2,
     );
-    // AnimationState (0.32.0): previously fully wired for authoring/save-load
+    // AnimationState: previously fully wired for authoring/save-load
     // but never actually consumed by the renderer -- an "authored but inert"
     // component (see docs/IMPLEMENTATION_STATUS.md's F27/F31 precedent).
     // Wolf (just added, currently selected) is the live model here: its
@@ -890,7 +890,7 @@ const { chromium } = require("playwright");
       "",
       "(Automatic) must persist too, handing control back to ground-speed selection",
     );
-    // Inspector cleanup (0.34.0, right after F33 shipped): "Add component"
+    // Inspector cleanup (right after F33 shipped): "Add component"
     // was one flat list of 16 raw type names with related components
     // (AIState/Pedestrian, Player/Vehicle, Renderable/AnimationState)
     // scattered across it, and the new clip picker above was reachable only
@@ -947,7 +947,7 @@ const { chromium } = require("playwright");
       "sit",
       "picking from the inline picker attaches AnimationState -- the advanced card now agrees",
     );
-    // Light (0.39.0): a real THREE light spawned per-entity, not just static
+    // Light: a real THREE light spawned per-entity, not just static
     // scene ambience -- verified here at the authoring-DOM level (options
     // offered, values persist through a fresh inspector render), same as
     // every other component's black-box coverage; actual illumination was
@@ -979,7 +979,7 @@ const { chromium } = require("playwright");
       "0.2",
     );
     assert.equal(await page.locator('[aria-label="Light.angle"]').inputValue(), "0.3");
-    // Particles (0.40.0): a real per-entity THREE.Points emitter, not just a
+    // Particles: a real per-entity THREE.Points emitter, not just a
     // static effect -- verified here at the authoring-DOM level (options
     // offered, values persist through a fresh inspector render), same as
     // every other component's black-box coverage; the actual spawn/fade/
@@ -1006,7 +1006,7 @@ const { chromium } = require("playwright");
     );
     assert.equal(await page.locator('[aria-label="Particles.rate"]').inputValue(), "40");
     assert.equal(await page.locator('[aria-label="Particles.lifetime"]').inputValue(), "0.8");
-    // UI (0.43.0): screen-anchored HUD/menu elements, not 3D objects --
+    // UI: screen-anchored HUD/menu elements, not 3D objects --
     // verified here at the authoring-DOM level like every other component
     // (options offered, values persist through a fresh inspector render),
     // plus one real interaction: a Button's action actually fires through a
@@ -1402,7 +1402,7 @@ const { chromium } = require("playwright");
     await page.screenshot({ path: "build/browser-evidence/f50-play.png" });
     await page.click("#stop");
 
-    // Melee (0.78.0): the Martial-arts dojo starter fights. The Player keeps
+    // Melee: the Martial-arts dojo starter fights. The Player keeps
     // its ground (starter grounds used to fling it), gets the fighter HUD,
     // locks on and lands a punch.
     if (!process.env.EDITOR_NO_WEBGL) {

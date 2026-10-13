@@ -91,7 +91,7 @@ double value_noise(std::uint32_t seed, DVec3 p) {
 //
 // Terrain is sampled a chunk of neighbouring vertices at a time, so the
 // craters around a lattice cell (its 27 neighbours, after the density test)
-// are worked out once and kept (0.76.0): a sample then costs a few dot
+// are worked out once and kept: a sample then costs a few dot
 // products per nearby crater instead of four hashes and two square roots
 // per neighbour cell.
 namespace {
@@ -299,7 +299,7 @@ void touchdown(ShipState& state, const ShipSpec& spec, const System& system, con
     result.tilt = std::acos(clampd(dot(ship_up(state), normal), -1, 1));
     result.slope = std::acos(clampd(dot(normal, radial), -1, 1));
     const double deg = 180.0 / pi;
-    // Worn gear takes less (0.73.0).
+    // Worn gear takes less.
     const double gear = 0.5 + 0.5 * component_efficiency(state.gear);
     const double excess = std::max(result.vertical - spec.land_vertical * gear, 0.0) +
                           std::max(result.lateral - spec.land_lateral, 0.0) * 0.6 +
@@ -749,7 +749,7 @@ std::vector<DVec3> predict_path(const ShipState& state, const System& system, do
             v = v + gravity_at(system, state.ref, p) * h;
             p = p + v * h;
         }
-        // Body-fixed (0.75.0): each point where it is over the turning
+        // Body-fixed: each point where it is over the turning
         // ground at its own time, and the ground checked under it there.
         const DVec3 fixed = body && t >= 0 && body->day > 0
                                 ? rotate(conjugate(body_spin(*body, t + h * per_point * (i + 1))), p)
@@ -787,7 +787,7 @@ double cruise_speed(const ShipSpec& spec, double distance) {
 }
 // The first body (not `target`) whose clearance sphere -- its air or a
 // quarter of its radius, at least 5 km above the surface -- the straight
-// line from `from` to `to` crosses, and a waypoint around it (0.75.0): the
+// line from `from` to `to` crosses, and a waypoint around it: the
 // NAV clearance corridor. A body the ship is already inside the sphere of
 // is ignored (that's the climb's job).
 struct Obstacle final {
@@ -847,7 +847,7 @@ DVec3 coast_to(double gm, DVec3 r, DVec3 v, double seconds, int steps = 240) {
     return r;
 }
 // The velocity that coasts from r0 to `goal` in `seconds` around a body of
-// `gm` (0.75.0): Lambert's problem by shooting -- Newton steps on the miss,
+// `gm`: Lambert's problem by shooting -- Newton steps on the miss,
 // with a finite-difference Jacobian. `guess` seeds it (the current velocity
 // is a good one). Returns false if it doesn't converge.
 bool intercept_velocity(double gm, DVec3 r0, DVec3 goal, double seconds, DVec3 guess, DVec3& out) {
@@ -904,7 +904,7 @@ AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec,
             DVec3 along = state.velocity - up * dot(state.velocity, up);
             along = length(along) > 1 ? normalized(along) : a;
             // Burn only until the coast will carry the ship clear of the air
-            // (0.75.0): burning all the way up fights gravity for nothing.
+            //: burning all the way up fights gravity for nothing.
             const auto elements = orbit_elements(state, system);
             const bool carried = elements.valid && dot(state.velocity, up) > 0 &&
                                  (!elements.closed || elements.apoapsis > clear * 1.12);
@@ -930,7 +930,7 @@ AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec,
     const DVec3 dir = normalized(to);
     const double distance = centre - goal.radius - arrival_altitude(goal);
     const double closing = dot(rel, dir);
-    // Far from the target (0.75.0): a transfer -- the coast that meets the
+    // Far from the target: a transfer -- the coast that meets the
     // target, found by shooting around the body both orbit (the star, or
     // the planet for one of its moons), with escape from the departure body
     // folded in. Burn to that velocity, then coast; the pursuit law below
@@ -941,7 +941,7 @@ AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec,
     // The approach starts early enough to brake from the speed we close at.
     const double approach = std::max({goal.radius * 5, sphere_of_influence(system, target) * 0.6,
                                       dot(rel, rel) / (2 * accel * 0.45) + arrival_altitude(goal)});
-    // To a moon of the body we orbit (0.76.0): park in orbit, wait for the
+    // To a moon of the body we orbit: park in orbit, wait for the
     // moon to come round to the right angle, then one prograde burn raises
     // the far side of the orbit to meet it -- a Hohmann transfer. Chasing a
     // moon straight across its planet's pull cost nearly twice the fuel.
@@ -1111,7 +1111,7 @@ AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec,
     // Wanted velocity: straight at the target, as fast as we can still stop
     // in the distance left (with a margin), capped at cruise.
     // The target's own pull fights the braking, more the closer it gets
-    // (0.75.0): without it the brake runs late and long.
+    //: without it the brake runs late and long.
     const double pull = goal.gm() / std::max(centre * centre, 1.0);
     const double stop = std::sqrt(2 * std::max(accel * 0.7 - pull, accel * 0.2) * std::max(distance, 0.0));
     const double want = std::min(cruise_speed(spec, distance), stop);
@@ -1120,7 +1120,7 @@ AutopilotCommand autopilot_command(const ShipState& state, const ShipSpec& spec,
     const DVec3 error = dir * want - rel;
     const double err = length(error);
     command.direction = err > 1e-6 ? normalized(error) : dir;
-    // Drift is allowed in proportion to speed (0.75.0): chasing every
+    // Drift is allowed in proportion to speed: chasing every
     // metre per second that gravity bends the path burns the tank away.
     if (err < std::max(6.0, want * 0.12)) {
         command.throttle = 0;
@@ -1154,7 +1154,7 @@ RoutePlan plan_route(const ShipState& state, const ShipSpec& spec, const System&
     }
     // Accelerate to cruise, cancel what we already have sideways, brake.
     const double cruise = cruise_speed(spec, plan.distance);
-    // Between planets (0.75.0): the transfer the autopilot will fly -- the
+    // Between planets: the transfer the autopilot will fly -- the
     // cheapest coast around the star (speed away from where we are plus
     // speed to lose on arrival), with escape and capture folded in. A
     // straight-line guess got inward trips (toward the star) badly wrong.
@@ -1210,7 +1210,7 @@ RoutePlan plan_route(const ShipState& state, const ShipSpec& spec, const System&
             }
         }
     }
-    // To a moon of the body we're at (0.76.0): the Hohmann raise from a
+    // To a moon of the body we're at: the Hohmann raise from a
     // parking orbit, and capture at the moon.
     if (goal.parent >= 0 && goal.parent == state.ref) {
         const auto& planet = system.bodies[static_cast<std::size_t>(goal.parent)];

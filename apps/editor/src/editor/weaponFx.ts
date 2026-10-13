@@ -1,4 +1,4 @@
-// First-person weapon presentation (0.61.0): the viewmodel (drawn in its own
+// First-person weapon presentation: the viewmodel (drawn in its own
 // scene after the world so it never clips into walls), its animation (sway,
 // bob, recoil, reload, equip, aim down sights, sprint), muzzle flashes,
 // tracers, impact sparks and decals, explosions, and the combat HUD
@@ -134,7 +134,7 @@ export class WeaponFx {
   private readonly indicators: Array<{ angle: number; life: number }> = [];
   private hurtFlash = 0;
   private readonly scratch = new THREE.Vector3();
-  // First-person arms (0.69.0): the player's character model posed by its
+  // First-person arms: the player's character model posed by its
   // weapon-holding clip, eyes at the view camera, head and legs hidden. The
   // equipped weapon rides its right hand. Without one, weapons float.
   private body: { group: THREE.Group; root: THREE.Object3D } | undefined;

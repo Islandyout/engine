@@ -1,4 +1,4 @@
-// The field scanner (0.72.0): hold F facing something scannable -- a
+// The field scanner: hold F facing something scannable -- a
 // Scannable entity, a scattered plant or rock, a landmark -- and a scan
 // fills. Aim and stillness speed it up; turning to another target keeps a
 // little progress. A finished scan is reported once per key (a species is
@@ -12,13 +12,13 @@ export interface ScanTarget {
   kind: string;
   position: THREE.Vector3;
   range: number;
-  // A fleeing animal (0.73.0) can't be scanned: the scan resets.
+  // A fleeing animal can't be scanned: the scan resets.
   fleeing?: boolean;
 }
 
 const seconds: Record<string, number> = { Landmark: 3, Culture: 2.4, Fauna: 2, Flora: 1.6, Mineral: 1.6, Atmosphere: 2.5 };
 
-// What scripts tune (0.73.0, host.send("scanner", "range time interference
+// What scripts tune (host.send("scanner", "range time interference
 // condition")): Survey Optics' range and speed, weather interference and
 // the scanner component's condition, all of which shape confidence.
 export interface ScannerTuning {
@@ -34,7 +34,7 @@ export class Scanner {
   quality = 0;
   readonly done = new Set<string>();
   tuning: ScannerTuning = { range: 1, time: 1, interference: 0, condition: 1 };
-  // Looking up at open sky with nothing else in view scans the air (0.73.0):
+  // Looking up at open sky with nothing else in view scans the air:
   // the key reported for it, "" when there's no air scan here.
   skyKey = "";
   // How sure the last finished scan is, 0..1.

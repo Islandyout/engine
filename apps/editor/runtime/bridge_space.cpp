@@ -3,7 +3,7 @@
 #include "bridge_runtime.hpp"
 
 extern "C" {
-// ---- Spaceflight (0.71.0) staging: the SpaceSystem component sends the
+// ---- Spaceflight staging: the SpaceSystem component sends the
 // star and site (editor_space_begin) and then each body (editor_space_body);
 // the Spaceship component marks the flown entity (editor_set_spaceship).
 // Degrees for angles. Bad numbers fail the commit.
@@ -65,7 +65,7 @@ EXPORT void editor_space_body(const char *name, int parent, double orbit_radius,
     body.seed = static_cast<std::uint32_t>(std::max(0.0, seed));
     bodies.push_back(std::move(body));
 }
-// The mouse's virtual stick (0.75.0): yaw and pitch, -1..1, held until the
+// The mouse's virtual stick: yaw and pitch, -1..1, held until the
 // next call; keys take over while pressed.
 EXPORT void editor_space_stick(double yaw, double pitch) {
     if (!active || !active->space)
@@ -74,13 +74,13 @@ EXPORT void editor_space_stick(double yaw, double pitch) {
     active->space->stick_pitch = std::isfinite(pitch) ? pitch : 0;
 }
 // The last staged body's sea level (m relative to its radius): water is its
-// surface below that height (0.72.0).
+// surface below that height.
 EXPORT void editor_space_body_sea(double sea_level) {
     if (!staging || !staging->space || staging->space->system.bodies.empty() || !std::isfinite(sea_level))
         return;
     staging->space->system.bodies.back().sea_level = sea_level;
 }
-// The last added body's terrain features and turn (0.74.0): crater density
+// The last added body's terrain features and turn: crater density
 // (0..1), lava rifts and dunes (0/1), and seconds per turn (0: none).
 EXPORT void editor_space_body_features(double craters, int rifts, int dunes, double day) {
     if (!staging || !staging->space || staging->space->system.bodies.empty())
@@ -91,14 +91,14 @@ EXPORT void editor_space_body_features(double craters, int rifts, int dunes, dou
     b.dunes = dunes != 0;
     b.day = std::isfinite(day) && day > 0 ? day : 0.0;
 }
-// The last added body starts hidden (0.73.0): not drawn or listed until a
+// The last added body starts hidden: not drawn or listed until a
 // script reveals it (space.call("reveal", name)).
 EXPORT void editor_space_body_hidden(int hidden) {
     if (!staging || !staging->space || staging->space->system.bodies.empty())
         return;
     staging->space->system.bodies.back().hidden = hidden != 0;
 }
-// A Site (0.73.0): entity `index` anchors the entities given to it with
+// A Site: entity `index` anchors the entities given to it with
 // editor_space_member around a surface point of body `body`. Sites are
 // numbered in the order they're added.
 EXPORT void editor_space_site(int index, const char *name, int body, double latitude, double longitude, double radius) {
@@ -124,14 +124,14 @@ EXPORT void editor_space_member(int index, int site) {
     if (const auto target = staged(index))
         staging->space->members[target->second] = site;
 }
-// A Routine (0.73.0): "hour x z; hour x z; ..." stops, walked at `speed`.
+// A Routine: "hour x z; hour x z; ..." stops, walked at `speed`.
 EXPORT void editor_set_routine(int index, const char *stops, double speed) {
     const auto target = staged(index);
     if (!target || !stops || !(speed > 0))
         return;
     Routine routine;
     routine.speed = static_cast<float>(speed);
-    // "hour x z [activity]; ..." -- the activity word (0.75.0) is for the
+    // "hour x z [activity]; ..." -- the activity word is for the
     // editor's animation; the simulation only needs where and when.
     std::string text{stops};
     for (auto &c : text)
@@ -160,7 +160,7 @@ EXPORT void editor_set_routine(int index, const char *stops, double speed) {
               [](const Routine::Stop &a, const Routine::Stop &b) { return a.hour < b.hour; });
     target->first->set(target->second, std::move(routine));
 }
-// The stop a Routine is at or heading for (0.75.0): its index in hour
+// The stop a Routine is at or heading for: its index in hour
 // order, -1 without a Routine.
 EXPORT int editor_routine_stop(int index) {
     if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
@@ -180,7 +180,7 @@ EXPORT void editor_set_wildlife(int index, double wary, double flee, double spee
     animal.leash = static_cast<float>(leash);
     target->first->set(target->second, animal);
 }
-// Moves entity `index` by (dx, dz) on the ground (0.73.0): the editor's
+// Moves entity `index` by (dx, dz) on the ground: the editor's
 // solid scatter (large minerals) pushes the walker out of itself.
 EXPORT void editor_push(int index, double dx, double dz) {
     if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size() || !std::isfinite(dx) ||
@@ -296,7 +296,7 @@ bool finish_space(Runtime &rt) {
 }
 } // namespace editor_bridge
 extern "C" {
-// Spaceflight readouts for the editor (0.71.0). The fields are SpaceField
+// Spaceflight readouts for the editor. The fields are SpaceField
 // (bridge_fields.hpp, generated from tools/bridge/fields.mjs). 0 without a
 // SpaceSystem.
 EXPORT double editor_space_value(int field) {
@@ -353,7 +353,7 @@ EXPORT double editor_space_value(int field) {
     case SpaceField::frame_generation: return sp.frame_generation;
     case SpaceField::frame_body: return sp.site_body;
     case SpaceField::active_site: return sp.active_site;
-    // 55/56 the frame origin's latitude/longitude on its body (0.75.0):
+    // 55/56 the frame origin's latitude/longitude on its body:
     // where the frame is, for anything that must be the same next visit.
     case SpaceField::frame_latitude: return std::asin(std::clamp(space::normalized(sp.site_origin).y, -1.0, 1.0)) * 180 / 3.14159265358979;
     case SpaceField::frame_longitude: return std::atan2(space::normalized(sp.site_origin).z, space::normalized(sp.site_origin).x) * 180 / 3.14159265358979;
@@ -368,7 +368,7 @@ EXPORT double editor_space_value(int field) {
     case SpaceField::scanner_condition: return sp.ship.scanner;
     case SpaceField::wind_speed: return space::length(sp.wind_local);
     case SpaceField::ground_slope: case SpaceField::water_below: {
-        // Under the ship (0.74.0): the ground's slope in degrees, and water.
+        // Under the ship: the ground's slope in degrees, and water.
         if (sp.ship.ref < 0)
             return 0;
         const auto &body = sp.system.bodies[static_cast<std::size_t>(sp.ship.ref)];
@@ -418,7 +418,7 @@ EXPORT double editor_space_frame(int field) {
     return field == 0 ? q.x : field == 1 ? q.y : field == 2 ? q.z : q.w;
 }
 // Body `index`'s turn now, body-fixed -> non-rotating, as a quaternion
-// (field 0-3: x, y, z, w) (0.74.0). A planet's mesh and landmarks are
+// (field 0-3: x, y, z, w). A planet's mesh and landmarks are
 // turned by editor_space_frame times this.
 EXPORT double editor_space_body_spin(int index, int field) {
     if (!active->space || index < 0 || index >= static_cast<int>(active->space->system.bodies.size()))
@@ -426,7 +426,7 @@ EXPORT double editor_space_body_spin(int index, int field) {
     const auto q = active->space->spin(index);
     return field == 0 ? q.x : field == 1 ? q.y : field == 2 ? q.z : q.w;
 }
-// Lava under a body-fixed direction (0..1), for drawing rifts (0.74.0).
+// Lava under a body-fixed direction (0..1), for drawing rifts.
 EXPORT double editor_planet_lava(int index, double x, double y, double z) {
     if (!active->space || index < 0 || index >= static_cast<int>(active->space->system.bodies.size()))
         return 0;
@@ -447,7 +447,7 @@ EXPORT double editor_space_ground(double x, double z) {
         return 0;
     return active->site_ground(static_cast<float>(x), static_cast<float>(z));
 }
-// 1 when the walk frame's point x, z is under the sea (0.72.0).
+// 1 when the walk frame's point x, z is under the sea.
 EXPORT int editor_space_wet(double x, double z) {
     if (!active->space)
         return 0;
@@ -468,7 +468,7 @@ EXPORT int editor_space_path(int count, double horizon) {
     }
     count = std::clamp(count, 2, 512);
     // An orbit is drawn as the ellipse it is; a path that comes down
-    // (0.75.0) is drawn over the turning ground, so where it meets the
+    // is drawn over the turning ground, so where it meets the
     // surface is where the ship will land.
     sp.path = sp.ship.landed ? std::vector<space::DVec3>{} : space::predict_path(sp.ship, sp.system, horizon, count);
     sp.path_fixed = false;

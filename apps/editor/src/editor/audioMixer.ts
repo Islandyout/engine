@@ -1,4 +1,4 @@
-// Audio mixing (0.64.0): buses (sfx, music, ambient, ui) into a master with
+// Audio mixing: buses (sfx, music, ambient, ui) into a master with
 // a compressor, a shared reverb send, and positional sources -- an HRTF
 // panner placed in the world, optionally muffled when something solid is in
 // the way. The listener follows the camera every frame.

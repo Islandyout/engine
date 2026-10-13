@@ -1,4 +1,4 @@
-// Characters holding weapons (0.69.0): an armed humanoid plays its
+// Characters holding weapons: an armed humanoid plays its
 // locomotion clips on the legs and a weapon-holding clip on the upper body
 // at the same time, and its weapon rides the right hand bone, so the
 // model's own arms hold the gun whatever the legs are doing. Used for AI

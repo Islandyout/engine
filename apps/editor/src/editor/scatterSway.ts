@@ -1,4 +1,4 @@
-// Swaying plants (0.75.0): scattered flora bends in a travelling wind wave;
+// Swaying plants: scattered flora bends in a travelling wind wave;
 // near a Pale Signal structure it falls into step with the structure's
 // breathing rings instead -- every blade on the same narrow-band clock.
 import * as THREE from "three";
@@ -62,7 +62,7 @@ export function swayMaterial(material: THREE.Material, uniforms: SwayUniforms): 
   return copy;
 }
 
-// The shadow pass's matching depth material (0.76.0), so shadows sway
+// The shadow pass's matching depth material, so shadows sway
 // with the plants that cast them.
 export function swayDepthMaterial(uniforms: SwayUniforms): THREE.MeshDepthMaterial {
   const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });

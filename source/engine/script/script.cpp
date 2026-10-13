@@ -949,7 +949,7 @@ struct LuaApi final {
         return 1;
     }
     // space.call(op, text, n1, n2, ...) -> {n1, n2, ..., text = "..."} or nil:
-    // any SpaceSystem operation by name (0.73.0) -- plan, autopilot,
+    // any SpaceSystem operation by name -- plan, autopilot,
     // reserve, part, reveal, bodies, wind, board_key -- without a binding
     // per operation. See BridgeHost::space for the list.
     static int space_generic(lua_State *L) {
@@ -980,7 +980,7 @@ struct LuaApi final {
     }
     // host.send(kind, text): a message to the host application (the editor
     // or player), for presentation the engine doesn't own -- maps, weather,
-    // waypoints, settings (0.73.0). Unknown kinds are ignored there.
+    // waypoints, settings. Unknown kinds are ignored there.
     static int host_send(lua_State *L) {
         const char *kind = luaL_checkstring(L, 1);
         size_t length = 0;
@@ -1060,7 +1060,7 @@ struct LuaApi final {
         return 0;
     }
 
-    // -- Native input (0.55.0) ------------------------------------------
+    // -- Native input ------------------------------------------
     static const ActionState *action_state(lua_State *L) {
         auto &self = runtime(L);
         const char *name = luaL_checkstring(L, 1);

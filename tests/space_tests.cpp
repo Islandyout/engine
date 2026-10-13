@@ -326,7 +326,7 @@ int main() {
             check(ship.density == 0 && ship.ref == 0, "in space, still in Tethys' sphere of influence");
         }
         {
-            // Ship components (0.73.0): efficiency, wear from a rough
+            // Ship components: efficiency, wear from a rough
             // landing, and a worn engine pushing less.
             check(near(component_efficiency(100), 1, 1e-9) && near(component_efficiency(0), 0.35, 1e-9),
                   "component efficiency runs from 1 to 0.35");
@@ -358,7 +358,7 @@ int main() {
             check(gain_worn < gain_fresh, "a worn engine accelerates the ship less");
         }
         {
-            // Wind (0.73.0) pushes a ship hovering in air.
+            // Wind pushes a ship hovering in air.
             ShipState ship;
             double t = 0;
             place_landed(ship, spec, system, 0, {0, 1, 0}, {0, 0, 1});
@@ -373,7 +373,7 @@ int main() {
             check(ship.position.x > before + 1, "wind drifts a hovering ship downwind");
         }
         {
-            // Route plans and the autopilot (0.73.0): Tethys orbit to Vell.
+            // Route plans and the autopilot: Tethys orbit to Vell.
             ShipState ship;
             double t = 0;
             place_in_orbit(ship, system, 0, 15000);
@@ -403,7 +403,7 @@ int main() {
             }
             check(arrived && !ship.destroyed, "the autopilot brings the ship to Vell, slow");
             check(ship.ref == 1, "arrival is inside Vell's sphere of influence");
-            // A moon is reached by a Hohmann raise from orbit (0.76.0), near
+            // A moon is reached by a Hohmann raise from orbit, near
             // the route plan's estimate.
             check(raised, "the moon transfer raises the orbit to meet it");
             // (From 15 km, inside the air, the plan under-prices the climb a little.)
@@ -413,7 +413,7 @@ int main() {
             check(other.autopilot.target == -1, "a fresh ship has no transfer planned");
         }
         {
-            // Body-fixed prediction (0.75.0): over a turning body, a path that
+            // Body-fixed prediction: over a turning body, a path that
             // comes down meets the ground where the ground will be.
             System spinning = system;
             spinning.bodies[0].day = 600;
@@ -429,7 +429,7 @@ int main() {
             check(turn > 0.05, "the fixed path's landing point is turned with the ground");
         }
         {
-            // Clearance corridors (0.75.0): with Tethys between the ship and
+            // Clearance corridors: with Tethys between the ship and
             // Vell, the autopilot flies around it instead of into it.
             ShipState ship;
             double t = 0;
@@ -462,7 +462,7 @@ int main() {
             check(closest > system.bodies[0].atmosphere_top(), "and never dips into Tethys' air");
         }
         {
-            // Terrain features (0.74.0): craters dent the ground; rifts carve
+            // Terrain features: craters dent the ground; rifts carve
             // glowing channels.
             Body plain = system.bodies[1];
             plain.flats.clear();
@@ -492,7 +492,7 @@ int main() {
             check(lava(plain, at) == 0, "no rifts unless asked");
         }
         {
-            // Turning bodies (0.74.0): a landed ship rides the turning ground,
+            // Turning bodies: a landed ship rides the turning ground,
             // staying on the same body-fixed spot.
             System turning = system;
             turning.bodies[0].day = 600;

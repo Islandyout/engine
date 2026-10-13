@@ -650,7 +650,7 @@ int main() {
             check(host.emitted[3] == "log:1 1 9 2 0.48", "one start, one after, nine every, stage 2, time.now");
         }
         {
-            // The named helpers (0.77.0) send the same host messages as the
+            // The named helpers send the same host messages as the
             // raw string protocol they wrap.
             World world;
             world.register_component<Box>("box");
