@@ -21,6 +21,7 @@ void editor_key(int, int);
 double editor_value(int, int);
 int editor_alive(int);
 int editor_count();
+int editor_controlled_player();
 const char *editor_script_error(int);
 int editor_projectile_count();
 double editor_projectile_value(int, int);
@@ -2305,6 +2306,58 @@ int main() {
         check(std::string(editor_fighter_text(0, -1, 0)) == "roll"); // in a fight: at once
         key("Space", 0);
         editor_tick();
+    }
+
+    {
+        // Car handover: E transfers the Player marker to a nearby arcade car,
+        // normal W input drives it, and E returns control to the original walker.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_add(0, 0.5, 2.5, 0, 0, 0, 2, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_car(1, 0, 60, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6);
+        check(editor_commit() == 1);
+        editor_input_begin_frame();
+        editor_input_key("KeyE", 1);
+        editor_input_key("KeyW", 1);
+        editor_tick();
+        check(editor_controlled_player() == 1); // vehicle now owns player input
+        editor_input_begin_frame();
+        editor_input_key("KeyE", 0);
+        for (int i = 0; i < 45; ++i)
+            editor_tick();
+        check(editor_value(1, 2) > 2.5); // held W accelerated the car
+        editor_input_begin_frame();
+        editor_input_key("KeyW", 0);
+        editor_input_key("KeyE", 1);
+        editor_tick();
+        check(editor_controlled_player() == 0); // returned to the original walker
+        const double px = editor_value(0, 0), pz = editor_value(0, 2);
+        check(std::hypot(px - editor_value(1, 0), pz - editor_value(1, 2)) > 1.5);
+    }
+
+    {
+        // Safe exit: when both sides are obstructed by solid colliders, the
+        // handover must remain active rather than placing the walker inside one.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_add(0, 0.5, 2.5, 0, 0, 0, 2, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_car(1, 0, 60, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6);
+        check(editor_add(3.15, 0.5, 2.5, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(2, 1, 1, 0);
+        check(editor_add(-3.15, 0.5, 2.5, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(3, 1, 1, 0);
+        check(editor_commit() == 1);
+        editor_input_begin_frame();
+        editor_input_key("KeyE", 1);
+        editor_tick();
+        check(editor_controlled_player() == 1);
+        editor_input_begin_frame();
+        editor_input_key("KeyE", 0);
+        editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("KeyE", 1);
+        editor_tick();
+        check(editor_controlled_player() == 1); // no safe side: still seated
     }
 
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "

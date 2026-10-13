@@ -5202,6 +5202,11 @@ async function startEditor() {
         accumulator -= 1 / 60;
       }
       tickMs = performance.now() - tickStart;
+      // E can hand the Player over to a car and back (editor_controlled_player):
+      // the camera and readouts follow whoever has the controls.
+      // A destroyed Player keeps its index (the death screen reads it).
+      const controlled = steps > 0 ? runtime._editor_controlled_player() : -1;
+      if (controlled >= 0) playerIndex = controlled;
       tickAlpha = Math.min(1, accumulator * 60);
       inputFrameConsumed = steps > 0;
       persistDirtySaves();

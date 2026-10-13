@@ -635,6 +635,12 @@ EXPORT int editor_alive(int index) {
     return active->world.alive(active->entities[static_cast<std::size_t>(index)]) ? 1 : 0;
 }
 EXPORT int editor_count() { return static_cast<int>(active->world.size()); }
+// Index currently receiving Player input; differs from the authored Player index while seated.
+EXPORT int editor_controlled_player() {
+    if (active->car_handover) return active->index_of(active->car_handover->vehicle);
+    const auto player = active->player_entity(active->world);
+    return player ? active->index_of(*player) : -1;
+}
 // Every entity's tick state in one call: the index count, then six
 // doubles per index -- alive (0/1), position x, y, z, the yaw the renderer
 // faces it along (a soldier's look, else its Heading), and flags (1 a
