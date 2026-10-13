@@ -1,4 +1,4 @@
-// Post-processing settings (0.65.0): what the PostProcessing component
+// Post-processing settings: what the PostProcessing component
 // controls, its defaults (which reproduce the editor's original look), and
 // the color-grading shader applied after tone mapping.
 import type { PostProcessingComponent } from "../scene/Components";

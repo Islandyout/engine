@@ -1,4 +1,4 @@
-// Writes docs/COMPONENTS.md (0.77.0) from the editor's own component tables:
+// Writes docs/COMPONENTS.md from the editor's own component tables:
 // what each component is for (componentHelp.ts), its fields and defaults
 // (CommandInterpreter's defaultComponent) with their labels and help
 // (PropertyMetadata.ts), grouped like the Add component list. Run with

@@ -1,4 +1,4 @@
-// Routine stops as rows (0.77.0): the inspector edits "6 120 40 sit; 12 30 5"
+// Routine stops as rows: the inspector edits "6 120 40 sit; 12 30 5"
 // as a table of hour, x, z and activity, and these turn it back and forth.
 // The text form stays the saved format (the C++ runtime parses it).
 

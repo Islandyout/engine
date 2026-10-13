@@ -7,7 +7,7 @@
 namespace engine::gameplay {
 
 // Tuning for a first/third-person character driven through a physics
-// RigidBody (0.60.0). Speeds are world units per second, accelerations units
+// RigidBody. Speeds are world units per second, accelerations units
 // per second squared, heights world units, times seconds.
 struct ControllerSettings final {
     float walk_speed{4.5F};

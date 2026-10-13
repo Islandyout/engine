@@ -1,4 +1,4 @@
-// Starting points for a new scene (0.77.0): New offers these instead of only
+// Starting points for a new scene: New offers these instead of only
 // an empty scene. Each is a small, playable scene document that shows the
 // components a kind of game is built from. Components are written as just
 // the fields that differ from the defaults; templateScene() fills the rest.

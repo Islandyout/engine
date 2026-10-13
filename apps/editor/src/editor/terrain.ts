@@ -1,4 +1,4 @@
-// Terrain (0.63.0): heights from seeded fractal noise plus sculpted offsets,
+// Terrain: heights from seeded fractal noise plus sculpted offsets,
 // independent of three.js so it can be unit tested. main.ts builds the mesh
 // and foliage from it and sends the heights to the C++ runtime, which
 // collides, raycasts and paths against the same grid.
@@ -265,12 +265,4 @@ export function scatterInstances(
     }
   });
   return out;
-}
-
-// Float32 heights as base64 for the runtime (editor_set_terrain).
-export function encodeHeights(heights: Float32Array): string {
-  const bytes = new Uint8Array(heights.buffer, heights.byteOffset, heights.byteLength);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(binary);
 }

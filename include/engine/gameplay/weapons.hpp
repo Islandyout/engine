@@ -9,7 +9,7 @@
 
 namespace engine::gameplay {
 
-// Weapons (0.61.0): definitions authored as text, one per line,
+// Weapons: definitions authored as text, one per line,
 //
 //   rifle: model=rifle mode=auto rpm=620 damage=24 mag=30 reserve=180 reload=2.1
 //   shotgun: model=shotgun pellets=9 damage=12 mag=6 reload=0.5 per_shell

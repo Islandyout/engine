@@ -1,4 +1,4 @@
-// Builds assets/source/kit/people/combat_clips.glb (0.78.0): the martial-arts
+// Builds assets/source/kit/people/combat_clips.glb: the martial-arts
 // clip library a Melee fighter plays, on the same 65-bone Quaternius skeleton
 // as kit/people/mannequin_f.glb and talari.glb, so the clips bind to either
 // by bone name. It carries a bare skeleton and animations, no mesh, and the

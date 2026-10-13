@@ -1,4 +1,4 @@
-// The Lua scripting API (0.77.0), described once. `node
+// The Lua scripting API, described once. `node
 // tools/script_api/gen.mjs` writes from it:
 //   source/engine/script/api_prelude.hpp  -- the named helpers below, as Lua
 //   docs/scripting/engine_api.lua         -- a LuaLS stub for autocomplete
@@ -108,7 +108,7 @@ export const builtins = [
   ["save", "get", "(key: string): string?", "Reads a stored value."],
 ];
 
-// Named helpers (0.77.0): [table, name, params, lua body, description].
+// Named helpers: [table, name, params, lua body, description].
 // Params are "name: type" in order; the body may use them by name.
 export const helpers = [
   ["space", "set_hull", "value: number", 'return space.call("hull", "", value)', "Sets the hull exactly (loading a save)."],

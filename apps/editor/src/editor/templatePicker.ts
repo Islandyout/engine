@@ -1,4 +1,4 @@
-// The New scene picker (0.77.0): one card per template.
+// The New scene picker: one card per template.
 import { sceneTemplates, type SceneTemplate } from "./sceneTemplates";
 
 export function openTemplatePicker(host: HTMLElement, choose: (template: SceneTemplate) => void) {

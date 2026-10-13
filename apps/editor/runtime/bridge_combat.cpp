@@ -3,7 +3,7 @@
 #include "bridge_runtime.hpp"
 
 extern "C" {
-// Makes the entity a combat soldier (0.62.0), after editor_add for the same
+// Makes the entity a combat soldier, after editor_add for the same
 // index: team (0 = the Player's), behavior (0 patrol, 1 guard, 2 hunt), sight
 // range, field of view in degrees, hearing range, reaction time, accuracy
 // 0..1, preferred fighting range, move speed, burst length, burst pause,
@@ -28,7 +28,7 @@ EXPORT void editor_set_soldier(int index, double team, double behavior, double s
                        burst == std::floor(burst) && burst_pause >= 0 && burst_pause <= 10 && flee_health >= 0 &&
                        flee_health <= 1 && melee >= 0 && melee <= 100000;
     if (!valid) {
-        failed = true;
+        fail("an AI soldier setting out of range");
         return;
     }
     Soldier soldier;
@@ -80,7 +80,7 @@ EXPORT void editor_set_soldier_patrol(int index, const char *names) {
         start = end + 1;
     }
 }
-// Arcade car (0.70.0): makes the staged entity an engine::gameplay car
+// Arcade car: makes the staged entity an engine::gameplay car
 // facing `yaw` (radians; it faces (sin, 0, cos)) with these handling numbers
 // (see CarSpec), adding its Heading (footprint from its Box) if needed.
 // Non-finite or non-positive numbers fail the commit.
@@ -91,11 +91,11 @@ EXPORT void editor_set_car(int index, double yaw, double top_speed, double accel
         return;
     for (const double v : {top_speed, acceleration, braking, grip, drift_grip, steering, nitro_seconds, gears})
         if (!(std::isfinite(v) && v > 0)) {
-            failed = true;
+            fail("a vehicle tuning value that is not positive and finite");
             return;
         }
     if (!std::isfinite(yaw) || !(std::isfinite(nitro_boost) && nitro_boost >= 0)) {
-        failed = true;
+        fail("a vehicle yaw or nitro boost that is invalid");
         return;
     }
     auto &world = *target->first;
@@ -118,7 +118,7 @@ EXPORT void editor_set_car(int index, double yaw, double top_speed, double accel
     heading.car = {};
     heading.car.yaw = heading.yaw = static_cast<float>(yaw);
 }
-// An AI driver on the staged arcade car (0.70.0): mode 0 off, 1 race, 2
+// An AI driver on the staged arcade car: mode 0 off, 1 race, 2
 // pursuit, 3 traffic; loop repeats the route; skill/aggression 0..1.
 EXPORT void editor_set_driver(int index, int mode, int loop, double skill, double aggression, double speed_scale) {
     const auto target = staged(index);
@@ -126,7 +126,7 @@ EXPORT void editor_set_driver(int index, int mode, int loop, double skill, doubl
         return;
     if (mode < 0 || mode > 3 || !std::isfinite(skill) || !std::isfinite(aggression) ||
         !(std::isfinite(speed_scale) && speed_scale > 0)) {
-        failed = true;
+        fail("an AI driver mode, skill, aggression or speed scale that is invalid");
         return;
     }
     Driver driver;
@@ -156,7 +156,7 @@ EXPORT void editor_set_driver_text(int index, int field, const char *text) {
         driver->target_name = text;
     }
 }
-// Arcade car state for the editor (0.70.0): 0 speed, 1 forward speed, 2 gear
+// Arcade car state for the editor: 0 speed, 1 forward speed, 2 gear
 // (-1 reverse), 3 rpm 0..1, 4 nitro 0..1, 5 drifting, 6 boosting, 7 slip
 // (radians), 8 front wheel angle, 9 handbrake input, 10 brake input, 11 is
 // an arcade car, 12 yaw rate, 13 throttle input, 14 driver mode (-1 none, 0
@@ -216,7 +216,7 @@ EXPORT double editor_soldier_value(int index, int field) {
         return -1;
     }
 }
-// Gives the entity Weapons (0.61.0) from loadout text (see
+// Gives the entity Weapons from loadout text (see
 // engine::gameplay::parse_weapons), after editor_add for the same index.
 // Invalid text falls back to the default loadout and editor_weapons_error()
 // says why.

@@ -11,7 +11,7 @@ export interface PropertyMetadata {
   // whose value is expected to span multiple lines (currently just
   // Script.source), not a general "long string" hint.
   multiline?: boolean;
-  // A sentence explaining the field (0.77.0), shown as its tooltip.
+  // A sentence explaining the field, shown as its tooltip.
   help?: string;
 }
 const choice = (values: readonly string[]) =>
@@ -350,7 +350,7 @@ export function propertyMetadata(
   return fieldHelp[key] ? { ...meta, help: fieldHelp[key] } : meta;
 }
 
-// What a component is for (0.77.0), under its card's title.
+// What a component is for, under its card's title.
 export function componentDescription(type: string): string | undefined {
   return componentHelp[type];
 }

@@ -1,4 +1,4 @@
-// The editor runtime's gameplay components and tuning (0.77.0, split from
+// The editor runtime's gameplay components and tuning (split from
 // bridge.cpp): headings, drivers, routines, wildlife, the space simulation,
 // AI, health, weapons and the rest, in namespace editor_bridge.
 #pragma once
@@ -70,7 +70,7 @@ struct Heading final {
     float half_x{};
     float half_z{};
     VehicleArchetype archetype{VehicleArchetype::Car};
-    // Arcade cars (0.70.0, editor_set_car): engine::gameplay car dynamics
+    // Arcade cars (editor_set_car): engine::gameplay car dynamics
     // instead of the constant-turn-rate model above, on the player or on an
     // AI Driver. frozen holds the car still (race countdowns).
     bool arcade{false};
@@ -80,7 +80,7 @@ struct Heading final {
     engine::gameplay::CarInput input{};
 };
 
-// An AI driver for an arcade car (0.70.0): follows a route of points (race
+// An AI driver for an arcade car: follows a route of points (race
 // lines, traffic loops), or chases a target entity (police), steering with
 // engine::gameplay::steer_toward and braking for the corners ahead.
 enum class DriveMode : int { Off, Race, Pursuit, Traffic };
@@ -103,10 +103,10 @@ struct Driver final {
 
 namespace space = engine::gameplay::space;
 
-// Marks the entity the SpaceSystem flies (0.71.0); its Box follows the ship.
+// Marks the entity the SpaceSystem flies; its Box follows the ship.
 struct Spaceship final {};
 
-// A daily routine (0.73.0): stops by hour of the day; the entity walks to
+// A daily routine: stops by hour of the day; the entity walks to
 // the latest stop whose hour has passed (wrapping at midnight) and waits
 // there. The hour is the scene clock, set by scripts (world.set_clock).
 struct Routine final {
@@ -117,12 +117,12 @@ struct Routine final {
     float speed{1.4F};
     int current{-1};
     // The way to the current stop around walls and through doorways
-    // (0.76.0): nav-grid waypoints, found once per stop.
+    //: nav-grid waypoints, found once per stop.
     std::vector<engine::Vec3> path;
     int path_stop{-1};
     float path_frame{-1};
 };
-// Wildlife (0.73.0): calm (its own wander, if it has an AIAgent) -> wary
+// Wildlife: calm (its own wander, if it has an AIAgent) -> wary
 // (stops and watches) inside `wary` metres of a threat -> flees inside
 // `flee` (twice that from a sprinting player), never running more than
 // `leash` metres from where it started. Threats: the walking player, and
@@ -134,7 +134,7 @@ struct Wildlife final {
     int state{}; // 0 calm, 1 wary, 2 fleeing
 };
 
-// A scene's star system and its one flown ship (0.71.0). Authored entities
+// A scene's star system and its one flown ship. Authored entities
 // live in the *site frame*: metres around a point on the site body's surface,
 // +y along the local vertical (away from the body's centre), so the editor's
 // flat-world systems (characters, physics, nav, scripts) work there
@@ -151,7 +151,7 @@ struct SpaceSim final {
     space::ShipState ship;
     std::optional<engine::Entity> ship_entity;
     double throttle{};          // the pilot's held throttle level
-    // Mouse steering (0.75.0): the editor's virtual stick, -1..1 on each
+    // Mouse steering: the editor's virtual stick, -1..1 on each
     // axis; keys override it.
     double stick_pitch{};
     double stick_yaw{};
@@ -165,7 +165,7 @@ struct SpaceSim final {
     bool path_fixed{};              // path already body-fixed (it comes down)
     // Key levels last tick, for edges that survive multi-tick frames.
     bool previous_keys[8]{};
-    // Walking anywhere (0.72.0): the frame the scene is drawn and walked in
+    // Walking anywhere: the frame the scene is drawn and walked in
     // moves to wherever the ship lands outside the authored site, and back
     // on return. The authored site (home) is kept to restore.
     int home_body{0};
@@ -174,7 +174,7 @@ struct SpaceSim final {
     float home_ground_y{};
     bool away{};
     int frame_generation{};
-    // The walker's move in the last on-foot re-anchor (0.75.0), new frame
+    // The walker's move in the last on-foot re-anchor, new frame
     // minus old, and the generation it belongs to: the editor shifts its
     // camera and interpolation by it.
     space::DVec3 reframe_shift{};
@@ -189,7 +189,7 @@ struct SpaceSim final {
     std::optional<engine::Entity> stowed;
     bool stowed_trigger{};
     engine::physics::BodyType stowed_type{engine::physics::BodyType::Dynamic};
-    // Several sites per scene (0.73.0): each Site entity anchors its child
+    // Several sites per scene: each Site entity anchors its child
     // entities around its own surface point. -1 is the home site (the
     // SpaceSystem's own), -2 the wilderness (a frame at no site).
     struct SiteInfo final {
@@ -203,14 +203,14 @@ struct SpaceSim final {
     std::map<engine::Entity, int> members; // entity -> site index; absent = home
     int active_site{-1};
     std::map<engine::Entity, engine::Vec3> pinned; // parked entities hold still
-    // NAV autopilot (0.73.0).
+    // NAV autopilot.
     std::string autopilot_phase;
     bool reserve_used{};
     bool board_key{true}; // E beside the ship boards it (scripts can take E over)
     space::DVec3 wind_local{}; // m/s in the frame (x, z)
 
     [[nodiscard]] space::DVec3 site_position() const { return space::body_position(system, site_body, time); }
-    // The site body's turn now (0.74.0): body-fixed -> non-rotating.
+    // The site body's turn now: body-fixed -> non-rotating.
     [[nodiscard]] space::DQuat spin(int body = -1) const {
         return space::body_spin(system.bodies[static_cast<std::size_t>(body < 0 ? site_body : body)], time);
     }
@@ -395,7 +395,7 @@ struct Projectile final {
     // default (must stay before `lifetime` for that to work).
     engine::Entity owner{};
     float lifetime{1.5F}; // seconds remaining; destroyed at/below 0
-    // Weapon projectiles (0.61.0) carry their own damage, gravity scale and
+    // Weapon projectiles carry their own damage, gravity scale and
     // explosion radius; the G blast keeps these defaults.
     float damage{15.0F};
     float gravity{0.0F};
@@ -500,7 +500,7 @@ inline engine::Key key_for(int code) {
     }
 }
 
-// A CharacterController (0.60.0): the entity moves through
+// A CharacterController: the entity moves through
 // engine::gameplay's controller (acceleration, sprint/crouch, coyote time,
 // jump buffering, step climbing) from the named input actions instead of the
 // fixed WASD model. first_person: movement is relative to the look yaw the
@@ -512,7 +512,7 @@ struct Controller final {
     bool first_person{true};
 };
 
-// Weapons (0.61.0): the entity's loadout and its engine::gameplay
+// Weapons: the entity's loadout and its engine::gameplay
 // state. A Player fires from the named actions (fire, aim, reload,
 // next_weapon, weapon_scroll, digit keys) along the look direction; any other
 // entity fires when its script calls weapon.fire().
@@ -527,7 +527,7 @@ struct Arsenal final {
     std::optional<engine::Vec3> script_aim;
 };
 
-// Combat AI (0.62.0): a soldier that perceives hostiles (sight cone with
+// Combat AI: a soldier that perceives hostiles (sight cone with
 // line of sight, gunfire and explosions it can hear, being shot), patrols or
 // guards, fights at a preferred range in bursts with its Weapons (or melee
 // without them), strafes, takes cover to reload or when hurt, searches where
@@ -599,7 +599,7 @@ struct WeaponEvent final {
 // WeaponEvent::flags bits.
 constexpr int event_headshot = 1, event_killed = 2, event_flesh = 4;
 
-// Melee (0.78.0): a fighter's moves and engine::gameplay state, the
+// Melee: a fighter's moves and engine::gameplay state, the
 // target it faces and strikes, and the slide a hit leaves it with. The
 // Player fights from the light/heavy/kick/special/dodge/block/lock actions;
 // with `ai` set, a melee brain drives it (any other entity).

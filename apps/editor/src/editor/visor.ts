@@ -1,4 +1,4 @@
-// The suit's visor (0.75.0), drawn under the HUD while walking with the
+// The suit's visor, drawn under the HUD while walking with the
 // helmet on: the curved glass's dark rim and a highlight, rain beading and
 // running on it in a storm, frost creeping in from the edges in the cold,
 // a heat shimmer at the edges in the heat, and cracks as the suit's

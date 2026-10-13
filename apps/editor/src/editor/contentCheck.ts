@@ -1,4 +1,4 @@
-// Content checks (0.77.0): before Play, and on demand from the toolbar, the
+// Content checks: before Play, and on demand from the toolbar, the
 // editor looks through every entity for authoring mistakes the game would
 // otherwise swallow silently -- a stop with a bad hour, an instance of a
 // model that doesn't exist, an Animator state with no clip, a follow target
