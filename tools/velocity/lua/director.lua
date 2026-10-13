@@ -194,7 +194,9 @@ local function rig_pace(id, keep)
   -- Never out of reach: slows when Velocity falls behind, so a missed
   -- interception is a catch-up, not a restart.
   local scale = d > keep * 2 and 0.35 or d > keep and 0.7 or 1
-  if props.fast then scale = math.min(scale, 0.4) end
+  -- props.fast (the tests, which walk): it waits for Velocity, crawling
+  -- while Velocity is more than 12 m off.
+  if props.fast then scale = d > 12 and 0.05 or 0.4 end
   vehicle.set_speed_scale(id, scale)
   return d
 end
