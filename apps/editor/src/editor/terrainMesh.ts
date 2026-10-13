@@ -91,6 +91,14 @@ export function buildTerrainMesh(params: TerrainParams, look: TerrainLook, heigh
   return mesh;
 }
 
+// Frees what buildTerrainMesh allocated: its geometry, material and texture clone.
+export function disposeTerrainMesh(mesh: THREE.Mesh) {
+  mesh.geometry.dispose();
+  const material = mesh.material as THREE.MeshStandardMaterial;
+  material.map?.dispose();
+  material.dispose();
+}
+
 export interface ScatterModel {
   scene: THREE.Object3D;
 }

@@ -240,7 +240,12 @@ export class WeaponFx {
   // (a fresh clone, already tinted) and its clips. A rig without hands or a
   // weapon-holding clip is ignored; undefined goes back to floating weapons.
   setBody(root: THREE.Object3D | undefined, clips: THREE.AnimationClip[] = []) {
-    if (this.body) this.rig.remove(this.body.group);
+    if (this.body) {
+      this.rig.remove(this.body.group);
+      this.body.group.traverse((child) => {
+        if (child instanceof THREE.SkinnedMesh) child.skeleton.dispose();
+      });
+    }
     this.body = undefined;
     this.holds.clear();
     const split = root && splitForWeapon(root, clips);

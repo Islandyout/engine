@@ -28,6 +28,15 @@ const materials = {
   sight: new THREE.MeshStandardMaterial({ color: 0xff5a2a, emissive: 0xff3300, emissiveIntensity: 2 }),
 };
 
+// Shared by every built model (soldiers' guns are rebuilt with the scene),
+// like the materials above, so building one allocates no GPU buffers.
+const geometries = new Map<string, THREE.BufferGeometry>();
+function shared(key: string, make: () => THREE.BufferGeometry) {
+  let geometry = geometries.get(key);
+  if (!geometry) geometries.set(key, (geometry = make()));
+  return geometry;
+}
+
 function box(
   parent: THREE.Object3D,
   material: THREE.Material,
@@ -35,7 +44,7 @@ function box(
   position: [number, number, number],
   rotationX = 0,
 ) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+  const mesh = new THREE.Mesh(shared(`box ${size}`, () => new THREE.BoxGeometry(...size)), material);
   mesh.position.set(...position);
   mesh.rotation.x = rotationX;
   parent.add(mesh);
@@ -44,7 +53,8 @@ function box(
 
 // A cylinder along -z (a barrel), from z0 to z1.
 function tube(parent: THREE.Object3D, material: THREE.Material, radius: number, z0: number, z1: number, y = 0, x = 0) {
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, Math.abs(z1 - z0), 14), material);
+  const length = Math.abs(z1 - z0);
+  const mesh = new THREE.Mesh(shared(`tube ${radius} ${length}`, () => new THREE.CylinderGeometry(radius, radius, length, 14)), material);
   mesh.rotation.x = Math.PI / 2;
   mesh.position.set(x, y, (z0 + z1) / 2);
   parent.add(mesh);

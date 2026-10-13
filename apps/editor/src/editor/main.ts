@@ -114,7 +114,7 @@ import {
   type BrushMode,
   type TerrainParams,
 } from "./terrain";
-import { buildScatter, buildTerrainMesh, scatterObstacle, shapeTerrain, type TerrainLook } from "./terrainMesh";
+import { buildScatter, buildTerrainMesh, disposeTerrainMesh, scatterObstacle, shapeTerrain, type TerrainLook } from "./terrainMesh";
 import { defaultEnvironment } from "../authoring/CommandInterpreter";
 import "./style.css";
 
@@ -4029,9 +4029,16 @@ async function startEditor() {
       for (const instance of parseModelInstances(mi.instances).instances)
         if (catalogEntry(instance.model)?.category === "roads") minimapRoads.push({ x: at.x + instance.x, z: at.z + instance.z, size: 16 * instance.scale });
     }
-    for (const object of objects) object.removeFromParent();
+    for (const object of objects) {
+      object.removeFromParent();
+      // Each cloned rig has its own skeleton, and its bone texture.
+      object.traverse((child) => {
+        if (child instanceof THREE.SkinnedMesh) child.skeleton.dispose();
+      });
+    }
     objects.length = 0;
     lightPool.reset();
+    for (const { mesh } of terrainMeshes.values()) disposeTerrainMesh(mesh);
     terrainMeshes.clear();
     animStates.length = 0;
     combat.reset();
