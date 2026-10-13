@@ -514,7 +514,7 @@ void step(World &world, float dt, const Config &config, Events *events) {
         obstacles.push_back({other, &collider, obstacle_box, world.get<RigidBody>(other),
                              shape_of(*obstacle_box, &collider).bounds});
     }
-    // Broadphase (0.75.0): static obstacles bucketed in a uniform grid of
+    // Broadphase: static obstacles bucketed in a uniform grid of
     // 8 m cells, so a body tests only the obstacles near it instead of every
     // one in the level (a town of hundreds of colliders and a hundred
     // walkers was most of a tick). Moving obstacles and very large ones are

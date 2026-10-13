@@ -1,4 +1,4 @@
-// The editor runtime itself (0.77.0, split from bridge.cpp): BridgeHost, the
+// The editor runtime itself (split from bridge.cpp): BridgeHost, the
 // script host, and Runtime, the world and every fixed system it ticks, in
 // namespace editor_bridge. Shared by bridge.cpp, bridge_combat.cpp,
 // bridge_space.cpp and bridge_melee.cpp.
@@ -85,7 +85,7 @@ struct Runtime {
     engine::physics::Events physics_events;
     // Walkability grid for chasing AI and world.path(), rebaked from the
     // static colliders once a second (see the "editor.nav" system).
-    // Covers a 260 m square (0.66.0; was 120 m) so outdoor levels on a
+    // Covers a 260 m square (was 120 m) so outdoor levels on a
     // terrain get paths end to end.
     engine::nav::Grid nav_grid{engine::nav::Settings{0.5F, 0.4F, 0.35F, 2.0F, 130.0F}};
     // Named actions from the scene's InputActions bindings (or the
@@ -120,11 +120,11 @@ struct Runtime {
         if (melee_events.size() < 1024)
             melee_events.push_back(event);
     }
-    // Melee (0.78.0): every Fighter's tick -- input or brain, moves, facing,
+    // Melee: every Fighter's tick -- input or brain, moves, facing,
     // lunges, hits, knockback and launches (bridge_melee.cpp).
     void step_melee(engine::World &w);
     void melee_strike(engine::World &w, engine::Entity self, Fighter &fighter);
-    // ---- Spaceflight (0.71.0): see SpaceSim.
+    // ---- Spaceflight: see SpaceSim.
     std::optional<SpaceSim> space;
     std::optional<engine::Entity> player_entity(const engine::World &w) const {
         for (const auto entity : w.query<engine::Box, PlayerMarker>())
@@ -154,7 +154,7 @@ struct Runtime {
         }
         return radius;
     }
-    // A walk frame's heightfield under construction (0.75.0): built a few
+    // A walk frame's heightfield under construction: built a few
     // rows a tick ahead of need, so re-anchoring on foot never stalls a frame.
     struct FieldBuild final {
         int body{-1};
@@ -227,7 +227,7 @@ struct Runtime {
         z = space::cross(x, up);
     }
     // Which site a landed ship at body-frame `p` on body `ref` stands in:
-    // a Site's index, -1 the home site, -2 none (0.73.0).
+    // a Site's index, -1 the home site, -2 none.
     int site_at(int ref, space::DVec3 p) const {
         const auto &sim = *space;
         for (std::size_t i = 0; i < sim.sites.size(); ++i) {
@@ -317,7 +317,7 @@ struct Runtime {
             sim.event("frame:" + sim.system.bodies[static_cast<std::size_t>(sim.ship.ref)].name);
         settle_landed(w);
     }
-    // Descending somewhere new (0.75.0): the ground the frame will need at
+    // Descending somewhere new: the ground the frame will need at
     // touchdown is built a few rows a tick on the way down, so landing on a
     // cratered world doesn't stall the frame it happens in.
     void prebuild_landing_field() {
@@ -524,7 +524,7 @@ struct Runtime {
         control.assist = sp.assist;
         if (sp.target >= 0)
             control.target_direction = space::body_position(sp.system, sp.target, sp.time) - sp.ship_absolute();
-        // The NAV autopilot (0.73.0) owns throttle and nose until the pilot
+        // The NAV autopilot owns throttle and nose until the pilot
         // touches anything -- manual input always wins.
         sp.autopilot_phase.clear();
         if (sp.assist == space::Assist::autopilot) {
@@ -625,7 +625,7 @@ struct Runtime {
             box.center.z = std::clamp(box.center.z, -limit, limit);
         }
     }
-    // Walking anywhere (0.75.0): on foot, the frame follows the walker. Out
+    // Walking anywhere: on foot, the frame follows the walker. Out
     // past a site's edge (or the home field's) it becomes a wilderness
     // frame under them; far enough across a wilderness frame it re-anchors
     // ahead; into a site, that site's frame. The next frame's ground is
@@ -744,7 +744,7 @@ struct Runtime {
         settle_landed(w);
     }
     bool parked(engine::Entity entity) const { return space && space->pinned.count(entity) > 0; }
-    // The frame governor's sim stride (0.76.0): routines and wildlife
+    // The frame governor's sim stride: routines and wildlife
     // farther than 60 m from the walker (or the ship) decide every
     // `sim_stride` ticks, staggered so the work spreads evenly; their last
     // velocity carries them in between.
@@ -781,7 +781,7 @@ struct Runtime {
             routine.current = stop;
             const auto &goal = routine.stops[static_cast<std::size_t>(stop)];
             const auto at = w.get<engine::Box>(entity)->center;
-            // Around buildings (0.76.0): a straight walk when nothing is in
+            // Around buildings: a straight walk when nothing is in
             // the way, else the nav grid's path -- a few searches a tick,
             // the rest walk straight until their turn.
             const float frame = space ? static_cast<float>(space->frame_generation) : 0.0F;
@@ -886,7 +886,7 @@ struct Runtime {
                 agent->state = AIState::Walking;
                 agent->timer = 0;
             }
-            // Soft radii (0.75.0): a big animal and the walker ease apart
+            // Soft radii: a big animal and the walker ease apart
             // instead of passing through each other -- the walker gives most.
             if (walker) {
                 const auto &size = w.get<engine::Box>(entity)->size;
@@ -908,7 +908,7 @@ struct Runtime {
             }
         }
     }
-    // One tick of an arcade car (0.70.0): picks up the velocity physics
+    // One tick of an arcade car: picks up the velocity physics
     // resolved last tick (walls and other cars), steps the car model, and
     // hands the result back to the body, turning its footprint with it.
     void drive_car(engine::World &w, engine::Entity entity, Heading &heading, engine::physics::RigidBody &body,
@@ -1647,7 +1647,7 @@ struct Runtime {
         }
     }
     float time_now{0};
-    // The scene clock in hours (0.73.0): Routines follow it; scripts set it
+    // The scene clock in hours: Routines follow it; scripts set it
     // (world.set_clock), e.g. from a planet's day.
     float clock_hours{10};
     // Milliseconds each system took on the most recent tick, for the
@@ -1884,7 +1884,7 @@ struct Runtime {
         // gets both an AIAgent and a Script instance; whichever ran last (here,
         // this one) simply overwrites the other's velocity write that tick —
         // not a crash, just not a combination there's a reason to author.
-        // AI drivers (0.70.0): every arcade car with a Driver, before physics.
+        // AI drivers: every arcade car with a Driver, before physics.
         add_timed("editor.drivers", engine::FixedPhase::update, 4,
                   [this](engine::World &w, const engine::FixedUpdateContext &) {
                       // One collider scan shared by every driver's probes:
@@ -1900,7 +1900,7 @@ struct Runtime {
                           drive_car(w, entity, heading, *w.get<engine::physics::RigidBody>(entity), control);
                       }
                   });
-        // Spaceflight (0.71.0): the ship before physics, the pilot after.
+        // Spaceflight: the ship before physics, the pilot after.
         add_timed("editor.space", engine::FixedPhase::update, 5,
                   [this](engine::World &w, const engine::FixedUpdateContext &context) {
                       if (space)
@@ -1911,7 +1911,7 @@ struct Runtime {
                       if (space)
                           space_after(w);
                   });
-        // Daily routines and wildlife (0.73.0), after the AI's own wander
+        // Daily routines and wildlife, after the AI's own wander
         // (which they override) and before physics.
         add_timed("editor.routines", engine::FixedPhase::update, 6,
                   [this](engine::World &w, const engine::FixedUpdateContext &) { step_routines(w); });
@@ -2451,7 +2451,7 @@ inline bool BridgeHost::space(engine::World &world, const std::string &op, const
     }
     // The scene clock (world.set_clock) works with or without a SpaceSystem.
     // space.call("settle"): everyone with a Routine stands at the stop the
-    // clock says, now (0.75.0: a loaded save doesn't watch the town walk
+    // clock says, now (a loaded save doesn't watch the town walk
     // back from their homes).
     if (op == "settle") {
         for (const auto entity : world.query<engine::Box, Routine>()) {
@@ -2493,7 +2493,7 @@ inline bool BridgeHost::space(engine::World &world, const std::string &op, const
     if (!runtime_.space)
         return false;
     auto &sp = *runtime_.space;
-    // space.call("time", "", seconds): the system clock (0.75.0, a loaded
+    // space.call("time", "", seconds): the system clock (a loaded
     // save puts the planets back where they were).
     if (op == "time") {
         if (!args.empty() && std::isfinite(args[0]) && args[0] >= 0)
@@ -2645,7 +2645,7 @@ inline bool BridgeHost::space(engine::World &world, const std::string &op, const
         sp.ship.fuel = std::clamp(arg(0), 0.0, sp.spec.fuel);
         return true;
     }
-    // space.call("hull", "", value): sets the hull exactly (0.75.0, a
+    // space.call("hull", "", value): sets the hull exactly (a
     // loaded save restores it).
     if (op == "hull") {
         sp.ship.hull = std::clamp(arg(0), 1.0, sp.spec.hull);
@@ -2837,6 +2837,22 @@ inline void BridgeHost::emit(engine::Entity source, const std::string &kind, con
 inline std::unique_ptr<Runtime> active = std::make_unique<Runtime>();
 inline std::unique_ptr<Runtime> staging;
 inline bool failed{};
+// Why the staged scene can't commit (editor_last_error): the first failure's
+// reason and the entity it came from, so a broken scene says what broke
+// instead of only that it did. Later failures are often knock-on effects of
+// the first, so only the first is kept.
+inline std::string failure;
+inline void fail(const char *reason, bool adding = false) {
+    if (!failed) {
+        const std::size_t count = staging ? staging->entities.size() : 0;
+        failure = std::string("the scene has ") + reason;
+        if (staging && staging->adding_template)
+            failure += " (prefab \"" + *staging->adding_template + "\")";
+        else
+            failure += " (entity #" + std::to_string(adding ? count : count ? count - 1 : 0) + " in scene order)";
+    }
+    failed = true;
+}
 // Snapshot taken by editor_take_dirty_saves() and read by
 // editor_dirty_save_key/editor_dirty_save_value until the next take call
 // replaces it. A snapshot, not a live view, because

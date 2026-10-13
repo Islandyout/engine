@@ -68,6 +68,40 @@ int main() {
         const System system = make_system();
         const ShipSpec spec;
         {
+            // Vector and rotation math with asymmetric inputs, so a flipped sign
+            // or a swapped term can't hide behind symmetry.
+            check(near(dot({1, 2, 3}, {4, -5, 6}), 12, 1e-12), "dot product");
+            const DVec3 c = cross({1, 2, 3}, {4, 5, 6});
+            check(near(c.x, -3, 1e-12) && near(c.y, 6, 1e-12) && near(c.z, -3, 1e-12), "cross product");
+            const DVec3 turned = rotate(axis_angle({0, 0, 1}, pi / 2), {1, 0, 0});
+            check(near(turned.x, 0, 1e-9) && near(turned.y, 1, 1e-9) && near(turned.z, 0, 1e-9),
+                  "a quarter turn about +z takes +x to +y");
+            const DVec3 back = rotate(conjugate(axis_angle({0, 0, 1}, pi / 2)), turned);
+            check(near(back.x, 1, 1e-9) && near(back.y, 0, 1e-9), "the conjugate turns it back");
+            const DVec3 target = normalized(DVec3{1, 2, -2});
+            const DVec3 mapped = rotate(between({1, 0, 0}, target), {1, 0, 0});
+            check(length(mapped - target) < 1e-9, "between() takes one direction onto another");
+        }
+        {
+            // An elliptical orbit (10% faster than circular at the same height):
+            // its elements match vis-viva.
+            ShipState ship;
+            place_in_orbit(ship, system, 1, 8000);
+            ship.velocity = ship.velocity * 1.1;
+            const double mu = system.bodies[1].gm();
+            const double r = length(ship.position);
+            const double v = length(ship.velocity);
+            const double a = 1 / (2 / r - v * v / mu);
+            const double ra = 2 * a - r;
+            const OrbitElements e = orbit_elements(ship, system);
+            check(e.valid && e.closed, "a 10% faster orbit is still closed");
+            check(near(e.semi_major_axis, a, a * 0.005), "semi-major axis from vis-viva");
+            check(near(e.eccentricity, (ra - r) / (ra + r), 1e-3), "eccentricity");
+            check(near(e.periapsis + system.bodies[1].radius, r, 60), "periapsis is where the ship starts");
+            check(near(e.apoapsis + system.bodies[1].radius, ra, ra * 0.01), "apoapsis on the far side");
+            check(near(e.period, 2 * pi * std::sqrt(a * a * a / mu), e.period * 0.005), "period from Kepler's third law");
+        }
+        {
             // Bodies on rails: circular orbits, children carried by parents,
             // velocity matching the motion.
             const DVec3 p0 = body_position(system, 0, 0);
@@ -292,7 +326,7 @@ int main() {
             check(ship.density == 0 && ship.ref == 0, "in space, still in Tethys' sphere of influence");
         }
         {
-            // Ship components (0.73.0): efficiency, wear from a rough
+            // Ship components: efficiency, wear from a rough
             // landing, and a worn engine pushing less.
             check(near(component_efficiency(100), 1, 1e-9) && near(component_efficiency(0), 0.35, 1e-9),
                   "component efficiency runs from 1 to 0.35");
@@ -324,7 +358,7 @@ int main() {
             check(gain_worn < gain_fresh, "a worn engine accelerates the ship less");
         }
         {
-            // Wind (0.73.0) pushes a ship hovering in air.
+            // Wind pushes a ship hovering in air.
             ShipState ship;
             double t = 0;
             place_landed(ship, spec, system, 0, {0, 1, 0}, {0, 0, 1});
@@ -339,7 +373,7 @@ int main() {
             check(ship.position.x > before + 1, "wind drifts a hovering ship downwind");
         }
         {
-            // Route plans and the autopilot (0.73.0): Tethys orbit to Vell.
+            // Route plans and the autopilot: Tethys orbit to Vell.
             ShipState ship;
             double t = 0;
             place_in_orbit(ship, system, 0, 15000);
@@ -369,7 +403,7 @@ int main() {
             }
             check(arrived && !ship.destroyed, "the autopilot brings the ship to Vell, slow");
             check(ship.ref == 1, "arrival is inside Vell's sphere of influence");
-            // A moon is reached by a Hohmann raise from orbit (0.76.0), near
+            // A moon is reached by a Hohmann raise from orbit, near
             // the route plan's estimate.
             check(raised, "the moon transfer raises the orbit to meet it");
             // (From 15 km, inside the air, the plan under-prices the climb a little.)
@@ -379,7 +413,7 @@ int main() {
             check(other.autopilot.target == -1, "a fresh ship has no transfer planned");
         }
         {
-            // Body-fixed prediction (0.75.0): over a turning body, a path that
+            // Body-fixed prediction: over a turning body, a path that
             // comes down meets the ground where the ground will be.
             System spinning = system;
             spinning.bodies[0].day = 600;
@@ -395,7 +429,7 @@ int main() {
             check(turn > 0.05, "the fixed path's landing point is turned with the ground");
         }
         {
-            // Clearance corridors (0.75.0): with Tethys between the ship and
+            // Clearance corridors: with Tethys between the ship and
             // Vell, the autopilot flies around it instead of into it.
             ShipState ship;
             double t = 0;
@@ -428,7 +462,7 @@ int main() {
             check(closest > system.bodies[0].atmosphere_top(), "and never dips into Tethys' air");
         }
         {
-            // Terrain features (0.74.0): craters dent the ground; rifts carve
+            // Terrain features: craters dent the ground; rifts carve
             // glowing channels.
             Body plain = system.bodies[1];
             plain.flats.clear();
@@ -458,7 +492,7 @@ int main() {
             check(lava(plain, at) == 0, "no rifts unless asked");
         }
         {
-            // Turning bodies (0.74.0): a landed ship rides the turning ground,
+            // Turning bodies: a landed ship rides the turning ground,
             // staying on the same body-fixed spot.
             System turning = system;
             turning.bodies[0].day = 600;

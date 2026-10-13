@@ -311,9 +311,33 @@ const { chromium } = require("playwright");
     await page.screenshot({ path: "build/browser-evidence/f65-post-processing.png" });
     await page.click("#stop");
 
+    // GPU resources come back after each Play/Stop: the counts after a
+    // warm-up session (caches filled) don't grow over three more.
+    await page.click("#stats");
+    const gpuMemory = async () => {
+      await page.waitForTimeout(600);
+      const match = /GPU memory\s+(\d+) geometries, (\d+) textures/.exec(await page.locator("#stats-panel").textContent());
+      assert.ok(match, "the stats panel shows GPU memory");
+      return match.slice(1).map(Number);
+    };
+    const session = async () => {
+      await page.click("#play");
+      await page.waitForTimeout(1500);
+      await page.click("#stop");
+    };
+    await session();
+    const baseline = await gpuMemory();
+    for (let i = 0; i < 3; i++) await session();
+    const after = await gpuMemory();
+    assert.ok(
+      after[0] <= baseline[0] && after[1] <= baseline[1],
+      `geometries/textures after 3 Play/Stop sessions ${after} vs ${baseline} after the first`,
+    );
+    await page.click("#stats");
+
     assert.deepEqual(errors, []);
     console.log(
-      "FPS browser: first-person CharacterController (camera, look, walk, step climbing) and weapons (hold-to-fire kill with on_death, reload from reserve, switching, HUD) and combat AI (a soldier spots and shoots the player, dies to return fire, on_kill) and terrain (standing on it, sculpting with undo) and audio (positional play_at, mixer settings, footsteps) and post-processing passed.",
+      "FPS browser: first-person CharacterController (camera, look, walk, step climbing) and weapons (hold-to-fire kill with on_death, reload from reserve, switching, HUD) and combat AI (a soldier spots and shoots the player, dies to return fire, on_kill) and terrain (standing on it, sculpting with undo) and audio (positional play_at, mixer settings, footsteps) and post-processing and Play/Stop GPU memory passed.",
     );
   } catch (error) {
     await saveFailure("fps", error, browser);

@@ -7,7 +7,7 @@
 
 namespace engine::gameplay {
 
-// Melee combat (0.78.0): martial-arts moves authored as text, one per line,
+// Melee combat: martial-arts moves authored as text, one per line,
 //
 //   jab: clip=jab input=light dur=0.55 hit=0.10-0.16 cancel=0.2 dmg=6 reach=0.9
 //   cross: clip=cross input=light after=jab dur=0.62 hit=0.15-0.22 dmg=8
@@ -99,7 +99,7 @@ struct FighterSettings final {
     float buffer{0.3F};         // seconds a press waits for the current move's cancel point
     float down_time{0.6F};      // seconds lying down after a knockdown
     float getup_time{0.9F};     // seconds getting up (invulnerable)
-    // GATEBREAKER (0.80.0):
+    // GATEBREAKER:
     float poise{0.0F};          // stagger bar size (elites, bosses); 0: none
     float break_time{2.5F};     // seconds floored by a Break
     float break_bonus{1.5F};    // damage taken while Broken, times

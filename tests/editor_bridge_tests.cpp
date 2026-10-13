@@ -55,6 +55,7 @@ void editor_set_look(double, double);
 double editor_controller_value(int, int);
 void editor_set_weapons(int, const char *);
 const char *editor_weapons_error();
+const char *editor_last_error();
 double editor_weapon_value(int, int);
 const char *editor_weapon_text(int, int, int);
 int editor_take_weapon_events();
@@ -71,7 +72,7 @@ void editor_set_soldier(int, double, double, double, double, double, double, dou
                         int, double, double);
 void editor_set_soldier_patrol(int, const char *);
 double editor_soldier_value(int, int);
-void editor_set_terrain(double, double, double, double, int, const char *);
+void editor_set_terrain(double, double, double, double, int, const float *, int);
 void editor_add_obstacle(double, double, double, double, double, double);
 double editor_terrain_height(double, double);
 void editor_set_car(int, double, double, double, double, double, double, double, double, double, double);
@@ -99,22 +100,6 @@ double editor_planet_height(int, double, double, double);
 int editor_space_path(int, double);
 }
 namespace {
-std::string base64_floats(const std::vector<float> &values) {
-    static const char *alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    std::string bytes(reinterpret_cast<const char *>(values.data()), values.size() * sizeof(float));
-    std::string out;
-    for (std::size_t i = 0; i < bytes.size(); i += 3) {
-        const unsigned b0 = static_cast<unsigned char>(bytes[i]);
-        const unsigned b1 = i + 1 < bytes.size() ? static_cast<unsigned char>(bytes[i + 1]) : 0;
-        const unsigned b2 = i + 2 < bytes.size() ? static_cast<unsigned char>(bytes[i + 2]) : 0;
-        const unsigned triple = (b0 << 16) | (b1 << 8) | b2;
-        out += alphabet[(triple >> 18) & 63];
-        out += alphabet[(triple >> 12) & 63];
-        out += i + 1 < bytes.size() ? alphabet[(triple >> 6) & 63] : '=';
-        out += i + 2 < bytes.size() ? alphabet[triple & 63] : '=';
-    }
-    return out;
-}
 int add_unit(double x, double y, double z, double vx, double vy, double vz) {
     return editor_add(x, y, z, vx, vy, vz, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0);
 }
@@ -139,9 +124,13 @@ int main() {
     editor_begin();
     check(add_unit(std::numeric_limits<double>::infinity(), 0, 0, 0, 0, 0) == 0);
     check(editor_commit() == 0);
+    // The failed commit says why, and which entity (not just that it failed).
+    check(std::string(editor_last_error()).find("position") != std::string::npos);
+    check(std::string(editor_last_error()).find("entity #0") != std::string::npos);
     check(std::abs(editor_value(0, 0) - 6) < 1e-4);
     editor_begin();
     check(editor_commit() == 1);
+    check(std::string(editor_last_error()).empty());
     check(editor_count() == 0);
     editor_begin();
     for (int i = 0; i < 1024; ++i)
@@ -1039,7 +1028,7 @@ int main() {
         check(std::string(editor_command_text(1, 1)) == "state run");
     }
     {
-        // Native input (0.55.0): any key by DOM code drives both the default
+        // Native input: any key by DOM code drives both the default
         // actions and the bound movement; mouse and gamepad reach scripts.
         editor_begin();
         check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1); // Player
@@ -1500,7 +1489,7 @@ int main() {
     }
 
     {
-        // Arcade cars (0.70.0): the player's car accelerates on W and turns
+        // Arcade cars: the player's car accelerates on W and turns
         // right on D; an AI racer follows its route around a square; a police
         // car chases the player; scripts read state and reset/freeze cars.
         editor_begin();
@@ -1571,7 +1560,7 @@ int main() {
     }
 
     {
-        // Spaceflight (0.71.0): a ship landed at a site on a small planet
+        // Spaceflight: a ship landed at a site on a small planet
         // lifts off on its belly thrusters, hovers, sets down, lets the
         // pilot out onto the curved ground and back in, and scripts read
         // the flight through space.*.
@@ -1655,7 +1644,7 @@ int main() {
         }
         check(saw_liftoff && saw_touchdown && saw_exit && saw_state);
 
-        // Walking anywhere (0.72.0): landed on Vell, far from the site, the
+        // Walking anywhere: landed on Vell, far from the site, the
         // frame follows the ship -- the pilot can step out onto the moon --
         // and returns home when the ship lands back at the site.
         editor_begin();
@@ -1698,7 +1687,7 @@ int main() {
         }
         check(saw_moon && saw_home);
 
-        // Re-anchoring on foot (0.75.0): walking far across a wilderness
+        // Re-anchoring on foot: walking far across a wilderness
         // frame moves the frame under the walker -- no edge -- and the
         // ground is still under their feet.
         editor_begin();
@@ -1743,7 +1732,7 @@ int main() {
             saw_reframe |= std::string(editor_command_text(i, 1)) == "ev reframe";
         check(saw_reframe);
 
-        // Sites (0.73.0): landing at a second site moves the frame there,
+        // Sites: landing at a second site moves the frame there,
         // wakes its own entities and parks home's; scripts see the site.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -1779,7 +1768,7 @@ int main() {
         }
         check(saw_site && saw_back);
 
-        // A turning world (0.74.0): the site and the landed ship turn with
+        // A turning world: the site and the landed ship turn with
         // it, so in the site frame nothing drifts; stepping out still works.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -1812,14 +1801,14 @@ int main() {
         check(editor_commit() == 0);
     }
     {
-        // Routines and wildlife (0.73.0): a walker heads for the stop the
+        // Routines and wildlife: a walker heads for the stop the
         // scene clock says; an animal flees a player inside its radius.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         check(editor_add(10, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         editor_set_wildlife(1, 44, 16, 7, 80);
         check(editor_add(0, 0.9, -30, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
-        editor_set_routine(2, "0 0 -30 sit; 12 20 -30 talk", 1.5); // activity words (0.75.0) are skipped
+        editor_set_routine(2, "0 0 -30 sit; 12 20 -30 talk", 1.5); // activity words are skipped
         check(editor_add(0, 30, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         editor_set_script_source(3, "function on_tick(dt) world.set_clock(13) end");
         check(editor_commit() == 1);
@@ -1832,7 +1821,7 @@ int main() {
         check(editor_routine_stop(2) == 1 && editor_routine_stop(0) == -1);
     }
     {
-        // Around walls (0.76.0): a walker whose stop is behind a wall goes
+        // Around walls: a walker whose stop is behind a wall goes
         // round it on the nav grid instead of pressing into it.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -1844,7 +1833,7 @@ int main() {
         check(editor_value(0, 2) < -20); // past the wall
     }
     {
-        // Settling (0.75.0): after a load, everyone with a Routine stands at
+        // Settling: after a load, everyone with a Routine stands at
         // the stop the clock says at once.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -1857,7 +1846,7 @@ int main() {
         check(std::abs(editor_value(0, 0) - 30) < 0.5 && std::abs(editor_value(0, 2) + 20) < 0.5);
     }
     {
-        // Soft radii (0.75.0): the walker and a big animal ease apart.
+        // Soft radii: the walker and a big animal ease apart.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         check(editor_add(0.4, 0.8, 0, 0, 0, 0, 2.4, 1.6, 1.4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -1875,7 +1864,7 @@ int main() {
         std::vector<float> big(131 * 131);
         for (std::size_t i = 0; i < big.size(); ++i)
             big[i] = static_cast<float>((i * 7919) % 13) * 0.5F;
-        editor_set_terrain(0, 0, 0, 260, 131, base64_floats(big).c_str());
+        editor_set_terrain(0, 0, 0, 260, 131, big.data(), static_cast<int>(big.size()));
         check(editor_commit() == 1);
         for (int i = 0; i < 180; ++i)
             editor_tick();
@@ -1895,7 +1884,8 @@ int main() {
         check(editor_add(0, 20, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         editor_set_script_source(1, "function on_tick(dt) local hit, d, x, y, z = world.raycast(5, 30, 0, 0, -1, 0, 100) "
                                     "if hit == 'ground' then log(string.format('%.2f', y)) end end");
-        editor_set_terrain(0, 1, 0, 40, 3, base64_floats({0, 0, 0, 0, 4, 0, 0, 0, 0}).c_str());
+        const std::vector<float> hill{0, 0, 0, 0, 4, 0, 0, 0, 0};
+        editor_set_terrain(0, 1, 0, 40, 3, hill.data(), 9);
         editor_add_obstacle(-15, 1, 8, 4, 4, 1);
         check(editor_add(-15, 1.5, 4, 0, 0, 6, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         check(editor_commit() == 1);
@@ -1923,12 +1913,15 @@ int main() {
         check(editor_value(2, 2) < 8 - 0.5 - 0.49); // stopped by the obstacle's near face (z = 7.5)
 
         editor_begin();
-        editor_set_terrain(0, 0, 0, 40, 3, "AAAA");
+        editor_set_terrain(0, 0, 0, 40, 3, hill.data(), 8); // one height short
+        check(editor_commit() == 0);
+        editor_begin();
+        editor_set_terrain(0, 0, 0, 40, 3, nullptr, 9);
         check(editor_commit() == 0);
     }
 
     {
-        // Game-support Lua APIs (0.66.0): world.heal caps at max, world.give_ammo
+        // Game-support Lua APIs: world.heal caps at max, world.give_ammo
         // tops up another entity's reserve, ui.marker / game.pause queue commands.
         editor_begin();
         check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 40, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -1955,7 +1948,7 @@ int main() {
 
 
     {
-        // Melee (0.78.0). A Player fighter facing a training dummy: a light
+        // Melee. A Player fighter facing a training dummy: a light
         // press throws the jab, which lands inside its active window; mashing
         // chains jab -> cross -> hook; the hits build a combo and energy.
         const auto melee_events = [&](int kind) {
@@ -2138,7 +2131,7 @@ int main() {
             check(editor_value(1, 3) < 1);
         }
 
-        // GATEBREAKER (0.80.0): a locked skill stays shut until melee.unlock,
+        // GATEBREAKER: a locked skill stays shut until melee.unlock,
         // and filling an enemy's poise bar Breaks it (a broken event).
         {
             editor_begin();

@@ -1,4 +1,4 @@
-// Exploration effects (0.73.0): weather (rain streaks, fog, wind), ambient
+// Exploration effects: weather (rain streaks, fog, wind), ambient
 // dust motes near the walker, footprints on soft ground, and the ship
 // settling on its gear at touchdown. Each owns its Three.js objects; main.ts
 // feeds them the player, camera and what scripts asked for.
@@ -35,7 +35,7 @@ export class ExplorerFx {
   private lastPrint?: THREE.Vector3;
   private stepSide = 1;
   private time = 0;
-  // Water spray (0.74.0): droplets thrown up by a touchdown on water or by
+  // Water spray: droplets thrown up by a touchdown on water or by
   // belly thrusters low over it.
   private readonly spray: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
   private readonly drops = Array.from({ length: SPRAY }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), life: 0 }));

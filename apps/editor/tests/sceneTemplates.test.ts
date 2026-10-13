@@ -45,7 +45,7 @@ test("templates use real component fields, cameras that follow, and nothing soli
       if (components.CameraFollow) assert.ok(components.Camera, `${template.id} / ${entity.name}: CameraFollow without a Camera`);
       // Every entity is a body unless kinematic, and a body below y = 0 is
       // lifted onto the ground plane on the first tick, shoving whatever
-      // stands on it (0.78.0: the starters' ground did exactly that).
+      // stands on it (the starters' ground did exactly that).
       const position = (components.Transform as { position: { y: number } } | undefined)?.position.y ?? 0;
       const height = (components.Scale as { value: { y: number } } | undefined)?.value.y ?? 1;
       const kinematic = (components.RigidBody as { dynamic?: boolean } | undefined)?.dynamic === false;

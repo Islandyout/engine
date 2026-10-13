@@ -1,4 +1,4 @@
-// Atmospheric scattering (0.75.0): single scattering of sunlight through a
+// Atmospheric scattering: single scattering of sunlight through a
 // body's air -- Rayleigh (colour from the body's haze, stronger the bluer a
 // channel is scattered) and Mie (grey, forward-peaked haze around the sun),
 // each falling off with its own scale height, with the sunlight reddened by

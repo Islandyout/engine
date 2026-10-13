@@ -1,4 +1,4 @@
-// Spaceflight presentation (0.71.0): the star system around a scene's
+// Spaceflight presentation: the star system around a scene's
 // site -- planets that refine as you approach, atmospheres, a sky that
 // fades to stars with altitude, the sun -- the ship's predicted orbit, a
 // chase camera you can look around with (it never steers the ship), the
@@ -61,7 +61,7 @@ export interface SpaceBody {
   snow: boolean;
   hidden: boolean;
   unlit: boolean;
-  // Terrain features and turn (0.74.0): craters (0..1 density), rifts and
+  // Terrain features and turn: craters (0..1 density), rifts and
   // dunes (0/1), day (seconds per turn, 0: none).
   craters: number;
   rifts: boolean;
@@ -137,7 +137,7 @@ export interface Landmark {
   longitude: number;
   color: string;
   label: string;
-  // The structure's kind (0.73.0): array, monolith, ruin, camp or beacon.
+  // The structure's kind: array, monolith, ruin, camp or beacon.
   kind: string;
 }
 
@@ -245,7 +245,7 @@ export interface FlightState {
   targetDistance: number;
   siteDistance: number;
   period: number;
-  // Landing telemetry (0.74.0): ground slope (degrees), the gear's limits,
+  // Landing telemetry: ground slope (degrees), the gear's limits,
   // and water under the ship.
   slope: number;
   sinkLimit: number;
@@ -356,14 +356,14 @@ class Planet {
     readonly body: SpaceBody,
   ) {
     this.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
-    // An unlit body (0.73.0) reflects almost nothing: a shape against the stars.
+    // An unlit body reflects almost nothing: a shape against the stars.
     if (body.unlit) this.material.color.setScalar(0.08);
     // Water is glossy: a per-vertex "water" weight lowers the roughness.
     this.material.onBeforeCompile = (shader) => {
       shader.vertexShader = shader.vertexShader
         .replace("#include <common>", "#include <common>\nattribute float water;\nattribute float lava;\nvarying float vWater;\nvarying float vLava;")
         .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWater = water;\nvLava = lava;");
-      // Lava rifts (0.74.0) glow on their own, day or night.
+      // Lava rifts glow on their own, day or night.
       shader.fragmentShader = shader.fragmentShader
         .replace("#include <common>", "#include <common>\nvarying float vWater;\nvarying float vLava;")
         .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.12, vWater);")
@@ -577,7 +577,7 @@ class Planet {
 
   private ensure(chunk: Chunk, budget: ChunkBudget) {
     if (chunk.mesh) return true;
-    // A count and a time budget (0.75.0): detail streams in over frames
+    // A count and a time budget: detail streams in over frames
     // instead of costing one frame a spike; the first build always runs.
     if (budget.left <= 0 || (budget.built > 0 && performance.now() > budget.until)) return false;
     budget.left--;
@@ -606,7 +606,7 @@ class Planet {
   }
 }
 
-// The air seen from space (0.75.0): a shell at the top of the atmosphere
+// The air seen from space: a shell at the top of the atmosphere
 // drawing single scattering (atmosphere.ts) over the planet and its limb.
 function atmosphereShell(body: SpaceBody) {
   const params = atmosphereParams(body);
@@ -666,7 +666,7 @@ function starField() {
   return points;
 }
 
-// The sky from inside the air (0.75.0): single scattering toward the eye.
+// The sky from inside the air: single scattering toward the eye.
 function skyDome() {
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), scatterSkyMaterial());
   mesh.frustumCulled = false;
@@ -771,7 +771,7 @@ export class SpaceView {
   readonly sunDirection = new THREE.Vector3(0, 1, 0);
   // Sky colour and how much air the camera is in (0..1), for the scene's fog.
   readonly skyColor = new THREE.Color();
-  // The scattered horizon colour around the camera (0.75.0), lit: the fog.
+  // The scattered horizon colour around the camera, lit: the fog.
   readonly horizonColor = new THREE.Color();
   air = 0;
   daylight = 1;
@@ -783,7 +783,7 @@ export class SpaceView {
   private readonly chase = new THREE.Quaternion();
   private chasePlaced = false;
   private lookYaw = 0;
-  // The mouse's virtual stick (0.75.0), drawn by the HUD: x right, y down,
+  // The mouse's virtual stick, drawn by the HUD: x right, y down,
   // -1..1; `available` when a click would capture it.
   stick = { x: 0, y: 0, deadzone: 0.08, active: false, available: false };
   private lookPitch = 0;
@@ -1061,12 +1061,12 @@ export class SpaceView {
     this.planets.forEach((planet, i) => {
       const centre = new THREE.Vector3(this.rt._editor_space_body_value(i, 0), this.rt._editor_space_body_value(i, 1), this.rt._editor_space_body_value(i, 2));
       planet.group.position.copy(centre);
-      // Turning bodies (0.74.0): the frame times the body's own turn.
+      // Turning bodies: the frame times the body's own turn.
       const sp = (f: number) => this.rt._editor_space_body_spin(i, f);
       spin.set(sp(0), sp(1), sp(2), sp(3));
       planet.group.quaternion.copy(this.frame).multiply(spin);
       const inverse = planet.group.quaternion.clone().invert();
-      // Hidden bodies (0.73.0) aren't there until a script reveals them.
+      // Hidden bodies aren't there until a script reveals them.
       planet.group.visible = this.rt._editor_space_body_value(i, 10) !== 1;
       if (!planet.group.visible) return;
       const relative = cameraPosition.clone().sub(centre);
@@ -1203,7 +1203,7 @@ export class SpaceView {
     return { x: (p.x * 0.5 + 0.5) * width, y: (-p.y * 0.5 + 0.5) * height };
   }
 
-  // Plants and rocks around the walk frame (0.72.0): deterministic in the
+  // Plants and rocks around the walk frame: deterministic in the
   // frame's position, weighted by the frame body's flora and mineral
   // species, standing on the ground, clear of the origin (the ship or the
   // site's buildings) and of the sea.
@@ -1214,7 +1214,7 @@ export class SpaceView {
     const out: Array<{ species: Species; x: number; y: number; z: number; yaw: number; scale: number }> = [];
     if (!pool.length) return out;
     const total = pool.reduce((sum, s) => sum + s.weight, 0);
-    // Seeded by where the frame is on its body (0.75.0), so the same place
+    // Seeded by where the frame is on its body, so the same place
     // grows the same plants every visit (and what was harvested stays gone).
     let seed =
       (Math.round(this.rt._editor_space_value(SpaceField.frameLatitude) * 100) * 73856093) ^
@@ -1357,7 +1357,7 @@ export function drawFlightHud(ctx: CanvasRenderingContext2D, width: number, heig
     bar(ctx, x, y + 120, w, f.fuel, f.fuel < 0.2 ? "#ff9f43" : "#9be37a", `FUEL ${(f.fuel * 100).toFixed(0)}%`);
     bar(ctx, x, y + 144, w * 0.48, f.hull, f.hull < 0.35 ? "#ff5d5d" : "#d8e2ea", `HULL ${(f.hull * 100).toFixed(0)}%`);
     if (f.heat > 5) bar(ctx, x + w * 0.52, y + 144, w * 0.48, f.heat / 100, f.heat > 78 ? "#ff5d5d" : "#ffb347", "HEAT");
-    // Mouse steering (0.75.0): the virtual stick's ring and where it sits.
+    // Mouse steering: the virtual stick's ring and where it sits.
     if (view.stick.active && !f.landed) {
       const cx = width / 2,
         cy = height / 2,
@@ -1378,7 +1378,7 @@ export function drawFlightHud(ctx: CanvasRenderingContext2D, width: number, heig
       ctx.fillStyle = "rgba(207,231,245,0.55)";
       ctx.fillText("CLICK TO STEER WITH THE MOUSE", width / 2 - ctx.measureText("CLICK TO STEER WITH THE MOUSE").width / 2, height - 24);
     }
-    // Landing radar below 400 m (0.74.0): a radar-altitude tape with the
+    // Landing radar below 400 m: a radar-altitude tape with the
     // sink rate, and the ground under the ship against the gear's limits.
     if (!f.landed && f.altitude < 400 && f.ref >= 0) drawLandingRadar(ctx, width, height, f);
     // Landing guidance below 150 m: descent rate against the gear's limit.

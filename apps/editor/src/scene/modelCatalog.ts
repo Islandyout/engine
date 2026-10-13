@@ -160,7 +160,7 @@ export const modelCatalog: CatalogEntry[] = [
   // assets/CREDITS.md. Not reused: a future import gets its own fresh ids rather
   // than resurrecting ones a saved scene might still (however unlikely) reference.
   //
-  // Quaternius CC0 packs (0.32.0) -- see assets/CREDITS.md. `mannequin_f.glb`
+  // Quaternius CC0 packs -- see assets/CREDITS.md. `mannequin_f.glb`
   // carries 9 clips as of 0.49.0: its own idle/walk/run/sprint/talk/sit plus
   // flying/firing_rifle/punching, retargeted from the Mixamo auto-rig that
   // used to ship as a separate "Mannequin F (Mixamo)" entry (id 137, now

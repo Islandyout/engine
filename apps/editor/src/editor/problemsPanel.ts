@@ -1,4 +1,4 @@
-// The Problems panel (0.77.0): runs the content checks over the scene and
+// The Problems panel: runs the content checks over the scene and
 // lists what it finds, each entry selecting its entity.
 import { checkContent, formatIssue, type CheckedEntity, type ContentIssue } from "./contentCheck";
 import type { EntityRef } from "../scene/Components";

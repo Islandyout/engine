@@ -1,4 +1,4 @@
-// The editor's page layout (0.77.0, out of main.ts): toolbar, hierarchy and
+// The editor's page layout (out of main.ts): toolbar, hierarchy and
 // problems, viewport, inspector, and the project/console dock. Static
 // markup only; main.ts wires the behaviour by element id.
 import { iconHtml } from "./dom";

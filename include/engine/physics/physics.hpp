@@ -102,7 +102,7 @@ struct Collider final {
 // y component is at least this (about 50 degrees).
 constexpr float walkable_normal_y = 0.64F;
 
-// A terrain heightfield (0.63.0): resolution x resolution heights over a
+// A terrain heightfield: resolution x resolution heights over a
 // square of side `size` centered on `center` (x, z), row-major with x
 // varying fastest (row 0 is the -z edge, column 0 the -x edge). Heights are
 // relative to center.y. Inside its square it replaces the flat ground plane

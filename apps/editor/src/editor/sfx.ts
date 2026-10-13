@@ -1,4 +1,4 @@
-// Synthesized game sounds (0.61.0): gunshots, dry fire, reloads, impacts,
+// Synthesized game sounds: gunshots, dry fire, reloads, impacts,
 // explosions and hit markers built from noise and oscillators at play time,
 // so the engine ships combat audio without sample files. Every call
 // schedules nodes on the given context and returns immediately; nodes stop
@@ -181,7 +181,7 @@ export class Sfx {
     this.tone(t, "sine", 110, 60, 0.4 * volume, 0.25);
   }
 
-  // Melee (0.78.0): air cut by a fast limb, heavier and lower for big moves.
+  // Melee: air cut by a fast limb, heavier and lower for big moves.
   whoosh(heavy = false, volume = 1) {
     const t = this.now;
     this.burst(t, "bandpass", heavy ? 700 : 1300, (heavy ? 0.22 : 0.14) * volume, heavy ? 0.26 : 0.16, 1.4);

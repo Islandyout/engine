@@ -1,4 +1,4 @@
-// Spaceflight art (0.72.0): cloud layers, the Milky Way and nebulae, the
+// Spaceflight art: cloud layers, the Milky Way and nebulae, the
 // landmark structures you can walk up to, and the built-in Kestrel survey
 // ship. All procedural, so a scene needs no extra assets.
 import * as THREE from "three";
@@ -145,7 +145,7 @@ export function signalStructure(color: string, kind = "array") {
       group.add(strip);
     }
   };
-  // The Pale Signal's grammar (0.73.0): concentric, coherent rings around
+  // The Pale Signal's grammar: concentric, coherent rings around
   // every structure, pulsing in step (spaceView animates userData.rings).
   const rings: THREE.Mesh[] = [];
   const addRings = (inner: number, count: number, y = 0.3) => {

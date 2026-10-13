@@ -1,4 +1,4 @@
-// Form editors for fields that are text underneath (0.77.0).
+// Form editors for fields that are text underneath.
 import { parseRoutineStops, routineActivities, serializeRoutineStops, type RoutineStop } from "./routineStops";
 
 // Routine stops as rows of hour, x, z and activity, with add and remove.

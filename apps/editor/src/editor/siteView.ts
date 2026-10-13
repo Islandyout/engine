@@ -1,4 +1,4 @@
-// The editor's site view (0.75.0, defaults 0.76.0): which part of a scene
+// The editor's site view (defaults 0.76.0): which part of a scene
 // with Sites the viewport shows -- "all", "home", or one Site's index. A
 // scene with Sites opens on home (site-local children would otherwise pile
 // onto the home layout), and selecting something that lives elsewhere --

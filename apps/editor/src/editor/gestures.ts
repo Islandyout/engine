@@ -1,4 +1,4 @@
-// Procedural gestures (0.76.0): over the shared talk, work and sit clips,
+// Procedural gestures: over the shared talk, work and sit clips,
 // each character adds its own small motions -- nods and head tilts, a hand
 // that comes up to make a point and drops again, a back that bends into
 // the work, a seated reader glancing about -- on its own beat, so a square

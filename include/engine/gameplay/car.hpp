@@ -4,7 +4,7 @@
 
 namespace engine::gameplay {
 
-// Arcade car dynamics (0.70.0): a single rigid body moving in the ground
+// Arcade car dynamics: a single rigid body moving in the ground
 // plane with grip-limited lateral slip, so cars hold a line at speed, slide
 // when the rear lets go (handbrake, or too much steering for the speed) and
 // can be held in a drift with throttle and counter-steer. Not a tire

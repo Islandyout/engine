@@ -72,7 +72,7 @@ public:
         (void)entity;
         (void)amount;
     }
-    // Weapons (0.61.0), for the Lua `weapon` table: `op` is "fire" (args:
+    // Weapons, for the Lua `weapon` table: `op` is "fire" (args:
     // optional aim direction x, y, z), "reload", "select" (args: 0-based
     // slot), "ammo" (out: magazine, reserve, slot, reloading 0/1),
     // "give_ammo" (args: rounds, 0-based slot). Returns false when `self`
@@ -86,7 +86,7 @@ public:
         (void)out;
         return false;
     }
-    // Vehicles (0.70.0), for the Lua `vehicle` table, on any entity: `op` is
+    // Vehicles, for the Lua `vehicle` table, on any entity: `op` is
     // "state" (out: speed, forward speed, gear, rpm, nitro, drifting 0/1,
     // boosting 0/1, yaw, slip), "set_nitro" (args: 0..1), "reset" (args: x,
     // y, z, yaw; stops it there), "freeze" (args: 1/0; holds it still),
@@ -105,7 +105,7 @@ public:
         (void)out;
         return false;
     }
-    // Spaceflight (0.71.0), for the Lua `space` table: `op` is "state" (out:
+    // Spaceflight, for the Lua `space` table: `op` is "state" (out:
     // altitude, speed, vertical speed, ground speed, throttle, fuel, fuel
     // capacity, hull, hull capacity, heat, landed 0/1, piloting 0/1, air
     // density, warp, periapsis, apoapsis, time, destroyed 0/1, site-local x,
@@ -133,7 +133,7 @@ public:
         (void)text_out;
         return false;
     }
-    // Melee (0.78.0), for the Lua `melee` table on the running entity: `op`
+    // Melee, for the Lua `melee` table on the running entity: `op`
     // is "perform" (text: a move name; out: 1 started, 0 not), "state"
     // (text_out: the mode; out: combo, energy, energy max, guard 0..1),
     // "move" (text_out: the current move, "" none), "set_energy" (args:
@@ -368,7 +368,7 @@ public:
     void notify_damage(World &world, Entity entity, float amount, std::optional<Entity> attacker, bool headshot,
                        bool killed, const std::string &victim_name, const std::string &attacker_name);
     // Calls on_melee_hit(target, move, damage, outcome) in the attacker's
-    // script (0.78.0): outcome is "hit", "blocked", "parried", "dodged" or
+    // script: outcome is "hit", "blocked", "parried", "dodged" or
     // "guard_break".
     void notify_melee_hit(World &world, Entity attacker, Entity target, const std::string &move, float damage,
                           const std::string &outcome, const std::string &target_name);

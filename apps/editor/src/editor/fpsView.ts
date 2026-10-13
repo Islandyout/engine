@@ -1,4 +1,4 @@
-// First-person view math (0.60.0), independent of three.js so it can be unit
+// First-person view math, independent of three.js so it can be unit
 // tested: mouse/stick look, and the camera effects layered on the player's
 // eye position -- head bob, a landing dip, crouch easing and a sprint FOV
 // kick. main.ts places the camera from the result.

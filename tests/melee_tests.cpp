@@ -303,7 +303,7 @@ int main() {
             check(defended, "defends against a wind-up");
         }
         {
-            // GATEBREAKER (0.80.0): mana, locked skills, guard-breakers, red
+            // GATEBREAKER: mana, locked skills, guard-breakers, red
             // attacks, parries feeding the gauge, and poise bars with a Break.
             const auto parsed = parse_moves("jab: input=light hit=0.1-0.2 dmg=10\n"
                                             "skill: input=skill1 hit=0.1-0.2 dmg=10 mana=30 cooldown=2 locked\n"

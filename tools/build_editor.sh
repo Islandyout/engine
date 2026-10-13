@@ -20,16 +20,17 @@ for name in "${lua_sources[@]}"; do
   lua_objects+=("build/lua-obj/${name}.o")
 done
 emar rcs build/lua-obj/liblua.a "${lua_objects[@]}"
-# STACK_SIZE: ccall copies string arguments onto the wasm stack, and a
-# terrain's base64 heights reach 5.6 MB at the 1025 resolution limit
-# (editor_set_terrain); the 64 KB default overflowed at about 110x110.
+# Strings and terrain heights reach the runtime through the heap (main.ts
+# heapStrings, editor_set_terrain); the 1 MB stack is headroom for C++ and
+# the Lua parser's recursion, and an overflow is reported, not silent.
 em++ -std=c++20 -O2 -fexceptions -Wall -Wextra -Werror -Iinclude -Ithird_party/lua \
   apps/editor/runtime/bridge.cpp apps/editor/runtime/bridge_combat.cpp apps/editor/runtime/bridge_space.cpp apps/editor/runtime/bridge_melee.cpp source/engine/world/world.cpp source/engine/world/fixed_systems.cpp \
   source/engine/physics/physics.cpp source/engine/nav/nav.cpp source/engine/gameplay/character.cpp source/engine/gameplay/weapons.cpp source/engine/gameplay/car.cpp source/engine/gameplay/space.cpp source/engine/gameplay/melee.cpp source/engine/input/input.cpp source/engine/input/actions.cpp source/engine/script/script.cpp \
   build/lua-obj/liblua.a \
   -sMODULARIZE=1 -sEXPORT_NAME=createEditorRuntime -sSINGLE_FILE=1 \
   -sENVIRONMENT=web,node -sALLOW_MEMORY_GROWTH=1 -sDISABLE_EXCEPTION_CATCHING=0 \
-  -sWASM_ASYNC_COMPILATION=0 -sEXPORTED_RUNTIME_METHODS=ccall,HEAPF64 -sSTACK_SIZE=8MB \
+  -sWASM_ASYNC_COMPILATION=0 -sEXPORTED_RUNTIME_METHODS=ccall,HEAPF64,HEAPF32,HEAPU8 -sEXPORTED_FUNCTIONS=_malloc,_free \
+  -sSTACK_SIZE=1MB -sSTACK_OVERFLOW_CHECK=1 \
   -o build/site/runtime.js
 cp assets/source/bench.glb build/site/bench.glb
 cp -r assets/source/kit build/site/kit

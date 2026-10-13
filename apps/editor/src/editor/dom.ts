@@ -1,4 +1,4 @@
-// The editor chrome's icons and small DOM helpers (0.77.0, out of main.ts).
+// The editor chrome's icons and small DOM helpers (out of main.ts).
 
 // Small, hand-drawn, dependency-free icon set (no external icon font/CDN,
 // consistent with this project's zero-external-asset constraints for the
