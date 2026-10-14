@@ -106,6 +106,7 @@ export function editorLayoutHtml({
         <select id="catalog-model" aria-label="Model"></select>
       </div>
       <button id="catalog-add" class="btn btn-sm">${iconHtml("cube")}<span>Add from catalog</span></button>
+      <button id="ui-kit" class="btn btn-sm">${iconHtml("grid")}<span>UI templates…</span></button>
       <p class="hint">${modelCount} bundled CC0 models · Aether kit + Quaternius</p>
       <a class="link-external" href="./ASSET-CREDITS.txt">Asset credits</a>
       <label class="btn btn-sm" id="import-label">${iconHtml("open")}<span>Import asset…</span>

@@ -193,6 +193,35 @@ export interface WildlifeComponent {
 // it follows the travel time between junctions), and how far from the
 // centre the stop lines are. Traffic-mode drivers stop at them on red;
 // Walkers cross on the walk light.
+// Loot (engine/gameplay/loot.hpp). A Pickup lies in the world: a weapon
+// (a Weapons loadout line), ammo for the gun in hand, health, or `amount`
+// of an item (a key, coins). Walked over, or taken with interact (E) when
+// `press`; it comes back `respawn` seconds after it's taken (0: never).
+export type PickupKind = "Weapon" | "Ammo" | "Health" | "Item";
+export type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary";
+export interface PickupComponent {
+  kind: PickupKind;
+  weapon: string;
+  item: string;
+  amount: number;
+  rarity: Rarity;
+  press: boolean;
+  respawn: number;
+}
+// What an entity drops when it dies: its gun in hand, and what its loot
+// table rolls (one "<chance> <kind> ..." per line, see loot.hpp).
+export interface LootDropComponent {
+  dropWeapon: boolean;
+  table: string;
+}
+// A crate or chest the Player opens with interact, held for `hold`
+// seconds; its loot table spills out. `key` names an item it needs (and
+// uses up), "" for none. A lid ("lid" or "top" in its node name) swings open.
+export interface ContainerComponent {
+  table: string;
+  hold: number;
+  key: string;
+}
 export interface TrafficSignalComponent {
   green: number;
   yellow: number;
@@ -353,7 +382,35 @@ export interface TrailComponent {
 // element renders in: "always" (Edit included, so an author sees where it
 // lands without pressing Play), "play", or "pause" (e.g. a pause menu that
 // isn't there the rest of the time).
-export type UIKind = "Text" | "Button" | "Panel" | "Image" | "Bar" | "Slider" | "Toggle";
+export type UIKind = "Text" | "Button" | "Panel" | "Image" | "Bar" | "Slider" | "Toggle" | "Widget";
+// The Widget kind: a ready-made game UI piece from the UI kit (uiKit.ts),
+// drawn in one of six styles from the live game.
+export const uiWidgetNames = [
+  "Health",
+  "Ammo",
+  "Crosshair",
+  "Damage numbers",
+  "Kill feed",
+  "Boss bar",
+  "Minimap",
+  "Compass",
+  "Objective",
+  "Waypoints",
+  "Interact prompt",
+  "Pickup feed",
+  "Loot card",
+  "Inventory",
+  "Hotbar",
+  "Weapon wheel",
+  "Pause menu",
+  "Main menu",
+  "Settings",
+  "Dialogue",
+  "Notification",
+] as const;
+export type UIWidget = (typeof uiWidgetNames)[number];
+export const uiStyleNames = ["Modern", "Battle Royale", "Tactical", "Fantasy", "Sci-fi", "Minimal"] as const;
+export type UIStyle = (typeof uiStyleNames)[number];
 export type UIAnchor =
   | "top-left"
   | "top-center"
@@ -388,6 +445,9 @@ export interface UIComponent {
   image: string;
   // Bar/Slider: 0..1; Toggle: 0 or 1. Scripts change it with ui.set_value.
   value: number;
+  // Widget: which one, and its style.
+  widget: UIWidget;
+  style: UIStyle;
 }
 export interface NameComponent {
   value: string;

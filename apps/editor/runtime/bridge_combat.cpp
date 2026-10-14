@@ -3,6 +3,9 @@
 #include "bridge_runtime.hpp"
 
 extern "C" {
+// Defined in bridge_melee.cpp (a Player's melee slots need a fighter).
+void editor_set_melee(int index, int style, const char *moves, double team, int ai, double aggression, double skill,
+                      double reaction, double energy, double guard);
 // Makes the entity a combat soldier, after editor_add for the same
 // index: team (0 = the Player's), behavior (0 patrol, 1 guard, 2 hunt), sight
 // range, field of view in degrees, hearing range, reaction time, accuracy
@@ -231,9 +234,16 @@ EXPORT void editor_set_weapons(int index, const char *text) {
     }
     Arsenal arsenal;
     arsenal.weapons = std::move(parsed.weapons);
+    for (const auto &weapon : arsenal.weapons)
+        arsenal.melee_slots = arsenal.melee_slots || weapon.is_melee();
     arsenal.state = engine::gameplay::make_weapon_state(arsenal.weapons);
     arsenal.state.rng = 0x9E3779B9U + static_cast<std::uint32_t>(index + 2) * 2654435761U;
+    const bool melee_slots = arsenal.melee_slots;
     target->first->set(target->second, arsenal);
+    // A Player with melee slots fights with them: a fighter of its own
+    // when the scene gave it no Melee (editor_set_melee replaces it if so).
+    if (melee_slots && target->first->get<PlayerMarker>(target->second) && !target->first->get<Fighter>(target->second))
+        editor_set_melee(index, 1, "", 0, 0, 0.5, 0.5, 0.25, 0, 60);
 }
 EXPORT const char *editor_weapons_error() { return active->weapons_error.c_str(); }
 // Weapon HUD state: field 0 = current slot, 1 = rounds loaded, 2 = reserve
@@ -402,18 +412,35 @@ EXPORT double editor_aim_assist_value(int field) {
         return 0;
     }
 }
-// A weapon's name (field 0), first-person model (field 1) or held model
-// (field 2: `held`, or "" for the model's default).
+// A weapon's name (field 0), first-person model (field 1), held model
+// (field 2: `held`, or "" for the model's default), melee model (field 3:
+// `melee`, "" for a gun) or off-hand model (field 4: `offhand`).
+// Switches a Weapons entity to `slot` on its next tick (the UI kit's hotbar,
+// inventory and weapon wheel). 0 when it has no Weapons or no such slot.
+EXPORT int editor_select_weapon(int index, int slot) {
+    if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
+        return 0;
+    const auto entity = active->entities[static_cast<std::size_t>(index)];
+    auto *arsenal = active->world.alive(entity) ? active->world.get<Arsenal>(entity) : nullptr;
+    if (!arsenal || slot < 0 || static_cast<std::size_t>(slot) >= arsenal->weapons.size())
+        return 0;
+    arsenal->script_select = slot;
+    return 1;
+}
 EXPORT const char *editor_weapon_text(int index, int slot, int field) {
     static std::string result;
     result.clear();
     if (index >= 0 && static_cast<std::size_t>(index) < active->entities.size()) {
         const auto entity = active->entities[static_cast<std::size_t>(index)];
         const auto *arsenal = active->world.alive(entity) ? active->world.get<Arsenal>(entity) : nullptr;
-        if (arsenal && slot >= 0 && static_cast<std::size_t>(slot) < arsenal->weapons.size())
-            result = field == 0   ? arsenal->weapons[static_cast<std::size_t>(slot)].name
-                     : field == 1 ? arsenal->weapons[static_cast<std::size_t>(slot)].model
-                                  : arsenal->weapons[static_cast<std::size_t>(slot)].held;
+        if (arsenal && slot >= 0 && static_cast<std::size_t>(slot) < arsenal->weapons.size()) {
+            const auto &weapon = arsenal->weapons[static_cast<std::size_t>(slot)];
+            result = field == 0   ? weapon.name
+                     : field == 1 ? weapon.model
+                     : field == 2 ? weapon.held
+                     : field == 3 ? weapon.melee
+                                  : weapon.offhand;
+        }
     }
     return result.c_str();
 }

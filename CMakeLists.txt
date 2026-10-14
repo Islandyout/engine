@@ -174,7 +174,7 @@ add_library(GameEngine::Nav ALIAS engine_nav)
 target_link_libraries(engine_nav PUBLIC GameEngine::World GameEngine::Graphics GameEngine::Physics)
 engine_set_project_warnings(engine_nav)
 
-add_library(engine_gameplay STATIC source/engine/gameplay/character.cpp source/engine/gameplay/weapons.cpp source/engine/gameplay/aim_assist.cpp source/engine/gameplay/car.cpp
+add_library(engine_gameplay STATIC source/engine/gameplay/character.cpp source/engine/gameplay/weapons.cpp source/engine/gameplay/aim_assist.cpp source/engine/gameplay/loot.cpp source/engine/gameplay/car.cpp
             source/engine/gameplay/space.cpp source/engine/gameplay/melee.cpp source/engine/gameplay/street.cpp)
 add_library(GameEngine::Gameplay ALIAS engine_gameplay)
 target_link_libraries(engine_gameplay PUBLIC GameEngine::World GameEngine::Graphics GameEngine::Physics)
@@ -268,6 +268,11 @@ if(ENGINE_BUILD_TESTS)
     engine_set_project_warnings(engine_space_tests)
     add_test(NAME engine_space_tests COMMAND engine_space_tests)
 
+    add_executable(engine_loot_tests tests/loot_tests.cpp)
+    target_link_libraries(engine_loot_tests PRIVATE GameEngine::Gameplay)
+    engine_set_project_warnings(engine_loot_tests)
+    add_test(NAME engine_loot_tests COMMAND engine_loot_tests)
+
     add_executable(engine_aim_assist_tests tests/aim_assist_tests.cpp)
     target_link_libraries(engine_aim_assist_tests PRIVATE GameEngine::Gameplay)
     engine_set_project_warnings(engine_aim_assist_tests)
@@ -312,7 +317,7 @@ endif()
 
 if(ENGINE_BUILD_TESTS)
     add_executable(engine_editor_bridge_tests tests/editor_bridge_tests.cpp apps/editor/runtime/bridge.cpp
-        apps/editor/runtime/bridge_combat.cpp apps/editor/runtime/bridge_space.cpp apps/editor/runtime/bridge_melee.cpp
+        apps/editor/runtime/bridge_combat.cpp apps/editor/runtime/bridge_loot.cpp apps/editor/runtime/bridge_space.cpp apps/editor/runtime/bridge_melee.cpp
         apps/editor/runtime/bridge_street.cpp)
     target_link_libraries(engine_editor_bridge_tests PRIVATE GameEngine::World GameEngine::Physics GameEngine::Nav GameEngine::Script GameEngine::Gameplay)
     engine_set_project_warnings(engine_editor_bridge_tests)

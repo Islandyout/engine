@@ -29,6 +29,9 @@ export function autoSize(kind: UIKind, textWidth: number, fontSize: number): { w
     case "Panel":
     case "Image":
       return { width: 200, height: 120 };
+    case "Widget":
+      // Sized by its catalog entry instead (uiKit.ts widgetInfo).
+      throw new Error("autoSize: a Widget's size comes from widgetInfo");
   }
 }
 

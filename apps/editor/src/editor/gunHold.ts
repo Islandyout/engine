@@ -25,12 +25,17 @@ export const defaultHeldGun: Record<string, string> = {
 export function heldGunName(model: string, held: string): string {
   return held || defaultHeldGun[model] || "";
 }
-// The gun a Weapons loadout's first weapon holds (its held= gun, or the
-// default for its model=): what a character holds before Play has a
-// current weapon to ask about.
-export function loadoutGun(loadout: string): string {
+// What a Weapons loadout's first slot puts in the hands (its held= gun or
+// the default for its model=, or a melee slot's blade and off-hand weapon):
+// what a character holds before Play has a current slot to ask about.
+export function loadoutSlot(loadout: string): { gun: string; melee: string; offhand: string } {
   const line = loadout.split("\n").find((l) => l.trim() && !l.trim().startsWith("#")) ?? "";
-  return heldGunName(/\bmodel=(\w+)/.exec(line)?.[1] ?? "rifle", /\bheld=([\w-]+)/.exec(line)?.[1] ?? "");
+  const key = (k: string) => new RegExp(`\\b${k}=([\\w-]+)`).exec(line)?.[1] ?? "";
+  const melee = key("melee");
+  return { gun: melee ? "" : heldGunName(key("model") || "rifle", key("held")), melee, offhand: key("offhand") };
+}
+export function loadoutGun(loadout: string): string {
+  return loadoutSlot(loadout).gun;
 }
 // Pistols and revolvers are held at arm's length with both hands; the rest
 // are shouldered.

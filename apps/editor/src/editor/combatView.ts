@@ -250,10 +250,11 @@ export class CombatView {
   }
 
   private armed = new Map<number, "blade" | "unarmed" | "shield">();
-  arm(index: number, weapon: "blade" | "unarmed" | "shield") {
+  // `fresh`: what is in hand changed (a Weapons slot), forget the old.
+  arm(index: number, weapon: "blade" | "unarmed" | "shield", fresh = false) {
     // With a shield in the other hand a fighter blocks behind the shield,
     // whichever hand is placed first.
-    if (this.armed.get(index) === "shield" && weapon === "blade") weapon = "shield";
+    if (!fresh && this.armed.get(index) === "shield" && weapon === "blade") weapon = "shield";
     // The weapon may be in hand before the clips load: remembered for attach().
     this.armed.set(index, weapon);
     const fighter = this.fighters.get(index);

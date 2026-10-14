@@ -47,3 +47,10 @@ test("the shooter view looks the engine's way and sits over the shoulder", () =>
   view.place(camera, feet, { height: 1.8, aiming: false, zoom: 1, fov: 60, dt: 1, clear: (from, to) => (to.z > from.z ? 0.5 : undefined) });
   assert.ok(camera.position.z < 0.6, `kept in front of the wall: ${camera.position.z}`);
 });
+
+test("a loadout's first slot: a gun, or a blade with an off-hand weapon", async () => {
+  const { loadoutSlot } = await import("../src/editor/gunHold");
+  assert.deepEqual(loadoutSlot("sword: melee=sword offhand=shield-round\npistol: model=pistol"), { gun: "", melee: "sword", offhand: "shield-round" });
+  assert.deepEqual(loadoutSlot("pistol: model=pistol held=pistol-2 offhand=dagger"), { gun: "pistol-2", melee: "", offhand: "dagger" });
+  assert.deepEqual(loadoutSlot("rifle: model=rifle"), { gun: "rifle-2", melee: "", offhand: "" });
+});

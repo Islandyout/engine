@@ -27,6 +27,9 @@ import type {
   RoutineComponent,
   WildlifeComponent,
   TrafficSignalComponent,
+  PickupComponent,
+  LootDropComponent,
+  ContainerComponent,
   WalkerComponent,
   TerrainComponent,
   AudioSettingsComponent,
@@ -92,6 +95,9 @@ export interface SceneComponents {
   Routine: RoutineComponent;
   Wildlife: WildlifeComponent;
   TrafficSignal: TrafficSignalComponent;
+  Pickup: PickupComponent;
+  LootDrop: LootDropComponent;
+  Container: ContainerComponent;
   Walker: WalkerComponent;
   Terrain: TerrainComponent;
   AudioSettings: AudioSettingsComponent;
@@ -147,6 +153,9 @@ export const prefabableComponentNames = [
   "Wildlife",
   "TrafficSignal",
   "Walker",
+  "Pickup",
+  "LootDrop",
+  "Container",
 ] as const satisfies readonly (keyof SceneComponents)[];
 export type PrefabableComponent = (typeof prefabableComponentNames)[number];
 const prefabableComponentSet: ReadonlySet<string> = new Set(
@@ -220,6 +229,9 @@ export class Scene {
     Wildlife: new Map(),
     TrafficSignal: new Map(),
     Walker: new Map(),
+    Pickup: new Map(),
+    LootDrop: new Map(),
+    Container: new Map(),
     Terrain: new Map(),
     AudioSettings: new Map(),
     PostProcessing: new Map(),

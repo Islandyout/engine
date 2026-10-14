@@ -99,6 +99,9 @@ const componentNames = [
   "Wildlife",
   "TrafficSignal",
   "Walker",
+  "Pickup",
+  "LootDrop",
+  "Container",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -653,6 +656,12 @@ export function defaultComponent(
       return { stops: "8 0 0; 18 10 0", speed: 1.4 };
     case "Wildlife":
       return { wary: 44, flee: 16, speed: 7, leash: 80 };
+    case "Pickup":
+      return { kind: "Ammo", weapon: "carbine: model=rifle held=carbine-2 mag=30", item: "Coin", amount: 30, rarity: "Common", press: false, respawn: 0 };
+    case "LootDrop":
+      return { dropWeapon: true, table: "0.5 ammo 30\n0.25 health 25\n0.1 item Coin 5" };
+    case "Container":
+      return { table: "1 ammo 60\n0.6 health 50\n0.3 weapon smg: model=smg held=smg-3 rarity=Rare", hold: 0.6, key: "" };
     case "TrafficSignal":
       return { green: 14, yellow: 3, clearance: 2, offset: 0, radius: 9 };
     case "Walker":
@@ -712,6 +721,8 @@ export function defaultComponent(
         opacity: 0.85,
         image: "",
         value: 0,
+        widget: "Health",
+        style: "Modern",
       };
     case "Name":
       return { value: "Entity" };

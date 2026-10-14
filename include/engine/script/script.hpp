@@ -72,6 +72,17 @@ public:
         (void)entity;
         (void)amount;
     }
+    // Items an entity carries (keys, coins): `op` is "count", "give" or
+    // "take" (all of `amount`, or nothing). Returns the count after, or -1
+    // for a take that can't be paid. The default host carries none.
+    virtual int items(World &world, Entity entity, const std::string &op, const std::string &name, int amount) {
+        (void)world;
+        (void)entity;
+        (void)op;
+        (void)name;
+        (void)amount;
+        return op == "take" ? -1 : 0;
+    }
     // Weapons, for the Lua `weapon` table: `op` is "fire" (args:
     // optional aim direction x, y, z), "reload", "select" (args: 0-based
     // slot), "ammo" (out: magazine, reserve, slot, reloading 0/1),

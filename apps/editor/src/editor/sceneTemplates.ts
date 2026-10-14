@@ -3,6 +3,14 @@
 // components a kind of game is built from. Components are written as just
 // the fields that differ from the defaults; templateScene() fills the rest.
 import { defaultComponent } from "../authoring/CommandInterpreter";
+import type { UIWidget } from "../scene/Components";
+import { widgetInfo } from "./uiKit";
+
+// A UI kit widget's catalog place and text.
+function widgetPlace(widget: UIWidget) {
+  const kit = widgetInfo(widget);
+  return { anchor: kit.anchor, offsetX: kit.offsetX, offsetY: kit.offsetY, text: kit.text, value: kit.value };
+}
 
 type Components = Record<string, unknown>;
 interface Entity {
@@ -279,6 +287,8 @@ export const sceneTemplates: SceneTemplate[] = [
             Collider: { type: "AABB" },
             Health: { current: 100, maximum: 100 },
             AICombat: { team: 1, behavior: "Guard", sightRange: 4, hearingRange: 0, moveSpeed: 1.2, meleeDamage: 4, useCover: false },
+            // What a target drops when it goes down.
+            LootDrop: { dropWeapon: false, table: "1 ammo 24\n0.35 health 25\n0.2 item Coin 10 rarity=Uncommon" },
           },
         })),
         // The range staff (team 0, the Player's side), on the pedestrian rig:
@@ -354,13 +364,67 @@ export const sceneTemplates: SceneTemplate[] = [
             Melee: { team, ai: true, aggression: 0.5, skill: 0.6, rightHand, leftHand, shield: leftHand === 212, style: rightHand ? "Sword" : "Martial arts" },
           },
         })),
+        // The loot corner, left of the firing line: a supply crate (hold E),
+        // a chest that opens only with the Range Key, and pickups.
+        {
+          name: "Supply Crate",
+          components: {
+            ...at(-16, 0, -4),
+            Renderable: { mesh: 183, material: 0, visible: true },
+            Container: {
+              table: "1 ammo 60\n1 health 50\n1 weapon carbine: model=rifle held=carbine-3 mode=auto rpm=700 damage=22 mag=30 reserve=90 rarity=Rare",
+              hold: 0.6,
+              key: "",
+            },
+          },
+        },
+        {
+          name: "Armory Chest",
+          components: {
+            ...at(-21, 0, -4),
+            Renderable: { mesh: 183, material: 0, visible: true },
+            Container: {
+              table: "1 weapon marksman: model=sniper held=sniper-4 mode=semi rpm=45 damage=110 mag=5 reserve=20 zoom=0.35 rarity=Legendary\n1 item Coin 50 rarity=Epic",
+              hold: 0,
+              key: "Range Key",
+            },
+          },
+        },
+        {
+          name: "Range Key",
+          components: { ...at(-24, 0.2, 1), Pickup: { kind: "Item", item: "Range Key", amount: 1, rarity: "Epic", press: false, respawn: 0 } },
+        },
+        {
+          name: "Shotgun Pickup",
+          components: {
+            ...at(-16, 0.2, 1),
+            Pickup: { kind: "Weapon", weapon: "pump: model=shotgun held=shotgun-3 mode=semi rpm=70 pellets=9 damage=12 mag=6 reserve=24", rarity: "Uncommon", press: true, respawn: 20 },
+          },
+        },
+        { name: "Ammo Pickup", components: { ...at(-18.5, 0.2, 1), Pickup: { kind: "Ammo", amount: 60, rarity: "Common", press: false, respawn: 15 } } },
+        { name: "Medkit", components: { ...at(-21, 0.2, 1), Pickup: { kind: "Health", amount: 50, rarity: "Uncommon", press: false, respawn: 30 } } },
+        // The UI kit (uiKit.ts), Modern style; the crosshair, ammo, health
+        // and loot prompts draw by default.
+        ...(
+          [
+            ["Minimap", "always"],
+            ["Compass", "always"],
+            ["Kill feed", "always"],
+            ["Damage numbers", "always"],
+            ["Hotbar", "always"],
+            ["Pause menu", "pause"],
+          ] as const
+        ).map(([widget, visibleWhen]) => ({
+          name: `HUD ${widget}`,
+          components: { UI: { kind: "Widget", widget, style: "Modern", visibleWhen, ...widgetPlace(widget) } },
+        })),
         {
           name: "Controls",
           components: {
             UI: {
-              text: "Left click fire · right click aim · R reload · 1-5 guns · V shoulder · Shift run",
-              anchor: "bottom-center",
-              offsetY: -16,
+              text: "Left click fire · right click aim · R reload · 1-8 weapons · E pick up / hold E open · V shoulder · Shift run",
+              anchor: "top-center",
+              offsetY: 58,
               fontSize: 14,
               color: { x: 1, y: 1, z: 1 },
               opacity: 0.8,

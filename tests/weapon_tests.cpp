@@ -42,6 +42,33 @@ int main() {
             check(parse_weapons("a: bogus=1").error == "line 1: unknown key \"bogus\"", "unknown key");
             check(parse_weapons("a: model=bazooka").error.find("model must be") != std::string::npos, "bad model");
             check(parse_weapons("a: held=rifle-2").weapons[0].held == "rifle-2", "held names the gun in the hands");
+            {
+                const auto mixed = parse_weapons("pistol: model=pistol\nsword: melee=sword offhand=shield-round\n"
+                                                 "knife: model=pistol held=pistol-2 offhand=dagger");
+                check(mixed.error.empty() && mixed.weapons.size() == 3, "guns and melee slots in one loadout");
+                check(mixed.weapons[1].is_melee() && mixed.weapons[1].melee == "sword" &&
+                          mixed.weapons[1].offhand == "shield-round" && mixed.weapons[1].magazine == 0,
+                      "a melee slot: blade, off hand, no rounds");
+                check(!mixed.weapons[2].is_melee() && mixed.weapons[2].offhand == "dagger", "a gun with a blade in the off hand");
+                check(parse_weapons("a: melee=sword held=pistol-1").error.find("can't also hold") != std::string::npos,
+                      "a melee slot can't hold a gun");
+                check(parse_weapons("a: melee=Sword").error.find("melee must be") != std::string::npos, "a bad melee name");
+                // Switching onto the melee slot equips it; the trigger then never fires or reloads.
+                auto state = make_weapon_state(mixed.weapons);
+                TriggerInput none;
+                for (int i = 0; i < 60; ++i)
+                    update_weapon(state, mixed.weapons, none, 1.0F / 60);
+                TriggerInput next;
+                next.cycle = 1;
+                check(update_weapon(state, mixed.weapons, next, 1.0F / 60).switched && state.current == 1, "cycle onto the sword");
+                for (int i = 0; i < 60; ++i)
+                    update_weapon(state, mixed.weapons, none, 1.0F / 60);
+                TriggerInput pull;
+                pull.fire_down = pull.fire_pressed = pull.reload = true;
+                const auto t = update_weapon(state, mixed.weapons, pull, 1.0F / 60);
+                check(!t.fired && !t.empty && !t.reload_started, "a melee slot neither fires nor reloads");
+                check(update_weapon(state, mixed.weapons, next, 1.0F / 60).switched && state.current == 2, "and on to the next gun");
+            }
             check(parse_weapons("a: mag=3").weapons[0].held.empty(), "held defaults to empty");
             for (const char *bad : {"a: held=Rifle", "a: held=../x", "a: held=-x", "a: held=a_b"})
                 check(parse_weapons(bad).error.find("held must be") != std::string::npos, "a bad held name is rejected");

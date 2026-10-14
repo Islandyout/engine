@@ -118,6 +118,26 @@ function world.heal(id, amount) end
 ---@param slot? integer
 function world.give_ammo(id, rounds, slot) end
 
+--- How many of an item (a key, coins) the entity carries.
+---@param id integer
+---@param name string
+---@return integer
+function world.items(id, name) end
+
+--- Gives it n of an item (default 1); returns its new count.
+---@param id integer
+---@param name string
+---@param n? integer
+---@return integer
+function world.give_item(id, name, n) end
+
+--- Takes n of an item (default 1) if it has them; false (and takes none) if not.
+---@param id integer
+---@param name string
+---@param n? integer
+---@return boolean
+function world.take_item(id, name, n) end
+
 --- The first hit along a ray: {id, x, y, z, nx, ny, nz, distance}.
 ---@param ox any
 ---@param oy any

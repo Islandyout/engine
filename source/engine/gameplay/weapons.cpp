@@ -99,7 +99,7 @@ WeaponParse parse_weapons(std::string_view text) {
                 weapon.model = value;
                 continue;
             }
-            if (key == "held") {
+            if (key == "held" || key == "melee" || key == "offhand") {
                 // A kit/weapons file name: lower-case words joined by dashes.
                 const bool name = !value.empty() && value.size() <= 40 && value.front() != '-' &&
                                   value.back() != '-' &&
@@ -107,8 +107,9 @@ WeaponParse parse_weapons(std::string_view text) {
                                       return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
                                   });
                 if (!name)
-                    return fail("held must be a weapon model name like pistol-1");
-                weapon.held = value;
+                    return fail(key + " must be a weapon model name like " +
+                                (key == "held" ? "pistol-1" : key == "melee" ? "sword" : "shield-round"));
+                (key == "held" ? weapon.held : key == "melee" ? weapon.melee : weapon.offhand) = value;
                 continue;
             }
             if (key == "mode") {
@@ -189,6 +190,10 @@ WeaponParse parse_weapons(std::string_view text) {
             if (!ok)
                 return fail("\"" + key + "\" is out of range");
         }
+        if (weapon.is_melee() && !weapon.held.empty())
+            return fail("a melee slot (melee=) can't also hold a gun (held=)");
+        if (weapon.is_melee())
+            weapon.magazine = weapon.reserve = 0;
         result.weapons.push_back(std::move(weapon));
         if (result.weapons.size() > 9)
             return fail("at most 9 weapons");
@@ -285,6 +290,9 @@ WeaponTick update_weapon(WeaponState &state, const std::vector<WeaponDef> &weapo
         state.equip_left = std::max(0.0F, state.equip_left - dt);
         return tick;
     }
+    // A melee slot never fires or reloads: the Melee fighter takes over.
+    if (weapon.is_melee())
+        return tick;
 
     const auto start_reload = [&] {
         if (state.reload_left <= 0 && magazine < weapon.magazine && reserve != 0) {

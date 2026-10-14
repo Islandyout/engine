@@ -298,6 +298,41 @@ Someone on foot walking a sidewalk route, waiting at kerbs to cross safely; or f
 | `follow` | "" | Follow (entity name). An entity's name to follow instead of walking the route. |
 | `gap` | 1.5 | Gap behind (m) |
 
+## Loot
+
+### Pickup
+
+Something to pick up: a weapon, ammo, health or an item, glowing in its rarity's colour.
+
+| Field | Default | Notes |
+|---|---|---|
+| `kind` | "Ammo" | one of Weapon, Ammo, Health, Item |
+| `weapon` | "carbine: model=rifle held=carbine-2 mag=30" | Weapon (a loadout line). For a Weapon: one Weapons loadout line, e.g. smg: model=smg held=smg-3 mag=32, or sword: melee=sword. |
+| `item` | "Coin" | Item name |
+| `amount` | 30 | Amount (rounds, health, items). Rounds of ammo, health restored, or how many of the item. |
+| `rarity` | "Common" | one of Common, Uncommon, Rare, Epic, Legendary |
+| `press` | false | Take with interact (E). Off: taken by walking over it. On: the player presses E (weapons usually). |
+| `respawn` | 0 | Respawn (s, 0 never) |
+
+### LootDrop
+
+What this entity drops when it dies: its gun in hand and what its loot table rolls.
+
+| Field | Default | Notes |
+|---|---|---|
+| `dropWeapon` | true | Drop the gun in hand |
+| `table` | "0.5 ammo 30"… | Loot table (chance kind ...). One entry per line: <chance 0-1> weapon\|ammo\|health\|item ..., e.g. 0.5 ammo 30, 0.1 item Coin 5, 0.2 weapon smg: model=smg rarity=Rare. |
+
+### Container
+
+A crate or chest the player opens with E (held); its loot table spills out.
+
+| Field | Default | Notes |
+|---|---|---|
+| `table` | "1 ammo 60"… | Loot table (chance kind ...). Rolled when it opens. One entry per line: <chance 0-1> weapon\|ammo\|health\|item ... (1 always drops). |
+| `hold` | 0.6 | Hold to open (s, 0 a press) |
+| `key` | "" | Needs item (used up). An item the player must carry to open it (taken when it opens), e.g. Key. Empty: no lock. |
+
 ## Appearance & Animation
 
 ### Renderable
@@ -433,11 +468,11 @@ Volumes for the mixer buses, room reverb and wall muffling.
 
 ### UI
 
-An on-screen element: text, button, bar, slider, toggle or image.
+An on-screen element: text, button, bar, slider, toggle, image, or a ready-made Widget from the UI kit (health, ammo, minimap, menus... in six styles; Project > UI templates).
 
 | Field | Default | Notes |
 |---|---|---|
-| `kind` | "Text" | one of Text, Button, Panel, Image, Bar, Slider, Toggle |
+| `kind` | "Text" | one of Text, Button, Panel, Image, Bar, Slider, Toggle, Widget |
 | `text` | "Text" |  |
 | `anchor` | "top-left" | one of top-left, top-center, top-right, middle-left, center, middle-right, bottom-left, bottom-center, bottom-right |
 | `visibleWhen` | "always" | Visible in. one of always, play, pause |
@@ -451,6 +486,8 @@ An on-screen element: text, button, bar, slider, toggle or image.
 | `opacity` | 0.85 | Opacity (0-1) |
 | `image` | "" | Image URL (Image) |
 | `value` | 0 | Value (0-1: Bar, Slider, Toggle) |
+| `widget` | "Health" | Widget (Widget). one of Health, Ammo, Crosshair, Damage numbers, Kill feed, Boss bar, Minimap, Compass, Objective, Waypoints, Interact prompt, Pickup feed, Loot card, Inventory, Hotbar, Weapon wheel, Pause menu, Main menu, Settings, Dialogue, Notification |
+| `style` | "Modern" | Style (Widget). one of Modern, Battle Royale, Tactical, Fantasy, Sci-fi, Minimal |
 
 ## Scene & Camera
 

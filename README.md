@@ -379,6 +379,14 @@ Engine version 0.79.0 starts **GATEBREAKER**, an original manhwa-style hunter ac
 
 See [F79](docs/changelog/F79.md).
 
+Engine version 0.88.0 adds **loot**, **one loadout for guns and melee**, and a **UI kit**:
+
+- **One loadout**: `melee=sword` (or `fists`, `axe`, `spear`...) makes a `Weapons` slot a melee weapon. The number keys, Q, the wheel and d-pad up cycle guns and blades alike.
+- **Loot**: Pickup, LootDrop (enemy drops) and Container (crates and chests that open on E or a held E, optionally with a key). Loot has rarity colours and beams; scripts read the inventory with `world.items`.
+- **The UI kit**: 21 game UI widgets (health, ammo, crosshair, minimap, compass, prompts, loot cards, hotbar, weapon wheel, menus, dialogue...) in six styles after shipped games. Add them from **Project › UI templates**; the gun HUD now uses them ([UI_KIT.md](docs/UI_KIT.md)).
+
+See [F88](docs/changelog/F88.md).
+
 Engine version 0.87.0 makes the editor **easier to use** and adds **third-person shooting**:
 
 - **The editor for people**: an inspector filter with cards that remember being open, fuzzy search in every list (Ctrl/Cmd+K), and trackpad and touch-screen editing. Any game gets on-screen touch controls.

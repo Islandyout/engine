@@ -1,5 +1,6 @@
 import { modelCatalog } from "../scene/modelCatalog";
 import { soundCatalog } from "../scene/soundCatalog";
+import { uiStyleNames, uiWidgetNames } from "../scene/Components";
 import { componentHelp, fieldHelp } from "./componentHelp";
 
 export interface PropertyMetadata {
@@ -182,7 +183,9 @@ const metadata: Record<string, PropertyMetadata> = {
   "Trail.width": { label: "Width (world units)", step: "0.05" },
   "Trail.lifetime": { label: "Lifetime (seconds)", step: "0.1" },
   "Trail.minDistance": { label: "Min point distance", step: "0.05" },
-  "UI.kind": { options: choice(["Text", "Button", "Panel", "Image", "Bar", "Slider", "Toggle"]) },
+  "UI.kind": { options: choice(["Text", "Button", "Panel", "Image", "Bar", "Slider", "Toggle", "Widget"]) },
+  "UI.widget": { label: "Widget (Widget)", options: choice([...uiWidgetNames]) },
+  "UI.style": { label: "Style (Widget)", options: choice([...uiStyleNames]) },
   "UI.offsetX": { label: "Offset X (px)", step: "1" },
   "UI.offsetY": { label: "Offset Y (px, down)", step: "1" },
   "UI.width": { label: "Width (px, 0 = auto)", step: "1" },
@@ -267,6 +270,18 @@ const metadata: Record<string, PropertyMetadata> = {
   "Wildlife.flee": { label: "Flee within (m)" },
   "Wildlife.speed": { label: "Run speed (m/s)" },
   "Wildlife.leash": { label: "Leash from home (m)" },
+  "Pickup.kind": { options: choice(["Weapon", "Ammo", "Health", "Item"]) },
+  "Pickup.weapon": { label: "Weapon (a loadout line)" },
+  "Pickup.item": { label: "Item name" },
+  "Pickup.amount": { label: "Amount (rounds, health, items)", step: "1" },
+  "Pickup.rarity": { options: choice(["Common", "Uncommon", "Rare", "Epic", "Legendary"]) },
+  "Pickup.press": { label: "Take with interact (E)" },
+  "Pickup.respawn": { label: "Respawn (s, 0 never)", step: "1" },
+  "LootDrop.dropWeapon": { label: "Drop the gun in hand" },
+  "LootDrop.table": { label: "Loot table (chance kind ...)", multiline: true },
+  "Container.table": { label: "Loot table (chance kind ...)", multiline: true },
+  "Container.hold": { label: "Hold to open (s, 0 a press)", step: "0.1" },
+  "Container.key": { label: "Needs item (used up)" },
   "TrafficSignal.green": { label: "Green (s)" },
   "TrafficSignal.yellow": { label: "Yellow (s)" },
   "TrafficSignal.clearance": { label: "All red (s)" },
@@ -404,6 +419,10 @@ export const componentGroups: readonly ComponentGroup[] = [
   {
     label: "Gameplay",
     types: ["Health", "AIState", "AICombat", "Pedestrian", "Player", "CharacterController", "Weapons", "Melee", "Vehicle", "Driver", "Spaceship", "Scannable", "Site", "Routine", "Wildlife", "TrafficSignal", "Walker"],
+  },
+  {
+    label: "Loot",
+    types: ["Pickup", "LootDrop", "Container"],
   },
   {
     label: "Appearance & Animation",

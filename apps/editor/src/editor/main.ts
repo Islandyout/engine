@@ -12,6 +12,8 @@ import type {
   ParticlesComponent,
   TrailComponent,
   UIAction,
+  UIStyle,
+  UIWidget,
   UIAnchor,
   UIComponent,
   UIKind,
@@ -25,6 +27,7 @@ import { iconEl, textSpan } from "./dom";
 import { editorLayoutHtml } from "./editorLayout";
 import { UIPainter } from "./uiDraw";
 import { openTemplatePicker } from "./templatePicker";
+import { openUIKitPicker } from "./uiKitPicker";
 import { templateScene } from "./sceneTemplates";
 import { renderInspector } from "./inspector";
 import { CanvasRenderer } from "./CanvasRenderer";
@@ -59,6 +62,7 @@ import { buildRibbon, updateTrail, type TrailPoint } from "./trail";
 import { CombatView, loadCombatClips } from "./combatView";
 import { assetKind, assignId, displayName, loadStoredAssets, resolveAssetUrl, storeAsset, type StoredAsset } from "./userAssets";
 import { autoSize, contains, layoutRect, sliderValue, type UIRect } from "./uiLayout";
+import { applySettingHit, drawWidget, sampleUIData, widgetInfo, type UIData, type UIHit } from "./uiKit";
 import { AnimatorRuntime, parseAnimatorGraph, parseParamValue, type AnimatorGraph } from "./animator";
 import { applyMouseLook, applyStickLook, ViewEffects, type Look } from "./fpsView";
 import { Sfx } from "./sfx";
@@ -105,6 +109,7 @@ import {
   openSettingsPanel,
   qualityProfile,
   storeKeyRemap,
+  storeSettings,
   summarizeFrames,
   type KeyRemap,
 } from "./playerSettings";
@@ -121,7 +126,8 @@ import {
 } from "./terrain";
 import { buildScatter, buildTerrainMesh, disposeTerrainMesh, scatterObstacle, shapeTerrain, updateScatterLod, type ScatterModel, type TerrainLook } from "./terrainMesh";
 import { defaultEnvironment } from "../authoring/CommandInterpreter";
-import { GunPose, gunModel, heldGunName, loadoutGun } from "./gunHold";
+import { GunPose, gunModel, heldGunName, isHandgun, loadoutSlot } from "./gunHold";
+import { animatePickup, openContainer, pickupLootLine, pickupModelName, pickupVisualFor, rarities, rarityColors, setPickupModel, type PickupVisual } from "./lootView";
 import { ShooterView, aimDeviceCode } from "./shooterView";
 import "./style.css";
 
@@ -501,12 +507,21 @@ async function startEditor() {
     // Hits and kills this Play, for the HUD's hit markers and tests.
     hits: 0,
     kills: 0,
+    // The Player's current Weapons slot is a melee one (refreshed each frame).
+    meleeInHand: false,
   };
   // Characters holding a gun, by object index, and the gun each holds.
-  const gunPoses = new Map<number, { pose: GunPose; gun: string; raised: number; kick: number; oneHanded?: boolean }>();
+  // `hands` is what the Weapons slot puts in the hands besides a gun (a
+  // melee slot's blade, an off-hand shield or dagger), and `holders` those
+  // models (heldWeapons.ts).
+  const gunPoses = new Map<
+    number,
+    { pose: GunPose; gun: string; raised: number; kick: number; oneHanded?: boolean; rest: THREE.Object3D; object: THREE.Object3D; hands: string; holders: THREE.Object3D[] }
+  >();
   const isGunPath = (path: string) => /\/weapons\/(pistol|revolver|smg|rifle|carbine|bullpup|shotgun|sniper)-[\w-]+\.glb$/.test(path);
+  // (A melee slot in hand fights with the usual camera instead.)
   function shooterActive(): boolean {
-    if (doc.mode === "edit" || playerIndex < 0 || playerController()?.mode !== "ThirdPerson") return false;
+    if (doc.mode === "edit" || playerIndex < 0 || playerController()?.mode !== "ThirdPerson" || tps.meleeInHand) return false;
     return runtime._editor_weapon_value(playerIndex, 5) > 0 && runtime._editor_controlled_player() === playerIndex;
   }
   function playerController() {
@@ -1215,6 +1230,10 @@ async function startEditor() {
   // or the touch controls' look area), then the crosshair ray from the
   // camera and the muzzle for this frame's shots, and aim assist.
   function updateShooterAim(dt: number) {
+    tps.meleeInHand =
+      playerIndex >= 0 &&
+      runtime._editor_weapon_value(playerIndex, 5) > 0 &&
+      (runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [playerIndex, runtime._editor_weapon_value(playerIndex, 0), 3]) as string) !== "";
     if (!shooterActive()) {
       runtime._editor_set_aim(0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
       tps.over = -1;
@@ -1252,6 +1271,33 @@ async function startEditor() {
     const held = gunPoses.get(playerIndex);
     viewport.dataset.shooter = [tps.view.yaw.toFixed(4), tps.view.pitch.toFixed(4), tps.view.aimBlend.toFixed(2), tps.over, held?.pose.holding?.name ?? "", tps.view.shoulder, tps.hits, tps.kills, tps.view.device].join(",");
   }
+  // A kit/weapons blade or shield in one hand (heldWeapons.ts), for a
+  // Weapons slot; a fighter takes the stance that goes with it.
+  function placeHand(index: number, held: { rest: THREE.Object3D; object: THREE.Object3D; holders: THREE.Object3D[]; hands: string }, side: "l" | "r", name: string, twoHanded: boolean) {
+    const entry = modelCatalog.find((m) => m.path === `./kit/weapons/${name}.glb`);
+    if (!entry) {
+      if (!missingGuns.has(name)) {
+        missingGuns.add(name);
+        log(`Weapons: no weapon model named "${name}" in kit/weapons (melee= or offhand=), so that hand stays empty.`);
+      }
+      return;
+    }
+    let grip = weaponGrip(entry.path);
+    if (grip.grip === "twohand" && !twoHanded) grip = { ...grip, grip: "forward", offHand: undefined };
+    const hands = held.hands;
+    const place = (model: CachedModel) => {
+      if (held.hands !== hands) return;
+      const holder = holdWeapon(held.rest, held.object, side, model.scene, grip);
+      if (!holder) return;
+      held.holders.push(holder);
+      if (!combat.has(index)) return;
+      if (grip.grip === "shield") combat.arm(index, "shield");
+      else if (grip.clips === "sword") combat.arm(index, "blade");
+    };
+    const ready = catalogCache.get(entry.id);
+    if (ready) place(ready);
+    else loadCatalogModel(entry.id)?.then(place, (error) => log(`Catalog model ${entry.id} failed to load: ${String(error)}`));
+  }
   // Every gun in a character's hands, posed after the animation (gunHold.ts).
   // A third-person Player's points where the crosshair does, raised while
   // aiming or just after a shot and at the ready otherwise; a soldier's
@@ -1270,7 +1316,20 @@ async function startEditor() {
       const playing = doc.mode !== "edit" && runtime._editor_weapon_value(i, 5) > 0;
       const slot = playing ? runtime._editor_weapon_value(i, 0) : 0;
       const text = (field: number) => runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [i, slot, field]) as string;
-      const name = playing ? heldGunName(text(1), text(2)) : loadoutGun(doc.scene.resolve(entity, "Weapons")?.loadout ?? "");
+      const slot0 = loadoutSlot(doc.scene.resolve(entity, "Weapons")?.loadout ?? "");
+      const melee = playing ? text(3) : slot0.melee;
+      const offhand = playing ? text(4) : slot0.offhand;
+      const name = melee ? "" : playing ? heldGunName(text(1), text(2)) : slot0.gun;
+      // The slot's blade and off-hand weapon, swapped in when it changes.
+      if (`${melee}|${offhand}` !== held.hands) {
+        held.hands = `${melee}|${offhand}`;
+        for (const holder of held.holders) holder.removeFromParent();
+        held.holders = [];
+        held.oneHanded = !!offhand || (doc.scene.resolve(entity, "Melee")?.leftHand ?? 0) > 0;
+        if (combat.has(i)) combat.arm(i, "unarmed", true);
+        if (melee && melee !== "fists") placeHand(i, held, "r", melee, !offhand);
+        if (offhand) placeHand(i, held, "l", offhand, false);
+      }
       if (name !== held.gun) {
         held.gun = name;
         held.pose.setGun(undefined);
@@ -1310,7 +1369,9 @@ async function startEditor() {
       const sprinting = player && runtime._editor_controller_value(i, 5) === 1 ? 1 - held.raised : 0;
       // A fighter's gun only takes over the arm while raised; its clips
       // move the arm (and the gun in its hand) otherwise.
-      const fighter = combat.has(i);
+      // (A fighter with only a gun in hand, from a loadout with melee slots,
+      // holds it like any shooter.)
+      const fighter = combat.has(i) && held.oneHanded;
       held.pose.update(dt, {
         hold: fighter ? held.raised : 1,
         oneHanded: held.oneHanded,
@@ -1389,9 +1450,13 @@ async function startEditor() {
           if (mine && target !== playerIndex) {
             tps.hits++;
             if (killed) tps.kills++;
+            uiFeed.hitAt = performance.now() / 1000;
+            if (killed) uiFeed.killAt = uiFeed.hitAt;
+            uiFeed.damage.push({ point: point.clone(), amount: value, crit: (flags & EventFlag.headshot) !== 0, at: uiFeed.hitAt });
             weaponFx.hit(killed, (flags & EventFlag.headshot) !== 0);
             sounds().hitmarker(killed);
           }
+          if (killed) uiFeed.kills.push({ killer: entityLabel(shooter), victim: entityLabel(target), mine, at: performance.now() / 1000 });
           if (target === playerIndex && playerIndex >= 0) {
             const body = objects[playerIndex];
             if (body) weaponFx.hurt(point, body.position, fps.look.yaw, value);
@@ -3425,6 +3490,14 @@ async function startEditor() {
       runtime.ccall("editor_set_weapons", null, ["number", "string"], [index, weapons.loadout]);
       runtime._editor_set_aim_assist(index, weapons.aimAssist, weapons.assistRange);
     }
+    // Loot: see editor_set_pickup / _loot_drop / _container (bridge_loot.cpp).
+    const pickup = get("Pickup");
+    if (pickup && !isChild)
+      runtime.ccall("editor_set_pickup", null, ["number", "string", "number", "number"], [index, pickupLootLine(pickup), pickup.press ? 1 : 0, pickup.respawn]);
+    const lootDrop = get("LootDrop");
+    if (lootDrop && !isChild) runtime.ccall("editor_set_loot_drop", null, ["number", "number", "string"], [index, lootDrop.dropWeapon ? 1 : 0, lootDrop.table]);
+    const container = get("Container");
+    if (container && !isChild) runtime.ccall("editor_set_container", null, ["number", "string", "number", "string"], [index, container.table, container.hold, container.key]);
     // Melee: see editor_set_melee (bridge_melee.cpp).
     const melee = get("Melee");
     if (melee && !isChild) {
@@ -3520,7 +3593,7 @@ async function startEditor() {
     while (objects.length < count) {
       const index = objects.length;
       const prefab = runtime.ccall("editor_spawned_prefab", "string", ["number"], [index]);
-      const components = (doc.scene.getPrefab(prefab)?.components ?? {}) as Partial<SceneComponents>;
+      const components = (prefab === "@pickup" ? spawnedPickup(index) : (doc.scene.getPrefab(prefab)?.components ?? {})) as Partial<SceneComponents>;
       const position = {
         x: runtime._editor_value(index, EntityField.x),
         y: runtime._editor_value(index, EntityField.y),
@@ -3532,6 +3605,97 @@ async function startEditor() {
     }
   }
   const spawnedScans = new Map<number, ScannableComponent>();
+  // Loot the runtime dropped (a dead enemy's gun, a crate's contents) as
+  // a Pickup component, for its look.
+  function spawnedPickup(index: number): Partial<SceneComponents> {
+    const kinds = ["Weapon", "Ammo", "Health", "Item"] as const;
+    const kind = kinds[runtime._editor_pickup_value(index, 5)] ?? "Item";
+    const model = runtime.ccall("editor_pickup_text", "string", ["number", "number"], [index, 1]) as string;
+    const gun = isGunPath(`/weapons/${model}.glb`) || isHandgun(model);
+    return {
+      Scale: { value: { x: 0.5, y: 0.4, z: 0.5 } },
+      Pickup: {
+        kind,
+        weapon: kind === "Weapon" ? (gun ? `w: model=rifle held=${model}` : `w: melee=${model}`) : "",
+        item: kind === "Item" ? model : "",
+        amount: Math.max(1, runtime._editor_pickup_value(index, 1)),
+        rarity: rarities[runtime._editor_pickup_value(index, 4)] ?? "Common",
+        press: runtime._editor_pickup_value(index, 2) === 1,
+        respawn: 0,
+      },
+    };
+  }
+  // Pickups' looks by object index (turned and bobbed each frame, hidden
+  // while taken), and containers opening.
+  const pickupViews = new Map<number, { visual: PickupVisual; phase: number }>();
+  const openings: { step: (t: number) => boolean; t: number }[] = [];
+  // Recent loot, newest last, for the pickup feed.
+  const lootFeed: { label: string; rarity: number; amount: number; kind: number; at: number }[] = [];
+  // The UI kit (uiKit.ts): this frame's widget click regions, the pointer
+  // over the viewport (hover), each widget's text and when it last changed
+  // (typed dialogue, notifications), widgets their Play button hid, which
+  // widgets the scene has (the rest draw by default where they apply), and
+  // this Play's hits, kills and damage numbers.
+  interface WidgetHit extends UIHit {
+    name: string;
+    entity: number;
+  }
+  const widgetHits: WidgetHit[] = [];
+  let draggingWidget: WidgetHit | undefined;
+  let uiPointer: { x: number; y: number } | undefined;
+  const widgetTexts = new Map<number, { text: string; since: number }>();
+  const hiddenWidgets = new Set<number>();
+  const sceneWidgets = new Set<UIWidget>();
+  let kitStyle: UIStyle = "Modern";
+  let frameUIData: UIData | undefined;
+  const uiFeed = {
+    hitAt: -Infinity,
+    killAt: -Infinity,
+    damage: [] as { point: THREE.Vector3; amount: number; crit: boolean; at: number }[],
+    kills: [] as { killer: string; victim: string; mine: boolean; at: number }[],
+    healthGhost: 1,
+    bossGhost: 1,
+    last: 0,
+  };
+  function updateLoot(dt: number) {
+    const time = performance.now() / 1000;
+    for (const [i, view] of pickupViews) {
+      if (!objects[i]) {
+        pickupViews.delete(i);
+        continue;
+      }
+      animatePickup(view.visual, time, view.phase);
+      if (doc.mode !== "edit") view.visual.root.visible = runtime._editor_pickup_value(i, 3) !== 1;
+    }
+    for (let k = openings.length - 1; k >= 0; k--) {
+      const opening = openings[k]!;
+      opening.t += dt;
+      if (!opening.step(opening.t)) openings.splice(k, 1);
+    }
+    if (doc.mode === "edit") return;
+    const count = runtime._editor_take_loot_events();
+    for (let e = 0; e < count; e++) {
+      const kind = runtime._editor_loot_event(e, 0);
+      const entity = runtime._editor_loot_event(e, 1);
+      const label = runtime.ccall("editor_loot_event_text", "string", ["number"], [e]) as string;
+      const rarity = runtime._editor_loot_event(e, 3);
+      if (kind === 0) {
+        sounds().pickup(rarity);
+        lootFeed.push({ label, rarity, amount: runtime._editor_loot_event(e, 2), kind: runtime._editor_pickup_value(entity, 5), at: time });
+      } else if (kind === 1) {
+        const object = objects[entity];
+        if (object) {
+          sounds().crate();
+          openings.push({ step: openContainer(object, viewCamera.position), t: 0 });
+        }
+      } else if (kind === 3) {
+        sounds().locked();
+        lootFeed.push({ label: `Needs ${label}`, rarity: 0, amount: 0, kind: -1, at: time });
+      }
+    }
+    while (lootFeed.length && time - lootFeed[0]!.at > 6) lootFeed.shift();
+    while (lootFeed.length > 6) lootFeed.shift();
+  }
   // One Animator step for entity i: built-in parameters, events to the
   // entity's script, and a crossfade when the state changes.
   function runAnimator(i: number, state: AnimState, animator: AnimatorRuntime, speed: number, verticalSpeed: number, dt: number) {
@@ -4107,6 +4271,23 @@ async function startEditor() {
         );
       object = new THREE.Mesh(geometry, material);
     }
+    // A Pickup without a model of its own: its loot look (lootView.ts).
+    const pickupComponent = get("Pickup");
+    let pickupVisual: PickupVisual | undefined;
+    if (pickupComponent && meshId < 1) {
+      pickupVisual = pickupVisualFor(pickupComponent);
+      object = pickupVisual.root;
+      const modelName = pickupModelName(pickupComponent);
+      const entry = modelName ? modelCatalog.find((m) => m.path === `./kit/weapons/${modelName}.glb`) : undefined;
+      if (modelName && !entry) log(`Pickup: no weapon model named "${modelName}" in kit/weapons.`);
+      if (entry) {
+        const visual = pickupVisual;
+        const place = (model: CachedModel) => setPickupModel(visual, model.scene, isGunPath(entry.path) ? undefined : weaponGrip(entry.path).length);
+        const ready = catalogCache.get(entry.id);
+        if (ready) place(ready);
+        else loadCatalogModel(entry.id)?.then(place, (error) => log(`Catalog model ${entry.id} failed to load: ${String(error)}`));
+      }
+    }
     // Terrain replaces the placeholder with its own mesh and scatter;
     // ModelInstances with its instanced models. Neither takes the
     // entity's Rotation or Scale.
@@ -4173,6 +4354,13 @@ async function startEditor() {
       if (character && n.y > 1e-6) anchor.scale.setScalar(s.y / n.y);
       else anchor.scale.set(n.x > 1e-6 ? s.x / n.x : s.x, n.y > 1e-6 ? s.y / n.y : s.y, n.z > 1e-6 ? s.z / n.z : s.z);
     } else if (s) anchor.scale.set(s.x, s.y, s.z);
+    // A pickup's look keeps its real size and stands on the ground under
+    // its box's centre.
+    if (pickupVisual) {
+      anchor.scale.set(1, 1, 1);
+      pickupVisual.root.position.y = -(s?.y ?? 0.4) / 2;
+      pickupViews.set(objects.length, { visual: pickupVisual, phase: objects.length * 1.7 });
+    }
     // Center a catalog model on the box rather than standing its feet at
     // the box's center.
     if (cached && !terrainComponent) object.position.copy(cached.nativeCenter).negate();
@@ -4195,7 +4383,8 @@ async function startEditor() {
       get("Weapons") && (thirdPersonPlayer || get("AICombat") || get("Melee")) && animState && cached && catalog?.animated
         ? GunPose.create(cached.scene, object)
         : undefined;
-    if (gunPose) gunPoses.set(objects.length, { pose: gunPose, gun: "", raised: 0, kick: 0, oneHanded: (get("Melee")?.leftHand ?? 0) > 0 });
+    if (gunPose)
+      gunPoses.set(objects.length, { pose: gunPose, gun: "", raised: 0, kick: 0, oneHanded: (get("Melee")?.leftHand ?? 0) > 0, rest: cached!.scene, object, hands: "", holders: [] });
     const loadout = get("AICombat") && !gunPose ? get("Weapons")?.loadout : undefined;
     if (loadout !== undefined) {
       const model = /model=(\w+)/.exec(loadout.split("\n").find((line) => line.trim() && !line.trim().startsWith("#")) ?? "")?.[1] ?? "rifle";
@@ -4277,6 +4466,9 @@ async function startEditor() {
         (error) => log(`Combat clips failed to load: ${String(error)}`),
       );
     }
+    // A Player whose Weapons has melee slots is a fighter too (the runtime
+    // gives it one); its blades come with the slot (updateGunPoses).
+    if (!get("Melee") && get("Player") && /\bmelee=/.test(get("Weapons")?.loadout ?? "") && animState) attachFighter(objects.length - 1, object, animState);
     if (get("Melee") && animState) {
       attachFighter(objects.length - 1, object, animState);
       // Weapons in its hands (heldWeapons.ts), once their models load.
@@ -4308,6 +4500,15 @@ async function startEditor() {
     deathStates.push(undefined);
   }
   function rebuild() {
+    pickupViews.clear();
+    openings.length = 0;
+    lootFeed.length = 0;
+    widgetHits.length = 0;
+    widgetTexts.clear();
+    hiddenWidgets.clear();
+    uiFeed.damage.length = uiFeed.kills.length = 0;
+    uiFeed.hitAt = uiFeed.killAt = -Infinity;
+    uiFeed.healthGhost = uiFeed.bossGhost = 1;
     for (const held of gunPoses.values()) held.pose.dispose();
     gunPoses.clear();
     tps.view.reset(0);
@@ -5000,6 +5201,41 @@ async function startEditor() {
         value: { mesh: entry.id, material: 0, visible: true },
       });
   };
+  // UI templates: adds UI kit widgets as UI entities, each where its
+  // catalog entry puts it.
+  el("ui-kit").onclick = () =>
+    openUIKitPicker(document.body, (widgets, style) => {
+      for (const widget of widgets) {
+        const kit = widgetInfo(widget);
+        const result = execute({ command: "spawn_entity", name: `${widget} (${style})` });
+        if (!result.ok) return;
+        const added = execute({
+          command: "set_component",
+          entity: result.entity,
+          type: "UI",
+          value: {
+            kind: "Widget",
+            widget,
+            style,
+            text: kit.text,
+            anchor: kit.anchor,
+            visibleWhen: kit.visibleWhen,
+            action: "script",
+            offsetX: kit.offsetX,
+            offsetY: kit.offsetY,
+            width: 0,
+            height: 0,
+            fontSize: 16,
+            color: { x: 0.118, y: 0.165, z: 0.22 },
+            opacity: 0.85,
+            image: "",
+            value: kit.value,
+          },
+        });
+        if (!added.ok) return;
+      }
+      log(`Added ${widgets.length === 1 ? widgets[0] : `${widgets.length} widgets`} in the ${style} style.`);
+    });
   el("prefab-place").onclick = () => {
     const prefab = el<HTMLSelectElement>("prefab-select").value;
     if (prefab) execute({ command: "place_instance", prefab, transform: [0, 0.5, 0] });
@@ -5027,7 +5263,61 @@ async function startEditor() {
     const next = sliderValue(draggingSlider, event.clientX - rect.left);
     if (next !== uiValues.get(draggingSlider.name)) setUIValue(draggingSlider.name, next);
   });
-  window.addEventListener("pointerup", () => (draggingSlider = undefined));
+  window.addEventListener("pointerup", () => (draggingSlider = draggingWidget = undefined));
+  // The pointer over the viewport, for widget hover; a held settings slider.
+  renderer.domElement.addEventListener("pointermove", (event) => {
+    const rect = renderer.domElement.getBoundingClientRect();
+    uiPointer = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  });
+  renderer.domElement.addEventListener("pointerleave", () => (uiPointer = undefined));
+  window.addEventListener("pointermove", (event) => {
+    if (!draggingWidget || doc.mode === "edit") return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    applySettingHit(draggingWidget.action, (event.clientX - rect.left - draggingWidget.left) / draggingWidget.width, playerSettings);
+    storeSettings(playerSettings);
+    applyPlayerSettings();
+  });
+  // A click on a UI kit widget (the actions are listed on UIHit).
+  function widgetAction(hit: WidgetHit, x: number) {
+    const [kind = "", arg = ""] = hit.action.split(":");
+    switch (kind) {
+      case "resume":
+      case "restart":
+      case "quit":
+        runUIAction(kind);
+        return;
+      case "settings":
+        openPlayerSettings(doc.mode === "pause");
+        return;
+      case "play":
+        hiddenWidgets.add(hit.entity);
+        uiEvent(hit.name, "play");
+        return;
+      case "slot":
+        if (playerIndex < 0 || !runtime._editor_select_weapon(playerIndex, Number(arg))) log(`UI: the Player has no weapon slot ${Number(arg) + 1}.`);
+        else if (doc.mode === "pause") runUIAction("resume");
+        return;
+      case "choice":
+      case "next":
+        uiEvent(hit.name, hit.action);
+        return;
+      case "slider":
+      case "toggle":
+        if (!applySettingHit(hit.action, (x - hit.left) / hit.width, playerSettings)) break;
+        storeSettings(playerSettings);
+        applyPlayerSettings();
+        if (kind === "slider") draggingWidget = hit;
+        return;
+    }
+    log(`UI: a widget click with no action "${hit.action}".`);
+  }
+  // An entity's name for the kill feed.
+  function entityLabel(index: number): string {
+    if (index === playerIndex) return "You";
+    const entity = doc.scene.eachAlive()[index];
+    const name = entity ? doc.scene.resolve(entity, "Name")?.value : (runtime.ccall("editor_spawned_prefab", "string", ["number"], [index]) as string);
+    return name || `#${index}`;
+  }
   function runUIAction(action: UIAction) {
     switch (action) {
       case "restart":
@@ -5061,6 +5351,12 @@ async function startEditor() {
     // drawHud()'s entity iteration order): two overlapping buttons paint the
     // later entity's on top, so a click there must hit the one the user
     // actually sees, not whichever happened to be pushed first.
+    for (let i = widgetHits.length - 1; i >= 0; i--) {
+      const hit = widgetHits[i]!;
+      if (!contains(hit, clickX, clickY) || (hit.test && !hit.test(clickX, clickY))) continue;
+      widgetAction(hit, clickX);
+      return;
+    }
     for (let i = uiButtonHits.length - 1; i >= 0; i--) {
       const hit = uiButtonHits[i]!;
       if (!contains(hit, clickX, clickY)) continue;
@@ -5853,6 +6149,7 @@ async function startEditor() {
     // Weapon guards and two-handed grips, over the clips' poses.
     updateHeldWeapons(animDt, (body) => combat.guarding(body));
     updateGunPoses(animDt);
+    updateLoot(animDt);
     // Same reasoning as mixers above -- a Particles emitter is as "always on"
     // as a Light, not gated to Play mode like Script/Sound.
     particleScale.value = viewport.clientHeight / 2;
@@ -6226,7 +6523,9 @@ async function startEditor() {
         health: runtime._editor_value(playerIndex, EntityField.health),
         slot,
         weaponNames: names,
+        kit: true,
       });
+      for (const name of ["Crosshair", "Ammo", "Health"] as const) drawDefaultWidget(name);
       drawCaptureHint(cx, cy);
       const lines: string[] = [];
       if (weaponCount > 0) {
@@ -6283,8 +6582,157 @@ async function startEditor() {
       broken: runtime._editor_fighter_value(index, FighterField.broken) > 0,
     };
   }
+  // What the UI kit's widgets show this frame (sample data while editing).
+  function uiData(): UIData {
+    const time = performance.now() / 1000;
+    frameUIData ??= doc.mode === "edit" ? { ...sampleUIData(time, hud.width, hud.height), pointer: uiPointer } : gatherUIData(time);
+    return frameUIData;
+  }
+  function gatherUIData(time: number): UIData {
+    const dt = Math.min(0.1, Math.max(0, time - uiFeed.last));
+    uiFeed.last = time;
+    const player = playerIndex >= 0 && runtime._editor_alive(playerIndex) ? playerIndex : -1;
+    const health = player >= 0 ? runtime._editor_value(player, EntityField.health) : -1;
+    uiFeed.healthGhost = health >= uiFeed.healthGhost ? health : Math.max(health, uiFeed.healthGhost - dt * 0.5);
+    const weaponCount = player >= 0 ? runtime._editor_weapon_value(player, 5) : 0;
+    const weaponText = (slot: number, field: number) =>
+      runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [player, slot, field]) as string;
+    const slots = Array.from({ length: weaponCount }, (_, i) => ({ name: weaponText(i, 0), melee: weaponText(i, 3) !== "" }));
+    const slot = weaponCount > 0 ? runtime._editor_weapon_value(player, 0) : 0;
+    const aiming = weaponCount > 0 && runtime._editor_weapon_value(player, 7) === 1;
+    const fov = firstPerson() ? fps.camera.fov : tps.camera.fov;
+    const spread = weaponCount > 0 && !aiming
+      ? (Math.tan(THREE.MathUtils.degToRad(runtime._editor_weapon_value(player, 4))) / Math.tan(THREE.MathUtils.degToRad(fov) / 2)) * (hud.height / 2)
+      : 0;
+    const forward = viewCamera.getWorldDirection(new THREE.Vector3());
+    const heading = Math.atan2(forward.x, -forward.z);
+    const me = player >= 0 ? objects[player] : undefined;
+    // On the screen: [x, y, in front of the camera and inside the view].
+    const onScreen = (point: THREE.Vector3) => {
+      const p = point.clone().project(viewCamera);
+      return { x: ((p.x + 1) / 2) * hud.width, y: ((1 - p.y) / 2) * hud.height, onScreen: p.z < 1 && Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1 };
+    };
+    const markers: UIData["markers"] = [];
+    if (me && (sceneWidgets.has("Compass") || sceneWidgets.has("Waypoints") || sceneWidgets.has("Minimap")))
+      for (const marker of uiMarkers.values()) {
+        const dx = marker.position.x - me.position.x,
+          dz = marker.position.z - me.position.z;
+        markers.push({ label: marker.label, distance: Math.hypot(dx, dz), bearing: Math.atan2(dx, -dz), ...onScreen(marker.position) });
+      }
+    const blips: UIData["blips"] = [];
+    if (me && sceneWidgets.has("Minimap")) {
+      for (let i = 0; i < objects.length; i++) {
+        const object = objects[i];
+        if (i === player || !object || !runtime._editor_alive(i) || Math.abs(object.position.x - me.position.x) > 90 || Math.abs(object.position.z - me.position.z) > 90) continue;
+        const view = pickupViews.get(i);
+        if (view) {
+          if (runtime._editor_pickup_value(i, 3) !== 1) blips.push({ x: object.position.x, z: object.position.z, kind: "loot", color: rarityColors[view.visual.rarity] });
+          continue;
+        }
+        if (runtime._editor_value(i, EntityField.health) <= 0) continue;
+        const team = runtime._editor_fighter_value(i, FighterField.has) === 1 ? runtime._editor_fighter_value(i, FighterField.team) : runtime._editor_soldier_value(i, 3);
+        if (team > 0) blips.push({ x: object.position.x, z: object.position.z, kind: "enemy" });
+        else if (team === 0) blips.push({ x: object.position.x, z: object.position.z, kind: "ally" });
+      }
+      for (const marker of uiMarkers.values()) blips.push({ x: marker.position.x, z: marker.position.z, kind: "marker" });
+    }
+    let prompt: UIData["prompt"];
+    let loot: UIData["loot"];
+    const target = runtime._editor_interact_value(0);
+    if (target >= 0) {
+      const container = runtime._editor_interact_value(2) === 1;
+      const name = runtime.ccall("editor_interact_text", "string", ["number"], [0]) as string;
+      const rarity = container ? 0 : runtime._editor_pickup_value(target, 4);
+      prompt = {
+        verb: container ? "Open" : "Pick up",
+        name,
+        key: "E",
+        hold: runtime._editor_interact_value(1),
+        locked: runtime._editor_interact_value(3) === 1,
+        need: runtime.ccall("editor_interact_text", "string", ["number"], [1]) as string,
+        rarity,
+      };
+      if (!container && runtime._editor_pickup_value(target, 5) === 0) {
+        const damage = runtime._editor_pickup_value(target, 6);
+        loot = { name, rarity, damage, rpm: runtime._editor_pickup_value(target, 7), magazine: runtime._editor_pickup_value(target, 8), melee: damage <= 0 };
+      }
+    }
+    const boss = bossReadout();
+    const bossName = ledger.bossName;
+    if (boss && boss.health >= 0) uiFeed.bossGhost = boss.health >= uiFeed.bossGhost ? boss.health : Math.max(boss.health, uiFeed.bossGhost - dt * 0.4);
+    while (uiFeed.damage.length && time - uiFeed.damage[0]!.at > 1) uiFeed.damage.shift();
+    while (uiFeed.kills.length && time - uiFeed.kills[0]!.at > 6) uiFeed.kills.shift();
+    const items = player >= 0 ? (runtime.ccall("editor_items_text", "string", ["number"], [player]) as string) : "";
+    return {
+      time,
+      width: hud.width,
+      height: hud.height,
+      pointer: uiPointer,
+      health,
+      healthGhost: uiFeed.healthGhost,
+      healthMax: 100,
+      shield: -1,
+      stamina: player >= 0 && combat.isFighter(player) ? runtime._editor_fighter_value(player, FighterField.energy) : -1,
+      weapon: slots[slot]
+        ? {
+            name: slots[slot]!.name,
+            magazine: runtime._editor_weapon_value(player, 1),
+            capacity: runtime._editor_weapon_value(player, 8),
+            reserve: runtime._editor_weapon_value(player, 2),
+            reload: runtime._editor_weapon_value(player, 3),
+            melee: slots[slot]!.melee,
+          }
+        : undefined,
+      slots,
+      slot,
+      spread,
+      hostile: shooterActive() && tps.over >= 0,
+      hitAge: time - uiFeed.hitAt,
+      killAge: time - uiFeed.killAt,
+      heading,
+      player: me ? { x: me.position.x, z: me.position.z } : undefined,
+      blips,
+      markers,
+      prompt,
+      loot,
+      pickups: lootFeed.map((entry) => ({ label: entry.label, amount: entry.amount, rarity: entry.rarity, kind: entry.kind, age: time - entry.at })),
+      kills: uiFeed.kills.map((kill) => ({ killer: kill.killer, victim: kill.victim, mine: kill.mine, age: time - kill.at })),
+      damage: uiFeed.damage.map((hit) => {
+        const at = onScreen(hit.point);
+        return { x: at.x, y: at.y, amount: hit.amount, crit: hit.crit, age: time - hit.at };
+      }).filter((hit) => hit.age >= 0),
+      boss: boss && bossName && boss.health >= 0 ? { name: bossName, health: boss.health, ghost: uiFeed.bossGhost, stagger: Math.max(0, boss.stagger) } : undefined,
+      items: items
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => {
+          const space = line.lastIndexOf(" ");
+          return { name: line.slice(0, space), count: Number(line.slice(space + 1)) };
+        }),
+      settings: { master: playerSettings.master, sensitivity: playerSettings.sensitivity, invertY: playerSettings.invertY, aimAssist: playerSettings.aimAssist, shake: playerSettings.shake },
+      title: document.title,
+    };
+  }
+  // A widget the scene doesn't have, in its catalog place and the scene's
+  // style: the gun HUD, and the loot prompt, feed and card.
+  function drawDefaultWidget(name: UIWidget) {
+    if (sceneWidgets.has(name)) return;
+    const kit = widgetInfo(name);
+    const rect = layoutRect(kit.anchor, hud.width, hud.height, kit.width, kit.height, kit.offsetX, kit.offsetY);
+    drawWidget(hudCtx, { widget: name, style: kitStyle, text: kit.text, value: kit.value, fontSize: 16, textAge: 0, preview: false }, rect, uiData());
+  }
   function drawHud() {
     hudCtx.clearRect(0, 0, hud.width, hud.height);
+    frameUIData = undefined;
+    widgetHits.length = 0;
+    sceneWidgets.clear();
+    kitStyle = "Modern";
+    for (const entity of doc.scene.eachAlive()) {
+      const ui = doc.scene.resolve(entity, "UI");
+      if (ui?.kind !== "Widget") continue;
+      if (!sceneWidgets.size) kitStyle = ui.style;
+      sceneWidgets.add(ui.widget);
+    }
     // The visor under everything else, while walking in a suit.
     if (doc.mode !== "edit" && spaceView && !spaceView.flight.piloting) visor.draw(hudCtx, hud.width, hud.height);
     uiButtonHits.length = 0;
@@ -6398,6 +6846,20 @@ async function startEditor() {
       if (ui.visibleWhen === "pause" && doc.mode !== "pause") continue;
       if (playing && uiVisibility.get(uiName) === false) continue;
       const value = playing ? (uiValues.get(uiName) ?? ui.value) : ui.value;
+      if (ui.kind === "Widget") {
+        if (playing && hiddenWidgets.has(entity.index)) continue;
+        const kit = widgetInfo(ui.widget);
+        const scale = ui.fontSize / 16;
+        const rect = layoutRect(ui.anchor, hud.width, hud.height, ui.width || kit.width * scale, ui.height || kit.height * scale, ui.offsetX, ui.offsetY);
+        const now = performance.now() / 1000;
+        let seen = widgetTexts.get(entity.index);
+        if (!seen || seen.text !== ui.text) widgetTexts.set(entity.index, (seen = { text: ui.text, since: now }));
+        const input = { widget: ui.widget, style: ui.style, text: ui.text, value, fontSize: ui.fontSize, textAge: now - seen.since, preview: !playing };
+        const hits = drawWidget(hudCtx, input, rect, uiData());
+        if (playing) for (const hit of hits) widgetHits.push({ ...hit, name: uiName, entity: entity.index });
+        if (ui.text) hudLines.push(ui.text);
+        continue;
+      }
       hudCtx.font = `600 ${ui.fontSize}px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif`;
       let auto = autoSize(ui.kind, ui.text ? hudCtx.measureText(ui.text).width : 0, ui.fontSize);
       if (ui.kind === "Text" && ui.text) {
@@ -6417,6 +6879,16 @@ async function startEditor() {
       if (ui.text) hudLines.push(ui.text);
       if (ui.kind === "Bar" || ui.kind === "Slider" || ui.kind === "Toggle") hudLines.push(`${uiName || ui.kind}=${Math.round(value * 100) / 100}`);
     }
+    // Loot: the interact prompt, the pickup feed and a weapon's card.
+    if (doc.mode === "play" && (runtime._editor_interact_value(0) >= 0 || lootFeed.length)) {
+      for (const name of ["Interact prompt", "Pickup feed", "Loot card"] as const) drawDefaultWidget(name);
+      const prompt = uiData().prompt;
+      if (prompt) hudLines.push(prompt.locked ? `Needs ${prompt.need}` : `E: ${prompt.verb} ${prompt.name}${prompt.hold >= 0 ? ` (hold ${Math.round(prompt.hold * 100)}%)` : ""}`);
+      for (const entry of lootFeed) hudLines.push(entry.kind < 0 ? entry.label : `Picked up ${entry.label}`);
+    }
+    // Where each widget's clicks land, for tests (only when it changes).
+    const hitSummary = widgetHits.map((h) => `${h.action}@${Math.round(h.left + h.width / 2)},${Math.round(h.top + h.height / 2)}`).join(" ");
+    if ((viewport.dataset.widgetHits ?? "") !== hitSummary) viewport.dataset.widgetHits = hitSummary;
     // GATEBREAKER: panels, the Ledger's windows and the boss bar, drawn last
     // so a window covers the scene's own UI text; the M map covers all.
     if (doc.mode === "play") hudLines.push(...ledger.draw(hudCtx, hud.width, hud.height, bossReadout()));

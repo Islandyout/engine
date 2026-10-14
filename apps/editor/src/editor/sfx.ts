@@ -219,6 +219,29 @@ export class Sfx {
     this.tone(t, "sine", 70, 35, 0.5 * volume, 0.3);
   }
 
+  // Taking a pickup: a bright two-note chime, higher for rarer loot (0..4).
+  pickup(rarity = 0, volume = 1) {
+    const t = this.now;
+    const base = 660 * Math.pow(1.12, rarity);
+    this.tone(t, "triangle", base, base, 0.22 * volume, 0.12);
+    this.tone(t + 0.07, "triangle", base * 1.5, base * 1.5, 0.2 * volume, 0.2);
+    if (rarity >= 3) this.tone(t + 0.14, "sine", base * 2, base * 2, 0.14 * volume, 0.35);
+  }
+
+  // A crate or chest opening: a wooden knock and a creak.
+  crate(volume = 1) {
+    const t = this.now;
+    this.burst(t, "lowpass", 700, 0.6 * volume, 0.12);
+    this.tone(t + 0.05, "sawtooth", 140, 95, 0.08 * volume, 0.35);
+  }
+
+  // A locked container: a dull rattle.
+  locked(volume = 1) {
+    const t = this.now;
+    this.burst(t, "bandpass", 1800, 0.3 * volume, 0.05, 4);
+    this.burst(t + 0.09, "bandpass", 1600, 0.25 * volume, 0.05, 4);
+  }
+
   // An energy blast leaving the hands.
   energy(volume = 1) {
     const t = this.now;

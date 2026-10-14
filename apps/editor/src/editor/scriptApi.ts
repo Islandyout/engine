@@ -176,6 +176,24 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "world"
   },
   {
+    "name": "world.items",
+    "signature": "world.items(id: integer, name: string): integer",
+    "doc": "How many of an item (a key, coins) the entity carries.",
+    "group": "world"
+  },
+  {
+    "name": "world.give_item",
+    "signature": "world.give_item(id: integer, name: string, n?: integer): integer",
+    "doc": "Gives it n of an item (default 1); returns its new count.",
+    "group": "world"
+  },
+  {
+    "name": "world.take_item",
+    "signature": "world.take_item(id: integer, name: string, n?: integer): boolean",
+    "doc": "Takes n of an item (default 1) if it has them; false (and takes none) if not.",
+    "group": "world"
+  },
+  {
     "name": "world.raycast",
     "signature": "world.raycast(ox, oy, oz, dx, dy, dz, max: number, mask?: integer): table?",
     "doc": "The first hit along a ray: {id, x, y, z, nx, ny, nz, distance}.",

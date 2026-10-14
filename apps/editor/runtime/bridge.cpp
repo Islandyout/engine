@@ -107,6 +107,7 @@ EXPORT int editor_add(double x, double y, double z, double vx, double vy, double
                                   static_cast<float>(vx), static_cast<float>(vy), static_cast<float>(vz)}});
         if (is_player != 0) {
             target.set(e, PlayerMarker{});
+            target.set(e, Items{}); // (so a script can give and take in one call)
             if (is_vehicle != 0)
                 target.set(
                     e, Heading{0.0F, 0.0F, static_cast<float>(sx) / 2.0F, static_cast<float>(sz) / 2.0F,

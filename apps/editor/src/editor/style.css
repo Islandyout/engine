@@ -1190,3 +1190,71 @@ input[readonly] {
 [hidden] {
   display: none !important;
 }
+
+/* The UI templates picker (0.88.0). */
+.ui-kit-picker {
+  font-family: -apple-system, "Segoe UI", Inter, Roboto, system-ui, sans-serif;
+  color: var(--text, #e6edf3);
+  width: min(1320px, calc(100vw - 32px));
+  left: 16px;
+  right: auto;
+  margin: 0 auto;
+  inset-inline: 16px;
+}
+.ui-kit-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 10px 0;
+}
+.ui-kit-tabs [aria-selected="true"] {
+  background: rgba(127, 212, 255, 0.16);
+  color: #cfefff;
+}
+.ui-kit-whole {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 12px;
+}
+.ui-kit-card h4 {
+  margin-bottom: 0;
+}
+.ui-kit-card .hint {
+  margin: 2px 0 6px;
+}
+.ui-kit-styles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ui-kit-style {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 11px;
+}
+.ui-kit-style:hover,
+.ui-kit-style:focus-visible {
+  border-color: #7fd4ff;
+  background: rgba(127, 212, 255, 0.08);
+}
+.ui-kit-style canvas {
+  position: static;
+  width: 200px;
+  height: 120px;
+  border-radius: 4px;
+  display: block;
+}
+.ui-kit-picker > .script-api-top,
+.ui-kit-tabs {
+  flex-shrink: 0;
+}

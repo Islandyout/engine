@@ -13,6 +13,7 @@ namespace engine::gameplay {
 //
 //   rifle: model=rifle mode=auto rpm=620 damage=24 mag=30 reserve=180 reload=2.1
 //   shotgun: model=shotgun pellets=9 damage=12 mag=6 reload=0.5 per_shell
+//   sword: melee=sword offhand=shield-round     (a melee slot)
 //
 // and the per-entity state machine that turns trigger input into shots,
 // reloads and weapon switches. Hit detection lives with the caller (it
@@ -27,6 +28,13 @@ struct WeaponDef final {
     // The catalog gun seen in the hands in third person (a model file name in
     // kit/weapons, e.g. pistol-1 or rifle-2); empty for the model's default.
     std::string held;
+    // A melee slot: the kit/weapons model in the hand (sword, dagger...;
+    // "fists" for bare hands). It never fires: switching to it hands the
+    // fight to the entity's Melee fighter. `offhand` is a shield or second
+    // blade in the other hand.
+    std::string melee;
+    std::string offhand;
+    [[nodiscard]] bool is_melee() const { return !melee.empty(); }
     FireMode mode{FireMode::Semi};
     int burst{3};          // shots per trigger pull in Burst mode
     float rpm{600.0F};     // rounds per minute
@@ -58,7 +66,7 @@ struct WeaponParse final {
 };
 
 // Parses a loadout. `#` starts a comment; blank lines are ignored. Keys:
-// model, held, mode (semi|auto|burst), burst, rpm, damage, headshot, pellets, mag,
+// model, held, melee, offhand, mode (semi|auto|burst), burst, rpm, damage, headshot, pellets, mag,
 // reserve, reload, per_shell, spread, aim_spread, move_spread, recoil, range,
 // falloff, min_damage, projectile, speed, gravity, splash, zoom, equip.
 [[nodiscard]] WeaponParse parse_weapons(std::string_view text);
