@@ -250,15 +250,14 @@ class Paint {
     readonly k: Skin,
     readonly s: number,
   ) {}
+  // A glow (Sci-fi) is a canvas shadow blur; a drop shadow is drawn by
+  // hand (text()), since a blurred shadow on every label costs whole
+  // milliseconds a frame on a software-rendered canvas.
   private effects(color: string) {
     const c = this.ctx;
     if (this.k.glow) {
       c.shadowColor = color;
       c.shadowBlur = this.k.glow * this.s;
-    } else if (this.k.shadow) {
-      c.shadowColor = "rgba(0, 0, 0, 0.55)";
-      c.shadowBlur = this.k.shadow * this.s;
-      c.shadowOffsetY = 1;
     }
   }
   private plain() {
@@ -293,6 +292,10 @@ class Paint {
       c.lineWidth = this.k.outline * this.s * Math.min(1, size / 18);
       c.strokeStyle = this.k.outlineColor;
       c.strokeText(t, x, y, o.max);
+    }
+    if (this.k.shadow && !o.plain) {
+      c.fillStyle = "rgba(0, 0, 0, 0.6)";
+      c.fillText(t, x, y + Math.max(1, this.s), o.max);
     }
     if (!o.plain) this.effects(color);
     c.fillStyle = color;

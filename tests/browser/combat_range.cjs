@@ -117,7 +117,11 @@ const { chromium } = require("playwright");
     for (const [key, gun] of [["Digit2", "smg-2"], ["Digit3", "rifle-2"], ["Digit4", "shotgun-1"], ["Digit5", "sniper-2"]]) {
       await page.keyboard.press(key);
       await page.waitForFunction((g) => document.querySelector("#viewport").dataset.shooter.split(",")[4] === g, gun, { timeout: 20000 });
-      await page.waitForTimeout(900);
+      // Switching lowers the gun while it's drawn (the shotgun's and the
+      // sniper's equip time): measure the hands once it's raised again,
+      // however slow the frames.
+      await page.waitForFunction(() => Number(document.querySelector("#viewport").dataset.shooter.split(",")[2]) > 0.95, null, { timeout: 30000 });
+      await page.waitForTimeout(300);
       held = await guns();
       assert.ok(held.gap < 0.08, `hands on the ${gun}: ${held.gap} m`);
       await page.screenshot({ path: `build/browser-evidence/combat-range-${gun}.png` });
