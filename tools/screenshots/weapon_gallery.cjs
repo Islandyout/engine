@@ -26,12 +26,15 @@ const GUNS = [
 ];
 // Melee slots (kit/weapons names) for the loadout's melee= key.
 const LIMIT = Number(process.env.GALLERY_LIMIT || 0); // a quick look: the first N of each
+const ONLY = process.env.GALLERY_ONLY || ""; // "guns" or "melee"
 const MELEE = ["fists", "dagger", "knife", "sword", "sword-2", "sword-golden", "claymore", "sword-big", "spear", "scythe", "axe", "axe-small", "axe-double", "hammer-small", "hammer-double", "bow", "bow-golden", "bow-evil"];
 
 if (LIMIT) {
   GUNS.splice(LIMIT);
   MELEE.splice(LIMIT);
 }
+if (ONLY === "guns") MELEE.length = 0;
+if (ONLY === "melee") GUNS.length = 0;
 
 (async () => {
   const root = path.resolve("build/site");
@@ -88,31 +91,44 @@ if (LIMIT) {
       const clip = { x: box.x + box.width * 0.1, y: box.y + box.height * 0.08, width: box.width * 0.8, height: box.height * 0.84 };
       return (await page.screenshot({ clip })).toString("base64");
     };
-    // The Combat range, cleared down to the ground and the sky; the player
-    // in the open behind the gun wall, facing +z, with `loadout`.
-    const open = async (loadout, soldiers) => {
+    // The Third-person starter (ground, sky, a few crates). `player`:
+    // the Player's own loadout (its over-the-shoulder view), or none to look
+    // at two soldiers instead: one at the ready facing the camera, one
+    // beside it side-on aiming at a dummy; both switch guns with the
+    // number keys. `camera`: the follow camera's target and offset.
+    const open = async ({ player, soldiers, camera }) => {
       await page.goto(`http://127.0.0.1:${port}/engine/`);
       await page.waitForFunction(() => document.querySelector("#runtime")?.textContent === "C++ runtime ready");
       await page.click("#new");
       page.once("dialog", (dialog) => dialog.accept());
-      await page.click('[aria-label="Combat range"]');
+      await page.click('[aria-label="Third-person starter"]');
       const list = (await run({ command: "list_entities" })).data;
       const ref = (name) => {
         const e = list.find((x) => x.name === name);
         return { index: e.index, generation: e.generation };
       };
-      for (const e of list)
-        if (/^(HUD |Controls|Range Officer|Instructor|Target |Sword|Dagger|Bare Hands|Supply|Armory|Range Key|Shotgun Pickup|Ammo Pickup|Medkit)/.test(e.name))
-          await run({ command: "destroy_entity", entity: { index: e.index, generation: e.generation } });
-      await run({ command: "set_transform", entity: ref("Player"), position: [0, 0.9, 14] });
-      await run({ command: "set_component", entity: ref("Player"), type: "Rotation", value: { euler: { x: 0, y: 0, z: 0 } } });
-      await run({ command: "set_component", entity: ref("Player"), type: "Weapons", value: { loadout, aimAssist: 0, assistRange: 60 } });
+      const set = (entity, type, value) => run({ command: "set_component", entity, type, value });
+      if (player) {
+        await run({ command: "set_transform", entity: ref("Player"), position: [0, 0.9, 0] });
+        await set(ref("Player"), "Scale", { value: { x: 0.6, y: 1.8, z: 0.6 } });
+        await set(ref("Player"), "Rotation", { euler: { x: 0, y: 0, z: 0 } });
+        await set(ref("Player"), "Weapons", { loadout: player, aimAssist: 0, assistRange: 60 });
+      } else {
+        // Out of the way and out of sight.
+        await run({ command: "set_transform", entity: ref("Player"), position: [10, 0.9, 10] });
+        await set(ref("Player"), "Renderable", { mesh: 132, material: 0, visible: false });
+      }
+      await set(ref("Camera"), "CameraFollow", {
+        target: camera.target,
+        offset: camera.offset,
+        smoothing: 0,
+        lookHeight: camera.lookHeight ?? 1.2,
+        collision: false,
+        orbit: !!camera.orbit,
+      });
       if (soldiers) {
-        // A soldier at the ready facing the camera, one side-on aiming at a
-        // dummy far off to the right; both switch guns with the player's
-        // number keys.
         const follow = 'function on_tick(dt)\n  for i = 1, 8 do\n    if input.pressed("Digit" .. i) then weapon.select(i) end\n  end\nend\n';
-        const soldier = async (name, position, yaw, sight) => {
+        const body = async (name, position, yaw, combat, extra = []) => {
           const r = await run({ command: "spawn_entity", name, transform: position });
           for (const [type, value] of [
             ["Scale", { value: { x: 0.6, y: 1.8, z: 0.6 } }],
@@ -121,26 +137,24 @@ if (LIMIT) {
             ["RigidBody", { mass: 70, dynamic: true }],
             ["Collider", { type: "AABB" }],
             ["Health", { current: 100000, maximum: 100000 }],
-            ["AICombat", { team: 0, behavior: "Guard", patrol: "", sightRange: sight, fov: 120, hearingRange: 0, reactionTime: 0.2, accuracy: 0.9, preferredRange: 60, moveSpeed: 0.01, burst: 3, burstPause: 0.6, useCover: false, fleeHealth: 0, meleeDamage: 0 }],
-            ["Weapons", { loadout: loadout.replace(/reserve=-1/g, "reserve=-1 damage=0.01"), aimAssist: 0, assistRange: 60 }],
-            ["Script", { source: follow, props: {} }],
+            // Holding its ground at the dummy's distance.
+            ["AICombat", { team: combat.team, behavior: "Guard", patrol: "", sightRange: combat.sight, fov: 140, hearingRange: 0, reactionTime: 0.2, accuracy: 0.9, preferredRange: 10.7, moveSpeed: 0.01, burst: 3, burstPause: 0.8, useCover: false, fleeHealth: 0, meleeDamage: 0 }],
+            ...extra,
           ])
-            await run({ command: "set_component", entity: r.entity, type, value });
+            await set(r.entity, type, value);
         };
-        await soldier("Front", [0.9, 0.9, 18.2], Math.PI, 1);
-        await soldier("Side", [-1.5, 0.9, 20.5], Math.PI / 2, 60);
-        const dummy = await run({ command: "spawn_entity", name: "Dummy", transform: [40, 0.9, 20.5] });
-        for (const [type, value] of [
-          ["Scale", { value: { x: 0.6, y: 1.8, z: 0.6 } }],
-          ["Renderable", { mesh: 132, material: 0, visible: true }],
-          ["Collider", { type: "AABB" }],
-          ["Health", { current: 100000, maximum: 100000 }],
-          ["AICombat", { team: 1, behavior: "Guard", patrol: "", sightRange: 0.5, fov: 10, hearingRange: 0, reactionTime: 9, accuracy: 0, preferredRange: 60, moveSpeed: 0.01, burst: 1, burstPause: 9, useCover: false, fleeHealth: 0, meleeDamage: 0 }],
-        ])
-          await run({ command: "set_component", entity: dummy.entity, type, value });
+        const armed = [
+          ["Weapons", { loadout: soldiers.replace(/reserve=-1/g, "reserve=-1 damage=0.01"), aimAssist: 0, assistRange: 60 }],
+          ["Script", { source: follow, props: {} }],
+        ];
+        // Facing +z, toward the camera in front of it.
+        await body("Ready", [0, 0.9, 0], 0, { team: 0, sight: 0.5 }, armed);
+        // Beside it, facing -x, aiming at the dummy off to the left.
+        await body("Aimer", [-1.3, 0.9, -0.8], -Math.PI / 2, { team: 0, sight: 30 }, armed);
+        await body("Dummy", [-12, 0.9, -0.8], Math.PI / 2, { team: 1, sight: 0.5 });
       }
-      // Nothing selected: no selection box in the pictures.
-      await page.keyboard.press("Escape");
+      // The selection box goes to an empty entity out of sight.
+      await run({ command: "spawn_entity", name: "Offstage", transform: [0, -50, 0] });
       await page.click("#play");
     };
     const sheet = async (name, title, cards) => {
@@ -163,24 +177,29 @@ if (LIMIT) {
     };
     const waitGun = (g) => page.waitForFunction((g) => (document.querySelector("#viewport").dataset.shooter ?? "").split(",")[4] === g, g, { timeout: 30000 });
 
-    // Guns, eight at a time: number keys switch the player and both soldiers.
-    const scene = [],
-      aimed = [];
+    // Guns, eight at a time: the number keys switch the soldiers (and the
+    // player).
+    const soldiersView = [],
+      playerView = [];
     for (let b = 0; b < GUNS.length; b += 8) {
       const batch = GUNS.slice(b, b + 8);
-      await open(batch.map(([model, held], i) => `g${i + 1}: model=${model} held=${held} equip=0.1 reserve=-1`).join("\n"), true);
+      const loadout = batch.map(([model, held], i) => `g${i + 1}: model=${model} held=${held} equip=0.1 reserve=-1`).join("\n");
+      await open({ soldiers: loadout, camera: { target: "Ready", offset: { x: -0.7, y: 0.6, z: 2.7 }, lookHeight: 0.35 } });
+      await page.waitForTimeout(4000);
+      for (let i = 0; i < batch.length; i++) {
+        if (i > 0) await page.keyboard.press(`Digit${i + 1}`);
+        await page.waitForTimeout(1800);
+        soldiersView[b + i] = await shot();
+      }
+      await page.click("#stop");
+      await open({ player: loadout, camera: { target: "", offset: { x: 0, y: 2.2, z: -4 }, orbit: true, lookHeight: 1.4 } });
       await waitGun(batch[0][1]);
-      await page.waitForTimeout(2500);
+      await page.waitForTimeout(2000);
       for (let i = 0; i < batch.length; i++) {
         if (i > 0) await page.keyboard.press(`Digit${i + 1}`);
         await waitGun(batch[i][1]);
-        await page.waitForTimeout(1600);
-        scene[b + i] = await shot();
-        await button(6, true);
-        await page.waitForTimeout(900);
-        aimed[b + i] = await shot();
-        await button(6, false);
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(1300);
+        playerView[b + i] = await shot();
       }
       await page.click("#stop");
     }
@@ -190,31 +209,34 @@ if (LIMIT) {
         `Guns ${s + 1}–${Math.min(GUNS.length, s + 10)} in third person`,
         GUNS.slice(s, s + 10).map(([, held], k) => ({
           label: held,
-          images: [scene[s + k], aimed[s + k]],
-          captions: ["You (back), a soldier at the ready (front), a soldier aiming (side)", "You aiming over the shoulder"],
+          images: [soldiersView[s + k], playerView[s + k]],
+          captions: ["At the ready (front) and aiming (side)", "Your view: the third-person camera"],
         })),
       );
 
-    // Melee slots: the same loadout key (melee=), seen from the front and
-    // the side (the right stick orbits the follow camera).
+    // Melee slots (melee= in the same loadout): the player from the front
+    // and from the side.
     const melee = [];
     for (let b = 0; b < MELEE.length; b += 8) {
       const batch = MELEE.slice(b, b + 8);
-      await open(batch.map((name, i) => `m${i + 1}: melee=${name}`).join("\n"), false);
-      await page.waitForTimeout(3500);
-      for (let i = 0; i < batch.length; i++) {
-        await page.keyboard.press(`Digit${i + 1}`);
-        await page.waitForTimeout(1200);
-        await look(1, 1150);
-        await page.waitForTimeout(700);
-        const front = await shot();
-        await look(-1, 560);
-        await page.waitForTimeout(700);
-        const side = await shot();
-        await look(-1, 590);
-        melee.push({ label: batch[i], images: [front, side], captions: ["Front", "Side"] });
+      const loadout = batch.map((name, i) => `m${i + 1}: melee=${name}`).join("\n");
+      const views = [];
+      for (const offset of [
+        { x: 0.6, y: 0.5, z: 2.5 },
+        { x: 2.6, y: 0.5, z: 0.2 },
+      ]) {
+        await open({ player: loadout, camera: { target: "", offset, lookHeight: 0.4 } });
+        await page.waitForTimeout(4000);
+        const pictures = [];
+        for (let i = 0; i < batch.length; i++) {
+          await page.keyboard.press(`Digit${i + 1}`);
+          await page.waitForTimeout(1500);
+          pictures.push(await shot());
+        }
+        views.push(pictures);
+        await page.click("#stop");
       }
-      await page.click("#stop");
+      batch.forEach((name, i) => melee.push({ label: name, images: [views[0][i], views[1][i]], captions: ["Front", "Side"] }));
     }
     for (let s = 0; s < melee.length; s += 10) await sheet(`melee-${s / 10 + 1}`, "Melee weapons in third person", melee.slice(s, s + 10));
   } finally {
