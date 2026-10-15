@@ -14,7 +14,8 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     # PR checks stay bounded; the full scheduled/manual regression includes long gameplay simulations.
-    timeout-minutes: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 330 || 60 }}
+    # The browser tests alone take about an hour on a hosted runner.
+    timeout-minutes: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 330 || 90 }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Detect whether shared engine/editor code changed
