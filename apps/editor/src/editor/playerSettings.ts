@@ -501,4 +501,3 @@ export function openSettingsPanel(root: HTMLElement, settings: PlayerSettings, o
   root.append(overlay);
   return { close, element: overlay };
 }
-

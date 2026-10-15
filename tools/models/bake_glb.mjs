@@ -91,4 +91,3 @@ export function loadGlb(file) {
   if (groups.has(-1)) { materials.push({ name: "default", color: [0.8, 0.8, 0.8] }); groups.set(materials.length - 1, groups.get(-1)); groups.delete(-1); }
   return { materials, groups, hasUv };
 }
-
