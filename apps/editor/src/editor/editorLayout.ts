@@ -79,7 +79,10 @@ export function editorLayoutHtml({
         <label class="sculpt-slider">Radius <input id="sculpt-radius" type="range" min="1" max="30" step="0.5" value="6" aria-label="Brush radius"></label>
         <label class="sculpt-slider">Strength <input id="sculpt-strength" type="range" min="0.05" max="2" step="0.05" value="0.5" aria-label="Brush strength"></label>
       </span>
-      <span class="viewport-hint">Drag to orbit · right-drag to pan · scroll to zoom</span>
+      <select id="wheel-device" class="select-sm" aria-label="Scroll input" title="Auto tells a trackpad from a mouse wheel by its scroll events">
+        <option value="auto">Scroll: auto</option><option value="trackpad">Trackpad</option><option value="mouse">Mouse wheel</option>
+      </select>
+      <span class="viewport-hint" id="viewport-hint">Drag to orbit · right-drag to pan · scroll to zoom</span>
     </div>
     <div id="viewport"></div>
   </section>
@@ -95,6 +98,7 @@ export function editorLayoutHtml({
     <div class="panel-header"><h2>Project / Content</h2></div>
     <div class="panel-body">
       <label class="field-row"><span>Project</span><input id="project" value="Untitled project" aria-label="Project name"></label>
+      <input id="catalog-search" type="search" placeholder="Search models (name or category)" aria-label="Search models">
       <div class="field-row">
         <select id="catalog-category" aria-label="Model category">
           ${catalogCategories.map((c) => `<option value="${c}">${c.charAt(0).toUpperCase()}${c.slice(1)}</option>`).join("")}
@@ -102,6 +106,7 @@ export function editorLayoutHtml({
         <select id="catalog-model" aria-label="Model"></select>
       </div>
       <button id="catalog-add" class="btn btn-sm">${iconHtml("cube")}<span>Add from catalog</span></button>
+      <button id="ui-kit" class="btn btn-sm">${iconHtml("grid")}<span>UI templates…</span></button>
       <p class="hint">${modelCount} bundled CC0 models · Aether kit + Quaternius</p>
       <a class="link-external" href="./ASSET-CREDITS.txt">Asset credits</a>
       <label class="btn btn-sm" id="import-label">${iconHtml("open")}<span>Import asset…</span>

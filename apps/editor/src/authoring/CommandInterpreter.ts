@@ -99,6 +99,9 @@ const componentNames = [
   "Wildlife",
   "TrafficSignal",
   "Walker",
+  "Pickup",
+  "LootDrop",
+  "Container",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -653,6 +656,12 @@ export function defaultComponent(
       return { stops: "8 0 0; 18 10 0", speed: 1.4 };
     case "Wildlife":
       return { wary: 44, flee: 16, speed: 7, leash: 80 };
+    case "Pickup":
+      return { kind: "Ammo", weapon: "carbine: model=rifle held=carbine-2 mag=30", item: "Coin", amount: 30, rarity: "Common", press: false, respawn: 0 };
+    case "LootDrop":
+      return { dropWeapon: true, table: "0.5 ammo 30\n0.25 health 25\n0.1 item Coin 5" };
+    case "Container":
+      return { table: "1 ammo 60\n0.6 health 50\n0.3 weapon smg: model=smg held=smg-3 rarity=Rare", hold: 0.6, key: "" };
     case "TrafficSignal":
       return { green: 14, yellow: 3, clearance: 2, offset: 0, radius: 9 };
     case "Walker":
@@ -712,6 +721,8 @@ export function defaultComponent(
         opacity: 0.85,
         image: "",
         value: 0,
+        widget: "Health",
+        style: "Modern",
       };
     case "Name":
       return { value: "Entity" };
@@ -856,6 +867,8 @@ export function defaultComponent(
           "pistol: model=pistol mode=semi rpm=380 damage=34 mag=12 reserve=-1 reload=1.3 spread=1.6 aim_spread=0.3 recoil=1.8 range=120 falloff=30 zoom=0.85 equip=0.3",
           "shotgun: model=shotgun mode=semi rpm=80 pellets=9 damage=12 mag=6 reserve=36 reload=0.5 per_shell spread=6 aim_spread=4.5 recoil=4.5 range=45 falloff=10 min_damage=0.2 zoom=0.9 equip=0.5",
         ].join("\n") + "\n",
+        aimAssist: 0.6,
+        assistRange: 60,
       };
     case "CameraFollow":
       return { target: "", offset: { x: 0, y: 4, z: 8 }, smoothing: 0.15, lookHeight: 1, collision: true, orbit: false };

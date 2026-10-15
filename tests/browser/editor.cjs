@@ -1020,7 +1020,7 @@ const { chromium } = require("playwright");
     await page.locator(".entity").filter({ hasText: "Mannequin F" }).first().click();
     await page.getByLabel("Add component").selectOption("UI");
     const uiKind = page.locator('[aria-label="UI.kind"]');
-    assert.deepEqual(await uiKind.locator("option").allTextContents(), ["Text", "Button", "Panel", "Image", "Bar", "Slider", "Toggle"]);
+    assert.deepEqual(await uiKind.locator("option").allTextContents(), ["Text", "Button", "Panel", "Image", "Bar", "Slider", "Toggle", "Widget"]);
     assert.equal(await uiKind.inputValue(), "Text", "sensible default kind");
     await uiKind.selectOption("Button");
     await page.getByLabel("UI.text", { exact: true }).fill("Pause");

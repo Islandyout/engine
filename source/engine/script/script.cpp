@@ -462,6 +462,28 @@ struct LuaApi final {
             self.host_->heal(*self.world_, *entity, number_arg(L, 2));
         return 0;
     }
+    // world.items(id, name) -> count; world.give_item(id, name[, n]) -> count;
+    // world.take_item(id, name[, n]) -> true when it had n (and gave them up).
+    static int items_call(lua_State *L, const char *op) {
+        auto &self = runtime(L);
+        const auto entity = entity_arg(L, 1);
+        const std::string name = luaL_checkstring(L, 2);
+        const auto amount = luaL_optinteger(L, 3, 1);
+        if (name.empty() || name.size() > 40)
+            return luaL_error(L, "an item name is 1 to 40 characters");
+        if (amount < 0 || amount > 1000000)
+            return luaL_error(L, "an item amount is 0 to 1000000");
+        const int result = entity && self.host_ ? self.host_->items(*self.world_, *entity, op, name, static_cast<int>(amount))
+                                                : (std::string(op) == "take" ? -1 : 0);
+        if (std::string(op) == "take")
+            lua_pushboolean(L, result >= 0);
+        else
+            lua_pushinteger(L, result);
+        return 1;
+    }
+    static int items(lua_State *L) { return items_call(L, "count"); }
+    static int give_item(lua_State *L) { return items_call(L, "give"); }
+    static int take_item(lua_State *L) { return items_call(L, "take"); }
     // world.give_ammo(id, rounds[, slot]): adds reserve rounds to another
     // entity's weapon (slot is 1-based; default its current weapon).
     static int give_ammo(lua_State *L) {
@@ -1213,6 +1235,9 @@ struct LuaApi final {
                {"health", health},
                {"damage", damage},
                {"heal", heal},
+               {"items", items},
+               {"give_item", give_item},
+               {"take_item", take_item},
                {"give_ammo", give_ammo},
                {"raycast", raycast},
                {"overlap", overlap},

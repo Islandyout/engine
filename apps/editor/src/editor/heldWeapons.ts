@@ -71,6 +71,20 @@ export const WEAPON_GRIPS: Record<string, WeaponGrip> = {
   spear: { grip: "twohand", length: 2.0, hold: 0.2, offHand: 0.4, clips: "sword", pose: { at: [-0.12, -0.02, 0.06], blade: [0.1, 0.28, 1], edge: [0, -1, 0] } },
   bow: { grip: "bow", length: 1.1, hold: 0.5, clips: "sword", pose: { at: [-0.16, 0.06, 0.22], blade: [0, 1, 0.25], edge: [0, 0, 1] } },
   "shield-round": { grip: "shield", length: 0.6, hold: 0.5, clips: "sword" },
+  // The Medieval Weapons pack (0.88.0): a battle axe and a hatchet held
+  // like the double axe, a one-handed hammer, a two-handed maul and
+  // greatsword held like the claymore, a longsword, two bows, three shields.
+  axe: { grip: "forward", length: 0.8, hold: 0.1, clips: "sword", pose: { at: [-0.12, 0.04, 0.18], blade: [0.05, 1, 0.5], edge: [0, 0, 1] } },
+  "axe-small": { grip: "forward", length: 0.5, hold: 0.14, clips: "sword", pose: { at: [-0.12, 0.04, 0.18], blade: [0.05, 1, 0.5], edge: [0, 0, 1] } },
+  "hammer-small": { grip: "forward", length: 0.6, hold: 0.12, clips: "sword", pose: { at: [-0.12, 0.04, 0.18], blade: [0.05, 1, 0.5], edge: [0, 0, 1] } },
+  "hammer-double": { grip: "twohand", length: 1.25, hold: 0.24, offHand: 0.08, clips: "sword", pose: { at: [-0.1, 0.02, 0.17], blade: [0.25, 1, 0.6], edge: [0, 0, 1] } },
+  "sword-big": { grip: "twohand", length: 1.5, hold: 0.16, offHand: 0.06, clips: "sword", pose: { at: [-0.09, 0.02, 0.17], blade: [0.18, 0.5, 1], edge: [0, -1, 0] } },
+  "sword-golden": { grip: "forward", length: 0.95, hold: 0.1, clips: "sword", pose: { at: [-0.1, 0.05, 0.2], blade: [0.12, 0.32, 1], edge: [0, -1, 0] } },
+  "bow-golden": { grip: "bow", length: 1.25, hold: 0.5, clips: "sword", pose: { at: [-0.16, 0.06, 0.22], blade: [0, 1, 0.25], edge: [0, 0, 1] } },
+  "bow-evil": { grip: "bow", length: 1.25, hold: 0.5, clips: "sword", pose: { at: [-0.16, 0.06, 0.22], blade: [0, 1, 0.25], edge: [0, 0, 1] } },
+  "shield-heater": { grip: "shield", length: 0.75, hold: 0.5, clips: "sword" },
+  "shield-heater-2": { grip: "shield", length: 0.75, hold: 0.5, clips: "sword" },
+  "shield-celtic": { grip: "shield", length: 0.7, hold: 0.5, clips: "sword" },
 };
 
 // A catalog model's grip: by its name, or a guess for a model not listed
@@ -312,7 +326,7 @@ const ik = {
 };
 
 // Turns `bone` in world space by `delta`.
-function rotateWorld(bone: THREE.Object3D, delta: THREE.Quaternion) {
+export function rotateWorld(bone: THREE.Object3D, delta: THREE.Quaternion) {
   bone.getWorldQuaternion(ik.q);
   ik.q.premultiply(delta);
   bone.parent!.getWorldQuaternion(ik.pq);
@@ -324,7 +338,7 @@ const clampUnit = (x: number) => Math.min(1, Math.max(-1, x));
 
 // Analytic two-bone IK in the arm's own bend plane: the hand bone to `t`,
 // then turned to `rot` (world).
-function solveArm(upper: THREE.Object3D, lower: THREE.Object3D, hand: THREE.Object3D, t: THREE.Vector3, rot: THREE.Quaternion) {
+export function solveArm(upper: THREE.Object3D, lower: THREE.Object3D, hand: THREE.Object3D, t: THREE.Vector3, rot: THREE.Quaternion) {
   const a = upper.getWorldPosition(ik.a);
   const b = lower.getWorldPosition(ik.b);
   const c = hand.getWorldPosition(ik.c);

@@ -6,7 +6,8 @@ import {
   type PrefabableComponent,
   type SceneComponents,
 } from "./Scene";
-import type { AIStateName, ParticlePreset, UIAction, UIAnchor, UIKind } from "./Components";
+import type { AIStateName, ParticlePreset, UIAction, UIAnchor, UIKind, UIStyle, UIWidget } from "./Components";
+import { uiStyleNames, uiWidgetNames } from "./Components";
 
 const uiAnchors: readonly UIAnchor[] = [
   "top-left",
@@ -231,6 +232,9 @@ const componentNames = [
   "Wildlife",
   "TrafficSignal",
   "Walker",
+  "Pickup",
+  "LootDrop",
+  "Container",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -497,6 +501,33 @@ export function normalizeComponent(
         speed: positiveNumber(value.speed, "Wildlife.speed"),
         leash: positiveNumber(value.leash, "Wildlife.leash"),
       };
+    case "Pickup": {
+      const kind = value.kind;
+      if (kind !== "Weapon" && kind !== "Ammo" && kind !== "Health" && kind !== "Item") throw new Error("Pickup.kind must be Weapon, Ammo, Health or Item.");
+      const rarity = value.rarity;
+      if (rarity !== "Common" && rarity !== "Uncommon" && rarity !== "Rare" && rarity !== "Epic" && rarity !== "Legendary")
+        throw new Error("Pickup.rarity must be Common, Uncommon, Rare, Epic or Legendary.");
+      const amount = number(value.amount, "Pickup.amount");
+      if (!Number.isInteger(amount) || amount < 1 || amount > 100000) throw new Error("Pickup.amount must be a whole number from 1 to 100000.");
+      const respawn = number(value.respawn, "Pickup.respawn");
+      if (respawn < 0 || respawn > 3600) throw new Error("Pickup.respawn must be from 0 to 3600 seconds.");
+      return {
+        kind,
+        weapon: string(value.weapon, "Pickup.weapon"),
+        item: string(value.item, "Pickup.item"),
+        amount,
+        rarity,
+        press: boolean(value.press, "Pickup.press"),
+        respawn,
+      };
+    }
+    case "LootDrop":
+      return { dropWeapon: boolean(value.dropWeapon, "LootDrop.dropWeapon"), table: string(value.table, "LootDrop.table") };
+    case "Container": {
+      const hold = number(value.hold, "Container.hold");
+      if (hold < 0 || hold > 30) throw new Error("Container.hold must be from 0 to 30 seconds.");
+      return { table: string(value.table, "Container.table"), hold, key: string(value.key, "Container.key") };
+    }
     case "TrafficSignal":
       return {
         green: positiveNumber(value.green, "TrafficSignal.green"),
@@ -666,8 +697,18 @@ export function normalizeComponent(
         meleeDamage: nonNegativeNumber(value.meleeDamage, "AICombat.meleeDamage"),
       };
     }
-    case "Weapons":
-      return { loadout: string(value.loadout, "Weapons.loadout") };
+    case "Weapons": {
+      const within = (v: unknown, label: string, min: number, max: number) => {
+        const n = number(v, label);
+        if (n < min || n > max) throw new Error(`${label} must be from ${min} to ${max}.`);
+        return n;
+      };
+      return {
+        loadout: string(value.loadout, "Weapons.loadout"),
+        aimAssist: value.aimAssist === undefined ? 0.6 : within(value.aimAssist, "Weapons.aimAssist", 0, 1),
+        assistRange: value.assistRange === undefined ? 60 : within(value.assistRange, "Weapons.assistRange", 1, 1000),
+      };
+    }
     case "Melee": {
       const style = value.style;
       if (style !== "Martial arts" && style !== "Sword" && style !== "Custom")
@@ -785,7 +826,7 @@ export function normalizeComponent(
     }
     case "UI": {
       const kind = value.kind;
-      const kinds: readonly UIKind[] = ["Text", "Button", "Panel", "Image", "Bar", "Slider", "Toggle"];
+      const kinds: readonly UIKind[] = ["Text", "Button", "Panel", "Image", "Bar", "Slider", "Toggle", "Widget"];
       if (typeof kind !== "string" || !kinds.includes(kind as UIKind))
         throw new Error(`UI.kind must be one of ${kinds.join(", ")}.`);
       const anchor = value.anchor;
@@ -809,6 +850,12 @@ export function normalizeComponent(
       if (fontSize <= 0) throw new Error("UI.fontSize must be positive.");
       if (opacity < 0 || opacity > 1) throw new Error("UI.opacity must be from 0 to 1.");
       if (uiValue < 0 || uiValue > 1) throw new Error("UI.value must be from 0 to 1.");
+      const widget = value.widget === undefined ? "Health" : value.widget;
+      if (typeof widget !== "string" || !(uiWidgetNames as readonly string[]).includes(widget))
+        throw new Error(`UI.widget must be one of ${uiWidgetNames.join(", ")}.`);
+      const style = value.style === undefined ? "Modern" : value.style;
+      if (typeof style !== "string" || !(uiStyleNames as readonly string[]).includes(style))
+        throw new Error(`UI.style must be one of ${uiStyleNames.join(", ")}.`);
       return {
         kind: kind as UIKind,
         text: string(value.text, "UI.text"),
@@ -824,6 +871,8 @@ export function normalizeComponent(
         opacity,
         image: value.image === undefined ? "" : string(value.image, "UI.image"),
         value: uiValue,
+        widget: widget as UIWidget,
+        style: style as UIStyle,
       };
     }
     case "Name":

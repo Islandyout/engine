@@ -33,6 +33,7 @@ export interface PlayerSettings {
   flash: number; // impact-frame flashes, 0..1
   shake: boolean; // camera shake
   blockToggle: boolean; // block: one press raises it, the next lowers it
+  aimAssist: boolean; // a scene's Weapons aim assist (off: none at all)
   minimapSize: MinimapSize; // read by the minimap
 }
 
@@ -54,6 +55,7 @@ export const defaultSettings: PlayerSettings = {
   flash: 1,
   shake: true,
   blockToggle: false,
+  aimAssist: true,
   minimapSize: "medium",
 };
 
@@ -81,6 +83,7 @@ export function parseSettings(text: string | null): PlayerSettings {
       flash: clampNumber(v.flash, 0, 1, d.flash),
       shake: v.shake !== false,
       blockToggle: v.blockToggle === true,
+      aimAssist: v.aimAssist !== false,
       minimapSize: v.minimapSize === "small" || v.minimapSize === "large" ? v.minimapSize : "medium",
     };
   } catch {
@@ -358,7 +361,7 @@ export function openSettingsPanel(root: HTMLElement, settings: PlayerSettings, o
     input.oninput = () => update({ [key]: Number(input.value) });
     panel.append(row(text, input));
   };
-  type BoolKey = "invertY" | "reducedMotion" | "minimap" | "footprints" | "shake";
+  type BoolKey = "invertY" | "reducedMotion" | "minimap" | "footprints" | "shake" | "aimAssist";
   const check = (key: BoolKey, text: string) => {
     const box = document.createElement("input");
     box.type = "checkbox";
@@ -389,6 +392,7 @@ export function openSettingsPanel(root: HTMLElement, settings: PlayerSettings, o
   section("Controls");
   slider("sensitivity", "Look sensitivity", 0.5, 1.5);
   check("invertY", "Invert look Y");
+  check("aimAssist", "Aim assist (gamepad and touch; lighter with a mouse)");
   const rows = options.bindings ? bindingRows(options.bindings) : [];
   if (rows.some((r) => r.action === "block"))
     choice("Block", settings.blockToggle ? "toggle" : "hold", [["hold", "Hold"], ["toggle", "Toggle (press again to lower)"]], (v) => update({ blockToggle: v === "toggle" }));
@@ -496,85 +500,4 @@ export function openSettingsPanel(root: HTMLElement, settings: PlayerSettings, o
   overlay.append(panel);
   root.append(overlay);
   return { close, element: overlay };
-}
-
-// On-screen controls for touch: a movement stick (WASD) and buttons, each
-// pressing a key code the way a physical keyboard would.
-export function createTouchControls(root: HTMLElement, press: (code: string, key: string, down: boolean) => void) {
-  const layer = document.createElement("div");
-  layer.className = "touch-controls";
-  const stick = document.createElement("div");
-  stick.className = "touch-stick";
-  const knob = document.createElement("div");
-  knob.className = "touch-knob";
-  stick.append(knob);
-  layer.append(stick);
-  const held = new Set<string>();
-  const set = (code: string, key: string, on: boolean) => {
-    if (on === held.has(code)) return;
-    if (on) held.add(code);
-    else held.delete(code);
-    press(code, key, on);
-  };
-  const move = (dx: number, dy: number) => {
-    knob.style.transform = `translate(${dx * 36}px, ${dy * 36}px)`;
-    set("KeyW", "w", dy < -0.35);
-    set("KeyS", "s", dy > 0.35);
-    set("KeyA", "a", dx < -0.35);
-    set("KeyD", "d", dx > 0.35);
-  };
-  let origin: { x: number; y: number; id: number } | undefined;
-  stick.addEventListener("pointerdown", (e) => {
-    origin = { x: e.clientX, y: e.clientY, id: e.pointerId };
-    stick.setPointerCapture(e.pointerId);
-  });
-  stick.addEventListener("pointermove", (e) => {
-    if (!origin || e.pointerId !== origin.id) return;
-    const dx = Math.max(-1, Math.min(1, (e.clientX - origin.x) / 40));
-    const dy = Math.max(-1, Math.min(1, (e.clientY - origin.y) / 40));
-    move(dx, dy);
-  });
-  const release = () => {
-    origin = undefined;
-    move(0, 0);
-  };
-  stick.addEventListener("pointerup", release);
-  stick.addEventListener("pointercancel", release);
-  const buttons = document.createElement("div");
-  buttons.className = "touch-buttons";
-  for (const [label, code, key] of [
-    ["E", "KeyE", "e"],
-    ["SCAN", "KeyF", "f"],
-    ["UP", "Space", " "],
-    ["DOWN", "KeyC", "c"],
-    ["THR+", "ShiftLeft", "shift"],
-    ["CUT", "KeyX", "x"],
-    ["NAV", "KeyN", "n"],
-    ["MAP", "KeyM", "m"],
-    ["JRNL", "KeyJ", "j"],
-    ["MENU", "KeyP", "p"],
-  ] as const) {
-    const b = document.createElement("button");
-    b.className = "touch-button";
-    b.textContent = label;
-    b.setAttribute("aria-label", label);
-    b.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      set(code, key, true);
-    });
-    const up = () => set(code, key, false);
-    b.addEventListener("pointerup", up);
-    b.addEventListener("pointerleave", up);
-    b.addEventListener("pointercancel", up);
-    buttons.append(b);
-  }
-  layer.append(buttons);
-  root.append(layer);
-  return {
-    element: layer,
-    dispose() {
-      for (const code of [...held]) press(code, "", false);
-      layer.remove();
-    },
-  };
 }

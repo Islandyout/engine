@@ -275,6 +275,38 @@ void Runtime::step_melee(engine::World &w) {
                 held.pressed[b] = pressed(button_actions[b]);
             held.block = actions.state(engine::ActionId{"block"}).down();
             held.sprinting = controller && controller->state.sprinting;
+            const auto *gun = w.get<Arsenal>(self);
+            const auto *in_hand = gun ? gun->current() : nullptr;
+            const bool gun_slot = in_hand && !in_hand->is_melee();
+            fighter.gun_aim = gun_slot && actions.state(engine::ActionId{"aim"}).down();
+            // A gun with nothing in the other hand, in a loadout that has
+            // melee slots, only shoots: no strikes or blocks.
+            const bool only_gun = gun_slot && gun->melee_slots && in_hand->offhand.empty();
+            // A melee slot fights with the move set that suits its blade.
+            if (in_hand && in_hand->is_melee() && state.mode == FighterMode::idle) {
+                const auto &blade = in_hand->melee;
+                const bool martial = blade == "fists" || blade.rfind("dagger", 0) == 0 || blade.rfind("knife", 0) == 0;
+                const std::string wanted = martial ? "martial" : "sword";
+                if (fighter.moveset != wanted) {
+                    auto parsed = engine::gameplay::parse_moves(martial ? engine::gameplay::default_moves_text
+                                                                        : engine::gameplay::sword_moves_text);
+                    if (parsed.error.empty()) {
+                        const float energy = fighter.state.energy, mana = fighter.state.mana, guard = fighter.state.guard;
+                        fighter.moves = std::move(parsed.moves);
+                        fighter.state = engine::gameplay::make_fighter_state(fighter.moves, fighter.settings);
+                        fighter.state.energy = energy;
+                        fighter.state.mana = mana;
+                        fighter.state.guard = guard;
+                        fighter.moveset = wanted;
+                    }
+                }
+            }
+            if (fighter.gun_aim || only_gun) {
+                for (int b = 0; b < engine::gameplay::melee_button_count; ++b)
+                    if (b != static_cast<int>(engine::gameplay::MeleeButton::dodge))
+                        held.pressed[b] = false;
+                held.block = false;
+            }
             if (pressed("lock")) {
                 if (fighter.lock) {
                     fighter.lock.reset();
@@ -475,7 +507,9 @@ void Runtime::step_melee(engine::World &w) {
             event.flags = move.finisher ? melee_finisher : 0;
             push_melee(event);
         } else if (state.mode == FighterMode::idle || state.mode == FighterMode::block) {
-            if (target_box && (fighter.lock || !player)) {
+            if (player && fighter.gun_aim) {
+                fighter.yaw = turn_toward(fighter.yaw, std::atan2(camera_forward_x, camera_forward_z), 14.0F);
+            } else if (target_box && (fighter.lock || !player)) {
                 fighter.yaw = turn_toward(fighter.yaw, yaw_to(box.center, target_box->center), 9.0F);
             } else if (player) {
                 const float speed = std::hypot(body.velocity.x, body.velocity.z);

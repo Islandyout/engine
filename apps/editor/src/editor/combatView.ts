@@ -249,17 +249,22 @@ export class CombatView {
     return false;
   }
 
-  private armed = new Map<number, "blade" | "unarmed">();
-  arm(index: number, weapon: "blade" | "unarmed") {
+  private armed = new Map<number, "blade" | "unarmed" | "shield">();
+  // `fresh`: what is in hand changed (a Weapons slot), forget the old.
+  arm(index: number, weapon: "blade" | "unarmed" | "shield", fresh = false) {
+    // With a shield in the other hand a fighter blocks behind the shield,
+    // whichever hand is placed first.
+    if (!fresh && this.armed.get(index) === "shield" && weapon === "blade") weapon = "shield";
     // The weapon may be in hand before the clips load: remembered for attach().
     this.armed.set(index, weapon);
     const fighter = this.fighters.get(index);
     if (!fighter) return;
-    const guard = weapon === "blade" ? "sword_idle" : "guard";
-    const block = weapon === "blade" ? "sword_block" : "block";
-    if (!fighter.full.has(guard) || fighter.guardClip === guard) return;
-    fighter.guardClip = guard;
+    const guard = weapon === "unarmed" ? "guard" : "sword_idle";
+    const block = weapon === "shield" ? "shield_block" : weapon === "blade" ? "sword_block" : "block";
+    if (!fighter.full.has(guard)) return;
     fighter.blockClip = fighter.full.has(block) ? block : "block";
+    if (fighter.guardClip === guard) return;
+    fighter.guardClip = guard;
     const clip = fighter.clips.find((c) => c.name === guard);
     if (clip && fighter.upper.size) fighter.guardUpper = fighter.mixer.clipAction(filterClip(clip, fighter.upper, true));
     fighter.pose = ""; // re-pick the stance next frame

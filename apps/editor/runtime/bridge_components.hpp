@@ -10,6 +10,8 @@
 #include "engine/gameplay/melee.hpp"
 #include "engine/gameplay/space.hpp"
 #include "engine/gameplay/street.hpp"
+#include "engine/gameplay/aim_assist.hpp"
+#include "engine/gameplay/loot.hpp"
 #include "engine/gameplay/weapons.hpp"
 #include "engine/nav/nav.hpp"
 #include "engine/physics/physics.hpp"
@@ -553,6 +555,15 @@ struct Arsenal final {
     bool script_reload{false};
     int script_select{-1};
     std::optional<engine::Vec3> script_aim;
+    // Aim assist for a Player (Weapons.aimAssist, editor_set_aim_assist).
+    engine::gameplay::AimAssistSettings assist;
+    // Any melee slots (melee=): then a gun slot only shoots, and the
+    // Melee fighter fights only while a melee slot (or a gun with an
+    // off-hand blade) is in hand.
+    bool melee_slots{false};
+    [[nodiscard]] const engine::gameplay::WeaponDef *current() const {
+        return weapons.empty() ? nullptr : &weapons[static_cast<std::size_t>(state.current)];
+    }
 };
 
 // Combat AI: a soldier that perceives hostiles (sight cone with
@@ -627,6 +638,45 @@ struct WeaponEvent final {
 // WeaponEvent::flags bits.
 constexpr int event_headshot = 1, event_killed = 2, event_flesh = 4;
 
+// Loot (engine::gameplay::loot.hpp). A Pickup lies in the world and gives
+// the Player what it holds: walked over, or with interact (E) when `press`.
+// Taken, it goes, or comes back after `respawn` seconds.
+struct Pickup final {
+    engine::gameplay::LootEntry loot;
+    bool press{false};
+    float respawn{0};
+    float respawn_left{0};
+    bool taken{false};
+};
+// What an entity drops when it dies: its gun in hand (drop_weapon) and
+// whatever its table rolls.
+struct LootDrop final {
+    bool drop_weapon{true};
+    std::vector<engine::gameplay::LootEntry> table;
+    bool dropped{false};
+};
+// A crate or chest the Player opens with interact (held for `hold`
+// seconds); its table spills out. `key` names an item it needs (and uses).
+struct Container final {
+    std::vector<engine::gameplay::LootEntry> table;
+    float hold{0};
+    std::string key;
+    bool opened{false};
+};
+// The items an entity carries (keys, coins...), by name.
+struct Items final {
+    std::map<std::string, int> counts;
+};
+// Loot happenings, for the editor's pickup feed and sounds.
+enum class LootEventKind : int { picked, opened, dropped, locked };
+struct LootEvent final {
+    LootEventKind kind{};
+    int entity{-1}; // the pickup, crate or dead entity
+    int amount{0};
+    int rarity{0};
+    std::string label;
+};
+
 // Melee: a fighter's moves and engine::gameplay state, the
 // target it faces and strikes, and the slide a hit leaves it with. The
 // Player fights from the light/heavy/kick/special/dodge/block/lock actions;
@@ -674,6 +724,13 @@ struct Fighter final {
     // hostile fighter within 12 m); a tap dodges as it's released. In a
     // fight dodge stays instant on the press.
     bool calm{false};
+    // A Player fighter who also has a gun (Weapons) and is aiming it: it
+    // faces the aim, the fire button shoots instead of striking, and the aim
+    // button (shared with heavy and block on the mouse and pad) does neither.
+    bool gun_aim{false};
+    // The built-in move set in use ("sword" or "martial"), swapped to suit
+    // the blade when a Weapons melee slot comes into hand.
+    std::string moveset;
     bool dash_sprint{false}; // sprinting from a held dodge this tick
     float dodge_held{-1};    // seconds dodge has been held since a calm press (-1: not held)
 };

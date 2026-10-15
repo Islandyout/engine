@@ -2,6 +2,7 @@
 // games/ folder (tools/build_games.mjs writes ./games.json) plus the scenes a
 // user saved into "My games" in this browser. Pure data helpers first (unit
 // tested), then the overlay DOM.
+import { fuzzyScore } from "./fuzzy";
 
 export interface GameEntry {
   slug: string;
@@ -116,6 +117,18 @@ function button(label: string, onClick: () => void, kind = "") {
   return b;
 }
 
+function filterCards(panel: HTMLElement, query: string) {
+  for (const grid of panel.querySelectorAll<HTMLElement>(".games-grid")) {
+    let shown = 0;
+    for (const c of grid.querySelectorAll<HTMLElement>(".game-card")) {
+      const texts = [...c.querySelectorAll("h3, .game-genre, p")].map((n) => n.textContent ?? "");
+      c.hidden = query.trim() !== "" && Math.max(...texts.map((t) => fuzzyScore(query, t))) < 0;
+      if (!c.hidden) shown++;
+    }
+    grid.parentElement!.hidden = query.trim() !== "" && shown === 0;
+  }
+}
+
 function card(title: string, sub: string, text: string, accent: string, actions: HTMLElement[]) {
   const c = document.createElement("div");
   c.className = "game-card";
@@ -156,7 +169,13 @@ export function openGamesLibrary(root: HTMLElement, hooks: LibraryHooks, store: 
   head.className = "games-head";
   const title = document.createElement("h2");
   title.textContent = "Games";
-  head.append(title, button("Close", close, "btn-ghost"));
+  // Search by title, genre or description; sections with no match hide.
+  const search = document.createElement("input");
+  search.type = "search";
+  search.placeholder = "Search games";
+  search.setAttribute("aria-label", "Search games");
+  search.oninput = () => filterCards(panel, search.value);
+  head.append(title, search, button("Close", close, "btn-ghost"));
   panel.append(head);
 
   const section = (name: string, hint: string) => {

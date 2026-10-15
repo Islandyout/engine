@@ -7,7 +7,8 @@
 // Sources (see assets/CREDITS.md):
 //   - Quaternius Universal Animation Library 1 and 2 (CC0): punches, knee,
 //     uppercut, hit reactions, knockdown/get-up, rolls, slides, jumps, strafe
-//     walks, sword sets, block and specials. Same skeleton: copied as is,
+//     walks, sword sets, block and specials, pistol and bow stances, the
+//     shield guard. Same skeleton: copied as is,
 //     minus scale tracks and translations below the pelvis, with each strike
 //     and its recovery joined into one clip.
 //   - CMU Graphics Lab Motion Capture Database, BVH conversion by Bruce Hahne
@@ -99,6 +100,23 @@ const UAL_CLIPS = [
   ["sword_heavy_a", ["Sword_Heavy_A", "Sword_Heavy_A_Rec"], "hand_r"],
   ["sword_heavy_b", ["Sword_Heavy_B", "Sword_Heavy_B_Rec"], "hand_r"],
   ["sword_heavy_c", ["Sword_Heavy_C", "Sword_Heavy_C_Rec"], "hand_r"],
+  // Guns, shields and bows (gunHold.ts and combatView.ts): the upper-body
+  // stances a held weapon is posed over, its reload, the shield's raised
+  // guard (a sword-and-shield block) and its bash.
+  ["pistol_idle", ["Pistol_Idle_Loop"], ""],
+  ["pistol_aim", ["Pistol_Aim_Neutral"], ""],
+  ["pistol_aim_up", ["Pistol_Aim_Up"], ""],
+  ["pistol_aim_down", ["Pistol_Aim_Down"], ""],
+  ["pistol_shoot", ["Pistol_Shoot"], "hand_r"],
+  ["pistol_reload", ["Pistol_Reload"], ""],
+  ["shield_block", ["Idle_Shield_Loop"], ""],
+  ["shield_bash", ["Shield_OneShot"], "hand_l"],
+  ["shield_run", ["Sprint_Shield_Loop"], ""],
+  ["bow_notch", ["Bow_Notch"], ""],
+  ["bow_aim", ["Bow_Aim_Neutral"], ""],
+  ["bow_aim_up", ["Bow_Aim_Up"], ""],
+  ["bow_aim_down", ["Bow_Aim_Down"], ""],
+  ["bow_shoot", ["Bow_Shoot"], "hand_r"],
 ];
 
 // CMU cuts: [output name, file, cut]. Kicks give the kicking foot and its

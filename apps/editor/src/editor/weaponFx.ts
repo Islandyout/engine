@@ -54,6 +54,11 @@ export interface CombatHud {
   health: number; // 0..1, or < 0 without Health
   slot: number;
   weaponNames: string[];
+  // A hostile is under the crosshair: it turns red.
+  onTarget?: boolean;
+  // The UI kit draws the crosshair, ammo and health (uiKit.ts): only the
+  // hurt vignette and damage arcs here.
+  kit?: boolean;
 }
 
 function radialTexture(inner: string, outer: string, size = 64) {
@@ -534,9 +539,16 @@ export class WeaponFx {
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, width, height);
     }
-    // Crosshair: four lines whose gap follows the real spread cone.
-    ctx.strokeStyle = "rgba(255,255,255,0.92)";
-    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    if (hud.kit) {
+      this.drawIndicators(ctx, cx, cy);
+      ctx.restore();
+      return;
+    }
+    // Crosshair: four lines whose gap follows the real spread cone, red
+    // over a hostile.
+    const crosshair = hud.onTarget ? "rgba(255,70,60,0.95)" : "rgba(255,255,255,0.92)";
+    ctx.strokeStyle = crosshair;
+    ctx.fillStyle = crosshair;
     ctx.lineWidth = 2;
     if (hud.aiming) {
       ctx.beginPath();
@@ -568,16 +580,7 @@ export class WeaponFx {
       }
       ctx.stroke();
     }
-    // Damage direction: a red arc toward the attacker.
-    for (const indicator of this.indicators) {
-      const alpha = Math.min(1, indicator.life);
-      ctx.strokeStyle = `rgba(255,40,30,${0.85 * alpha})`;
-      ctx.lineWidth = 6;
-      const angle = indicator.angle - Math.PI / 2;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 110, angle - 0.3, angle + 0.3);
-      ctx.stroke();
-    }
+    this.drawIndicators(ctx, cx, cy);
     // Reload progress under the crosshair.
     if (hud.reloadProgress >= 0) {
       ctx.fillStyle = "rgba(10,16,24,0.6)";
@@ -632,6 +635,19 @@ export class WeaponFx {
       ctx.fillText(`HEALTH ${Math.round(hud.health * 100)}`, x, y - 4);
     }
     ctx.restore();
+  }
+
+  // Damage direction: a red arc toward the attacker.
+  private drawIndicators(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
+    for (const indicator of this.indicators) {
+      const alpha = Math.min(1, indicator.life);
+      ctx.strokeStyle = `rgba(255,40,30,${0.85 * alpha})`;
+      ctx.lineWidth = 6;
+      const angle = indicator.angle - Math.PI / 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 110, angle - 0.3, angle + 0.3);
+      ctx.stroke();
+    }
   }
 
   // Forget transient effects (Stop / a new Play).

@@ -352,8 +352,9 @@ Each pack's own `addons/*/License.txt` (by Quaternius) grants CC0 1.0 Universal.
 ## Combat clip library (0.78.0)
 
 `assets/source/kit/people/combat_clips.glb` holds a bare copy of Mannequin F's
-65-bone Quaternius skeleton (no mesh) and 55 martial-arts animation clips, built
-by `tools/models/import_combat_clips.mjs`. The editor binds them by bone name to
+65-bone Quaternius skeleton (no mesh) and 69 animation clips (55 martial-arts clips;
+since 0.87.0 also the pistol and bow stances, the pistol reload, and the shield guard and
+bash, from the same UAL packs), built by `tools/models/import_combat_clips.mjs`. The editor binds them by bone name to
 any model on that skeleton (Mannequin F, the Talari) when it has a Melee component.
 
 Sources:
@@ -403,7 +404,7 @@ Sources:
 
 Combat clip library SHA-256:
 
-- `assets/source/kit/people/combat_clips.glb`: `f7eb7aed6b2aa2a1647324796463d34a98e88d0be9bfe9b3479332b234616009`
+- `assets/source/kit/people/combat_clips.glb`: `f32cf3d452ac828fb8a003bbdb6eb08afd925bc9885f3923be5b62a7c3daaa42`
 
 ## GATEBREAKER characters and dungeon kit (M0)
 
@@ -680,3 +681,77 @@ Results (near / far triangles; SHA-256):
 - `eztree-pine.glb` (Pine Medium, 9.7 x 16.0 x 10.6 m, 7452 / 838 triangles): `4ba8ae990f41ecb3f12c88f977eac230cb807395132aca9844837f43a5e289e1`
 - `eztree-pine-small.glb` (Pine Small, 3.2 x 7.0 x 3.1 m, 6420 / 928 triangles): `92f80ae120e6189b40d48403173cc29793b213a09d78223e78fabd8734cdd209`
 - `eztree-bush.glb` (Bush 2, 1.8 x 1.6 x 1.7 m, 2236 / 240 triangles): `3dc77e530d767a15374d3d1f680129805dfd37ee492500a109b20d523ff32cd7`
+
+## Guns and medieval weapons (catalog ids 262-312)
+
+From https://github.com/Joudrie/Game @ `41f154889c3b90a49f95e7cef1524d78b94758bb`, each pack with
+its own licence file beside the models.
+
+### Guns: `source/kit/weapons/{pistol,revolver,smg,rifle,carbine,bullpup,shotgun,sniper}-*.glb`
+
+**Quaternius, Ultimate Gun Pack (July 2019)**, CC0 1.0 (https://quaternius.com/packs/ultimategun.html),
+`assets/weapons/quaternius-ultimate-guns/Ultimate Gun Pack - July 2019/GLB/` (the repository's
+`SOURCE.txt` records the GLBs as converted from the pack's FBX with FBX2glTF; `License.txt`,
+CC0 1.0, SHA-256 `83d8959f9fc56353ed571fbe2dc52e4bcd64508e2399501cd45ac2ce3df0bf8c`). Converted by `tools/models/import_weapons.mjs`: each gun is
+scaled to a real length for its class (pistol 0.20 m, revolver 0.27, SMG 0.62, assault rifle
+0.88, carbine 0.84, bullpup 0.76, shotgun 1.05, sniper rifle 1.20; the rest of a class keep
+their size relative to its first model), turned to point its muzzle along +z, moved so the
+origin is the firing hand's grip, and given `offhand` and `muzzle` nodes found from its shape
+(`tools/models/gun_points.mjs`). Source SHA-256 -> result SHA-256:
+- `pistol-1.glb` (`Pistol_1.glb`): `267c2dc0652798aeac335e89c739111ace0ba1090a361c1de16d7bf09ab1b472` -> `29a5cdc6ccd81b18b2f7fcbd456e582a24dc40b0ec5857b3b1fe5c5c43be432d`
+- `pistol-2.glb` (`Pistol_2.glb`): `fadb3a6204be138362ac2d1d33eec7237e7fcc0ccac7b2b5c138b7078440bded` -> `16ac93000b5f61186f1a7d6bfbb980a8b8f26ed519180c9986c8a4e806f2ac75`
+- `pistol-3.glb` (`Pistol_3.glb`): `6dc98cf2e44dc8cd052e402d72b5fe21af70afbfc48a70f3139e22008991fd47` -> `2eb77ad2da4345542cfabde3358ffcd4bc18bd3c3e38e8fa42ebf293f0e0b663`
+- `pistol-4.glb` (`Pistol_4.glb`): `8f5eb9053627df3f3d57e5a7c734b585acde8af941efc739af03815827290ea6` -> `9a210239b8c4a487814b1416241bb171ef7ef9dc22e75e43b776e7fe1e2bff87`
+- `pistol-5.glb` (`Pistol_5.glb`): `4622ab2909aa0f4e88b74a13f52f9e28183a6ff5fca5896fc7e98d44008f2148` -> `14df1a1246cde3f96996ae623daf808f80f30fb8464229021d6c7feed7f0e286`
+- `pistol-6.glb` (`Pistol_6.glb`): `dd03cc48a55e4b95dabc513d494e5d1516f6b6b5a37f9ecc824850b5784f7acb` -> `91eac7c3119e7061b28dc589b614edaa3c113f6f6783f51bbd6bd426537aab2d`
+- `revolver-1.glb` (`Revolver_1.glb`): `d1260ba6e241d589f7a48d88b0350d4c3bb7000b0d81b8b3dadc45d790b7b141` -> `02e00170e10b649da1257bd5d0a653833e04eebcd4a4e5bd650eab9c2fd801ca`
+- `revolver-2.glb` (`Revolver_2.glb`): `7eb93a4d311b8c15e61405ca2db35a86a8ae65ae5eb57783279e3b9617525483` -> `939e9e2cbe587bc5534e70a39796fb72ab407c0d7284d232f95b055d14fd88cc`
+- `revolver-3.glb` (`Revolver_3.glb`): `3e661102b0c277625559316b6d5b6762536e70ac2b071fb9ef0f5f96f4d22158` -> `7060f870aa1874fe2f11b658891f296af23d2433eab7f201509a1a90e26a56e9`
+- `revolver-4.glb` (`Revolver_4.glb`): `6696867a49243671abde2fd22736b62ada795614e24fedbb333840ffdc8700a4` -> `03490238031cd690ff796f259eceb30b02a530ef638b35676e03545a4a253a67`
+- `revolver-5.glb` (`Revolver_5.glb`): `3d24e4743b9043e3d2f932b15e9bc558ffb491c04bc63b0384853bf13da02ee9` -> `302dc039526d49795646099a5126f99a5485bde72c0a0a7f76a0c4485edfbaad`
+- `smg-1.glb` (`SubmachineGun_1.glb`): `421000c75e82bcc5fb47a7ebe4761e065bf7392be924e4fc0e6e3a3ee65daac2` -> `33a5860caa129deff134cec6451d93c6ba89c0ee8fbc8c68fef42d5f9fafb8b9`
+- `smg-2.glb` (`SubmachineGun_2.glb`): `69df22d1aa8603d66366d20c46755cca2a19e1cabe8c1db1b72edb491ae48699` -> `e4ab42b507c3107b28c0b42999c047d90b84a91640018d3b42e067300cb00fd1`
+- `smg-3.glb` (`SubmachineGun_3.glb`): `c71d4c083e296cd8cbbbebb70d7016d399cd551af5aa293617443df765b54c40` -> `b52636fda9c85775f6d63111df4480751f8a044f1fa1cc2cebce9e1f5933992e`
+- `smg-4.glb` (`SubmachineGun_4.glb`): `db4f390298568591b691702f9754b7f52b59e61c2cec7421406a483f208a4464` -> `96f884f5f6a96dae0404d9653057201a4608ad0b037cd385bc18e67fa73a9062`
+- `smg-5.glb` (`SubmachineGun_5.glb`): `b6e9d47d6d35fdac83fed693256f3563d4a78a2cd1cce57340c2afe8343829d3` -> `f4dbc9fa0b238083e5467088fd527721c6069abdfe85cf18dcd787f1519834a8`
+- `rifle-1.glb` (`AssaultRifle_1.glb`): `fbf0acc2c157a35960ad2085ec85da8a61e9a3f547846a46d913455b6b941011` -> `6753cc31749fb163bf6154b8c3a9fd90a8baace9d8bd7628a56b9fb032f6f3e3`
+- `rifle-2.glb` (`AssaultRifle_2.glb`): `5cdb78109f81e2f31cd657bbd133c2c63c3bc0d55a4e7ba4264f09456452a5d7` -> `1ea8437259d77c69062ffa2bcd8aa588629d7d08c608204ed9a2faead9048a37`
+- `rifle-3.glb` (`AssaultRifle_3.glb`): `f9433fb120ec996987e95284e04e6daa5d22303d66316e617e03b98c40d0d767` -> `59ab6c5291f8a9851b1de500faaa0a36c24a767984cbe1027f119ae3704573e7`
+- `rifle-4.glb` (`AssaultRifle_4.glb`): `34f9ea1e664444b024e29c3ad5e910912716b570fe803ce965df19c8ce6907a1` -> `092558b085eeb5079543f9c0c8c7b35ed57272b1bae35d02aa52ca4f088ebae7`
+- `rifle-5.glb` (`AssaultRifle_5.glb`): `ad9c9c94e9cfbe8a06c4cae4a618e5cbb87fbf49ab844d4c3edae856b2390369` -> `396ef945d003ae7546ba4c4b8d78e6d23f2aed61806ac94a41e37e1b7eb5810b`
+- `carbine-1.glb` (`AssaultRifle2_1.glb`): `a6b90047927c65d0026bb19b5d4625b5ed3270e4ea5e39619cc50f0770aa6259` -> `46201e23560f495c9b2c1d00cc989db5b071ed157c9cbc1b0e8e738621b262c9`
+- `carbine-2.glb` (`AssaultRifle2_2.glb`): `eb9c72977de39245d6de94d8c6b0be51ded2a47b3a46cca7909da0eeea712d07` -> `9dab46759ce92b5a8ed9d715c1936be566dadc04a76806a02648f8e95568cf2b`
+- `carbine-3.glb` (`AssaultRifle2_3.glb`): `24d17808c489c60d4ba3b27fc030a66875bd7d6f4cdb927814a9258f49018954` -> `430c37ffc3f1fac4670ff8f15a23e6078ed3c7769996b792cf7310ba85a27d19`
+- `carbine-4.glb` (`AssaultRifle2_4.glb`): `225e11382bdf7fa5d8718b9c3e4d6d5fbf8fdd2328a1e0973b1ae01b2d3db0a4` -> `a45e400be8e70de5a9f3d2a6cc9eb848d5c7cf8e9a1eb256e252a78afd0b53c2`
+- `bullpup-1.glb` (`Bullpup_1.glb`): `55d2040d95e550f0debd9104d8e470ae430ecf5f1fec5334bef937ff03fb61f9` -> `a2d4baeb98177824862c87eee39131d0435e2cc2754d25cc3ec26b60efd4d731`
+- `bullpup-2.glb` (`Bullpup_2.glb`): `39c33b1049183fa4950a4b77f20cc653fe5631b841b2a6db1820f3a731cdd942` -> `c193488f21a4c7718a0d8c53d2e1b509ac0c75043c29db5c29d1df918bc35158`
+- `bullpup-3.glb` (`Bullpup_3.glb`): `cc09f22d5bf6b870a42388b662ec156b9acac2188072a204706b662c1082c05d` -> `3e6da5ed28c376c667a9b9200d1254bbe9140823e194875efbb73e25f9415a8f`
+- `shotgun-1.glb` (`Shotgun_1.glb`): `f10b4e29e8d011c3c8b193c9354c1034121ab5606b1118feff7f2b9cd95f19b2` -> `8af2afd6d9a6588679902e3e9840ce1213cebbc4840ec84a8c0c6e6b56019e8d`
+- `shotgun-2.glb` (`Shotgun_2.glb`): `cc6e3dee173d845a032d6e12c9261caadaf47f7c56c34d4f780f472aa663f7f9` -> `cffdb3d94e7881f4af98d5975c804f6d41b4c7f58525e103e35fa9ff1b649928`
+- `shotgun-3.glb` (`Shotgun_3.glb`): `128a0075192f82582e2e2acc363108cabcb32335086f16b1fa2f5e1186b2ff43` -> `683a5b14ec22e55f176d0df71549dd1f72a1a4349c0149f7dc6701f12f94aa38`
+- `shotgun-4.glb` (`Shotgun_4.glb`): `005510b727171f5355ed18366fd6706fbb182cc1d4b470312e55fda17a1e9f3f` -> `9afe310cefadb8d2809854209255f006aa6e337e4657e9673e33aa4a7a1fd080`
+- `shotgun-sawed-off.glb` (`Shotgun_SawedOff.glb`): `b5d9d6ef843eea412e6422cbed55ac5325e5bd1f8a688c702d51f5cd88dea190` -> `f9601811fbe7538269dae622a8bf9e6dfad14bb27321c3a40617cbc02bceef4b`
+- `shotgun-short-stock.glb` (`Shotgun_ShortStock.glb`): `3392d33d4a4df0821f52a87b83659e057a13b12973a23deffc200bb396a3fcb4` -> `440ffe0dc383eb6045ea8eb46b78c648f2bb70b546aa9d7a5d1ed03167cfa1cd`
+- `sniper-1.glb` (`SniperRifle_1.glb`): `a780e291a22babe8c3472ae9fd0c0f4b98f22382e25c7da3f5507a5761dffc5b` -> `c5ccebe96a08f95136f110406891795f0dff2e125e9a9f79c1ec6220b47a20c0`
+- `sniper-2.glb` (`SniperRifle_2.glb`): `02164bb0a8aa4206f2e8a0b3e5799c6e57408978f2537c98b7bef3fc0229b5f0` -> `50fd532a7373c23606d39f5b58e7d89e26af46474605bb1df31119fdcaa931cd`
+- `sniper-3.glb` (`SniperRifle_3.glb`): `7cdce34dec9a9b1aae6c9e2ef554c88ecdc19554407decc239b159e13d295f3f` -> `1168df0e1d5c1fa3914914d6866fa1cd9d5d2aa63cdc71de8fa0922ebc01803e`
+- `sniper-4.glb` (`SniperRifle_4.glb`): `c69b8d4088176580819c20f44fc80d7742e6ad00ba1ca09cd064d8677b1c4be5` -> `d5d022f01036ee5471a6f250d555d108ee4097797a46b1804e247a909fc0d639`
+- `sniper-5.glb` (`SniperRifle_5.glb`): `095e918bd89823b1ca726eac0016d7c9daee15cc6f71010ab251fb0365819f02` -> `ba24fcc32ca796735a7464e114837cb8789a70d54aaad01d9af94583d172b16e`
+- `sniper-6.glb` (`SniperRifle_6.glb`): `117d4538ca99f2a8ae634f3a4bba6bc2bff8f1be23687e3945c9edf8968936c1` -> `f8d0c8d5aa040027706c764f567063849f0c8f941f07cdfd24eecbba430ca845`
+
+### Melee weapons and shields: `source/kit/weapons/{axe,axe-small,hammer-double,hammer-small,sword-big,sword-golden,bow-golden,bow-evil,shield-heater,shield-heater-2,shield-celtic}.glb`
+
+**Quaternius, Medieval Weapons Pack**, CC0 1.0 (https://quaternius.com/packs/medievalweapons.html),
+`assets/weapons/quaternius-medieval-weapons/GLB/` (with its `License.txt`, CC0 1.0, SHA-256
+`d32abf5eb61a5d20c582525c2ee9d8d42d86401d6b3ea0a2d5283fcaecaa35b9`). Copied unmodified, renamed to kebab case. SHA-256:
+- `axe.glb` (`Axe.glb`): `6bf561bb3d4c1d1cfbc32d925f2afb47fa06b1ddabe180426d4cc4d3cfd12ee1`
+- `axe-small.glb` (`Axe_Small.glb`): `62a45672638b821ffc1a9398a4954be3c1a84c891efc35fbf4d166c7fd175f81`
+- `hammer-double.glb` (`Hammer_Double.glb`): `5ebe511952f2f7806cce9f2e586742c6744b140f008b37c57bf1b723c04809cc`
+- `hammer-small.glb` (`Hammer_Small.glb`): `aa313ac5b683dee8f75fbfd4f391ad44b762ce1c8598808cae9b22f601340d3c`
+- `sword-big.glb` (`Sword_Big.glb`): `2cc50215b851e80821559e76ba7b1d459dfa3fe59a4c9f3bedb61b330f14c222`
+- `sword-golden.glb` (`Sword_Golden.glb`): `5d49392aa725967e36accaddac4740183a092570efc6977db280b884cd607269`
+- `bow-golden.glb` (`Bow_Golden.glb`): `e20a1ffe6ee31e69c50cebe87f9bf9b4c5e84a9e28f24505075a1a38267b06a3`
+- `bow-evil.glb` (`Bow_Evil.glb`): `7406211a4acbf2663816f63fac396bee1c51457fc1829ba0c3631eca43008127`
+- `shield-heater.glb` (`Shield_Heater.glb`): `457649d10c3e29555814ee796a6aa90f2a8f5bab33240ffd23f327de32c6ebe3`
+- `shield-heater-2.glb` (`Shield_Heater_2.glb`): `0421c6a6bcca2cdd5a18f72f6436e5679a423744979c6019b60bb3139347180f`
+- `shield-celtic.glb` (`Shield_Celtic_Golden.glb`): `189ae922fd481230b35042676a6b4a081fc078fc2ddebcf0b0094374b87af236`

@@ -59,6 +59,22 @@ const char *editor_weapons_error();
 const char *editor_last_error();
 double editor_weapon_value(int, int);
 const char *editor_weapon_text(int, int, int);
+void editor_set_aim(double, double, double, double, double, double, double, double, double, int, int);
+void editor_set_aim_assist(int, double, double);
+void editor_set_pickup(int, const char *, int, double);
+void editor_set_loot_drop(int, int, const char *);
+void editor_set_container(int, const char *, double, const char *);
+double editor_pickup_value(int, int);
+const char *editor_pickup_text(int, int);
+double editor_interact_value(int);
+const char *editor_interact_text(int);
+int editor_take_loot_events();
+double editor_loot_event(int, int);
+const char *editor_loot_event_text(int);
+const char *editor_items_text(int);
+int editor_entity_count();
+void editor_aim_assist(int, double, int, int, double);
+double editor_aim_assist_value(int);
 int editor_take_weapon_events();
 double editor_weapon_event(int, int);
 void editor_set_melee(int, int, const char *, double, int, double, double, double, double, double);
@@ -1355,6 +1371,211 @@ int main() {
         editor_tick();
         check(count_events(1) == 1 && editor_value(1, 3) == 1);
 
+        // Third person: the shot leaves the muzzle for whatever the
+        // crosshair ray (from the camera over the shoulder) is on, not along
+        // the stale first-person look straight ahead.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 1, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        editor_set_weapons(0, "pistol: model=pistol held=pistol-1 damage=50 equip=0 spread=0 aim_spread=0");
+        check(editor_add(3, 0.9, -10, 0, 0, 0, 1, 1.8, 1, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(1, 1, 1, 0);
+        check(editor_commit() == 1);
+        check(std::string(editor_weapon_text(0, 0, 2)) == "pistol-1");
+        {
+            const double cx = 0.6, cy = 2.0, cz = 4.0;
+            const double dx = 3 - cx, dy = 0.9 - cy, dz = -10 - cz, d = std::sqrt(dx * dx + dy * dy + dz * dz);
+            editor_input_begin_frame();
+            editor_set_look(0, 0);
+            editor_set_aim(cx, cy, cz, dx / d, dy / d, dz / d, 0.3, 1.3, -0.4, 1, 0);
+            editor_input_mouse_button(0, 1, 0, 0);
+            editor_tick();
+            check(editor_value(1, 3) == 0.5); // hit: 50 of 100
+            int muzzle_shots = 0;
+            const int events = editor_take_weapon_events();
+            for (int e = 0; e < events; ++e)
+                muzzle_shots += editor_weapon_event(e, 0) == 0 && std::abs(editor_weapon_event(e, 3) - 0.3) < 1e-4 &&
+                                std::abs(editor_weapon_event(e, 4) - 1.3) < 1e-4;
+            check(muzzle_shots == 1);
+            editor_input_begin_frame();
+            editor_input_mouse_button(0, 0, 0, 0);
+            editor_tick();
+        }
+        // Forgetting the ray (first person) fires along the look again: a miss.
+        editor_set_aim(0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
+        editor_input_begin_frame();
+        editor_input_mouse_button(0, 1, 0, 0);
+        editor_tick();
+        check(editor_value(1, 3) == 0.5);
+        editor_input_begin_frame();
+        editor_input_mouse_button(0, 0, 0, 0);
+
+        // Aim assist: a hostile soldier near the crosshair slows the view and
+        // pulls it toward them on a gamepad; a mouse only slows; a wall hides
+        // them; a bystander with Health is never a target.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 1, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        editor_set_weapons(0, "pistol: model=pistol");
+        editor_set_aim_assist(0, 0.6, 60);
+        check(editor_add(0, 0.9, -12, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(1, 1, 1, 0);
+        editor_set_soldier(1, 1, 1, 30, 120, 20, 0.3, 0.5, 10, 3, 3, 0.5, 0, 0, 10);
+        check(editor_add(-3, 0.9, -12, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(2, 1, 1, 0); // a bystander: Health, no team
+        check(editor_commit() == 1);
+        {
+            // From the eye height, 1.5 degrees left of the soldier's chest (yaw +1.5).
+            const double cy = 1.17, ty = 0.9 + 1.8 * 0.15, a = 1.5 * 3.14159265 / 180;
+            const double pitch = std::atan2(ty - cy, 12.0);
+            editor_set_aim(0, cy, 0, -std::sin(a) * std::cos(pitch), std::sin(pitch), -std::cos(a) * std::cos(pitch),
+                           0, 0, 0, 0, 0);
+            editor_aim_assist(1, 0, 1, 0, 1.0 / 60);
+            check(editor_aim_assist_value(3) == 1);
+            check(editor_aim_assist_value(0) < 1);
+            check(editor_aim_assist_value(1) < 0); // the soldier is to the right: turn right
+            editor_aim_assist(0, 0, 1, 0, 1.0 / 60);
+            check(editor_aim_assist_value(3) == 1 && editor_aim_assist_value(1) == 0 && editor_aim_assist_value(0) < 1);
+            // Straight at the bystander: nothing.
+            const double b = std::atan2(3.0, 12.0);
+            editor_set_aim(0, cy, 0, -std::sin(b) * std::cos(pitch), std::sin(pitch), -std::cos(b) * std::cos(pitch), 0,
+                           0, 0, 0, 0);
+            editor_aim_assist(1, 0, 1, 0, 1.0 / 60);
+            check(editor_aim_assist_value(3) == -1 && editor_aim_assist_value(4) == -1 && editor_aim_assist_value(0) == 1);
+        }
+        // Out-of-range settings fail loudly.
+        editor_begin();
+        check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_weapons(0, "pistol: model=pistol");
+        editor_set_aim_assist(0, 1.5, 60);
+        check(editor_commit() == 0 && std::string(editor_last_error()).find("aimAssist") != std::string::npos);
+
+        // Loot. A walk-over ammo box (back after a second), a carbine that
+        // waits for E, a chest that needs a key and a held E, and a soldier
+        // that drops its gun and a medkit when it dies.
+        {
+            const auto tap = [&](const char *key) {
+                editor_input_begin_frame();
+                editor_input_key(key, 1);
+                editor_tick();
+                editor_input_begin_frame();
+                editor_input_key(key, 0);
+                editor_tick();
+            };
+            const auto player_at = [&](double x, double z) {
+                check(editor_add(x, 0.9, z, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+                editor_set_controller(0, 0, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+                editor_set_weapons(0, "pistol: model=pistol damage=60 equip=0 mag=12 reserve=24");
+            };
+            const auto small = [&](double x, double z) {
+                check(editor_add(x, 0.3, z, 0, 0, 0, 0.4, 0.4, 0.4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            };
+            editor_begin();
+            player_at(0, 0);
+            small(0.5, 0.5); // 1 ammo
+            editor_set_pickup(1, "1 ammo 30", 0, 1);
+            small(1.8, 0); // 2 carbine
+            editor_set_pickup(2, "1 weapon carbine: model=rifle held=carbine-2 mag=30 rarity=Epic", 1, 0);
+            check(editor_commit() == 1);
+            check(editor_pickup_value(1, 0) == 1 && editor_pickup_value(1, 5) == 1);
+            check(std::string(editor_pickup_text(2, 1)) == "carbine-2" && std::string(editor_pickup_text(2, 2)) == "Epic");
+            editor_tick();
+            // The ammo box is taken by walking over it, and comes back.
+            check(editor_weapon_value(0, 2) == 54 && editor_pickup_value(1, 3) == 1);
+            int got = editor_take_loot_events();
+            check(got == 1 && editor_loot_event(0, 0) == 0 && std::string(editor_loot_event_text(0)) == "Ammo");
+            for (int i = 0; i < 61; ++i)
+                editor_tick();
+            check(editor_weapon_value(0, 2) == 84); // back, and taken again by the one standing on it
+            // The carbine is the interact target; E takes it and it's in hand.
+            check(editor_interact_value(0) == 2 && std::string(editor_interact_text(0)) == "carbine");
+            tap("KeyE");
+            check(editor_weapon_value(0, 5) == 2 && editor_weapon_value(0, 0) == 1 && !editor_alive(2));
+
+            // A chest that needs a Key: locked without it.
+            const auto chest = [&](int index) {
+                check(editor_add(1.5, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+                editor_set_body(index, 1, 1, 0);
+                editor_set_name(index, "Chest");
+                editor_set_container(index, "1 health 50\n1 item Coin 7 rarity=Legendary", 0.5, "Key");
+            };
+            editor_begin();
+            player_at(0, 0);
+            chest(1);
+            check(editor_commit() == 1);
+            editor_tick();
+            check(editor_interact_value(0) == 1 && editor_interact_value(2) == 1 && editor_interact_value(3) == 1 &&
+                  std::string(editor_interact_text(0)) == "Chest" && std::string(editor_interact_text(1)) == "Key");
+            editor_take_loot_events();
+            tap("KeyE");
+            got = editor_take_loot_events();
+            check(got == 1 && editor_loot_event(0, 0) == 3 && std::string(editor_loot_event_text(0)) == "Key");
+            check(editor_pickup_value(1, 10) == 0);
+            // With the key (picked up underfoot), held E opens it.
+            editor_begin();
+            player_at(0, 0);
+            chest(1);
+            small(0, 0); // 2 key
+            editor_set_pickup(2, "1 item Key", 0, 0);
+            check(editor_commit() == 1);
+            editor_tick();
+            check(std::string(editor_items_text(0)) == "Key 1\n" && editor_interact_value(3) == 0);
+            const int before = editor_entity_count();
+            editor_input_begin_frame();
+            editor_input_key("KeyE", 1);
+            for (int i = 0; i < 20; ++i)
+                editor_tick();
+            check(editor_interact_value(1) > 0.5 && editor_pickup_value(1, 10) == 0);
+            for (int i = 0; i < 15; ++i)
+                editor_tick();
+            editor_input_begin_frame();
+            editor_input_key("KeyE", 0);
+            editor_tick();
+            check(editor_pickup_value(1, 10) == 1 && std::string(editor_items_text(0)).empty()); // opened, key used
+            check(editor_entity_count() == before + 2 && editor_pickup_value(before, 5) == 2 &&
+                  std::string(editor_pickup_text(before + 1, 2)) == "Legendary");
+
+            // The soldier falls to a shot: its smg and a medkit drop.
+            editor_begin();
+            player_at(0, 0);
+            check(editor_add(0, 0.9, -8, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 50, 50, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            editor_set_body(1, 1, 1, 0);
+            editor_set_weapons(1, "smg: model=smg held=smg-3");
+            editor_set_loot_drop(1, 1, "1 health 20");
+            check(editor_commit() == 1);
+            const int dropped_from = editor_entity_count();
+            editor_input_begin_frame();
+            editor_set_look(0, -0.05);
+            editor_input_mouse_button(0, 1, 0, 0);
+            editor_tick();
+            editor_input_begin_frame();
+            editor_input_mouse_button(0, 0, 0, 0);
+            editor_tick();
+            check(!editor_alive(1));
+            check(editor_entity_count() == dropped_from + 2);
+            check(std::string(editor_pickup_text(dropped_from, 1)) == "smg-3" && editor_pickup_value(dropped_from, 2) == 1);
+            check(editor_pickup_value(dropped_from + 1, 5) == 2 && editor_pickup_value(dropped_from + 1, 1) == 20);
+        }
+        // Items from Lua: give, count, take (all or nothing).
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_script_source(0, "function on_start()\n"
+                                    "  world.give_item(self.id, 'Coin', 3)\n"
+                                    "  if world.take_item(self.id, 'Coin', 2) and not world.take_item(self.id, 'Coin', 5) then\n"
+                                    "    world.give_item(self.id, 'Gem')\n"
+                                    "  end\n"
+                                    "  if world.items(self.id, 'Gem') == 1 then world.give_item(self.id, 'Key', 2) end\n"
+                                    "end\n");
+        check(editor_commit() == 1);
+        editor_tick();
+        check(std::string(editor_items_text(0)) == "Coin 1\nGem 1\nKey 2\n");
+
+        // A bad loot table fails loudly.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 50, 50, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_loot_drop(0, 1, "0.5 gold 3");
+        check(editor_commit() == 0 && std::string(editor_last_error()).find("LootDrop") != std::string::npos);
+
         // A scripted turret fires a splash launcher with weapon.fire(dir); the
         // explosion damages both targets in range and the victims' scripts
         // hear on_damaged / on_death, and every script hears on_kill.
@@ -2068,6 +2289,95 @@ int main() {
         }
         check(chain.size() >= 3 && chain[0] == "jab" && chain[1] == "cross" && chain[2] == "hook");
         check(editor_fighter_value(0, 6) >= 2 && editor_fighter_value(0, 5) > 0); // combo, energy
+
+        // A fighter with a gun too (dagger and pistol): unaimed, the fire
+        // button (left mouse, shared with light) strikes and the gun stays
+        // quiet; aimed (right mouse), it shoots and doesn't strike, block or
+        // throw the heavy that shares the aim button.
+        {
+            editor_begin();
+            add_player(0);
+            editor_set_weapons(0, "pistol: model=pistol equip=0");
+            check(editor_add(0, 0.9, 1.25, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 500, 500, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            check(editor_commit() == 1);
+            settle();
+            editor_take_melee_events();
+            editor_take_weapon_events();
+            const auto shots = [&] {
+                int fired = 0;
+                const int events = editor_take_weapon_events();
+                for (int e = 0; e < events; ++e)
+                    fired += editor_weapon_event(e, 0) == 0;
+                return fired;
+            };
+            editor_input_begin_frame();
+            editor_input_mouse_button(0, 1, 0, 0);
+            editor_tick();
+            editor_input_begin_frame();
+            editor_input_mouse_button(0, 0, 0, 0);
+            editor_tick();
+            check(melee_events(0) == 1 && shots() == 0);
+            for (int i = 0; i < 60; ++i)
+                editor_tick();
+            editor_take_melee_events();
+            editor_input_begin_frame();
+            editor_input_mouse_button(2, 1, 0, 0);
+            editor_tick();
+            check(melee_events(0) == 0 && editor_fighter_value(0, 1) != 2); // no heavy, no block
+            editor_input_begin_frame();
+            editor_input_mouse_button(0, 1, 0, 0);
+            editor_tick();
+            check(shots() == 1 && melee_events(0) == 0);
+            editor_input_begin_frame();
+            editor_input_mouse_button(0, 0, 0, 0);
+            editor_input_mouse_button(2, 0, 0, 0);
+            editor_tick();
+        }
+
+        // One inventory: a pistol and a sword, no Melee component. The pistol
+        // shoots on the left button and never strikes; the 2 key brings the
+        // sword (a fighter of its own), whose left button strikes and never
+        // shoots; 1 brings the pistol back.
+        {
+            editor_begin();
+            check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            editor_set_controller(0, 1, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+            editor_set_weapons(0, "pistol: model=pistol equip=0\nsword: melee=sword offhand=shield-round equip=0");
+            check(editor_add(0, 0.9, 1.25, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 500, 500, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            check(editor_commit() == 1);
+            check(editor_fighter_value(0, 0) == 1); // a fighter, from the melee slot
+            check(std::string(editor_weapon_text(0, 1, 3)) == "sword" && std::string(editor_weapon_text(0, 1, 4)) == "shield-round");
+            settle();
+            editor_take_melee_events();
+            editor_take_weapon_events();
+            const auto shots = [&] {
+                int fired = 0;
+                const int events = editor_take_weapon_events();
+                for (int e = 0; e < events; ++e)
+                    fired += editor_weapon_event(e, 0) == 0;
+                return fired;
+            };
+            const auto click = [&] {
+                editor_input_begin_frame();
+                editor_input_mouse_button(0, 1, 0, 0);
+                editor_tick();
+                editor_input_begin_frame();
+                editor_input_mouse_button(0, 0, 0, 0);
+                for (int i = 0; i < 40; ++i)
+                    editor_tick();
+            };
+            click();
+            check(shots() == 1 && melee_events(0) == 0);
+            press("Digit2", 10);
+            check(editor_weapon_value(0, 0) == 1);
+            editor_take_melee_events();
+            click();
+            check(shots() == 0 && melee_events(0) == 1);
+            press("Digit1", 10);
+            editor_take_melee_events();
+            click();
+            check(shots() == 1 && melee_events(0) == 0);
+        }
 
         // A kick (F) knocks the dummy back; the F key no longer does the old
         // overlap punch for a fighter.

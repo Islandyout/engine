@@ -3,6 +3,9 @@
 #include "bridge_runtime.hpp"
 
 extern "C" {
+// Defined in bridge_melee.cpp (a Player's melee slots need a fighter).
+void editor_set_melee(int index, int style, const char *moves, double team, int ai, double aggression, double skill,
+                      double reaction, double energy, double guard);
 // Makes the entity a combat soldier, after editor_add for the same
 // index: team (0 = the Player's), behavior (0 patrol, 1 guard, 2 hunt), sight
 // range, field of view in degrees, hearing range, reaction time, accuracy
@@ -231,9 +234,16 @@ EXPORT void editor_set_weapons(int index, const char *text) {
     }
     Arsenal arsenal;
     arsenal.weapons = std::move(parsed.weapons);
+    for (const auto &weapon : arsenal.weapons)
+        arsenal.melee_slots = arsenal.melee_slots || weapon.is_melee();
     arsenal.state = engine::gameplay::make_weapon_state(arsenal.weapons);
     arsenal.state.rng = 0x9E3779B9U + static_cast<std::uint32_t>(index + 2) * 2654435761U;
+    const bool melee_slots = arsenal.melee_slots;
     target->first->set(target->second, arsenal);
+    // A Player with melee slots fights with them: a fighter of its own
+    // when the scene gave it no Melee (editor_set_melee replaces it if so).
+    if (melee_slots && target->first->get<PlayerMarker>(target->second) && !target->first->get<Fighter>(target->second))
+        editor_set_melee(index, 1, "", 0, 0, 0.5, 0.5, 0.25, 0, 60);
 }
 EXPORT const char *editor_weapons_error() { return active->weapons_error.c_str(); }
 // Weapon HUD state: field 0 = current slot, 1 = rounds loaded, 2 = reserve
@@ -281,16 +291,156 @@ EXPORT double editor_weapon_value(int index, int field) {
         return 0;
     }
 }
-// A weapon's name (field 0) or first-person model (field 1).
+// Aim assist for this entity's Weapons (a Player's): strength 0 (off) to 1
+// and range in metres (engine::gameplay::aim_assist).
+EXPORT void editor_set_aim_assist(int index, double strength, double range) {
+    const auto target = staged(index);
+    if (!target)
+        return;
+    auto *arsenal = target->first->get<Arsenal>(target->second);
+    if (!arsenal)
+        return;
+    if (!(strength >= 0 && strength <= 1 && range > 0 && range <= 1000)) {
+        fail("a Weapons aimAssist outside 0..1 or an assistRange outside 0..1000 m");
+        return;
+    }
+    arsenal->assist.strength = static_cast<float>(strength);
+    arsenal->assist.range = static_cast<float>(range);
+}
+// The third-person crosshair ray, once per rendered frame: the camera
+// (ox, oy, oz), the unit direction through the crosshair, and the held gun's
+// muzzle (has_muzzle 0 when nothing is held). clear = 1 forgets it (first
+// person, or no shooter).
+EXPORT void editor_set_aim(double ox, double oy, double oz, double dx, double dy, double dz, double mx, double my,
+                           double mz, int has_muzzle, int clear) {
+    if (clear) {
+        active->aim_ray.reset();
+        return;
+    }
+    for (double v : {ox, oy, oz, dx, dy, dz, mx, my, mz})
+        if (!std::isfinite(v) || std::abs(v) > 1e6)
+            return;
+    const double length = std::sqrt(dx * dx + dy * dy + dz * dz);
+    if (length < 1e-6)
+        return;
+    Runtime::AimRay ray;
+    ray.origin = {static_cast<float>(ox), static_cast<float>(oy), static_cast<float>(oz)};
+    ray.direction = {static_cast<float>(dx / length), static_cast<float>(dy / length), static_cast<float>(dz / length)};
+    if (has_muzzle)
+        ray.muzzle = engine::Vec3{static_cast<float>(mx), static_cast<float>(my), static_cast<float>(mz)};
+    active->aim_ray = ray;
+}
+// Aim assist for the controlled Player along the editor_set_aim ray, once per
+// rendered frame before the view turns: device 0 mouse, 1 gamepad, 2 touch;
+// how fast the player is turning the view (rad/s), whether they are moving,
+// whether aim went down this frame, and the frame time. Read the result with
+// editor_aim_assist_value. Hostile means a soldier or fighter on another team
+// than the Player's; visible means the camera ray to its chest is clear.
+EXPORT void editor_aim_assist(int device, double look_speed, int moving, int aim_pressed, double dt) {
+    auto &r = *active;
+    r.aim_assist_result = {};
+    r.aim_assist_target = r.aim_over_target = -1;
+    if (!r.aim_ray || !std::isfinite(look_speed) || !std::isfinite(dt))
+        return;
+    auto &w = r.world;
+    std::optional<engine::Entity> player;
+    for (const auto entity : w.query<engine::Box, PlayerMarker>())
+        player = entity;
+    const auto *arsenal = player ? w.get<Arsenal>(*player) : nullptr;
+    if (!arsenal || arsenal->weapons.empty())
+        return;
+    const auto &ray = *r.aim_ray;
+    const int team = r.team_of(w, *player);
+    std::vector<engine::gameplay::AimTarget> targets;
+    std::vector<int> indices;
+    for (const auto entity : w.query<engine::Box, Health>()) {
+        if (entity == *player)
+            continue;
+        const int other = r.team_of(w, entity);
+        const auto &box = *w.get<engine::Box>(entity);
+        engine::gameplay::AimTarget target;
+        target.center = {box.center.x, box.center.y + box.size.y * 0.15F, box.center.z};
+        target.radius = std::max(box.size.x, box.size.z) / 2;
+        target.hostile = other >= 0 && other != team;
+        if (!target.hostile)
+            continue;
+        const engine::Vec3 to{target.center.x - ray.origin.x, target.center.y - ray.origin.y,
+                              target.center.z - ray.origin.z};
+        const float distance = std::sqrt(to.x * to.x + to.y * to.y + to.z * to.z);
+        if (distance < 1e-3F || distance > arsenal->assist.range + 2)
+            continue;
+        const auto seen =
+            r.trace(w, ray.origin, {to.x / distance, to.y / distance, to.z / distance}, distance + 1, *player);
+        target.visible = seen && seen->entity && *seen->entity == entity;
+        targets.push_back(target);
+        indices.push_back(r.index_of(entity));
+    }
+    engine::gameplay::AimInput input;
+    input.origin = ray.origin;
+    input.direction = ray.direction;
+    input.device = device == 1   ? engine::gameplay::AimDevice::gamepad
+                   : device == 2 ? engine::gameplay::AimDevice::touch
+                                 : engine::gameplay::AimDevice::mouse;
+    input.look_speed = static_cast<float>(look_speed);
+    input.moving = moving != 0;
+    input.aim_pressed = aim_pressed != 0;
+    input.dt = static_cast<float>(std::clamp(dt, 0.0, 0.25));
+    r.aim_assist_result = engine::gameplay::aim_assist(arsenal->assist, targets, input);
+    if (r.aim_assist_result.target >= 0)
+        r.aim_assist_target = indices[static_cast<std::size_t>(r.aim_assist_result.target)];
+    if (r.aim_assist_result.over >= 0)
+        r.aim_over_target = indices[static_cast<std::size_t>(r.aim_assist_result.over)];
+}
+// The latest editor_aim_assist result: field 0 = look slowdown (multiplies
+// sensitivity), 1 = yaw to add (radians, look convention: + turns left),
+// 2 = pitch to add (+ up), 3 = the assisted entity's index (-1 none), 4 =
+// the hostile under the crosshair (-1 none).
+EXPORT double editor_aim_assist_value(int field) {
+    const auto &r = *active;
+    switch (field) {
+    case 0:
+        return r.aim_assist_result.slowdown;
+    case 1:
+        return r.aim_assist_result.yaw;
+    case 2:
+        return r.aim_assist_result.pitch;
+    case 3:
+        return r.aim_assist_target;
+    case 4:
+        return r.aim_over_target;
+    default:
+        return 0;
+    }
+}
+// A weapon's name (field 0), first-person model (field 1), held model
+// (field 2: `held`, or "" for the model's default), melee model (field 3:
+// `melee`, "" for a gun) or off-hand model (field 4: `offhand`).
+// Switches a Weapons entity to `slot` on its next tick (the UI kit's hotbar,
+// inventory and weapon wheel). 0 when it has no Weapons or no such slot.
+EXPORT int editor_select_weapon(int index, int slot) {
+    if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
+        return 0;
+    const auto entity = active->entities[static_cast<std::size_t>(index)];
+    auto *arsenal = active->world.alive(entity) ? active->world.get<Arsenal>(entity) : nullptr;
+    if (!arsenal || slot < 0 || static_cast<std::size_t>(slot) >= arsenal->weapons.size())
+        return 0;
+    arsenal->script_select = slot;
+    return 1;
+}
 EXPORT const char *editor_weapon_text(int index, int slot, int field) {
     static std::string result;
     result.clear();
     if (index >= 0 && static_cast<std::size_t>(index) < active->entities.size()) {
         const auto entity = active->entities[static_cast<std::size_t>(index)];
         const auto *arsenal = active->world.alive(entity) ? active->world.get<Arsenal>(entity) : nullptr;
-        if (arsenal && slot >= 0 && static_cast<std::size_t>(slot) < arsenal->weapons.size())
-            result = field == 0 ? arsenal->weapons[static_cast<std::size_t>(slot)].name
-                                : arsenal->weapons[static_cast<std::size_t>(slot)].model;
+        if (arsenal && slot >= 0 && static_cast<std::size_t>(slot) < arsenal->weapons.size()) {
+            const auto &weapon = arsenal->weapons[static_cast<std::size_t>(slot)];
+            result = field == 0   ? weapon.name
+                     : field == 1 ? weapon.model
+                     : field == 2 ? weapon.held
+                     : field == 3 ? weapon.melee
+                                  : weapon.offhand;
+        }
     }
     return result.c_str();
 }

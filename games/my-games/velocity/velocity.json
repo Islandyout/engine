@@ -114,7 +114,9 @@
      },
      "opacity": 0.95,
      "image": "",
-     "value": 0
+     "value": 0,
+     "widget": "Health",
+     "style": "Modern"
     }
    }
   },
@@ -146,7 +148,9 @@
      },
      "opacity": 0.95,
      "image": "",
-     "value": 0
+     "value": 0,
+     "widget": "Health",
+     "style": "Modern"
     }
    }
   },
@@ -178,7 +182,9 @@
      },
      "opacity": 0.95,
      "image": "",
-     "value": 0
+     "value": 0,
+     "widget": "Health",
+     "style": "Modern"
     }
    }
   },
@@ -210,7 +216,9 @@
      },
      "opacity": 0.95,
      "image": "",
-     "value": 0
+     "value": 0,
+     "widget": "Health",
+     "style": "Modern"
     }
    }
   },
@@ -242,7 +250,9 @@
      },
      "opacity": 0.9,
      "image": "",
-     "value": 0
+     "value": 0,
+     "widget": "Health",
+     "style": "Modern"
     }
    }
   },
@@ -274,7 +284,9 @@
      },
      "opacity": 0.95,
      "image": "",
-     "value": 0
+     "value": 0,
+     "widget": "Health",
+     "style": "Modern"
     }
    }
   },
@@ -306,7 +318,9 @@
      },
      "opacity": 0.6,
      "image": "",
-     "value": 0
+     "value": 0,
+     "widget": "Health",
+     "style": "Modern"
     }
    }
   },
