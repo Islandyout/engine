@@ -7,7 +7,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const { chromium } = require("playwright");
 const { saveFailure } = require("./evidence.cjs");
-const { serve, bot } = require("./gatebreaker_bot.cjs");
+const { serve, bot } = require("./player_bot.cjs");
 
 const WATCH = `
 -- @prop lines ""
