@@ -98,3 +98,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F91](changelog/F91.md) | `Inventory` component (item-kind and weight caps, worn head/body/hands), `inventory.*` Lua API, full-inventory pickups (0.90.0) |
 | [F92](changelog/F92.md) | `main.ts` split into 21 parts under `editor/app/` (no behaviour change) |
 | [F93](changelog/F93.md) | A Player starts empty-handed (loadout is carried, not held), no default rifle, one item in hand (`offhand=` only on melee slots) |
+| [F94](changelog/F94.md) | UI "When clicked" actions and key-toggled screens, tracked Objectives, worn-gear effects, a fuller Inventory widget (0.91.0) |

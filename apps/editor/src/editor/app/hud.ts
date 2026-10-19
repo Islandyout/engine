@@ -258,6 +258,7 @@ export function installHud(C: Ctx): void {
     while (C.uiFeed.damage.length && time - C.uiFeed.damage[0]!.at > 1) C.uiFeed.damage.shift();
     while (C.uiFeed.kills.length && time - C.uiFeed.kills[0]!.at > 6) C.uiFeed.kills.shift();
     const items = player >= 0 ? (C.runtime.ccall("editor_items_text", "string", ["number"], [player]) as string) : "";
+    const gear = player >= 0 ? readGear(player) : undefined;
     C.viewport.dataset.items = items.trim().split("\n").join(", "); // for tests
     return {
       time,
@@ -298,18 +299,40 @@ export function installHud(C: Ctx): void {
         return { x: at.x, y: at.y, amount: hit.amount, crit: hit.crit, age: time - hit.at };
       }).filter((hit) => hit.age >= 0),
       boss: boss && bossName && boss.health >= 0 ? { name: bossName, health: boss.health, ghost: C.uiFeed.bossGhost, stagger: Math.max(0, boss.stagger) } : undefined,
-      items: items
-        .split("\n")
-        .filter(Boolean)
-        .map((line) => {
-          const space = line.lastIndexOf(" ");
-          return { name: line.slice(0, space), count: Number(line.slice(space + 1)) };
-        }),
+      items: gear
+        ? gear.items
+        : items
+            .split("\n")
+            .filter(Boolean)
+            .map((line) => {
+              const space = line.lastIndexOf(" ");
+              return { name: line.slice(0, space), count: Number(line.slice(space + 1)) };
+            }),
+      gear: gear?.gear,
       settings: { master: C.playerSettings.master, sensitivity: C.playerSettings.sensitivity, invertY: C.playerSettings.invertY, aimAssist: C.playerSettings.aimAssist, shake: C.playerSettings.shake },
       title: document.title,
       fighter: player >= 0 && C.combat.isFighter(player) ? fighterReadout(player) : undefined,
       captured: document.pointerLockElement === C.renderer.domElement,
     };
+  }
+
+  // The Player's Inventory (limits, worn items, items with the slot each fits), if it has one.
+  function readGear(player: number): { gear: NonNullable<UIData["gear"]>; items: UIData["items"] } | undefined {
+    const text = C.runtime.ccall("editor_inventory_text", "string", ["number"], [player]) as string;
+    if (!text) return undefined;
+    const gear: NonNullable<UIData["gear"]> = { weight: 0, maxWeight: 0, kinds: 0, maxKinds: 0, worn: { head: "", body: "", hands: "" } };
+    const items: UIData["items"] = [];
+    for (const line of text.split("\n")) {
+      const [tag = "", a = "", b = ""] = line.split(" ");
+      if (tag === "weight") gear.weight = Number(a);
+      else if (tag === "limit") {
+        gear.maxKinds = Number(a);
+        gear.maxWeight = Number(b);
+      } else if (tag === "worn") gear.worn[a as "head" | "body" | "hands"] = line.split(" ").slice(2).join(" ");
+      else if (tag === "item") items.push({ count: Number(a), slot: b === "-" ? undefined : b, name: line.split(" ").slice(3).join(" ") });
+    }
+    gear.kinds = items.length;
+    return { gear, items };
   }
 
   function drawHud() {
@@ -435,8 +458,13 @@ export function installHud(C: Ctx): void {
       };
       if (ui.visibleWhen === "play" && C.doc.mode !== "play") continue;
       if (ui.visibleWhen === "pause" && C.doc.mode !== "pause") continue;
+      // A "toggle" screen is shown while open (and always while editing, so it can be laid out).
+      if (ui.visibleWhen === "toggle" && playing && !C.openUI.has(uiName)) continue;
       if (playing && C.uiVisibility.get(uiName) === false) continue;
-      const value = playing ? (C.uiValues.get(uiName) ?? ui.value) : ui.value;
+      // The Objective widget shows the running objective (unless a script set its text).
+      const objective = playing && ui.kind === "Widget" && ui.widget === "Objective" && override === undefined ? C.objectiveReadout() : undefined;
+      if (objective) ui.text = objective[0];
+      const value = objective ? objective[1] : playing ? (C.uiValues.get(uiName) ?? ui.value) : ui.value;
       if (ui.kind === "Widget") {
         if (playing && C.hiddenWidgets.has(entity.index)) continue;
         const kit = widgetInfo(ui.widget);

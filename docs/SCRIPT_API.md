@@ -82,6 +82,9 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `ui.set_visible(name: string, visible: boolean)` | Shows or hides a UI element. |
 | `ui.marker(name: string, x: number, y: number, z: number, label?: string)` | An on-screen waypoint at a world position, pinned to the screen edge when off screen. |
 | `ui.clear_marker(id: string)` | Removes a marker. |
+| `ui.open(name: string)` | Opens a UI screen (shows it; a Visible-in "toggle" element appears). |
+| `ui.close(name: string)` | Closes a UI screen. |
+| `ui.toggle(name: string)` | Opens a UI screen if closed, closes it if open. |
 | `ui.set_color(name: string, color: string)` | A UI element's text colour (#rrggbb); empty restores its own. |
 
 ## game
@@ -228,6 +231,14 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 |---|---|
 | `save.set(key: string, value: string)` | Stores a value that survives reloads. |
 | `save.get(key: string): string?` | Reads a stored value. |
+
+## objective
+
+| Function | What it does |
+|---|---|
+| `objective.start(id: string)` | Makes an objective (an id from an Objectives component) the active one. |
+| `objective.complete(id: string)` | Completes an objective: its on-complete actions run and the next one starts. Scripts hear on_ui("objective", "start:<id>" or "complete:<id>"). |
+| `objective.progress(id: string, n: number)` | Sets how far a "script" objective is (it completes when n reaches its count). |
 
 ## hud
 

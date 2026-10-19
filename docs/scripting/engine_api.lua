@@ -38,6 +38,8 @@ input = {}
 
 save = {}
 
+objective = {}
+
 hud = {}
 
 audio = {}
@@ -678,6 +680,31 @@ function world.wildlife_state(name) end
 
 --- The camera's horizontal facing (x, z), a unit vector: keep what you spawn out of view.
 function camera.forward() end
+
+--- Makes an objective (an id from an Objectives component) the active one.
+---@param id string
+function objective.start(id) end
+
+--- Completes an objective: its on-complete actions run and the next one starts. Scripts hear on_ui("objective", "start:<id>" or "complete:<id>").
+---@param id string
+function objective.complete(id) end
+
+--- Sets how far a "script" objective is (it completes when n reaches its count).
+---@param id string
+---@param n number
+function objective.progress(id, n) end
+
+--- Opens a UI screen (shows it; a Visible-in "toggle" element appears).
+---@param name string
+function ui.open(name) end
+
+--- Closes a UI screen.
+---@param name string
+function ui.close(name) end
+
+--- Opens a UI screen if closed, closes it if open.
+---@param name string
+function ui.toggle(name) end
 
 --- Reads a line aloud for screen readers and shows it briefly.
 ---@param text string

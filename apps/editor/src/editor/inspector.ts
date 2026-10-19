@@ -13,6 +13,7 @@ import { cardOpen, loadOpenState, saveOpenState, setAll, type OpenState } from "
 import { routineStopsEditor } from "./inspectorWidgets";
 import { searchBox } from "./searchBox";
 import { openScriptApiPanel } from "./scriptApiPanel";
+import { uiEvents, uiScriptStub } from "./uiEvents";
 
 export interface InspectorContext {
   doc: EditorDocument;
@@ -285,6 +286,33 @@ export function renderInspector(inspector: HTMLElement, entity: EntityRef, conte
         openScriptApiPanel(document.body);
       };
       section.append(api);
+    }
+    // A UI element's wiring: what it can tell the game, and a button that writes the script for it.
+    if (type === "UI") {
+      const ui = value as { kind: "Text"; widget: "Health" };
+      const { events } = uiEvents(ui);
+      const help = document.createElement("p");
+      help.className = "component-requires";
+      help.textContent = events.length
+        ? `Events you can answer in "When clicked": ${events.join(", ")}. Actions: show, hide, toggle, give, take, equip, unequip, select, objective start|complete, text, script, pause, resume, restart, quit, settings.`
+        : `"When clicked" runs on clicks. Actions: show, hide, toggle, give, take, equip, unequip, select, objective start|complete, text, script.`;
+      section.append(help);
+      const stub = document.createElement("button");
+      stub.className = "btn btn-sm btn-ghost";
+      stub.textContent = "Add script hook";
+      stub.title = "Adds a Script to this element with an on_ui function that answers it";
+      stub.onclick = (event) => {
+        event.preventDefault();
+        const name = doc.scene.resolve(entity, "Name")?.value || "UI";
+        const source = uiScriptStub(name, ui);
+        const existing = doc.scene.resolve(entity, "Script");
+        if (existing) execute({ command: "set_component", entity, type: "Script", value: { ...existing, source: `${existing.source}\n${source}` } });
+        else {
+          execute({ command: "attach_component", entity, type: "Script" });
+          execute({ command: "set_component", entity, type: "Script", value: { source, props: {} } });
+        }
+      };
+      section.append(stub);
     }
     // The common path for playing a clip: right in the Renderable card,
     // next to the Model it belongs to, no separate "Add component ->

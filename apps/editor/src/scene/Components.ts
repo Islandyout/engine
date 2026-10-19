@@ -233,9 +233,19 @@ export interface InventoryComponent {
   slots: number;
   maxWeight: number;
   weights: string;
+  // What a worn item does, one per line: "Helmet: slot=head armor=10" (armor/damage/speed in %, health in points).
+  stats: string;
   head: string;
   body: string;
   hands: string;
+}
+// Goals the engine tracks for the Objective widget, one per line:
+// "id | Title | Detail | goal | on complete". A goal is "kill <name|any> <n>",
+// "collect <item> <n>", "reach <entity> [metres]", "interact <entity>" or "script"
+// (objective.complete from a script). The first starts at Play; finishing one runs its
+// on-complete actions and starts the next line.
+export interface ObjectivesComponent {
+  list: string;
 }
 export interface TrafficSignalComponent {
   green: number;
@@ -441,9 +451,11 @@ export type UIAnchor =
   | "bottom-left"
   | "bottom-center"
   | "bottom-right";
-export type UIVisibility = "always" | "play" | "pause";
+// "toggle": hidden until its toggleKey is pressed (or an action shows it).
+export type UIVisibility = "always" | "play" | "pause" | "toggle";
 // "script": a click calls on_ui(name, "click") in every script.
-export type UIAction = "restart" | "resume" | "pause" | "quit" | "script";
+// "none": only the "When clicked" lines (UI.onClick) run.
+export type UIAction = "none" | "restart" | "resume" | "pause" | "quit" | "script";
 export interface UIComponent {
   kind: UIKind;
   text: string;
@@ -470,6 +482,11 @@ export interface UIComponent {
   style: UIStyle;
   // Whose data the widget shows: "" the Player, an entity name, or "@target" (under the crosshair).
   source: string;
+  // What a click (a Button, a menu choice, an inventory item...) does: one action per line
+  // (see uiActions.ts / docs/UI_KIT.md), optionally "<event> -> <action>". Empty does nothing extra.
+  onClick: string;
+  // A key code (KeyI, Escape...) that shows/hides a visibleWhen "toggle" element in Play.
+  toggleKey: string;
 }
 export interface NameComponent {
   value: string;

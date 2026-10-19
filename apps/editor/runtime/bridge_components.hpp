@@ -680,9 +680,47 @@ struct Inventory final {
     int slots{0};
     float max_weight{0};
     std::map<std::string, float> weights;
+    // What a worn item does (Inventory.stats, "Name: slot=head armor=10 ...").
+    struct ItemStats final {
+        std::string slot; // "" fits any
+        float armor{0};   // % less damage taken
+        float damage{0};  // % more damage dealt (negative: less)
+        float speed{0};   // % faster walking (negative: slower)
+        float health{0};  // more maximum health
+    };
+    struct Effects final {
+        float armor{0};
+        float damage{1};
+        float speed{1};
+        float health{0};
+    };
+    std::map<std::string, ItemStats> stats;
+    float health_applied{0}; // the health bonus already added to Health.max
     std::string head;
     std::string body;
     std::string hands;
+    [[nodiscard]] Effects effects() const {
+        Effects total;
+        float damage = 0, speed = 0;
+        for (const auto *worn : {&head, &body, &hands}) {
+            const auto found = stats.find(*worn);
+            if (worn->empty() || found == stats.end())
+                continue;
+            total.armor += found->second.armor;
+            damage += found->second.damage;
+            speed += found->second.speed;
+            total.health += found->second.health;
+        }
+        total.armor = std::clamp(total.armor, 0.0F, 90.0F);
+        total.damage = std::max(0.1F, 1.0F + damage / 100.0F);
+        total.speed = std::clamp(1.0F + speed / 100.0F, 0.2F, 3.0F);
+        return total;
+    }
+    // Whether `item` may be worn in `slot` (an item with no stats, or no slot, fits any).
+    [[nodiscard]] bool fits(const std::string &slot, const std::string &item) const {
+        const auto found = stats.find(item);
+        return found == stats.end() || found->second.slot.empty() || found->second.slot == slot;
+    }
     [[nodiscard]] float weight_of(const std::string &name) const {
         const auto found = weights.find(name);
         return found == weights.end() ? 1.0F : found->second;

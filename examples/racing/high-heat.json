@@ -4857,7 +4857,7 @@
      "text": "",
      "anchor": "top-left",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 24,
      "offsetY": 22,
      "width": 0,
@@ -4873,7 +4873,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -4897,7 +4899,7 @@
      "text": "",
      "anchor": "top-left",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 24,
      "offsetY": 54,
      "width": 0,
@@ -4913,7 +4915,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -4937,7 +4941,7 @@
      "text": "",
      "anchor": "top-left",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 24,
      "offsetY": 92,
      "width": 0,
@@ -4953,7 +4957,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -4977,7 +4983,7 @@
      "text": "",
      "anchor": "top-left",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 24,
      "offsetY": 118,
      "width": 0,
@@ -4993,7 +4999,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5017,7 +5025,7 @@
      "text": "",
      "anchor": "top-center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 22,
      "width": 0,
@@ -5033,7 +5041,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5057,7 +5067,7 @@
      "text": "",
      "anchor": "top-center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 52,
      "width": 0,
@@ -5073,7 +5083,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5097,7 +5109,7 @@
      "text": "",
      "anchor": "top-center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 70,
      "width": 300,
@@ -5113,7 +5125,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5137,7 +5151,7 @@
      "text": "",
      "anchor": "top-center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 120,
      "width": 0,
@@ -5153,7 +5167,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5177,7 +5193,7 @@
      "text": "",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": -60,
      "width": 0,
@@ -5193,7 +5209,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5217,7 +5235,7 @@
      "text": "",
      "anchor": "bottom-center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": -40,
      "width": 0,
@@ -5233,7 +5251,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5257,7 +5277,7 @@
      "text": "",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 0,
      "width": 640,
@@ -5273,7 +5293,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5297,7 +5319,7 @@
      "text": "HIGH HEAT",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": -150,
      "width": 0,
@@ -5313,7 +5335,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5337,7 +5361,7 @@
      "text": "Win three races in Bayview. Then outrun the police.",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": -90,
      "width": 0,
@@ -5353,7 +5377,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5393,7 +5419,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5417,7 +5445,7 @@
      "text": "W/S throttle and brake  ·  A/D steer  ·  Space handbrake (drift)",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 60,
      "width": 0,
@@ -5433,7 +5461,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5457,7 +5487,7 @@
      "text": "Shift nitro  ·  R reset car  ·  P pause",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 82,
      "width": 0,
@@ -5473,7 +5503,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5497,7 +5529,7 @@
      "text": "",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 130,
      "width": 0,
@@ -5513,7 +5545,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5537,7 +5571,7 @@
      "text": "",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 0,
      "width": 560,
@@ -5553,7 +5587,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5577,7 +5613,7 @@
      "text": "",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": -60,
      "width": 0,
@@ -5593,7 +5629,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5617,7 +5655,7 @@
      "text": "",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 0,
      "width": 0,
@@ -5633,7 +5671,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5673,7 +5713,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5697,7 +5739,7 @@
      "text": "",
      "anchor": "center",
      "visibleWhen": "pause",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 0,
      "width": 320,
@@ -5713,7 +5755,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5753,7 +5797,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -5793,7 +5839,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,

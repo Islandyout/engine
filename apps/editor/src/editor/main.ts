@@ -47,6 +47,7 @@ import { Visor } from "./visor";
 import { version as editorVersion } from "../../package.json";
 import { commandTemplates } from "../authoring/commandTemplates";
 import { installAnimation } from "./app/animation";
+import { installActions } from "./app/actions";
 import { installAssets } from "./app/assets";
 import { installAudio } from "./app/audio";
 import { installCameras } from "./app/cameras";
@@ -209,6 +210,7 @@ async function startEditor() {
   installAudio(C);
   installHeldGuns(C);
   installEffects(C);
+  installActions(C);
   installAssets(C);
   installSpace(C);
   installScriptHost(C);
@@ -985,6 +987,11 @@ async function startEditor() {
       C.gameKeyUp(code);
       return;
     }
+    // A key that opens or closes a UI screen (UI.toggleKey) is used up by it.
+    if (doc.mode === "play" && !typing && C.toggleKeyPressed(code)) {
+      event.preventDefault();
+      return;
+    }
     keyQueue.push([code, 1]);
     heldKeys.add(code);
     const key = code === event.code ? event.key.toLowerCase() : keyForCode(code);
@@ -1075,6 +1082,8 @@ async function startEditor() {
   C.uiValues = uiValues;
   const uiVisibility = new Map<string, boolean>();
   C.uiVisibility = uiVisibility;
+  C.openUI = new Set<string>();
+  C.objectives = { defs: [], active: "", counts: new Map(), done: new Set(), dead: new Set() };
   /* declared in the context */
   const uiTextOverrides = new Map<string, string>();
   C.uiTextOverrides = uiTextOverrides;
@@ -1340,6 +1349,7 @@ async function startEditor() {
         if (issues.length) log(`Playing with ${issues.length} content problem${issues.length > 1 ? "s" : ""} (see Problems): ${formatIssue(issues[0]!)}`);
         prePlayTarget = controls.target.clone();
         C.syncRuntime();
+        C.startObjectives();
         C.startSpaceView();
         scanner.reset();
         spawnedScans.clear();
@@ -1700,6 +1710,7 @@ async function startEditor() {
         C.setUIValue(hit.name, sliderValue(hit, clickX));
       } else if (hit.action === "script") C.uiEvent(hit.name, "click");
       else C.runUIAction(hit.action);
+      if (hit.kind === "Button") C.runOnClick(hit.name, "click");
       return;
     }
     // First person and the over-the-shoulder shooter: a click in the

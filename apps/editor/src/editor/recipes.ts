@@ -44,6 +44,16 @@ export const recipes: readonly Recipe[] = [
     components: { ...body(0.5, 0.4, 0.5), Renderable: { mesh: 0, material: 0, visible: true }, Collider: { type: "AABB" }, Pickup: { kind: "Item", item: "Coin", amount: 1 } } },
   { id: "chest", name: "Loot container", about: "A crate or chest opened with a held E; spills its loot table.", y: 0.5, hud: ["Interact prompt"],
     components: { ...body(1, 0.8, 0.7), Renderable: { mesh: 0, material: 0, visible: true }, Collider: { type: "AABB" }, Container: {} } },
+  // Screens: UI that is not part of the always-on HUD. They open with a key; "When clicked" and
+  // objective lines wire them to the game (see the UI kit doc).
+  { id: "inventory-screen", name: "Screen: Inventory", about: "Everything carried, its weight and what is worn; opens with I (click an item to wear it).", y: 0.5, hud: [],
+    components: { UI: { kind: "Widget", widget: "Inventory", style: "Modern", anchor: "center", visibleWhen: "toggle", toggleKey: "KeyI", action: "none" } } },
+  { id: "settings-screen", name: "Screen: Settings", about: "Volume, look sensitivity and accessibility; opens with O.", y: 0.5, hud: [],
+    components: { UI: { kind: "Widget", widget: "Settings", style: "Modern", anchor: "center", visibleWhen: "toggle", toggleKey: "KeyO", action: "none" } } },
+  { id: "main-menu", name: "Screen: Main menu", about: "A title screen. Its Play button hides it; give it 'When clicked' lines (play -> objective start ...).", y: 0.5, hud: [],
+    components: { UI: { kind: "Widget", widget: "Main menu", style: "Modern", anchor: "center", visibleWhen: "always", text: "My Game", action: "none", onClick: "# Examples:  play -> objective start find-key  (several actions: a; b)" } } },
+  { id: "objectives", name: "Objectives", about: "Goals the engine tracks (collect, kill, reach, interact) with the Objective widget showing the active one.", y: 0.5, hud: [],
+    components: { Objectives: {}, UI: { kind: "Widget", widget: "Objective", style: "Modern", anchor: "top-right", visibleWhen: "play", action: "none" } } },
 ];
 
 type Execute = (command: Record<string, unknown>) => { ok: boolean; entity?: unknown; error?: string };

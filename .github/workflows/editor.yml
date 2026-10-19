@@ -74,6 +74,7 @@ jobs:
           node tests/browser/loot_ui.cjs
           node tests/browser/equip.cjs
           node tests/browser/inventory.cjs
+          node tests/browser/screens.cjs
           EDITOR_NO_WEBGL=1 node tests/browser/editor.cjs
           node tests/browser/fps.cjs
           node tests/browser/last_signal.cjs

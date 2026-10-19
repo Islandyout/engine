@@ -638,6 +638,7 @@ test("UI attaches with sensible defaults, edits round-trip through save/load, ki
   assert.equal(attached?.kind, "Text");
   assert.equal(attached?.anchor, "top-left");
   assert.equal(attached?.visibleWhen, "always");
+  assert.equal(attached?.action, "none", "a new element does nothing until it is given an action or When-clicked lines");
 
   assert.equal(
     d.execute({
@@ -689,7 +690,7 @@ test("UI attaches with sensible defaults, edits round-trip through save/load, ki
         format: 1,
         entities: [{ components: { UI: { ...base, visibleWhen: "sometimes" } } }],
       }),
-    /always, play, or pause/,
+    /always, play, pause, or toggle/,
   );
   assert.throws(
     () =>

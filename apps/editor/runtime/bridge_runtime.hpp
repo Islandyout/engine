@@ -1578,6 +1578,14 @@ struct Runtime {
         auto *health = w.get<Health>(target);
         if (!health || health->current <= 0 || !(amount > 0))
             return;
+        // Worn gear: the attacker's damage bonus, then the target's armor.
+        if (attacker)
+            if (const auto *gear = w.get<Inventory>(*attacker))
+                amount *= gear->effects().damage;
+        if (const auto *gear = w.get<Inventory>(target))
+            amount *= 1.0F - gear->effects().armor / 100.0F;
+        if (!(amount > 0))
+            return;
         health->current = std::max(0.0F, health->current - amount);
         const bool killed = health->current <= 0;
         if (killed)
@@ -2348,6 +2356,21 @@ struct Runtime {
                       if (space)
                           space_after(w);
                   });
+        // Worn gear that adds maximum health: the bonus follows what is worn.
+        add_timed("editor.gear", engine::FixedPhase::update, 7,
+                  [](engine::World &w, const engine::FixedUpdateContext &) {
+                      for (const auto entity : w.query<Inventory, Health>()) {
+                          auto &gear = *w.get<Inventory>(entity);
+                          auto &health = *w.get<Health>(entity);
+                          const float want = gear.effects().health;
+                          const float delta = want - gear.health_applied;
+                          if (delta == 0)
+                              continue;
+                          gear.health_applied = want;
+                          health.max = std::max(1.0F, health.max + delta);
+                          health.current = delta > 0 ? health.current + delta : std::min(health.current, health.max);
+                      }
+                  });
         // Daily routines and wildlife, after the AI's own wander
         // (which they override) and before physics.
         add_timed("editor.routines", engine::FixedPhase::update, 6,
@@ -2362,6 +2385,7 @@ struct Runtime {
         // before physics (10) integrates the lunges and knockback it sets.
         add_timed("editor.melee", engine::FixedPhase::update, 8,
                   [this](engine::World &w, const engine::FixedUpdateContext &) { step_melee(w); });
+
         add_timed("editor.soldiers", engine::FixedPhase::update, 3,
                   [this](engine::World &w, const engine::FixedUpdateContext &) {
                       time_now += 1.0F / 60.0F;
@@ -2436,7 +2460,13 @@ struct Runtime {
                             intent.move_x = 0;
                             intent.move_y = stick;
                         }
-                        engine::gameplay::begin_step(w, entity, controller->state, controller->settings, intent,
+                        auto settings = controller->settings;
+                        if (const auto *gear = w.get<Inventory>(entity)) {
+                            const float speed = gear->effects().speed; // worn gear
+                            settings.walk_speed *= speed;
+                            settings.sprint_speed *= speed;
+                        }
+                        engine::gameplay::begin_step(w, entity, controller->state, settings, intent,
                                                      physics_config.gravity * body.gravity_scale, 1.0F / 60.0F);
                     } else if (heading && heading->arcade) {
                         drive_car(w, entity, *heading, body, player_car_input());
@@ -3497,7 +3527,7 @@ inline bool BridgeHost::inventory(engine::World &world, engine::Entity entity, c
     }
     if (op == "equip") {
         std::string *worn = inventory ? inventory->slot_named(name) : nullptr;
-        if (!worn || !items || !items->counts.count(wanted))
+        if (!worn || !items || !items->counts.count(wanted) || !inventory->fits(name, wanted))
             return false;
         *worn = wanted;
         return true;

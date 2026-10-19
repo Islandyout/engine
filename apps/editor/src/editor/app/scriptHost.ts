@@ -125,6 +125,12 @@ export function installScriptHost(C: Ctx): void {
       const hours = Number(text);
       C.applyTimeOfDay(Number.isFinite(hours) && hours >= 0 ? hours : undefined);
     } else if (kind === "pause_menu") C.pauseMenu = text === "1";
+    else if (kind === "objective") C.objectiveCommand(text);
+    else if (kind === "ui_open") {
+      const [name = "", mode = "1"] = text.split("|");
+      if (mode === "t") C.toggleUI(name);
+      else C.setUIOpen(name, mode === "1");
+    }
     else if (kind === "ui_color") {
       const [name = "", hex = ""] = text.split("|");
       if (/^#[0-9a-fA-F]{6}$/.test(hex)) C.uiColorOverrides.set(name, new THREE.Color(hex));

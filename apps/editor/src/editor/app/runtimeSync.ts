@@ -183,7 +183,7 @@ export function installRuntimeSync(C: Ctx): void {
     if (container && !isChild) C.runtime.ccall("editor_set_container", null, ["number", "string", "number", "string"], [index, container.table, container.hold, container.key]);
     const inventory = get("Inventory");
     if (inventory && !isChild)
-      C.runtime.ccall("editor_set_inventory", null, ["number", "number", "number", "string", "string", "string", "string"], [index, inventory.slots, inventory.maxWeight, inventory.weights, inventory.head, inventory.body, inventory.hands]);
+      C.runtime.ccall("editor_set_inventory", null, ["number", "number", "number", "string", "string", "string", "string", "string"], [index, inventory.slots, inventory.maxWeight, inventory.weights, inventory.stats, inventory.head, inventory.body, inventory.hands]);
     // Melee: see editor_set_melee (bridge_melee.cpp).
     const melee = get("Melee");
     if (melee && !isChild) {
@@ -242,6 +242,7 @@ export function installRuntimeSync(C: Ctx): void {
     C.districtMap.reset();
     C.uiValues.clear();
     C.uiVisibility.clear();
+    C.openUI.clear();
     C.onPickupTimers.length = 0;
     C.draggingSlider = undefined;
     C.padSnapshot = undefined;

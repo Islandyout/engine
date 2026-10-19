@@ -6364,7 +6364,7 @@
      "text": "",
      "anchor": "top-left",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 24,
      "offsetY": 22,
      "width": 0,
@@ -6380,7 +6380,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -6404,7 +6406,7 @@
      "text": "",
      "anchor": "top-right",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": -24,
      "offsetY": 22,
      "width": 0,
@@ -6420,7 +6422,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -6444,7 +6448,7 @@
      "text": "",
      "anchor": "top-right",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": -24,
      "offsetY": 52,
      "width": 0,
@@ -6460,7 +6464,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -6484,7 +6490,7 @@
      "text": "",
      "anchor": "top-right",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": -24,
      "offsetY": 72,
      "width": 0,
@@ -6500,7 +6506,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -6524,7 +6532,7 @@
      "text": "",
      "anchor": "top-right",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": -24,
      "offsetY": 92,
      "width": 0,
@@ -6540,7 +6548,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -6564,7 +6574,7 @@
      "text": "",
      "anchor": "top-center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 110,
      "width": 0,
@@ -6580,7 +6590,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -6604,7 +6616,7 @@
      "text": "UPLOAD",
      "anchor": "top-center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 70,
      "width": 360,
@@ -6620,7 +6632,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -6644,7 +6658,7 @@
      "text": "",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 0,
      "width": 620,
@@ -6660,7 +6674,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -6684,7 +6700,7 @@
      "text": "LAST SIGNAL",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": -180,
      "width": 0,
@@ -6700,7 +6716,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -6724,7 +6742,7 @@
      "text": "Hostile forces hold the relay outpost. Breach it and destroy its",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": -128,
      "width": 0,
@@ -6740,7 +6758,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -6764,7 +6784,7 @@
      "text": "three generators, upload the signal, then reach extraction.",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": -106,
      "width": 0,
@@ -6780,7 +6800,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -6804,7 +6826,7 @@
      "text": "Difficulty: VETERAN",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": -50,
      "width": 0,
@@ -6820,7 +6842,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -6844,7 +6868,7 @@
      "text": "",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": -14,
      "width": 280,
@@ -6860,7 +6884,9 @@
      "value": 0.5,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -6900,7 +6926,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -6924,7 +6952,7 @@
      "text": "WASD move · Shift sprint · C crouch · Space jump",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 112,
      "width": 0,
@@ -6940,7 +6968,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -6964,7 +6994,7 @@
      "text": "Mouse aim / fire · R reload · 1-4 or Q weapons · P pause",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 132,
      "width": 0,
@@ -6980,7 +7010,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -7004,7 +7036,7 @@
      "text": "",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 168,
      "width": 0,
@@ -7020,7 +7052,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -7044,7 +7078,7 @@
      "text": "",
      "anchor": "center",
      "visibleWhen": "pause",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 0,
      "width": 340,
@@ -7060,7 +7094,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -7084,7 +7120,7 @@
      "text": "PAUSED",
      "anchor": "center",
      "visibleWhen": "pause",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": -70,
      "width": 0,
@@ -7100,7 +7136,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -7140,7 +7178,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -7180,7 +7220,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -7204,7 +7246,7 @@
      "text": "",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 0,
      "width": 560,
@@ -7220,7 +7262,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -7244,7 +7288,7 @@
      "text": "",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": -70,
      "width": 0,
@@ -7260,7 +7304,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -7284,7 +7330,7 @@
      "text": "",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": -18,
      "width": 0,
@@ -7300,7 +7346,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -7324,7 +7372,7 @@
      "text": "",
      "anchor": "center",
      "visibleWhen": "always",
-     "action": "restart",
+     "action": "none",
      "offsetX": 0,
      "offsetY": 10,
      "width": 0,
@@ -7340,7 +7388,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,
@@ -7380,7 +7430,9 @@
      "value": 0,
      "widget": "Health",
      "style": "Modern",
-     "source": ""
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
     },
     "Renderable": {
      "mesh": 0,

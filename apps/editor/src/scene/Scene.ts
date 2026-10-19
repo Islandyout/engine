@@ -31,6 +31,7 @@ import type {
   LootDropComponent,
   ContainerComponent,
   InventoryComponent,
+  ObjectivesComponent,
   WalkerComponent,
   TerrainComponent,
   AudioSettingsComponent,
@@ -100,6 +101,7 @@ export interface SceneComponents {
   LootDrop: LootDropComponent;
   Container: ContainerComponent;
   Inventory: InventoryComponent;
+  Objectives: ObjectivesComponent;
   Walker: WalkerComponent;
   Terrain: TerrainComponent;
   AudioSettings: AudioSettingsComponent;
@@ -159,6 +161,7 @@ export const prefabableComponentNames = [
   "LootDrop",
   "Container",
   "Inventory",
+  "Objectives",
 ] as const satisfies readonly (keyof SceneComponents)[];
 export type PrefabableComponent = (typeof prefabableComponentNames)[number];
 const prefabableComponentSet: ReadonlySet<string> = new Set(
@@ -236,6 +239,7 @@ export class Scene {
     LootDrop: new Map(),
     Container: new Map(),
     Inventory: new Map(),
+    Objectives: new Map(),
     Terrain: new Map(),
     AudioSettings: new Map(),
     PostProcessing: new Map(),
