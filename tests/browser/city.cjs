@@ -7,7 +7,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const { chromium } = require("playwright");
 const { saveFailure } = require("./evidence.cjs");
-const { serve, bot } = require("./gatebreaker_bot.cjs");
+const { serve, bot } = require("./player_bot.cjs");
 
 const WATCH = `
 -- @prop lines ""
@@ -98,9 +98,8 @@ end
   environment.Environment.shadows = false;
   delete environment.PostProcessing;
   const dogs = scene.entities.filter((e) => e.name.startsWith("Dog ")).map((e) => `${e.name}=${e.components.Walker.follow}`).join(";");
-  // A HUD line for the watcher, shaped like VELOCITY's own text UI.
-  const velocity = JSON.parse(await fs.readFile("games/my-games/velocity/velocity.json", "utf8"));
-  const text = velocity.entities.find((e) => e.name === "Objective").components.UI;
+  // A HUD line for the watcher: plain text UI.
+  const text = { kind: "Text", text: "", anchor: "top-left", visibleWhen: "always", action: "script", color: { x: 1, y: 1, z: 1 }, opacity: 1 };
   scene.entities.push(
     { name: "Check", components: { Transform: { position: { x: 0, y: 0, z: 0 } }, UI: { ...text, text: "", anchor: "top-left", offsetX: 20, offsetY: 20, width: 900, fontSize: 14 } } },
     { name: "Watcher", components: { Transform: { position: { x: 0, y: -50, z: 0 } }, Script: { source: WATCH, props: { lines: lines.join(","), dogs } } } },

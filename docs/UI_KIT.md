@@ -122,19 +122,12 @@ The rest is live from the game:
 | Settings | the sliders and toggles change the player's settings (saved, as in the settings panel) |
 | Dialogue | a choice sends `on_ui(name, "choice:N")`; a line without choices sends `"next"` |
 
-### Without widgets
+### Nothing is drawn by itself (0.89)
 
-A game without widgets still gets the kit where the engine has something to show. The style is the scene's first widget's, or Modern:
+Only widgets draw HUD. A component never draws one: `Health`, `Weapons`, `Melee`, `Pickup`, `Vehicle` and `Spaceship` expose data, and the widgets show it. No widget, no HUD.
 
-- the crosshair, ammo and health while holding a gun (instead of the old plain text);
-- the interact prompt, the pickup feed and a weapon's loot card around loot.
-
-## Repositories worth pulling from
-
-| Project | Licence | What it offers |
-| --- | --- | --- |
-| [game-icons.net](https://game-icons.net/) ([GitHub](https://github.com/game-icons/icons)) | CC BY 3.0, credit each author | 4000+ game icons as SVG. They would replace the kit's own 15 icons if wanted. |
-| [Kenney UI Pack](https://kenney.nl/assets/ui-pack) | CC0 | Buttons, panels, sliders and bars as images |
-| [GLoot](https://github.com/peter-kish/gloot) | MIT | A Godot inventory system; a reference for grid and stack rules |
-
-The kit itself uses no outside images: shapes, type and icons are drawn on the HUD canvas.
+- **Templates and Recipes add the widgets as entities.** They appear in the Hierarchy (named `HUD <widget>`), so you can restyle, move or delete them.
+- **Older scenes migrate on load.** The widgets the old implicit HUD used to draw are added once, in the scene's style, and the log says which. Widgets you already have are never replaced or duplicated.
+- **Fighter bars** (health, mana, energy, guard), **World health bar** (floating bars over entities with Health), **Hint** (help text while the mouse is free), **Vehicle instruments** and **Flight instruments** are widgets like the others. The last three are switches for views the game draws itself (one per scene is enough), shown as placeholders while editing.
+- **`source`** says whose data a widget shows: empty is the Player, an entity name, or `@target` (whatever is under the crosshair). Health and Fighter bars use it.
+- **A pickup chooses its own UI.** `Pickup.onPickup` takes one `<UI entity name>: <text> | <seconds>` per line; `{name}` and `{amount}` are filled in. The named element is shown with that text (for the seconds, if given). Nothing is added or replaced.

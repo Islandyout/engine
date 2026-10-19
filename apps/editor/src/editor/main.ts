@@ -1,3 +1,4 @@
+import { lastHudMigration } from "../scene/SceneSerializer";
 import * as THREE from "three";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import { transformCommand, type TransformMode, type TransformSnapshot } from "./TransformEdit";
@@ -28,6 +29,8 @@ import { editorLayoutHtml } from "./editorLayout";
 import { UIPainter } from "./uiDraw";
 import { openTemplatePicker } from "./templatePicker";
 import { openUIKitPicker } from "./uiKitPicker";
+import { applyRecipe } from "./recipes";
+import { openRecipePicker } from "./recipePicker";
 import { templateScene } from "./sceneTemplates";
 import { renderInspector } from "./inspector";
 import { CanvasRenderer } from "./CanvasRenderer";
@@ -1386,6 +1389,9 @@ async function startEditor() {
       gap = Math.max(gap, held.pose.gap.left, held.pose.gap.right);
     }
     // For tests: how many characters hold a gun, and the worst hand gap.
+    let hands = 0;
+    for (const held of gunPoses.values()) hands += held.holders.length;
+    viewport.dataset.hands = String(hands);
     if (gunPoses.size) viewport.dataset.guns = `${holding},${gap.toFixed(3)},${gunPoses.size}`;
     else delete viewport.dataset.guns;
   }
@@ -3582,6 +3588,34 @@ async function startEditor() {
   const uiVisibility = new Map<string, boolean>();
   let draggingSlider: UIButtonHit | undefined;
   const uiTextOverrides = new Map<string, string>();
+  const onPickupTimers: { name: string; until: number }[] = [];
+  // A Pickup's "On pickup" lines: "<UI entity name>: <text> | <seconds>". The named UI element is
+  // shown with that text (for the seconds, if given). Nothing is added or replaced.
+  function applyOnPickup(sceneIndex: number, label: string, amount: number) {
+    const entity = doc.scene.eachAlive()[sceneIndex];
+    const lines = (entity && doc.scene.resolve(entity, "Pickup")?.onPickup) || "";
+    for (const raw of lines.split("\n")) {
+      const line = raw.trim();
+      if (!line || line.startsWith("#")) continue;
+      const colon = line.indexOf(":");
+      if (colon < 1) {
+        log(`Pickup.onPickup: "${line}" needs "<UI entity name>: <text>".`);
+        continue;
+      }
+      const name = line.slice(0, colon).trim();
+      const rest = line.slice(colon + 1);
+      const bar = rest.lastIndexOf("|");
+      const seconds = bar >= 0 ? Number(rest.slice(bar + 1)) : 0;
+      const text = (bar >= 0 && Number.isFinite(seconds) ? rest.slice(0, bar) : rest).trim().replace(/\{name\}/g, label).replace(/\{amount\}/g, String(amount));
+      if (!doc.scene.eachAlive().some((e) => doc.scene.resolve(e, "Name")?.value === name && doc.scene.resolve(e, "UI"))) {
+        log(`Pickup.onPickup: there is no UI element named "${name}" in the scene.`);
+        continue;
+      }
+      if (text) uiTextOverrides.set(name, text);
+      uiVisibility.set(name, true);
+      if (seconds > 0) onPickupTimers.push({ name, until: performance.now() / 1000 + seconds });
+    }
+  }
   // ui.set_color: a UI element's text colour, by name (cleared like the text).
   const uiColorOverrides = new Map<string, THREE.Color>();
   // Script waypoints (ui.marker), by name.
@@ -3621,6 +3655,7 @@ async function startEditor() {
         amount: Math.max(1, runtime._editor_pickup_value(index, 1)),
         rarity: rarities[runtime._editor_pickup_value(index, 4)] ?? "Common",
         press: runtime._editor_pickup_value(index, 2) === 1,
+        onPickup: "",
         respawn: 0,
       },
     };
@@ -3646,7 +3681,6 @@ async function startEditor() {
   const widgetTexts = new Map<number, { text: string; since: number }>();
   const hiddenWidgets = new Set<number>();
   const sceneWidgets = new Set<UIWidget>();
-  let kitStyle: UIStyle = "Modern";
   let frameUIData: UIData | undefined;
   const uiFeed = {
     hitAt: -Infinity,
@@ -3681,6 +3715,7 @@ async function startEditor() {
       const rarity = runtime._editor_loot_event(e, 3);
       if (kind === 0) {
         sounds().pickup(rarity);
+        applyOnPickup(entity, label, runtime._editor_loot_event(e, 2));
         lootFeed.push({ label, rarity, amount: runtime._editor_loot_event(e, 2), kind: runtime._editor_pickup_value(entity, 5), at: time });
       } else if (kind === 1) {
         const object = objects[entity];
@@ -3692,6 +3727,11 @@ async function startEditor() {
         sounds().locked();
         lootFeed.push({ label: `Needs ${label}`, rarity: 0, amount: 0, kind: -1, at: time });
       }
+    }
+    for (let k = onPickupTimers.length - 1; k >= 0; k--) {
+      if (time < onPickupTimers[k]!.until) continue;
+      uiVisibility.set(onPickupTimers[k]!.name, false);
+      onPickupTimers.splice(k, 1);
     }
     while (lootFeed.length && time - lootFeed[0]!.at > 6) lootFeed.shift();
     while (lootFeed.length > 6) lootFeed.shift();
@@ -3925,6 +3965,7 @@ async function startEditor() {
     districtMap.reset();
     uiValues.clear();
     uiVisibility.clear();
+    onPickupTimers.length = 0;
     draggingSlider = undefined;
     padSnapshot = undefined;
     pointerQueue.length = 0;
@@ -4380,7 +4421,9 @@ async function startEditor() {
     // A fighter with Weapons too (a dagger and a pistol) holds the gun in
     // its free hand, raised only while aiming.
     const gunPose =
-      get("Weapons") && (thirdPersonPlayer || get("AICombat") || get("Melee")) && animState && cached && catalog?.animated
+      // (A fighter or player without Weapons still gets one: a pickup creates its arsenal in Play,
+      // and the weapon must show the moment it is equipped.)
+      (get("Weapons") || get("Melee") || thirdPersonPlayer) && (thirdPersonPlayer || get("AICombat") || get("Melee")) && animState && cached && catalog?.animated
         ? GunPose.create(cached.scene, object)
         : undefined;
     if (gunPose)
@@ -4498,6 +4541,12 @@ async function startEditor() {
     }
     particleStates.push(particleState);
     deathStates.push(undefined);
+  }
+  // Loads a scene and says what the HUD migration added to an older one (hudMigration.ts).
+  function loadDocument(data: unknown) {
+    doc.load(data);
+    if (lastHudMigration.length)
+      log(`Scene updated: nothing draws HUD by itself any more, so ${lastHudMigration.length} widget${lastHudMigration.length === 1 ? "" : "s"} were added as entities you can restyle or delete: ${lastHudMigration.join(", ")}.`);
   }
   function rebuild() {
     pickupViews.clear();
@@ -4759,7 +4808,7 @@ async function startEditor() {
     if (doc.mode !== "edit") return;
     openTemplatePicker(document.body, (template) => {
       if (doc.dirty && !confirm("Discard unsaved scene?")) return;
-      doc.load(templateScene(template));
+      loadDocument(templateScene(template));
       rebuild();
     });
   };
@@ -4788,7 +4837,7 @@ async function startEditor() {
         if (doc.mode !== "edit") el("stop").click();
         if (doc.dirty && !confirm("Discard unsaved scene?")) return;
         try {
-          doc.load(JSON.parse(text));
+          loadDocument(JSON.parse(text));
           doc.project = name;
           el<HTMLInputElement>("project").value = name;
           rebuild();
@@ -4803,7 +4852,7 @@ async function startEditor() {
       const file = el<HTMLInputElement>("open").files?.[0];
       if (file) {
         if (file.size > 2_000_000) throw new Error("Scene file exceeds 2 MB");
-        doc.load(JSON.parse(await file.text()));
+        loadDocument(JSON.parse(await file.text()));
         rebuild();
       }
     } catch (e) {
@@ -5201,6 +5250,21 @@ async function startEditor() {
         value: { mesh: entry.id, material: 0, visible: true },
       });
   };
+  // Recipes: a kind of thing with the right components, and optionally its HUD widgets.
+  el("recipes").onclick = () =>
+    openRecipePicker(document.body, (recipe, withHud, style) => {
+      try {
+        const existing = new Set<string>();
+        for (const e of doc.scene.eachAlive()) {
+          const ui = doc.scene.resolve(e, "UI");
+          if (ui?.kind === "Widget") existing.add(ui.widget);
+        }
+        const added = applyRecipe(execute as never, recipe, withHud, style, doc.scene.entityCount, existing);
+        log(`Added ${added.join(", ")}.`);
+      } catch (error) {
+        log(`Recipe failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
   // UI templates: adds UI kit widgets as UI entities, each where its
   // catalog entry puts it.
   el("ui-kit").onclick = () =>
@@ -5580,7 +5644,7 @@ async function startEditor() {
   try {
     if (exportedScene) {
       app.classList.add("player-mode");
-      doc.load(JSON.parse(exportedScene));
+      loadDocument(JSON.parse(exportedScene));
       // Preload every catalog model this scene references before the first
       // rebuild()/Play below. Without this, Play would start immediately
       // against empty placeholder boxes -- and they'd stay boxes: the
@@ -5607,7 +5671,7 @@ async function startEditor() {
       await Promise.all([...meshIds].map((id) => loadCatalogModel(id)?.catch((error) => log(`Catalog model ${id} failed to load: ${String(error)}`))));
     } else {
       const saved = localStorage.getItem("game-engine-editor:scene");
-      if (saved) doc.load(JSON.parse(saved));
+      if (saved) loadDocument(JSON.parse(saved));
       else {
         doc.execute({
           command: "spawn_entity",
@@ -6525,8 +6589,6 @@ async function startEditor() {
         weaponNames: names,
         kit: true,
       });
-      for (const name of ["Crosshair", "Ammo", "Health"] as const) drawDefaultWidget(name);
-      drawCaptureHint(cx, cy);
       const lines: string[] = [];
       if (weaponCount > 0) {
         const reserve = runtime._editor_weapon_value(playerIndex, 2);
@@ -6550,21 +6612,7 @@ async function startEditor() {
       hudCtx.lineTo(cx + dx * 11, cy + dy * 11);
     }
     hudCtx.stroke();
-    drawCaptureHint(cx, cy);
     return [];
-  }
-  function drawCaptureHint(cx: number, cy: number) {
-    if (doc.mode === "play" && document.pointerLockElement !== renderer.domElement) {
-      hudCtx.font = "600 14px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif";
-      hudCtx.textAlign = "center";
-      hudCtx.textBaseline = "top";
-      hudCtx.fillStyle = "rgba(10, 16, 24, 0.7)";
-      const text = shooterActive() ? "Click to aim with the mouse (Esc releases)" : "Click to look around (Esc releases) · right-drag also looks";
-      const width = hudCtx.measureText(text).width + 20;
-      hudCtx.fillRect(cx - width / 2, cy + 110, width, 26);
-      hudCtx.fillStyle = "#fff";
-      hudCtx.fillText(text, cx, cy + 116);
-    }
   }
   // The boss bar's numbers: its entity by Name.
   function bossReadout() {
@@ -6587,6 +6635,23 @@ async function startEditor() {
     const time = performance.now() / 1000;
     frameUIData ??= doc.mode === "edit" ? { ...sampleUIData(time, hud.width, hud.height), pointer: uiPointer } : gatherUIData(time);
     return frameUIData;
+  }
+  function fighterReadout(index: number) {
+    return {
+      health: Math.max(0, runtime._editor_value(index, EntityField.health)),
+      mana: runtime._editor_fighter_value(index, FighterField.mana),
+      energy: runtime._editor_fighter_value(index, FighterField.energy),
+      guard: runtime._editor_fighter_value(index, FighterField.guard),
+    };
+  }
+  // A widget with a Source shows that entity's health and fighter bars instead of the Player's.
+  function dataForSource(source: string): UIData {
+    const base = uiData();
+    if (doc.mode === "edit" || !source) return base;
+    const index = source === "@target" ? tps.over : doc.scene.eachAlive().findIndex((e) => doc.scene.resolve(e, "Name")?.value === source);
+    if (index < 0 || !runtime._editor_alive(index)) return { ...base, health: -1, fighter: undefined };
+    const health = runtime._editor_value(index, EntityField.health);
+    return { ...base, health, healthGhost: health, fighter: combat.isFighter(index) ? fighterReadout(index) : undefined };
   }
   function gatherUIData(time: number): UIData {
     const dt = Math.min(0.1, Math.max(0, time - uiFeed.last));
@@ -6711,33 +6776,25 @@ async function startEditor() {
         }),
       settings: { master: playerSettings.master, sensitivity: playerSettings.sensitivity, invertY: playerSettings.invertY, aimAssist: playerSettings.aimAssist, shake: playerSettings.shake },
       title: document.title,
+      fighter: player >= 0 && combat.isFighter(player) ? fighterReadout(player) : undefined,
+      captured: document.pointerLockElement === renderer.domElement,
     };
-  }
-  // A widget the scene doesn't have, in its catalog place and the scene's
-  // style: the gun HUD, and the loot prompt, feed and card.
-  function drawDefaultWidget(name: UIWidget) {
-    if (sceneWidgets.has(name)) return;
-    const kit = widgetInfo(name);
-    const rect = layoutRect(kit.anchor, hud.width, hud.height, kit.width, kit.height, kit.offsetX, kit.offsetY);
-    drawWidget(hudCtx, { widget: name, style: kitStyle, text: kit.text, value: kit.value, fontSize: 16, textAge: 0, preview: false }, rect, uiData());
   }
   function drawHud() {
     hudCtx.clearRect(0, 0, hud.width, hud.height);
     frameUIData = undefined;
     widgetHits.length = 0;
     sceneWidgets.clear();
-    kitStyle = "Modern";
     for (const entity of doc.scene.eachAlive()) {
       const ui = doc.scene.resolve(entity, "UI");
       if (ui?.kind !== "Widget") continue;
-      if (!sceneWidgets.size) kitStyle = ui.style;
       sceneWidgets.add(ui.widget);
     }
     // The visor under everything else, while walking in a suit.
     if (doc.mode !== "edit" && spaceView && !spaceView.flight.piloting) visor.draw(hudCtx, hud.width, hud.height);
     uiButtonHits.length = 0;
     const hudLines: string[] = [];
-    if (doc.mode === "play")
+    if (doc.mode === "play" && sceneWidgets.has("World health bar"))
       doc.scene.eachAlive().forEach((entity, index) => {
         if (!doc.scene.effectiveHas(entity, "Health")) return;
         if (!runtime._editor_alive(index)) return;
@@ -6785,6 +6842,7 @@ async function startEditor() {
             return hudScratch.z > 1 ? undefined : { x: ((hudScratch.x + 1) / 2) * hud.width, y: ((1 - hudScratch.y) / 2) * hud.height };
           },
           objects,
+          sceneWidgets.has("Fighter bars"),
         ),
       );
     // Scanner reticle.
@@ -6798,7 +6856,7 @@ async function startEditor() {
       const me = playerIndex >= 0 ? objects[playerIndex] : undefined;
       const nearShip = !!ship && !!me && !spaceView.flight.piloting && spaceView.flight.landed && me.position.distanceTo(ship.position) < 9;
       // A game with its own interaction prompt (a "Prompt" UI text) owns the hint.
-      drawFlightHud(hudCtx, hud.width, hud.height, spaceView, viewCamera, nearShip && !uiTextOverrides.has("Prompt"));
+      if (sceneWidgets.has("Flight instruments")) drawFlightHud(hudCtx, hud.width, hud.height, spaceView, viewCamera, nearShip && !uiTextOverrides.has("Prompt"));
       drawExplorerHud(hudLines);
       // The same readout as text, for screen readers and tests.
       const f = spaceView.flight;
@@ -6817,7 +6875,8 @@ async function startEditor() {
       const car = carView(playerIndex);
       const playerEntity = doc.scene.eachAlive()[playerIndex];
       const topSpeed = (playerEntity && doc.scene.resolve(playerEntity, "Vehicle")?.topSpeed) || 60;
-      carFx.drawSpeedometer(hudCtx, hud.width, hud.height, car, topSpeed);
+      const instruments = sceneWidgets.has("Vehicle instruments");
+      if (instruments) carFx.drawSpeedometer(hudCtx, hud.width, hud.height, car, topSpeed);
       const me = objects[playerIndex]!;
       const blips: MinimapBlip[] = [];
       objects.forEach((anchor, i) => {
@@ -6826,7 +6885,7 @@ async function startEditor() {
         blips.push({ x: anchor.position.x, z: anchor.position.z, kind: mode === 2 ? "police" : mode === 1 ? "racer" : "traffic" });
       });
       for (const marker of uiMarkers.values()) blips.push({ x: marker.position.x, z: marker.position.z, kind: "marker" });
-      carFx.drawMinimap(hudCtx, hud.height, { x: me.position.x, z: me.position.z, yaw: me.rotation.y }, minimapRoads, blips);
+      if (instruments) carFx.drawMinimap(hudCtx, hud.height, { x: me.position.x, z: me.position.z, yaw: me.rotation.y }, minimapRoads, blips);
       hudLines.push(`${Math.round(car.speed * 3.6)} km/h`, `gear ${car.gear < 0 ? "R" : car.gear}`, `nitro ${Math.round(car.nitro * 100)}%`);
     }
     for (const entity of doc.scene.eachAlive()) {
@@ -6855,7 +6914,7 @@ async function startEditor() {
         let seen = widgetTexts.get(entity.index);
         if (!seen || seen.text !== ui.text) widgetTexts.set(entity.index, (seen = { text: ui.text, since: now }));
         const input = { widget: ui.widget, style: ui.style, text: ui.text, value, fontSize: ui.fontSize, textAge: now - seen.since, preview: !playing };
-        const hits = drawWidget(hudCtx, input, rect, uiData());
+        const hits = drawWidget(hudCtx, input, rect, ui.source ? dataForSource(ui.source) : uiData());
         if (playing) for (const hit of hits) widgetHits.push({ ...hit, name: uiName, entity: entity.index });
         if (ui.text) hudLines.push(ui.text);
         continue;
@@ -6879,9 +6938,8 @@ async function startEditor() {
       if (ui.text) hudLines.push(ui.text);
       if (ui.kind === "Bar" || ui.kind === "Slider" || ui.kind === "Toggle") hudLines.push(`${uiName || ui.kind}=${Math.round(value * 100) / 100}`);
     }
-    // Loot: the interact prompt, the pickup feed and a weapon's card.
+    // Loot: the text mirror for screen readers (the widgets draw the prompt, feed and card).
     if (doc.mode === "play" && (runtime._editor_interact_value(0) >= 0 || lootFeed.length)) {
-      for (const name of ["Interact prompt", "Pickup feed", "Loot card"] as const) drawDefaultWidget(name);
       const prompt = uiData().prompt;
       if (prompt) hudLines.push(prompt.locked ? `Needs ${prompt.need}` : `E: ${prompt.verb} ${prompt.name}${prompt.hold >= 0 ? ` (hold ${Math.round(prompt.hold * 100)}%)` : ""}`);
       for (const entry of lootFeed) hudLines.push(entry.kind < 0 ? entry.label : `Picked up ${entry.label}`);

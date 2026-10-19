@@ -1,4 +1,4 @@
-// What GATEBREAKER's browser tests share: the player build served with a
+// What the player-build browser tests share: the player build served with a
 // test copy of the scene, and a bot that walks and fights with the
 // keyboard and mouse the way a player does.
 //
@@ -8,23 +8,6 @@
 const http = require("node:http");
 const fs = require("node:fs/promises");
 const path = require("node:path");
-
-// The scene, with every script's props.fast on, 1-HP enemies (30 HP
-// bosses), and archers and shamans that come to the hunter (their ranged
-// brain has its own unit test), so the bot never chases one round a room.
-async function testScene() {
-  const scene = JSON.parse(await fs.readFile("examples/gatebreaker/gatebreaker.json", "utf8"));
-  for (const entity of scene.entities) if (["Director", "Ledger", "Hub"].includes(entity.name)) entity.components.Script.props.fast = true;
-  for (const [name, prefab] of Object.entries(scene.prefabs)) {
-    const c = prefab.components;
-    // Enemies only: shadows (team 0) and the bind mark keep theirs.
-    if (!c.Melee || c.Melee.team === 0) continue;
-    const hp = /Chieftain|Brute|Warlord/.test(name) ? 30 : 1;
-    c.Health.current = c.Health.maximum = hp;
-    c.Melee.range = 0;
-  }
-  return scene;
-}
 
 // Serves build/site with `scene` embedded as the exported scene.
 async function serve(scene) {
@@ -251,4 +234,4 @@ function bot(page) {
   return { hud, waitHud, position, hold, turn, walkTo, travel, runGate };
 }
 
-module.exports = { testScene, serve, bot };
+module.exports = { serve, bot };

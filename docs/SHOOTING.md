@@ -183,3 +183,8 @@ The Player has a pistol, SMG, rifle, shotgun and sniper rifle.
 - AI fighters don't use guns; the gun-and-blade fighter is the Player only.
 - Aim assist works on the third-person shooter; first-person aim isn't assisted yet.
 - In first person, guns are still the procedural viewmodels.
+
+## Equipping and the HUD (0.89.0)
+
+- A weapon you pick up is equipped at once and drawn in the right hand, also for a fighter or player that had no `Weapons` component before (the held-weapon pose now exists for every `Melee` or third-person `Player`).
+- Picking something up never changes the HUD. The loot prompt, feed and card, the crosshair, ammo and health are widgets you place ([UI_KIT.md](UI_KIT.md)); `Pickup.onPickup` picks what shows for an item.

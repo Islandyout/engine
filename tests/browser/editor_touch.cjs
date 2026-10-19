@@ -209,9 +209,9 @@ async function serveSite() {
       await gamesSearch.waitFor();
       await gamesSearch.fill("city");
       assert.ok((await page.locator("#games-library .game-card:not([hidden]) h3").allTextContents()).includes("City Template"));
-      await gamesSearch.fill("gatebreak");
+      await gamesSearch.fill("template");
       const onScreen = await page.locator("#games-library .game-card h3").evaluateAll((hs) => hs.filter((h) => h.offsetParent !== null).map((h) => h.textContent));
-      assert.deepEqual(onScreen, ["GATEBREAKER"], "only the matching game shows");
+      assert.deepEqual(onScreen, ["City Template"], "only the matching game shows");
       await page.screenshot({ path: "build/browser-evidence/editor-search.png" });
     }
     assert.deepEqual(errors, []);

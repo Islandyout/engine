@@ -72,26 +72,12 @@ jobs:
           node tests/browser/editor_touch.cjs
           node tests/browser/combat_range.cjs
           node tests/browser/loot_ui.cjs
+          node tests/browser/equip.cjs
           EDITOR_NO_WEBGL=1 node tests/browser/editor.cjs
           node tests/browser/fps.cjs
           node tests/browser/last_signal.cjs
           node tests/browser/high_heat.cjs
           node tests/browser/city.cjs
-          node tests/browser/gatebreaker.cjs
-          # These full-length Gatebreaker playthroughs can take tens of minutes each.
-          # Keep pull-request feedback bounded; run the complete regression on schedule/manual dispatch.
-          if [[ "$GITHUB_EVENT_NAME" == "schedule" || "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            node tests/browser/gatebreaker_gate.cjs
-            node tests/browser/gatebreaker_loop.cjs
-            node tests/browser/gatebreaker_field.cjs
-            node tests/browser/gatebreaker_map.cjs
-            node tests/browser/gatebreaker_time.cjs
-            node tests/browser/gatebreaker_high.cjs
-            node tests/browser/velocity.cjs
-            node tests/browser/velocity_campaign.cjs
-          else
-            echo "Deferring Gatebreaker full-playthrough tests to scheduled/manual regression."
-          fi
       - name: Validate generated game library
         if: steps.changes.outputs.core != 'true' && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
         run: |

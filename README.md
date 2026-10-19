@@ -2,7 +2,7 @@
 
 [Open the editor](https://islandyout.github.io/engine/) — build and play games entirely through it; this is the only supported way to play what you build.
 
-**Play [GATEBREAKER](https://islandyout.github.io/engine/gatebreaker.html)** (a manhwa action RPG) or **[VELOCITY](https://islandyout.github.io/engine/velocity.html)** (a superhero slice), or start from the **[City Template](https://islandyout.github.io/engine/city-template.html)**, a working town with traffic, people and a park ([how it's built](docs/world/CITY_TEMPLATE.md)).
+**Start from the [City Template](https://islandyout.github.io/engine/city-template.html)**, a working town with traffic, people and a park ([how it's built](docs/world/CITY_TEMPLATE.md)).
 
 **Games library**: the editor's **Games** button lists every game in [`games/`](games/README.md); add your own under `games/my-games/`.
 
@@ -370,7 +370,7 @@ Engine version 0.78.0 adds hand-to-hand combat:
 
 See [F78](docs/changelog/F78.md).
 
-Engine version 0.79.0 starts **GATEBREAKER**, an original manhwa-style hunter action game ([design](docs/gatebreaker/GAME_DESIGN.md)):
+Engine version 0.79.0 starts **GATEBREAKER**, an original manhwa-style hunter action game ([design notes](docs/lessons/rpg-action-game-design.md); the game itself was removed in 0.89, see `docs/lessons/`):
 
 - **A Manhwa render style**: toon tones, ink lines, rim light, inked sound words (SHK, BOOM), speed lines and impact frames.
 - **Action controls**: dodge, block or parry, three skills and an ultimate on their own keys, and **Shadow Step** behind an enemy after a perfect dodge.
@@ -378,6 +378,8 @@ Engine version 0.79.0 starts **GATEBREAKER**, an original manhwa-style hunter ac
 - **Fixes**: an invisible box that settings entities left at the centre of every scene, squashed AI fighters, and stuck health bars.
 
 See [F79](docs/changelog/F79.md).
+
+Engine version 0.89.0 starts the engine upgrade ([design](docs/UPGRADE_DESIGN.md), [changes](docs/changelog/F90.md)): **only UI widgets draw HUD** (older scenes migrate on load), a pickup chooses its own UI (`Pickup.onPickup`), a picked-up melee weapon is drawn at once, **Recipes** add a player, enemy or car with the right components, and the Inspector groups components and says what each one needs. GATEBREAKER and VELOCITY were removed ([what they taught](docs/lessons/README.md)).
 
 Engine version 0.88.0 adds **loot**, **one loadout for guns and melee**, and a **UI kit**:
 
@@ -408,7 +410,7 @@ Engine version 0.86.0 makes towns **look and work like real ones**:
 
 See [F86](docs/changelog/F86.md).
 
-Engine version 0.85.0 makes **VELOCITY** a full superhero slice ([how to play](games/my-games/velocity/README.md)):
+Engine version 0.85.0 makes **VELOCITY** a full superhero slice (removed in 0.89; see `docs/lessons/superhero-game-plan.md`):
 
 - **Meridian Ward** in daylight, with a minimap and map.
 - **A five-mission campaign**: the tutorial, a robbery with a Shield Heavy, a runaway-rig chase, a rescue, and the three-phase boss Breakline.

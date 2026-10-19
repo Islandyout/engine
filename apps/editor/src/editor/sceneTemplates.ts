@@ -2,6 +2,7 @@
 // an empty scene. Each is a small, playable scene document that shows the
 // components a kind of game is built from. Components are written as just
 // the fields that differ from the defaults; templateScene() fills the rest.
+import { migrateHud } from "../scene/hudMigration";
 import { defaultComponent } from "../authoring/CommandInterpreter";
 import type { UIWidget } from "../scene/Components";
 import { widgetInfo } from "./uiKit";
@@ -447,7 +448,8 @@ function merge(base: unknown, over: unknown): unknown {
 // The template as a complete scene document: every component is its
 // defaults with the template's fields on top.
 export function templateScene(template: SceneTemplate) {
-  return {
+  // A template carries the HUD widgets it needs as real entities (hudMigration.ts adds them).
+  return migrateHud({
     ...template.scene,
     entities: template.scene.entities.map((e) => ({
       name: e.name,
@@ -463,5 +465,5 @@ export function templateScene(template: SceneTemplate) {
         }),
       ),
     })),
-  };
+  } as never).document;
 }

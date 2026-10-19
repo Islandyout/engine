@@ -6,7 +6,7 @@ import type { EditorDocument } from "./Document";
 import type { EntityRef } from "../scene/Components";
 import type { SceneComponents } from "../scene/Scene";
 import { defaultComponent } from "../authoring/CommandInterpreter";
-import { componentDescription, componentGroups, componentLabel, propertyMetadata } from "./PropertyMetadata";
+import { componentDescription, componentGroups, componentLabel, componentRequires, propertyMetadata } from "./PropertyMetadata";
 import { iconEl, textSpan } from "./dom";
 import { fuzzyScore } from "./fuzzy";
 import { cardOpen, loadOpenState, saveOpenState, setAll, type OpenState } from "./inspectorState";
@@ -141,8 +141,21 @@ export function renderInspector(inspector: HTMLElement, entity: EntityRef, conte
     };
     inspector.append(makePrefab);
   }
-  for (const type of doc.scene.effectiveComponentNames(entity)) {
-    if (type === "Parent" || type === "Name" || type === "PrefabInstance") continue;
+  // Cards go in groups (the same ones as the Add component list), each under its own heading.
+  const groupOf = (type: string) => componentGroups.findIndex((g) => g.types.includes(type));
+  const ordered = [...doc.scene.effectiveComponentNames(entity)]
+    .filter((type) => type !== "Parent" && type !== "Name" && type !== "PrefabInstance")
+    .map((type, position) => ({ type, position, group: groupOf(type) }))
+    .sort((a, b) => (a.group < 0 ? 99 : a.group) - (b.group < 0 ? 99 : b.group) || a.position - b.position);
+  let lastGroup = -2;
+  for (const { type, group } of ordered) {
+    if (group !== lastGroup) {
+      lastGroup = group;
+      const heading = document.createElement("h3");
+      heading.className = "component-group";
+      heading.textContent = group >= 0 ? componentGroups[group]!.label : "Other";
+      inspector.append(heading);
+    }
     const section = document.createElement("details");
     section.className = "component-card";
     section.dataset.type = type;
@@ -169,6 +182,21 @@ export function renderInspector(inspector: HTMLElement, entity: EntityRef, conte
       section.append(textSpan(about, "component-help"));
     }
     for (const issue of issues) section.append(textSpan(`⚠ ${issue}`, "component-issue"));
+    const requires = componentRequires[type];
+    const missing = requires ? requires.needs.filter((need) => !doc.scene.effectiveHas(entity, need as keyof SceneComponents)) : [];
+    if (requires && missing.length) {
+      const hint = document.createElement("div");
+      hint.className = "component-requires";
+      hint.append(textSpan(`Needs ${missing.join(" and ")}: ${requires.why}.`));
+      const addMissing = document.createElement("button");
+      addMissing.className = "btn btn-sm";
+      addMissing.textContent = `Add ${missing.join(" and ")}`;
+      addMissing.onclick = () => {
+        for (const need of missing) execute({ command: "attach_component", entity, type: need });
+      };
+      hint.append(addMissing);
+      section.append(hint);
+    }
     // Generate fields from the component's serializable property shape; validation stays in authoring.
     const value = structuredClone(doc.scene.resolve(entity, type)) as unknown as Record<string, unknown>;
     function fields(record: Record<string, unknown>, host: HTMLElement, prefix = "") {
@@ -301,7 +329,13 @@ export function renderInspector(inspector: HTMLElement, entity: EntityRef, conte
     const remove = document.createElement("button");
     remove.className = "btn btn-sm btn-ghost btn-danger-hover";
     remove.append(iconEl("trash"), textSpan("Remove " + type));
-    remove.onclick = () => execute({ command: "remove_component", entity, type });
+    remove.onclick = () => {
+      const dependents = Object.entries(componentRequires)
+        .filter(([other, r]) => r.needs.includes(type) && doc.scene.effectiveHas(entity, other as keyof SceneComponents))
+        .map(([other]) => other);
+      if (dependents.length && !window.confirm(`${dependents.join(", ")} on this entity need${dependents.length === 1 ? "s" : ""} ${type}. Remove it anyway?`)) return;
+      execute({ command: "remove_component", entity, type });
+    };
     section.append(remove);
     inspector.append(section);
   }

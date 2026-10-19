@@ -1,4 +1,4 @@
-// Shared scene-building helpers for GATEBREAKER's scenes (tools/gatebreaker).
+// Shared scene-building helpers for the scene generators in tools/ (tools/city, ...).
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
