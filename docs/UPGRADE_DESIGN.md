@@ -24,6 +24,9 @@ Status: draft, decisions confirmed by the project owner on 2026-10-19. One upgra
 | Inventory contents | Guns and melee in numbered slots 1-9; stackable items (coins, keys, potions) visible in the Inspector; equipment slots (head, body, hands); optional capacity and weight limits with full-inventory rules. |
 | Inspector | Recipes ("Add Character", "Add Enemy", "Add Vehicle"...) that add a component bundle plus optional HUD widgets as visible entities; components grouped/tabbed (Core, Physics, Combat, Visual, Audio, Scripting, UI); "Requires" hints between components (add, remove, warn). No Simple/Advanced toggle. |
 | Old scenes | Auto-migrate on load: scene format version bumps; old loadouts become an Inventory, old implicit HUDs become real widgets; a report lists what changed. |
+| Edit preview | Widgets show sample data in Edit mode, are real entities in the Hierarchy, and can be moved/resized in the viewport. |
+| Widget binding | Every widget has a `Source` field: Player (default), a named entity, or Target under crosshair. |
+| Lua API | Old names keep working as aliases (`world.items`, `world.give_item`, ...); new documented `inventory.*` API (equip, add, remove, list). Aliases are marked deprecated in the API docs. |
 | Games | GATEBREAKER and VELOCITY removed (F89). City Template stays as the living-worlds example. |
 | Delivery | One upgrade branch, one PR. |
 
