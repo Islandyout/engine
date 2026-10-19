@@ -310,6 +310,7 @@ export function installFrame(C: Ctx): void {
     updateHeldWeapons(animDt, (body) => C.combat.guarding(body));
     C.updateGunPoses(animDt);
     C.updateLoot(animDt);
+    C.updateObjectives();
     // Same reasoning as mixers above -- a Particles emitter is as "always on"
     // as a Light, not gated to Play mode like Script/Sound.
     C.particleScale.value = C.viewport.clientHeight / 2;

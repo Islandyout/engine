@@ -343,9 +343,18 @@ What an entity can carry and wear: caps on item kinds and weight, per-item weigh
 | `slots` | 0 | Item kinds it can carry (0 no cap) |
 | `maxWeight` | 0 | Max weight (0 no cap) |
 | `weights` | "" | Item weights (name=1.5, name=2; others 1) |
+| `stats` | "" | Worn item stats (Helmet: slot=head armor=10) |
 | `head` | "" | Worn on head (carried item) |
 | `body` | "" | Worn on body (carried item) |
 | `hands` | "" | Worn on hands (carried item) |
+
+### Objectives
+
+Goals the engine tracks for the Objective widget: kill / collect / reach / interact / script, one per line, each with rewards and a next step.
+
+| Field | Default | Notes |
+|---|---|---|
+| `list` | "find-key \| Find the key \| Search the ou… | Objectives (id \| title \| detail \| goal \| on complete) |
 
 ## Appearance & Animation
 
@@ -489,8 +498,8 @@ An on-screen element: text, button, bar, slider, toggle, image, or a ready-made 
 | `kind` | "Text" | one of Text, Button, Panel, Image, Bar, Slider, Toggle, Widget |
 | `text` | "Text" |  |
 | `anchor` | "top-left" | one of top-left, top-center, top-right, middle-left, center, middle-right, bottom-left, bottom-center, bottom-right |
-| `visibleWhen` | "always" | Visible in. one of always, play, pause |
-| `action` | "restart" | Action (Button; script = call on_ui). one of restart, resume, pause, quit, script |
+| `visibleWhen` | "always" | Visible in. one of always, play, pause, toggle |
+| `action` | "none" | Button action (none = only 'When clicked'; script = call on_ui). one of none, restart, resume, pause, quit, script |
 | `offsetX` | 0 | Offset X (px) |
 | `offsetY` | 0 | Offset Y (px, down) |
 | `width` | 0 | Width (px, 0 = auto) |
@@ -503,6 +512,8 @@ An on-screen element: text, button, bar, slider, toggle, image, or a ready-made 
 | `widget` | "Health" | Widget (Widget). one of Health, Ammo, Crosshair, Damage numbers, Kill feed, Boss bar, Minimap, Compass, Objective, Waypoints, Interact prompt, Pickup feed, Loot card, Inventory, Hotbar, Weapon wheel, Pause menu, Main menu, Settings, Dialogue, Notification, Fighter bars, World health bar, Hint, Vehicle instruments, Flight instruments |
 | `style` | "Modern" | Style (Widget). one of Modern, Battle Royale, Tactical, Fantasy, Sci-fi, Minimal |
 | `source` | "" |  |
+| `onClick` | "" | When clicked (one action per line) |
+| `toggleKey` | "" | Key that shows/hides it (KeyI, Escape...) |
 
 ## Scene & Camera
 

@@ -131,3 +131,67 @@ Only widgets draw HUD. A component never draws one: `Health`, `Weapons`, `Melee`
 - **Fighter bars** (health, mana, energy, guard), **World health bar** (floating bars over entities with Health), **Hint** (help text while the mouse is free), **Vehicle instruments** and **Flight instruments** are widgets like the others. The last three are switches for views the game draws itself (one per scene is enough), shown as placeholders while editing.
 - **`source`** says whose data a widget shows: empty is the Player, an entity name, or `@target` (whatever is under the crosshair). Health and Fighter bars use it.
 - **A pickup chooses its own UI.** `Pickup.onPickup` takes one `<UI entity name>: <text> | <seconds>` per line; `{name}` and `{amount}` are filled in. The named element is shown with that text (for the seconds, if given). Nothing is added or replaced.
+
+## Wiring a UI element without a script (0.91.0)
+
+Every UI element has **When clicked**, **Visible in** and **Key that shows/hides it** in the Inspector. Scripts are optional.
+
+### When clicked
+
+One action per line (or several separated by `;`). A line can start with `<event> ->` to answer only that event; no prefix answers every event. `#` starts a comment.
+
+| Action | Does |
+| --- | --- |
+| `show NAME`, `hide NAME`, `toggle NAME` | open or close another UI element (a "toggle" screen, or any element) |
+| `pause`, `resume`, `restart`, `quit`, `settings` | the game and player settings |
+| `give ITEM [n]`, `take ITEM [n]` | add to / remove from the Player's items (the Inventory's limits apply) |
+| `equip SLOT ITEM`, `unequip SLOT` | wear / take off (head, body, hands) |
+| `select N` | draw weapon slot N |
+| `objective start ID`, `objective complete ID` | drive the Objectives |
+| `text NAME: TEXT` | change another element's text |
+| `script VALUE` | call `on_ui(name, "VALUE")` in every script |
+
+Events: a Button sends `click`; the Main menu `play`; the Pause menu `resume`, `restart`, `quit`, `settings`; Dialogue `choice:N` and `next`; Hotbar / Weapon wheel / Inventory `slot:N`; the Inventory also `equip:<slot>:<item>` and `unequip:<slot>`. A trailing `*` matches a prefix (`choice:*`).
+
+```text
+play -> hide Main menu; objective start find-key
+choice:0 -> give Key
+click -> toggle Bag
+```
+
+A new element's **Button action** is `none`: only its When-clicked lines run. The Inspector lists the events an element sends, and **Add script hook** writes an `on_ui` stub for it if you do want a script.
+
+### Screens that open with a key
+
+Set **Visible in** to `toggle` and **Key** to a key code (`KeyI`, `Tab`, `KeyO`). The element is hidden in Play until the key (or `show`, or `ui.open("Name")` from a script) opens it, and the mouse is released while a screen is open. In the editor it is drawn so you can lay it out. Recipes > `Screen: Inventory`, `Screen: Settings` and `Screen: Main menu` set this up.
+
+### Objectives
+
+An **Objectives** component (Recipes > `Objectives`) holds one objective per line:
+
+```text
+id | Title | Detail | goal | on complete
+```
+
+| Goal | Done when |
+| --- | --- |
+| `collect ITEM n` | the Player carries n of ITEM |
+| `kill NAME n` / `kill any n` | n entities (whose name starts with NAME) are defeated |
+| `reach ENTITY [metres]` | the Player is within the distance (default 3) of the named entity |
+| `interact ENTITY` | the Player picks up or opens the named entity |
+| `script` | a script calls `objective.complete(id)` or `objective.progress(id, n)` |
+
+The first line starts with Play; finishing one runs its **on complete** actions (the same language as When clicked) and starts the next line, unless an action already started another. The **Objective** widget shows the running objective's title, detail and progress. Scripts hear `on_ui("objective", "start:<id>")` and `"complete:<id>"`, and can drive it with `objective.start / complete / progress`.
+
+### Worn items do something
+
+`Inventory.stats` gives items effects, one per line:
+
+```text
+Helmet: slot=head armor=30
+Gloves: slot=hands damage=15
+Boots: slot=body speed=10
+Charm: health=25
+```
+
+`armor` is % less damage taken (up to 90), `damage` % more damage dealt (guns and melee), `speed` % faster (negative slows), `health` more maximum health. `slot=` limits where an item can be worn. The **Inventory** widget shows weight and kinds against the limits, the three worn slots (click to take off) and each item (click a wearable to put it on).

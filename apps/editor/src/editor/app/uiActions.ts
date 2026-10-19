@@ -30,9 +30,28 @@ export function installUiActions(C: Ctx): void {
   }
 
   // A click on a UI kit widget (the actions are listed on UIHit).
+  // A click on a widget: what the widget itself does, then the element's "When clicked" lines.
   function widgetAction(hit: WidgetHit, x: number) {
-    const [kind = "", arg = ""] = hit.action.split(":");
+    builtinWidgetAction(hit, x);
+    C.runOnClick(hit.name, hit.action);
+  }
+  function builtinWidgetAction(hit: WidgetHit, x: number) {
+    const colon = hit.action.indexOf(":");
+    const kind = colon < 0 ? hit.action : hit.action.slice(0, colon);
+    const arg = colon < 0 ? "" : hit.action.slice(colon + 1);
     switch (kind) {
+      case "equip": {
+        // "equip:<slot>:<item>"
+        const split = arg.indexOf(":");
+        const slot = arg.slice(0, split);
+        const item = arg.slice(split + 1);
+        const done = C.runtime.ccall("editor_inventory_op", "number", ["number", "string", "string", "number", "string"], [C.playerIndex, "equip", slot, 0, item]) as number;
+        if (done < 0) C.log(`UI: could not wear ${item} in ${slot}.`);
+        return;
+      }
+      case "unequip":
+        C.runtime.ccall("editor_inventory_op", "number", ["number", "string", "string", "number", "string"], [C.playerIndex, "unequip", arg, 0, ""]);
+        return;
       case "resume":
       case "restart":
       case "quit":

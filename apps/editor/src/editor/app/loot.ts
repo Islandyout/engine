@@ -99,11 +99,13 @@ export function installLoot(C: Ctx): void {
       if (kind === 0) {
         C.sounds().pickup(rarity);
         applyOnPickup(entity, label, C.runtime._editor_loot_event(e, 2));
+        C.objectiveEvent("interact", label);
         C.lootFeed.push({ label, rarity, amount: C.runtime._editor_loot_event(e, 2), kind: C.runtime._editor_pickup_value(entity, 5), at: time });
       } else if (kind === 1) {
         const object = C.objects[entity];
         if (object) {
           C.sounds().crate();
+          C.objectiveEvent("interact", C.entityLabel(entity));
           C.openings.push({ step: openContainer(object, C.viewCamera.position), t: 0 });
         }
       } else if (kind === 3) {

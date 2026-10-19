@@ -1,3 +1,4 @@
+import type { ObjectiveDef } from "../actionScript";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
@@ -209,6 +210,21 @@ export const PARTICLE_PRESETS: Record<ParticlePreset, { direction: THREE.Vector3
 
 // The state and helpers the editor's parts share (app/*.ts install their functions here).
 export interface Ctx {
+  // The UI kit's actions, toggle keys and the Objectives engine (app/actions.ts).
+  openUI: Set<string>;
+  objectives: { defs: ObjectiveDef[]; active: string; counts: Map<string, number>; done: Set<string>; dead: Set<number> };
+  setUIOpen: (name: string, open: boolean) => void;
+  toggleUI: (name: string) => void;
+  toggleKeyPressed: (code: string) => boolean;
+  runActions: (text: string, event: string, source: string) => void;
+  runOnClick: (name: string, event: string) => void;
+  startObjectives: () => void;
+  startObjective: (id: string) => void;
+  completeObjective: (id: string) => void;
+  objectiveCommand: (text: string) => void;
+  objectiveEvent: (kind: "interact", name: string) => void;
+  updateObjectives: () => void;
+  objectiveReadout: () => [string, number] | undefined;
   accumulator: number;
   actionClipSynonyms: Map<string, string[]>;
   activePanners: Map<number, PannerNode>;

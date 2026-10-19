@@ -103,6 +103,7 @@ const componentNames = [
   "LootDrop",
   "Container",
   "Inventory",
+  "Objectives",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -664,7 +665,11 @@ export function defaultComponent(
     case "Container":
       return { table: "1 ammo 60\n0.6 health 50\n0.3 weapon smg: model=smg held=smg-3 rarity=Rare", hold: 0.6, key: "" };
     case "Inventory":
-      return { slots: 0, maxWeight: 0, weights: "", head: "", body: "", hands: "" };
+      return { slots: 0, maxWeight: 0, weights: "", stats: "", head: "", body: "", hands: "" };
+    case "Objectives":
+      return {
+        list: "find-key | Find the key | Search the outpost | collect Key 1 | text Hint: Door unlocked\nopen-door | Open the door | Use the key on the gate | interact Gate |\nescape | Escape | Reach the extraction point | reach Exit 4 |",
+      };
     case "TrafficSignal":
       return { green: 14, yellow: 3, clearance: 2, offset: 0, radius: 9 };
     case "Walker":
@@ -714,7 +719,7 @@ export function defaultComponent(
         text: "Text",
         anchor: "top-left",
         visibleWhen: "always",
-        action: "restart",
+        action: "none",
         offsetX: 0,
         offsetY: 0,
         width: 0,
@@ -727,6 +732,8 @@ export function defaultComponent(
         widget: "Health",
         style: "Modern",
         source: "",
+        onClick: "",
+        toggleKey: "",
       };
     case "Name":
       return { value: "Entity" };

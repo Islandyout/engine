@@ -842,6 +842,42 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "camera"
   },
   {
+    "name": "objective.start",
+    "signature": "objective.start(id: string)",
+    "doc": "Makes an objective (an id from an Objectives component) the active one.",
+    "group": "objective"
+  },
+  {
+    "name": "objective.complete",
+    "signature": "objective.complete(id: string)",
+    "doc": "Completes an objective: its on-complete actions run and the next one starts. Scripts hear on_ui(\"objective\", \"start:<id>\" or \"complete:<id>\").",
+    "group": "objective"
+  },
+  {
+    "name": "objective.progress",
+    "signature": "objective.progress(id: string, n: number)",
+    "doc": "Sets how far a \"script\" objective is (it completes when n reaches its count).",
+    "group": "objective"
+  },
+  {
+    "name": "ui.open",
+    "signature": "ui.open(name: string)",
+    "doc": "Opens a UI screen (shows it; a Visible-in \"toggle\" element appears).",
+    "group": "ui"
+  },
+  {
+    "name": "ui.close",
+    "signature": "ui.close(name: string)",
+    "doc": "Closes a UI screen.",
+    "group": "ui"
+  },
+  {
+    "name": "ui.toggle",
+    "signature": "ui.toggle(name: string)",
+    "doc": "Opens a UI screen if closed, closes it if open.",
+    "group": "ui"
+  },
+  {
     "name": "hud.announce",
     "signature": "hud.announce(text: string)",
     "doc": "Reads a line aloud for screen readers and shows it briefly.",

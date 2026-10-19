@@ -59,7 +59,7 @@ export const widgetCatalog: readonly WidgetInfo[] = [
   info("Interact prompt", "Interaction & loot", "Press or hold to pick up, open or use; says when a key is needed.", "center", [0, 64], [300, 56]),
   info("Pickup feed", "Interaction & loot", "What you just picked up, in its rarity colour.", "bottom-right", [-24, -124], [270, 150]),
   info("Loot card", "Interaction & loot", "A weapon on the ground: rarity, damage, fire rate, magazine.", "center", [230, -10], [260, 156]),
-  info("Inventory", "Interaction & loot", "A grid of everything carried: weapons and items with counts.", "center", [0, 0], [440, 300], "pause"),
+  info("Inventory", "Interaction & loot", "Everything carried: weapons and items with counts, weight against its limit, and what is worn (click to wear or take off).", "center", [0, 0], [440, 300], "pause"),
   info("Hotbar", "Interaction & loot", "Weapon slots 1-9, the one in hand lit; click to switch.", "bottom-center", [0, -24], [340, 58]),
   info("Weapon wheel", "Interaction & loot", "A radial weapon picker; point at a slot and click.", "middle-right", [-60, 0], [320, 320], "pause"),
   info("Pause menu", "Menus & dialogue", "Resume, Restart, Settings and Quit. Text: its title.", "middle-left", [80, 0], [320, 300], "pause", "Paused"),
@@ -107,7 +107,9 @@ export interface UIData {
   kills: { killer: string; victim: string; mine: boolean; age: number }[];
   damage: { x: number; y: number; amount: number; crit: boolean; age: number }[];
   boss: { name: string; health: number; ghost: number; stagger: number } | undefined;
-  items: { name: string; count: number }[];
+  items: { name: string; count: number; slot?: string }[];
+  // The Player's Inventory limits and worn items (absent without an Inventory component).
+  gear: { weight: number; maxWeight: number; kinds: number; maxKinds: number; worn: { head: string; body: string; hands: string } } | undefined;
   settings: { master: number; sensitivity: number; invertY: boolean; aimAssist: boolean; shake: boolean };
   title: string; // the game's name
   fighter: { health: number; mana: number; energy: number; guard: number } | undefined; // the source's fighter bars
@@ -1260,42 +1262,71 @@ const inventory: Draw = (p, r, d, o, hits) => {
   const { left: x, top: y, width: w, height: h } = r;
   p.panel(x, y, w, h);
   const pad = 16 * s;
-  p.text(k.frame === "ornate" ? "Inventory" : "Inventory", x + pad + (k.frame === "slant" ? 8 * s : 0), y + 22 * s, 18, { weight: 800 });
+  const left = x + pad + (k.frame === "slant" ? 8 * s : 0);
+  p.text("Inventory", left, y + 22 * s, 18, { weight: 800 });
   const slots = o.preview ? [{ name: "Carbine", melee: false }, { name: "Sword", melee: true }] : d.slots;
-  const items = o.preview
+  const items: UIData["items"] = o.preview
     ? [
         { name: "Coin", count: 120 },
         { name: "Key", count: 1 },
+        { name: "Helmet", count: 1, slot: "head" },
         { name: "Gem", count: 3 },
       ]
     : d.items;
-  const entries: { icon: IconName; name: string; count: number; lit: boolean }[] = [
-    ...slots.map((slot, i) => ({ icon: (slot.melee ? "sword" : "gun") as IconName, name: slot.name, count: 0, lit: i === d.slot })),
-    ...items.map((item) => ({ icon: lootIcon(3, item.name), name: item.name, count: item.count, lit: false })),
-  ];
+  const gear: UIData["gear"] = o.preview ? { weight: 7.5, maxWeight: 20, kinds: 4, maxKinds: 6, worn: { head: "Helmet", body: "", hands: "" } } : d.gear;
+  // Weight and kinds against their limits (when it has any).
+  if (gear) {
+    const parts: string[] = [];
+    if (gear.maxWeight > 0) parts.push(`${Math.round(gear.weight * 10) / 10} / ${gear.maxWeight} kg`);
+    if (gear.maxKinds > 0) parts.push(`${gear.kinds} / ${gear.maxKinds} kinds`);
+    if (parts.length) p.text(parts.join("  ·  "), x + w - pad, y + 22 * s, 12, { align: "right", color: gear.maxWeight > 0 && gear.weight >= gear.maxWeight ? "#ff6b5e" : k.dim });
+  }
   const cols = 6;
   const gap = 8 * s;
   const cell = Math.min((w - pad * 2 - gap * (cols - 1)) / cols, 80 * s);
-  const top = y + 44 * s;
-  const rows = Math.max(1, Math.floor((h - (top - y) - pad + gap) / (cell + gap)));
-  for (let i = 0; i < cols * rows; i++) {
-    const cx = x + pad + (i % cols) * (cell + gap);
-    const cy = top + Math.floor(i / cols) * (cell + gap);
-    const entry = entries[i];
-    const hover = inside(d.pointer, cx, cy, cell, cell);
+  let top = y + 44 * s;
+  const frame = (cx: number, cy: number, lit: boolean, hover: boolean, filled: boolean) => {
     c.beginPath();
     if (k.round && k.frame !== "chamfer") roundRect(c, cx, cy, cell, cell, 6 * s);
     else p.shape(cx, cy, cell, cell);
-    c.fillStyle = entry?.lit || hover ? k.panelHi : "rgba(0, 0, 0, 0.35)";
+    c.fillStyle = lit || hover ? k.panelHi : "rgba(0, 0, 0, 0.35)";
     c.fill();
     c.lineWidth = s;
-    c.strokeStyle = entry ? (entry.lit ? (k.accent === "#ffffff" ? k.text : k.accent) : k.edge) : "rgba(255, 255, 255, 0.08)";
+    c.strokeStyle = filled ? (lit ? (k.accent === "#ffffff" ? k.text : k.accent) : k.edge) : "rgba(255, 255, 255, 0.08)";
     c.stroke();
+  };
+  // Worn: head, body, hands. A click takes the item off.
+  if (gear) {
+    (["head", "body", "hands"] as const).forEach((slot, i) => {
+      const cx = left + i * (cell + gap);
+      const worn = gear.worn[slot];
+      frame(cx, top, !!worn, inside(d.pointer, cx, top, cell, cell), !!worn);
+      p.text(slot, cx + cell / 2, top + 11 * s, 10, { align: "center", color: k.dim });
+      if (worn) {
+        p.icon(lootIcon(3, worn), cx + cell / 2, top + cell * 0.5, cell * 0.36, k.text);
+        p.text(worn, cx + cell / 2, top + cell - 8 * s, 10, { align: "center", raw: true, color: k.dim, max: cell - 6 * s });
+        hits.push({ left: cx, top, width: cell, height: cell, action: `unequip:${slot}` });
+      }
+    });
+    top += cell + gap;
+  }
+  const worn = gear ? new Set(Object.values(gear.worn)) : new Set<string>();
+  const entries: { icon: IconName; name: string; count: number; lit: boolean; wear?: string }[] = [
+    ...slots.map((slot, i) => ({ icon: (slot.melee ? "sword" : "gun") as IconName, name: slot.name, count: 0, lit: i === d.slot })),
+    ...items.map((item) => ({ icon: lootIcon(3, item.name), name: item.name, count: item.count, lit: worn.has(item.name), wear: item.slot })),
+  ];
+  const rows = Math.max(1, Math.floor((h - (top - y) - pad + gap) / (cell + gap)));
+  for (let i = 0; i < cols * rows; i++) {
+    const cx = left + (i % cols) * (cell + gap);
+    const cy = top + Math.floor(i / cols) * (cell + gap);
+    const entry = entries[i];
+    frame(cx, cy, !!entry?.lit, inside(d.pointer, cx, cy, cell, cell), !!entry);
     if (!entry) continue;
     p.icon(entry.icon, cx + cell / 2, cy + cell * 0.42, cell * 0.42, entry.icon === "coin" ? "#ffc83d" : entry.icon === "gem" ? rarityColors[3] : k.text);
     p.text(entry.name, cx + cell / 2, cy + cell - 10 * s, 10, { align: "center", raw: true, color: k.dim, max: cell - 6 * s });
     if (entry.count > 1) p.text(String(entry.count), cx + cell - 5 * s, cy + 10 * s, 11, { align: "right", weight: 800 });
     if (i < slots.length) hits.push({ left: cx, top: cy, width: cell, height: cell, action: `slot:${i}` });
+    else if (entry.wear && !entry.lit) hits.push({ left: cx, top: cy, width: cell, height: cell, action: `equip:${entry.wear}:${entry.name}` });
   }
 };
 
@@ -1658,6 +1689,7 @@ export function sampleUIData(time: number, width: number, height: number): UIDat
     damage: [],
     boss: undefined,
     items: [],
+    gear: undefined,
     settings: { master: 0.8, sensitivity: 1, invertY: false, aimAssist: true, shake: true },
     title: "My Game",
     fighter: { health: 0.68, mana: 0.6, energy: 0.45, guard: 0.8 },

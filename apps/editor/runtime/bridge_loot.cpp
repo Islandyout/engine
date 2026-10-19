@@ -183,12 +183,72 @@ EXPORT const char *editor_items_text(int index) {
     }
     return result.c_str();
 }
+// Item stats: one item per line, "Name: slot=head armor=10 damage=15 speed=-5 health=20"
+// (# comments). Numbers are percentages except health (points).
+static bool parse_item_stats(const std::string &text, std::map<std::string, Inventory::ItemStats> &out, std::string &error) {
+    std::istringstream lines(text);
+    std::string line;
+    int number = 0;
+    while (std::getline(lines, line)) {
+        ++number;
+        const auto first = line.find_first_not_of(" \t\r");
+        if (first == std::string::npos || line[first] == '#')
+            continue;
+        const auto colon = line.find(':', first);
+        if (colon == std::string::npos) {
+            error = "line " + std::to_string(number) + ": expected \"Name: slot=head armor=10 ...\"";
+            return false;
+        }
+        auto name = line.substr(first, colon - first);
+        name.erase(name.find_last_not_of(" \t") + 1);
+        if (name.empty()) {
+            error = "line " + std::to_string(number) + ": an item needs a name before the colon";
+            return false;
+        }
+        Inventory::ItemStats stats;
+        std::istringstream fields(line.substr(colon + 1));
+        std::string field;
+        while (fields >> field) {
+            const auto eq = field.find('=');
+            const auto key = field.substr(0, eq);
+            const auto value = eq == std::string::npos ? std::string{} : field.substr(eq + 1);
+            if (key == "slot") {
+                if (value != "head" && value != "body" && value != "hands") {
+                    error = "line " + std::to_string(number) + ": slot must be head, body or hands";
+                    return false;
+                }
+                stats.slot = value;
+                continue;
+            }
+            char *end = nullptr;
+            const double amount = std::strtod(value.c_str(), &end);
+            if (value.empty() || *end != '\0' || !std::isfinite(amount) || std::fabs(amount) > 1000) {
+                error = "line " + std::to_string(number) + ": \"" + field + "\" needs a number (e.g. " + key + "=10)";
+                return false;
+            }
+            if (key == "armor")
+                stats.armor = static_cast<float>(amount);
+            else if (key == "damage")
+                stats.damage = static_cast<float>(amount);
+            else if (key == "speed")
+                stats.speed = static_cast<float>(amount);
+            else if (key == "health")
+                stats.health = static_cast<float>(amount);
+            else {
+                error = "line " + std::to_string(number) + ": unknown stat \"" + key + "\" (slot, armor, damage, speed, health)";
+                return false;
+            }
+        }
+        out[name] = stats;
+    }
+    return true;
+}
 // An entity's Inventory: carrying limits, per-item weights ("name=1.5,
 // name=2"), and what is worn. Weights must be finite and >= 0.
-EXPORT void editor_set_inventory(int index, int slots, double max_weight, const char *weights, const char *head,
-                                 const char *body, const char *hands) {
+EXPORT void editor_set_inventory(int index, int slots, double max_weight, const char *weights, const char *stats,
+                                 const char *head, const char *body, const char *hands) {
     const auto target = staged(index);
-    if (!target || !weights || !head || !body || !hands)
+    if (!target || !weights || !stats || !head || !body || !hands)
         return;
     if (slots < 0 || slots > 999 || !std::isfinite(max_weight) || max_weight < 0 || max_weight > 1e7) {
         fail("an Inventory slots or max weight outside 0..999 / 0..10000000");
@@ -218,6 +278,11 @@ EXPORT void editor_set_inventory(int index, int slots, double max_weight, const 
         }
         inventory.weights[name] = static_cast<float>(weight);
     }
+    std::string stats_error;
+    if (!parse_item_stats(stats, inventory.stats, stats_error)) {
+        fail(("an Inventory stats: " + stats_error).c_str());
+        return;
+    }
     inventory.head = head;
     inventory.body = body;
     inventory.hands = hands;
@@ -241,10 +306,28 @@ EXPORT const char *editor_inventory_text(int index) {
                     if (!worn.empty())
                         result += std::string("worn ") + slot + " " + worn + "\n";
                 if (items)
-                    for (const auto &[name, count] : items->counts)
-                        result += "item " + name + " " + std::to_string(count) + "\n";
+                    for (const auto &[name, count] : items->counts) {
+                        const auto found = inventory->stats.find(name);
+                        const std::string slot = found == inventory->stats.end() || found->second.slot.empty() ? "-" : found->second.slot;
+                        result += "item " + std::to_string(count) + " " + slot + " " + name + "\n";
+                    }
             }
     }
     return result.c_str();
+}
+// An inventory verb for the UI (the same ones inventory.* gives scripts): add, remove,
+// equip (`name` the slot, `text` the item), unequip, select. Returns the verb's number
+// (the count added, 1 for done) or -1 when it can't be done.
+EXPORT double editor_inventory_op(int index, const char *op, const char *name, int amount, const char *text) {
+    if (!op || !name || !text || index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
+        return -1;
+    const auto entity = active->entities[static_cast<std::size_t>(index)];
+    if (!active->world.alive(entity))
+        return -1;
+    double number = 0;
+    std::string io = text;
+    if (!active->host.inventory(active->world, entity, op, name, amount, number, io))
+        return -1;
+    return std::string(op) == "add" ? number : 1;
 }
 }

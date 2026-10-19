@@ -212,11 +212,11 @@ const metadata: Record<string, PropertyMetadata> = {
   },
   "UI.visibleWhen": {
     label: "Visible in",
-    options: choice(["always", "play", "pause"]),
+    options: choice(["always", "play", "pause", "toggle"]),
   },
   "UI.action": {
-    label: "Action (Button; script = call on_ui)",
-    options: choice(["restart", "resume", "pause", "quit", "script"]),
+    label: "Button action (none = only 'When clicked'; script = call on_ui)",
+    options: choice(["none", "restart", "resume", "pause", "quit", "script"]),
   },
   "Pedestrian.archetype": {
     label: "Archetype",
@@ -283,6 +283,10 @@ const metadata: Record<string, PropertyMetadata> = {
   "Container.table": { label: "Loot table (chance kind ...)", multiline: true },
   "Container.hold": { label: "Hold to open (s, 0 a press)", step: "0.1" },
   "Container.key": { label: "Needs item (used up)" },
+  "UI.onClick": { label: "When clicked (one action per line)", multiline: true },
+  "UI.toggleKey": { label: "Key that shows/hides it (KeyI, Escape...)" },
+  "Inventory.stats": { label: "Worn item stats (Helmet: slot=head armor=10)", multiline: true },
+  "Objectives.list": { label: "Objectives (id | title | detail | goal | on complete)", multiline: true },
   "Inventory.slots": { label: "Item kinds it can carry (0 no cap)", step: "1" },
   "Inventory.maxWeight": { label: "Max weight (0 no cap)", step: "0.5" },
   "Inventory.weights": { label: "Item weights (name=1.5, name=2; others 1)" },
@@ -443,7 +447,7 @@ export const componentGroups: readonly ComponentGroup[] = [
   },
   {
     label: "Loot",
-    types: ["Pickup", "LootDrop", "Container", "Inventory"],
+    types: ["Pickup", "LootDrop", "Container", "Inventory", "Objectives"],
   },
   {
     label: "Appearance & Animation",

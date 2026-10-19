@@ -246,6 +246,7 @@ const componentNames = [
   "LootDrop",
   "Container",
   "Inventory",
+  "Objectives",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -535,6 +536,8 @@ export function normalizeComponent(
     }
     case "LootDrop":
       return { dropWeapon: boolean(value.dropWeapon, "LootDrop.dropWeapon"), table: string(value.table, "LootDrop.table") };
+    case "Objectives":
+      return { list: string(value.list, "Objectives.list") };
     case "Inventory": {
       const slots = number(value.slots, "Inventory.slots");
       const maxWeight = number(value.maxWeight, "Inventory.maxWeight");
@@ -550,6 +553,7 @@ export function normalizeComponent(
         slots,
         maxWeight,
         weights: string(value.weights, "Inventory.weights"),
+        stats: value.stats === undefined ? "" : string(value.stats, "Inventory.stats"),
         head: string(value.head, "Inventory.head"),
         body: string(value.body, "Inventory.body"),
         hands: string(value.hands, "Inventory.hands"),
@@ -865,10 +869,10 @@ export function normalizeComponent(
       if (typeof anchor !== "string" || !uiAnchors.includes(anchor as UIAnchor))
         throw new Error(`UI.anchor must be one of ${uiAnchors.join(", ")}.`);
       const visibleWhen = value.visibleWhen;
-      if (visibleWhen !== "always" && visibleWhen !== "play" && visibleWhen !== "pause")
-        throw new Error("UI.visibleWhen must be always, play, or pause.");
+      if (visibleWhen !== "always" && visibleWhen !== "play" && visibleWhen !== "pause" && visibleWhen !== "toggle")
+        throw new Error("UI.visibleWhen must be always, play, pause, or toggle.");
       const action = value.action;
-      const actions: readonly UIAction[] = ["restart", "resume", "pause", "quit", "script"];
+      const actions: readonly UIAction[] = ["none", "restart", "resume", "pause", "quit", "script"];
       if (typeof action !== "string" || !actions.includes(action as UIAction))
         throw new Error(`UI.action must be one of ${actions.join(", ")}.`);
       const optional = (key: string, fallback: number) =>
@@ -906,6 +910,8 @@ export function normalizeComponent(
         widget: widget as UIWidget,
         style: style as UIStyle,
         source: value.source === undefined ? "" : string(value.source, "UI.source"),
+        onClick: value.onClick === undefined ? "" : string(value.onClick, "UI.onClick"),
+        toggleKey: value.toggleKey === undefined ? "" : string(value.toggleKey, "UI.toggleKey"),
       };
     }
     case "Name":
