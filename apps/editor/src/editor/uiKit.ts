@@ -68,6 +68,11 @@ export const widgetCatalog: readonly WidgetInfo[] = [
   info("Dialogue", "Menus & dialogue", "Speaker, a typed-out line and choices. Text: 'Speaker: line', then '> choice' lines.", "bottom-center", [0, -110], [660, 160], "always",
     "Quartermaster: Crates are behind the range. Bring me what you find.\n> Where's the key?\n> On my way."),
   info("Notification", "Menus & dialogue", "A banner that slides in when its text changes. Text: title, then body.", "top-center", [0, 120], [380, 74], "always", "Area unlocked\nThe east range is open"),
+  info("Fighter bars", "Combat HUD", "A fighter's health, mana, energy (ultimate) and guard. Source picks whose.", "bottom-left", [24, -24], [360, 96]),
+  info("World health bar", "Combat HUD", "Health bars floating over every entity with Health that is near you. One is enough for the scene.", "center", [0, 0], [200, 40]),
+  info("Hint", "Combat HUD", "A line of help shown while the mouse is free. Text: what it says.", "center", [0, 120], [420, 32], "play", "Click to aim with the mouse (Esc releases)"),
+  info("Vehicle instruments", "Navigation", "Speedometer, gear, nitro and a road minimap while driving. One is enough for the scene.", "bottom-right", [-24, -24], [200, 200]),
+  info("Flight instruments", "Navigation", "Altitude, speed, throttle, fuel and hull while flying a Spaceship. One is enough for the scene.", "center", [0, 0], [240, 160]),
 ];
 
 export function widgetInfo(name: UIWidget): WidgetInfo {
@@ -105,6 +110,8 @@ export interface UIData {
   items: { name: string; count: number }[];
   settings: { master: number; sensitivity: number; invertY: boolean; aimAssist: boolean; shake: boolean };
   title: string; // the game's name
+  fighter: { health: number; mana: number; energy: number; guard: number } | undefined; // the source's fighter bars
+  captured: boolean; // the mouse is captured by the game
 }
 
 // What a click on a widget does: "resume", "restart", "quit", "settings",
@@ -1543,7 +1550,44 @@ const notification: Draw = (p, r, d, o) => {
   p.ctx.globalAlpha = 1;
 };
 
+const fighterBars: Draw = (p, r, d) => {
+  const f = d.fighter;
+  if (!f) return;
+  const { k, s } = p;
+  const { left: x, top: y, width: w, height: h } = r;
+  p.panel(x, y, w, h);
+  const pad = 12 * s, bw = w - pad * 2 - 74 * s;
+  const row = (i: number, th: number, ratio: number, color: string, label: string) => {
+    const top = y + pad + i * ((h - pad * 2) / 4);
+    p.bar(x + pad, top, bw, th * s, ratio, color);
+    p.text(label, x + pad + bw + 8 * s, top + (th * s) / 2, 11, { weight: 700, color: k.dim });
+  };
+  row(0, 14, f.health, f.health > 0.3 ? k.health : k.danger, "HP");
+  row(1, 9, f.mana, k.shield, "MANA");
+  row(2, 9, f.energy, f.energy >= 0.9 ? k.accent : k.stamina, f.energy >= 0.9 ? "ULTIMATE READY" : "ULTIMATE");
+  row(3, 6, f.guard, k.text, "GUARD");
+};
+const hint: Draw = (p, r, d, o) => {
+  if (d.captured && !o.preview) return;
+  const text = o.text.split("\n")[0] ?? "";
+  if (!text) return;
+  p.panel(r.left, r.top, r.width, r.height);
+  p.text(text, r.left + r.width / 2, r.top + r.height / 2, 13, { align: "center", raw: true, max: r.width - 16 });
+};
+// These draw live in the game's own views (the car and flight views); the widget is the switch,
+// and what you see while editing is its placeholder.
+const placeholder = (label: string): Draw => (p, r, d, o) => {
+  if (!o.preview) return;
+  p.panel(r.left, r.top, r.width, r.height);
+  p.text(label, r.left + r.width / 2, r.top + r.height / 2, 12, { align: "center", raw: true, color: p.k.dim, max: r.width - 12 });
+};
+
 const draws: Record<UIWidget, Draw> = {
+  "Fighter bars": fighterBars,
+  "World health bar": placeholder("World health bars (shown over entities in play)"),
+  Hint: hint,
+  "Vehicle instruments": placeholder("Vehicle instruments (shown while driving)"),
+  "Flight instruments": placeholder("Flight instruments (shown while flying)"),
   Health: health,
   Ammo: ammo,
   Crosshair: crosshair,
@@ -1616,6 +1660,8 @@ export function sampleUIData(time: number, width: number, height: number): UIDat
     items: [],
     settings: { master: 0.8, sensitivity: 1, invertY: false, aimAssist: true, shake: true },
     title: "My Game",
+    fighter: { health: 0.68, mana: 0.6, energy: 0.45, guard: 0.8 },
+    captured: false,
   };
 }
 

@@ -207,6 +207,8 @@ export interface PickupComponent {
   rarity: Rarity;
   press: boolean;
   respawn: number;
+  // UI to show when it is taken, one "<UI entity name>: <text> | <seconds>" per line ({name}, {amount}).
+  onPickup: string;
 }
 // What an entity drops when it dies: its gun in hand, and what its loot
 // table rolls (one "<chance> <kind> ..." per line, see loot.hpp).
@@ -407,6 +409,11 @@ export const uiWidgetNames = [
   "Settings",
   "Dialogue",
   "Notification",
+  "Fighter bars",
+  "World health bar",
+  "Hint",
+  "Vehicle instruments",
+  "Flight instruments",
 ] as const;
 export type UIWidget = (typeof uiWidgetNames)[number];
 export const uiStyleNames = ["Modern", "Battle Royale", "Tactical", "Fantasy", "Sci-fi", "Minimal"] as const;
@@ -448,6 +455,8 @@ export interface UIComponent {
   // Widget: which one, and its style.
   widget: UIWidget;
   style: UIStyle;
+  // Whose data the widget shows: "" the Player, an entity name, or "@target" (under the crosshair).
+  source: string;
 }
 export interface NameComponent {
   value: string;

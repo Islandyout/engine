@@ -277,6 +277,7 @@ const metadata: Record<string, PropertyMetadata> = {
   "Pickup.rarity": { options: choice(["Common", "Uncommon", "Rare", "Epic", "Legendary"]) },
   "Pickup.press": { label: "Take with interact (E)" },
   "Pickup.respawn": { label: "Respawn (s, 0 never)", step: "1" },
+  "Pickup.onPickup": { label: "On pickup: UI to show (Name: text | seconds, one per line)", multiline: true },
   "LootDrop.dropWeapon": { label: "Drop the gun in hand" },
   "LootDrop.table": { label: "Loot table (chance kind ...)", multiline: true },
   "Container.table": { label: "Loot table (chance kind ...)", multiline: true },
@@ -410,6 +411,20 @@ export interface ComponentGroup {
   label: string;
   types: readonly string[];
 }
+// What a component needs on the same entity to work (Inspector hints, and a warning when removing one).
+export const componentRequires: Readonly<Record<string, { needs: readonly string[]; why: string }>> = {
+  CharacterController: { needs: ["RigidBody", "Collider"], why: "walking needs a body that collides" },
+  Vehicle: { needs: ["RigidBody", "Collider"], why: "a car needs a body that collides" },
+  Melee: { needs: ["Health", "Collider"], why: "fighters take damage and need a shape to hit" },
+  AICombat: { needs: ["Health", "Collider"], why: "enemies take damage and need a shape to hit" },
+  Weapons: { needs: ["Health"], why: "an armed character needs health to be defeated" },
+  Pickup: { needs: ["Collider"], why: "walking over it needs a shape to touch" },
+  Container: { needs: ["Collider"], why: "opening it needs a shape to aim at" },
+  LootDrop: { needs: ["Health"], why: "it drops loot when its health runs out" },
+  Driver: { needs: ["Vehicle"], why: "an AI driver drives a Vehicle" },
+  CameraFollow: { needs: ["Camera"], why: "it moves a Camera" },
+  Spaceship: { needs: ["RigidBody"], why: "the ship needs a body" },
+};
 export const componentGroups: readonly ComponentGroup[] = [
   { label: "Transform", types: ["Transform", "Rotation", "Scale"] },
   {

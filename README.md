@@ -379,6 +379,8 @@ Engine version 0.79.0 starts **GATEBREAKER**, an original manhwa-style hunter ac
 
 See [F79](docs/changelog/F79.md).
 
+Engine version 0.89.0 starts the engine upgrade ([design](docs/UPGRADE_DESIGN.md), [changes](docs/changelog/F90.md)): **only UI widgets draw HUD** (older scenes migrate on load), a pickup chooses its own UI (`Pickup.onPickup`), a picked-up melee weapon is drawn at once, **Recipes** add a player, enemy or car with the right components, and the Inspector groups components and says what each one needs. GATEBREAKER and VELOCITY were removed ([what they taught](docs/lessons/README.md)).
+
 Engine version 0.88.0 adds **loot**, **one loadout for guns and melee**, and a **UI kit**:
 
 - **One loadout**: `melee=sword` (or `fists`, `axe`, `spear`...) makes a `Weapons` slot a melee weapon. The number keys, Q, the wheel and d-pad up cycle guns and blades alike.

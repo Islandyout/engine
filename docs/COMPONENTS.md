@@ -313,6 +313,7 @@ Something to pick up: a weapon, ammo, health or an item, glowing in its rarity's
 | `rarity` | "Common" | one of Common, Uncommon, Rare, Epic, Legendary |
 | `press` | false | Take with interact (E). Off: taken by walking over it. On: the player presses E (weapons usually). |
 | `respawn` | 0 | Respawn (s, 0 never) |
+| `onPickup` | "" | On pickup: UI to show (Name: text \| seconds, one per line) |
 
 ### LootDrop
 
@@ -486,8 +487,9 @@ An on-screen element: text, button, bar, slider, toggle, image, or a ready-made 
 | `opacity` | 0.85 | Opacity (0-1) |
 | `image` | "" | Image URL (Image) |
 | `value` | 0 | Value (0-1: Bar, Slider, Toggle) |
-| `widget` | "Health" | Widget (Widget). one of Health, Ammo, Crosshair, Damage numbers, Kill feed, Boss bar, Minimap, Compass, Objective, Waypoints, Interact prompt, Pickup feed, Loot card, Inventory, Hotbar, Weapon wheel, Pause menu, Main menu, Settings, Dialogue, Notification |
+| `widget` | "Health" | Widget (Widget). one of Health, Ammo, Crosshair, Damage numbers, Kill feed, Boss bar, Minimap, Compass, Objective, Waypoints, Interact prompt, Pickup feed, Loot card, Inventory, Hotbar, Weapon wheel, Pause menu, Main menu, Settings, Dialogue, Notification, Fighter bars, World health bar, Hint, Vehicle instruments, Flight instruments |
 | `style` | "Modern" | Style (Widget). one of Modern, Battle Royale, Tactical, Fantasy, Sci-fi, Minimal |
+| `source` | "" |  |
 
 ## Scene & Camera
 

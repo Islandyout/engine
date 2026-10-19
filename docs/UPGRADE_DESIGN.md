@@ -41,6 +41,6 @@ Status: draft, decisions confirmed by the project owner on 2026-10-19. One upgra
 - Two sources of truth for what is in the hands: `Melee.rightHand/leftHand` and `Weapons` slots.
 - `main.ts` is about 6,900 lines holding rendering, HUD, input and component wiring.
 
-## Open questions
+## Open questions (see F90 for what is done)
 
 Tracked with the project owner; this file is updated as they are answered.

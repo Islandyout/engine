@@ -657,7 +657,7 @@ export function defaultComponent(
     case "Wildlife":
       return { wary: 44, flee: 16, speed: 7, leash: 80 };
     case "Pickup":
-      return { kind: "Ammo", weapon: "carbine: model=rifle held=carbine-2 mag=30", item: "Coin", amount: 30, rarity: "Common", press: false, respawn: 0 };
+      return { kind: "Ammo", weapon: "carbine: model=rifle held=carbine-2 mag=30", item: "Coin", amount: 30, rarity: "Common", press: false, respawn: 0, onPickup: "" };
     case "LootDrop":
       return { dropWeapon: true, table: "0.5 ammo 30\n0.25 health 25\n0.1 item Coin 5" };
     case "Container":
@@ -723,6 +723,7 @@ export function defaultComponent(
         value: 0,
         widget: "Health",
         style: "Modern",
+        source: "",
       };
     case "Name":
       return { value: "Entity" };

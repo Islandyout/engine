@@ -44,6 +44,7 @@ export function editorLayoutHtml({
       <div class="search-box">${iconHtml("search")}<input id="search" placeholder="Search entities"></div>
       <div class="tools">
         <button id="add" class="btn btn-sm">${iconHtml("plus")}<span>Entity</span></button>
+        <button id="recipes" class="btn btn-sm" title="Add a player, enemy, car... with the right components and HUD">${iconHtml("cube")}<span>Recipes…</span></button>
         <button id="duplicate" class="btn btn-sm">${iconHtml("copy")}<span>Duplicate</span></button>
         <button id="delete" class="btn btn-sm btn-danger-hover">${iconHtml("trash")}<span>Delete</span></button>
       </div>

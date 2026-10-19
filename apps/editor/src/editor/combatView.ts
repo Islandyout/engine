@@ -938,11 +938,11 @@ export class CombatView {
     }
   }
 
-  // The fighter HUD for the Player: health, energy and guard bars, the combo
-  // counter and a marker over the locked-on target. `project` maps a world
+  // The fighter's world-space feedback for the Player: the combo counter and a marker over the
+  // locked-on target. The bars are the "Fighter bars" widget; skill slots draw only when the scene has one. `project` maps a world
   // point to the canvas (undefined behind the camera). Returns lines for the
   // screen-reader mirror.
-  drawHud(ctx: CanvasRenderingContext2D, width: number, height: number, project: (point: THREE.Vector3) => { x: number; y: number } | undefined, objects: readonly (THREE.Object3D | undefined)[]): string[] {
+  drawHud(ctx: CanvasRenderingContext2D, width: number, height: number, project: (point: THREE.Vector3) => { x: number; y: number } | undefined, objects: readonly (THREE.Object3D | undefined)[], showSkillSlots = false): string[] {
     const host = this.host;
     this.comic.draw(ctx, width, height, project);
     const tells = this.drawTells(ctx, height, project);
@@ -952,27 +952,9 @@ export class CombatView {
     const health = Math.max(0, host.health(player));
     const energy = host.value(player, FighterField.energy);
     const guard = host.value(player, FighterField.guard);
-    const x = 24,
-      y = height - 76,
-      w = Math.min(320, width * 0.32);
-    const bar = (top: number, h: number, ratio: number, fill: string, label: string) => {
-      ctx.fillStyle = "rgba(0,0,0,0.55)";
-      ctx.fillRect(x - 2, top - 2, w + 4, h + 4);
-      ctx.fillStyle = fill;
-      ctx.fillRect(x, top, w * Math.max(0, Math.min(1, ratio)), h);
-      ctx.font = "700 11px -apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
-      ctx.fillText(label, x + w + 10, top + h / 2);
-    };
     const mana = host.value(player, FighterField.mana);
-    bar(y - 14, 14, health, health > 0.3 ? "#5fd16a" : "#e2483c", "HP");
-    bar(y + 8, 8, mana, "#3f8cff", "MANA");
-    bar(y + 24, 8, energy, energy >= 0.9 ? "#ffd84a" : "#c99a2e", energy >= 0.9 ? "ULTIMATE READY" : "ULTIMATE");
-    bar(y + 40, 5, guard, "#c9d3e6", "GUARD");
     lines.push(`Health ${Math.round(health * 100)}%, mana ${Math.round(mana * 100)}%, energy ${Math.round(energy * 100)}%, guard ${Math.round(guard * 100)}%`);
-    lines.push(...this.drawSlots(ctx, width, height, player));
+    if (showSkillSlots) lines.push(...this.drawSlots(ctx, width, height, player));
     // Combo counter, fading a moment after the string ends.
     if (this.comboShown >= 2 && this.comboAge < 1.4) {
       const alpha = Math.min(1, 1.4 - this.comboAge);

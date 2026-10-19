@@ -20,7 +20,8 @@ test("the shipped demo scene loads and matches its own description", () => {
   const document = JSON.parse(readFileSync(demoScenePath, "utf8"));
   const doc = new EditorDocument();
   doc.load(document); // throws on anything validateSceneDocument rejects
-  assert.equal(doc.scene.entityCount, 11);
+  // 11 authored entities, plus the 2 HUD widgets the scene needs (added on load by hudMigration.ts).
+  assert.equal(doc.scene.entityCount, 13);
 
   const car = doc.scene
     .eachAlive()

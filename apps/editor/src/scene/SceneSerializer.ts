@@ -8,6 +8,7 @@ import {
 } from "./Scene";
 import type { AIStateName, ParticlePreset, UIAction, UIAnchor, UIKind, UIStyle, UIWidget } from "./Components";
 import { uiStyleNames, uiWidgetNames } from "./Components";
+import { migrateHud } from "./hudMigration";
 
 const uiAnchors: readonly UIAnchor[] = [
   "top-left",
@@ -23,6 +24,8 @@ const uiAnchors: readonly UIAnchor[] = [
 
 export interface SceneDocument {
   format: 1;
+  // "widgets": every HUD element is a UI widget entity (nothing is drawn implicitly). Absent: migrated on load.
+  hud?: "widgets";
   name?: string;
   // Named templates, keyed by name -- see Scene's own PrefabDefinition doc
   // comment. Each instance entity persists only its own Transform/Name/
@@ -61,6 +64,7 @@ export function serializeScene(scene: Scene, name?: string): SceneDocument {
     );
   return {
     format: 1,
+    hud: "widgets",
     ...(name ? { name } : {}),
     ...(Object.keys(prefabs).length
       ? { prefabs: prefabs as SceneDocument["prefabs"] }
@@ -99,11 +103,17 @@ export function serializeSceneText(scene: Scene, name?: string): string {
   return JSON.stringify(serializeScene(scene, name), null, 2);
 }
 
+// The widgets the last loaded scene was missing (see hudMigration.ts); empty when nothing changed.
+export let lastHudMigration: string[] = [];
+
 export function deserializeScene(scene: Scene, document: unknown): void {
   if (!isSceneDocument(document))
     throw new Error(
       "Invalid scene document: expected format 1 and an entities array.",
     );
+  const migrated = migrateHud(document);
+  lastHudMigration = migrated.added;
+  document = migrated.document;
   validateSceneDocument(document);
   scene.clear();
   for (const [prefabName, prefabDoc] of Object.entries(document.prefabs ?? {})) {
@@ -519,6 +529,7 @@ export function normalizeComponent(
         rarity,
         press: boolean(value.press, "Pickup.press"),
         respawn,
+        onPickup: value.onPickup === undefined ? "" : string(value.onPickup, "Pickup.onPickup"),
       };
     }
     case "LootDrop":
@@ -873,6 +884,7 @@ export function normalizeComponent(
         value: uiValue,
         widget: widget as UIWidget,
         style: style as UIStyle,
+        source: value.source === undefined ? "" : string(value.source, "UI.source"),
       };
     }
     case "Name":
