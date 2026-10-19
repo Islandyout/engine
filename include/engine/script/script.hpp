@@ -72,6 +72,22 @@ public:
         (void)entity;
         (void)amount;
     }
+    // inventory.*: `op` is add, remove, count, space, weight, equip,
+    // unequip, equipped, list, slots or select. Numbers go out in `number`
+    // and text (names, "name count" lines) in `text`; false when the entity
+    // can't answer (no Inventory, a bad slot, nothing to take). The default
+    // host carries none.
+    virtual bool inventory(World &world, Entity entity, const std::string &op, const std::string &name, int amount,
+                           double &number, std::string &text) {
+        (void)world;
+        (void)entity;
+        (void)op;
+        (void)name;
+        (void)amount;
+        number = 0;
+        text.clear();
+        return false;
+    }
     // Items an entity carries (keys, coins): `op` is "count", "give" or
     // "take" (all of `amount`, or nothing). Returns the count after, or -1
     // for a take that can't be paid. The default host carries none.

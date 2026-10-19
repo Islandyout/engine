@@ -73,6 +73,7 @@ jobs:
           node tests/browser/combat_range.cjs
           node tests/browser/loot_ui.cjs
           node tests/browser/equip.cjs
+          node tests/browser/inventory.cjs
           EDITOR_NO_WEBGL=1 node tests/browser/editor.cjs
           node tests/browser/fps.cjs
           node tests/browser/last_signal.cjs

@@ -334,6 +334,19 @@ A crate or chest the player opens with E (held); its loot table spills out.
 | `hold` | 0.6 | Hold to open (s, 0 a press) |
 | `key` | "" | Needs item (used up). An item the player must carry to open it (taken when it opens), e.g. Key. Empty: no lock. |
 
+### Inventory
+
+What an entity can carry and wear: caps on item kinds and weight, per-item weights, and worn items. Guns and blades stay in Weapons/Melee slots 1-9; scripts use inventory.*.
+
+| Field | Default | Notes |
+|---|---|---|
+| `slots` | 0 | Item kinds it can carry (0 no cap) |
+| `maxWeight` | 0 | Max weight (0 no cap) |
+| `weights` | "" | Item weights (name=1.5, name=2; others 1) |
+| `head` | "" | Worn on head (carried item) |
+| `body` | "" | Worn on body (carried item) |
+| `hands` | "" | Worn on hands (carried item) |
+
 ## Appearance & Animation
 
 ### Renderable

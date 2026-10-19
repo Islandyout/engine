@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstddef>
 #include <cstdlib>
+#include <sstream>
 
 extern "C" {
 #include "lauxlib.h"
@@ -484,6 +485,99 @@ struct LuaApi final {
     static int items(lua_State *L) { return items_call(L, "count"); }
     static int give_item(lua_State *L) { return items_call(L, "give"); }
     static int take_item(lua_State *L) { return items_call(L, "take"); }
+    // inventory.*(id, ...): see api.mjs. One host call, `op` picks the verb.
+    static int inventory_call(lua_State *L, const char *op, bool named, bool counted) {
+        auto &self = runtime(L);
+        const auto entity = entity_arg(L, 1);
+        std::string name;
+        if (named) {
+            name = luaL_checkstring(L, 2);
+            if (name.empty() || name.size() > 40)
+                return luaL_error(L, "an item or slot name is 1 to 40 characters");
+        }
+        lua_Integer amount = 1;
+        if (counted) {
+            amount = luaL_optinteger(L, named ? 3 : 2, 1);
+            if (amount < 0 || amount > 1000000)
+                return luaL_error(L, "an item amount is 0 to 1000000");
+        }
+        double number = 0;
+        std::string text;
+        const bool ok = entity && self.host_ &&
+                        self.host_->inventory(*self.world_, *entity, op, name, static_cast<int>(amount), number, text);
+        const std::string verb = op;
+        if (verb == "list") {
+            lua_newtable(L);
+            std::istringstream lines(text);
+            std::string line;
+            while (std::getline(lines, line)) {
+                const auto space = line.rfind(' ');
+                if (space == std::string::npos)
+                    continue;
+                lua_pushinteger(L, std::atoi(line.c_str() + space + 1));
+                lua_setfield(L, -2, line.substr(0, space).c_str());
+            }
+            return 1;
+        }
+        if (verb == "slots") {
+            lua_newtable(L);
+            std::istringstream lines(text);
+            std::string line;
+            lua_Integer i = 1;
+            while (std::getline(lines, line)) {
+                lua_pushstring(L, line.c_str());
+                lua_rawseti(L, -2, i++);
+            }
+            return 1;
+        }
+        if (verb == "equipped") {
+            lua_pushstring(L, ok ? text.c_str() : "");
+            return 1;
+        }
+        if (verb == "weight") {
+            lua_pushnumber(L, ok ? number : 0);
+            return 1;
+        }
+        if (verb == "add" || verb == "count" || verb == "space") {
+            lua_pushinteger(L, ok ? static_cast<lua_Integer>(number) : 0);
+            return 1;
+        }
+        lua_pushboolean(L, ok);
+        return 1;
+    }
+    static int inventory_add(lua_State *L) { return inventory_call(L, "add", true, true); }
+    static int inventory_remove(lua_State *L) { return inventory_call(L, "remove", true, true); }
+    static int inventory_count(lua_State *L) { return inventory_call(L, "count", true, false); }
+    static int inventory_space(lua_State *L) { return inventory_call(L, "space", true, false); }
+    static int inventory_weight(lua_State *L) { return inventory_call(L, "weight", false, false); }
+    static int inventory_list(lua_State *L) { return inventory_call(L, "list", false, false); }
+    static int inventory_slots(lua_State *L) { return inventory_call(L, "slots", false, false); }
+    static int inventory_equipped(lua_State *L) { return inventory_call(L, "equipped", true, false); }
+    static int inventory_unequip(lua_State *L) { return inventory_call(L, "unequip", true, false); }
+    static int inventory_select(lua_State *L) {
+        auto &self = runtime(L);
+        const auto entity = entity_arg(L, 1);
+        const auto slot = luaL_checkinteger(L, 2);
+        double number = 0;
+        std::string text;
+        lua_pushboolean(L, entity && self.host_ &&
+                               self.host_->inventory(*self.world_, *entity, "select", "", static_cast<int>(slot), number, text));
+        return 1;
+    }
+    // inventory.equip(id, slot, item)
+    static int inventory_equip(lua_State *L) {
+        auto &self = runtime(L);
+        const auto entity = entity_arg(L, 1);
+        const std::string slot = luaL_checkstring(L, 2);
+        const std::string item = luaL_checkstring(L, 3);
+        if (item.empty() || item.size() > 40)
+            return luaL_error(L, "an item name is 1 to 40 characters");
+        double number = 0;
+        std::string text = item;
+        lua_pushboolean(L, entity && self.host_ &&
+                               self.host_->inventory(*self.world_, *entity, "equip", slot, 0, number, text));
+        return 1;
+    }
     // world.give_ammo(id, rounds[, slot]): adds reserve rounds to another
     // entity's weapon (slot is 1-based; default its current weapon).
     static int give_ammo(lua_State *L) {
@@ -1298,6 +1392,18 @@ struct LuaApi final {
                {"follow", melee_follow},
                {"revive", melee_revive},
                {"mana", melee_mana}});
+        table(L, self, "inventory",
+              {{"add", inventory_add},
+               {"remove", inventory_remove},
+               {"count", inventory_count},
+               {"space", inventory_space},
+               {"weight", inventory_weight},
+               {"list", inventory_list},
+               {"slots", inventory_slots},
+               {"select", inventory_select},
+               {"equip", inventory_equip},
+               {"unequip", inventory_unequip},
+               {"equipped", inventory_equipped}});
         table(L, self, "weapon",
               {{"fire", weapon_fire},
                {"reload", weapon_reload},

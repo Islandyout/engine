@@ -224,6 +224,19 @@ export interface ContainerComponent {
   hold: number;
   key: string;
 }
+// What an entity carries and wears. Counts live in the Player's items
+// (pickups and inventory.* add to them); guns and blades stay in slots 1-9
+// of Weapons/Melee. `slots` caps the kinds of item (0: no cap), `maxWeight`
+// the total weight (0: no cap); `weights` is "name=1.5, name=2" (others
+// weigh 1). head/body/hands name a carried item worn there.
+export interface InventoryComponent {
+  slots: number;
+  maxWeight: number;
+  weights: string;
+  head: string;
+  body: string;
+  hands: string;
+}
 export interface TrafficSignalComponent {
   green: number;
   yellow: number;

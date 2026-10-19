@@ -667,8 +667,49 @@ struct Container final {
 struct Items final {
     std::map<std::string, int> counts;
 };
+// What an entity may carry and wear. The counts live in Items; the guns and
+// blades live in Arsenal (slots 1-9). `slots` caps the kinds of item
+// carried and `max_weight` their total weight (0: no cap); `weights` gives
+// each item's weight per unit (others weigh 1). Equipment names an item
+// carried per body slot; losing the last one unequips it.
+struct Inventory final {
+    int slots{0};
+    float max_weight{0};
+    std::map<std::string, float> weights;
+    std::string head;
+    std::string body;
+    std::string hands;
+    [[nodiscard]] float weight_of(const std::string &name) const {
+        const auto found = weights.find(name);
+        return found == weights.end() ? 1.0F : found->second;
+    }
+    [[nodiscard]] float total_weight(const Items &items) const {
+        float total = 0;
+        for (const auto &[name, count] : items.counts)
+            total += weight_of(name) * static_cast<float>(count);
+        return total;
+    }
+    // How many more of `name` fit, given what is carried now.
+    [[nodiscard]] int room_for(const Items &items, const std::string &name) const {
+        int room = 1000000;
+        if (slots > 0 && !items.counts.count(name) && static_cast<int>(items.counts.size()) >= slots)
+            return 0;
+        const float each = weight_of(name);
+        if (max_weight > 0 && each > 0)
+            room = std::min(room, static_cast<int>(std::floor((max_weight - total_weight(items)) / each + 1e-4F)));
+        return std::max(room, 0);
+    }
+    std::string *slot_named(const std::string &slot) {
+        return slot == "head" ? &head : slot == "body" ? &body : slot == "hands" ? &hands : nullptr;
+    }
+    void drop_missing(const Items &items) {
+        for (auto *worn : {&head, &body, &hands})
+            if (!worn->empty() && !items.counts.count(*worn))
+                worn->clear();
+    }
+};
 // Loot happenings, for the editor's pickup feed and sounds.
-enum class LootEventKind : int { picked, opened, dropped, locked };
+enum class LootEventKind : int { picked, opened, dropped, locked, full };
 struct LootEvent final {
     LootEventKind kind{};
     int entity{-1}; // the pickup, crate or dead entity

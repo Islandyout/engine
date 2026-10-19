@@ -21,6 +21,8 @@ public:
     void heal(engine::World &world, engine::Entity entity, float amount) override;
     int items(engine::World &world, engine::Entity entity, const std::string &op, const std::string &name,
               int amount) override;
+    bool inventory(engine::World &world, engine::Entity entity, const std::string &op, const std::string &name,
+                   int amount, double &number, std::string &text) override;
     void emit(engine::Entity source, const std::string &kind, const std::string &a, const std::string &b) override;
     bool weapon(engine::World &world, engine::Entity self, const std::string &op, const std::vector<double> &args,
                 std::vector<double> &out) override;
@@ -243,10 +245,27 @@ struct Runtime {
         } else if (loot.kind == LootKind::health) {
             if (auto *health = w.get<Health>(player); health && health->current > 0)
                 health->current = std::min(health->max, health->current + static_cast<float>(loot.amount));
-        } else if (auto *items = w.get<Items>(player)) {
-            items->counts[loot.item] += loot.amount;
         } else {
-            w.defer_set(player, Items{{{loot.item, loot.amount}}});
+            // An item: the Inventory (if any) says how many fit; a pickup
+            // that doesn't fit at all stays where it is.
+            auto *items = w.get<Items>(player);
+            const auto *inventory = w.get<Inventory>(player);
+            const int fits = inventory && items ? std::min(loot.amount, inventory->room_for(*items, loot.item)) : loot.amount;
+            if (fits <= 0) {
+                push_loot({LootEventKind::full, index_of(entity), 0, 0, engine::gameplay::loot_label(loot)});
+                return;
+            }
+            if (items)
+                items->counts[loot.item] += fits;
+            else
+                w.defer_set(player, Items{{{loot.item, fits}}});
+            if (fits < loot.amount) {
+                // Part of a stack: what didn't fit stays on the ground.
+                pickup.loot.amount = loot.amount - fits;
+                push_loot({LootEventKind::picked, index_of(entity), fits, static_cast<int>(loot.rarity), engine::gameplay::loot_label(loot)});
+                push_loot({LootEventKind::full, index_of(entity), 0, 0, engine::gameplay::loot_label(loot)});
+                return;
+            }
         }
         push_loot({LootEventKind::picked, index_of(entity), loot.amount, static_cast<int>(loot.rarity), engine::gameplay::loot_label(loot)});
         if (pickup.respawn > 0) {
@@ -2918,6 +2937,7 @@ inline void register_components(engine::World &w) {
     w.register_component<LootDrop>("editor.loot_drop");
     w.register_component<Container>("editor.container");
     w.register_component<Items>("editor.items");
+    w.register_component<Inventory>("editor.inventory");
 }
 
 template <typename T> void copy_component(const engine::World &from, engine::Entity source, engine::World &to,
@@ -3367,16 +3387,113 @@ inline int BridgeHost::items(engine::World &world, engine::Entity entity, const 
             items->counts.erase(name);
         else
             items->counts[name] = have - amount;
+        if (auto *inventory = world.get<Inventory>(entity))
+            inventory->drop_missing(*items);
         return have - amount;
     }
     if (op == "give" && amount > 0) {
+        const auto *inventory = world.get<Inventory>(entity);
+        const int fits = inventory && items ? std::min(amount, inventory->room_for(*items, name)) : amount;
+        if (fits <= 0)
+            return have;
         if (items)
-            items->counts[name] = have + amount;
+            items->counts[name] = have + fits;
         else
-            world.defer_set(entity, Items{{{name, amount}}});
-        return have + amount;
+            world.defer_set(entity, Items{{{name, fits}}});
+        return have + fits;
     }
     return have;
+}
+
+// inventory.* (see tools/script_api/api.mjs).
+inline bool BridgeHost::inventory(engine::World &world, engine::Entity entity, const std::string &op,
+                                  const std::string &name, int amount, double &number, std::string &text) {
+    number = 0;
+    const std::string wanted = text; // (equip passes its item in `text`)
+    text.clear();
+    auto *items = world.get<Items>(entity);
+    auto *inventory = world.get<Inventory>(entity);
+    const int have = items && items->counts.count(name) ? items->counts.at(name) : 0;
+    if (op == "count") {
+        number = have;
+        return true;
+    }
+    if (op == "list") {
+        if (items)
+            for (const auto &[item, count] : items->counts)
+                text += item + " " + std::to_string(count) + "\n";
+        return true;
+    }
+    if (op == "slots") {
+        if (const auto *arsenal = world.get<Arsenal>(entity))
+            for (const auto &weapon : arsenal->weapons)
+                text += weapon.name + "\n";
+        return true;
+    }
+    if (op == "select") {
+        auto *arsenal = world.get<Arsenal>(entity);
+        if (!arsenal || amount < 1 || amount > static_cast<int>(arsenal->weapons.size()))
+            return false;
+        arsenal->script_select = amount - 1;
+        return true;
+    }
+    if (op == "weight") {
+        int units = 0;
+        if (items)
+            for (const auto &entry : items->counts)
+                units += entry.second;
+        number = items && inventory ? inventory->total_weight(*items) : units;
+        return true;
+    }
+    if (op == "space") {
+        number = inventory && items ? inventory->room_for(*items, name) : (inventory ? inventory->room_for(Items{}, name) : 1000000);
+        return true;
+    }
+    if (op == "add") {
+        number = 0;
+        if (amount <= 0)
+            return false;
+        const int fits = inventory && items ? std::min(amount, inventory->room_for(*items, name)) : (inventory ? std::min(amount, inventory->room_for(Items{}, name)) : amount);
+        if (fits <= 0)
+            return false;
+        if (items)
+            items->counts[name] = have + fits;
+        else
+            world.defer_set(entity, Items{{{name, fits}}});
+        number = fits;
+        return true;
+    }
+    if (op == "remove") {
+        if (amount <= 0 || have < amount)
+            return false;
+        if (have == amount)
+            items->counts.erase(name);
+        else
+            items->counts[name] = have - amount;
+        if (inventory)
+            inventory->drop_missing(*items);
+        return true;
+    }
+    if (op == "equip") {
+        std::string *worn = inventory ? inventory->slot_named(name) : nullptr;
+        if (!worn || !items || !items->counts.count(wanted))
+            return false;
+        *worn = wanted;
+        return true;
+    }
+    if (op == "unequip" || op == "equipped") {
+        std::string *worn = inventory ? inventory->slot_named(name) : nullptr;
+        if (!worn)
+            return false;
+        text = *worn;
+        if (op == "unequip") {
+            if (worn->empty())
+                return false;
+            worn->clear();
+        }
+        return true;
+    }
+    return false;
 }
 
 inline void BridgeHost::damage(engine::World &world, engine::Entity entity, float amount) {
