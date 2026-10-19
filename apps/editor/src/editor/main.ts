@@ -1083,6 +1083,7 @@ async function startEditor() {
   const uiVisibility = new Map<string, boolean>();
   C.uiVisibility = uiVisibility;
   C.openUI = new Set<string>();
+  C.hiddenWalker = -1;
   C.objectives = { defs: [], active: "", counts: new Map(), done: new Set(), dead: new Set() };
   /* declared in the context */
   const uiTextOverrides = new Map<string, string>();

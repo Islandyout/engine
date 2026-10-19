@@ -236,6 +236,8 @@ const metadata: Record<string, PropertyMetadata> = {
   "Vehicle.nitroBoost": { label: "Nitro boost (m/s²)", step: "0.5" },
   "Vehicle.nitroSeconds": { label: "Nitro tank (s)", step: "0.5" },
   "Vehicle.gears": { label: "Gears", step: "1" },
+  "Vehicle.enterable": { label: "The Player can get in with E" },
+  "Vehicle.enterRadius": { label: "Enter from (m beyond its edge)", step: "0.5" },
   "Driver.mode": { options: choice(["Race", "Pursuit", "Traffic", "Off"]) },
   "Driver.route": { label: "Route (x,z x,z ...)", multiline: true },
   "Driver.loop": { label: "Loop the route" },

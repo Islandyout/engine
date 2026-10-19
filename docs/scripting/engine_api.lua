@@ -272,6 +272,20 @@ function camera.shake(intensity, seconds) end
 ---@return number, number, integer, number, number, boolean, boolean, number, number
 function vehicle.state(id) end
 
+--- Seats the Player in this car, from anywhere; false and the reason if it can't (not an arcade Vehicle, Vehicle.enterable off, already driven, the Player is already in a car). Scripts hear on_ui("vehicle", "enter:<car name>").
+---@param id integer
+---@return boolean, string?
+function vehicle.enter(id) end
+
+--- Puts the Player out beside the car it is in; false and the reason if there is no room or it is not in one. Scripts hear on_ui("vehicle", "exit:<car name>") or "blocked:<car name>".
+---@return boolean, string?
+function vehicle.exit() end
+
+--- The id of whoever is driving this car (the Player's walker, while seated), or nil.
+---@param id integer
+---@return integer?
+function vehicle.driver(id) end
+
 --- Refills the nitro tank.
 ---@param id integer
 ---@param amount number

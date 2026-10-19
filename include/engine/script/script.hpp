@@ -72,6 +72,18 @@ public:
         (void)entity;
         (void)amount;
     }
+    // vehicle.enter / exit / driver: the Player getting in and out of a car. `op` is "enter" (into `car`,
+    // from anywhere), "exit" (out of whichever it is in) or "driver" (who is in `car`, in `number`).
+    // False comes back with `message` saying why. The default host has no cars.
+    virtual bool seat(World &world, const std::string &op, std::optional<Entity> car, std::string &message,
+                      double &number) {
+        (void)world;
+        (void)op;
+        (void)car;
+        number = 0;
+        message = "this host has no vehicles";
+        return false;
+    }
     // inventory.*: `op` is add, remove, count, space, weight, equip,
     // unequip, equipped, list, slots or select. Numbers go out in `number`
     // and text (names, "name count" lines) in `text`; false when the entity

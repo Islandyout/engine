@@ -182,7 +182,7 @@ Martial-arts fighting: punch and kick combos, specials, dodges, blocks and parri
 
 ### Vehicle
 
-A drivable car: speed, grip, nitro and gears.
+A drivable car: speed, grip, nitro and gears. Walk up and press E to get in (Enterable) and E again to get out; no script needed. Needs a Collider.
 
 | Field | Default | Notes |
 |---|---|---|
@@ -197,6 +197,8 @@ A drivable car: speed, grip, nitro and gears.
 | `nitroBoost` | 9 | Nitro boost (m/s²) |
 | `nitroSeconds` | 4 | Nitro tank (s) |
 | `gears` | 6 | Gears |
+| `enterable` | true | The Player can get in with E |
+| `enterRadius` | 2 | Enter from (m beyond its edge) |
 
 ### Driver
 

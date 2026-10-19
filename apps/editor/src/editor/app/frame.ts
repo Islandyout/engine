@@ -169,6 +169,15 @@ export function installFrame(C: Ctx): void {
       // A destroyed Player keeps its index (the death screen reads it).
       const controlled = steps > 0 ? C.runtime._editor_controlled_player() : -1;
       if (controlled >= 0) C.playerIndex = controlled;
+      // The walker rides hidden inside the car it drives, and is drawn again when it gets out.
+      const seated = steps > 0 ? C.runtime._editor_seat_value(1) : C.hiddenWalker;
+      if (seated !== C.hiddenWalker) {
+        const back = C.hiddenWalker >= 0 ? C.objects[C.hiddenWalker] : undefined;
+        if (back) back.visible = true;
+        const gone = seated >= 0 ? C.objects[seated] : undefined;
+        if (gone) gone.visible = false;
+        C.hiddenWalker = seated;
+      }
       C.tickAlpha = Math.min(1, C.accumulator * 60);
       C.inputFrameConsumed = steps > 0;
       C.persistDirtySaves();

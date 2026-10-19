@@ -1531,7 +1531,9 @@
      "steering": 30,
      "nitroBoost": 0,
      "nitroSeconds": 4,
-     "gears": 6
+     "gears": 6,
+     "enterable": true,
+     "enterRadius": 2
     },
     "Driver": {
      "mode": "Traffic",
@@ -1602,7 +1604,9 @@
      "steering": 30,
      "nitroBoost": 0,
      "nitroSeconds": 4,
-     "gears": 6
+     "gears": 6,
+     "enterable": true,
+     "enterRadius": 2
     },
     "Driver": {
      "mode": "Traffic",
@@ -1673,7 +1677,9 @@
      "steering": 30,
      "nitroBoost": 0,
      "nitroSeconds": 4,
-     "gears": 6
+     "gears": 6,
+     "enterable": true,
+     "enterRadius": 2
     },
     "Driver": {
      "mode": "Traffic",
@@ -1744,7 +1750,9 @@
      "steering": 30,
      "nitroBoost": 0,
      "nitroSeconds": 4,
-     "gears": 6
+     "gears": 6,
+     "enterable": true,
+     "enterRadius": 2
     },
     "Driver": {
      "mode": "Traffic",
@@ -1815,7 +1823,9 @@
      "steering": 30,
      "nitroBoost": 0,
      "nitroSeconds": 4,
-     "gears": 6
+     "gears": 6,
+     "enterable": true,
+     "enterRadius": 2
     },
     "Driver": {
      "mode": "Traffic",
@@ -1886,7 +1896,9 @@
      "steering": 30,
      "nitroBoost": 0,
      "nitroSeconds": 4,
-     "gears": 6
+     "gears": 6,
+     "enterable": true,
+     "enterRadius": 2
     },
     "Driver": {
      "mode": "Traffic",
@@ -1957,7 +1969,9 @@
      "steering": 30,
      "nitroBoost": 0,
      "nitroSeconds": 4,
-     "gears": 6
+     "gears": 6,
+     "enterable": true,
+     "enterRadius": 2
     },
     "Driver": {
      "mode": "Traffic",
@@ -2028,7 +2042,9 @@
      "steering": 30,
      "nitroBoost": 0,
      "nitroSeconds": 4,
-     "gears": 6
+     "gears": 6,
+     "enterable": true,
+     "enterRadius": 2
     },
     "Driver": {
      "mode": "Traffic",
@@ -2099,7 +2115,9 @@
      "steering": 30,
      "nitroBoost": 0,
      "nitroSeconds": 4,
-     "gears": 6
+     "gears": 6,
+     "enterable": true,
+     "enterRadius": 2
     },
     "Driver": {
      "mode": "Traffic",
@@ -2170,7 +2188,9 @@
      "steering": 30,
      "nitroBoost": 0,
      "nitroSeconds": 4,
-     "gears": 6
+     "gears": 6,
+     "enterable": true,
+     "enterRadius": 2
     },
     "Driver": {
      "mode": "Traffic",
@@ -2241,7 +2261,9 @@
      "steering": 30,
      "nitroBoost": 0,
      "nitroSeconds": 4,
-     "gears": 6
+     "gears": 6,
+     "enterable": true,
+     "enterRadius": 2
     },
     "Driver": {
      "mode": "Traffic",
@@ -2312,7 +2334,9 @@
      "steering": 30,
      "nitroBoost": 0,
      "nitroSeconds": 4,
-     "gears": 6
+     "gears": 6,
+     "enterable": true,
+     "enterRadius": 2
     },
     "Driver": {
      "mode": "Traffic",
@@ -2383,7 +2407,9 @@
      "steering": 30,
      "nitroBoost": 0,
      "nitroSeconds": 4,
-     "gears": 6
+     "gears": 6,
+     "enterable": true,
+     "enterRadius": 2
     },
     "Driver": {
      "mode": "Traffic",
@@ -2454,7 +2480,9 @@
      "steering": 30,
      "nitroBoost": 0,
      "nitroSeconds": 4,
-     "gears": 6
+     "gears": 6,
+     "enterable": true,
+     "enterRadius": 2
     },
     "Driver": {
      "mode": "Traffic",

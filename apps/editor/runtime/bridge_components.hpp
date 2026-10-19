@@ -78,6 +78,10 @@ struct Heading final {
     // AI Driver. frozen holds the car still (race countdowns).
     bool arcade{false};
     bool frozen{false};
+    // The Player on foot may get in with E (Vehicle.enterable), from this far
+    // beyond the car's and the walker's own size (Vehicle.enterRadius).
+    bool enterable{true};
+    float enter_radius{2.0F};
     engine::gameplay::CarSpec spec{};
     engine::gameplay::CarState car{};
     engine::gameplay::CarInput input{};

@@ -36,6 +36,8 @@ export const recipes: readonly Recipe[] = [
     components: { ...walker(175), Health: { current: 120, maximum: 120 }, Melee: { team: 1, ai: true, aggression: 0.5, skill: 0.4 }, LootDrop: {} } },
   { id: "car", name: "Vehicle: player car", about: "A drivable car with a speedometer and road minimap.", y: 0.65, hud: ["Vehicle instruments"],
     components: { ...body(1.8, 1.3, 4), Renderable: { mesh: 219, material: 0, visible: true }, Player: {}, Vehicle: {}, RigidBody: { mass: 1200, dynamic: true }, Collider: { type: "AABB" } } },
+  { id: "parked-car", name: "Vehicle: enterable car", about: "A parked car: walk up, press E to get in and drive, E again to get out. No script.", y: 0.65, hud: ["Interact prompt"],
+    components: { ...body(1.8, 1.3, 4), Renderable: { mesh: 219, material: 0, visible: true }, Vehicle: { enterable: true, enterRadius: 2 }, RigidBody: { mass: 1200, dynamic: true }, Collider: { type: "AABB" } } },
   { id: "rival", name: "Vehicle: AI car", about: "A car that drives itself: race, chase or traffic.", y: 0.65, hud: [],
     components: { ...body(1.8, 1.3, 4), Renderable: { mesh: 219, material: 0, visible: true }, Vehicle: {}, Driver: {}, RigidBody: { mass: 1200, dynamic: true }, Collider: { type: "AABB" } } },
   { id: "ship", name: "Spaceship", about: "A flyable ship (add a Star System entity for planets).", y: 2, hud: ["Flight instruments"],

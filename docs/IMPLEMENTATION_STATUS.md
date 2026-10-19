@@ -99,3 +99,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F92](changelog/F92.md) | `main.ts` split into 21 parts under `editor/app/` (no behaviour change) |
 | [F93](changelog/F93.md) | A Player starts empty-handed (loadout is carried, not held), no default rifle, one item in hand (`offhand=` only on melee slots) |
 | [F94](changelog/F94.md) | UI "When clicked" actions and key-toggled screens, tracked Objectives, worn-gear effects, a fuller Inventory widget (0.91.0) |
+| [F95](changelog/F95.md) | Enterable cars (`Vehicle.enterable`, prompt, `vehicle.enter/exit/driver`), Collider bodies sized to their models (0.92.0) |

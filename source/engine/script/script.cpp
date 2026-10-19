@@ -883,6 +883,28 @@ struct LuaApi final {
             lua_pushboolean(L, 1);
         return out.empty() ? 1 : static_cast<int>(out.size());
     }
+    // vehicle.enter(id) -> true, or false and why; vehicle.exit() likewise; vehicle.driver(id) -> the id in it, or nil.
+    static int seat_call(lua_State *L, const char *op, std::optional<Entity> car) {
+        auto &self = runtime(L);
+        std::string message;
+        double number = 0;
+        const bool ok = self.host_ && self.world_ && self.host_->seat(*self.world_, op, car, message, number);
+        if (std::string(op) == "driver") {
+            if (ok && number >= 0)
+                lua_pushinteger(L, static_cast<lua_Integer>(number));
+            else
+                lua_pushnil(L);
+            return 1;
+        }
+        lua_pushboolean(L, ok);
+        if (ok)
+            return 1;
+        lua_pushstring(L, message.c_str());
+        return 2;
+    }
+    static int vehicle_enter(lua_State *L) { return seat_call(L, "enter", entity_arg(L, 1)); }
+    static int vehicle_exit(lua_State *L) { return seat_call(L, "exit", std::nullopt); }
+    static int vehicle_driver(lua_State *L) { return seat_call(L, "driver", entity_arg(L, 1)); }
     // vehicle.state(id) -> speed, forward, gear, rpm, nitro, drifting, boosting, yaw, slip
     static int vehicle_state(lua_State *L) {
         const int count = vehicle_call(L, "state", {});
@@ -1352,6 +1374,9 @@ struct LuaApi final {
         table(L, self, "camera", {{"shake", camera_shake}});
         table(L, self, "vehicle",
               {{"state", vehicle_state},
+               {"enter", vehicle_enter},
+               {"exit", vehicle_exit},
+               {"driver", vehicle_driver},
                {"set_nitro", vehicle_set_nitro},
                {"reset", vehicle_reset},
                {"freeze", vehicle_freeze},

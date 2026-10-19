@@ -387,6 +387,18 @@ EXPORT int editor_commit() {
         staging.reset();
         return 0;
     }
+    // A car the Player can get into needs a Collider: the exit spot beside it is found against solid shapes.
+    for (const auto e : staging->world.query<Heading>()) {
+        const auto &heading = *staging->world.get<Heading>(e);
+        if (heading.arcade && heading.enterable && !staging->world.get<Driver>(e) && !staging->world.get<PlayerMarker>(e) &&
+            !staging->world.get<engine::physics::Collider>(e)) {
+            const auto *name = staging->world.get<EntityName>(e);
+            failure = "the Vehicle \"" + (name ? name->value : std::string{"(unnamed)"}) +
+                      "\" can be entered (Vehicle.enterable) but has no Collider; add a Collider or turn enterable off";
+            staging.reset();
+            return 0;
+        }
+    }
     if (staging->space && !finish_space(*staging)) {
         failure = "the scene's SpaceSystem site body is not one of its celestial bodies";
         staging.reset();

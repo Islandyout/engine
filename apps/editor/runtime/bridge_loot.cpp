@@ -330,4 +330,28 @@ EXPORT double editor_inventory_op(int index, const char *op, const char *name, i
         return -1;
     return std::string(op) == "add" ? number : 1;
 }
+// Getting in and out of cars. field 0 = 1 while the Player sits in one, 1 = the walker's index
+// (-1 when not seated), 2 = the car the prompt is about (-1 none), 3 = the prompt: 0 none,
+// 1 "Enter", 2 "Exit", 3 "Exit" with no room.
+EXPORT double editor_seat_value(int field) {
+    const auto &r = *active;
+    switch (field) {
+    case 0: return r.car_handover ? 1 : 0;
+    case 1: return r.car_handover && r.world.alive(r.car_handover->walker) ? r.index_of(r.car_handover->walker) : -1;
+    case 2: return r.seat_car && r.world.alive(*r.seat_car) ? r.index_of(*r.seat_car) : -1;
+    case 3: return r.seat_prompt;
+    default: return 0;
+    }
+}
+// field 0 = the prompt car's name, 1 = why the exit is blocked.
+EXPORT const char *editor_seat_text(int field) {
+    static std::string result;
+    result.clear();
+    const auto &r = *active;
+    if (field == 0 && r.seat_car && r.world.alive(*r.seat_car))
+        result = r.car_name(r.world, *r.seat_car);
+    else if (field == 1)
+        result = r.seat_why;
+    return result.c_str();
+}
 }

@@ -212,6 +212,8 @@ export const PARTICLE_PRESETS: Record<ParticlePreset, { direction: THREE.Vector3
 export interface Ctx {
   // The UI kit's actions, toggle keys and the Objectives engine (app/actions.ts).
   openUI: Set<string>;
+  // The scene index of the walker hidden inside the car the Player drives (-1 none).
+  hiddenWalker: number;
   objectives: { defs: ObjectiveDef[]; active: string; counts: Map<string, number>; done: Set<string>; dead: Set<number> };
   setUIOpen: (name: string, open: boolean) => void;
   toggleUI: (name: string) => void;

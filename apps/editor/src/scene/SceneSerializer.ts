@@ -434,6 +434,8 @@ export function normalizeComponent(
         nitroBoost: value.nitroBoost === undefined ? 9 : nonNegativeNumber(value.nitroBoost, "Vehicle.nitroBoost"),
         nitroSeconds: or(value.nitroSeconds, 4, "Vehicle.nitroSeconds"),
         gears,
+        enterable: value.enterable === undefined ? true : boolean(value.enterable, "Vehicle.enterable"),
+        enterRadius: or(value.enterRadius, 2, "Vehicle.enterRadius"),
       };
     }
     case "Driver": {

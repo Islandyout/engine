@@ -75,6 +75,8 @@ jobs:
           node tests/browser/equip.cjs
           node tests/browser/inventory.cjs
           node tests/browser/screens.cjs
+          node tests/browser/collider.cjs
+          node tests/browser/car.cjs
           EDITOR_NO_WEBGL=1 node tests/browser/editor.cjs
           node tests/browser/fps.cjs
           node tests/browser/last_signal.cjs
