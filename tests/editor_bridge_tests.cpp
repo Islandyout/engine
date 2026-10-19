@@ -132,6 +132,17 @@ int add_unit(double x, double y, double z, double vx, double vy, double vz) {
 constexpr int key_w = 0, key_a = 1, key_s = 2, key_d = 3, key_shift = 4, key_f = 5, key_g = 6,
               key_c = 7;
 } // namespace
+// A Player starts empty-handed: tap 1 to draw the first slot, then let it settle.
+static void draw_first_weapon() {
+    editor_input_begin_frame();
+    editor_input_key("Digit1", 1);
+    editor_tick();
+    editor_input_begin_frame();
+    editor_input_key("Digit1", 0);
+    for (int i = 0; i < 40; ++i)
+        editor_tick();
+}
+
 int main() {
     const auto check = [](bool ok, std::source_location where = std::source_location::current()) {
         if (!ok)
@@ -1304,6 +1315,7 @@ int main() {
         check(editor_add(0, 0.9, -10, 0, 0, 0, 1, 1.8, 1, 0, 0, 0, 200, 200, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         editor_set_body(1, 1, 1, 0); // kinematic: stays put
         check(editor_commit() == 1);
+        draw_first_weapon(); // a Player starts empty-handed
         check(std::string(editor_weapons_error()).rfind("line 0: no weapons", 0) == 0); // empty text -> defaults
         check(editor_weapon_value(0, 5) == 3 && editor_weapon_value(0, 1) == 30);
         check(std::string(editor_weapon_text(0, 2, 0)) == "shotgun" && std::string(editor_weapon_text(0, 1, 1)) == "pistol");
@@ -1366,6 +1378,7 @@ int main() {
         editor_set_body(1, 1, 1, 0);
         check(editor_add(0, 1.5, -5, 0, 0, 0, 4, 3, 0.5, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         check(editor_commit() == 1);
+        draw_first_weapon(); // a Player starts empty-handed
         check(std::string(editor_weapons_error()).empty());
         editor_input_begin_frame();
         editor_set_look(0, -0.05);
@@ -1383,6 +1396,7 @@ int main() {
         check(editor_add(3, 0.9, -10, 0, 0, 0, 1, 1.8, 1, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         editor_set_body(1, 1, 1, 0);
         check(editor_commit() == 1);
+        draw_first_weapon(); // a Player starts empty-handed
         check(std::string(editor_weapon_text(0, 0, 2)) == "pistol-1");
         {
             const double cx = 0.6, cy = 2.0, cz = 4.0;
@@ -1426,6 +1440,7 @@ int main() {
         check(editor_add(-3, 0.9, -12, 0, 0, 0, 0.7, 1.8, 0.7, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         editor_set_body(2, 1, 1, 0); // a bystander: Health, no team
         check(editor_commit() == 1);
+        draw_first_weapon(); // a Player starts empty-handed
         {
             // From the eye height, 1.5 degrees left of the soldier's chest (yaw +1.5).
             const double cy = 1.17, ty = 0.9 + 1.8 * 0.15, a = 1.5 * 3.14159265 / 180;
@@ -1451,6 +1466,7 @@ int main() {
         editor_set_weapons(0, "pistol: model=pistol");
         editor_set_aim_assist(0, 1.5, 60);
         check(editor_commit() == 0 && std::string(editor_last_error()).find("aimAssist") != std::string::npos);
+        draw_first_weapon(); // a Player starts empty-handed
 
         // Loot. A walk-over ammo box (back after a second), a carbine that
         // waits for E, a chest that needs a key and a held E, and a soldier
@@ -1479,6 +1495,7 @@ int main() {
             small(1.8, 0); // 2 carbine
             editor_set_pickup(2, "1 weapon carbine: model=rifle held=carbine-2 mag=30 rarity=Epic", 1, 0);
             check(editor_commit() == 1);
+            draw_first_weapon(); // a Player starts empty-handed
             check(editor_pickup_value(1, 0) == 1 && editor_pickup_value(1, 5) == 1);
             check(std::string(editor_pickup_text(2, 1)) == "carbine-2" && std::string(editor_pickup_text(2, 2)) == "Epic");
             editor_tick();
@@ -1505,6 +1522,7 @@ int main() {
             player_at(0, 0);
             chest(1);
             check(editor_commit() == 1);
+            draw_first_weapon();
             editor_tick();
             check(editor_interact_value(0) == 1 && editor_interact_value(2) == 1 && editor_interact_value(3) == 1 &&
                   std::string(editor_interact_text(0)) == "Chest" && std::string(editor_interact_text(1)) == "Key");
@@ -1520,6 +1538,7 @@ int main() {
             small(0, 0); // 2 key
             editor_set_pickup(2, "1 item Key", 0, 0);
             check(editor_commit() == 1);
+            draw_first_weapon();
             editor_tick();
             check(std::string(editor_items_text(0)) == "Key 1\n" && editor_interact_value(3) == 0);
             const int before = editor_entity_count();
@@ -1545,6 +1564,7 @@ int main() {
             editor_set_weapons(1, "smg: model=smg held=smg-3");
             editor_set_loot_drop(1, 1, "1 health 20");
             check(editor_commit() == 1);
+            draw_first_weapon();
             const int dropped_from = editor_entity_count();
             editor_input_begin_frame();
             editor_set_look(0, -0.05);
@@ -1571,6 +1591,28 @@ int main() {
         check(editor_commit() == 1);
         editor_tick();
         check(std::string(editor_items_text(0)) == "Coin 1\nGem 1\nKey 2\n");
+
+        // A Player starts empty-handed: the loadout is carried, the fire button does nothing,
+        // and picking a slot draws it.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 0, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        editor_set_weapons(0, "pistol: model=pistol equip=0 mag=12 reserve=24");
+        check(editor_commit() == 1);
+        check(editor_weapon_value(0, 5) == 1 && editor_weapon_value(0, 10) == 0); // carried, not in hand
+        editor_input_begin_frame();
+        editor_input_mouse_button(0, 1, 0, 0);
+        editor_tick();
+        editor_input_begin_frame();
+        editor_input_mouse_button(0, 0, 0, 0);
+        editor_tick();
+        check(editor_weapon_value(0, 1) == 12 && editor_weapon_value(0, 10) == 0); // nothing fired
+        draw_first_weapon();
+        check(editor_weapon_value(0, 10) == 1);
+        editor_input_begin_frame();
+        editor_input_mouse_button(0, 1, 0, 0);
+        editor_tick();
+        check(editor_weapon_value(0, 1) < 12); // now it shoots
 
         // inventory.*: limits on kinds and weight, worn items, and the old
         // names (which honour the same limits).
@@ -1680,6 +1722,7 @@ int main() {
         editor_set_controller(0, 0, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
         editor_set_weapons(0, "pistol: model=pistol damage=1 equip=0");
         check(editor_commit() == 1);
+        draw_first_weapon();
         for (int i = 0; i < 60; ++i)
             editor_tick();
         check(editor_soldier_value(1, 0) == 0); // still on guard, unaware
@@ -2254,6 +2297,7 @@ int main() {
         editor_set_script_source(1, "function on_start() local p = world.find('Player') world.heal(p, 30) world.heal(p, 500) "
                                     "world.give_ammo(p, 25) ui.marker('Goal', 1, 2, 3, 'Uplink') game.pause() end");
         check(editor_commit() == 1);
+        draw_first_weapon(); // a Player starts empty-handed
         editor_tick();
         check(editor_value(0, 3) == 1.0); // healed to the maximum, not beyond
         check(editor_weapon_value(0, 2) == 35);
@@ -2338,6 +2382,7 @@ int main() {
             editor_set_weapons(0, "pistol: model=pistol equip=0");
             check(editor_add(0, 0.9, 1.25, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 500, 500, 0, 0, 0, 0, 0.5, 0, 0) == 1);
             check(editor_commit() == 1);
+            draw_first_weapon(); // a Player starts empty-handed
             settle();
             editor_take_melee_events();
             editor_take_weapon_events();
@@ -2383,6 +2428,7 @@ int main() {
             editor_set_weapons(0, "pistol: model=pistol equip=0\nsword: melee=sword offhand=shield-round equip=0");
             check(editor_add(0, 0.9, 1.25, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 500, 500, 0, 0, 0, 0, 0.5, 0, 0) == 1);
             check(editor_commit() == 1);
+            draw_first_weapon(); // a Player starts empty-handed
             check(editor_fighter_value(0, 0) == 1); // a fighter, from the melee slot
             check(std::string(editor_weapon_text(0, 1, 3)) == "sword" && std::string(editor_weapon_text(0, 1, 4)) == "shield-round");
             settle();

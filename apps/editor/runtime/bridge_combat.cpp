@@ -233,6 +233,7 @@ EXPORT void editor_set_weapons(int index, const char *text) {
         parsed = engine::gameplay::parse_weapons(engine::gameplay::default_weapons_text);
     }
     Arsenal arsenal;
+    arsenal.holstered = target->first->get<PlayerMarker>(target->second) != nullptr;
     arsenal.weapons = std::move(parsed.weapons);
     for (const auto &weapon : arsenal.weapons)
         arsenal.melee_slots = arsenal.melee_slots || weapon.is_melee();
@@ -249,8 +250,9 @@ EXPORT const char *editor_weapons_error() { return active->weapons_error.c_str()
 // Weapon HUD state: field 0 = current slot, 1 = rounds loaded, 2 = reserve
 // (-1 unlimited), 3 = reload progress 0..1 (-1 when not reloading), 4 =
 // current spread in degrees, 5 = weapon count, 6 = equip progress 0..1 (-1
-// when ready), 7 = aiming, 8 = magazine size, 9 = aim zoom. 0 (and -1 for
-// 3/6) without Weapons.
+// when ready), 7 = aiming, 8 = magazine size, 9 = aim zoom, 10 = 1 with a
+// weapon in hand (0 while a Player is empty-handed). 0 (and -1 for 3/6)
+// without Weapons.
 EXPORT double editor_weapon_value(int index, int field) {
     const bool progress_field = field == 3 || field == 6;
     if (index < 0 || static_cast<std::size_t>(index) >= active->entities.size())
@@ -287,6 +289,8 @@ EXPORT double editor_weapon_value(int index, int field) {
         return weapon.magazine;
     case 9:
         return weapon.zoom;
+    case 10:
+        return arsenal->holstered ? 0 : 1; // something in hand
     default:
         return 0;
     }

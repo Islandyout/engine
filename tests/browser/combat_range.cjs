@@ -64,6 +64,7 @@ const { chromium } = require("playwright");
       page.once("dialog", (dialog) => dialog.accept());
       await page.click('[aria-label="Combat range"]');
       await page.click("#play");
+      await page.keyboard.press("Digit1"); // a Player starts empty-handed
       await page.waitForFunction(() => (document.querySelector("#viewport").dataset.shooter ?? "").split(",")[4] === "pistol-1", null, { timeout: 60000 });
     };
     const shooter = async () => {
@@ -158,6 +159,7 @@ const { chromium } = require("playwright");
     await run({ command: "set_transform", entity: player, position: [23, 0.9, -6] });
     await run({ command: "set_component", entity: player, type: "Rotation", value: { euler: { x: 0, y: Math.PI / 2, z: 0 } } });
     await page.click("#play");
+    await page.keyboard.press("Digit1");
     await page.waitForFunction(() => (document.querySelector("#viewport").dataset.shooter ?? "").split(",")[4] === "pistol-1", null, { timeout: 60000 });
     const magazine = () => page.evaluate(() => Number(document.querySelector("#hud-text").textContent.match(/pistol (\d+)\//)?.[1] ?? -1));
     await page.waitForTimeout(1500);

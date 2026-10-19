@@ -56,7 +56,7 @@ export function installHeldGuns(C: Ctx): void {
   }
 
   function playerWeaponModel(slot?: number): string {
-    if (C.playerIndex < 0 || C.runtime._editor_weapon_value(C.playerIndex, 5) <= 0) return "";
+    if (C.playerIndex < 0 || C.runtime._editor_weapon_value(C.playerIndex, 10) <= 0) return "";
     const current = slot ?? C.runtime._editor_weapon_value(C.playerIndex, 0);
     return C.runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [C.playerIndex, current, 1]);
   }
@@ -67,7 +67,7 @@ export function installHeldGuns(C: Ctx): void {
   function updateShooterAim(dt: number) {
     C.tps.meleeInHand =
       C.playerIndex >= 0 &&
-      C.runtime._editor_weapon_value(C.playerIndex, 5) > 0 &&
+      C.runtime._editor_weapon_value(C.playerIndex, 10) > 0 &&
       (C.runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [C.playerIndex, C.runtime._editor_weapon_value(C.playerIndex, 0), 3]) as string) !== "";
     if (!C.shooterActive()) {
       C.runtime._editor_set_aim(0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
@@ -144,11 +144,15 @@ export function installHeldGuns(C: Ctx): void {
       const object = C.objects[i];
       const entity = C.doc.scene.eachAlive()[i];
       if (!object || !object.visible || !entity) continue;
-      // Which gun: the current weapon in Play, the loadout's first before.
-      const playing = C.doc.mode !== "edit" && C.runtime._editor_weapon_value(i, 5) > 0;
+      // Which gun: the weapon in hand in Play; before Play a soldier shows its
+      // loadout's first, but a Player's hands are empty until it picks something up.
+      const isPlayer = !!C.doc.scene.resolve(entity, "Player");
+      const playing = C.doc.mode !== "edit" && C.runtime._editor_weapon_value(i, 10) > 0;
       const slot = playing ? C.runtime._editor_weapon_value(i, 0) : 0;
       const text = (field: number) => C.runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [i, slot, field]) as string;
-      const slot0 = loadoutSlot(C.doc.scene.resolve(entity, "Weapons")?.loadout ?? "");
+      const weapons = C.doc.scene.resolve(entity, "Weapons");
+      // (No Weapons component, no loadout: a Melee or ThirdPerson character holds nothing.)
+      const slot0 = isPlayer || !weapons ? { gun: "", melee: "", offhand: "" } : loadoutSlot(weapons.loadout);
       const melee = playing ? text(3) : slot0.melee;
       const offhand = playing ? text(4) : slot0.offhand;
       const name = melee ? "" : playing ? heldGunName(text(1), text(2)) : slot0.gun;
@@ -162,6 +166,7 @@ export function installHeldGuns(C: Ctx): void {
         if (melee && melee !== "fists") placeHand(i, held, "r", melee, !offhand);
         if (offhand) placeHand(i, held, "l", offhand, false);
       }
+      for (const blade of held.blades ?? []) blade.visible = !name;
       if (name !== held.gun) {
         held.gun = name;
         held.pose.setGun(undefined);

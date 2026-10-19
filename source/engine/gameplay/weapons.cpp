@@ -192,6 +192,8 @@ WeaponParse parse_weapons(std::string_view text) {
         }
         if (weapon.is_melee() && !weapon.held.empty())
             return fail("a melee slot (melee=) can't also hold a gun (held=)");
+        if (!weapon.is_melee() && !weapon.offhand.empty())
+            return fail("a gun can't be held with a blade or shield (offhand=); offhand= belongs on a melee slot");
         if (weapon.is_melee())
             weapon.magazine = weapon.reserve = 0;
         result.weapons.push_back(std::move(weapon));

@@ -10,7 +10,7 @@ export function installCameras(C: Ctx): void {
   // (A melee slot in hand fights with the usual camera instead.)
   function shooterActive(): boolean {
     if (C.doc.mode === "edit" || C.playerIndex < 0 || playerController()?.mode !== "ThirdPerson" || C.tps.meleeInHand) return false;
-    return C.runtime._editor_weapon_value(C.playerIndex, 5) > 0 && C.runtime._editor_controlled_player() === C.playerIndex;
+    return C.runtime._editor_weapon_value(C.playerIndex, 10) > 0 && C.runtime._editor_controlled_player() === C.playerIndex;
   }
 
   function playerController() {
@@ -48,7 +48,7 @@ export function installCameras(C: Ctx): void {
     view.aspect = C.viewport.clientWidth / Math.max(C.viewport.clientHeight, 1);
     const aiming = C.runtime._editor_weapon_value(C.playerIndex, 7) === 1;
     C.zoomBlend += ((aiming ? 1 : 0) - C.zoomBlend) * (1 - Math.exp(-dt * 14));
-    const zoom = C.runtime._editor_weapon_value(C.playerIndex, 5) > 0 ? C.runtime._editor_weapon_value(C.playerIndex, 9) : 1;
+    const zoom = C.runtime._editor_weapon_value(C.playerIndex, 10) > 0 ? C.runtime._editor_weapon_value(C.playerIndex, 9) : 1;
     view.fov = (settings.fov + offsets.fovAdd * (1 - C.zoomBlend)) * (1 + (zoom - 1) * C.zoomBlend);
     view.updateProjectionMatrix();
     view.rotation.set(C.fps.look.pitch + C.weaponFx.punch, C.fps.look.yaw, offsets.roll, "YXZ");

@@ -466,7 +466,7 @@ export function installFrame(C: Ctx): void {
       C.applyShake(C.viewCamera, dt);
     }
     const viewmodelInput =
-      C.firstPerson() && C.runtime._editor_weapon_value(C.playerIndex, 5) > 0
+      C.firstPerson() && C.runtime._editor_weapon_value(C.playerIndex, 10) > 0
         ? {
             look: C.fps.look,
             aiming: C.runtime._editor_weapon_value(C.playerIndex, 7) === 1,

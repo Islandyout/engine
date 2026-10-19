@@ -163,6 +163,7 @@ const { chromium } = require("playwright");
       value: { kind: "Text", text: "target up", anchor: "top-left", visibleWhen: "always", action: "pause" },
     });
     await page.click("#play");
+    await page.keyboard.press("Digit1"); // a Player starts empty-handed: draw the rifle
     await page.waitForFunction(() => /rifle 30\/60/.test(document.querySelector("#hud-text").textContent));
     assert.match(await hudText(), /Health 100/);
     const { cx, cy } = await viewport();
@@ -223,6 +224,7 @@ const { chromium } = require("playwright");
       { timeout: 20000 },
     );
     await page.screenshot({ path: "build/browser-evidence/f62-combat-ai.png" });
+    await page.keyboard.press("Digit1"); // empty-handed until it draws
     await page.mouse.move(cx, cy);
     await page.mouse.down({ button: "left" });
     await waitFor(() => document.querySelector("#hud-text").textContent.includes("Soldier down by Hero"));

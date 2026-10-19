@@ -192,7 +192,8 @@ export function installHud(C: Ctx): void {
     const weaponText = (slot: number, field: number) =>
       C.runtime.ccall("editor_weapon_text", "string", ["number", "number", "number"], [player, slot, field]) as string;
     const slots = Array.from({ length: weaponCount }, (_, i) => ({ name: weaponText(i, 0), melee: weaponText(i, 3) !== "" }));
-    const slot = weaponCount > 0 ? C.runtime._editor_weapon_value(player, 0) : 0;
+    // (-1: empty-handed, nothing is current)
+    const slot = weaponCount > 0 && C.runtime._editor_weapon_value(player, 10) > 0 ? C.runtime._editor_weapon_value(player, 0) : -1;
     const aiming = weaponCount > 0 && C.runtime._editor_weapon_value(player, 7) === 1;
     const fov = C.firstPerson() ? C.fps.camera.fov : C.tps.camera.fov;
     const spread = weaponCount > 0 && !aiming
