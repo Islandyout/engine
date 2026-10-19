@@ -66,6 +66,8 @@ void editor_set_loot_drop(int, int, const char *);
 void editor_set_container(int, const char *, double, const char *);
 void editor_set_inventory(int, int, double, const char *, const char *, const char *, const char *, const char *);
 double editor_inventory_op(int, const char *, const char *, int, const char *);
+double editor_seat_value(int);
+const char *editor_seat_text(int);
 const char *editor_inventory_text(int);
 double editor_pickup_value(int, int);
 const char *editor_pickup_text(int, int);
@@ -95,7 +97,7 @@ double editor_soldier_value(int, int);
 void editor_set_terrain(double, double, double, double, int, const float *, int);
 void editor_add_obstacle(double, double, double, double, double, double);
 double editor_terrain_height(double, double);
-void editor_set_car(int, double, double, double, double, double, double, double, double, double, double);
+void editor_set_car(int, double, double, double, double, double, double, double, double, double, double, int, double);
 void editor_set_driver(int, int, int, double, double, double);
 void editor_set_driver_text(int, int, const char *);
 double editor_vehicle_value(int, int);
@@ -1839,15 +1841,15 @@ int main() {
         editor_begin();
         // 0: player car at the origin facing +z.
         check(editor_add(0, 0.8, 0, 0, 0, 0, 2, 1.4, 4.4, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0.5, 0, 0) == 1);
-        editor_set_car(0, 0, 60, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6);
+        editor_set_car(0, 0, 60, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6, 1, 2.0);
         // 1: racer on a 60 m square route, 100 m away.
         check(editor_add(100, 0.8, 0, 0, 0, 0, 2, 1.4, 4.4, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0.5, 0, 0) == 1);
-        editor_set_car(1, 0, 40, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6);
+        editor_set_car(1, 0, 40, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6, 1, 2.0);
         editor_set_driver(1, 1, 1, 0.8, 0.5, 1);
         editor_set_driver_text(1, 0, "100,30 160,30 160,-30 100,-30");
         // 2: police car 40 m behind the player, chasing it.
         check(editor_add(0, 0.8, -40, 0, 0, 0, 2, 1.4, 4.4, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0.5, 0, 0) == 1);
-        editor_set_car(2, 0, 50, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6);
+        editor_set_car(2, 0, 50, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6, 1, 2.0);
         editor_set_driver(2, 2, 0, 0.8, 0.2, 1);
         // 3: a script reading the player's car.
         check(editor_add(0, 30, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -2154,7 +2156,7 @@ int main() {
         editor_set_signal(0, 10, 3, 2, 15, 8);
         // 1: a traffic car 60 m south, driving north through it.
         check(editor_add(2, 0.8, -60, 0, 0, 0, 2, 1.4, 4.4, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0.5, 0, 0) == 1);
-        editor_set_car(1, 0, 40, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6);
+        editor_set_car(1, 0, 40, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6, 1, 2.0);
         editor_set_driver(1, 3, 0, 0.8, 0.2, 1);
         editor_set_driver_text(1, 0, "2,-40 2,80");
         // 2: someone at the south-west kerb, crossing north over the road
@@ -2806,8 +2808,8 @@ int main() {
         // normal W input drives it, and E returns control to the original walker.
         editor_begin();
         check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
-        check(editor_add(0, 0.5, 2.5, 0, 0, 0, 2, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
-        editor_set_car(1, 0, 60, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6);
+        check(editor_add(0, 0.5, 2.5, 0, 0, 0, 2, 1, 4, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_car(1, 0, 60, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6, 1, 2.0);
         check(editor_commit() == 1);
         editor_input_begin_frame();
         editor_input_key("KeyE", 1);
@@ -2833,8 +2835,8 @@ int main() {
         // handover must remain active rather than placing the walker inside one.
         editor_begin();
         check(editor_add(0, 0.5, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
-        check(editor_add(0, 0.5, 2.5, 0, 0, 0, 2, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
-        editor_set_car(1, 0, 60, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6);
+        check(editor_add(0, 0.5, 2.5, 0, 0, 0, 2, 1, 4, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_car(1, 0, 60, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6, 1, 2.0);
         check(editor_add(3.15, 0.5, 2.5, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
         editor_set_body(2, 1, 1, 0);
         check(editor_add(-3.15, 0.5, 2.5, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
@@ -2851,6 +2853,99 @@ int main() {
         editor_input_key("KeyE", 1);
         editor_tick();
         check(editor_controlled_player() == 1); // no safe side: still seated
+        check(editor_seat_value(0) == 1 && editor_seat_value(3) == 3); // and the prompt says why
+        check(std::string(editor_seat_text(1)) == "No room to get out");
+    }
+
+    {
+        // Getting into a car (Vehicle.enterable): the prompt, E in and out, the walker restored, and a Lua API.
+        const auto tap_e = [&] {
+            editor_input_begin_frame();
+            editor_input_key("KeyE", 1);
+            editor_tick();
+            editor_input_begin_frame();
+            editor_input_key("KeyE", 0);
+            editor_tick();
+        };
+        const auto scene = [&](int enterable, double radius, double walker_z) {
+            editor_begin();
+            check(editor_add(0, 0.9, walker_z, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            editor_set_controller(0, 0, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+            check(editor_add(0, 0.65, 0, 0, 0, 0, 1.8, 1.3, 4, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0.5, 0, 0) == 1);
+            editor_set_car(1, 0, 60, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6, enterable, radius);
+            editor_set_name(1, "Taxi");
+        };
+        // Out of reach: no prompt. In reach: "Enter Taxi", then seated, the walker hidden away and the camera's index the car's.
+        scene(1, 2.0, 7);
+        check(editor_commit() == 1);
+        editor_tick();
+        check(editor_seat_value(3) == 0);
+        scene(1, 2.0, 4);
+        check(editor_commit() == 1);
+        editor_tick();
+        check(editor_seat_value(3) == 1 && editor_seat_value(2) == 1 && std::string(editor_seat_text(0)) == "Taxi");
+        tap_e();
+        check(editor_seat_value(0) == 1 && editor_seat_value(1) == 0 && editor_controlled_player() == 1);
+        check(editor_seat_value(3) == 2); // "Exit Taxi"
+        // Drive, then get out: the walker is back at its own feet, walks and collides again.
+        editor_input_begin_frame();
+        editor_input_key("KeyW", 1);
+        for (int i = 0; i < 40; ++i)
+            editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("KeyW", 0);
+        check(std::abs(editor_value(1, 2)) > 1.0); // the car drove
+        tap_e();
+        check(editor_seat_value(0) == 0 && editor_controlled_player() == 0);
+        check(std::hypot(editor_value(0, 0) - editor_value(1, 0), editor_value(0, 2) - editor_value(1, 2)) > 1.5);
+        const double before = editor_value(0, 2);
+        editor_input_begin_frame();
+        editor_input_key("KeyD", 1);
+        for (int i = 0; i < 30; ++i)
+            editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("KeyD", 0);
+        check(std::abs(editor_value(0, 0) - editor_value(1, 0)) > 0.5 || std::abs(editor_value(0, 2) - before) > 0.1); // moves again
+        // Enterable off, or a short radius: nothing to enter.
+        scene(0, 2.0, 4);
+        check(editor_commit() == 1);
+        editor_tick();
+        tap_e();
+        check(editor_seat_value(3) == 0 && editor_seat_value(0) == 0);
+        scene(1, 0.5, 4);
+        check(editor_commit() == 1);
+        editor_tick();
+        check(editor_seat_value(3) == 0);
+        // The Lua API: vehicle.enter from anywhere, driver, exit, and the events scripts hear.
+        scene(1, 2.0, 12);
+        editor_set_script_source(0, "local n = 0\n"
+                                    "function on_tick(dt)\n"
+                                    "  n = n + 1\n"
+                                    "  if n == 2 then local ok, why = vehicle.enter(world.find('Taxi')) log('enter ' .. tostring(ok)) end\n"
+                                    "  if n == 4 then log('driver ' .. tostring(vehicle.driver(world.find('Taxi')) ~= nil)) end\n"
+                                    "  if n == 6 then local ok, why = vehicle.exit() log('exit ' .. tostring(ok)) end\n"
+                                    "  if n == 8 then local ok, why = vehicle.exit() log('again ' .. tostring(ok) .. ' ' .. tostring(why)) end\n"
+                                    "end\n"
+                                    "function on_ui(name, value) if name == 'vehicle' then log('ui ' .. value) end end\n");
+        check(editor_commit() == 1);
+        for (int i = 0; i < 12; ++i)
+            editor_tick();
+        {
+            std::string logs;
+            const int commands = editor_take_commands();
+            for (int c = 0; c < commands; ++c)
+                if (std::string(editor_command_text(c, 0)) == "log")
+                    logs += std::string(editor_command_text(c, 1)) + ";";
+            check(logs == "ui enter:Taxi;enter true;driver true;ui exit:Taxi;exit true;again false the Player is not in a car;");
+        }
+        // A car the Player can enter needs a Collider.
+        editor_begin();
+        check(editor_add(0, 0.9, 4, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        check(editor_add(0, 0.65, 0, 0, 0, 0, 1.8, 1.3, 4, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_car(1, 0, 60, 11, 26, 1.25, 0.45, 0.55, 9, 4, 6, 1, 2.0);
+        editor_set_name(1, "Taxi");
+        check(editor_commit() == 0 && std::string(editor_last_error()).find("Taxi") != std::string::npos &&
+              std::string(editor_last_error()).find("no Collider") != std::string::npos);
     }
 
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "

@@ -326,6 +326,24 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "vehicle"
   },
   {
+    "name": "vehicle.enter",
+    "signature": "vehicle.enter(id: integer): boolean, string?",
+    "doc": "Seats the Player in this car, from anywhere; false and the reason if it can't (not an arcade Vehicle, Vehicle.enterable off, already driven, the Player is already in a car). Scripts hear on_ui(\"vehicle\", \"enter:<car name>\").",
+    "group": "vehicle"
+  },
+  {
+    "name": "vehicle.exit",
+    "signature": "vehicle.exit(): boolean, string?",
+    "doc": "Puts the Player out beside the car it is in; false and the reason if there is no room or it is not in one. Scripts hear on_ui(\"vehicle\", \"exit:<car name>\") or \"blocked:<car name>\".",
+    "group": "vehicle"
+  },
+  {
+    "name": "vehicle.driver",
+    "signature": "vehicle.driver(id: integer): integer?",
+    "doc": "The id of whoever is driving this car (the Player's walker, while seated), or nil.",
+    "group": "vehicle"
+  },
+  {
     "name": "vehicle.set_nitro",
     "signature": "vehicle.set_nitro(id: integer, amount: number)",
     "doc": "Refills the nitro tank.",

@@ -85,6 +85,10 @@ export interface VehicleComponent {
   nitroBoost: number;
   nitroSeconds: number;
   gears: number;
+  // The Player on foot can get in with E when within `enterRadius` metres of the car (Arcade cars
+  // without a Driver). Needs a Collider.
+  enterable: boolean;
+  enterRadius: number;
 }
 // An AI driver for an Arcade Vehicle: races along `route`
 // ("x,z x,z ..."), chases `target` (an entity Name; "" = the Player) in

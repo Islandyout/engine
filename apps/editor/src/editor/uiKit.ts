@@ -1166,7 +1166,7 @@ const interactPrompt: Draw = (p, r, d, o) => {
   if (!prompt) return;
   const { left: x, top: y, width: w, height: h } = r;
   const keySize = h * 0.62;
-  const label = prompt.locked ? `Needs ${prompt.need || "a key"}` : prompt.verb;
+  const label = prompt.locked ? (prompt.verb === "Exit" ? prompt.need : `Needs ${prompt.need || "a key"}`) : prompt.verb;
   const nameW = p.measure(prompt.name, 15, { raw: true });
   const labelW = p.measure(label, 13);
   const total = keySize / s + 16 + Math.max(nameW, labelW) / s + 24;

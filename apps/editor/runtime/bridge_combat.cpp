@@ -88,10 +88,15 @@ EXPORT void editor_set_soldier_patrol(int index, const char *names) {
 // (see CarSpec), adding its Heading (footprint from its Box) if needed.
 // Non-finite or non-positive numbers fail the commit.
 EXPORT void editor_set_car(int index, double yaw, double top_speed, double acceleration, double braking, double grip,
-                           double drift_grip, double steering, double nitro_boost, double nitro_seconds, double gears) {
+                           double drift_grip, double steering, double nitro_boost, double nitro_seconds, double gears,
+                           int enterable, double enter_radius) {
     const auto target = staged(index);
     if (!target)
         return;
+    if (!(std::isfinite(enter_radius) && enter_radius > 0 && enter_radius <= 30)) {
+        fail("a Vehicle enterRadius outside 0..30 m");
+        return;
+    }
     for (const double v : {top_speed, acceleration, braking, grip, drift_grip, steering, nitro_seconds, gears})
         if (!(std::isfinite(v) && v > 0)) {
             fail("a vehicle tuning value that is not positive and finite");
@@ -109,6 +114,8 @@ EXPORT void editor_set_car(int index, double yaw, double top_speed, double accel
     }
     auto &heading = *world.get<Heading>(e);
     heading.arcade = true;
+    heading.enterable = enterable != 0;
+    heading.enter_radius = static_cast<float>(enter_radius);
     heading.spec.top_speed = static_cast<float>(top_speed);
     heading.spec.acceleration = static_cast<float>(acceleration);
     heading.spec.braking = static_cast<float>(braking);

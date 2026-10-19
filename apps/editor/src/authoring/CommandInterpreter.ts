@@ -616,6 +616,8 @@ export function defaultComponent(
         nitroBoost: 9,
         nitroSeconds: 4,
         gears: 6,
+        enterable: true,
+        enterRadius: 2,
       };
     case "Driver":
       return { mode: "Race", route: "", loop: true, target: "", skill: 0.8, aggression: 0.5, speedScale: 1 };

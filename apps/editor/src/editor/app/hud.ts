@@ -252,6 +252,19 @@ export function installHud(C: Ctx): void {
         loot = { name, rarity, damage, rpm: C.runtime._editor_pickup_value(target, 7), magazine: C.runtime._editor_pickup_value(target, 8), melee: damage <= 0 };
       }
     }
+    // Getting into and out of a car (Vehicle.enterable): the same prompt, when no pickup or crate has the key.
+    const seat = target < 0 ? C.runtime._editor_seat_value(3) : 0;
+    if (seat > 0) {
+      prompt = {
+        verb: seat === 1 ? "Enter" : "Exit",
+        name: C.runtime.ccall("editor_seat_text", "string", ["number"], [0]) as string,
+        key: "E",
+        hold: -1,
+        locked: seat === 3,
+        need: C.runtime.ccall("editor_seat_text", "string", ["number"], [1]) as string,
+        rarity: 0,
+      };
+    }
     const boss = bossReadout();
     const bossName = C.ledger.bossName;
     if (boss && boss.health >= 0) C.uiFeed.bossGhost = boss.health >= C.uiFeed.bossGhost ? boss.health : Math.max(boss.health, C.uiFeed.bossGhost - dt * 0.4);
@@ -499,9 +512,9 @@ export function installHud(C: Ctx): void {
       if (ui.kind === "Bar" || ui.kind === "Slider" || ui.kind === "Toggle") hudLines.push(`${uiName || ui.kind}=${Math.round(value * 100) / 100}`);
     }
     // Loot: the text mirror for screen readers (the widgets draw the prompt, feed and card).
-    if (C.doc.mode === "play" && (C.runtime._editor_interact_value(0) >= 0 || C.lootFeed.length)) {
+    if (C.doc.mode === "play" && (C.runtime._editor_interact_value(0) >= 0 || C.runtime._editor_seat_value(3) > 0 || C.lootFeed.length)) {
       const prompt = uiData().prompt;
-      if (prompt) hudLines.push(prompt.locked ? `Needs ${prompt.need}` : `E: ${prompt.verb} ${prompt.name}${prompt.hold >= 0 ? ` (hold ${Math.round(prompt.hold * 100)}%)` : ""}`);
+      if (prompt) hudLines.push(prompt.locked ? (prompt.verb === "Exit" ? prompt.need : `Needs ${prompt.need}`) : `E: ${prompt.verb} ${prompt.name}${prompt.hold >= 0 ? ` (hold ${Math.round(prompt.hold * 100)}%)` : ""}`);
       for (const entry of C.lootFeed) hudLines.push(entry.kind < 0 ? entry.label : `Picked up ${entry.label}`);
     }
     // Where each widget's clicks land, for tests (only when it changes).

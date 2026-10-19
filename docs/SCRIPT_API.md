@@ -113,6 +113,9 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | Function | What it does |
 |---|---|
 | `vehicle.state(id: integer): number, number, integer, number, number, boolean, boolean, number, number` | speed, forward, gear, rpm, nitro, drifting, boosting, yaw, slip. |
+| `vehicle.enter(id: integer): boolean, string?` | Seats the Player in this car, from anywhere; false and the reason if it can't (not an arcade Vehicle, Vehicle.enterable off, already driven, the Player is already in a car). Scripts hear on_ui("vehicle", "enter:<car name>"). |
+| `vehicle.exit(): boolean, string?` | Puts the Player out beside the car it is in; false and the reason if there is no room or it is not in one. Scripts hear on_ui("vehicle", "exit:<car name>") or "blocked:<car name>". |
+| `vehicle.driver(id: integer): integer?` | The id of whoever is driving this car (the Player's walker, while seated), or nil. |
 | `vehicle.set_nitro(id: integer, amount: number)` | Refills the nitro tank. |
 | `vehicle.reset(id: integer, x: number, y: number, z: number, yaw: number)` | Puts the car back on its wheels at a place. |
 | `vehicle.freeze(id: integer, frozen: boolean)` | Holds the car in place (countdowns). |

@@ -23,6 +23,8 @@ public:
               int amount) override;
     bool inventory(engine::World &world, engine::Entity entity, const std::string &op, const std::string &name,
                    int amount, double &number, std::string &text) override;
+    bool seat(engine::World &world, const std::string &op, std::optional<engine::Entity> car, std::string &message,
+              double &number) override;
     void emit(engine::Entity source, const std::string &kind, const std::string &a, const std::string &b) override;
     bool weapon(engine::World &world, engine::Entity self, const std::string &op, const std::vector<double> &args,
                 std::vector<double> &out) override;
@@ -299,7 +301,6 @@ struct Runtime {
         engine::physics::BodyType type{engine::physics::BodyType::Dynamic};
     };
     std::optional<CarHandover> car_handover;
-    bool previous_car_interact_down{false};
     std::optional<engine::Entity> player_entity(const engine::World &w) const {
         for (const auto entity : w.query<engine::Box, PlayerMarker>())
             return entity;
@@ -655,78 +656,152 @@ struct Runtime {
         }
         return false;
     }
-    // Marker moves are deferred: this runs inside the editor.move system.
-    void handle_car_interaction(engine::World &w, const engine::InputState &in) {
-        const bool down = in.key_down(engine::Key::e);
-        const bool pressed = down && !previous_car_interact_down;
-        previous_car_interact_down = down;
+    // ---- Getting in and out of cars. What the interact prompt should say this tick:
+    // 0 nothing, 1 "Enter <car>", 2 "Exit <car>", 3 "Exit" with no room (`seat_why` says so).
+    int seat_prompt{0};
+    std::optional<engine::Entity> seat_car;
+    std::string seat_why;
+    std::string car_name(const engine::World &w, engine::Entity vehicle) const {
+        const auto *name = w.get<EntityName>(vehicle);
+        return name && !name->value.empty() ? name->value : std::string{"car"};
+    }
+    // Whether `vehicle` can be entered by `walker` (from within `reach` of its edge unless `anywhere`).
+    // `why` says what is wrong when it can't.
+    bool car_enterable(const engine::World &w, engine::Entity walker, engine::Entity vehicle, bool anywhere,
+                       std::string &why) const {
+        const auto *heading = w.get<Heading>(vehicle);
+        if (!heading || !heading->arcade) {
+            why = "it is not an arcade Vehicle";
+            return false;
+        }
+        if (!heading->enterable) {
+            why = "its Vehicle.enterable is off";
+            return false;
+        }
+        if (w.get<PlayerMarker>(vehicle) || w.get<Driver>(vehicle)) {
+            why = "it is already driven";
+            return false;
+        }
+        const auto *car_box = w.get<engine::Box>(vehicle);
+        const auto *walker_box = w.get<engine::Box>(walker);
+        if (!car_box || !walker_box) {
+            why = "it has no body";
+            return false;
+        }
+        const float distance = std::hypot(car_box->center.x - walker_box->center.x, car_box->center.z - walker_box->center.z);
+        const float reach = std::max(car_box->size.x, car_box->size.z) * 0.5F +
+                            std::max(walker_box->size.x, walker_box->size.z) * 0.5F + heading->enter_radius;
+        if (!anywhere && distance > reach) {
+            why = "it is out of reach";
+            return false;
+        }
+        return true;
+    }
+    // Seats `walker` in `vehicle`; returns "" or why not. The marker moves are deferred: this may
+    // run inside a system.
+    std::string car_enter(engine::World &w, engine::Entity walker, engine::Entity vehicle, bool anywhere) {
+        if (car_handover)
+            return "the Player is already in a car";
+        if (space)
+            return "E belongs to the spaceship in a space scene";
+        std::string why;
+        if (!car_enterable(w, walker, vehicle, anywhere, why))
+            return "the car can't be entered: " + why;
+        CarHandover handover{walker, vehicle};
+        if (auto *collider = w.get<engine::physics::Collider>(walker)) {
+            handover.trigger = collider->is_trigger;
+            collider->is_trigger = true;
+        }
+        if (auto *body = w.get<engine::physics::RigidBody>(walker)) {
+            handover.type = body->type;
+            body->type = engine::physics::BodyType::Kinematic;
+            body->velocity = {};
+        }
+        w.defer_remove<PlayerMarker>(walker);
+        w.defer_set(vehicle, PlayerMarker{});
+        car_handover = handover;
+        script_runtime.broadcast(w, "on_ui", "vehicle", "enter:" + car_name(w, vehicle));
+        return {};
+    }
+    // Puts the walker back beside the car; returns "" or why not (no room on either side).
+    std::string car_exit(engine::World &w) {
+        if (!car_handover)
+            return "the Player is not in a car";
+        const auto handover = *car_handover;
+        if (!w.alive(handover.walker) || !w.alive(handover.vehicle)) {
+            car_handover.reset();
+            return "the car or the walker is gone";
+        }
+        engine::Vec3 exit;
+        if (!car_exit_position(w, handover.walker, handover.vehicle, exit)) {
+            script_runtime.broadcast(w, "on_ui", "vehicle", "blocked:" + car_name(w, handover.vehicle));
+            return "no room to get out beside the car";
+        }
+        w.defer_remove<PlayerMarker>(handover.vehicle);
+        w.defer_set(handover.walker, PlayerMarker{});
+        w.get<engine::Box>(handover.walker)->center = exit;
+        if (auto *collider = w.get<engine::physics::Collider>(handover.walker))
+            collider->is_trigger = handover.trigger;
+        if (auto *body = w.get<engine::physics::RigidBody>(handover.walker)) {
+            body->type = handover.type;
+            body->velocity = {};
+        }
+        script_runtime.broadcast(w, "on_ui", "vehicle", "exit:" + car_name(w, handover.vehicle));
+        car_handover.reset();
+        return {};
+    }
+    void handle_car_interaction(engine::World &w, const engine::InputState &) {
+        const bool pressed = actions.state(engine::ActionId{"interact"}).pressed;
+        seat_prompt = 0;
+        seat_car.reset();
+        seat_why.clear();
         if (car_handover && w.alive(car_handover->walker) && w.alive(car_handover->vehicle)) {
             w.get<engine::Box>(car_handover->walker)->center = w.get<engine::Box>(car_handover->vehicle)->center;
             if (auto *body = w.get<engine::physics::RigidBody>(car_handover->walker))
                 body->velocity = {};
         }
         // E is reserved for the existing SpaceSystem board/exit flow in space scenes.
-        if (!pressed || space)
+        if (space)
             return;
         if (car_handover) {
-            const auto handover = *car_handover;
-            if (!w.alive(handover.walker) || !w.alive(handover.vehicle)) {
-                car_handover.reset();
-                return;
-            }
-            engine::Vec3 exit;
-            if (!car_exit_position(w, handover.walker, handover.vehicle, exit))
-                return;
-            w.defer_remove<PlayerMarker>(handover.vehicle);
-            w.defer_set(handover.walker, PlayerMarker{});
-            w.get<engine::Box>(handover.walker)->center = exit;
-            if (auto *collider = w.get<engine::physics::Collider>(handover.walker))
-                collider->is_trigger = handover.trigger;
-            if (auto *body = w.get<engine::physics::RigidBody>(handover.walker)) {
-                body->type = handover.type;
-                body->velocity = {};
-            }
-            car_handover.reset();
+            engine::Vec3 spot;
+            const bool room = car_exit_position(w, car_handover->walker, car_handover->vehicle, spot);
+            seat_car = car_handover->vehicle;
+            seat_prompt = room ? 2 : 3;
+            if (!room)
+                seat_why = "No room to get out";
+            if (pressed)
+                car_exit(w);
             return;
         }
         const auto walker = player_entity(w);
         if (!walker || !w.alive(*walker) || w.get<Heading>(*walker))
+            return;
+        // A pickup or crate in reach takes the key first (the loot system decided last tick).
+        if (interact_target)
             return;
         const auto *walker_box = w.get<engine::Box>(*walker);
         if (!walker_box)
             return;
         std::optional<engine::Entity> closest;
         float closest_distance = std::numeric_limits<float>::max();
-        for (const auto vehicle : w.query<engine::Box, Heading, engine::physics::RigidBody>()) {
-            const auto *heading = w.get<Heading>(vehicle);
-            if (!heading || !heading->arcade || w.get<PlayerMarker>(vehicle) || w.get<Driver>(vehicle))
+        for (const auto vehicle : w.query<engine::Box, Heading>()) {
+            std::string why;
+            if (!car_enterable(w, *walker, vehicle, false, why))
                 continue;
             const auto &car_box = *w.get<engine::Box>(vehicle);
-            const float dx = car_box.center.x - walker_box->center.x;
-            const float dz = car_box.center.z - walker_box->center.z;
-            const float distance = std::hypot(dx, dz);
-            const float reach = std::max(car_box.size.x, car_box.size.z) * 0.5F +
-                                std::max(walker_box->size.x, walker_box->size.z) * 0.5F + 2.0F;
-            if (distance <= reach && distance < closest_distance) {
+            const float distance = std::hypot(car_box.center.x - walker_box->center.x, car_box.center.z - walker_box->center.z);
+            if (distance < closest_distance) {
                 closest = vehicle;
                 closest_distance = distance;
             }
         }
         if (!closest)
             return;
-        CarHandover handover{*walker, *closest};
-        if (auto *collider = w.get<engine::physics::Collider>(*walker)) {
-            handover.trigger = collider->is_trigger;
-            collider->is_trigger = true;
-        }
-        if (auto *body = w.get<engine::physics::RigidBody>(*walker)) {
-            handover.type = body->type;
-            body->type = engine::physics::BodyType::Kinematic;
-            body->velocity = {};
-        }
-        w.defer_remove<PlayerMarker>(*walker);
-        w.defer_set(*closest, PlayerMarker{});
-        car_handover = handover;
+        seat_car = closest;
+        seat_prompt = 1;
+        if (pressed)
+            car_enter(w, *walker, *closest, false);
     }
     void space_tick(engine::World &w, const engine::InputState &in) {
         auto &sp = *space;
@@ -3454,6 +3529,37 @@ inline int BridgeHost::items(engine::World &world, engine::Entity entity, const 
         return have + fits;
     }
     return have;
+}
+
+// vehicle.enter / exit / driver (see tools/script_api/api.mjs).
+inline bool BridgeHost::seat(engine::World &world, const std::string &op, std::optional<engine::Entity> car,
+                             std::string &message, double &number) {
+    number = -1;
+    message.clear();
+    if (op == "driver") {
+        if (runtime_.car_handover && car && runtime_.car_handover->vehicle == *car && world.alive(runtime_.car_handover->walker))
+            number = runtime_.index_of(runtime_.car_handover->walker);
+        return true;
+    }
+    if (op == "exit") {
+        message = runtime_.car_exit(world);
+        return message.empty();
+    }
+    if (op == "enter") {
+        const auto walker = runtime_.player_entity(world);
+        if (!car || !world.alive(*car)) {
+            message = "there is no such car";
+            return false;
+        }
+        if (!walker || world.get<Heading>(*walker)) {
+            message = "the Player is not on foot";
+            return false;
+        }
+        message = runtime_.car_enter(world, *walker, *car, true);
+        return message.empty();
+    }
+    message = "unknown seat verb";
+    return false;
 }
 
 // inventory.* (see tools/script_api/api.mjs).

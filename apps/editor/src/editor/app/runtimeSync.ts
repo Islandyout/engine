@@ -24,7 +24,11 @@ export function installRuntimeSync(C: Ctx): void {
   ) {
     const p = get("Transform")?.position ?? { x: 0, y: 0, z: 0 };
     const v = get("Velocity")?.value ?? { x: 0, y: 0, z: 0 };
-    const s = get("Scale")?.value ?? { x: 1, y: 1, z: 1 };
+    // Without a Scale the model is drawn at its own size (sceneObjects), so that is the body's size too:
+    // a Collider on a freshly placed catalog model must be as big as the model looks.
+    const meshId = get("Renderable")?.mesh ?? 0;
+    const native = !get("Scale") && meshId >= 1 ? C.catalogCache.get(meshId)?.nativeSize : undefined;
+    const s = get("Scale")?.value ?? (native ? { x: native.x, y: native.y, z: native.z } : { x: 1, y: 1, z: 1 });
     const isPlayer = get("Player") ? 1 : 0;
     const collider = get("Collider");
     const isCollider = collider ? 1 : 0;
@@ -117,6 +121,8 @@ export function installRuntimeSync(C: Ctx): void {
         vehicle.nitroBoost,
         vehicle.nitroSeconds,
         vehicle.gears,
+        vehicle.enterable ? 1 : 0,
+        vehicle.enterRadius,
       );
       const driver = get("Driver");
       if (driver) {
@@ -243,6 +249,7 @@ export function installRuntimeSync(C: Ctx): void {
     C.uiValues.clear();
     C.uiVisibility.clear();
     C.openUI.clear();
+    C.hiddenWalker = -1;
     C.onPickupTimers.length = 0;
     C.draggingSlider = undefined;
     C.padSnapshot = undefined;

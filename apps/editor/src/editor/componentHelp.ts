@@ -15,7 +15,7 @@ export const componentHelp: Record<string, string> = {
   AIState: "A simple wander/chase/flee brain for walkers and animals.",
   Pedestrian: "Makes it a walking person, with a pace and look.",
   Player: "The entity the keyboard and mouse control.",
-  Vehicle: "A drivable car: speed, grip, nitro and gears.",
+  Vehicle: "A drivable car: speed, grip, nitro and gears. Walk up and press E to get in (Enterable) and E again to get out; no script needed. Needs a Collider.",
   AnimationState: "Pins one clip of an animated model (advanced; the Renderable card's clip picker is the usual way).",
   Renderable: "What it looks like: a box or a catalog model.",
   Light: "A point, spot or directional light.",
