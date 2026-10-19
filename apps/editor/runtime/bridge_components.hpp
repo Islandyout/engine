@@ -561,8 +561,12 @@ struct Arsenal final {
     // Melee fighter fights only while a melee slot (or a gun with an
     // off-hand blade) is in hand.
     bool melee_slots{false};
+    // A Player starts with empty hands: the loadout is carried, and the
+    // first slot picked (digit, scroll, pickup) is drawn. While holstered
+    // nothing fires and no weapon is held (so a fighter fights unarmed).
+    bool holstered{false};
     [[nodiscard]] const engine::gameplay::WeaponDef *current() const {
-        return weapons.empty() ? nullptr : &weapons[static_cast<std::size_t>(state.current)];
+        return weapons.empty() || holstered ? nullptr : &weapons[static_cast<std::size_t>(state.current)];
     }
 };
 

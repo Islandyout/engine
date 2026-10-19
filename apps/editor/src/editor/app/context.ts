@@ -320,7 +320,7 @@ export interface Ctx {
   gradingPass: ShaderPass;
   grid: THREE.GridHelper;
   gtaoPass: GTAOPass | undefined;
-  gunPoses: Map<number, { pose: GunPose; gun: string; raised: number; kick: number; oneHanded?: boolean; rest: THREE.Object3D; object: THREE.Object3D; hands: string; holders: THREE.Object3D[]; }>;
+  gunPoses: Map<number, { pose: GunPose; gun: string; raised: number; kick: number; oneHanded?: boolean; rest: THREE.Object3D; object: THREE.Object3D; hands: string; holders: THREE.Object3D[]; blades?: THREE.Object3D[]; }>;
   handleHost: (kind: string, text: string) => void;
   harvest: (key: string) => void;
   harvested: Set<number>;

@@ -210,12 +210,14 @@ struct Runtime {
                 // One we carry: its rounds.
                 engine::gameplay::give_ammo(arsenal.state, static_cast<int>(same - weapons.begin()), std::max(loot.weapon.magazine, 1));
             } else {
-                if (weapons.size() >= 9 && arsenal.current()) {
-                    // A full loadout swaps: the gun in hand goes on the ground.
-                    engine::gameplay::LootEntry old;
-                    old.kind = LootKind::weapon;
-                    old.weapon = *arsenal.current();
-                    spawn_pickup(w, old, w.get<engine::Box>(player)->center, {0, 1.5F, 0});
+                if (weapons.size() >= 9) {
+                    // A full loadout swaps: the weapon in hand goes on the ground.
+                    if (const auto *in_hand = arsenal.current()) {
+                        engine::gameplay::LootEntry old;
+                        old.kind = LootKind::weapon;
+                        old.weapon = *in_hand;
+                        spawn_pickup(w, old, w.get<engine::Box>(player)->center, {0, 1.5F, 0});
+                    }
                     const auto slot = static_cast<std::size_t>(arsenal.state.current);
                     weapons[slot] = loot.weapon;
                     arsenal.state.magazine[slot] = loot.weapon.magazine;
@@ -228,6 +230,7 @@ struct Runtime {
                 }
                 arsenal.state.equip_left = loot.weapon.equip_time;
                 arsenal.state.reload_left = 0;
+                arsenal.holstered = false; // (the new weapon is drawn)
                 arsenal.melee_slots = arsenal.melee_slots || loot.weapon.is_melee();
                 push_event({WeaponEventKind::switched, index_of(player), -1, {}, {}, loot.weapon.equip_time, arsenal.state.current});
             }
@@ -2675,6 +2678,24 @@ struct Runtime {
                           arsenal.script_fire = arsenal.script_reload = false;
                           arsenal.script_select = -1;
                           arsenal.script_aim.reset();
+                          if (arsenal.holstered) {
+                              // Empty hands until a slot is picked: that draws it.
+                              if (trigger.select < 0 && trigger.cycle == 0) {
+                                  arsenal.aiming = false;
+                                  continue;
+                              }
+                              arsenal.holstered = false;
+                              const int count = static_cast<int>(arsenal.weapons.size());
+                              const int target = trigger.select >= 0 ? std::min(trigger.select, count - 1) : arsenal.state.current;
+                              arsenal.state.current = target;
+                              arsenal.state.equip_left = arsenal.weapons[static_cast<std::size_t>(target)].equip_time;
+                              arsenal.state.reload_left = 0;
+                              trigger.select = -1;
+                              trigger.cycle = 0;
+                              trigger.fire_down = trigger.fire_pressed = trigger.reload = false;
+                              push_event({WeaponEventKind::switched, index_of(entity), -1, origin, {},
+                                          arsenal.weapons[static_cast<std::size_t>(target)].equip_time, target});
+                          }
                           arsenal.aiming =
                               aim && arsenal.state.reload_left <= 0 && arsenal.state.equip_left <= 0;
                           const float bloom = arsenal.state.bloom;

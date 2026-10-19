@@ -81,6 +81,8 @@ A Player with both `Melee` and `Weapons` is a fighter with a gun in the free han
 
 ## Guns and melee in one loadout (0.88.0)
 
+**A Player starts empty-handed.** The loadout is what it carries; press 1-9, Q or the wheel (or pick something up) to draw a slot. Nobody holds a gun and a blade at once. NPC soldiers hold their first slot.
+
 `Weapons.loadout` holds up to nine slots, one per number key. A slot can be a melee weapon:
 
 ```text
@@ -88,14 +90,13 @@ pistol: model=pistol held=pistol-1 mag=12 reserve=-1
 rifle:  model=rifle held=carbine-2 mode=auto rpm=700 mag=30 reserve=120
 blade:  melee=sword
 fists:  melee=fists
-hybrid: model=pistol held=revolver-1 offhand=dagger
 ```
 
 - **`melee=<name>`** makes a slot a melee weapon, from `kit/weapons` (sword, sword-2, sword-golden, claymore, sword-big, dagger, knife, spear, scythe, axe, axe-small, axe-double, hammer-small, hammer-double, bow, bow-golden, bow-evil) or `fists`.
   - A melee slot never fires or reloads; the Player fights with it.
   - A Player gets a `Melee` fighter automatically when its loadout has a melee slot.
   - The moveset follows the blade: martial arts for fists, a dagger or a knife, the sword set otherwise.
-- **`offhand=<name>`** on a gun is the dagger-and-pistol fighter below: unaimed the fire button strikes, aimed it shoots.
+- **`offhand=<name>`** is for melee slots only (a sword and a shield). A gun with a blade is rejected: nobody holds a gun and a blade at once.
 - **A plain gun slot** in a loadout with melee slots just shoots.
 - **Switching**: 1–9, Q, the mouse wheel or d-pad up go through guns and blades alike. The UI kit's Hotbar and Weapon wheel switch on a click.
 

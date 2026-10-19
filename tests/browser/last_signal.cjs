@@ -122,6 +122,7 @@ function flowVariant(scene) {
       await waitHud(page, /Destroy the generators\s+2\/3/, "sabotage starts inside the outpost");
       const box = await page.locator("#viewport canvas").first().boundingBox();
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.keyboard.press("Digit1"); // a Player starts empty-handed
       await page.mouse.down();
       await waitHud(page, /Uploading signal|HOLD THE UPLINK|UPLOAD/, "the last generator starts the uplink");
       await page.mouse.up();

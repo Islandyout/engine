@@ -44,12 +44,13 @@ int main() {
             check(parse_weapons("a: held=rifle-2").weapons[0].held == "rifle-2", "held names the gun in the hands");
             {
                 const auto mixed = parse_weapons("pistol: model=pistol\nsword: melee=sword offhand=shield-round\n"
-                                                 "knife: model=pistol held=pistol-2 offhand=dagger");
+                                                 "knife: model=pistol held=pistol-2");
                 check(mixed.error.empty() && mixed.weapons.size() == 3, "guns and melee slots in one loadout");
                 check(mixed.weapons[1].is_melee() && mixed.weapons[1].melee == "sword" &&
                           mixed.weapons[1].offhand == "shield-round" && mixed.weapons[1].magazine == 0,
                       "a melee slot: blade, off hand, no rounds");
-                check(!mixed.weapons[2].is_melee() && mixed.weapons[2].offhand == "dagger", "a gun with a blade in the off hand");
+                check(parse_weapons("a: model=pistol offhand=dagger").error.find("can't be held with a blade") != std::string::npos,
+                      "nobody holds a gun and a blade at once");
                 check(parse_weapons("a: melee=sword held=pistol-1").error.find("can't also hold") != std::string::npos,
                       "a melee slot can't hold a gun");
                 check(parse_weapons("a: melee=Sword").error.find("melee must be") != std::string::npos, "a bad melee name");

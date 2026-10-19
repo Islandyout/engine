@@ -387,7 +387,7 @@ export function installSceneObjects(C: Ctx): void {
         ? GunPose.create(cached.scene, object)
         : undefined;
     if (gunPose)
-      C.gunPoses.set(C.objects.length, { pose: gunPose, gun: "", raised: 0, kick: 0, oneHanded: (get("Melee")?.leftHand ?? 0) > 0, rest: cached!.scene, object, hands: "", holders: [] });
+      C.gunPoses.set(C.objects.length, { pose: gunPose, gun: "", raised: 0, kick: 0, oneHanded: (get("Melee")?.leftHand ?? 0) > 0, rest: cached!.scene, object, hands: "", holders: [], blades: [] });
     const loadout = get("AICombat") && !gunPose ? get("Weapons")?.loadout : undefined;
     if (loadout !== undefined) {
       const model = /model=(\w+)/.exec(loadout.split("\n").find((line) => line.trim() && !line.trim().startsWith("#")) ?? "")?.[1] ?? "rifle";
@@ -478,7 +478,8 @@ export function installSceneObjects(C: Ctx): void {
       const melee = get("Melee")!;
       const rig = cached!.scene;
       for (const [side, id] of [["r", melee.rightHand], ["l", melee.leftHand]] as const) {
-        const entry = id > 0 ? C.catalogEntry(id) : undefined;
+        // A Player's hands are empty until it picks a weapon up; these are a fighter NPC's.
+        const entry = id > 0 && !get("Player") ? C.catalogEntry(id) : undefined;
         // A gun in a fighter's hand is its Weapons' current gun (below).
         if (!entry || C.isGunPath(entry.path)) continue;
         let grip = weaponGrip(entry.path);
@@ -487,7 +488,10 @@ export function installSceneObjects(C: Ctx): void {
         if (grip.grip === "twohand" && (side === "r" ? melee.leftHand : melee.rightHand) > 0) grip = { ...grip, grip: "forward", offHand: undefined };
         const index = C.objects.length - 1;
         const place = (weapon: CachedModel) => {
-          if (!holdWeapon(rig, object, side, weapon.scene, grip)) return;
+          const holder = holdWeapon(rig, object, side, weapon.scene, grip);
+          if (!holder) return;
+          // Nobody holds a gun and a blade at once: updateGunPoses hides these while a gun is in hand.
+          C.gunPoses.get(index)?.blades?.push(holder);
           // A weapon fought with the sword clips takes their stance (its
           // guard pose, if it has one, goes over it); daggers and knives keep
           // the boxing guard.
