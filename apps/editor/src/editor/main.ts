@@ -3504,6 +3504,9 @@ async function startEditor() {
     if (lootDrop && !isChild) runtime.ccall("editor_set_loot_drop", null, ["number", "number", "string"], [index, lootDrop.dropWeapon ? 1 : 0, lootDrop.table]);
     const container = get("Container");
     if (container && !isChild) runtime.ccall("editor_set_container", null, ["number", "string", "number", "string"], [index, container.table, container.hold, container.key]);
+    const inventory = get("Inventory");
+    if (inventory && !isChild)
+      runtime.ccall("editor_set_inventory", null, ["number", "number", "number", "string", "string", "string", "string"], [index, inventory.slots, inventory.maxWeight, inventory.weights, inventory.head, inventory.body, inventory.hands]);
     // Melee: see editor_set_melee (bridge_melee.cpp).
     const melee = get("Melee");
     if (melee && !isChild) {
@@ -3726,6 +3729,9 @@ async function startEditor() {
       } else if (kind === 3) {
         sounds().locked();
         lootFeed.push({ label: `Needs ${label}`, rarity: 0, amount: 0, kind: -1, at: time });
+      } else if (kind === 4) {
+        sounds().locked();
+        lootFeed.push({ label: `Inventory full: ${label}`, rarity: 0, amount: 0, kind: -1, at: time });
       }
     }
     for (let k = onPickupTimers.length - 1; k >= 0; k--) {
@@ -6728,6 +6734,7 @@ async function startEditor() {
     while (uiFeed.damage.length && time - uiFeed.damage[0]!.at > 1) uiFeed.damage.shift();
     while (uiFeed.kills.length && time - uiFeed.kills[0]!.at > 6) uiFeed.kills.shift();
     const items = player >= 0 ? (runtime.ccall("editor_items_text", "string", ["number"], [player]) as string) : "";
+    viewport.dataset.items = items.trim().split("\n").join(", "); // for tests
     return {
       time,
       width: hud.width,

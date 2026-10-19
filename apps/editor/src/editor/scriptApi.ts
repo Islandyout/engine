@@ -178,19 +178,19 @@ export const scriptApi: ScriptApiEntry[] = [
   {
     "name": "world.items",
     "signature": "world.items(id: integer, name: string): integer",
-    "doc": "How many of an item (a key, coins) the entity carries.",
+    "doc": "Deprecated: use inventory.count. How many of an item (a key, coins) the entity carries.",
     "group": "world"
   },
   {
     "name": "world.give_item",
     "signature": "world.give_item(id: integer, name: string, n?: integer): integer",
-    "doc": "Gives it n of an item (default 1); returns its new count.",
+    "doc": "Deprecated: use inventory.add. Gives it n of an item (default 1); returns its new count.",
     "group": "world"
   },
   {
     "name": "world.take_item",
     "signature": "world.take_item(id: integer, name: string, n?: integer): boolean",
-    "doc": "Takes n of an item (default 1) if it has them; false (and takes none) if not.",
+    "doc": "Deprecated: use inventory.remove. Takes n of an item (default 1) if it has them; false (and takes none) if not.",
     "group": "world"
   },
   {
@@ -558,6 +558,72 @@ export const scriptApi: ScriptApiEntry[] = [
     "signature": "melee.tune(damage: number, speed: number, crit: number, skill: number, health_max?: number, mana_max?: number): number, number, number, number",
     "doc": "Stats: damage dealt (times), its clock speed (0.5-2: attacks, dodges, cooldowns), crit chance 0-1 (1.5x), skill damage (times, moves that cost mana), and optionally max health and mana. -1 keeps one as is.",
     "group": "melee"
+  },
+  {
+    "name": "inventory.add",
+    "signature": "inventory.add(id: integer, item: string, n?: integer): integer",
+    "doc": "Adds up to n of an item (default 1), as many as the Inventory's slot and weight limits allow; returns how many were added.",
+    "group": "inventory"
+  },
+  {
+    "name": "inventory.remove",
+    "signature": "inventory.remove(id: integer, item: string, n?: integer): boolean",
+    "doc": "Removes n of an item (default 1) if the entity has them; false (and removes none) if not.",
+    "group": "inventory"
+  },
+  {
+    "name": "inventory.count",
+    "signature": "inventory.count(id: integer, item: string): integer",
+    "doc": "How many of an item the entity carries.",
+    "group": "inventory"
+  },
+  {
+    "name": "inventory.space",
+    "signature": "inventory.space(id: integer, item: string): integer",
+    "doc": "How many more of an item fit (slot and weight limits).",
+    "group": "inventory"
+  },
+  {
+    "name": "inventory.weight",
+    "signature": "inventory.weight(id: integer): number",
+    "doc": "Total weight carried (items weigh 1 each unless the Inventory's Weights say otherwise).",
+    "group": "inventory"
+  },
+  {
+    "name": "inventory.list",
+    "signature": "inventory.list(id: integer): table",
+    "doc": "Everything carried, as a table of item name to count.",
+    "group": "inventory"
+  },
+  {
+    "name": "inventory.slots",
+    "signature": "inventory.slots(id: integer): string[]",
+    "doc": "The names of the guns and melee weapons in slots 1-9, in order.",
+    "group": "inventory"
+  },
+  {
+    "name": "inventory.select",
+    "signature": "inventory.select(id: integer, slot: integer): boolean",
+    "doc": "Equips the gun or melee weapon in slot 1-9; false for an empty slot.",
+    "group": "inventory"
+  },
+  {
+    "name": "inventory.equip",
+    "signature": "inventory.equip(id: integer, slot: string, item: string): boolean",
+    "doc": "Wears a carried item in a body slot (head, body or hands); false if not carried or no Inventory.",
+    "group": "inventory"
+  },
+  {
+    "name": "inventory.unequip",
+    "signature": "inventory.unequip(id: integer, slot: string): boolean",
+    "doc": "Takes off what is worn in a body slot; false if the slot is empty.",
+    "group": "inventory"
+  },
+  {
+    "name": "inventory.equipped",
+    "signature": "inventory.equipped(id: integer, slot: string): string",
+    "doc": "The item worn in a body slot (head, body or hands), or an empty string.",
+    "group": "inventory"
   },
   {
     "name": "weapon.fire",

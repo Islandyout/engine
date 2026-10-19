@@ -43,6 +43,7 @@ export const componentHelp: Record<string, string> = {
   TrafficSignal: "A junction's traffic lights: AI traffic stops on red, people on foot cross on the walk light.",
   Pickup: "Something to pick up: a weapon, ammo, health or an item, glowing in its rarity's colour.",
   LootDrop: "What this entity drops when it dies: its gun in hand and what its loot table rolls.",
+  Inventory: "What an entity can carry and wear: caps on item kinds and weight, per-item weights, and worn items. Guns and blades stay in Weapons/Melee slots 1-9; scripts use inventory.*.",
   Container: "A crate or chest the player opens with E (held); its loot table spills out.",
   Walker: "Someone on foot walking a sidewalk route, waiting at kerbs to cross safely; or following someone.",
   Terrain: "A heightfield ground with noise, sculpting, colour bands and scattered models.",

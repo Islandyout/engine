@@ -30,6 +30,8 @@ particles = {}
 
 melee = {}
 
+inventory = {}
+
 weapon = {}
 
 input = {}
@@ -118,20 +120,20 @@ function world.heal(id, amount) end
 ---@param slot? integer
 function world.give_ammo(id, rounds, slot) end
 
---- How many of an item (a key, coins) the entity carries.
+--- Deprecated: use inventory.count. How many of an item (a key, coins) the entity carries.
 ---@param id integer
 ---@param name string
 ---@return integer
 function world.items(id, name) end
 
---- Gives it n of an item (default 1); returns its new count.
+--- Deprecated: use inventory.add. Gives it n of an item (default 1); returns its new count.
 ---@param id integer
 ---@param name string
 ---@param n? integer
 ---@return integer
 function world.give_item(id, name, n) end
 
---- Takes n of an item (default 1) if it has them; false (and takes none) if not.
+--- Deprecated: use inventory.remove. Takes n of an item (default 1) if it has them; false (and takes none) if not.
 ---@param id integer
 ---@param name string
 ---@param n? integer
@@ -452,6 +454,72 @@ function melee.revive() end
 ---@param mana_max? number
 ---@return number, number, number, number
 function melee.tune(damage, speed, crit, skill, health_max, mana_max) end
+
+--- Adds up to n of an item (default 1), as many as the Inventory's slot and weight limits allow; returns how many were added.
+---@param id integer
+---@param item string
+---@param n? integer
+---@return integer
+function inventory.add(id, item, n) end
+
+--- Removes n of an item (default 1) if the entity has them; false (and removes none) if not.
+---@param id integer
+---@param item string
+---@param n? integer
+---@return boolean
+function inventory.remove(id, item, n) end
+
+--- How many of an item the entity carries.
+---@param id integer
+---@param item string
+---@return integer
+function inventory.count(id, item) end
+
+--- How many more of an item fit (slot and weight limits).
+---@param id integer
+---@param item string
+---@return integer
+function inventory.space(id, item) end
+
+--- Total weight carried (items weigh 1 each unless the Inventory's Weights say otherwise).
+---@param id integer
+---@return number
+function inventory.weight(id) end
+
+--- Everything carried, as a table of item name to count.
+---@param id integer
+---@return table
+function inventory.list(id) end
+
+--- The names of the guns and melee weapons in slots 1-9, in order.
+---@param id integer
+---@return string[]
+function inventory.slots(id) end
+
+--- Equips the gun or melee weapon in slot 1-9; false for an empty slot.
+---@param id integer
+---@param slot integer
+---@return boolean
+function inventory.select(id, slot) end
+
+--- Wears a carried item in a body slot (head, body or hands); false if not carried or no Inventory.
+---@param id integer
+---@param slot string
+---@param item string
+---@return boolean
+function inventory.equip(id, slot, item) end
+
+--- Takes off what is worn in a body slot; false if the slot is empty.
+---@param id integer
+---@param slot string
+---@return boolean
+function inventory.unequip(id, slot) end
+
+--- The item worn in a body slot (head, body or hands), or an empty string.
+---@param id integer
+---@param slot string
+---@return string
+function inventory.equipped(id, slot) end
 
 --- Fires the current weapon (optionally along a direction).
 ---@param dx? number

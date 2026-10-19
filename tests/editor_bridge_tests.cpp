@@ -64,6 +64,8 @@ void editor_set_aim_assist(int, double, double);
 void editor_set_pickup(int, const char *, int, double);
 void editor_set_loot_drop(int, int, const char *);
 void editor_set_container(int, const char *, double, const char *);
+void editor_set_inventory(int, int, double, const char *, const char *, const char *, const char *);
+const char *editor_inventory_text(int);
 double editor_pickup_value(int, int);
 const char *editor_pickup_text(int, int);
 double editor_interact_value(int);
@@ -1569,6 +1571,42 @@ int main() {
         check(editor_commit() == 1);
         editor_tick();
         check(std::string(editor_items_text(0)) == "Coin 1\nGem 1\nKey 2\n");
+
+        // inventory.*: limits on kinds and weight, worn items, and the old
+        // names (which honour the same limits).
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_inventory(0, 2, 10, "Ore=4, Gem=1", "", "", "");
+        editor_set_script_source(0, "function on_start()\n"
+                                    "  local a = inventory.add(self.id, 'Ore', 3)\n"   // 2 fit by weight (8 of 10)
+                                    "  local b = inventory.add(self.id, 'Gem', 5)\n"   // 2 left: 2 Gems
+                                    "  local c = inventory.add(self.id, 'Key')\n"      // a third kind: no slot
+                                    "  local d = world.give_item(self.id, 'Key', 1)\n" // old name, same limits: stays 0
+                                    "  local worn = inventory.equip(self.id, 'head', 'Gem')\n"
+                                    "  local ghost = inventory.equip(self.id, 'body', 'Key')\n"
+                                    "  local seen = inventory.equipped(self.id, 'head')\n"
+                                    "  local w = inventory.weight(self.id)\n"
+                                    "  inventory.remove(self.id, 'Gem', 2)\n"
+                                    "  local after = inventory.equipped(self.id, 'head')\n"
+                                    "  log(a .. ',' .. b .. ',' .. c .. ',' .. d .. ',' .. tostring(worn) .. ',' .. tostring(ghost) .. ',' .. seen .. ',' .. w .. ',[' .. after .. '],' .. inventory.space(self.id, 'Ore') .. ',' .. inventory.list(self.id).Ore)\n"
+                                    "end\n");
+        check(editor_commit() == 1);
+        editor_tick();
+        {
+            std::string logs;
+            const int commands = editor_take_commands();
+            for (int c = 0; c < commands; ++c)
+                if (std::string(editor_command_text(c, 0)) == "log")
+                    logs += std::string(editor_command_text(c, 1)) + ";";
+            check(logs == "2,2,0,0,true,false,Gem,10.0,[],0,2;");
+        }
+        check(std::string(editor_items_text(0)) == "Ore 2\n");
+        check(std::string(editor_inventory_text(0)).find("item Ore 2\n") != std::string::npos);
+        // A bad weights entry fails loudly.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_inventory(0, 0, 0, "Ore", "", "", "");
+        check(editor_commit() == 0 && std::string(editor_last_error()).find("Inventory") != std::string::npos);
 
         // A bad loot table fails loudly.
         editor_begin();

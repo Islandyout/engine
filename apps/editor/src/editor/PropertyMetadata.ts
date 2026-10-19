@@ -283,6 +283,12 @@ const metadata: Record<string, PropertyMetadata> = {
   "Container.table": { label: "Loot table (chance kind ...)", multiline: true },
   "Container.hold": { label: "Hold to open (s, 0 a press)", step: "0.1" },
   "Container.key": { label: "Needs item (used up)" },
+  "Inventory.slots": { label: "Item kinds it can carry (0 no cap)", step: "1" },
+  "Inventory.maxWeight": { label: "Max weight (0 no cap)", step: "0.5" },
+  "Inventory.weights": { label: "Item weights (name=1.5, name=2; others 1)" },
+  "Inventory.head": { label: "Worn on head (carried item)" },
+  "Inventory.body": { label: "Worn on body (carried item)" },
+  "Inventory.hands": { label: "Worn on hands (carried item)" },
   "TrafficSignal.green": { label: "Green (s)" },
   "TrafficSignal.yellow": { label: "Yellow (s)" },
   "TrafficSignal.clearance": { label: "All red (s)" },
@@ -437,7 +443,7 @@ export const componentGroups: readonly ComponentGroup[] = [
   },
   {
     label: "Loot",
-    types: ["Pickup", "LootDrop", "Container"],
+    types: ["Pickup", "LootDrop", "Container", "Inventory"],
   },
   {
     label: "Appearance & Animation",

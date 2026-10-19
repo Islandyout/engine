@@ -1,4 +1,5 @@
 // Editor runtime exports for loot: pickups, loot drops, containers, the
+#include <sstream>
 // Player's interact target and items (engine::gameplay::loot.hpp).
 #include "bridge_runtime.hpp"
 
@@ -179,6 +180,70 @@ EXPORT const char *editor_items_text(int index) {
         if (const auto *items = active->world.alive(entity) ? active->world.get<Items>(entity) : nullptr)
             for (const auto &[name, count] : items->counts)
                 result += name + " " + std::to_string(count) + "\n";
+    }
+    return result.c_str();
+}
+// An entity's Inventory: carrying limits, per-item weights ("name=1.5,
+// name=2"), and what is worn. Weights must be finite and >= 0.
+EXPORT void editor_set_inventory(int index, int slots, double max_weight, const char *weights, const char *head,
+                                 const char *body, const char *hands) {
+    const auto target = staged(index);
+    if (!target || !weights || !head || !body || !hands)
+        return;
+    if (slots < 0 || slots > 999 || !std::isfinite(max_weight) || max_weight < 0 || max_weight > 1e7) {
+        fail("an Inventory slots or max weight outside 0..999 / 0..10000000");
+        return;
+    }
+    Inventory inventory;
+    inventory.slots = slots;
+    inventory.max_weight = static_cast<float>(max_weight);
+    std::istringstream list(weights);
+    std::string part;
+    while (std::getline(list, part, ',')) {
+        const auto eq = part.find('=');
+        const auto trim = [](std::string text) {
+            const auto first = text.find_first_not_of(" \t");
+            const auto last = text.find_last_not_of(" \t");
+            return first == std::string::npos ? std::string{} : text.substr(first, last - first + 1);
+        };
+        if (trim(part).empty())
+            continue;
+        char *end = nullptr;
+        const std::string name = eq == std::string::npos ? std::string{} : trim(part.substr(0, eq));
+        const std::string number = eq == std::string::npos ? std::string{} : trim(part.substr(eq + 1));
+        const double weight = std::strtod(number.c_str(), &end);
+        if (name.empty() || number.empty() || *end != '\0' || !std::isfinite(weight) || weight < 0) {
+            fail(("an Inventory weights entry \"" + trim(part) + "\" (expected name=weight)").c_str());
+            return;
+        }
+        inventory.weights[name] = static_cast<float>(weight);
+    }
+    inventory.head = head;
+    inventory.body = body;
+    inventory.hands = hands;
+    target->first->set(target->second, std::move(inventory));
+}
+// What an Inventory carries and wears, as text: "weight W", "slots N",
+// "worn head|body|hands NAME" and one "item NAME COUNT" per kind.
+EXPORT const char *editor_inventory_text(int index) {
+    static std::string result;
+    result.clear();
+    if (index >= 0 && static_cast<std::size_t>(index) < active->entities.size()) {
+        const auto entity = active->entities[static_cast<std::size_t>(index)];
+        if (active->world.alive(entity))
+            if (const auto *inventory = active->world.get<Inventory>(entity)) {
+                const auto *items = active->world.get<Items>(entity);
+                result += "weight " + std::to_string(items ? inventory->total_weight(*items) : 0.0F) + "\n";
+                result += "limit " + std::to_string(inventory->slots) + " " + std::to_string(inventory->max_weight) + "\n";
+                for (const auto &[slot, worn] : {std::pair<const char *, const std::string &>{"head", inventory->head},
+                                                  {"body", inventory->body},
+                                                  {"hands", inventory->hands}})
+                    if (!worn.empty())
+                        result += std::string("worn ") + slot + " " + worn + "\n";
+                if (items)
+                    for (const auto &[name, count] : items->counts)
+                        result += "item " + name + " " + std::to_string(count) + "\n";
+            }
     }
     return result.c_str();
 }

@@ -61,3 +61,13 @@ test("Pickup.onPickup defaults to empty and survives a save and load", () => {
   assert.equal(d.scene.resolve(a!, "Pickup")!.onPickup, "Notice: Got {name}! | 3");
   assert.equal(d.scene.resolve(b!, "Pickup")!.onPickup, "");
 });
+
+test("an Inventory round-trips and rejects a bad weights entry", () => {
+  const inventory = { slots: 4, maxWeight: 20, weights: "Ore=4, Gem=0.5", head: "Helm", body: "", hands: "" };
+  const d = new EditorDocument();
+  d.load(scene([{ Player: {}, Inventory: inventory }]));
+  const saved = serializeScene(d.scene);
+  assert.deepEqual((saved.entities[0]!.components as { Inventory: unknown }).Inventory, inventory);
+  for (const weights of ["Ore", "Ore=heavy", "=3", "Ore=-1"])
+    assert.throws(() => new EditorDocument().load(scene([{ Inventory: { ...inventory, weights } }])), /Inventory\.weights/, weights);
+});

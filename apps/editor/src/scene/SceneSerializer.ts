@@ -245,6 +245,7 @@ const componentNames = [
   "Pickup",
   "LootDrop",
   "Container",
+  "Inventory",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 function isComponentName(value: string): value is ComponentName {
@@ -534,6 +535,26 @@ export function normalizeComponent(
     }
     case "LootDrop":
       return { dropWeapon: boolean(value.dropWeapon, "LootDrop.dropWeapon"), table: string(value.table, "LootDrop.table") };
+    case "Inventory": {
+      const slots = number(value.slots, "Inventory.slots");
+      const maxWeight = number(value.maxWeight, "Inventory.maxWeight");
+      if (!Number.isInteger(slots) || slots < 0 || slots > 999) throw new Error("Inventory.slots must be a whole number from 0 to 999.");
+      if (maxWeight < 0 || maxWeight > 1e7) throw new Error("Inventory.maxWeight must be from 0 to 10000000.");
+      for (const part of string(value.weights, "Inventory.weights").split(",")) {
+        if (!part.trim()) continue;
+        const [name, weight, ...rest] = part.split("=");
+        if (!name?.trim() || weight === undefined || rest.length || !Number.isFinite(Number(weight)) || Number(weight) < 0)
+          throw new Error(`Inventory.weights entry "${part.trim()}" must look like name=weight.`);
+      }
+      return {
+        slots,
+        maxWeight,
+        weights: string(value.weights, "Inventory.weights"),
+        head: string(value.head, "Inventory.head"),
+        body: string(value.body, "Inventory.body"),
+        hands: string(value.hands, "Inventory.hands"),
+      };
+    }
     case "Container": {
       const hold = number(value.hold, "Container.hold");
       if (hold < 0 || hold > 30) throw new Error("Container.hold must be from 0 to 30 seconds.");

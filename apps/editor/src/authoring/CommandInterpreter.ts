@@ -102,6 +102,7 @@ const componentNames = [
   "Pickup",
   "LootDrop",
   "Container",
+  "Inventory",
 ] as const;
 type ComponentName = (typeof componentNames)[number];
 
@@ -662,6 +663,8 @@ export function defaultComponent(
       return { dropWeapon: true, table: "0.5 ammo 30\n0.25 health 25\n0.1 item Coin 5" };
     case "Container":
       return { table: "1 ammo 60\n0.6 health 50\n0.3 weapon smg: model=smg held=smg-3 rarity=Rare", hold: 0.6, key: "" };
+    case "Inventory":
+      return { slots: 0, maxWeight: 0, weights: "", head: "", body: "", hands: "" };
     case "TrafficSignal":
       return { green: 14, yellow: 3, clearance: 2, offset: 0, radius: 9 };
     case "Walker":
