@@ -96,3 +96,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F89](changelog/F89.md) | Removed GATEBREAKER and VELOCITY (kept the City Template); engine features, assets, Lua patterns and design notes kept in `docs/lessons/` |
 | [F90](changelog/F90.md) | Widget-only HUD (nothing draws by itself, old scenes migrate), `Pickup.onPickup`, equip fix, Recipes, grouped Inspector with Requires hints (0.89.0) |
 | [F91](changelog/F91.md) | `Inventory` component (item-kind and weight caps, worn head/body/hands), `inventory.*` Lua API, full-inventory pickups (0.90.0) |
+| [F92](changelog/F92.md) | `main.ts` split into 21 parts under `editor/app/` (no behaviour change) |
