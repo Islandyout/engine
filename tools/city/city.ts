@@ -19,7 +19,7 @@
 // Everything is deterministic from `seed`, so a game can build on it and
 // regenerate it.
 import { placeFoliage, type ScatterRule } from "../../apps/editor/src/editor/foliage";
-import { component, modelBounds, rgb, vec, type Components, type SceneBuilder, type V3 } from "../gatebreaker/kit";
+import { component, modelBounds, rgb, vec, type Components, type SceneBuilder, type V3 } from "../lib/scene_kit";
 
 export type Zone = "downtown" | "mixed" | "residential" | "industrial" | "park";
 

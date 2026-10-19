@@ -4,7 +4,7 @@
 // and the camera.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ROOT, SceneBuilder, rgb, vec } from "../gatebreaker/kit";
+import { ROOT, SceneBuilder, rgb, vec } from "../lib/scene_kit";
 import { buildCity } from "./city";
 
 const scene = new SceneBuilder();
