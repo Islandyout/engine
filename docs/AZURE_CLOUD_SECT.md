@@ -58,7 +58,7 @@ An honest read of the slice as it stood after the first build, against what is k
 4. **Done**: four stages (Early, Middle, Late, Peak) inside each realm, each a little stronger; a heavenly tribulation (twelve seconds of lightning, a red ring a second and a half before each strike) when breaking through to Foundation or Golden Core.
 5. **Done**: Willow Village with Merchant Lin (silver for Qi Elixirs and Breakthrough Pills) and Wen, whose cart is by the watchtower (a side quest in the journal). Dialogue uses the Dialogue widget, keys 1 to 3 choose. Bandits drop silver. Still to do: more quests and loot.
 6. **Done**: the engine's own procedural music and ambience layers are now driven by the game (calm music exploring, tension near a fight or a tribulation, silence when dead; wind, wildlife and a settlement hum by place), plus four CC0 clips from Kenney's RPG Audio pack (blade draw, coin handle, book open, cloth swish). Not done: sampled footsteps and weapon hits (the engine synthesizes those), real recorded music.
-7. UI: **full map done** (M, the engine map with the valley's own title, legend and road; meditation moved to N). Still to do: an item and skill icon system, the icon inventory grid, a skill tree.
+7. UI: **full map done** (M, the engine map with the valley's own title, legend and road; meditation moved to N). **Skill tree done** (K: six perks in three paths, bought with insight, which stages and breakthroughs give). **Item icons done** (elixir, pill, scroll, robe, silver in the Inventory grid).
 
 ## Regenerating
 

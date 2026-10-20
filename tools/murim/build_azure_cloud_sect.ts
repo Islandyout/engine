@@ -538,9 +538,10 @@ widget("Interact prompt", "Interact prompt", style);
 widget("Dialogue", "Dialogue", { ...style, anchor: "bottom-center", offsetY: -MARGIN_Y - 176, width: 660, height: 150, text: "" });
 widget("Inventory", "Inventory", { ...style, anchor: "center", visibleWhen: "toggle", toggleKey: "KeyI" });
 widget("Character sheet", "Character sheet", { ...style, anchor: "center", width: 440, height: 440, visibleWhen: "toggle", toggleKey: "KeyC", text: "Cultivator\nMortal realm" });
+widget("Skill tree", "Skill tree", { ...style, anchor: "center", width: 520, height: 400, visibleWhen: "toggle", toggleKey: "KeyK", text: "Cultivation tree" });
 widget("Quest log", "Quest log", { ...style, anchor: "center", width: 480, height: 360, visibleWhen: "toggle", toggleKey: "KeyJ", text: "Journal" });
 widget("Death screen", "Death screen", { ...style, anchor: "center", width: 640, height: 320, text: "" });
-ui("Menu keys", { kind: "Text", text: "I  Bag     C  Character     J  Journal     M  Map     O  Controls", anchor: "bottom-right", offsetX: -MARGIN_X, offsetY: -MARGIN_Y, fontSize: 13, color: rgb("#ffffff"), opacity: 0.55 });
+ui("Menu keys", { kind: "Text", text: "I  Bag     C  Character     J  Journal     K  Arts     M  Map     O  Controls", anchor: "bottom-right", offsetX: -MARGIN_X, offsetY: -MARGIN_Y, fontSize: 13, color: rgb("#ffffff"), opacity: 0.55 });
 
 // ------------------------------------------------------------ qi effects --
 const fxEmitter = (name: string, mode: string, particles: Record<string, unknown>, extra: Components = {}) =>

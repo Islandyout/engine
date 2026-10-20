@@ -1,6 +1,6 @@
 # The UI kit
 
-Ready-made game UI. There are 34 widgets in six styles, so a game doesn't start from plain text.
+Ready-made game UI. There are 35 widgets in six styles, so a game doesn't start from plain text.
 
 - **What a widget is**: a `UI` component with `kind: "Widget"`, a `widget` name and a `style`.
 - **The code**: `apps/editor/src/editor/uiKit.ts`.
@@ -78,6 +78,7 @@ Eight widgets for games with abilities, status and a journal. Most are **script-
 | Death screen | A vignette, a title, a line and a button; the button sends `on_ui("<name>", "respawn")` | `Title`, `Line`, `Button label` | Dark Souls (YOU DIED), Hades |
 | Character sheet | Stats and progress bars; X sends `on_ui("<name>", "close")` | `Title`, `Subtitle`, then `# Section`, `Label\|Value` or `bar\|Label\|0..1\|readout` lines | Skyrim, The Witcher 3, Diablo |
 | Quest log | The journal: the active goal highlighted, finished ones ticked | `Title`, then `state\|Title\|Detail` (state `active`, `done` or `todo`) | The Witcher 3, Skyrim, Genshin |
+| Skill tree | Passive perks linked by what they need; learned, available (click to learn) and locked | `Title`, a subtitle, then `node\|id\|Name\|state\|col\|row\|requires\|cost\|icon\|Detail` lines (state `learned`, `available` or `locked`); a click sends `node:<id>` | Path of Exile, Skyrim, Elden Ring |
 
 - Give the sheets `visibleWhen: toggle` and a `toggleKey` (`KeyC`, `KeyJ`) so a key opens them.
 - `on_ui("objective", "start:<id>")` and `"complete:<id>"` tell a script what the Objectives did, so a quest log can mirror them.

@@ -9,11 +9,12 @@
 //   Death screen      a fade, a title and a way back (YOU DIED, Hades, Dark Souls)
 //   Character sheet   a panel of stats and progress bars (Skyrim, Witcher, Diablo)
 //   Quest log         the journal: active, finished and waiting goals (Witcher, Skyrim, Genshin)
+//   Skill tree        passive perks bought with points, linked by what they need (Path of Exile, Skyrim, Elden Ring)
 //
 // Script-fed widgets take their data from the UI text (and value) that a script sets with ui.set_text and
 // ui.set_value; the format is in docs/UI_KIT.md.
 import { registerDraw } from "./uiDraws";
-import { roundRect } from "./uiKit";
+import { iconNames, roundRect } from "./uiKit";
 import type { Draw, IconName, Paint, UIData, UIHit } from "./uiKit";
 import type { UIRect } from "./uiLayout";
 
@@ -363,6 +364,90 @@ const questLog: Draw = (p, r, d, o, hits) => {
   }
 };
 
+// ---- Skill tree ----
+
+// Text: a title, a subtitle (the points to spend), then "node|id|Name|state|col|row|requires|cost|icon|Detail". Links run from
+// each node's requirement; a click on an available node sends event:node:<id>; the X sends close (Path of Exile, Skyrim, Elden Ring).
+const skillTree: Draw = (p, r, d, o, hits) => {
+  const { ctx: c, k, s } = p;
+  const text = o.preview
+    ? o.text || "Cultivation tree\n3 insight\nnode|a|Iron Body|learned|0|0||1|cross|Health +15%\nnode|b|Diamond Body|available|0|1|a|2|shield|Health +30%\nnode|c|Keen Edge|available|1|0||1|sword|Damage +10%\nnode|e|Sword Heart|locked|1|1|c|2|star|Crit +8%\nnode|f|Deep Well|available|2|0||1|bolt|Mana +20%"
+    : o.text;
+  const [title = "", subtitle = "", ...rows] = text.split("\n");
+  if (!title) return;
+  interface Node { id: string; name: string; state: string; col: number; row: number; need: string; cost: number; icon: IconName; detail: string }
+  const nodes: Node[] = [];
+  for (const line of rows) {
+    const [kind, id = "", name = "", state = "locked", col = "0", row = "0", need = "", cost = "0", icon = "star", ...detail] = line.split("|");
+    if (kind !== "node" || !id || !Number.isFinite(Number(col)) || !Number.isFinite(Number(row))) continue;
+    nodes.push({ id, name, state, col: Number(col), row: Number(row), need, cost: Number(cost) || 0, icon: (iconNames.has(icon) ? icon : "star") as IconName, detail: detail.join("|") });
+  }
+  if (!nodes.length) return;
+  const { left: x, top: y, width: w, height: h } = r;
+  backing(p, x, y, w, h);
+  p.panel(x, y, w, h);
+  const pad = 18 * s + (k.frame === "slant" ? 8 * s : 0);
+  p.text(title, x + pad, y + 28 * s, 20, { weight: 800, raw: k.frame === "ornate" || k.frame === "soft" });
+  if (subtitle) p.text(subtitle, x + pad, y + 52 * s, 12, { raw: true, color: accentOf(p) });
+  const cs = 24 * s;
+  p.text("x", x + w - pad - cs / 2, y + 28 * s, 18, { align: "center", color: k.dim, raw: true });
+  hits.push({ left: x + w - pad - cs, top: y + 12 * s, width: cs, height: cs, action: "event:close" } as UIHit);
+  const cols = Math.max(...nodes.map((n) => n.col)) + 1;
+  const tiers = Math.max(...nodes.map((n) => n.row)) + 1;
+  const footer = 56 * s;
+  const top = y + 84 * s;
+  const areaW = w - pad * 2;
+  const areaH = h - (top - y) - footer - 8 * s;
+  const size = Math.min(54 * s, areaW / cols - 12 * s, areaH / tiers - 12 * s);
+  const at = (n: Node) => ({ x: x + pad + (areaW / cols) * (n.col + 0.5), y: top + (areaH / tiers) * (n.row + 0.5) });
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const gold = accentOf(p);
+  // Links first, so the plates sit on top; one that leads into a learned node is lit.
+  for (const n of nodes) {
+    const from = byId.get(n.need);
+    if (!from) continue;
+    const a = at(from), b = at(n);
+    c.strokeStyle = n.state === "learned" ? gold : k.edge === "rgba(255, 255, 255, 0)" ? "rgba(255, 255, 255, 0.28)" : k.edge;
+    c.globalAlpha = n.state === "learned" ? 1 : 0.7;
+    c.lineWidth = 2.5 * s;
+    c.beginPath();
+    c.moveTo(a.x, a.y);
+    c.lineTo(b.x, b.y);
+    c.stroke();
+    c.globalAlpha = 1;
+  }
+  let hovered: Node | undefined;
+  for (const n of nodes) {
+    const { x: cx, y: cy } = at(n);
+    const bx = cx - size / 2, by = cy - size / 2;
+    const over = !!d.pointer && d.pointer.x >= bx && d.pointer.x <= bx + size && d.pointer.y >= by && d.pointer.y <= by + size;
+    if (over) hovered = n;
+    const learned = n.state === "learned", open = n.state === "available";
+    c.beginPath();
+    if (k.round) roundRect(c, bx, by, size, size, 8 * s);
+    else p.shape(bx, by, size, size);
+    c.fillStyle = learned ? gold : over && open ? k.panelHi : "rgba(0, 0, 0, 0.45)";
+    c.globalAlpha = learned ? 0.9 : 1;
+    c.fill();
+    c.globalAlpha = 1;
+    c.lineWidth = (open ? 2 : 1.2) * s;
+    c.strokeStyle = learned || open ? gold : "rgba(255, 255, 255, 0.14)";
+    c.stroke();
+    p.icon(n.state === "locked" ? "lock" : n.icon, cx, cy, size * 0.44, learned ? "#10131a" : open ? k.text : k.dim);
+    if (open && n.cost > 0) p.text(String(n.cost), bx + size - 4 * s, by + size - 6 * s, 11, { align: "right", weight: 800, color: gold, raw: true });
+    p.text(n.name, cx, by + size + 11 * s, 11, { align: "center", raw: true, color: learned || open ? k.text : k.dim, max: areaW / cols - 6 * s });
+    if (open) hits.push({ left: bx, top: by, width: size, height: size, action: `event:node:${n.id}` } as UIHit);
+  }
+  const shown = hovered ?? nodes.find((n) => n.state === "available") ?? nodes[0]!;
+  const fy = y + h - footer + 14 * s;
+  c.fillStyle = k.edge === "rgba(255, 255, 255, 0)" ? "rgba(255,255,255,0.18)" : k.edge;
+  c.fillRect(x + pad, fy - 14 * s, areaW, Math.max(1, s * 0.8));
+  const status = shown.state === "learned" ? "Learned" : shown.state === "available" ? `Click to learn · ${shown.cost} insight` : `Locked${byId.get(shown.need) ? ": needs " + byId.get(shown.need)!.name : ""}`;
+  p.text(shown.name, x + pad, fy + 4 * s, 14, { weight: 800, raw: true });
+  p.text(status, x + w - pad, fy + 4 * s, 11, { align: "right", raw: true, color: shown.state === "available" ? gold : k.dim });
+  if (shown.detail) p.text(shown.detail, x + pad, fy + 24 * s, 12, { raw: true, color: k.dim, plain: true, max: areaW });
+};
+
 registerDraw("Skill bar", skillBar);
 registerDraw("Resource bar", resourceBar);
 registerDraw("Status effects", statusEffects);
@@ -371,3 +456,4 @@ registerDraw("Damage direction", damageDirection);
 registerDraw("Death screen", deathScreen);
 registerDraw("Character sheet", characterSheet);
 registerDraw("Quest log", questLog);
+registerDraw("Skill tree", skillTree);

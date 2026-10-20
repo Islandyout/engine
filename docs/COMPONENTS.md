@@ -511,7 +511,7 @@ An on-screen element: text, button, bar, slider, toggle, image, or a ready-made 
 | `opacity` | 0.85 | Opacity (0-1) |
 | `image` | "" | Image URL (Image) |
 | `value` | 0 | Value (0-1: Bar, Slider, Toggle) |
-| `widget` | "Health" | Widget (Widget). one of Health, Ammo, Crosshair, Damage numbers, Kill feed, Boss bar, Minimap, Compass, Objective, Waypoints, Interact prompt, Pickup feed, Loot card, Inventory, Hotbar, Weapon wheel, Pause menu, Main menu, Settings, Dialogue, Notification, Fighter bars, World health bar, Hint, Vehicle instruments, Flight instruments, Skill bar, Resource bar, Status effects, Target frame, Damage direction, Death screen, Character sheet, Quest log |
+| `widget` | "Health" | Widget (Widget). one of Health, Ammo, Crosshair, Damage numbers, Kill feed, Boss bar, Minimap, Compass, Objective, Waypoints, Interact prompt, Pickup feed, Loot card, Inventory, Hotbar, Weapon wheel, Pause menu, Main menu, Settings, Dialogue, Notification, Fighter bars, World health bar, Hint, Vehicle instruments, Flight instruments, Skill bar, Resource bar, Status effects, Target frame, Damage direction, Death screen, Character sheet, Quest log, Skill tree |
 | `style` | "Modern" | Style (Widget). one of Modern, Battle Royale, Tactical, Fantasy, Sci-fi, Minimal |
 | `source` | "" |  |
 | `onClick` | "" | When clicked (one action per line) |

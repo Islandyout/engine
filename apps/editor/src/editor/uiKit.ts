@@ -83,6 +83,7 @@ export const widgetCatalog: readonly WidgetInfo[] = [
   info("Death screen", "Menus & dialogue", "A fade, a title and a way back. Text: title, a line, the button's label; empty hides it. The button sends on_ui(name, \"respawn\").", "center", [0, 0], [640, 320], "always", "YOU HAVE FALLEN\nYour qi scatters on the wind.\nRise again"),
   info("Character sheet", "Menus & dialogue", "Stats and progress bars. Text: title, subtitle, then '# Section', 'Label|Value' or 'bar|Label|0..1|readout' lines.", "center", [0, 0], [440, 400], "toggle"),
   info("Quest log", "Menus & dialogue", "The journal. Text: title, then 'state|Title|Detail' lines (active, done, todo).", "center", [0, 0], [460, 340], "toggle"),
+  info("Skill tree", "Menus & dialogue", "Passive perks bought with points. Text: title, subtitle, then 'node|id|Name|state|col|row|requires|cost|icon|Detail' lines (state learned, available or locked; requires is an id or empty). A click on an available node sends node:<id>.", "center", [0, 0], [520, 400], "toggle"),
 ];
 
 export function widgetInfo(name: UIWidget): WidgetInfo {
@@ -234,8 +235,15 @@ const iconPaths = {
   lock: "M7 10V7a5 5 0 0110 0v3h2v12H5V10zm3 0h4V7a2 2 0 00-4 0z",
   bag: "M5 8h14l1 13H4zM9 8a3 3 0 016 0h-2a1 1 0 00-2 0z",
   arrow: "M12 2l8 20-8-5-8 5z",
+  potion: "M9 2h6v2h-1v4l5 10a3 3 0 01-2.7 4H7.7A3 3 0 015 18l5-10V4H9z",
+  pill: "M12 3a9 9 0 100 18 9 9 0 000-18zM7.5 11.2h9v1.6h-9z",
+  scroll: "M6 3h12a2 2 0 012 2v12a3 3 0 01-3 3H7a3 3 0 01-3-3v-1h2v1a1 1 0 002 0V5a2 2 0 00-2-2zm3 4v2h8V7zm0 4v2h8v-2z",
+  robe: "M9 2l3 2 3-2 5 4-2 4-2-1v13H8V9l-2 1-2-4z",
+  bolt: "M13 2L4 14h6l-1 8 9-12h-6z",
+  flame: "M12 2c1 4 6 6 6 12a6 6 0 01-12 0c0-3 2-4 3-6 1 2 2 2 2 1 0-2 0-4 1-7z",
 } as const;
 export type IconName = keyof typeof iconPaths;
+export const iconNames: ReadonlySet<string> = new Set(Object.keys(iconPaths));
 const iconCache = new Map<IconName, Path2D>();
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
@@ -248,8 +256,12 @@ export function lootIcon(kind: number, name: string): IconName {
   if (kind === 0) return /sword|axe|hammer|dagger|knife|blade|melee|fists|bow|shield/i.test(name) ? "sword" : "gun";
   if (kind === 1) return "bullet";
   if (kind === 2) return "cross";
-  if (/coin|gold|cash|money/i.test(name)) return "coin";
+  if (/coin|gold|cash|money|silver/i.test(name)) return "coin";
   if (/key/i.test(name)) return "key";
+  if (/elixir|potion|tonic|brew/i.test(name)) return "potion";
+  if (/pill|tablet/i.test(name)) return "pill";
+  if (/scroll|manual|book|codex|art$/i.test(name)) return "scroll";
+  if (/robe|garb|cloak|vest|armou?r|tunic/i.test(name)) return "robe";
   return "gem";
 }
 
@@ -1269,6 +1281,8 @@ const lootCard: Draw = (p, r, d, o) => {
   p.text("Pick up", x + pad + kw + 12 * s, ky, 12, { color: k.dim });
 };
 
+const ITEM_TINT: Partial<Record<IconName, string>> = { coin: "#ffc83d", gem: rarityColors[3], potion: "#5fd8e8", pill: "#ffd25a", scroll: "#e8d6a8", robe: "#9ad0ff" };
+
 const inventory: Draw = (p, r, d, o, hits) => {
   const { ctx: c, k, s } = p;
   const { left: x, top: y, width: w, height: h } = r;
@@ -1334,7 +1348,7 @@ const inventory: Draw = (p, r, d, o, hits) => {
     const entry = entries[i];
     frame(cx, cy, !!entry?.lit, inside(d.pointer, cx, cy, cell, cell), !!entry);
     if (!entry) continue;
-    p.icon(entry.icon, cx + cell / 2, cy + cell * 0.42, cell * 0.42, entry.icon === "coin" ? "#ffc83d" : entry.icon === "gem" ? rarityColors[3] : k.text);
+    p.icon(entry.icon, cx + cell / 2, cy + cell * 0.42, cell * 0.42, ITEM_TINT[entry.icon] ?? k.text);
     p.text(entry.name, cx + cell / 2, cy + cell - 10 * s, 10, { align: "center", raw: true, color: k.dim, max: cell - 6 * s });
     if (entry.count > 1) p.text(String(entry.count), cx + cell - 5 * s, cy + 10 * s, 11, { align: "right", weight: 800 });
     if (i < slots.length) hits.push({ left: cx, top: cy, width: cell, height: cell, action: `slot:${i}` });

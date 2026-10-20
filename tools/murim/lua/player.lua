@@ -59,9 +59,31 @@ local function set_value(name, v)
   if shown[name] ~= v then shown[name] = v; ui.set_value(name, v) end
 end
 
+-- The cultivation tree: passive perks bought with insight (one for each stage reached, two for each realm).
+-- id, name, column, row, needs, cost, icon, detail, and what it adds (hp, dmg, crit, mana, med are fractions).
+local PERKS = {
+  { "iron_body",   "Iron Body",    0, 0, "",           1, "cross",  "Health +15%",              hp = 0.15 },
+  { "diamond",     "Diamond Body", 0, 1, "iron_body",  2, "shield", "Health +30% more",         hp = 0.30 },
+  { "keen_edge",   "Keen Edge",    1, 0, "",           1, "sword",  "Damage +10%",              dmg = 0.10 },
+  { "sword_heart", "Sword Heart",  1, 1, "keen_edge",  2, "star",   "Critical chance +8%",      crit = 0.08 },
+  { "deep_well",   "Deep Well",    2, 0, "",           1, "bolt",   "Mana +20%",                mana = 0.20 },
+  { "flowing_qi",  "Flowing Qi",   2, 1, "deep_well",  2, "flame",  "Meditation 25% faster",    med = 0.25 },
+}
+local perks_learned = {}
+local insight = 1
+
+local function perk_total(field)
+  local total = 0
+  for _, perk in ipairs(PERKS) do
+    if perks_learned[perk[1]] then total = total + (perk[field] or 0) end
+  end
+  return total
+end
+
 local function apply_realm(first)
   local r = REALMS[realm]
-  melee.tune(r.damage * (1 + 0.05 * (stage - 1)), r.speed, r.crit, -1, r.health, r.mana)
+  melee.tune(r.damage * (1 + 0.05 * (stage - 1)) * (1 + perk_total("dmg")), r.speed, r.crit + perk_total("crit"), -1,
+    r.health * (1 + perk_total("hp")), r.mana * (1 + perk_total("mana")))
   for move in r.unlock:gmatch("[%w_]+") do melee.unlock(move) end
   if not first then world.heal(self.id, r.health) end
 end
@@ -268,6 +290,31 @@ local function target_text()
   return name .. "\n" .. subtitle, (hp or 0) / math.max(1, max or 1)
 end
 
+local function tree_text()
+  local lines = { "Cultivation tree", insight .. " insight to spend  ·  stages and breakthroughs give more" }
+  for _, perk in ipairs(PERKS) do
+    local id, need = perk[1], perk[5]
+    local state = perks_learned[id] and "learned" or ((need == "" or perks_learned[need]) and "available" or "locked")
+    lines[#lines + 1] = string.format("node|%s|%s|%s|%d|%d|%s|%d|%s|%s", id, perk[2], state, perk[3], perk[4], need, perk[6], perk[7], perk[8])
+  end
+  return table.concat(lines, "\n")
+end
+
+local function learn(id)
+  for _, perk in ipairs(PERKS) do
+    if perk[1] == id and not perks_learned[id] and (perk[5] == "" or perks_learned[perk[5]]) then
+      if insight < perk[6] then hud.announce("Not enough insight for " .. perk[2] .. ".") return end
+      insight = insight - perk[6]
+      perks_learned[id] = true
+      apply_realm(true)
+      ui.set_text("Skill tree", tree_text())
+      hud.announce(perk[2] .. " learned: " .. perk[8])
+      sound.play("bell")
+      return
+    end
+  end
+end
+
 local function refresh()
   local r = REALMS[realm]
   set_text("Qi bar", string.format("%s · %s\nQi %d / %d\n#7fe0d4", r.name, STAGES[stage], math.floor(qi), r.need))
@@ -281,6 +328,7 @@ local function refresh()
     clock = 0
     set_text("Character sheet", sheet_text())
     set_text("Quest log", journal_text())
+    set_text("Skill tree", tree_text())
   end
 end
 
@@ -331,6 +379,7 @@ local function succeed()
   stage = 1
   qi = 0
   tribulation = 0
+  insight = insight + 2
   apply_realm(false)
   ui.set_text("Notification", "Breakthrough!\nYou have entered the " .. REALMS[realm].name .. " realm.")
   hud.announce("Breakthrough! You are now in the " .. REALMS[realm].name .. " realm.")
@@ -425,6 +474,7 @@ function on_start()
   inventory.add(self.id, "Qi Elixir", 3)
   inventory.add(self.id, "Silver", 40)
   inventory.add(self.id, "Breakthrough Pill", 1)
+  insight = insight + 2 * (realm - 1)
   apply_realm(true)
   spawn = { self.x, self.y + 0.5, self.z }
   hud.pause_menu(true)   -- Esc opens settings and the key list
@@ -495,7 +545,9 @@ function on_ui(name, value)
     elseif kind == "complete" then quest_state[id] = "done" end
   elseif name == "Death screen" and value == "respawn" then
     respawn()
-  elseif (name == "Character sheet" or name == "Quest log") and value == "close" then
+  elseif name == "Skill tree" and tostring(value):sub(1, 5) == "node:" then
+    learn(tostring(value):sub(6))
+  elseif (name == "Character sheet" or name == "Quest log" or name == "Skill tree") and value == "close" then
     ui.close(name)
   end
 end
@@ -514,7 +566,7 @@ function on_tick(dt)
   -- Meditation: hold N while standing still.
   meditating = input.action_down("meditate") and still and not flying and channel == 0
   if meditating and qi < r.need then
-    qi = math.min(r.need, qi + MEDITATE_QI * (deviation > 0 and 0.4 or 1) * (in_vein and VEIN_BONUS or 1) * dt)
+    qi = math.min(r.need, qi + MEDITATE_QI * (1 + perk_total("med")) * (deviation > 0 and 0.4 or 1) * (in_vein and VEIN_BONUS or 1) * dt)
     if qi >= 20 then objective.complete("gather-qi") end
   end
 
@@ -530,6 +582,7 @@ function on_tick(dt)
   local reached = math.min(4, math.floor(qi / r.need * 4) + 1)
   if reached > stage then
     stage = reached
+    insight = insight + 1
     apply_realm(true)
     ui.set_text("Notification", r.name .. "\n" .. STAGES[stage] .. " stage reached")
   end
