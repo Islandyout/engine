@@ -5,7 +5,7 @@ An open-world murim (wuxia cultivation) game slice built on the engine: `games/m
 ## What is in it
 
 - **World**: a mountain valley (240 m), a sect compound (paifang gate, Great Hall, pavilions, moon gate, training ground), a bandit camp, a shrine with a boss, deer.
-- **Cultivation** (`tools/murim/lua/player.lua`): qi from meditation (M), kills and elixirs (H); four realms (Mortal, Qi Gathering, Foundation, Golden Core); a breakthrough (B) that needs a Breakthrough Pill and three quiet seconds, and a qi deviation if you are hurt; each realm raises damage, speed, crit, health and mana and unlocks a qi art (keys 1-4); the flying sword (V) from Foundation.
+- **Cultivation** (`tools/murim/lua/player.lua`): qi from meditation (N), kills and elixirs (H); four realms (Mortal, Qi Gathering, Foundation, Golden Core); a breakthrough (B) that needs a Breakthrough Pill and three quiet seconds, and a qi deviation if you are hurt; each realm raises damage, speed, crit, health and mana and unlocks a qi art (keys 1-4); the flying sword (V) from Foundation.
 - **Combat**: the engine's Melee component with a Custom move list (martial arts plus four qi arts), lock-on, blocks and dodges.
 - **UI**: the UI kit's own widgets in the Minimal style (see [UI_KIT.md](UI_KIT.md)).
 - **Art**: the wuxia kit (below), the engine's CC0 character and nature kits, and tinted gear.
@@ -58,7 +58,7 @@ An honest read of the slice as it stood after the first build, against what is k
 4. **Done**: four stages (Early, Middle, Late, Peak) inside each realm, each a little stronger; a heavenly tribulation (twelve seconds of lightning, a red ring a second and a half before each strike) when breaking through to Foundation or Golden Core.
 5. **Done**: Willow Village with Merchant Lin (silver for Qi Elixirs and Breakthrough Pills) and Wen, whose cart is by the watchtower (a side quest in the journal). Dialogue uses the Dialogue widget, keys 1 to 3 choose. Bandits drop silver. Still to do: more quests and loot.
 6. **Done**: the engine's own procedural music and ambience layers are now driven by the game (calm music exploring, tension near a fight or a tribulation, silence when dead; wind, wildlife and a settlement hum by place), plus four CC0 clips from Kenney's RPG Audio pack (blade draw, coin handle, book open, cloth swish). Not done: sampled footsteps and weapon hits (the engine synthesizes those), real recorded music.
-7. UI: an item and skill icon system, the icon inventory grid, a skill tree, a full map.
+7. UI: **full map done** (M, the engine map with the valley's own title, legend and road; meditation moved to N). Still to do: an item and skill icon system, the icon inventory grid, a skill tree.
 
 ## Regenerating
 

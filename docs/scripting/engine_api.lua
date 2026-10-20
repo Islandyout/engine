@@ -793,11 +793,11 @@ function hud.panels(spec) end
 ---@param title string
 function hud.boss(name, title) end
 
---- A top-down area map: the minimap (top right, while the player is inside its bounds) and the full map (M). One item per line: "bounds x0 z0 x1 z1", "area x0 z0 x1 z1 #rrggbb [label]", "road x0 z0 x1 z1", "building x0 z0 x1 z1", "tree x z", "poi kind x z [label]", "label x z text". Empty removes it.
+--- A top-down area map: the minimap (top right, while the player is inside its bounds) and the full map (M). One item per line: "bounds x0 z0 x1 z1", "area x0 z0 x1 z1 #rrggbb [label]", "road x0 z0 x1 z1", "path x z x z ..." (a winding road), "building x0 z0 x1 z1", "tree x z", "poi kind x z [label]", "label x z text", "title kicker|name", "legend kind text" (your own key; none keeps the default). Empty removes it.
 ---@param spec string
 function hud.map_layout(spec) end
 
---- A marker on the area map and minimap: gate, station, smith, board, home, giver (a ! over the spot too), turnin (?) or target (the tracked quest, held on the minimap's rim when far); color #rrggbb or empty. The same id replaces it.
+--- A marker on the area map and minimap: gate, station, smith, board, home, vein, giver (a ! over the spot too), turnin (?) or target (the tracked quest, held on the minimap's rim when far); color #rrggbb or empty. The same id replaces it.
 ---@param id string
 ---@param kind string
 ---@param x number

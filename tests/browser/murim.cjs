@@ -47,17 +47,17 @@ const { saveFailure } = require("./evidence.cjs");
       assert.ok(widgets.includes(w), `the HUD has a ${w}`);
     // No hand-made text or bar standing in for a widget: the one plain text is the menu key line.
     const plain = scene.entities.map((e) => e.components.UI).filter((ui) => ui && ui.kind !== "Widget");
-    assert.deepEqual(plain.map((ui) => ui.kind + ":" + ui.text), ["Text:I  Bag      C  Character      J  Journal      O  Controls"]);
+    assert.deepEqual(plain.map((ui) => ui.kind + ":" + ui.text), ["Text:I  Bag     C  Character     J  Journal     M  Map     O  Controls"]);
     assert.ok(scene.entities.every((e) => !e.components.UI || e.components.UI.kind !== "Widget" || e.components.UI.style === "Minimal"), "one style across the HUD");
     assert.match(before, /Meet Elder Mu/i, "the first objective is showing");
     const qi = (s) => Number((s.match(/Qi ([\d.]+) \/ \d+/) || [])[1]);
     assert.equal(qi(before), 0, "no qi yet");
-    await page.keyboard.down("m");
+    await page.keyboard.down("n");
     await until(50); // 9 qi a second, standing still
-    await page.keyboard.up("m");
+    await page.keyboard.up("n");
     await until(5);
     const after = await text();
-    assert.ok(qi(after) >= 3, `holding M gathers qi (${qi(after)})`);
+    assert.ok(qi(after) >= 3, `holding N gathers qi (${qi(after)})`);
     assert.deepEqual(errors, [], "no page errors");
     console.log("murim: ok");
   } catch (error) {

@@ -125,6 +125,12 @@ test("hud.map_layout and hud.map_marker text", () => {
   assert.deepEqual(layout.pois, [{ kind: "station", x: 4, z: 5, label: "Hangang Station" }]);
   assert.deepEqual(layout.labels, [{ x: 0, z: 19, text: "Han river" }]);
   assert.equal(parseMapLayout("area 0 0 1 1 #ffffff"), undefined, "no bounds, no map");
+  const own = parseMapLayout(["bounds 0 0 10 10", "path 1 1 4 2 8 9", "title Azure Cloud|Valley map", "legend vein Spirit vein", "legend giver Elder"].join("\n"))!;
+  assert.deepEqual(own.paths, [[{ x: 1, z: 1 }, { x: 4, z: 2 }, { x: 8, z: 9 }]]);
+  assert.deepEqual(own.title, { kicker: "Azure Cloud", name: "Valley map" });
+  assert.deepEqual(own.legend, [["vein", "Spirit vein"], ["giver", "Elder"]]);
+  assert.equal(parseMapLayout("bounds 0 0 1 1\ntitle Only a name")!.title!.name, "Only a name");
+  assert.equal(parseMapLayout("bounds 0 0 1 1\npath 1 1 2")!.paths.length, 0, "a path needs whole points");
   assert.deepEqual(parseMapMarker("site1|gate|-32.00|160.00|#5fd16a|Gate: the park (D)"), {
     id: "site1",
     kind: "gate",

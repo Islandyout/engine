@@ -1,7 +1,7 @@
 -- @prop realm 1
 -- @prop qi 0
 -- The cultivator: qi, realms, breakthroughs, qi arts and the flying sword.
--- Hold M to meditate, B to break through (needs a Breakthrough Pill and
+-- Hold N to meditate, B to break through (needs a Breakthrough Pill and
 -- enough qi), H drinks a Qi Elixir, V rides the flying sword.
 
 local REALMS = {
@@ -44,7 +44,7 @@ local clock = 0
 local refresh_clock = 0
 local QUESTS = {
   { "meet-elder", "Meet Elder Mu", "Speak with the elder inside the sect gate." },
-  { "gather-qi", "Gather qi", "Stand still and hold M to meditate." },
+  { "gather-qi", "Gather qi", "Stand still and hold N to meditate." },
   { "breakthrough", "Break through", "Fill your qi bar, then press B with a Breakthrough Pill." },
   { "bandits", "Clear the road", "Defeat the five bandits in the valley camp." },
   { "guardian", "Face the guardian", "Climb to the shrine and defeat the Iron Fist Elder." },
@@ -379,6 +379,33 @@ local function qi_effects()
   end
 end
 
+-- The valley on the engine's area map (M): the HUD's own Minimap widget stays the small map.
+local function valley_map()
+  local lines = { "bounds -120 -120 120 120" }
+  local function add(l) lines[#lines + 1] = l end
+  add("area -120 -120 120 120 #3d5a3a")
+  add("area -22 58 22 98 #7d6a52 Azure Cloud Sect")
+  add("area -16 -6 4 14 #6b4a3a Bandit camp")
+  add("area -12 -92 12 -64 #6a6a78 Shrine")
+  add("area -34 28 -14 48 #8a7a55 Willow Village")
+  add("area 0 -118 28 -91 #55606e")
+  add("area -73 -84 -43 -56 #55606e")
+  add("area 53 -52 75 -28 #55606e")
+  local road = {}
+  for z = 80, -80, -8 do road[#road + 1] = string.format("%.1f %d", 9 * math.sin(z / 34), z) end
+  add("path " .. table.concat(road, " "))
+  add("label 14 -100 Heaven Peak")
+  add("label 41 8 Lost Cart")
+  add("title Azure Cloud Sect|VALLEY MAP")
+  for _, l in ipairs({ "player You", "giver Elder or quest giver", "smith Merchant Lin", "vein Spirit vein: meditate here", "target Iron Fist Elder" }) do add("legend " .. l) end
+  hud.map_layout(table.concat(lines, "\n"))
+  hud.minimap(false)
+  hud.map_marker("elder", "giver", 0, 70, "", "Elder Mu")
+  hud.map_marker("shrine", "target", 0, -78, "", "Iron Fist Elder")
+  hud.map_marker("shop", "smith", -24, 38, "", "Merchant Lin")
+  for i, v in ipairs(veins) do hud.map_marker("vein" .. i, "vein", v[1], v[2], "#7fe0ff", "Spirit vein") end
+end
+
 function on_start()
   fx.aura, fx.bolt, fx.burst = world.find("Qi Aura"), world.find("Qi Bolt"), world.find("Qi Burst")
   for i = 1, 8 do
@@ -416,6 +443,7 @@ function on_start()
       if (ex - self.x) ^ 2 + (ez - self.z) ^ 2 < 36 then ui.clear_marker("Elder Mu") end
     end
   end)
+  valley_map()
   refresh()
 end
 
@@ -483,7 +511,7 @@ function on_tick(dt)
   local vx, vz = self.vx, self.vz
   local still = (vx * vx + vz * vz) < 2.25   -- under 1.5 m/s (an idle fighter shuffles a little)
 
-  -- Meditation: hold M while standing still.
+  -- Meditation: hold N while standing still.
   meditating = input.action_down("meditate") and still and not flying and channel == 0
   if meditating and qi < r.need then
     qi = math.min(r.need, qi + MEDITATE_QI * (deviation > 0 and 0.4 or 1) * (in_vein and VEIN_BONUS or 1) * dt)

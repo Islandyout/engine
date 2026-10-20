@@ -471,7 +471,7 @@ scene.add("Input", [0, -40, 0], {
       "skill2: 2",
       "skill3: 3",
       "ultimate: 4, g",
-      "meditate: m",
+      "meditate: n",
       "breakthrough: b",
       "elixir: h",
       "fly: v",
@@ -485,7 +485,7 @@ scene.add("Quests", [0, -40, 0], {
   Objectives: {
     list: [
       "meet-elder | Meet Elder Mu | Speak with the elder inside the sect gate. | reach Elder Mu 5 |",
-      "gather-qi | Gather qi | Stand still and hold M to meditate. | script |",
+      "gather-qi | Gather qi | Stand still and hold N to meditate. | script |",
       "breakthrough | Break through | Fill your qi bar, then press B with a Breakthrough Pill. | script |",
       "bandits | Clear the road | Defeat the five bandits in the valley camp. | kill Bandit 5 |",
       "guardian | Face the guardian | Climb to the shrine and defeat the Iron Fist Elder. | kill Iron Fist 1 |",
@@ -540,7 +540,7 @@ widget("Inventory", "Inventory", { ...style, anchor: "center", visibleWhen: "tog
 widget("Character sheet", "Character sheet", { ...style, anchor: "center", width: 440, height: 440, visibleWhen: "toggle", toggleKey: "KeyC", text: "Cultivator\nMortal realm" });
 widget("Quest log", "Quest log", { ...style, anchor: "center", width: 480, height: 360, visibleWhen: "toggle", toggleKey: "KeyJ", text: "Journal" });
 widget("Death screen", "Death screen", { ...style, anchor: "center", width: 640, height: 320, text: "" });
-ui("Menu keys", { kind: "Text", text: "I  Bag      C  Character      J  Journal      O  Controls", anchor: "bottom-right", offsetX: -MARGIN_X, offsetY: -MARGIN_Y, fontSize: 13, color: rgb("#ffffff"), opacity: 0.55 });
+ui("Menu keys", { kind: "Text", text: "I  Bag     C  Character     J  Journal     M  Map     O  Controls", anchor: "bottom-right", offsetX: -MARGIN_X, offsetY: -MARGIN_Y, fontSize: 13, color: rgb("#ffffff"), opacity: 0.55 });
 
 // ------------------------------------------------------------ qi effects --
 const fxEmitter = (name: string, mode: string, particles: Record<string, unknown>, extra: Components = {}) =>
