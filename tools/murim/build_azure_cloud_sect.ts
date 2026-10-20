@@ -43,6 +43,8 @@ const average = (x: number, z: number, r: number) => {
 const SECT = { x: 0, z: 78 }; // sect courtyard and gate
 const CAMP = { x: -6, z: 4 }; // bandit camp
 const SHRINE = { x: 0, z: -78 }; // the guardian's shrine
+// Heaven Peak and two crags (x, z, height, spread): a skyline to walk towards.
+const PEAKS: [number, number, number, number][] = [[14, -118, 78, 26], [-58, -70, 30, 14], [64, -40, 26, 12]];
 const roadX = (z: number) => 9 * Math.sin(z / 34); // the road meanders
 const pads = [
   { ...SECT, r: 24, h: average(SECT.x, SECT.z, 16) },
@@ -70,6 +72,9 @@ const sculpt = new Int16Array(TERRAIN.resolution * TERRAIN.resolution);
       };
       if (z < SECT.z && z > SHRINE.z) blend(roadHeight(z), Math.max(0, Math.abs(x - roadX(z)) - 3.5), 9);
       for (const p of pads) blend(p.h, Math.max(0, Math.hypot(x - p.x, z - p.z) - p.r), 12);
+      // Landmarks: Heaven Peak behind the shrine, taller than anything else and visible from the sect gate, and
+      // a pair of lesser crags either side of the road.
+      for (const [px, pz, ph, pr] of PEAKS) h += ph * Math.exp(-((x - px) ** 2 + (z - pz) ** 2) / (2 * pr * pr));
       // Ridges around the edge keep the valley closed.
       const edge = Math.max(Math.abs(x), Math.abs(z));
       if (edge > 96) h += ((edge - 96) / 24) ** 2 * 22;
@@ -102,7 +107,7 @@ scene.add("Environment", [0, -40, 0], {
   PostProcessing: {
     ambientOcclusion: false,
     shadowQuality: "Medium",
-    bloom: 0.3,
+    bloom: 0.2,
     bloomThreshold: 0.85,
     contrast: 0.08,
     saturation: 0.04,
@@ -111,7 +116,15 @@ scene.add("Environment", [0, -40, 0], {
   },
 });
 
+const clearing = (x: number, z: number, r: number) => [x - r, z - r, x + r, z + r];
 const exclusions = [
+  clearing(roadX(54) + 8, 54, 9),
+  clearing(36, -4, 14),
+  clearing(-44, -18, 12),
+  clearing(-30, 52, 6),
+  clearing(36, 24, 6),
+  clearing(-44, -32, 6),
+  clearing(8, -60, 6),
   [SECT.x - 26, SECT.z - 26, SECT.x + 26, SECT.z + 26],
   [CAMP.x - 16, CAMP.z - 16, CAMP.x + 16, CAMP.z + 16],
   [SHRINE.x - 20, SHRINE.z - 20, SHRINE.x + 20, SHRINE.z + 20],
@@ -128,14 +141,17 @@ scene.add("Valley", [0, 0, 0], {
     snowHeight: 40,
     rockSlope: 0.78,
     scatter: process.env.MURIM_LITE ? "" : [
-      "255 0.0014 0.7 1.0 0.85 trunk",
-      "256 0.0010 0.6 0.9 0.85 trunk",
-      "259 0.0030 0.7 1.1 0.8 trunk",
-      "260 0.0020 1.0 1.5 0.8 trunk",
+      // Low-poly trees from the wuxia kit (about 170 to 600 triangles each; the kit's old trees are 8,000).
+      "330 0.0010 0.8 1.2 0.85 trunk",
+      "331 0.0007 0.8 1.2 0.85 trunk",
+      "328 0.0022 0.8 1.2 0.8 trunk",
+      "329 0.0016 0.8 1.3 0.8 trunk",
+      "332 0.0004 0.8 1.2 0.7 trunk",
+      "333 0.0006 0.8 1.3 0.7",
       "42 0.0009 0.8 1.8 0.6 collide",
       "43 0.0014 0.8 1.4 0.6 collide",
-      "37 0.004 0.8 1.3 0.8",
-      "38 0.003 0.8 1.3 0.8",
+      "37 0.0012 0.8 1.3 0.8",
+      "38 0.0008 0.8 1.3 0.8",
       ...exclusions.map((r) => `exclude ${r.join(" ")}`),
     ].join("\n"),
   },
@@ -161,7 +177,7 @@ const emissive = (hex: string, strength = 1.5) => ({ emissive: rgb(hex), emissiv
 const W = (file: string) => modelId(file);
 // An invisible solid box: a collider with nothing drawn, for the parts of a model you must not walk through.
 const blocker = (name: string, x: number, z: number, size: V3, lift = 0) =>
-  scene.add(name, [x, ground(x, z) + lift + size[1] / 2, z], { Scale: { value: vec(...size) }, RigidBody: { dynamic: false }, Collider: { type: "AABB" } });
+  scene.add(name, [x, ground(x, z) + lift + size[1] / 2, z], { Scale: { value: vec(...size) }, Renderable: { mesh: 0, material: 0, visible: false }, RigidBody: { dynamic: false }, Collider: { type: "AABB" } });
 // A building from the kit with its footprint solid: passable models (gates, pavilions) pass `solid = false` and blockers.
 const place = (name: string, file: string, x: number, z: number, yaw = 0, solid = true, scale = 1, extra: Components = {}) =>
   scene.model(name, W(file), [x, ground(x, z), z], yaw, solid, scale, extra);
@@ -297,7 +313,6 @@ for (const [i, [dx, dz]] of [[-3, -5], [5, -2], [-2, 6], [6, 5]].entries())
     stack("Shrine brazier", x + s * 5, ground(x + s * 5, z + 6), z + 6, [0.9, 1.1, 0.9], "#2d2a28", true, emissive("#ff7a2a", 0.4));
   }
   scene.add("Shrine fire", [x - 5, ground(x - 5, z + 6) + 1.5, z + 6], { Light: component("Light", { color: rgb("#ff8a3a"), intensity: 5, range: 14 }) });
-  scene.add("Shrine fire 2", [x + 5, ground(x + 5, z + 6) + 1.5, z + 6], { Light: component("Light", { color: rgb("#ff8a3a"), intensity: 5, range: 14 }) });
   fighter("Iron Fist Elder", x, z + 2, {
     hex: "#cdbca8",
     health: 520,
@@ -305,6 +320,43 @@ for (const [i, [dx, dz]] of [[-3, -5], [5, -2], [-2, 6], [6, 5]].entries())
     yaw: 0,
     melee: { aggression: 0.75, skill: 0.8, poise: 120, breakTime: 3, guard: 140 },
     props: { qi: 200, pill: 1, gear: "214:#3b3b46 218:#8f1d1d 216:#26262c 215:#26262c 217:#1a1a1a" },
+  });
+}
+
+// ------------------------------------------- points of interest and spirit veins --
+// The road from the sect to the shrine has something to see every thirty metres or so, each visible from the one before:
+// a roadside shrine, the ruined watchtower on the hill, the bandit camp, and off the road a hermit's hut. Spirit veins
+// (a stele ringed with light) sit off the path: meditating near one gathers qi three times as fast.
+const VEINS: [number, number][] = [[-30, 52], [36, 24], [-44, -32], [8, -60]];
+{
+  const rx = roadX(54) + 8;
+  place("Roadside shrine", "pavilion", rx, 54, -0.5, false, 0.55);
+  for (const [dx, dz] of [[-1.5, -1.5], [1.5, -1.5], [-1.5, 1.5], [1.5, 1.5]] as const) blocker("Roadside shrine pillar", rx + dx, 54 + dz, [0.4, 2.4, 0.4]);
+  place("Roadside incense", "incense-burner", rx, 54, 0, true, 0.6);
+  place("Roadside lantern", "stone-lantern", rx - 3.6, 58, 0, true);
+  place("Roadside lantern", "stone-lantern", rx + 3.6, 58, 0, true);
+  // The ruined watchtower on the hill east of the road: one tier standing, a fallen wall, rubble.
+  place("Watchtower", "pagoda-tier-small", 36, -4, 0.4, true, 1.15);
+  place("Watchtower wall", "garden-wall", 31, -1, 1.1, true);
+  place("Watchtower wall", "garden-wall", 41, -8, 0.2, true, 0.8);
+  for (const [dx, dz, f] of [[-4, 4, 0], [5, 3, 1], [2, -6, 0], [-6, -3, 1]] as const) place("Rubble", ["rock-large", "rock-medium"][f]!, 36 + dx, -4 + dz, dx, true, 1.3);
+  // The hermit's hut and his practice ground, west of the road.
+  place("Hermit's hut", "pavilion", -42, -20, 0.3, false, 0.7);
+  for (const [dx, dz] of [[-1.9, -1.9], [1.9, -1.9], [-1.9, 1.9], [1.9, 1.9]] as const) blocker("Hermit hut pillar", -42 + dx, -20 + dz, [0.5, 2.8, 0.5]);
+  place("Hermit's lantern", "stone-lantern", -37, -15, 0, true);
+  place("Hermit's dummy", "wooden-training-dummy", -46, -13, 0.8, true);
+  place("Hermit's rack", "weapon-rack", -48, -19, 1.2, true);
+  VEINS.forEach(([vx, vz], i) => {
+    const y = ground(vx, vz);
+    place(`Spirit Vein ${i + 1}`, "stele", vx, vz, i, true, 1.1);
+    scene.add(`Spirit Vein ${i + 1} glow`, [vx, y + 0.3, vz], {
+      Particles: component("Particles", { preset: "Sparkle", color: rgb("#aef5ea"), endColor: rgb("#2aa8c4"), rate: 14, lifetime: 2.2, speed: 0.6, size: 0.14, endSize: 0.04, gravityScale: -0.08, shape: "Sphere", shapeSize: 2.6, space: "World" }),
+    });
+    // A ring of paving stones round it, so the spot reads from a distance.
+    for (let k = 0; k < 10; k++) {
+      const a = (k / 10) * Math.PI * 2;
+      scene.box("Vein stone", [vx + Math.cos(a) * 3, ground(vx + Math.cos(a) * 3, vz + Math.sin(a) * 3) + 0.12, vz + Math.sin(a) * 3], [0.9, 0.24, 0.9], "#8fcfc6", { Rotation: { euler: vec(0, a, 0) } }, { roughness: 0.5, ...emissive("#4fd1c5", 0.7) });
+    }
   });
 }
 

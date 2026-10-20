@@ -14,6 +14,10 @@ local FLY_REALM = 3          -- Foundation and above can ride the sword
 local FLY_SPEED = 13
 local FLY_QI = 3             -- qi per second
 local MEDITATE_QI = 9        -- qi per second while meditating
+local VEIN_RADIUS = 7        -- metres from a spirit vein's stele inside which meditation is three times faster
+local VEIN_BONUS = 3
+local veins = {}             -- {x, z} of each Spirit Vein
+local in_vein = false
 local ELIXIR_QI = 60
 local CHANNEL = 3            -- seconds a breakthrough takes
 
@@ -32,6 +36,7 @@ local dead = false
 local spawn = { 0, 0, 0 }
 local hit_flip = 0
 local clock = 0
+local refresh_clock = 0
 local QUESTS = {
   { "meet-elder", "Meet Elder Mu", "Speak with the elder inside the sect gate." },
   { "gather-qi", "Gather qi", "Stand still and hold M to meditate." },
@@ -60,7 +65,7 @@ local function status_text()
   local r = REALMS[realm]
   local out = {}
   if channel > 0 then out[#out + 1] = string.format("Breaking through|%.1f|good|%d", channel, CHANNEL) end
-  if meditating then out[#out + 1] = "Meditating|0|good" end
+  if meditating then out[#out + 1] = in_vein and "Meditating at a spirit vein: x3|0|good" or "Meditating|0|good" end
   if flying then out[#out + 1] = "Flying sword|0|good" end
   if deviation > 0 then out[#out + 1] = string.format("Qi deviation|%.0f|bad|12", deviation) end
   if realm < #REALMS and qi >= r.need and channel <= 0 then
@@ -196,6 +201,14 @@ end
 
 function on_start()
   fx.aura, fx.bolt, fx.burst = world.find("Qi Aura"), world.find("Qi Bolt"), world.find("Qi Burst")
+  for i = 1, 8 do
+    local vein = world.find("Spirit Vein " .. i)
+    if vein then
+      local vx, vy, vz = world.position(vein)
+      veins[#veins + 1] = { vx, vz }
+      ui.marker("Spirit Vein " .. i, vx, vy + 3, vz)
+    end
+  end
   -- props.realm starts further along (for testing and demos).
   realm = math.max(1, math.min(#REALMS, math.floor(tonumber(props.realm) or 1)))
   qi = math.max(0, tonumber(props.qi) or 0)
@@ -288,11 +301,17 @@ function on_tick(dt)
   -- Meditation: hold M while standing still.
   meditating = input.action_down("meditate") and still and not flying and channel == 0
   if meditating and qi < r.need then
-    qi = math.min(r.need, qi + MEDITATE_QI * (deviation > 0 and 0.4 or 1) * dt)
+    qi = math.min(r.need, qi + MEDITATE_QI * (deviation > 0 and 0.4 or 1) * (in_vein and VEIN_BONUS or 1) * dt)
     if qi >= 20 then objective.complete("gather-qi") end
   end
 
   if input.action_pressed("controls") then hud.open_settings() end
+
+  -- Spirit veins: near one, meditation is much faster.
+  in_vein = false
+  for _, v in ipairs(veins) do
+    if (v[1] - self.x) ^ 2 + (v[2] - self.z) ^ 2 < VEIN_RADIUS * VEIN_RADIUS then in_vein = true break end
+  end
 
   -- Qi Elixir.
   if input.action_pressed("elixir") and inventory.count(self.id, "Qi Elixir") > 0 and qi < r.need then
@@ -341,6 +360,8 @@ function on_tick(dt)
     end
   end
 
-  refresh()
+  -- The readouts only need to change a few times a second.
+  refresh_clock = refresh_clock + dt
+  if refresh_clock >= 0.1 then refresh_clock = 0 refresh() end
   qi_effects()
 end

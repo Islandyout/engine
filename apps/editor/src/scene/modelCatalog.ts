@@ -348,6 +348,12 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 325, category: "wuxia", name: "Weapon rack", path: "./kit/wuxia/weapon-rack.glb" },
   { id: 326, category: "wuxia", name: "Incense burner", path: "./kit/wuxia/incense-burner.glb" },
   { id: 327, category: "wuxia", name: "Stele", path: "./kit/wuxia/stele.glb" },
+  { id: 328, category: "wuxia", name: "Pine low-poly A", path: "./kit/wuxia/pine-low-poly-a.glb" },
+  { id: 329, category: "wuxia", name: "Pine low-poly B", path: "./kit/wuxia/pine-low-poly-b.glb" },
+  { id: 330, category: "wuxia", name: "Oak low-poly A", path: "./kit/wuxia/oak-low-poly-a.glb" },
+  { id: 331, category: "wuxia", name: "Oak low-poly B", path: "./kit/wuxia/oak-low-poly-b.glb" },
+  { id: 332, category: "wuxia", name: "Blossom tree", path: "./kit/wuxia/blossom-tree.glb" },
+  { id: 333, category: "wuxia", name: "Bamboo clump", path: "./kit/wuxia/bamboo-clump.glb" },
 ];
 
 export const catalogCategories = Array.from(

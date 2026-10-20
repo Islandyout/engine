@@ -16,13 +16,23 @@ An open-world murim (wuxia cultivation) game slice built on the engine: `games/m
 
 Why generated rather than downloaded: with the sandbox's network opened, free sources were searched. Quaternius and Kenney have excellent CC0 packs but no East Asian architecture. OpenGameArt has a few CC0 pieces (a katana, a butterfly sword, a dragon, a gong) but they are `.blend` or FBX files that need Blender, and its "temple" kit is desert sandstone. Poly Haven's CC0 models are photoreal scans (Chinese furniture, an antique katana) and too heavy for this kit's low-poly look.
 
+## Performance
+
+The target is 60 fps on an ordinary GPU at all times. The build machine here draws in software, so frame rate cannot be measured; what can be measured is what the GPU is asked to draw (the editor's Stats overlay: triangles and draw calls, and the C++ and script time per tick).
+
+- **Found**: the first version drew about **5.2 million triangles** and 345 draw calls in Play. The scatter's trees came from the engine's kit and cost 8,000 triangles each, about 430 of them.
+- **Changed**: low-poly trees in the wuxia kit (168 to 600 triangles), fewer bushes, models exported as one primitive with vertex colours (one draw call per model, and the static batcher can merge them), no lights on the spirit veins (each light costs every fragment in a forward renderer), one shrine light, less bloom, the HUD readouts rebuilt ten times a second instead of every tick.
+- **Now**: about **0.96 million triangles** (including the shadow pass) and 299 draw calls in Play. `tests/browser/murim_perf.cjs` fails above 1.5 million triangles or 450 draw calls.
+- **Already in the engine**: the frame governor lowers resolution and shadows when frames run long, and the static batcher merges still objects. The C++ simulation costs about 1 ms per tick.
+- **Not measured**: the real frame time on a GPU, and the cost of the 2D canvas HUD, which redraws every widget every frame.
+
 ## Ground-up assessment
 
 An honest read of the slice as it stood after the first build, against what is known about these games. Marks: **weak**, **partial**, **good**.
 
 | Area | State | What is wrong | Target |
 | --- | --- | --- | --- |
-| World and level design | weak | One valley with three flat pads and a road; scattered trees; nothing to see from afar except the shrine's silhouette; no points of interest between the pads | Visible landmarks, points of interest along lines of travel, terrain that hides and reveals (below) |
+| World and level design | partial (was weak) | Was one valley with three flat pads and a road. Now Heaven Peak and two crags as landmarks, a roadside shrine, a ruined watchtower, a hermit's hut and four spirit veins. Terrain still has no water, cliffs or caves | Terrain that hides and reveals, a river, a cave, a village |
 | Architecture and props | partial (was weak: boxes) | Now real pagoda forms; tents and camp are still plain boxes | Camp, village, farms in the same kit |
 | Characters | weak | One mannequin and one hunter model; bandits are four copies; no martial-arts clothing | Outfits from the gear parts, enemy archetypes with different weapons and tells |
 | Combat feel | partial | The engine has hit-stop, sparks, shake, knockback. Missing: enemy hit flash, per-enemy telegraphs, a fair first fight | Tune to human reaction time (about 0.3 s), readable attacks, one-or-two-strike kills at the start (Ghost of Tsushima) |
@@ -43,7 +53,7 @@ An honest read of the slice as it stood after the first build, against what is k
 ## Roadmap
 
 1. **Done in this pass**: the wuxia kit; the sect, gate and shrine rebuilt from it; robes for the player and elder.
-2. World: sculpt a skyline and landmarks; place points of interest along the road (a roadside shrine, a ruined watchtower, a spirit spring, a hermit's hut); spirit veins that raise meditation.
+2. **Done**: Heaven Peak and two crags; a roadside shrine, a ruined watchtower, a hermit's hut; four spirit veins that triple meditation speed nearby. Still to do: water, a cave.
 3. Characters and combat: three enemy archetypes (spear, sabre, qi caster) with different tells; an enemy hit flash; the first fight tuned to one or two strikes.
 4. Cultivation: stages inside each realm; a tribulation set piece at a breakthrough.
 5. Content: a village with a shop and a dialogue, two side quests, loot.

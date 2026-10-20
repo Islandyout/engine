@@ -33,6 +33,16 @@ const MATERIALS = {
   paper_glow: "#f08a45",
   black: "#1c1c1f",
   jade: "#6fb59d",
+  bark: "#5b4330",
+  pine_a: "#24523a",
+  pine_b: "#2e6542",
+  leaf_a: "#4a8a3c",
+  leaf_b: "#386f31",
+  leaf_c: "#65a047",
+  blossom_a: "#e7a0b6",
+  blossom_b: "#f3c6d2",
+  bamboo: "#86ad4f",
+  bamboo_node: "#5d8036",
 };
 
 // ------------------------------------------------------------------- meshes --
@@ -99,7 +109,7 @@ class Model {
   roof(cx, y0, cz, w, d, rise, overhang = 1.1, uplift = 0.6, courses = 7) {
     const hw = w / 2 + overhang;
     const hd = d / 2 + overhang;
-    const N = 14;
+    const N = 10;
     const surf = (u, v) => {
       const m = Math.max(Math.abs(u), Math.abs(v));
       const corner = Math.pow(Math.abs(u) * Math.abs(v), 3);
@@ -136,40 +146,49 @@ class Model {
     this.quad(m, a, b, c, d);
     this.quad(m, d, c, b, a);
   }
-  // A single GLB with one primitive per material.
+  // A single GLB with ONE primitive: the colours are per-vertex, so the whole model is one draw call and every
+  // model shares one white material, which lets the engine's static batcher merge them. Frame time on a scene of
+  // many small props is draw calls, not triangles.
   glb() {
-    const prims = [];
+    const P = [], N = [], C = [], I = [];
+    let emissive = false;
+    for (const [name, part] of this.parts) {
+      const base = P.length / 3;
+      const col = hex(MATERIALS[name] ?? "#888888");
+      if (name === "paper_glow" && this.name === "paper-lantern") emissive = true;
+      for (let k = 0; k < part.p.length; k += 3) {
+        P.push(part.p[k], part.p[k + 1], part.p[k + 2]);
+        N.push(part.n[k], part.n[k + 1], part.n[k + 2]);
+        C.push(...col, 1);
+      }
+      for (const i of part.i) I.push(base + i);
+    }
     const chunks = [];
-    let offset = 0;
-    const accessors = [];
     const views = [];
-    const add = (arr, Type, target, extra) => {
+    const accessors = [];
+    let offset = 0;
+    const add = (arr, Type, target, count, type, minmax) => {
       const buf = Buffer.from(new Type(arr).buffer);
       const pad = (4 - (buf.length % 4)) % 4;
       views.push({ buffer: 0, byteOffset: offset, byteLength: buf.length, target });
       chunks.push(buf, Buffer.alloc(pad));
       offset += buf.length + pad;
-      accessors.push({ bufferView: views.length - 1, componentType: Type === Uint16Array ? 5123 : Type === Uint32Array ? 5125 : 5126, count: extra.count, type: extra.type, ...(extra.min ? { min: extra.min, max: extra.max } : {}) });
+      accessors.push({ bufferView: views.length - 1, componentType: Type === Uint32Array ? 5125 : 5126, count, type, ...(minmax ?? {}) });
       return accessors.length - 1;
     };
-    const materials = [];
-    for (const [name, part] of this.parts) {
-      if (!part.i.length) continue;
-      const xs = part.p.filter((_, k) => k % 3 === 0), ys = part.p.filter((_, k) => k % 3 === 1), zs = part.p.filter((_, k) => k % 3 === 2);
-      const pos = add(part.p, Float32Array, 34962, { count: part.p.length / 3, type: "VEC3", min: [Math.min(...xs), Math.min(...ys), Math.min(...zs)], max: [Math.max(...xs), Math.max(...ys), Math.max(...zs)] });
-      const nor = add(part.n, Float32Array, 34962, { count: part.n.length / 3, type: "VEC3" });
-      const idx = add(part.i, Uint32Array, 34963, { count: part.i.length, type: "SCALAR" });
-      materials.push({ name, pbrMetallicRoughness: { baseColorFactor: [...hex(MATERIALS[name] ?? "#888888"), 1], metallicFactor: name === "gold" ? 0.6 : 0, roughnessFactor: name === "gold" ? 0.35 : 0.85 }, ...(name === "paper_glow" ? { emissiveFactor: hex("#f08a45").map((v) => v * 0.9) } : {}) });
-      prims.push({ attributes: { POSITION: pos, NORMAL: nor }, indices: idx, material: materials.length - 1 });
-    }
+    const xs = P.filter((_, k) => k % 3 === 0), ys = P.filter((_, k) => k % 3 === 1), zs = P.filter((_, k) => k % 3 === 2);
+    const pos = add(P, Float32Array, 34962, P.length / 3, "VEC3", { min: [Math.min(...xs), Math.min(...ys), Math.min(...zs)], max: [Math.max(...xs), Math.max(...ys), Math.max(...zs)] });
+    const nor = add(N, Float32Array, 34962, N.length / 3, "VEC3");
+    const col = add(C, Float32Array, 34962, C.length / 4, "VEC4");
+    const idx = add(I, Uint32Array, 34963, I.length, "SCALAR");
     const bin = Buffer.concat(chunks);
     const json = {
       asset: { version: "2.0", generator: "tools/murim/assets/make_wuxia_kit.mjs" },
       scene: 0,
       scenes: [{ nodes: [0] }],
       nodes: [{ mesh: 0, name: this.name }],
-      meshes: [{ name: this.name, primitives: prims }],
-      materials,
+      meshes: [{ name: this.name, primitives: [{ attributes: { POSITION: pos, NORMAL: nor, COLOR_0: col }, indices: idx, material: 0 }] }],
+      materials: [{ name: "vertex_colour", pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: 0.85 }, ...(emissive ? { emissiveFactor: [0.55, 0.28, 0.12] } : {}) }],
       accessors,
       bufferViews: views,
       buffers: [{ byteLength: bin.length }],
@@ -400,6 +419,54 @@ pieces["pagoda-tier-small"] = tier("pagoda-tier-small", 5.5, 3.2, 2.2);
   m.box("black", 0, 1.7, 0.16, 0.7, 1.6, 0.02);
   pieces["stele"] = m;
 }
+
+
+// ---- Trees: low-poly, a few hundred triangles each (the old kit trees are eight thousand), so a forest costs a
+// fraction of what it did. Deterministic jitter keeps each from looking like a copy of a cone.
+const rng = (seed) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+function pine(name, seed, height) {
+  const m = new Model(name);
+  const r = rng(seed);
+  m.cyl("bark", 0, 0, 0, 0.32, height * 0.34, 7, 0.2);
+  const tiers = 5;
+  for (let k = 0; k < tiers; k++) {
+    const t = k / tiers;
+    const y = height * (0.18 + t * 0.62);
+    const rad = (1 - t) * height * 0.26 + 0.35;
+    m.cyl(k % 2 ? "pine_b" : "pine_a", (r() - 0.5) * 0.15, y, (r() - 0.5) * 0.15, rad * (0.92 + r() * 0.16), height * 0.3, 7, 0.04);
+  }
+  return m;
+}
+function broadleaf(name, seed, height, colours = ["leaf_a", "leaf_b", "leaf_c"]) {
+  const m = new Model(name);
+  const r = rng(seed);
+  m.cyl("bark", 0, 0, 0, 0.36, height * 0.5, 7, 0.22);
+  const blobs = 6;
+  for (let k = 0; k < blobs; k++) {
+    const a = (k / blobs) * Math.PI * 2 + r();
+    const d = k === 0 ? 0 : height * 0.2 + r() * height * 0.06;
+    m.sphere(colours[k % colours.length], Math.cos(a) * d, height * (0.58 + (k === 0 ? 0.2 : r() * 0.14)), Math.sin(a) * d, height * (0.2 + r() * 0.05), 7, 5, 0.85);
+  }
+  return m;
+}
+function bamboo(name, seed, height) {
+  const m = new Model(name);
+  const r = rng(seed);
+  for (let k = 0; k < 6; k++) {
+    const a = r() * Math.PI * 2, d = r() * 1.4, h = height * (0.7 + r() * 0.3);
+    const x = Math.cos(a) * d, z = Math.sin(a) * d;
+    m.cyl("bamboo", x, 0, z, 0.07, h, 5);
+    for (let n = 1; n < 4; n++) m.cyl("bamboo_node", x, (h * n) / 4, z, 0.095, 0.06, 5);
+    m.cyl("leaf_c", x, h * 0.78, z, 0.5, h * 0.24, 5, 0.04);
+  }
+  return m;
+}
+pieces["pine-a"] = pine("pine-a", 3, 9);
+pieces["pine-b"] = pine("pine-b", 7, 11);
+pieces["oak-a"] = broadleaf("oak-a", 5, 8);
+pieces["oak-b"] = broadleaf("oak-b", 11, 9.5);
+pieces["blossom-tree"] = broadleaf("blossom-tree", 9, 7, ["blossom_a", "blossom_b", "blossom_a"]);
+pieces["bamboo-clump"] = bamboo("bamboo-clump", 13, 7);
 
 mkdirSync(outDir, { recursive: true });
 for (const [name, model] of Object.entries(pieces)) {
