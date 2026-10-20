@@ -57,7 +57,7 @@ An honest read of the slice as it stood after the first build, against what is k
 3. **Done**: five bandits of four kinds (brawler, swordsman, spearman with a long thrust and a slow armoured sweep, two qi adepts who stay back and throw qi); a white hit flash on any struck fighter (the Impact flashes setting scales it). Still to do: telegraph cues on the sweep, a fair-first-fight pass with playtesting.
 4. **Done**: four stages (Early, Middle, Late, Peak) inside each realm, each a little stronger; a heavenly tribulation (twelve seconds of lightning, a red ring a second and a half before each strike) when breaking through to Foundation or Golden Core.
 5. **Done**: Willow Village with Merchant Lin (silver for Qi Elixirs and Breakthrough Pills) and Wen, whose cart is by the watchtower (a side quest in the journal). Dialogue uses the Dialogue widget, keys 1 to 3 choose. Bandits drop silver. Still to do: more quests and loot.
-6. Audio: CC0 music and ambience.
+6. **Done**: the engine's own procedural music and ambience layers are now driven by the game (calm music exploring, tension near a fight or a tribulation, silence when dead; wind, wildlife and a settlement hum by place), plus four CC0 clips from Kenney's RPG Audio pack (blade draw, coin handle, book open, cloth swish). Not done: sampled footsteps and weapon hits (the engine synthesizes those), real recorded music.
 7. UI: an item and skill icon system, the icon inventory grid, a skill tree, a full map.
 
 ## Regenerating

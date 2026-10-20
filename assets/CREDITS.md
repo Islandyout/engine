@@ -763,3 +763,8 @@ reference files are in it. Released CC0 1.0 with the rest of the kit. Pieces: pa
 pavilion, stone and paper lanterns, a garden wall, a moon gate, an arched stone bridge, a wooden training dummy, a weapon rack, an incense
 burner and a stele. Regenerate with `node tools/murim/assets/make_wuxia_kit.mjs` (the catalog file names differ from the generator's for the
 wall, bridge and dummy; see the import step in `docs/AZURE_CLOUD_SECT.md`).
+
+## Four more sound clips (ids 11-14 in the sound catalog)
+
+From Kenney's *RPG Audio* pack (https://kenney.nl/assets/rpg-audio, CC0 1.0), copied unmodified and renamed: `blade-draw.ogg` (`drawKnife1.ogg`),
+`coin-handle.ogg` (`handleCoins.ogg`), `book-open.ogg` (`bookOpen.ogg`), `cloth-swish.ogg` (`cloth3.ogg`).

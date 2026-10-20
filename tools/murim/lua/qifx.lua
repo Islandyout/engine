@@ -36,7 +36,7 @@ local function hit_at(x, y, z)
     if hostile(id) and burn then world.send(burn, "burn", tostring(id)) break end
   end
   camera.shake(0.3, 0.2)
-  sound.play("metal-hit")
+  sound.play("metal hit")
 end
 
 function on_message(name, value)

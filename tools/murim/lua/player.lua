@@ -153,13 +153,14 @@ local function choose(n)
       else
         inventory.remove(self.id, "Silver", price)
         inventory.add(self.id, item, 1)
-        sound.play("coin")
+        sound.play("coin handle")
         merchant_root("Sold. You have " .. silver() .. " silver left.")
       end
     else close_talk() end
   elseif talking == "Wen" then
     if cart_state == nil and n == 1 then
       cart_state = "active"
+      sound.play("book open")
       ui.set_text("Notification", "Side quest\nFind Wen's cart near the old watchtower.")
       wen_root()
     elseif cart_state == "found" and n == 1 then
@@ -210,6 +211,37 @@ local function talk_tick()
       if name == "Merchant Lin" then merchant_root() else wen_root() end
     end
   end
+end
+
+-- Sound: the engine's own music and ambience layers. Tension near a fight (or a tribulation), calm exploring music
+-- otherwise, silence when dead; wind always, wildlife in the wild, a settled hum inside the sect and the village.
+local audio_clock = 0
+local mood = ""
+
+local function audio_tick(dt)
+  audio_clock = audio_clock + dt
+  if audio_clock < 0.5 then return end
+  audio_clock = 0
+  local hostile = tribulation > 0
+  if not hostile and not dead then
+    for _, id in ipairs(world.overlap(self.x, self.y, self.z, 14)) do
+      local n = world.name(id) or ""
+      if (n:find("^Bandit") or n:find("^Iron")) and world.alive(id) then hostile = true break end
+    end
+  end
+  local m = dead and "off" or hostile and "tension" or "explore"
+  if m ~= mood then mood = m audio.music(m) end
+  local settled = false
+  for _, name in ipairs({ "Elder Mu", "Merchant Lin" }) do
+    local id = world.find(name)
+    if id then
+      local x, _, z = world.position(id)
+      if (x - self.x) ^ 2 + (z - self.z) ^ 2 < 22 * 22 then settled = true end
+    end
+  end
+  audio.ambience("wind", math.min(0.8, 0.3 + math.max(0, self.y - 15) * 0.02))
+  audio.ambience("wildlife", settled and 0.1 or 0.6)
+  audio.ambience("settlement", settled and 0.8 or 0)
 end
 
 local function journal_text()
@@ -275,7 +307,7 @@ local function begin_tribulation()
   next_strike = 1.5
   ui.set_text("Notification", "Heavenly tribulation\nLightning gathers. Keep moving!")
   hud.announce("Heavenly tribulation! Keep moving and stay out of the red rings.")
-  sound.play("force-field")
+  sound.play("force field")
   camera.shake(0.4, 0.6)
 end
 
@@ -332,7 +364,7 @@ local function qi_effects()
   if move == last_move then return end
   last_move = move
   if not art then return end
-  sound.play("force-field")
+  sound.play(move == "tiger_rush" and "blade draw" or "force field")
   if move == "qi_palm" and fx.bolt then
     after(0.28, function()
       local fx_, fz_ = aim()
@@ -441,10 +473,11 @@ function on_ui(name, value)
 end
 
 function on_tick(dt)
-  if dead then return end
+  if dead then audio_tick(dt) return end
   clock = clock + dt
   near_npc_name = near_npc()
   talk_tick()
+  audio_tick(dt)
   if deviation > 0 then deviation = math.max(0, deviation - dt) end
   local r = REALMS[realm]
   local vx, vz = self.vx, self.vz

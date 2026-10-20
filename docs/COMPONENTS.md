@@ -466,7 +466,7 @@ A sound from the catalog, played in the world.
 
 | Field | Default | Notes |
 |---|---|---|
-| `clip` | 1 | Clip. one of Ambient: Engine Idle, Ambient: Force Field, Stinger: Melee Hit, Stinger: Metal Hit, Stinger: Explosion, Stinger: Glass Break, Stinger: Bell, Stinger: Door Open, Stinger: Door Close, Stinger: Coin Pickup |
+| `clip` | 1 | Clip. one of Ambient: Engine Idle, Ambient: Force Field, Stinger: Melee Hit, Stinger: Metal Hit, Stinger: Explosion, Stinger: Glass Break, Stinger: Bell, Stinger: Door Open, Stinger: Door Close, Stinger: Coin Pickup, Stinger: Blade Draw, Stinger: Coin Handle, Stinger: Book Open, Stinger: Cloth Swish |
 | `volume` | 1 |  |
 | `loop` | false |  |
 | `autoplay` | true |  |
