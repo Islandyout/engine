@@ -58,7 +58,10 @@ export function installScriptHost(C: Ctx): void {
         mesh.castShadow = true;
         if (tint) {
           const material = (mesh.material as THREE.MeshStandardMaterial).clone();
-          material.color.multiply(new THREE.Color(tint));
+          // The tint is the piece's colour: the kit's vertex colours are dark leathers and straps, and multiplied by a
+          // light robe colour they came out black.
+          material.vertexColors = false;
+          material.color.set(tint);
           mesh.material = material;
         }
         markCharacter(mesh);
