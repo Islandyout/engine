@@ -52,7 +52,6 @@ const { saveFailure } = require("./evidence.cjs");
     await until(5);
     const after = await text();
     assert.ok(qi(after) >= 3, `holding M gathers qi (${qi(after)})`);
-    await page.screenshot({ path: "build/browser-evidence/murim.png" });
     assert.deepEqual(errors, [], "no page errors");
     console.log("murim: ok");
   } catch (error) {
