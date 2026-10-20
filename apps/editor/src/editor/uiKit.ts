@@ -85,6 +85,8 @@ export const widgetCatalog: readonly WidgetInfo[] = [
   info("Quest log", "Menus & dialogue", "The journal. Text: title, then 'state|Title|Detail' lines (active, done, todo).", "center", [0, 0], [460, 340], "toggle"),
   info("Skill tree", "Menus & dialogue", "Passive perks bought with points. Text: title, subtitle, then 'node|id|Name|state|col|row|requires|cost|icon|Detail' lines (state learned, available or locked; requires is an id or empty). A click on an available node sends node:<id>.", "center", [0, 0], [520, 400], "toggle"),
   info("Key hints", "Menus & dialogue", "A row of key caps with what each opens. Text: one 'KEY|Label' per line.", "bottom-right", [24, 24], [560, 40], "always"),
+  info("Shop window", "Menus & dialogue", "A list window to buy, sell or craft from. Text: title, subtitle, optional 'tabs|1|A|B', then 'row|id|Name|icon|right|state|Detail' lines (state ok, locked, sold). A click sends pick:<id>.", "center", [0, 0], [520, 420], "toggle"),
+  info("Quick slots", "Combat HUD", "Consumables on keys with counts. Text: one 'KEY|icon|count|Label' per line.", "bottom-right", [24, 90], [320, 76], "always"),
 ];
 
 export function widgetInfo(name: UIWidget): WidgetInfo {
@@ -124,6 +126,7 @@ export interface UIData {
   gear: { weight: number; maxWeight: number; kinds: number; maxKinds: number; worn: { head: string; body: string; hands: string } } | undefined;
   settings: { master: number; sensitivity: number; invertY: boolean; aimAssist: boolean; shake: boolean };
   title: string; // the game's name
+  padConnected: boolean; // a gamepad is the active device (button labels instead of keys)
   fighter: { health: number; mana: number; energy: number; guard: number } | undefined; // the source's fighter bars
   captured: boolean; // the mouse is captured by the game
   // The Player's skill slots (Skill bar): state -1 none, -2 locked, -3 short of mana or energy, 0 ready, else the cooldown left 0 to 1.
@@ -301,7 +304,7 @@ export class Paint {
     c.shadowColor = "transparent";
   }
   font(size: number, weight = this.k.weight) {
-    this.ctx.font = `${this.k.italic ? "italic " : ""}${weight} ${Math.max(1, Math.round(size * this.s))}px ${this.k.font}`;
+    this.ctx.font = `${this.k.italic ? "italic " : ""}${weight} ${Math.max(1, Math.round(size * this.s * accessibility.textScale))}px ${this.k.font}`;
     const spaced = this.ctx as CanvasRenderingContext2D & { letterSpacing?: string };
     if ("letterSpacing" in spaced) spaced.letterSpacing = `${this.k.tracking * this.s}px`;
   }
@@ -1282,7 +1285,7 @@ const lootCard: Draw = (p, r, d, o) => {
   p.text("Pick up", x + pad + kw + 12 * s, ky, 12, { color: k.dim });
 };
 
-const ITEM_TINT: Partial<Record<IconName, string>> = { coin: "#ffc83d", gem: rarityColors[3], potion: "#5fd8e8", pill: "#ffd25a", scroll: "#e8d6a8", robe: "#9ad0ff" };
+export const ITEM_TINT: Partial<Record<IconName, string>> = { coin: "#ffc83d", gem: rarityColors[3], potion: "#5fd8e8", pill: "#ffd25a", scroll: "#e8d6a8", robe: "#9ad0ff" };
 
 const inventory: Draw = (p, r, d, o, hits) => {
   const { ctx: c, k, s } = p;
@@ -1312,16 +1315,23 @@ const inventory: Draw = (p, r, d, o, hits) => {
   const gap = 8 * s;
   const cell = Math.min((w - pad * 2 - gap * (cols - 1)) / cols, 80 * s);
   let top = y + 44 * s;
-  const frame = (cx: number, cy: number, lit: boolean, hover: boolean, filled: boolean) => {
+  const frame = (cx: number, cy: number, lit: boolean, hover: boolean, filled: boolean, tier?: string) => {
     c.beginPath();
     if (k.round && k.frame !== "chamfer") roundRect(c, cx, cy, cell, cell, 6 * s);
     else p.shape(cx, cy, cell, cell);
     c.fillStyle = lit || hover ? k.panelHi : "rgba(0, 0, 0, 0.35)";
     c.fill();
-    c.lineWidth = s;
-    c.strokeStyle = filled ? (lit ? (k.accent === "#ffffff" ? k.text : k.accent) : k.edge) : "rgba(255, 255, 255, 0.08)";
+    c.lineWidth = tier ? 1.6 * s : s;
+    c.strokeStyle = filled ? (tier ?? (lit ? (k.accent === "#ffffff" ? k.text : k.accent) : k.edge)) : "rgba(255, 255, 255, 0.08)";
     c.stroke();
   };
+  // What a script says about its items (Inventory text, one "Name|rarity 0-4|description|use" a line): a tier colour on the
+  // frame, and a detail pane for the one under the pointer.
+  const notes = new Map<string, { tier: number; text: string; use: boolean }>();
+  for (const line of o.text.split("\n")) {
+    const [name, tier, text = "", use = ""] = line.split("|");
+    if (name && tier !== undefined && Number.isFinite(Number(tier))) notes.set(name, { tier: Math.max(0, Math.min(4, Number(tier))), text, use: use === "use" });
+  }
   // Worn: head, body, hands. A click takes the item off.
   if (gear) {
     (["head", "body", "hands"] as const).forEach((slot, i) => {
@@ -1342,20 +1352,42 @@ const inventory: Draw = (p, r, d, o, hits) => {
     ...slots.map((slot, i) => ({ icon: (slot.melee ? "sword" : "gun") as IconName, name: slot.name, count: 0, lit: i === d.slot })),
     ...items.map((item) => ({ icon: lootIcon(3, item.name), name: item.name, count: item.count, lit: worn.has(item.name), wear: item.slot })),
   ];
-  const rows = Math.max(1, Math.floor((h - (top - y) - pad + gap) / (cell + gap)));
+  const detailH = notes.size ? 54 * s : 0;
+  const rows = Math.max(1, Math.floor((h - (top - y) - pad - detailH + gap) / (cell + gap)));
+  let hovered: (typeof entries)[number] | undefined;
   for (let i = 0; i < cols * rows; i++) {
     const cx = left + (i % cols) * (cell + gap);
     const cy = top + Math.floor(i / cols) * (cell + gap);
     const entry = entries[i];
-    frame(cx, cy, !!entry?.lit, inside(d.pointer, cx, cy, cell, cell), !!entry);
+    const note = entry ? notes.get(entry.name) : undefined;
+    const over = inside(d.pointer, cx, cy, cell, cell);
+    frame(cx, cy, !!entry?.lit, over, !!entry, note ? rarityColors[note.tier] : undefined);
     if (!entry) continue;
+    if (over) hovered = entry;
     p.icon(entry.icon, cx + cell / 2, cy + cell * 0.42, cell * 0.42, ITEM_TINT[entry.icon] ?? k.text);
     p.text(entry.name, cx + cell / 2, cy + cell - 10 * s, 10, { align: "center", raw: true, color: k.dim, max: cell - 6 * s });
     if (entry.count > 1) p.text(String(entry.count), cx + cell - 5 * s, cy + 10 * s, 11, { align: "right", weight: 800 });
     if (i < slots.length) hits.push({ left: cx, top: cy, width: cell, height: cell, action: `slot:${i}` });
     else if (entry.wear && !entry.lit) hits.push({ left: cx, top: cy, width: cell, height: cell, action: `equip:${entry.wear}:${entry.name}` });
+    else if (note?.use) hits.push({ left: cx, top: cy, width: cell, height: cell, action: `event:use:${entry.name}` });
+  }
+  if (detailH) {
+    const dy = y + h - pad - detailH + 4 * s;
+    c.fillStyle = k.edge === "rgba(255, 255, 255, 0)" ? "rgba(255,255,255,0.18)" : k.edge;
+    c.fillRect(left, dy - 8 * s, w - pad * 2, Math.max(1, s * 0.8));
+    const shown = hovered ?? entries[d.slot] ?? entries[0];
+    const note = shown ? notes.get(shown.name) : undefined;
+    if (shown) {
+      const tierName = note ? ["Common", "Uncommon", "Rare", "Epic", "Legendary"][note.tier] : "";
+      p.text(shown.name, left, dy + 8 * s, 14, { weight: 800, raw: true, color: note ? rarityColors[note.tier] : k.text });
+      if (tierName) p.text(tierName, w + x - pad, dy + 8 * s, 11, { align: "right", color: rarityColors[note!.tier] });
+      const extra = shown.count > 1 ? `x${shown.count}  ·  ` : "";
+      p.text(extra + (note?.text ?? ""), left, dy + 30 * s, 12, { raw: true, color: k.dim, plain: true, max: w - pad * 2 });
+      if (note?.use && hovered === shown) p.text("Click to use", x + w - pad, dy + 30 * s, 11, { align: "right", color: accentOrText(k) });
+    }
   }
 };
+const accentOrText = (k: { accent: string; text: string }) => (k.accent === "#ffffff" ? k.text : k.accent);
 
 const hotbar: Draw = (p, r, d, o, hits) => {
   const { ctx: c, k, s } = p;
@@ -1669,10 +1701,15 @@ const draws: Partial<Record<UIWidget, Draw>> = {
   Notification: notification,
 };
 
+// The player's accessibility choices, set every frame from the settings: a text size over the widgets' own, and a palette
+// that does not rely on telling red from green (health in blue, danger in orange).
+export const accessibility = { textScale: 1, colorBlind: false };
+const colorBlindSkin = (skin: Skin): Skin => ({ ...skin, health: skin.health === skin.text ? skin.health : "#4aa8ff", danger: "#ff9d1f", stamina: skin.stamina === skin.text ? skin.stamina : "#ffd23f" });
+
 // Paints one widget in `rect` and returns what clicks on it do.
 export function drawWidget(ctx: CanvasRenderingContext2D, input: WidgetInput, rect: UIRect, data: UIData): UIHit[] {
   const hits: UIHit[] = [];
-  const paint = new Paint(ctx, skins[input.style], input.fontSize / 16);
+  const paint = new Paint(ctx, accessibility.colorBlind ? colorBlindSkin(skins[input.style]) : skins[input.style], input.fontSize / 16);
   ctx.save();
   try {
     (draws[input.widget] ?? extraDraws.get(input.widget))?.(paint, rect, data, input, hits);
@@ -1689,6 +1726,7 @@ export function sampleUIData(time: number, width: number, height: number): UIDat
     width,
     height,
     pointer: undefined,
+    padConnected: false,
     health: 0.68,
     healthGhost: 0.8,
     healthMax: 100,

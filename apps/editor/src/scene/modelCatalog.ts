@@ -361,6 +361,19 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 338, category: "wuxia", name: "Roadside shrine", path: "./kit/wuxia/roadside-shrine.glb" },
   { id: 339, category: "wuxia", name: "Market stall", path: "./kit/wuxia/market-stall.glb" },
   { id: 340, category: "wuxia", name: "Hand cart", path: "./kit/wuxia/hand-cart.glb" },
+  { id: 341, category: "wuxia", name: "Anvil forge", path: "./kit/wuxia/anvil-forge.glb" },
+  { id: 342, category: "wuxia", name: "Notice board", path: "./kit/wuxia/notice-board.glb" },
+  { id: 343, category: "wuxia", name: "Horse stable", path: "./kit/wuxia/horse-stable.glb" },
+  { id: 344, category: "wuxia", name: "Lake pier", path: "./kit/wuxia/lake-pier.glb" },
+  { id: 345, category: "wuxia", name: "Cave arch", path: "./kit/wuxia/cave-arch.glb" },
+  { id: 346, category: "wuxia", name: "Stalagmites", path: "./kit/wuxia/stalagmites.glb" },
+  { id: 347, category: "wuxia", name: "Crystal cluster", path: "./kit/wuxia/crystal-cluster.glb" },
+  { id: 348, category: "wuxia", name: "Ore rock", path: "./kit/wuxia/ore-rock.glb" },
+  { id: 349, category: "wuxia", name: "Red pillar", path: "./kit/wuxia/red-pillar.glb" },
+  { id: 350, category: "wuxia", name: "Hall banner", path: "./kit/wuxia/hall-banner.glb" },
+  { id: 351, category: "wuxia", name: "Altar table", path: "./kit/wuxia/altar-table.glb" },
+  { id: 352, category: "wuxia", name: "Bookshelf", path: "./kit/wuxia/bookshelf.glb" },
+  { id: 353, category: "wuxia", name: "Tea table", path: "./kit/wuxia/tea-table.glb" },
 ];
 
 export const catalogCategories = Array.from(

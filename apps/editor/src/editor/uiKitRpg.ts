@@ -14,7 +14,8 @@
 // Script-fed widgets take their data from the UI text (and value) that a script sets with ui.set_text and
 // ui.set_value; the format is in docs/UI_KIT.md.
 import { registerDraw } from "./uiDraws";
-import { iconNames, roundRect } from "./uiKit";
+import { ITEM_TINT, iconNames, lootIcon, roundRect } from "./uiKit";
+import { rarityColors } from "./lootView";
 import type { Draw, IconName, Paint, UIData, UIHit } from "./uiKit";
 import type { UIRect } from "./uiLayout";
 
@@ -315,13 +316,34 @@ const characterSheet: Draw = (p, r, d, o, hits) => {
   }
 };
 
+// ---- Tabs ----
+
+// A row of tabs: "tabs|<active, from 1>|Label|Label...". A click sends event:tab:<n>. Returns the height it used (0: no tabs).
+function drawTabs(p: Paint, d: UIData, hits: UIHit[], line: string | undefined, x: number, y: number, w: number): number {
+  if (!line || !line.startsWith("tabs|")) return 0;
+  const [, active = "1", ...labels] = line.split("|");
+  if (!labels.length) return 0;
+  const { k, s } = p;
+  const h = 28 * s, gap = 6 * s;
+  const tw = Math.min(130 * s, (w - gap * (labels.length - 1)) / labels.length);
+  labels.forEach((label, i) => {
+    const tx = x + i * (tw + gap);
+    const on = Number(active) === i + 1;
+    const over = !!d.pointer && d.pointer.x >= tx && d.pointer.x <= tx + tw && d.pointer.y >= y && d.pointer.y <= y + h;
+    p.panel(tx, y, tw, h, on || over);
+    p.text(label, tx + tw / 2, y + h / 2, 12, { align: "center", raw: true, weight: on ? 800 : 600, color: on ? k.text : k.dim, max: tw - 8 * s });
+    hits.push({ left: tx, top: y, width: tw, height: h, action: `event:tab:${i + 1}` } as UIHit);
+  });
+  return h + 10 * s;
+}
+
 // ---- Quest log ----
 
 // Text: a title, then one quest a line, "state|Title|Detail" with state active, done or todo. The X sends close.
 const questLog: Draw = (p, r, d, o, hits) => {
   const { ctx: c, k, s } = p;
   const text = o.preview ? o.text || "Journal\nactive|Meet Elder Mu|Speak with the elder inside the sect gate.\ntodo|Gather qi|Hold M to meditate.\ndone|Enter the sect|You passed the gate." : o.text;
-  const [title = "", ...rest] = text.split("\n");
+  const [title = "", ...allRest] = text.split("\n");
   if (!title) return;
   const { left: x, top: y, width: w, height: h } = r;
   backing(p, x, y, w, h);
@@ -332,7 +354,9 @@ const questLog: Draw = (p, r, d, o, hits) => {
   p.text("x", x + w - pad - cs / 2, y + 28 * s, 18, { align: "center", color: k.dim, raw: true });
   hits.push({ left: x + w - pad - cs, top: y + 12 * s, width: cs, height: cs, action: "event:close" } as UIHit);
   const gold = accentOf(p);
-  let row = y + 62 * s;
+  const tabsUsed = drawTabs(p, d, hits, allRest[0], x + pad, y + 46 * s, w - pad * 2);
+  const rest = tabsUsed ? allRest.slice(1) : allRest;
+  let row = y + 62 * s + tabsUsed;
   for (const line of rest) {
     const [state = "todo", name = "", detail = ""] = line.split("|");
     const active = state === "active";
@@ -448,6 +472,98 @@ const skillTree: Draw = (p, r, d, o, hits) => {
   if (shown.detail) p.text(shown.detail, x + pad, fy + 24 * s, 12, { raw: true, color: k.dim, plain: true, max: areaW });
 };
 
+// ---- Shop window ----
+
+// A list window for buying, selling and crafting. Text: a title, a subtitle (what you have), an optional tabs line, then
+// "row|id|Name|icon|right|state|Detail" (state ok, locked or sold): a click on an ok row sends event:pick:<id>, a tab
+// event:tab:<n>, and "page|n|pages" adds previous and next buttons (event:page:-1 and event:page:1).
+const shopWindow: Draw = (p, r, d, o, hits) => {
+  const { k, s } = p;
+  const text = o.preview
+    ? o.text || "Merchant Lin\n42 silver\ntabs|1|Buy|Sell\nrow|elixir|Qi Elixir|potion|20 silver|ok|Restores qi\nrow|dew|Jade Dew Pill|pill|14 silver|ok|Heals and cures\nrow|pill|Breakthrough Pill|pill|120 silver|locked|Needed to break through"
+    : o.text;
+  const lines = text.split("\n");
+  const [title = "", subtitle = ""] = lines;
+  if (!title) return;
+  const rest = lines.slice(2);
+  const { left: x, top: y, width: w, height: h } = r;
+  backing(p, x, y, w, h);
+  p.panel(x, y, w, h);
+  const pad = 18 * s + (k.frame === "slant" ? 8 * s : 0);
+  p.text(title, x + pad, y + 28 * s, 20, { weight: 800, raw: k.frame === "ornate" || k.frame === "soft" });
+  if (subtitle) p.text(subtitle, x + w - pad - 34 * s, y + 28 * s, 13, { align: "right", raw: true, color: accentOf(p) });
+  const cs = 24 * s;
+  p.text("x", x + w - pad - cs / 2, y + 28 * s, 18, { align: "center", color: k.dim, raw: true });
+  hits.push({ left: x + w - pad - cs, top: y + 12 * s, width: cs, height: cs, action: "event:close" } as UIHit);
+  const tabLine = rest[0]?.startsWith("tabs|") ? rest[0] : undefined;
+  let top = y + 50 * s + drawTabs(p, d, hits, tabLine, x + pad, y + 46 * s, w - pad * 2);
+  if (!tabLine) top = y + 56 * s;
+  type Row = { id: string; name: string; icon: string; right: string; state: string; detail: string };
+  const rows: Row[] = [];
+  let pageLine: string[] | undefined;
+  for (const line of rest) {
+    const parts = line.split("|");
+    if (parts[0] === "row" && parts[1]) rows.push({ id: parts[1], name: parts[2] ?? "", icon: parts[3] ?? "gem", right: parts[4] ?? "", state: parts[5] ?? "ok", detail: parts.slice(6).join("|") });
+    else if (parts[0] === "page") pageLine = parts;
+  }
+  const footer = 46 * s;
+  const rowH = 46 * s, gap = 6 * s;
+  const fit = Math.max(1, Math.floor((y + h - footer - top + gap) / (rowH + gap)));
+  let hovered: Row | undefined;
+  rows.slice(0, fit).forEach((row, i) => {
+    const ry = top + i * (rowH + gap);
+    const over = !!d.pointer && d.pointer.x >= x + pad && d.pointer.x <= x + w - pad && d.pointer.y >= ry && d.pointer.y <= ry + rowH;
+    const usable = row.state === "ok";
+    if (over) hovered = row;
+    p.panel(x + pad, ry, w - pad * 2, rowH, over && usable);
+    const icon = (iconNames.has(row.icon) ? row.icon : lootIcon(3, row.name)) as IconName;
+    p.icon(icon, x + pad + 26 * s, ry + rowH / 2, 22 * s, usable ? (ITEM_TINT[icon] ?? k.text) : k.dim);
+    p.text(row.name, x + pad + 52 * s, ry + rowH / 2 - 7 * s, 14, { raw: true, weight: 700, color: usable ? k.text : k.dim, max: w - pad * 2 - 190 * s });
+    p.text(row.detail, x + pad + 52 * s, ry + rowH / 2 + 11 * s, 11, { raw: true, color: k.dim, plain: true, max: w - pad * 2 - 190 * s });
+    p.text(row.right, x + w - pad - 14 * s, ry + rowH / 2, 13, { align: "right", raw: true, weight: 800, color: row.state === "locked" ? k.danger : row.state === "sold" ? k.dim : accentOf(p) });
+    if (usable) hits.push({ left: x + pad, top: ry, width: w - pad * 2, height: rowH, action: `event:pick:${row.id}` } as UIHit);
+  });
+  if (!rows.length) p.text("Nothing here.", x + w / 2, top + 30 * s, 13, { align: "center", color: k.dim, raw: true });
+  if (pageLine) {
+    const [, at = "1", of = "1"] = pageLine;
+    const by = y + h - 34 * s;
+    p.button(x + pad, by, 70 * s, 26 * s, "Prev", !!d.pointer && d.pointer.x >= x + pad && d.pointer.x <= x + pad + 70 * s && d.pointer.y >= by && d.pointer.y <= by + 26 * s, hits, "event:page:-1", 12);
+    p.button(x + pad + 80 * s, by, 70 * s, 26 * s, "Next", !!d.pointer && d.pointer.x >= x + pad + 80 * s && d.pointer.x <= x + pad + 150 * s && d.pointer.y >= by && d.pointer.y <= by + 26 * s, hits, "event:page:1", 12);
+    p.text(`${at} / ${of}`, x + pad + 170 * s, by + 13 * s, 12, { raw: true, color: k.dim });
+  }
+  const shown = hovered ?? rows[0];
+  if (shown && shown.detail) p.text(shown.detail, x + w - pad, y + h - 20 * s, 12, { align: "right", raw: true, color: k.dim, plain: true, max: w - pad * 2 - 190 * s });
+};
+
+// ---- Quick slots ----
+
+// Text: one "KEY|icon|count|Label" a line: consumables on keys, in a row of plates with their counts (Elden Ring's quick items).
+const quickSlots: Draw = (p, r, d, o) => {
+  const { ctx: c, k, s } = p;
+  const text = o.preview ? o.text || "H|potion|3|Qi Elixir\nZ|pill|2|Jade Dew\n8|bolt|12|Arrows" : o.text;
+  const slots = text.split("\n").map((l) => l.split("|")).filter((q) => q[0] && q[1]);
+  if (!slots.length) return;
+  const cell = Math.min(r.height - 22 * s, 46 * s);
+  const gap = 8 * s;
+  const total = slots.length * cell + (slots.length - 1) * gap;
+  const x0 = r.left + r.width - total;
+  slots.forEach(([key = "", iconName = "gem", count = "0", label = ""], i) => {
+    const x = x0 + i * (cell + gap);
+    const y = r.top;
+    const n = Number(count) || 0;
+    p.panel(x, y, cell, cell, false);
+    const icon = (iconNames.has(iconName) ? iconName : "gem") as IconName;
+    c.globalAlpha = n > 0 ? 1 : 0.35;
+    p.icon(icon, x + cell / 2, y + cell / 2 - 2 * s, cell * 0.5, ITEM_TINT[icon] ?? k.text);
+    c.globalAlpha = 1;
+    p.text(String(n), x + cell - 5 * s, y + cell - 8 * s, 12, { align: "right", weight: 800, raw: true, color: n > 0 ? k.text : k.danger });
+    p.key(d.padConnected ? (padOf[key] ?? key) : key, x + cell / 2, y + cell + 11 * s, 16);
+    void label;
+  });
+};
+// A few default gamepad buttons for the keys the kit shows.
+const padOf: Record<string, string> = { H: "LB", Z: "RB" };
+
 // ---- Key hints ----
 
 // Text: one "KEY|Label" per line. Drawn as a single right-aligned row of key caps and labels on a plate, so the keys that open
@@ -455,27 +571,41 @@ const skillTree: Draw = (p, r, d, o, hits) => {
 const keyHints: Draw = (p, r, d, o) => {
   const { k, s } = p;
   const text = o.preview ? o.text || "I|Bag\nC|Character\nJ|Journal\nM|Map" : o.text;
-  const items = text.split("\n").map((line) => line.split("|")).filter((parts) => parts[0] && parts[1]) as [string, string][];
+  const items = text
+    .split("\n")
+    .map((line) => line.split("|"))
+    .filter((parts) => parts[0] && parts[1])
+    .map(([key, label, pad]) => [d.padConnected && pad ? pad : key, label] as [string, string]);
   if (!items.length) return;
   const { left: x, top: y, width: w, height: h } = r;
-  const cap = Math.min(h - 14 * s, 22 * s);
+  // More than four hints wrap onto a second plate above the first, so the row never reaches the skill bar.
+  const perRow = items.length > 4 ? Math.ceil(items.length / 2) : items.length;
+  const rows: [string, string][][] = [];
+  for (let i = 0; i < items.length; i += perRow) rows.push(items.slice(i, i + perRow));
+  const plateH = rows.length > 1 ? (h - 6 * s) / rows.length : h;
+  const cap = Math.min(plateH - 14 * s, 22 * s);
   const size = cap / s;
   const gap = 14 * s, inner = 7 * s, pad = 12 * s;
-  const widths = items.map(([key, label]) => Math.max(cap, p.measure(key, size * 0.55, { raw: true }) + 10 * s) + inner + p.measure(label, 12, { raw: true }));
-  const total = widths.reduce((a, b) => a + b, 0) + gap * (items.length - 1) + pad * 2;
-  const left = x + w - total;
-  backing(p, left, y, total, h);
-  p.panel(left, y, total, h);
-  let cx = left + pad;
-  items.forEach(([key, label], i) => {
-    const kw = Math.max(cap, p.measure(key, size * 0.55, { raw: true }) + 10 * s);
-    p.key(key, cx + kw / 2, y + h / 2, size);
-    p.text(label, cx + kw + inner, y + h / 2, 12, { raw: true, color: k.dim, plain: true });
-    cx += widths[i]! + gap;
+  rows.forEach((row, ri) => {
+    const widths = row.map(([key, label]) => Math.max(cap, p.measure(key, size * 0.55, { raw: true }) + 10 * s) + inner + p.measure(label, 12, { raw: true }));
+    const total = widths.reduce((a, b) => a + b, 0) + gap * (row.length - 1) + pad * 2;
+    const left = x + w - total;
+    const top = y + ri * (plateH + 6 * s);
+    backing(p, left, top, total, plateH);
+    p.panel(left, top, total, plateH);
+    let cx = left + pad;
+    row.forEach(([key, label], i) => {
+      const kw = Math.max(cap, p.measure(key, size * 0.55, { raw: true }) + 10 * s);
+      p.key(key, cx + kw / 2, top + plateH / 2, size);
+      p.text(label, cx + kw + inner, top + plateH / 2, 12, { raw: true, color: k.dim, plain: true });
+      cx += widths[i]! + gap;
+    });
   });
 };
 
 registerDraw("Key hints", keyHints);
+registerDraw("Shop window", shopWindow);
+registerDraw("Quick slots", quickSlots);
 registerDraw("Skill bar", skillBar);
 registerDraw("Resource bar", resourceBar);
 registerDraw("Status effects", statusEffects);

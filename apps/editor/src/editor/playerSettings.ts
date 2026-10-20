@@ -35,6 +35,9 @@ export interface PlayerSettings {
   blockToggle: boolean; // block: one press raises it, the next lowers it
   aimAssist: boolean; // a scene's Weapons aim assist (off: none at all)
   minimapSize: MinimapSize; // read by the minimap
+  textScale: number; // interface text size over each widget's own, 0.8..1.6
+  colorBlind: boolean; // health in blue and danger in orange
+  captions: boolean; // sound captions: [bell], [blade draw]...
 }
 
 const KEY = "game-engine-player:settings";
@@ -57,6 +60,9 @@ export const defaultSettings: PlayerSettings = {
   blockToggle: false,
   aimAssist: true,
   minimapSize: "medium",
+  textScale: 1,
+  colorBlind: false,
+  captions: false,
 };
 
 const clampNumber = (v: unknown, lo: number, hi: number, fallback: number) =>
@@ -85,6 +91,9 @@ export function parseSettings(text: string | null): PlayerSettings {
       blockToggle: v.blockToggle === true,
       aimAssist: v.aimAssist !== false,
       minimapSize: v.minimapSize === "small" || v.minimapSize === "large" ? v.minimapSize : "medium",
+      textScale: clampNumber(v.textScale, 0.8, 1.6, d.textScale),
+      colorBlind: v.colorBlind === true,
+      captions: v.captions === true,
     };
   } catch {
     return { ...defaultSettings };
@@ -222,6 +231,11 @@ const actionLabels: Record<string, string> = {
   art1: "Sword Qi",
   art2: "Thunder Lance",
   art3: "Flame Palm",
+  art4: "Spirit Guardian",
+  talisman1: "Fire Talisman",
+  talisman2: "Ward Talisman",
+  stance: "Change stance",
+  grapple: "Cloud rope (grapple)",
   controls: "Controls and settings",
   lock: "Lock on",
   interact: "Interact",
@@ -359,7 +373,7 @@ export function openSettingsPanel(root: HTMLElement, settings: PlayerSettings, o
     h.textContent = text;
     panel.append(h);
   };
-  type NumberKey = "sensitivity" | "master" | "music" | "sfx" | "brightness" | "ink" | "flash";
+  type NumberKey = "sensitivity" | "master" | "music" | "sfx" | "brightness" | "ink" | "flash" | "textScale";
   const slider = (key: NumberKey, text: string, min: number, max: number, step = 0.05) => {
     const input = document.createElement("input");
     input.type = "range";
@@ -370,7 +384,7 @@ export function openSettingsPanel(root: HTMLElement, settings: PlayerSettings, o
     input.oninput = () => update({ [key]: Number(input.value) });
     panel.append(row(text, input));
   };
-  type BoolKey = "invertY" | "reducedMotion" | "minimap" | "footprints" | "shake" | "aimAssist";
+  type BoolKey = "invertY" | "reducedMotion" | "minimap" | "footprints" | "shake" | "aimAssist" | "colorBlind" | "captions";
   const check = (key: BoolKey, text: string) => {
     const box = document.createElement("input");
     box.type = "checkbox";
@@ -412,6 +426,9 @@ export function openSettingsPanel(root: HTMLElement, settings: PlayerSettings, o
   check("minimap", "Minimap");
   choice("Minimap size", settings.minimapSize, [["small", "Small"], ["medium", "Medium"], ["large", "Large"]], (minimapSize) => update({ minimapSize }));
   check("footprints", "Footprints");
+  slider("textScale", "Interface text size", 0.8, 1.6, 0.1);
+  check("colorBlind", "Colour-blind friendly colours");
+  check("captions", "Sound captions");
 
   // The keys: click one, then press its new key (Esc cancels).
   let stopCapture = () => {};

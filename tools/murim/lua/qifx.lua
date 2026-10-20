@@ -2,7 +2,7 @@
 -- Qi effects, one emitter per entity (props.mode): "aura" glows around the Player while
 -- gathering or casting, "bolt" is the visible core and trail of a Qi Palm, "burst" flashes
 -- where a qi art lands, "burn" keeps a struck fighter alight for a few seconds, and "mark" is the red ring that
--- shows where tribulation lightning will fall.
+-- shows where tribulation lightning will fall; "array" is the cyan glow of a planted formation.
 
 local mode = props.mode or "aura"
 local ttl = 0        -- bolt: seconds left in flight
@@ -56,7 +56,7 @@ function on_message(name, value)
       self.x, self.y, self.z = tonumber(x), tonumber(y), tonumber(z)
       particles.burst(60)
     end
-  elseif mode == "mark" and name == "at" then
+  elseif (mode == "mark" or mode == "array") and name == "at" then
     local x, y, z, secs = value:match("^([%-%d.]+),([%-%d.]+),([%-%d.]+),([%-%d.]+)$")
     if x then
       self.x, self.y, self.z = tonumber(x), tonumber(y), tonumber(z)
@@ -85,7 +85,7 @@ function on_tick(dt)
       end
     end
     if ttl <= 0 then park() end
-  elseif mode == "mark" and mark_left > 0 then
+  elseif (mode == "mark" or mode == "array") and mark_left > 0 then
     mark_left = mark_left - dt
     if mark_left <= 0 then park() end
   elseif mode == "burn" and burn_left > 0 then

@@ -1109,6 +1109,7 @@ async function startEditor() {
   /* declared in the context */
   const widgetTexts = new Map<number, { text: string; since: number }>();
   C.widgetTexts = widgetTexts;
+  C.captions = [];
   const hiddenWidgets = new Set<number>();
   C.hiddenWidgets = hiddenWidgets;
   const sceneWidgets = new Set<UIWidget>();

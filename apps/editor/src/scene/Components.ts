@@ -451,6 +451,8 @@ export const uiWidgetNames = [
   "Quest log",
   "Skill tree",
   "Key hints",
+  "Shop window",
+  "Quick slots",
 ] as const;
 export type UIWidget = (typeof uiWidgetNames)[number];
 export const uiStyleNames = ["Modern", "Battle Royale", "Tactical", "Fantasy", "Sci-fi", "Minimal"] as const;

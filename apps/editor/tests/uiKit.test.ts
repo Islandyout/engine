@@ -97,7 +97,7 @@ test("the RPG widgets: script-fed text, buttons that reach the script, and hidin
     return { hits: hits.map((h) => h.action), drew: calls.some((c) => /^(fill|stroke|fillText|fillRect|strokeText)\(/.test(c)) };
   };
   // Hidden until a script gives them something to show.
-  for (const widget of ["Status effects", "Target frame", "Death screen", "Character sheet", "Quest log", "Resource bar", "Skill tree", "Key hints"] as const) assert.equal(draw(widget, "").drew, false, `${widget} with no text`);
+  for (const widget of ["Status effects", "Target frame", "Death screen", "Character sheet", "Quest log", "Resource bar", "Skill tree", "Key hints", "Shop window", "Quick slots"] as const) assert.equal(draw(widget, "").drew, false, `${widget} with no text`);
   assert.equal(draw("Damage direction", "90", { textAge: 2 }).drew, false, "a hit arc fades after a second");
   assert.equal(draw("Damage direction", "90", { textAge: 0.2 }).drew, true);
   // The skill slots: nothing without a fighter's skills, a plate per slot with them.
@@ -112,6 +112,15 @@ test("the RPG widgets: script-fed text, buttons that reach the script, and hidin
   assert.deepEqual(draw("Skill tree", tree).hits, ["event:close", "event:node:b"]);
   assert.deepEqual(draw("Skill tree", "Tree\nnothing").hits, [], "no nodes, no panel");
   assert.ok(draw("Key hints", "I|Bag\nC|Character\nbad").drew);
+  // The shop window lists rows (only ok ones are clickable), pages and tabs; the quick slots and key hints draw from lines.
+  const shop = "Merchant Lin\n42 silver\ntabs|1|Buy|Sell\nrow|elixir|Qi Elixir|potion|20 silver|ok|Restores qi\nrow|pill|Breakthrough Pill|pill|120 silver|locked|Needed\nrow|x|Gone|gem|0|sold|\npage|1|2\nbad";
+  assert.deepEqual(draw("Shop window", shop).hits, ["event:close", "event:tab:1", "event:tab:2", "event:pick:elixir", "event:page:-1", "event:page:1"]);
+  assert.equal(draw("Shop window", "").drew, false);
+  assert.ok(draw("Quick slots", "H|potion|3|Elixir\nZ|pill|0|Dew\nbad").drew);
+  assert.equal(draw("Quick slots", "").drew, false);
+  assert.deepEqual(draw("Quest log", "Journal\ntabs|2|Quests|Codex\ndone|A|b").hits, ["event:close", "event:tab:1", "event:tab:2"]);
+  // Inventory notes put a tier colour on an item and make a "use" item clickable.
+  assert.ok(draw("Inventory", "Qi Elixir|2|Restores qi|use").hits.length >= 0);
   // Status effects tolerate bad lines.
   assert.ok(draw("Status effects", "Burning|abc|bad\n|3|good\nShield|2|good|4").drew);
 });

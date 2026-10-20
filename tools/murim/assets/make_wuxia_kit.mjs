@@ -15,6 +15,9 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const outDir = process.argv[2] ?? join(here, "../../../assets/source/kit/wuxia");
 
+// A deterministic random stream, so every build of the kit is the same.
+const rng = (seed) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+
 // ---------------------------------------------------------------- materials --
 const hex = (h) => [1, 3, 5].map((i) => Math.pow(parseInt(h.slice(i, i + 2), 16) / 255, 2.2)); // sRGB to linear
 const MATERIALS = {
@@ -48,6 +51,18 @@ const MATERIALS = {
   thatch: "#b39a58",
   thatch_dark: "#8c7640",
   hide: "#6d4a33",
+  iron: "#4a4d55",
+  coal: "#e0622a",
+  hay: "#cdb15e",
+  rock: "#767a80",
+  rock_dark: "#555960",
+  crystal: "#7fe6ff",
+  water_wood: "#6a5a45",
+  cloth_red: "#a8302c",
+  paper_note: "#efe6cc",
+  book_a: "#7a2f2a",
+  book_b: "#2f4f6a",
+  book_c: "#5a6a3a",
 };
 
 // ------------------------------------------------------------------- meshes --
@@ -604,9 +619,137 @@ pieces["pagoda-tier-small"] = tier("pagoda-tier-small", 5.5, 3.2, 2.2);
   pieces["hand-cart"] = m;
 }
 
+// A forge: a stone hearth with glowing coals, an anvil on a stump, a quench barrel and hanging tongs.
+{
+  const m = new Model("anvil-forge");
+  m.box("stone_dark", -1.2, 0.5, 0, 1.8, 1.0, 1.4);
+  m.box("coal", -1.2, 1.02, 0, 1.4, 0.06, 1.0);
+  m.box("stone", -1.2, 1.7, -0.5, 1.8, 1.4, 0.4);
+  m.cyl("iron", -1.2, 2.3, -0.5, 0.18, 0.9, 6, 0.1);
+  m.cyl("wood_dark", 0.8, 0, 0, 0.42, 0.7, 8);
+  m.box("iron", 0.8, 0.85, 0, 0.9, 0.22, 0.38);
+  m.box("iron", 0.8, 0.98, 0, 0.45, 0.14, 0.32);
+  m.box("iron", 1.28, 0.9, 0, 0.3, 0.1, 0.16);
+  m.cyl("wood", 1.9, 0, 0.6, 0.38, 0.8, 8, 0.34);
+  m.cyl("water_wood", 1.9, 0.78, 0.6, 0.36, 0.04, 8);
+  m.box("wood_dark", 0.2, 1.9, -0.7, 0.08, 0.9, 0.06);
+  pieces["anvil-forge"] = m;
+}
+
+// A notice board: two posts, a board with pinned papers, a small tiled roof.
+{
+  const m = new Model("notice-board");
+  for (const sx of [-1, 1]) m.box("wood_dark", sx * 1.3, 1.2, 0, 0.2, 2.4, 0.2);
+  m.box("wood", 0, 1.5, 0.02, 2.5, 1.5, 0.1);
+  for (const [x, y, w, h] of [[-0.8, 1.7, 0.5, 0.6], [-0.1, 1.5, 0.55, 0.7], [0.7, 1.75, 0.5, 0.55], [0.55, 1.1, 0.45, 0.4], [-0.75, 1.15, 0.4, 0.4]]) m.box("paper_note", x, y, 0.1, w, h, 0.02);
+  m.box("red", 0.7, 1.75, 0.12, 0.08, 0.1, 0.02);
+  m.gable(0, 2.4, 0, 2.8, 0.5, 0.55, 0.4);
+  pieces["notice-board"] = m;
+}
+
+// A stable: an open shed on four posts with a thatched roof, a hay pile, a trough and a hitching rail.
+{
+  const m = new Model("horse-stable");
+  const w = 5.2, d = 3.2;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) m.cyl("wood_dark", sx * w / 2, 0, sz * d / 2, 0.12, 2.5, 6);
+  m.box("wood", 0, 2.55, 0, w + 0.3, 0.14, d + 0.3);
+  m.gable(0, 2.6, 0, w, d, 1.2, 0.5, "thatch", "thatch_dark", 5);
+  m.box("hay", -1.4, 0.3, -0.7, 1.4, 0.6, 1.0);
+  m.box("hay", -1.0, 0.8, -0.6, 0.9, 0.4, 0.8);
+  m.box("wood", 1.4, 0.45, -1.1, 1.8, 0.4, 0.5);
+  m.box("water_wood", 1.4, 0.64, -1.1, 1.6, 0.04, 0.4);
+  m.box("wood_dark", 0, 1.0, 1.9, w, 0.1, 0.1);
+  m.box("wood_dark", -w / 2, 0.5, 1.9, 0.12, 1.0, 0.12);
+  m.box("wood_dark", w / 2, 0.5, 1.9, 0.12, 1.0, 0.12);
+  pieces["horse-stable"] = m;
+}
+
+// A lake pier: planks on posts, a lantern post at the end.
+{
+  const m = new Model("lake-pier");
+  const len = 7;
+  for (let k = 0; k <= len; k += 1) m.box("water_wood", 0, 0.5, k * 1.0, 1.8, 0.1, 0.9);
+  for (const sx of [-0.8, 0.8]) for (let k = 0; k <= len; k += 2) m.cyl("wood_dark", sx, -1.2, k * 1.0, 0.1, 1.8, 6);
+  for (const sx of [-0.9, 0.9]) m.box("wood_dark", sx, 1.0, len / 2, 0.06, 0.06, len);
+  m.box("wood_dark", 0, 1.1, len, 0.1, 1.2, 0.1);
+  m.box("paper", 0, 1.8, len, 0.35, 0.5, 0.35);
+  pieces["lake-pier"] = m;
+}
+
+// A cave mouth: a broken arch of rock round a dark opening, crystals glinting at its foot.
+{
+  const m = new Model("cave-arch");
+  const r = rng(21);
+  for (const sx of [-1, 1]) {
+    for (let k = 0; k < 4; k++) m.box(k % 2 ? "rock" : "rock_dark", sx * (2.3 + r() * 0.3), 0.9 + k * 1.2, (r() - 0.5) * 0.4, 1.6 + r() * 0.5, 1.4, 2.2 + r());
+  }
+  for (let k = 0; k < 5; k++) m.box(k % 2 ? "rock_dark" : "rock", -1.9 + k * 0.95, 4.4 + Math.sin(k) * 0.2, (r() - 0.5) * 0.4, 1.6, 1.1, 2.4);
+  m.box("rock_dark", 0, 5.3, 0, 3.6, 1.0, 2.4);
+  m.box("black", 0, 1.9, 0.9, 3.6, 3.8, 0.1);
+  for (const [x, z] of [[-3.4, 1.2], [3.3, 1.4], [-3.0, 2.0]]) { m.cyl("crystal", x, 0, z, 0.25, 0.9, 5, 0.02); m.cyl("crystal", x + 0.35, 0, z + 0.2, 0.18, 0.55, 5, 0.02); }
+  pieces["cave-arch"] = m;
+}
+
+// Stalagmites and a crystal cluster for caves.
+{
+  const m = new Model("stalagmites");
+  const r = rng(33);
+  for (let k = 0; k < 7; k++) m.cyl(k % 2 ? "rock" : "rock_dark", (r() - 0.5) * 3, 0, (r() - 0.5) * 3, 0.25 + r() * 0.3, 0.8 + r() * 1.8, 6, 0.03);
+  pieces["stalagmites"] = m;
+  const c = new Model("crystal-cluster");
+  const q = rng(41);
+  for (let k = 0; k < 6; k++) c.cyl("crystal", (q() - 0.5) * 1.2, 0, (q() - 0.5) * 1.2, 0.12 + q() * 0.12, 0.6 + q() * 0.9, 5, 0.01);
+  c.cyl("rock_dark", 0, 0, 0, 0.8, 0.25, 7, 0.6);
+  pieces["crystal-cluster"] = c;
+}
+
+// An ore rock: a boulder with pale crystals pushing out of it (spirit stone and iron).
+{
+  const m = new Model("ore-rock");
+  const r = rng(55);
+  m.sphere("rock", 0, 0.55, 0, 0.9, 7, 5, 0.75);
+  m.sphere("rock_dark", 0.5, 0.35, 0.3, 0.55, 6, 4, 0.8);
+  for (let k = 0; k < 5; k++) { const a = r() * 6.28; m.cyl("crystal", Math.cos(a) * 0.55, 0.5, Math.sin(a) * 0.55, 0.1, 0.5 + r() * 0.3, 5, 0.01); }
+  pieces["ore-rock"] = m;
+}
+
+// Hall furniture: a lacquered pillar, a hanging banner, an altar table, a bookshelf, a tea table.
+{
+  const m = new Model("red-pillar");
+  m.cyl("stone", 0, 0, 0, 0.55, 0.35, 10);
+  m.cyl("red", 0, 0.35, 0, 0.36, 5.6, 10);
+  m.cyl("gold", 0, 5.9, 0, 0.42, 0.18, 10);
+  pieces["red-pillar"] = m;
+  const b = new Model("hall-banner");
+  b.box("wood_dark", 0, 3.0, 0, 1.2, 0.1, 0.1);
+  b.box("cloth_red", 0, 1.7, 0, 1.0, 2.6, 0.04);
+  b.box("gold", 0, 1.7, 0.03, 0.5, 1.2, 0.02);
+  pieces["hall-banner"] = b;
+  const t = new Model("altar-table");
+  t.box("wood_dark", 0, 0.5, 0, 3.0, 0.14, 1.1);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) t.box("wood_dark", sx * 1.35, 0.25, sz * 0.4, 0.14, 0.5, 0.14);
+  t.box("red", 0, 0.58, 0, 3.0, 0.02, 0.5);
+  t.cyl("gold", -0.8, 0.58, 0, 0.14, 0.3, 8, 0.1);
+  t.cyl("gold", 0.8, 0.58, 0, 0.14, 0.3, 8, 0.1);
+  t.cyl("jade", 0, 0.6, 0, 0.12, 0.2, 8, 0.08);
+  pieces["altar-table"] = t;
+  const s2 = new Model("bookshelf");
+  s2.box("wood_dark", 0, 1.1, 0, 2.2, 2.2, 0.5);
+  for (let row = 0; row < 4; row++) {
+    s2.box("wood", 0, 0.5 * row + 0.2, 0.05, 2.0, 0.06, 0.45);
+    for (let k = 0; k < 9; k++) s2.box(["book_a", "book_b", "book_c"][(k + row) % 3], -0.9 + k * 0.22, 0.5 * row + 0.45, 0.06, 0.16, 0.36, 0.34);
+  }
+  pieces["bookshelf"] = s2;
+  const tt = new Model("tea-table");
+  tt.box("wood", 0, 0.45, 0, 1.2, 0.1, 1.2);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) tt.box("wood_dark", sx * 0.5, 0.2, sz * 0.5, 0.1, 0.4, 0.1);
+  tt.cyl("jade", 0.2, 0.5, 0.1, 0.1, 0.14, 8, 0.07);
+  tt.cyl("jade", -0.2, 0.5, -0.1, 0.08, 0.1, 8, 0.06);
+  pieces["tea-table"] = tt;
+}
+
 // ---- Trees: low-poly, a few hundred triangles each (the old kit trees are eight thousand), so a forest costs a
 // fraction of what it did. Deterministic jitter keeps each from looking like a copy of a cone.
-const rng = (seed) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
 function pine(name, seed, height) {
   const m = new Model(name);
   const r = rng(seed);

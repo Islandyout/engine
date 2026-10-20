@@ -34,6 +34,12 @@ const { saveFailure } = require("./evidence.cjs");
     await page.waitForFunction(() => document.querySelector("#status")?.dataset.mode === "play", null, { timeout: 120000 });
     await until(30);
     await page.mouse.click(480, 150);
+    // A new game opens on a few shots of the valley; Enter skips them.
+    await until(100);
+    for (let i = 0; i < 3; i++) {
+      await page.keyboard.press("Enter");
+      await until(10);
+    }
     const text = () => page.evaluate(() => document.body.innerText);
     let before = await text();
     assert.match(before, /Mortal/, "the Player starts as a Mortal");
@@ -43,11 +49,11 @@ const { saveFailure } = require("./evidence.cjs");
     assert.equal(widgets.filter((w) => w === "Fighter bars").length, 1, "one Fighter bars widget");
     assert.ok(!widgets.includes("Health"), "no Health widget over the fighter bars");
     assert.equal(scene.hud, "widgets", "the scene owns its HUD");
-    for (const w of ["Skill bar", "Resource bar", "Status effects", "Target frame", "Damage direction", "Death screen", "Character sheet", "Quest log", "Skill tree", "Key hints", "Minimap", "Compass", "Objective"])
+    for (const w of ["Skill bar", "Resource bar", "Status effects", "Target frame", "Damage direction", "Death screen", "Character sheet", "Quest log", "Skill tree", "Shop window", "Quick slots", "Key hints", "Minimap", "Compass", "Objective"])
       assert.ok(widgets.includes(w), `the HUD has a ${w}`);
     // The village, the sect's teacher and furnace, the shrines and the herbs are all in the world (the buildings are kit models, not boxes).
     const names = new Set(scene.entities.map((e) => e.name));
-    for (const n of ["Instructor Hua", "Alchemy furnace", "Meditation altar", "Wayside shrine", "Merchant Lin", "Wen", "Spirit herb 1", "Tent 1", "Watchtower"])
+    for (const n of ["Instructor Hua", "Alchemy furnace", "Anvil", "Meditation altar", "Wayside shrine", "Village shrine", "Peak shrine", "Merchant Lin", "Wen", "Stablemaster Gu", "Disciple Lan", "Spirit Fox", "Spirit herb 1", "Tent 1", "Watchtower", "Economy", "Sect", "Valley", "Folk", "Mission board", "Hall door", "Hall exit", "Cave mouth", "Cave exit", "Cave Guardian", "Lake shore", "Lake water", "Ore rock 1", "Wolf 1", "Sparring Disciple A", "Farmer Bo"])
       assert.ok(names.has(n), `the scene has ${n}`);
     assert.ok(!scene.entities.some((e) => /^Tent flap/.test(e.name)), "tents are models, not stacked boxes");
     // No hand-made text or bar standing in for a widget.

@@ -1,3 +1,4 @@
+import { accessibility } from "../uiKit";
 import { makeProjectile, updateProjectile } from "../projectileView";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
@@ -7,7 +8,7 @@ import type {
 import { groundSpeed, pickClipName } from "../animationClips";
 import { EntityField } from "../bridgeFields";
 import { applyStickLook } from "../fpsView";
-import { crowdNear } from "../frameGovernor";
+import { CHARACTER_DRAW_DISTANCE, crowdNear } from "../frameGovernor";
 import { applyGesture, findGestureBones, gestureFor } from "../gestures";
 import { updateHeldWeapons } from "../heldWeapons";
 import {
@@ -302,6 +303,21 @@ export function installFrame(C: Ctx): void {
     C.animStates.forEach((state, i) => {
       if (!state) return;
       const object = C.objects[i];
+      // A character far from the camera is not drawn at all (a skinned body and its gear cost tens of thousands of
+      // triangles whether or not they are anywhere near the view).
+      if (object && C.doc.mode === "play") {
+        const far = object.position.distanceToSquared(eye) > CHARACTER_DRAW_DISTANCE * CHARACTER_DRAW_DISTANCE;
+        if (far !== !!object.userData.farHidden) {
+          object.userData.farHidden = far;
+          if (far) {
+            object.userData.visibleBefore = object.visible;
+            object.visible = false;
+          } else object.visible = object.userData.visibleBefore ?? true;
+        }
+      } else if (object?.userData.farHidden) {
+        object.userData.farHidden = false;
+        object.visible = object.userData.visibleBefore ?? true;
+      }
       if (stride > 1 && object && object.position.distanceToSquared(eye) > crowdNear * crowdNear) {
         state.skipped = (state.skipped ?? 0) + animDt;
         if ((C.crowdFrame + i) % stride !== 0) return;
@@ -535,6 +551,8 @@ export function installFrame(C: Ctx): void {
     }
     C.inkPass.impact = C.combat.comic.impact * C.playerSettings.flash;
     C.combat.flashStrength = C.playerSettings.flash;
+    accessibility.textScale = C.playerSettings.textScale;
+    accessibility.colorBlind = C.playerSettings.colorBlind;
     if (C.composer) C.composer.render();
     else C.renderer.render(C.scene, C.viewCamera);
     C.drawHud();
