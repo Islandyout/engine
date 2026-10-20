@@ -326,6 +326,7 @@ export function installHud(C: Ctx): void {
       title: document.title,
       fighter: player >= 0 && C.combat.isFighter(player) ? fighterReadout(player) : undefined,
       captured: document.pointerLockElement === C.renderer.domElement,
+      skills: player >= 0 && C.combat.isFighter(player) ? C.combat.skillStates(player) : [],
     };
   }
 
@@ -410,7 +411,7 @@ export function installHud(C: Ctx): void {
             return C.hudScratch.z > 1 ? undefined : { x: ((C.hudScratch.x + 1) / 2) * C.hud.width, y: ((1 - C.hudScratch.y) / 2) * C.hud.height };
           },
           C.objects,
-          C.sceneWidgets.has("Fighter bars"),
+          C.sceneWidgets.has("Fighter bars") && !C.sceneWidgets.has("Skill bar"),
         ),
       );
     // Scanner reticle.

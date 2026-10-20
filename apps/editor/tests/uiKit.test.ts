@@ -36,6 +36,12 @@ const live = (): UIData => ({
   items: [{ name: "Coin", count: 5 }],
   markers: [{ label: "Crate", distance: 40, bearing: 0.3, x: 2000, y: 300, onScreen: false }],
   blips: [{ x: 10, z: -5, kind: "enemy" }],
+  skills: [
+    { key: "1", state: 0 },
+    { key: "2", state: 0.4 },
+    { key: "3", state: -3 },
+    { key: "4", state: -2 },
+  ],
 });
 
 test("the catalog has every widget, each in a group with a size", () => {
@@ -80,6 +86,29 @@ test("menus, the wheel and settings say what a click does", () => {
   assert.ok(wheel[0]!.test!(150, 20));
   assert.ok(!wheel[0]!.test!(150, 150)); // the hub is not a wedge
   assert.ok(wheel[1]!.test!(280, 150));
+});
+
+test("the RPG widgets: script-fed text, buttons that reach the script, and hiding when empty", () => {
+  const { ctx, calls } = recorder();
+  const draw = (widget: (typeof uiWidgetNames)[number], text: string, extra: Partial<{ textAge: number; value: number; preview: boolean }> = {}) => {
+    calls.length = 0;
+    const info = widgetInfo(widget);
+    const hits = drawWidget(ctx, { widget, style: "Minimal", text, value: 0.5, fontSize: 16, textAge: 5, preview: false, ...extra }, { left: 0, top: 0, width: info.width, height: info.height }, live());
+    return { hits: hits.map((h) => h.action), drew: calls.some((c) => /^(fill|stroke|fillText|fillRect|strokeText)\(/.test(c)) };
+  };
+  // Hidden until a script gives them something to show.
+  for (const widget of ["Status effects", "Target frame", "Death screen", "Character sheet", "Quest log", "Resource bar"] as const) assert.equal(draw(widget, "").drew, false, `${widget} with no text`);
+  assert.equal(draw("Damage direction", "90", { textAge: 2 }).drew, false, "a hit arc fades after a second");
+  assert.equal(draw("Damage direction", "90", { textAge: 0.2 }).drew, true);
+  // The skill slots: nothing without a fighter's skills, a plate per slot with them.
+  assert.ok(draw("Skill bar", "").drew);
+  // Buttons say what they do: the death screen's waits for its fade, then sends respawn; the sheets close.
+  assert.deepEqual(draw("Death screen", "YOU HAVE FALLEN\nGone\nRise again", { textAge: 0.5 }).hits, []);
+  assert.deepEqual(draw("Death screen", "YOU HAVE FALLEN\nGone\nRise again", { textAge: 3 }).hits, ["event:respawn"]);
+  assert.deepEqual(draw("Character sheet", "Cultivator\nMortal realm\n# Combat\nDamage|x1").hits, ["event:close"]);
+  assert.deepEqual(draw("Quest log", "Journal\nactive|Meet Elder Mu|Speak to the elder.").hits, ["event:close"]);
+  // Status effects tolerate bad lines.
+  assert.ok(draw("Status effects", "Burning|abc|bad\n|3|good\nShield|2|good|4").drew);
 });
 
 test("settings hits change the player's settings", () => {

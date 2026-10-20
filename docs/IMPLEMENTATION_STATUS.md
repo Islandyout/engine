@@ -101,3 +101,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F94](changelog/F94.md) | UI "When clicked" actions and key-toggled screens, tracked Objectives, worn-gear effects, a fuller Inventory widget (0.91.0) |
 | [F95](changelog/F95.md) | Enterable cars (`Vehicle.enterable`, prompt, `vehicle.enter/exit/driver`), Collider bodies sized to their models (0.92.0) |
 | [F96](changelog/F96.md) | Azure Cloud Sect (murim cultivation game), `physics.set_gravity_scale` (0.93.0) |
+| [F97](changelog/F97.md) | Action RPG UI widgets (skill bar, resource bar, status effects, target frame, damage direction, death screen, character sheet, quest log), the Player stays down until revived (0.94.0) |

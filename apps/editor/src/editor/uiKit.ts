@@ -7,6 +7,8 @@
 // A widget paints itself on the HUD canvas from the live game (UIData,
 // gathered by main.ts every frame) or, while editing, from sample data,
 // and returns the regions a click acts on (menus, sliders, the wheel).
+import { extraDraws } from "./uiDraws";
+import "./uiKitRpg";
 import type { UIAnchor, UIStyle, UIVisibility, UIWidget } from "../scene/Components";
 import { uiStyleNames, uiWidgetNames } from "../scene/Components";
 import type { UIRect } from "./uiLayout";
@@ -73,6 +75,14 @@ export const widgetCatalog: readonly WidgetInfo[] = [
   info("Hint", "Combat HUD", "A line of help shown while the mouse is free. Text: what it says.", "center", [0, 120], [420, 32], "play", "Click to aim with the mouse (Esc releases)"),
   info("Vehicle instruments", "Navigation", "Speedometer, gear, nitro and a road minimap while driving. One is enough for the scene.", "bottom-right", [-24, -24], [200, 200]),
   info("Flight instruments", "Navigation", "Altitude, speed, throttle, fuel and hull while flying a Spaceship. One is enough for the scene.", "center", [0, 0], [240, 160]),
+  info("Skill bar", "Combat HUD", "Keyed ability slots with cooldown sweeps, locked and short-of-mana states. Follows the keys the scene binds.", "bottom-center", [0, -24], [260, 70]),
+  info("Resource bar", "Combat HUD", "A labelled bar a script feeds: qi, focus, rage. Text: label, readout, optional #colour; value: 0 to 1.", "bottom-left", [24, -130], [320, 40], "always", "Qi\n310 / 500", 0.62),
+  info("Status effects", "Combat HUD", "Buff and debuff chips with timers. Text: one 'Name|seconds|good or bad|total' a line.", "bottom-left", [24, -176], [260, 90], "always", "Burning|4|bad|6\nQi shield|12|good|20\nWounded|0|bad"),
+  info("Target frame", "Combat HUD", "The enemy you face: name, health with a damage trail, poise. Text: name, subtitle, poise 0 to 1; value: health.", "top-center", [0, 110], [420, 64], "always", "Bandit Chief\nQi Gathering\n0.4", 0.64),
+  info("Damage direction", "Combat HUD", "An arc towards whatever just hit you. Text: the bearing in degrees, 0 ahead, 90 on your right.", "center", [0, 0], [420, 420], "always", "90"),
+  info("Death screen", "Menus & dialogue", "A fade, a title and a way back. Text: title, a line, the button's label; empty hides it. The button sends on_ui(name, \"respawn\").", "center", [0, 0], [640, 320], "always", "YOU HAVE FALLEN\nYour qi scatters on the wind.\nRise again"),
+  info("Character sheet", "Menus & dialogue", "Stats and progress bars. Text: title, subtitle, then '# Section', 'Label|Value' or 'bar|Label|0..1|readout' lines.", "center", [0, 0], [440, 400], "toggle"),
+  info("Quest log", "Menus & dialogue", "The journal. Text: title, then 'state|Title|Detail' lines (active, done, todo).", "center", [0, 0], [460, 340], "toggle"),
 ];
 
 export function widgetInfo(name: UIWidget): WidgetInfo {
@@ -114,6 +124,8 @@ export interface UIData {
   title: string; // the game's name
   fighter: { health: number; mana: number; energy: number; guard: number } | undefined; // the source's fighter bars
   captured: boolean; // the mouse is captured by the game
+  // The Player's skill slots (Skill bar): state -1 none, -2 locked, -3 short of mana or energy, 0 ready, else the cooldown left 0 to 1.
+  skills: { key: string; state: number }[];
 }
 
 // What a click on a widget does: "resume", "restart", "quit", "settings",
@@ -253,7 +265,7 @@ interface TextOptions {
 }
 
 // Drawing in one skin at one scale.
-class Paint {
+export class Paint {
   constructor(
     readonly ctx: CanvasRenderingContext2D,
     readonly k: Skin,
@@ -651,7 +663,7 @@ class Paint {
   }
 }
 
-function roundRect(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+export function roundRect(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   const radius = Math.max(0, Math.min(r, w / 2, h / 2));
   c.moveTo(x + radius, y);
   c.arcTo(x + w, y, x + w, y + h, radius);
@@ -680,7 +692,7 @@ function shade(color: string, k: number): string {
 const inside = (pointer: UIData["pointer"], x: number, y: number, w: number, h: number) =>
   !!pointer && pointer.x >= x && pointer.x <= x + w && pointer.y >= y && pointer.y <= y + h;
 
-type Draw = (p: Paint, r: UIRect, d: UIData, o: WidgetInput, hits: UIHit[]) => void;
+export type Draw = (p: Paint, r: UIRect, d: UIData, o: WidgetInput, hits: UIHit[]) => void;
 
 // ---- Combat HUD ----
 
@@ -1114,7 +1126,7 @@ const objective: Draw = (p, r, d, o) => {
   if (!title) return;
   const { left: x, top: y, width: w, height: h } = r;
   const pad = 12 * s;
-  if (k.frame !== "soft") p.panel(x, y, w, h);
+  p.panel(x, y, w, h);
   const left = x + pad + (k.frame === "slant" ? 8 * s : 0);
   if (k.frame === "ornate") p.diamond(left + 4 * s, y + 18 * s, 4 * s, k.accent);
   p.text(k.frame === "ornate" ? "Quest" : "Objective", left + (k.frame === "ornate" ? 14 * s : 0), y + 18 * s, 11, {
@@ -1613,7 +1625,7 @@ const placeholder = (label: string): Draw => (p, r, d, o) => {
   p.text(label, r.left + r.width / 2, r.top + r.height / 2, 12, { align: "center", raw: true, color: p.k.dim, max: r.width - 12 });
 };
 
-const draws: Record<UIWidget, Draw> = {
+const draws: Partial<Record<UIWidget, Draw>> = {
   "Fighter bars": fighterBars,
   "World health bar": placeholder("World health bars (shown over entities in play)"),
   Hint: hint,
@@ -1648,7 +1660,7 @@ export function drawWidget(ctx: CanvasRenderingContext2D, input: WidgetInput, re
   const paint = new Paint(ctx, skins[input.style], input.fontSize / 16);
   ctx.save();
   try {
-    draws[input.widget](paint, rect, data, input, hits);
+    (draws[input.widget] ?? extraDraws.get(input.widget))?.(paint, rect, data, input, hits);
   } finally {
     ctx.restore();
   }
@@ -1694,6 +1706,7 @@ export function sampleUIData(time: number, width: number, height: number): UIDat
     title: "My Game",
     fighter: { health: 0.68, mana: 0.6, energy: 0.45, guard: 0.8 },
     captured: false,
+    skills: [],
   };
 }
 

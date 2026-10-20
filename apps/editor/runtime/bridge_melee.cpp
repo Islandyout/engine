@@ -223,7 +223,8 @@ void Runtime::step_melee(engine::World &w) {
             body.velocity.x = fighter.slide.x;
             body.velocity.z = fighter.slide.z;
             fighter.dying -= tick_dt;
-            if (fighter.dying <= 0)
+            // The Player stays down until a script revives it (melee.revive); everyone else is removed.
+            if (fighter.dying <= 0 && !player)
                 w.defer_destroy(self);
             continue;
         }

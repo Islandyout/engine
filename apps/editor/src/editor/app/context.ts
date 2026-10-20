@@ -459,7 +459,7 @@ export interface Ctx {
   scatterPlacements: { x: number; y: number; z: number; key: string; kind: string; scale: number; }[];
   scatterTargets: ScanTarget[];
   scene: THREE.Scene;
-  sceneWidgets: Set<"Health" | "Inventory" | "Ammo" | "Crosshair" | "Damage numbers" | "Kill feed" | "Boss bar" | "Minimap" | "Compass" | "Objective" | "Waypoints" | "Interact prompt" | "Pickup feed" | "Loot card" | "Hotbar" | "Weapon wheel" | "Pause menu" | "Main menu" | "Settings" | "Dialogue" | "Notification" | "Fighter bars" | "World health bar" | "Hint" | "Vehicle instruments" | "Flight instruments">;
+  sceneWidgets: Set<"Health" | "Inventory" | "Ammo" | "Crosshair" | "Damage numbers" | "Kill feed" | "Boss bar" | "Minimap" | "Compass" | "Objective" | "Waypoints" | "Interact prompt" | "Pickup feed" | "Loot card" | "Hotbar" | "Weapon wheel" | "Pause menu" | "Main menu" | "Settings" | "Dialogue" | "Notification" | "Fighter bars" | "World health bar" | "Hint" | "Vehicle instruments" | "Flight instruments" | "Skill bar" | "Resource bar" | "Status effects" | "Target frame" | "Damage direction" | "Death screen" | "Character sheet" | "Quest log">;
   scheduleContentCheck: () => void;
   scriptKeyByCode: Map<string, string>;
   scriptKeyQueue: [key: string, down: number][];

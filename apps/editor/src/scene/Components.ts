@@ -441,6 +441,14 @@ export const uiWidgetNames = [
   "Hint",
   "Vehicle instruments",
   "Flight instruments",
+  "Skill bar",
+  "Resource bar",
+  "Status effects",
+  "Target frame",
+  "Damage direction",
+  "Death screen",
+  "Character sheet",
+  "Quest log",
 ] as const;
 export type UIWidget = (typeof uiWidgetNames)[number];
 export const uiStyleNames = ["Modern", "Battle Royale", "Tactical", "Fantasy", "Sci-fi", "Minimal"] as const;

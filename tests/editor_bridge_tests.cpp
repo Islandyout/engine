@@ -2752,6 +2752,25 @@ int main() {
         check(editor_fighter_value(1, 1) == 0);       // idle again
         check(std::abs(editor_value(1, 3) - 1.0) < 1e-6); // full health
         check(camera_log == "0.0 1.0");
+        // F97: a defeated Player is not removed after its death clip (everyone else is): it stays down
+        // until a script revives it, so a death screen has something to bring back.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_melee(0, 0, "", 0, 0, 0.5, 0.5, 0.25, 0, 60);
+        editor_set_script_source(0, "t = 0\nfunction on_tick() t = t + 1\n"
+                                    " if t == 2 then world.damage(self.id, 500) end\n"
+                                    " if t == 400 then melee.revive() end end");
+        check(editor_add(0, -0.5, 0, 0, 0, 0, 40, 1, 40, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(1, 1, 1, 0);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 380; ++i)
+            editor_tick();
+        check(editor_alive(0) == 1);                  // still here long past 4 s
+        check(editor_fighter_value(0, 1) == 7);       // lying dead
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(editor_fighter_value(0, 1) != 7);       // revived
+        check(std::abs(editor_value(0, 3) - 1.0) < 1e-6);
         // GATEBREAKER M4: with no sprint action bound, a held dodge sprints
         // out of a fight (whichever way the stick points, in third person)
         // and a tap dodges as it's released; with a hostile fighter near,

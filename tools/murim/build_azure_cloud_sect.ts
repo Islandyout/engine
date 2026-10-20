@@ -344,7 +344,7 @@ scene.add("Player", spawn, {
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
   CharacterController: { mode: "ThirdPerson", walkSpeed: 3.6, sprintSpeed: 7.4, jumpHeight: 1.1, acceleration: 30, airControl: 6, stepHeight: 0.5 },
-  Health: { current: 100, maximum: 100 },
+  Health: { current: Number(process.env.MURIM_HP ?? 100), maximum: 100 },
   Melee: { team: 0, ai: false, energy: 40, style: "Custom", moves: MOVES, manaMax: 60, manaRegen: 6 },
   Inventory: {
     slots: 24,
@@ -403,7 +403,6 @@ scene.add("Quests", [0, -40, 0], {
 });
 
 // -------------------------------------------------------------------- HUD --
-const WHITE = rgb("#ffffff");
 const widget = (name: string, kind: UIWidget, extra: Record<string, unknown> = {}) => {
   const kit = widgetInfo(kind);
   scene.add(name, [0, -40, 0], {
@@ -422,25 +421,35 @@ const widget = (name: string, kind: UIWidget, extra: Record<string, unknown> = {
   });
 };
 const ui = (name: string, value: Record<string, unknown>) => scene.add(name, [0, -40, 0], { UI: component("UI", value) });
-// Layout: everything sits inside a 5% safe margin; the fighter bars are the steadiest, strongest thing on
-// screen (bottom-left), the cultivation readout is a quieter line above them, the objective is top-right,
-// and the controls are one key away instead of a line of small print.
+// Layout (one style, Minimal, on every piece; the UI kit's own widgets only):
+//   bottom-left   Fighter bars, with the Qi bar and the status chips stacked above them
+//   bottom-centre Skill bar (keys 1-4), with the interact prompt above
+//   top-left      Objective        top-centre  Compass, then the Target frame      top-right  Minimap
+//   centre        Damage direction, and the toggled sheets: Bag (I), Character (C), Journal (J)
+// Everything sits inside a 5% safe margin, and the controls live in the settings panel (O or Esc).
 const MARGIN_X = 96;
 const MARGIN_Y = 54;
-widget("Fighter bars", "Fighter bars", { style: "Minimal", offsetX: MARGIN_X, offsetY: -MARGIN_Y });
-widget("Damage numbers", "Damage numbers", { style: "Minimal" });
-widget("Boss bar", "Boss bar", { style: "Minimal" });
-widget("Objective", "Objective", { style: "Minimal", anchor: "top-left", offsetX: MARGIN_X, offsetY: MARGIN_Y, visibleWhen: "play" });
-widget("Minimap", "Minimap", { style: "Minimal", anchor: "top-right", offsetX: -MARGIN_X, offsetY: MARGIN_Y });
-widget("Compass", "Compass", { style: "Minimal", anchor: "top-center", offsetY: MARGIN_Y });
-widget("Waypoints", "Waypoints", { style: "Minimal" });
-widget("Notification", "Notification", { style: "Minimal" });
-widget("Inventory", "Inventory", { style: "Minimal", anchor: "center", visibleWhen: "toggle", toggleKey: "KeyI" });
-widget("Interact prompt", "Interact prompt", { style: "Minimal" });
-ui("Realm", { kind: "Text", text: "Mortal  ·  Qi 0 / 100", anchor: "bottom-left", offsetX: MARGIN_X, offsetY: -MARGIN_Y - 114, fontSize: 16, color: WHITE, opacity: 0.92 });
-ui("Qi", { kind: "Bar", text: "", anchor: "bottom-left", offsetX: MARGIN_X, offsetY: -MARGIN_Y - 100, width: 360, height: 5, color: rgb("#7fe0d4"), opacity: 0.95, value: 0 });
-ui("Hint", { kind: "Text", text: "", anchor: "bottom-center", offsetY: -MARGIN_Y - 84, fontSize: 17, color: WHITE, opacity: 0.95 });
-ui("Controls tip", { kind: "Text", text: "O  Controls and settings      I  Bag", anchor: "bottom-right", offsetX: -MARGIN_X, offsetY: -MARGIN_Y, fontSize: 13, color: WHITE, opacity: 0.55 });
+const style = { style: "Minimal" };
+widget("Fighter bars", "Fighter bars", { ...style, offsetX: MARGIN_X, offsetY: -MARGIN_Y });
+widget("Qi bar", "Resource bar", { ...style, anchor: "bottom-left", offsetX: MARGIN_X, offsetY: -MARGIN_Y - 108, width: 360, height: 40, text: "Mortal\nQi 0 / 100", value: 0, color: rgb("#7fe0d4") });
+widget("Status", "Status effects", { ...style, anchor: "bottom-left", offsetX: MARGIN_X, offsetY: -MARGIN_Y - 214, width: 300, height: 100, text: "" });
+widget("Skill bar", "Skill bar", { ...style, anchor: "bottom-center", offsetY: -MARGIN_Y, width: 300, height: 70 });
+widget("Objective", "Objective", { ...style, anchor: "top-left", offsetX: MARGIN_X, offsetY: MARGIN_Y, visibleWhen: "play" });
+widget("Compass", "Compass", { ...style, anchor: "top-center", offsetY: MARGIN_Y });
+widget("Target", "Target frame", { ...style, anchor: "top-center", offsetY: MARGIN_Y + 56, width: 420, height: 64, text: "", value: 0 });
+widget("Minimap", "Minimap", { ...style, anchor: "top-right", offsetX: -MARGIN_X, offsetY: MARGIN_Y });
+widget("Waypoints", "Waypoints", style);
+widget("Damage direction", "Damage direction", { ...style, anchor: "center", width: 420, height: 420, text: "" });
+widget("Damage numbers", "Damage numbers", style);
+widget("Boss bar", "Boss bar", style);
+widget("Notification", "Notification", style);
+widget("Interact prompt", "Interact prompt", style);
+widget("Inventory", "Inventory", { ...style, anchor: "center", visibleWhen: "toggle", toggleKey: "KeyI" });
+widget("Character sheet", "Character sheet", { ...style, anchor: "center", width: 440, height: 440, visibleWhen: "toggle", toggleKey: "KeyC", text: "Cultivator\nMortal realm" });
+widget("Quest log", "Quest log", { ...style, anchor: "center", width: 480, height: 360, visibleWhen: "toggle", toggleKey: "KeyJ", text: "Journal" });
+widget("Death screen", "Death screen", { ...style, anchor: "center", width: 640, height: 320, text: "" });
+ui("Menu keys", { kind: "Text", text: "I  Bag      C  Character      J  Journal      O  Controls", anchor: "bottom-right", offsetX: -MARGIN_X, offsetY: -MARGIN_Y, fontSize: 13, color: rgb("#ffffff"), opacity: 0.55 });
+
 // ------------------------------------------------------------ qi effects --
 const fxEmitter = (name: string, mode: string, particles: Record<string, unknown>, extra: Components = {}) =>
   scene.add(name, [SECT.x, -200, SECT.z + 8], {

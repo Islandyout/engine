@@ -43,6 +43,12 @@ const { saveFailure } = require("./evidence.cjs");
     assert.equal(widgets.filter((w) => w === "Fighter bars").length, 1, "one Fighter bars widget");
     assert.ok(!widgets.includes("Health"), "no Health widget over the fighter bars");
     assert.equal(scene.hud, "widgets", "the scene owns its HUD");
+    for (const w of ["Skill bar", "Resource bar", "Status effects", "Target frame", "Damage direction", "Death screen", "Character sheet", "Quest log", "Minimap", "Compass", "Objective"])
+      assert.ok(widgets.includes(w), `the HUD has a ${w}`);
+    // No hand-made text or bar standing in for a widget: the one plain text is the menu key line.
+    const plain = scene.entities.map((e) => e.components.UI).filter((ui) => ui && ui.kind !== "Widget");
+    assert.deepEqual(plain.map((ui) => ui.kind + ":" + ui.text), ["Text:I  Bag      C  Character      J  Journal      O  Controls"]);
+    assert.ok(scene.entities.every((e) => !e.components.UI || e.components.UI.kind !== "Widget" || e.components.UI.style === "Minimal"), "one style across the HUD");
     assert.match(before, /Meet Elder Mu/i, "the first objective is showing");
     const qi = (s) => Number((s.match(/Qi ([\d.]+) \/ \d+/) || [])[1]);
     assert.equal(qi(before), 0, "no qi yet");

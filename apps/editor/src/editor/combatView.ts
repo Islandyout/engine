@@ -756,6 +756,12 @@ export class CombatView {
     return lines;
   }
 
+  // The Player's skill slots for the Skill bar: their keys and states (-1 none, -2 locked, -3 short, 0 ready, else cooldown left).
+  skillStates(player: number): { key: string; state: number }[] {
+    const fields = [FighterField.slotSkill1, FighterField.slotSkill2, FighterField.slotSkill3, FighterField.slotUltimate];
+    return fields.map((field, i) => ({ key: this.slotKeys[i]!, state: this.host.value(player, field) }));
+  }
+
   // Q, E, R and F: the skills and the ultimate, with their cooldowns.
   private drawSlots(ctx: CanvasRenderingContext2D, width: number, height: number, player: number): string[] {
     const slots: [string, number][] = [

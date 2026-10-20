@@ -27,6 +27,19 @@ local fx = {}
 local QI_ARTS = { qi_palm = true, wind_palm = true, tiger_rush = true, nine_dragons = true }
 local casting = false
 local last_move = ""
+local deviation = 0          -- seconds left of a qi deviation (meditation is slower)
+local dead = false
+local spawn = { 0, 0, 0 }
+local hit_flip = 0
+local clock = 0
+local QUESTS = {
+  { "meet-elder", "Meet Elder Mu", "Speak with the elder inside the sect gate." },
+  { "gather-qi", "Gather qi", "Stand still and hold M to meditate." },
+  { "breakthrough", "Break through", "Fill your qi bar, then press B with a Breakthrough Pill." },
+  { "bandits", "Clear the road", "Defeat the four bandits in the valley camp." },
+  { "guardian", "Face the guardian", "Climb to the shrine and defeat the Iron Fist Elder." },
+}
+local quest_state = { ["meet-elder"] = "active" }
 
 local function set_text(name, text)
   if shown[name] ~= text then shown[name] = text; ui.set_text(name, text) end
@@ -43,17 +56,74 @@ local function apply_realm(first)
   if not first then world.heal(self.id, r.health) end
 end
 
+local function status_text()
+  local r = REALMS[realm]
+  local out = {}
+  if channel > 0 then out[#out + 1] = string.format("Breaking through|%.1f|good|%d", channel, CHANNEL) end
+  if meditating then out[#out + 1] = "Meditating|0|good" end
+  if flying then out[#out + 1] = "Flying sword|0|good" end
+  if deviation > 0 then out[#out + 1] = string.format("Qi deviation|%.0f|bad|12", deviation) end
+  if realm < #REALMS and qi >= r.need and channel <= 0 then
+    out[#out + 1] = inventory.count(self.id, "Breakthrough Pill") > 0 and "Qi is full: press B|0|good" or "Qi is full: needs a Breakthrough Pill|0|neutral"
+  end
+  return table.concat(out, "\n")
+end
+
+local function sheet_text()
+  local r = REALMS[realm]
+  local lines = {
+    "Cultivator", r.name .. " realm",
+    "# Cultivation",
+    string.format("bar|Qi|%.2f|%d / %d", math.min(1, qi / r.need), math.floor(qi), r.need),
+    string.format("Next realm|%s", REALMS[realm + 1] and REALMS[realm + 1].name or "Peak"),
+    "# Combat",
+    string.format("Damage|x%.2f", r.damage),
+    string.format("Speed|%+d%%", math.floor((r.speed - 1) * 100 + 0.5)),
+    string.format("Critical chance|%d%%", math.floor(r.crit * 100 + 0.5)),
+    string.format("Health|%d", r.health),
+    string.format("Mana|%d", r.mana),
+    "# Carried",
+    string.format("Qi Elixirs|%d", inventory.count(self.id, "Qi Elixir")),
+    string.format("Breakthrough Pills|%d", inventory.count(self.id, "Breakthrough Pill")),
+    "Body|" .. (inventory.equipped(self.id, "body") ~= "" and inventory.equipped(self.id, "body") or "none"),
+  }
+  return table.concat(lines, "\n")
+end
+
+local function journal_text()
+  local lines = { "Journal" }
+  for _, q in ipairs(QUESTS) do lines[#lines + 1] = (quest_state[q[1]] or "todo") .. "|" .. q[2] .. "|" .. q[3] end
+  return table.concat(lines, "\n")
+end
+
+local function target_text()
+  local t = melee.target()
+  if not t or not world.alive(t) then return "", 0 end
+  local name = world.name(t) or ""
+  local subtitle
+  if name:find("^Bandit") then subtitle = "Mortal"
+  elseif name:find("^Iron") then subtitle = "Qi Gathering"
+  else return "", 0 end
+  local tx, _, tz = world.position(t)
+  if (tx - self.x) ^ 2 + (tz - self.z) ^ 2 > 22 * 22 then return "", 0 end
+  local hp, max = world.health(t)
+  return name .. "\n" .. subtitle, (hp or 0) / math.max(1, max or 1)
+end
+
 local function refresh()
   local r = REALMS[realm]
-  set_text("Realm", string.format("%s  ·  Qi %d / %d", r.name, math.floor(qi), r.need))
-  set_value("Qi", math.min(1, qi / r.need))
-  local pills = inventory.count(self.id, "Breakthrough Pill")
-  local hint = ""
-  if channel > 0 then hint = "Breaking through... do not be hurt!"
-  elseif flying then hint = "Flying sword: move to fly, Space up, Ctrl down, V to land"
-  elseif realm < #REALMS and qi >= r.need then hint = pills > 0 and "Qi is full. Press B to break through." or "Qi is full, but you need a Breakthrough Pill."
+  set_text("Qi bar", string.format("%s\nQi %d / %d\n#7fe0d4", r.name, math.floor(qi), r.need))
+  set_value("Qi bar", math.min(1, qi / r.need))
+  set_text("Status", status_text())
+  local target, health = target_text()
+  set_text("Target", target)
+  set_value("Target", health)
+  -- The panels are only rebuilt a couple of times a second.
+  if clock >= 0.5 then
+    clock = 0
+    set_text("Character sheet", sheet_text())
+    set_text("Quest log", journal_text())
   end
-  set_text("Hint", hint)
 end
 
 local function land()
@@ -65,6 +135,8 @@ end
 local function fail_breakthrough()
   channel = 0
   qi = qi * 0.7
+  deviation = 12
+  ui.set_text("Notification", "Qi deviation\nThe breakthrough failed and your qi scatters.")
   hud.announce("Qi deviation! The breakthrough failed and part of your qi scatters.")
   camera.shake(0.5, 0.5)
 end
@@ -75,11 +147,13 @@ local function succeed()
   realm = realm + 1
   qi = 0
   apply_realm(false)
+  ui.set_text("Notification", "Breakthrough!\nYou have entered the " .. REALMS[realm].name .. " realm.")
   hud.announce("Breakthrough! You are now in the " .. REALMS[realm].name .. " realm.")
   camera.shake(0.6, 0.8)
   sound.play("bell")
   objective.complete("breakthrough")
   if realm >= FLY_REALM then hud.announce("You can ride the flying sword: press V.") end
+  quest_state["breakthrough"] = "done"
 end
 
 -- Qi effects: a glow while meditating or casting, the Qi Palm's core and trail, and a flash for the area arts.
@@ -131,6 +205,7 @@ function on_start()
   inventory.add(self.id, "Qi Elixir", 3)
   inventory.add(self.id, "Breakthrough Pill", 1)
   apply_realm(true)
+  spawn = { self.x, self.y + 0.5, self.z }
   hud.pause_menu(true)   -- Esc opens settings and the key list
   -- Markers for where to go: the elder, the camp and the shrine.
   for marker, entity in pairs({ ["Elder Mu"] = "Elder Mu", ["Bandit camp"] = "Bandit 1", ["Shrine"] = "Iron Fist Elder" }) do
@@ -158,11 +233,54 @@ function on_message(name, value)
   end
 end
 
-function on_damaged()
+function on_damaged(amount, attacker)
   if channel > 0 then fail_breakthrough() end
+  -- An arc on the side the blow came from, relative to where the camera looks.
+  if attacker and world.alive(attacker) then
+    local ax, _, az = world.position(attacker)
+    local fx_, fz_ = camera.forward()
+    local dx, dz = ax - self.x, az - self.z
+    local forward = dx * fx_ + dz * fz_
+    local right = -dx * fz_ + dz * fx_
+    hit_flip = 1 - hit_flip   -- a tiny change so a repeat from the same side still counts as new text
+    ui.set_text("Damage direction", string.format("%.2f", math.deg(math.atan(right, forward)) + hit_flip * 0.01))
+  end
+end
+
+function on_death()
+  dead = true
+  land()
+  channel = 0
+  meditating = false
+  ui.set_text("Death screen", "YOU HAVE FALLEN\nYour qi scatters on the wind.\nRise again")
+end
+
+local function respawn()
+  dead = false
+  ui.set_text("Death screen", "")
+  melee.revive()
+  world.set_position(self.id, spawn[1], spawn[2], spawn[3])
+  world.set_velocity(self.id, 0, 0, 0)
+  qi = qi * 0.5
+  deviation = 0
+end
+
+function on_ui(name, value)
+  if name == "objective" then
+    local kind, id = tostring(value):match("^(%a+):(.+)$")
+    if kind == "start" then quest_state[id] = "active"
+    elseif kind == "complete" then quest_state[id] = "done" end
+  elseif name == "Death screen" and value == "respawn" then
+    respawn()
+  elseif (name == "Character sheet" or name == "Quest log") and value == "close" then
+    ui.close(name)
+  end
 end
 
 function on_tick(dt)
+  if dead then return end
+  clock = clock + dt
+  if deviation > 0 then deviation = math.max(0, deviation - dt) end
   local r = REALMS[realm]
   local vx, vz = self.vx, self.vz
   local still = (vx * vx + vz * vz) < 2.25   -- under 1.5 m/s (an idle fighter shuffles a little)
@@ -170,7 +288,7 @@ function on_tick(dt)
   -- Meditation: hold M while standing still.
   meditating = input.action_down("meditate") and still and not flying and channel == 0
   if meditating and qi < r.need then
-    qi = math.min(r.need, qi + MEDITATE_QI * dt)
+    qi = math.min(r.need, qi + MEDITATE_QI * (deviation > 0 and 0.4 or 1) * dt)
     if qi >= 20 then objective.complete("gather-qi") end
   end
 
