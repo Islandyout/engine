@@ -214,6 +214,11 @@ const actionLabels: Record<string, string> = {
   skill2: "Skill 2",
   skill3: "Skill 3",
   ultimate: "Ultimate",
+  meditate: "Meditate (hold)",
+  breakthrough: "Break through",
+  elixir: "Qi Elixir",
+  fly: "Flying sword",
+  controls: "Controls and settings",
   lock: "Lock on",
   interact: "Interact",
 };

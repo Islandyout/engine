@@ -222,7 +222,7 @@ function wall(name: string, x0: number, z0: number, x1: number, z1: number, gap?
   wall("Sect wall N W", x - 22, z - 24, x - 22, z + 14);
   wall("Sect wall N E", x + 22, z - 24, x + 22, z + 14);
   // Training ground: dummies and weapon racks.
-  for (const [i, dx] of [-10, -6, -2].entries())
+  for (const [i, dx] of [-14, -11, -8].entries())
     scene.box(`Training Dummy ${i + 1}`, [x + dx, ground(x + dx, z + 4) + 0.9, z + 4], [0.6, 1.8, 0.6], "#a67c52", {
       Health: { current: 9999, maximum: 9999 },
       Script: { source: "function on_damaged(amount) world.heal(self.id, amount) end", props: {} },
@@ -384,6 +384,7 @@ scene.add("Input", [0, -40, 0], {
       "breakthrough: b",
       "elixir: h",
       "fly: v",
+      "controls: o",
     ].join("\n"),
   },
 });
@@ -421,27 +422,37 @@ const widget = (name: string, kind: UIWidget, extra: Record<string, unknown> = {
   });
 };
 const ui = (name: string, value: Record<string, unknown>) => scene.add(name, [0, -40, 0], { UI: component("UI", value) });
-widget("Fighter bars", "Fighter bars");
-widget("Damage numbers", "Damage numbers");
-widget("Boss bar", "Boss bar");
-widget("Objective", "Objective", { anchor: "top-right", visibleWhen: "play" });
-widget("Notification", "Notification");
-widget("Inventory", "Inventory", { anchor: "center", visibleWhen: "toggle", toggleKey: "KeyI" });
-widget("Interact prompt", "Interact prompt");
-ui("Realm", { kind: "Text", text: "Mortal", anchor: "bottom-left", offsetX: 24, offsetY: -190, fontSize: 22, color: rgb("#e8d28a"), opacity: 1 });
-ui("QiText", { kind: "Text", text: "Qi 0 / 100", anchor: "bottom-left", offsetX: 24, offsetY: -166, fontSize: 14, color: WHITE, opacity: 0.9 });
-ui("Qi", { kind: "Bar", text: "", anchor: "bottom-left", offsetX: 24, offsetY: -150, width: 260, height: 10, color: rgb("#4fd1c5"), opacity: 0.95, value: 0 });
-ui("Mana", { kind: "Bar", text: "", anchor: "bottom-left", offsetX: 24, offsetY: -136, width: 260, height: 8, color: rgb("#5b8def"), opacity: 0.95, value: 1 });
-ui("Hint", { kind: "Text", text: "", anchor: "bottom-center", offsetY: -92, fontSize: 18, color: rgb("#ffd36b"), opacity: 1 });
-ui("Controls", {
-  kind: "Text",
-  text: "J/K/F strike · X dodge · R block · T lock-on · 1 Qi Palm · 2 Wind Palm · 3 Tiger Rush · 4 Nine Dragons · M meditate · B breakthrough · H elixir · V flying sword · I bag",
-  anchor: "bottom-center",
-  offsetY: -14,
-  fontSize: 12,
-  color: WHITE,
-  opacity: 0.7,
-});
+// Layout: everything sits inside a 5% safe margin; the fighter bars are the steadiest, strongest thing on
+// screen (bottom-left), the cultivation readout is a quieter line above them, the objective is top-right,
+// and the controls are one key away instead of a line of small print.
+const MARGIN_X = 96;
+const MARGIN_Y = 54;
+widget("Fighter bars", "Fighter bars", { style: "Minimal", offsetX: MARGIN_X, offsetY: -MARGIN_Y });
+widget("Damage numbers", "Damage numbers", { style: "Minimal" });
+widget("Boss bar", "Boss bar", { style: "Minimal" });
+widget("Objective", "Objective", { style: "Minimal", anchor: "top-left", offsetX: MARGIN_X, offsetY: MARGIN_Y, visibleWhen: "play" });
+widget("Minimap", "Minimap", { style: "Minimal", anchor: "top-right", offsetX: -MARGIN_X, offsetY: MARGIN_Y });
+widget("Compass", "Compass", { style: "Minimal", anchor: "top-center", offsetY: MARGIN_Y });
+widget("Waypoints", "Waypoints", { style: "Minimal" });
+widget("Notification", "Notification", { style: "Minimal" });
+widget("Inventory", "Inventory", { style: "Minimal", anchor: "center", visibleWhen: "toggle", toggleKey: "KeyI" });
+widget("Interact prompt", "Interact prompt", { style: "Minimal" });
+ui("Realm", { kind: "Text", text: "Mortal  ·  Qi 0 / 100", anchor: "bottom-left", offsetX: MARGIN_X, offsetY: -MARGIN_Y - 114, fontSize: 16, color: WHITE, opacity: 0.92 });
+ui("Qi", { kind: "Bar", text: "", anchor: "bottom-left", offsetX: MARGIN_X, offsetY: -MARGIN_Y - 100, width: 360, height: 5, color: rgb("#7fe0d4"), opacity: 0.95, value: 0 });
+ui("Hint", { kind: "Text", text: "", anchor: "bottom-center", offsetY: -MARGIN_Y - 84, fontSize: 17, color: WHITE, opacity: 0.95 });
+ui("Controls tip", { kind: "Text", text: "O  Controls and settings      I  Bag", anchor: "bottom-right", offsetX: -MARGIN_X, offsetY: -MARGIN_Y, fontSize: 13, color: WHITE, opacity: 0.55 });
+// ------------------------------------------------------------ qi effects --
+const fxEmitter = (name: string, mode: string, particles: Record<string, unknown>, extra: Components = {}) =>
+  scene.add(name, [SECT.x, -200, SECT.z + 8], {
+    Particles: component("Particles", particles),
+    Script: { source: lua("qifx.lua"), props: { mode } },
+    ...extra,
+  });
+const TEAL_GLOW = rgb("#7fe0d4");
+fxEmitter("Qi Aura", "aura", { preset: "Sparkle", color: TEAL_GLOW, endColor: rgb("#1c6e8a"), rate: 0, lifetime: 1.1, speed: 0.9, size: 0.1, endSize: 0.2, gravityScale: -0.15, shape: "Sphere", shapeSize: 0.7, space: "World" });
+fxEmitter("Qi Bolt", "bolt", { preset: "Sparkle", color: rgb("#e8fffb"), endColor: rgb("#2aa8c4"), rate: 90, lifetime: 0.35, speed: 0.4, size: 0.2, endSize: 0.1, gravityScale: 0, shape: "Sphere", shapeSize: 0.12, space: "World" });
+fxEmitter("Qi Burst", "burst", { preset: "Sparkle", color: rgb("#ffffff"), endColor: rgb("#3fc5d8"), rate: 0, lifetime: 0.6, speed: 6, size: 0.16, endSize: 0.05, gravityScale: 0.2, shape: "Sphere", shapeSize: 0.3, space: "World" });
+fxEmitter("Qi Burn", "burn", { preset: "Fire", color: rgb("#9ff0ff"), endColor: rgb("#ff7a2a"), rate: 40, lifetime: 0.7, speed: 1.4, size: 0.22, endSize: 0.5, gravityScale: -0.3, shape: "Sphere", shapeSize: 0.5, space: "World" });
 
 const out = process.env.MURIM_OUT ?? join(ROOT, "games/my-games/azure-cloud-sect/scene.json");
 mkdirSync(dirname(out), { recursive: true });

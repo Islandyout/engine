@@ -1,4 +1,4 @@
--- @prop gear
+-- @prop gear none
 -- @prop qi 25
 -- @prop drop 0
 -- @prop pill 0
@@ -16,5 +16,5 @@ end
 
 function on_start()
   -- Clothes give the mannequin a body: robes, trousers, gloves and boots.
-  if props.gear and props.gear ~= "" then world.wear(props.gear) end
+  if props.gear and props.gear ~= "" and props.gear ~= "none" then world.wear(props.gear) end
 end

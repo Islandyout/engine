@@ -348,6 +348,7 @@ export function installRuntimeSync(C: Ctx): void {
     const bindingsEntity = C.doc.scene.eachAlive().find((e) => C.doc.scene.effectiveHas(e, "InputActions"));
     const bindings = bindingsEntity && C.doc.scene.resolve(bindingsEntity, "InputActions");
     if (bindings) C.runtime.ccall("editor_set_input_bindings", null, ["string"], [bindings.bindings]);
+    C.combat.setSlotKeys(bindings?.bindings);
     if (!C.runtime._editor_commit())
       throw new Error(`Runtime scene commit failed: ${C.runtime.ccall("editor_last_error", "string", [], []) || "no reason given"}`);
     const bindingsError = C.runtime.ccall("editor_bindings_error", "string", [], []);

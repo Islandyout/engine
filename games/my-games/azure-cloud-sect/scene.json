@@ -9214,8 +9214,8 @@
    "components": {
     "Transform": {
      "position": {
-      "x": -10,
-      "y": -2.7678569316864015,
+      "x": -14,
+      "y": -2.7655466556549073,
       "z": 82
      }
     },
@@ -9283,8 +9283,8 @@
    "components": {
     "Transform": {
      "position": {
-      "x": -6,
-      "y": -2.7687002182006837,
+      "x": -11,
+      "y": -2.7657668352127076,
       "z": 82
      }
     },
@@ -9352,8 +9352,8 @@
    "components": {
     "Transform": {
      "position": {
-      "x": -2,
-      "y": -2.7654386520385743,
+      "x": -8,
+      "y": -2.765113687515259,
       "z": 82
      }
     },
@@ -10157,7 +10157,7 @@
      "bounciness": 0
     },
     "Script": {
-     "source": "-- @prop gear\n-- Elder Mu greets the Player at the sect gate, once.\nlocal spoken = false\nfunction on_tick()\n  if spoken then return end\n  local player = world.find(\"Player\")\n  if not player then return end\n  local px, _, pz = world.position(player)\n  local dx, dz = px - self.x, pz - self.z\n  if dx * dx + dz * dz > 36 then return end\n  spoken = true\n  start(function()\n    hud.announce(\"Elder Mu: Welcome, disciple. Qi is the river of the martial world.\")\n    wait(4)\n    hud.announce(\"Elder Mu: Hold M and sit still to gather it. Then press B with a Breakthrough Pill.\")\n    wait(5)\n    hud.announce(\"Elder Mu: Bandits in the valley have taken the road. Clear them, then face the guardian at the shrine.\")\n  end)\nend\n\nfunction on_start()\n  if props.gear and props.gear ~= \"\" then world.wear(props.gear) end\nend\n",
+     "source": "-- @prop gear none\n-- Elder Mu greets the Player at the sect gate, once.\nlocal spoken = false\nfunction on_tick()\n  if spoken then return end\n  local player = world.find(\"Player\")\n  if not player then return end\n  local px, _, pz = world.position(player)\n  local dx, dz = px - self.x, pz - self.z\n  if dx * dx + dz * dz > 36 then return end\n  spoken = true\n  start(function()\n    hud.announce(\"Elder Mu: Welcome, disciple. Qi is the river of the martial world.\")\n    wait(4)\n    hud.announce(\"Elder Mu: Hold M and sit still to gather it. Then press B with a Breakthrough Pill.\")\n    wait(5)\n    hud.announce(\"Elder Mu: Bandits in the valley have taken the road. Clear them, then face the guardian at the shrine.\")\n  end)\nend\n\nfunction on_start()\n  if props.gear and props.gear ~= \"\" and props.gear ~= \"none\" then world.wear(props.gear) end\nend\n",
      "props": {
       "gear": "214:#f2eee0 216:#d8d2c0 215:#d8d2c0 217:#8a7a5a"
      }
@@ -10984,7 +10984,7 @@
      "shield": false
     },
     "Script": {
-     "source": "-- @prop gear\n-- @prop qi 25\n-- @prop drop 0\n-- @prop pill 0\n-- A bandit or the shrine guardian: qi for the Player when defeated, and sometimes an elixir.\nfunction on_death(attacker)\n  local player = world.find(\"Player\")\n  if not player then return end\n  world.send(player, \"kill\", tonumber(props.qi) or 25)\n  if (props.drop or 0) > 0 then inventory.add(player, \"Qi Elixir\", props.drop) end\n  if (props.pill or 0) > 0 then\n    inventory.add(player, \"Breakthrough Pill\", props.pill)\n    hud.announce(\"The guardian drops a Breakthrough Pill.\")\n  end\nend\n\nfunction on_start()\n  -- Clothes give the mannequin a body: robes, trousers, gloves and boots.\n  if props.gear and props.gear ~= \"\" then world.wear(props.gear) end\nend\n",
+     "source": "-- @prop gear none\n-- @prop qi 25\n-- @prop drop 0\n-- @prop pill 0\n-- A bandit or the shrine guardian: qi for the Player when defeated, and sometimes an elixir.\nfunction on_death(attacker)\n  local player = world.find(\"Player\")\n  if not player then return end\n  world.send(player, \"kill\", tonumber(props.qi) or 25)\n  if (props.drop or 0) > 0 then inventory.add(player, \"Qi Elixir\", props.drop) end\n  if (props.pill or 0) > 0 then\n    inventory.add(player, \"Breakthrough Pill\", props.pill)\n    hud.announce(\"The guardian drops a Breakthrough Pill.\")\n  end\nend\n\nfunction on_start()\n  -- Clothes give the mannequin a body: robes, trousers, gloves and boots.\n  if props.gear and props.gear ~= \"\" and props.gear ~= \"none\" then world.wear(props.gear) end\nend\n",
      "props": {
       "qi": 35,
       "drop": 0,
@@ -11083,7 +11083,7 @@
      "shield": false
     },
     "Script": {
-     "source": "-- @prop gear\n-- @prop qi 25\n-- @prop drop 0\n-- @prop pill 0\n-- A bandit or the shrine guardian: qi for the Player when defeated, and sometimes an elixir.\nfunction on_death(attacker)\n  local player = world.find(\"Player\")\n  if not player then return end\n  world.send(player, \"kill\", tonumber(props.qi) or 25)\n  if (props.drop or 0) > 0 then inventory.add(player, \"Qi Elixir\", props.drop) end\n  if (props.pill or 0) > 0 then\n    inventory.add(player, \"Breakthrough Pill\", props.pill)\n    hud.announce(\"The guardian drops a Breakthrough Pill.\")\n  end\nend\n\nfunction on_start()\n  -- Clothes give the mannequin a body: robes, trousers, gloves and boots.\n  if props.gear and props.gear ~= \"\" then world.wear(props.gear) end\nend\n",
+     "source": "-- @prop gear none\n-- @prop qi 25\n-- @prop drop 0\n-- @prop pill 0\n-- A bandit or the shrine guardian: qi for the Player when defeated, and sometimes an elixir.\nfunction on_death(attacker)\n  local player = world.find(\"Player\")\n  if not player then return end\n  world.send(player, \"kill\", tonumber(props.qi) or 25)\n  if (props.drop or 0) > 0 then inventory.add(player, \"Qi Elixir\", props.drop) end\n  if (props.pill or 0) > 0 then\n    inventory.add(player, \"Breakthrough Pill\", props.pill)\n    hud.announce(\"The guardian drops a Breakthrough Pill.\")\n  end\nend\n\nfunction on_start()\n  -- Clothes give the mannequin a body: robes, trousers, gloves and boots.\n  if props.gear and props.gear ~= \"\" and props.gear ~= \"none\" then world.wear(props.gear) end\nend\n",
      "props": {
       "qi": 35,
       "drop": 1,
@@ -11182,7 +11182,7 @@
      "shield": false
     },
     "Script": {
-     "source": "-- @prop gear\n-- @prop qi 25\n-- @prop drop 0\n-- @prop pill 0\n-- A bandit or the shrine guardian: qi for the Player when defeated, and sometimes an elixir.\nfunction on_death(attacker)\n  local player = world.find(\"Player\")\n  if not player then return end\n  world.send(player, \"kill\", tonumber(props.qi) or 25)\n  if (props.drop or 0) > 0 then inventory.add(player, \"Qi Elixir\", props.drop) end\n  if (props.pill or 0) > 0 then\n    inventory.add(player, \"Breakthrough Pill\", props.pill)\n    hud.announce(\"The guardian drops a Breakthrough Pill.\")\n  end\nend\n\nfunction on_start()\n  -- Clothes give the mannequin a body: robes, trousers, gloves and boots.\n  if props.gear and props.gear ~= \"\" then world.wear(props.gear) end\nend\n",
+     "source": "-- @prop gear none\n-- @prop qi 25\n-- @prop drop 0\n-- @prop pill 0\n-- A bandit or the shrine guardian: qi for the Player when defeated, and sometimes an elixir.\nfunction on_death(attacker)\n  local player = world.find(\"Player\")\n  if not player then return end\n  world.send(player, \"kill\", tonumber(props.qi) or 25)\n  if (props.drop or 0) > 0 then inventory.add(player, \"Qi Elixir\", props.drop) end\n  if (props.pill or 0) > 0 then\n    inventory.add(player, \"Breakthrough Pill\", props.pill)\n    hud.announce(\"The guardian drops a Breakthrough Pill.\")\n  end\nend\n\nfunction on_start()\n  -- Clothes give the mannequin a body: robes, trousers, gloves and boots.\n  if props.gear and props.gear ~= \"\" and props.gear ~= \"none\" then world.wear(props.gear) end\nend\n",
      "props": {
       "qi": 35,
       "drop": 0,
@@ -11281,7 +11281,7 @@
      "shield": false
     },
     "Script": {
-     "source": "-- @prop gear\n-- @prop qi 25\n-- @prop drop 0\n-- @prop pill 0\n-- A bandit or the shrine guardian: qi for the Player when defeated, and sometimes an elixir.\nfunction on_death(attacker)\n  local player = world.find(\"Player\")\n  if not player then return end\n  world.send(player, \"kill\", tonumber(props.qi) or 25)\n  if (props.drop or 0) > 0 then inventory.add(player, \"Qi Elixir\", props.drop) end\n  if (props.pill or 0) > 0 then\n    inventory.add(player, \"Breakthrough Pill\", props.pill)\n    hud.announce(\"The guardian drops a Breakthrough Pill.\")\n  end\nend\n\nfunction on_start()\n  -- Clothes give the mannequin a body: robes, trousers, gloves and boots.\n  if props.gear and props.gear ~= \"\" then world.wear(props.gear) end\nend\n",
+     "source": "-- @prop gear none\n-- @prop qi 25\n-- @prop drop 0\n-- @prop pill 0\n-- A bandit or the shrine guardian: qi for the Player when defeated, and sometimes an elixir.\nfunction on_death(attacker)\n  local player = world.find(\"Player\")\n  if not player then return end\n  world.send(player, \"kill\", tonumber(props.qi) or 25)\n  if (props.drop or 0) > 0 then inventory.add(player, \"Qi Elixir\", props.drop) end\n  if (props.pill or 0) > 0 then\n    inventory.add(player, \"Breakthrough Pill\", props.pill)\n    hud.announce(\"The guardian drops a Breakthrough Pill.\")\n  end\nend\n\nfunction on_start()\n  -- Clothes give the mannequin a body: robes, trousers, gloves and boots.\n  if props.gear and props.gear ~= \"\" and props.gear ~= \"none\" then world.wear(props.gear) end\nend\n",
      "props": {
       "qi": 35,
       "drop": 1,
@@ -13115,7 +13115,7 @@
      "shield": false
     },
     "Script": {
-     "source": "-- @prop gear\n-- @prop qi 25\n-- @prop drop 0\n-- @prop pill 0\n-- A bandit or the shrine guardian: qi for the Player when defeated, and sometimes an elixir.\nfunction on_death(attacker)\n  local player = world.find(\"Player\")\n  if not player then return end\n  world.send(player, \"kill\", tonumber(props.qi) or 25)\n  if (props.drop or 0) > 0 then inventory.add(player, \"Qi Elixir\", props.drop) end\n  if (props.pill or 0) > 0 then\n    inventory.add(player, \"Breakthrough Pill\", props.pill)\n    hud.announce(\"The guardian drops a Breakthrough Pill.\")\n  end\nend\n\nfunction on_start()\n  -- Clothes give the mannequin a body: robes, trousers, gloves and boots.\n  if props.gear and props.gear ~= \"\" then world.wear(props.gear) end\nend\n",
+     "source": "-- @prop gear none\n-- @prop qi 25\n-- @prop drop 0\n-- @prop pill 0\n-- A bandit or the shrine guardian: qi for the Player when defeated, and sometimes an elixir.\nfunction on_death(attacker)\n  local player = world.find(\"Player\")\n  if not player then return end\n  world.send(player, \"kill\", tonumber(props.qi) or 25)\n  if (props.drop or 0) > 0 then inventory.add(player, \"Qi Elixir\", props.drop) end\n  if (props.pill or 0) > 0 then\n    inventory.add(player, \"Breakthrough Pill\", props.pill)\n    hud.announce(\"The guardian drops a Breakthrough Pill.\")\n  end\nend\n\nfunction on_start()\n  -- Clothes give the mannequin a body: robes, trousers, gloves and boots.\n  if props.gear and props.gear ~= \"\" and props.gear ~= \"none\" then world.wear(props.gear) end\nend\n",
      "props": {
       "qi": 200,
       "pill": 1,
@@ -13437,7 +13437,7 @@
      "hands": ""
     },
     "Script": {
-     "source": "-- @prop realm 1\n-- @prop qi 0\n-- The cultivator: qi, realms, breakthroughs, qi arts and the flying sword.\n-- Hold M to meditate, B to break through (needs a Breakthrough Pill and\n-- enough qi), H drinks a Qi Elixir, V rides the flying sword.\n\nlocal REALMS = {\n  { name = \"Mortal\",       need = 100, damage = 1.0,  speed = 1.0,  crit = 0.05, health = 100, mana = 60,  unlock = \"\" },\n  { name = \"Qi Gathering\", need = 250, damage = 1.25, speed = 1.05, crit = 0.08, health = 150, mana = 100, unlock = \"qi_palm\" },\n  { name = \"Foundation\",   need = 500, damage = 1.6,  speed = 1.1,  crit = 0.12, health = 220, mana = 150, unlock = \"wind_palm\" },\n  { name = \"Golden Core\",  need = 999, damage = 2.1,  speed = 1.18, crit = 0.18, health = 320, mana = 220, unlock = \"tiger_rush nine_dragons\" },\n}\nlocal FLY_REALM = 3          -- Foundation and above can ride the sword\nlocal FLY_SPEED = 13\nlocal FLY_QI = 3             -- qi per second\nlocal MEDITATE_QI = 9        -- qi per second while meditating\nlocal ELIXIR_QI = 60\nlocal CHANNEL = 3            -- seconds a breakthrough takes\n\nlocal realm = 1\nlocal qi = 0\nlocal flying = false\nlocal channel = 0            -- seconds left of a breakthrough, 0 when not attempting\nlocal meditating = false\nlocal shown = {}\n\nlocal function set_text(name, text)\n  if shown[name] ~= text then shown[name] = text; ui.set_text(name, text) end\nend\nlocal function set_value(name, v)\n  v = math.floor(v * 100 + 0.5) / 100\n  if shown[name] ~= v then shown[name] = v; ui.set_value(name, v) end\nend\n\nlocal function apply_realm(first)\n  local r = REALMS[realm]\n  melee.tune(r.damage, r.speed, r.crit, -1, r.health, r.mana)\n  for move in r.unlock:gmatch(\"[%w_]+\") do melee.unlock(move) end\n  if not first then world.heal(self.id, r.health) end\nend\n\nlocal function refresh()\n  local r = REALMS[realm]\n  local mana, mana_max = melee.mana()\n  set_text(\"Realm\", r.name)\n  set_text(\"QiText\", string.format(\"Qi %d / %d\", math.floor(qi), r.need))\n  set_value(\"Qi\", math.min(1, qi / r.need))\n  set_value(\"Mana\", mana_max > 0 and mana / mana_max or 0)\n  local pills = inventory.count(self.id, \"Breakthrough Pill\")\n  local hint = \"\"\n  if channel > 0 then hint = \"Breaking through... do not be hurt!\"\n  elseif flying then hint = \"Flying sword: move to fly, Space up, Ctrl down, V to land\"\n  elseif realm < #REALMS and qi >= r.need then hint = pills > 0 and \"Qi is full. Press B to break through.\" or \"Qi is full, but you need a Breakthrough Pill.\"\n  end\n  set_text(\"Hint\", hint)\nend\n\nlocal function land()\n  if not flying then return end\n  flying = false\n  physics.set_gravity_scale(1)\nend\n\nlocal function fail_breakthrough()\n  channel = 0\n  qi = qi * 0.7\n  hud.announce(\"Qi deviation! The breakthrough failed and part of your qi scatters.\")\n  camera.shake(0.5, 0.5)\nend\n\nlocal function succeed()\n  channel = 0\n  inventory.remove(self.id, \"Breakthrough Pill\", 1)\n  realm = realm + 1\n  qi = 0\n  apply_realm(false)\n  hud.announce(\"Breakthrough! You are now in the \" .. REALMS[realm].name .. \" realm.\")\n  camera.shake(0.6, 0.8)\n  objective.complete(\"breakthrough\")\n  if realm >= FLY_REALM then hud.announce(\"You can ride the flying sword: press V.\") end\nend\n\nfunction on_start()\n  -- props.realm starts further along (for testing and demos).\n  realm = math.max(1, math.min(#REALMS, math.floor(tonumber(props.realm) or 1)))\n  qi = math.max(0, tonumber(props.qi) or 0)\n  world.wear(\"214:#6fc3dd 218:#f0e8d0\")\n  inventory.add(self.id, \"Azure Robe\", 1)\n  inventory.equip(self.id, \"body\", \"Azure Robe\")\n  inventory.add(self.id, \"Qi Elixir\", 3)\n  inventory.add(self.id, \"Breakthrough Pill\", 1)\n  apply_realm(true)\n  refresh()\nend\n\nfunction on_message(name, value)\n  if name == \"kill\" then\n    qi = math.min(REALMS[realm].need, qi + (tonumber(value) or 20))\n  elseif name == \"qi\" then\n    qi = math.min(REALMS[realm].need, qi + (tonumber(value) or 0))\n  end\nend\n\nfunction on_damaged()\n  if channel > 0 then fail_breakthrough() end\nend\n\nfunction on_tick(dt)\n  local r = REALMS[realm]\n  local vx, vz = self.vx, self.vz\n  local still = (vx * vx + vz * vz) < 2.25   -- under 1.5 m/s (an idle fighter shuffles a little)\n\n  -- Meditation: hold M while standing still.\n  meditating = input.action_down(\"meditate\") and still and not flying and channel == 0\n  if meditating and qi < r.need then\n    qi = math.min(r.need, qi + MEDITATE_QI * dt)\n    if qi >= 20 then objective.complete(\"gather-qi\") end\n  end\n\n  -- Qi Elixir.\n  if input.action_pressed(\"elixir\") and inventory.count(self.id, \"Qi Elixir\") > 0 and qi < r.need then\n    inventory.remove(self.id, \"Qi Elixir\", 1)\n    qi = math.min(r.need, qi + ELIXIR_QI)\n  end\n\n  -- Breakthrough: needs full qi and a pill, then a few quiet seconds.\n  if input.action_pressed(\"breakthrough\") and channel == 0 and realm < #REALMS and qi >= r.need\n     and inventory.count(self.id, \"Breakthrough Pill\") > 0 and not flying then\n    channel = CHANNEL\n    hud.announce(\"You circulate your qi, aiming for the \" .. REALMS[realm + 1].name .. \" realm...\")\n  end\n  if channel > 0 then\n    if not still then fail_breakthrough()\n    else\n      channel = channel - dt\n      if channel <= 0 then succeed() end\n    end\n  end\n\n  -- The flying sword.\n  if input.action_pressed(\"fly\") then\n    if flying then land()\n    elseif realm >= FLY_REALM and qi > 5 then\n      flying = true\n      physics.set_gravity_scale(0)\n      world.set_velocity(self.id, vx, 3, vz)\n    else\n      hud.announce(realm < FLY_REALM and \"Only a Foundation cultivator can ride a flying sword.\" or \"Not enough qi to fly.\")\n    end\n  end\n  if flying then\n    qi = qi - FLY_QI * dt\n    if qi <= 0 then qi = 0; land() hud.announce(\"Your qi ran dry. The sword falls.\")\n    else\n      local fx, fz = camera.forward()\n      local forward = input.action(\"move_y\")\n      local strafe = input.action(\"move_x\")\n      local up = 0\n      if input.action_down(\"jump\") then up = 1 elseif input.action_down(\"crouch\") then up = -1 end\n      world.set_velocity(self.id,\n        (fx * forward + fz * strafe) * FLY_SPEED,\n        up * 7,\n        (fz * forward - fx * strafe) * FLY_SPEED)\n    end\n  end\n\n  refresh()\nend\n",
+     "source": "-- @prop realm 1\n-- @prop qi 0\n-- The cultivator: qi, realms, breakthroughs, qi arts and the flying sword.\n-- Hold M to meditate, B to break through (needs a Breakthrough Pill and\n-- enough qi), H drinks a Qi Elixir, V rides the flying sword.\n\nlocal REALMS = {\n  { name = \"Mortal\",       need = 100, damage = 1.0,  speed = 1.0,  crit = 0.05, health = 100, mana = 60,  unlock = \"\" },\n  { name = \"Qi Gathering\", need = 250, damage = 1.25, speed = 1.05, crit = 0.08, health = 150, mana = 100, unlock = \"qi_palm\" },\n  { name = \"Foundation\",   need = 500, damage = 1.6,  speed = 1.1,  crit = 0.12, health = 220, mana = 150, unlock = \"wind_palm\" },\n  { name = \"Golden Core\",  need = 999, damage = 2.1,  speed = 1.18, crit = 0.18, health = 320, mana = 220, unlock = \"tiger_rush nine_dragons\" },\n}\nlocal FLY_REALM = 3          -- Foundation and above can ride the sword\nlocal FLY_SPEED = 13\nlocal FLY_QI = 3             -- qi per second\nlocal MEDITATE_QI = 9        -- qi per second while meditating\nlocal ELIXIR_QI = 60\nlocal CHANNEL = 3            -- seconds a breakthrough takes\n\nlocal realm = 1\nlocal qi = 0\nlocal flying = false\nlocal channel = 0            -- seconds left of a breakthrough, 0 when not attempting\nlocal meditating = false\nlocal shown = {}\nlocal fx = {}\nlocal QI_ARTS = { qi_palm = true, wind_palm = true, tiger_rush = true, nine_dragons = true }\nlocal casting = false\nlocal last_move = \"\"\n\nlocal function set_text(name, text)\n  if shown[name] ~= text then shown[name] = text; ui.set_text(name, text) end\nend\nlocal function set_value(name, v)\n  v = math.floor(v * 100 + 0.5) / 100\n  if shown[name] ~= v then shown[name] = v; ui.set_value(name, v) end\nend\n\nlocal function apply_realm(first)\n  local r = REALMS[realm]\n  melee.tune(r.damage, r.speed, r.crit, -1, r.health, r.mana)\n  for move in r.unlock:gmatch(\"[%w_]+\") do melee.unlock(move) end\n  if not first then world.heal(self.id, r.health) end\nend\n\nlocal function refresh()\n  local r = REALMS[realm]\n  set_text(\"Realm\", string.format(\"%s  ·  Qi %d / %d\", r.name, math.floor(qi), r.need))\n  set_value(\"Qi\", math.min(1, qi / r.need))\n  local pills = inventory.count(self.id, \"Breakthrough Pill\")\n  local hint = \"\"\n  if channel > 0 then hint = \"Breaking through... do not be hurt!\"\n  elseif flying then hint = \"Flying sword: move to fly, Space up, Ctrl down, V to land\"\n  elseif realm < #REALMS and qi >= r.need then hint = pills > 0 and \"Qi is full. Press B to break through.\" or \"Qi is full, but you need a Breakthrough Pill.\"\n  end\n  set_text(\"Hint\", hint)\nend\n\nlocal function land()\n  if not flying then return end\n  flying = false\n  physics.set_gravity_scale(1)\nend\n\nlocal function fail_breakthrough()\n  channel = 0\n  qi = qi * 0.7\n  hud.announce(\"Qi deviation! The breakthrough failed and part of your qi scatters.\")\n  camera.shake(0.5, 0.5)\nend\n\nlocal function succeed()\n  channel = 0\n  inventory.remove(self.id, \"Breakthrough Pill\", 1)\n  realm = realm + 1\n  qi = 0\n  apply_realm(false)\n  hud.announce(\"Breakthrough! You are now in the \" .. REALMS[realm].name .. \" realm.\")\n  camera.shake(0.6, 0.8)\n  sound.play(\"bell\")\n  objective.complete(\"breakthrough\")\n  if realm >= FLY_REALM then hud.announce(\"You can ride the flying sword: press V.\") end\nend\n\n-- Qi effects: a glow while meditating or casting, the Qi Palm's core and trail, and a flash for the area arts.\nlocal function aim()\n  local target = melee.target()\n  if target and world.alive(target) then\n    local tx, _, tz = world.position(target)\n    local dx, dz = tx - self.x, tz - self.z\n    local d = math.sqrt(dx * dx + dz * dz)\n    if d > 0.01 then return dx / d, dz / d end\n  end\n  return camera.forward()\nend\n\nlocal function qi_effects()\n  local move = melee.move()\n  local art = QI_ARTS[move] == true\n  local active = art or meditating\n  if active ~= casting then\n    casting = active\n    if fx.aura then world.send(fx.aura, \"cast\", active and 1 or 0) end\n  end\n  if move == last_move then return end\n  last_move = move\n  if not art then return end\n  sound.play(\"force-field\")\n  if move == \"qi_palm\" and fx.bolt then\n    after(0.28, function()\n      local fx_, fz_ = aim()\n      world.send(fx.bolt, \"fire\", string.format(\"%.2f,%.2f,%.2f,%.2f,%.2f\",\n        self.x + fx_ * 0.9, self.y + 0.3, self.z + fz_ * 0.9, fx_ * 22, fz_ * 22))\n    end)\n  elseif (move == \"wind_palm\" or move == \"nine_dragons\") and fx.burst then\n    after(0.4, function()\n      world.send(fx.burst, \"at\", string.format(\"%.2f,%.2f,%.2f\", self.x, self.y - 0.6, self.z))\n      camera.shake(move == \"nine_dragons\" and 0.7 or 0.4, 0.4)\n    end)\n  end\nend\n\nfunction on_start()\n  fx.aura, fx.bolt, fx.burst = world.find(\"Qi Aura\"), world.find(\"Qi Bolt\"), world.find(\"Qi Burst\")\n  -- props.realm starts further along (for testing and demos).\n  realm = math.max(1, math.min(#REALMS, math.floor(tonumber(props.realm) or 1)))\n  qi = math.max(0, tonumber(props.qi) or 0)\n  world.wear(\"214:#6fc3dd 218:#f0e8d0\")\n  inventory.add(self.id, \"Azure Robe\", 1)\n  inventory.equip(self.id, \"body\", \"Azure Robe\")\n  inventory.add(self.id, \"Qi Elixir\", 3)\n  inventory.add(self.id, \"Breakthrough Pill\", 1)\n  apply_realm(true)\n  hud.pause_menu(true)   -- Esc opens settings and the key list\n  -- Markers for where to go: the elder, the camp and the shrine.\n  for marker, entity in pairs({ [\"Elder Mu\"] = \"Elder Mu\", [\"Bandit camp\"] = \"Bandit 1\", [\"Shrine\"] = \"Iron Fist Elder\" }) do\n    local id = world.find(entity)\n    if id then\n      local x, y, z = world.position(id)\n      ui.marker(marker, x, y + 2.5, z, marker)\n    end\n  end\n  every(1, function()\n    local elder = world.find(\"Elder Mu\")\n    if elder then\n      local ex, _, ez = world.position(elder)\n      if (ex - self.x) ^ 2 + (ez - self.z) ^ 2 < 36 then ui.clear_marker(\"Elder Mu\") end\n    end\n  end)\n  refresh()\nend\n\nfunction on_message(name, value)\n  if name == \"kill\" then\n    qi = math.min(REALMS[realm].need, qi + (tonumber(value) or 20))\n  elseif name == \"qi\" then\n    qi = math.min(REALMS[realm].need, qi + (tonumber(value) or 0))\n  end\nend\n\nfunction on_damaged()\n  if channel > 0 then fail_breakthrough() end\nend\n\nfunction on_tick(dt)\n  local r = REALMS[realm]\n  local vx, vz = self.vx, self.vz\n  local still = (vx * vx + vz * vz) < 2.25   -- under 1.5 m/s (an idle fighter shuffles a little)\n\n  -- Meditation: hold M while standing still.\n  meditating = input.action_down(\"meditate\") and still and not flying and channel == 0\n  if meditating and qi < r.need then\n    qi = math.min(r.need, qi + MEDITATE_QI * dt)\n    if qi >= 20 then objective.complete(\"gather-qi\") end\n  end\n\n  if input.action_pressed(\"controls\") then hud.open_settings() end\n\n  -- Qi Elixir.\n  if input.action_pressed(\"elixir\") and inventory.count(self.id, \"Qi Elixir\") > 0 and qi < r.need then\n    inventory.remove(self.id, \"Qi Elixir\", 1)\n    qi = math.min(r.need, qi + ELIXIR_QI)\n  end\n\n  -- Breakthrough: needs full qi and a pill, then a few quiet seconds.\n  if input.action_pressed(\"breakthrough\") and channel == 0 and realm < #REALMS and qi >= r.need\n     and inventory.count(self.id, \"Breakthrough Pill\") > 0 and not flying then\n    channel = CHANNEL\n    hud.announce(\"You circulate your qi, aiming for the \" .. REALMS[realm + 1].name .. \" realm...\")\n  end\n  if channel > 0 then\n    if not still then fail_breakthrough()\n    else\n      channel = channel - dt\n      if channel <= 0 then succeed() end\n    end\n  end\n\n  -- The flying sword.\n  if input.action_pressed(\"fly\") then\n    if flying then land()\n    elseif realm >= FLY_REALM and qi > 5 then\n      flying = true\n      physics.set_gravity_scale(0)\n      world.set_velocity(self.id, vx, 3, vz)\n    else\n      hud.announce(realm < FLY_REALM and \"Only a Foundation cultivator can ride a flying sword.\" or \"Not enough qi to fly.\")\n    end\n  end\n  if flying then\n    qi = qi - FLY_QI * dt\n    if qi <= 0 then qi = 0; land() hud.announce(\"Your qi ran dry. The sword falls.\")\n    else\n      local fx, fz = camera.forward()\n      local forward = input.action(\"move_y\")\n      local strafe = input.action(\"move_x\")\n      local up = 0\n      if input.action_down(\"jump\") then up = 1 elseif input.action_down(\"crouch\") then up = -1 end\n      world.set_velocity(self.id,\n        (fx * forward + fz * strafe) * FLY_SPEED,\n        up * 7,\n        (fz * forward - fx * strafe) * FLY_SPEED)\n    end\n  end\n\n  refresh()\n  qi_effects()\nend\n",
      "props": {}
     }
    }
@@ -13485,7 +13485,7 @@
      }
     },
     "InputActions": {
-     "bindings": "move_x: d, -a, right, -left, pad_lx\nmove_y: w, -s, up, -down, -pad_ly\nlook_x: mouse_dx*0.05, pad_rx\nlook_y: mouse_dy*0.05, pad_ry\njump: space, pad_a\ninteract: e, pad_y\nsprint: shift, pad_lb\ncrouch: ctrl, pad_b\nlight: mouse_left, j, pad_x\nheavy: mouse_right, k, pad_y\nkick: f, l, pad_b\nspecial: u, pad_rb\ndodge: x, alt, pad_ls\nblock: r, pad_lt\nlock: mouse_middle, t, pad_rs\nskill1: 1, q\nskill2: 2\nskill3: 3\nultimate: 4, g\nmeditate: m\nbreakthrough: b\nelixir: h\nfly: v"
+     "bindings": "move_x: d, -a, right, -left, pad_lx\nmove_y: w, -s, up, -down, -pad_ly\nlook_x: mouse_dx*0.05, pad_rx\nlook_y: mouse_dy*0.05, pad_ry\njump: space, pad_a\ninteract: e, pad_y\nsprint: shift, pad_lb\ncrouch: ctrl, pad_b\nlight: mouse_left, j, pad_x\nheavy: mouse_right, k, pad_y\nkick: f, l, pad_b\nspecial: u, pad_rb\ndodge: x, alt, pad_ls\nblock: r, pad_lt\nlock: mouse_middle, t, pad_rs\nskill1: 1, q\nskill2: 2\nskill3: 3\nultimate: 4, g\nmeditate: m\nbreakthrough: b\nelixir: h\nfly: v\ncontrols: o"
     }
    }
   },
@@ -13520,8 +13520,8 @@
      "anchor": "bottom-left",
      "visibleWhen": "always",
      "action": "none",
-     "offsetX": 24,
-     "offsetY": -24,
+     "offsetX": 96,
+     "offsetY": -54,
      "width": 0,
      "height": 0,
      "fontSize": 16,
@@ -13534,7 +13534,7 @@
      "image": "",
      "value": 0,
      "widget": "Fighter bars",
-     "style": "Modern",
+     "style": "Minimal",
      "source": "",
      "onClick": "",
      "toggleKey": ""
@@ -13571,7 +13571,7 @@
      "image": "",
      "value": 0,
      "widget": "Damage numbers",
-     "style": "Modern",
+     "style": "Minimal",
      "source": "",
      "onClick": "",
      "toggleKey": ""
@@ -13608,7 +13608,7 @@
      "image": "",
      "value": 0,
      "widget": "Boss bar",
-     "style": "Modern",
+     "style": "Minimal",
      "source": "",
      "onClick": "",
      "toggleKey": ""
@@ -13628,11 +13628,11 @@
     "UI": {
      "kind": "Widget",
      "text": "Clear the range\nDown every target in lane 2",
-     "anchor": "top-right",
+     "anchor": "top-left",
      "visibleWhen": "play",
      "action": "none",
-     "offsetX": 20,
-     "offsetY": 214,
+     "offsetX": 96,
+     "offsetY": 54,
      "width": 0,
      "height": 0,
      "fontSize": 16,
@@ -13645,7 +13645,118 @@
      "image": "",
      "value": 0,
      "widget": "Objective",
-     "style": "Modern",
+     "style": "Minimal",
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
+    }
+   }
+  },
+  {
+   "name": "Minimap",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -40,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Widget",
+     "text": "",
+     "anchor": "top-right",
+     "visibleWhen": "always",
+     "action": "none",
+     "offsetX": -96,
+     "offsetY": 54,
+     "width": 0,
+     "height": 0,
+     "fontSize": 16,
+     "color": {
+      "x": 0.118,
+      "y": 0.165,
+      "z": 0.22
+     },
+     "opacity": 0.85,
+     "image": "",
+     "value": 0,
+     "widget": "Minimap",
+     "style": "Minimal",
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
+    }
+   }
+  },
+  {
+   "name": "Compass",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -40,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Widget",
+     "text": "",
+     "anchor": "top-center",
+     "visibleWhen": "always",
+     "action": "none",
+     "offsetX": 0,
+     "offsetY": 54,
+     "width": 0,
+     "height": 0,
+     "fontSize": 16,
+     "color": {
+      "x": 0.118,
+      "y": 0.165,
+      "z": 0.22
+     },
+     "opacity": 0.85,
+     "image": "",
+     "value": 0,
+     "widget": "Compass",
+     "style": "Minimal",
+     "source": "",
+     "onClick": "",
+     "toggleKey": ""
+    }
+   }
+  },
+  {
+   "name": "Waypoints",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -40,
+      "z": 0
+     }
+    },
+    "UI": {
+     "kind": "Widget",
+     "text": "",
+     "anchor": "center",
+     "visibleWhen": "always",
+     "action": "none",
+     "offsetX": 0,
+     "offsetY": 0,
+     "width": 0,
+     "height": 0,
+     "fontSize": 16,
+     "color": {
+      "x": 0.118,
+      "y": 0.165,
+      "z": 0.22
+     },
+     "opacity": 0.85,
+     "image": "",
+     "value": 0,
+     "widget": "Waypoints",
+     "style": "Minimal",
      "source": "",
      "onClick": "",
      "toggleKey": ""
@@ -13682,7 +13793,7 @@
      "image": "",
      "value": 0,
      "widget": "Notification",
-     "style": "Modern",
+     "style": "Minimal",
      "source": "",
      "onClick": "",
      "toggleKey": ""
@@ -13719,7 +13830,7 @@
      "image": "",
      "value": 0,
      "widget": "Inventory",
-     "style": "Modern",
+     "style": "Minimal",
      "source": "",
      "onClick": "",
      "toggleKey": "KeyI"
@@ -13756,7 +13867,7 @@
      "image": "",
      "value": 0,
      "widget": "Interact prompt",
-     "style": "Modern",
+     "style": "Minimal",
      "source": "",
      "onClick": "",
      "toggleKey": ""
@@ -13775,58 +13886,21 @@
     },
     "UI": {
      "kind": "Text",
-     "text": "Mortal",
+     "text": "Mortal  ·  Qi 0 / 100",
      "anchor": "bottom-left",
      "visibleWhen": "always",
      "action": "none",
-     "offsetX": 24,
-     "offsetY": -190,
+     "offsetX": 96,
+     "offsetY": -168,
      "width": 0,
      "height": 0,
-     "fontSize": 22,
-     "color": {
-      "x": 0.9098039215686274,
-      "y": 0.8235294117647058,
-      "z": 0.5411764705882353
-     },
-     "opacity": 1,
-     "image": "",
-     "value": 0,
-     "widget": "Health",
-     "style": "Modern",
-     "source": "",
-     "onClick": "",
-     "toggleKey": ""
-    }
-   }
-  },
-  {
-   "name": "QiText",
-   "components": {
-    "Transform": {
-     "position": {
-      "x": 0,
-      "y": -40,
-      "z": 0
-     }
-    },
-    "UI": {
-     "kind": "Text",
-     "text": "Qi 0 / 100",
-     "anchor": "bottom-left",
-     "visibleWhen": "always",
-     "action": "none",
-     "offsetX": 24,
-     "offsetY": -166,
-     "width": 0,
-     "height": 0,
-     "fontSize": 14,
+     "fontSize": 16,
      "color": {
       "x": 1,
       "y": 1,
       "z": 1
      },
-     "opacity": 0.9,
+     "opacity": 0.92,
      "image": "",
      "value": 0,
      "widget": "Health",
@@ -13853,56 +13927,19 @@
      "anchor": "bottom-left",
      "visibleWhen": "always",
      "action": "none",
-     "offsetX": 24,
-     "offsetY": -150,
-     "width": 260,
-     "height": 10,
+     "offsetX": 96,
+     "offsetY": -154,
+     "width": 360,
+     "height": 5,
      "fontSize": 16,
      "color": {
-      "x": 0.30980392156862746,
-      "y": 0.8196078431372549,
-      "z": 0.7725490196078432
+      "x": 0.4980392156862745,
+      "y": 0.8784313725490196,
+      "z": 0.8313725490196079
      },
      "opacity": 0.95,
      "image": "",
      "value": 0,
-     "widget": "Health",
-     "style": "Modern",
-     "source": "",
-     "onClick": "",
-     "toggleKey": ""
-    }
-   }
-  },
-  {
-   "name": "Mana",
-   "components": {
-    "Transform": {
-     "position": {
-      "x": 0,
-      "y": -40,
-      "z": 0
-     }
-    },
-    "UI": {
-     "kind": "Bar",
-     "text": "",
-     "anchor": "bottom-left",
-     "visibleWhen": "always",
-     "action": "none",
-     "offsetX": 24,
-     "offsetY": -136,
-     "width": 260,
-     "height": 8,
-     "fontSize": 16,
-     "color": {
-      "x": 0.3568627450980392,
-      "y": 0.5529411764705883,
-      "z": 0.9372549019607843
-     },
-     "opacity": 0.95,
-     "image": "",
-     "value": 1,
      "widget": "Health",
      "style": "Modern",
      "source": "",
@@ -13928,16 +13965,16 @@
      "visibleWhen": "always",
      "action": "none",
      "offsetX": 0,
-     "offsetY": -92,
+     "offsetY": -138,
      "width": 0,
      "height": 0,
-     "fontSize": 18,
+     "fontSize": 17,
      "color": {
       "x": 1,
-      "y": 0.8274509803921568,
-      "z": 0.4196078431372549
+      "y": 1,
+      "z": 1
      },
-     "opacity": 1,
+     "opacity": 0.95,
      "image": "",
      "value": 0,
      "widget": "Health",
@@ -13949,7 +13986,7 @@
    }
   },
   {
-   "name": "Controls",
+   "name": "Controls tip",
    "components": {
     "Transform": {
      "position": {
@@ -13960,21 +13997,21 @@
     },
     "UI": {
      "kind": "Text",
-     "text": "J/K/F strike · X dodge · R block · T lock-on · 1 Qi Palm · 2 Wind Palm · 3 Tiger Rush · 4 Nine Dragons · M meditate · B breakthrough · H elixir · V flying sword · I bag",
-     "anchor": "bottom-center",
+     "text": "O  Controls and settings      I  Bag",
+     "anchor": "bottom-right",
      "visibleWhen": "always",
      "action": "none",
-     "offsetX": 0,
-     "offsetY": -14,
+     "offsetX": -96,
+     "offsetY": -54,
      "width": 0,
      "height": 0,
-     "fontSize": 12,
+     "fontSize": 13,
      "color": {
       "x": 1,
       "y": 1,
       "z": 1
      },
-     "opacity": 0.7,
+     "opacity": 0.55,
      "image": "",
      "value": 0,
      "widget": "Health",
@@ -13982,6 +14019,174 @@
      "source": "",
      "onClick": "",
      "toggleKey": ""
+    }
+   }
+  },
+  {
+   "name": "Qi Aura",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -200,
+      "z": 86
+     }
+    },
+    "Particles": {
+     "preset": "Sparkle",
+     "color": {
+      "x": 0.4980392156862745,
+      "y": 0.8784313725490196,
+      "z": 0.8313725490196079
+     },
+     "rate": 0,
+     "lifetime": 1.1,
+     "speed": 0.9,
+     "size": 0.1,
+     "endColor": {
+      "x": 0.10980392156862745,
+      "y": 0.43137254901960786,
+      "z": 0.5411764705882353
+     },
+     "endSize": 0.2,
+     "gravityScale": -0.15,
+     "shape": "Sphere",
+     "shapeSize": 0.7,
+     "coneAngle": 25,
+     "space": "World",
+     "burst": 0
+    },
+    "Script": {
+     "source": "-- @prop mode aura\n-- Qi effects, one emitter per entity (props.mode): \"aura\" glows around the Player while\n-- gathering or casting, \"bolt\" is the visible core and trail of a Qi Palm, \"burst\" flashes\n-- where a qi art lands, \"burn\" keeps a struck fighter alight for a few seconds.\n\nlocal mode = props.mode or \"aura\"\nlocal ttl = 0        -- bolt: seconds left in flight\nlocal dx, dz = 0, 0  -- bolt: direction * speed\nlocal owner = nil\nlocal target = nil   -- burn: who is burning\nlocal burn_left = 0\n\nlocal function park()\n  self.y = -200\n  particles.set_emitting(false)\nend\n\nfunction on_start()\n  owner = world.find(\"Player\")\n  park()\nend\n\nlocal function hostile(id)\n  local name = world.name(id) or \"\"\n  return name:find(\"^Bandit\") or name:find(\"^Iron Fist\")\nend\n\nlocal function hit_at(x, y, z)\n  -- The flash, and a fire on whoever stands in it.\n  local burst = world.find(\"Qi Burst\")\n  if burst then world.send(burst, \"at\", string.format(\"%.2f,%.2f,%.2f\", x, y, z)) end\n  local burn = world.find(\"Qi Burn\")\n  for _, id in ipairs(world.overlap(x, y, z, 1.6)) do\n    if hostile(id) and burn then world.send(burn, \"burn\", tostring(id)) break end\n  end\n  camera.shake(0.3, 0.2)\n  sound.play(\"metal-hit\")\nend\n\nfunction on_message(name, value)\n  if mode == \"aura\" and name == \"cast\" then\n    particles.set_emitting(value == 1)\n  elseif mode == \"bolt\" and name == \"fire\" then\n    local x, y, z, vx, vz = value:match(\"^([%-%d.]+),([%-%d.]+),([%-%d.]+),([%-%d.]+),([%-%d.]+)$\")\n    if x then\n      self.x, self.y, self.z = tonumber(x), tonumber(y), tonumber(z)\n      dx, dz = tonumber(vx), tonumber(vz)\n      ttl = 1.6\n      particles.set_emitting(true)\n    end\n  elseif mode == \"burst\" and name == \"at\" then\n    local x, y, z = value:match(\"^([%-%d.]+),([%-%d.]+),([%-%d.]+)$\")\n    if x then\n      self.x, self.y, self.z = tonumber(x), tonumber(y), tonumber(z)\n      particles.burst(60)\n    end\n  elseif mode == \"burn\" and name == \"burn\" then\n    target = tonumber(value)\n    burn_left = 4\n    particles.set_emitting(true)\n  end\nend\n\nfunction on_tick(dt)\n  if mode == \"aura\" and owner and world.alive(owner) then\n    local x, y, z = world.position(owner)\n    self.x, self.y, self.z = x, y + 0.2, z\n  elseif mode == \"bolt\" and ttl > 0 then\n    ttl = ttl - dt\n    self.x, self.z = self.x + dx * dt, self.z + dz * dt\n    for _, id in ipairs(world.overlap(self.x, self.y, self.z, 0.8)) do\n      if hostile(id) then\n        hit_at(self.x, self.y, self.z)\n        ttl = 0\n        break\n      end\n    end\n    if ttl <= 0 then park() end\n  elseif mode == \"burn\" and burn_left > 0 then\n    burn_left = burn_left - dt\n    if target and world.alive(target) then\n      local x, y, z = world.position(target)\n      self.x, self.y, self.z = x, y + 0.2, z\n    else\n      burn_left = 0\n    end\n    if burn_left <= 0 then park() end\n  end\nend\n",
+     "props": {
+      "mode": "aura"
+     }
+    }
+   }
+  },
+  {
+   "name": "Qi Bolt",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -200,
+      "z": 86
+     }
+    },
+    "Particles": {
+     "preset": "Sparkle",
+     "color": {
+      "x": 0.9098039215686274,
+      "y": 1,
+      "z": 0.984313725490196
+     },
+     "rate": 90,
+     "lifetime": 0.35,
+     "speed": 0.4,
+     "size": 0.2,
+     "endColor": {
+      "x": 0.16470588235294117,
+      "y": 0.6588235294117647,
+      "z": 0.7686274509803922
+     },
+     "endSize": 0.1,
+     "gravityScale": 0,
+     "shape": "Sphere",
+     "shapeSize": 0.12,
+     "coneAngle": 25,
+     "space": "World",
+     "burst": 0
+    },
+    "Script": {
+     "source": "-- @prop mode aura\n-- Qi effects, one emitter per entity (props.mode): \"aura\" glows around the Player while\n-- gathering or casting, \"bolt\" is the visible core and trail of a Qi Palm, \"burst\" flashes\n-- where a qi art lands, \"burn\" keeps a struck fighter alight for a few seconds.\n\nlocal mode = props.mode or \"aura\"\nlocal ttl = 0        -- bolt: seconds left in flight\nlocal dx, dz = 0, 0  -- bolt: direction * speed\nlocal owner = nil\nlocal target = nil   -- burn: who is burning\nlocal burn_left = 0\n\nlocal function park()\n  self.y = -200\n  particles.set_emitting(false)\nend\n\nfunction on_start()\n  owner = world.find(\"Player\")\n  park()\nend\n\nlocal function hostile(id)\n  local name = world.name(id) or \"\"\n  return name:find(\"^Bandit\") or name:find(\"^Iron Fist\")\nend\n\nlocal function hit_at(x, y, z)\n  -- The flash, and a fire on whoever stands in it.\n  local burst = world.find(\"Qi Burst\")\n  if burst then world.send(burst, \"at\", string.format(\"%.2f,%.2f,%.2f\", x, y, z)) end\n  local burn = world.find(\"Qi Burn\")\n  for _, id in ipairs(world.overlap(x, y, z, 1.6)) do\n    if hostile(id) and burn then world.send(burn, \"burn\", tostring(id)) break end\n  end\n  camera.shake(0.3, 0.2)\n  sound.play(\"metal-hit\")\nend\n\nfunction on_message(name, value)\n  if mode == \"aura\" and name == \"cast\" then\n    particles.set_emitting(value == 1)\n  elseif mode == \"bolt\" and name == \"fire\" then\n    local x, y, z, vx, vz = value:match(\"^([%-%d.]+),([%-%d.]+),([%-%d.]+),([%-%d.]+),([%-%d.]+)$\")\n    if x then\n      self.x, self.y, self.z = tonumber(x), tonumber(y), tonumber(z)\n      dx, dz = tonumber(vx), tonumber(vz)\n      ttl = 1.6\n      particles.set_emitting(true)\n    end\n  elseif mode == \"burst\" and name == \"at\" then\n    local x, y, z = value:match(\"^([%-%d.]+),([%-%d.]+),([%-%d.]+)$\")\n    if x then\n      self.x, self.y, self.z = tonumber(x), tonumber(y), tonumber(z)\n      particles.burst(60)\n    end\n  elseif mode == \"burn\" and name == \"burn\" then\n    target = tonumber(value)\n    burn_left = 4\n    particles.set_emitting(true)\n  end\nend\n\nfunction on_tick(dt)\n  if mode == \"aura\" and owner and world.alive(owner) then\n    local x, y, z = world.position(owner)\n    self.x, self.y, self.z = x, y + 0.2, z\n  elseif mode == \"bolt\" and ttl > 0 then\n    ttl = ttl - dt\n    self.x, self.z = self.x + dx * dt, self.z + dz * dt\n    for _, id in ipairs(world.overlap(self.x, self.y, self.z, 0.8)) do\n      if hostile(id) then\n        hit_at(self.x, self.y, self.z)\n        ttl = 0\n        break\n      end\n    end\n    if ttl <= 0 then park() end\n  elseif mode == \"burn\" and burn_left > 0 then\n    burn_left = burn_left - dt\n    if target and world.alive(target) then\n      local x, y, z = world.position(target)\n      self.x, self.y, self.z = x, y + 0.2, z\n    else\n      burn_left = 0\n    end\n    if burn_left <= 0 then park() end\n  end\nend\n",
+     "props": {
+      "mode": "bolt"
+     }
+    }
+   }
+  },
+  {
+   "name": "Qi Burst",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -200,
+      "z": 86
+     }
+    },
+    "Particles": {
+     "preset": "Sparkle",
+     "color": {
+      "x": 1,
+      "y": 1,
+      "z": 1
+     },
+     "rate": 0,
+     "lifetime": 0.6,
+     "speed": 6,
+     "size": 0.16,
+     "endColor": {
+      "x": 0.24705882352941178,
+      "y": 0.7725490196078432,
+      "z": 0.8470588235294118
+     },
+     "endSize": 0.05,
+     "gravityScale": 0.2,
+     "shape": "Sphere",
+     "shapeSize": 0.3,
+     "coneAngle": 25,
+     "space": "World",
+     "burst": 0
+    },
+    "Script": {
+     "source": "-- @prop mode aura\n-- Qi effects, one emitter per entity (props.mode): \"aura\" glows around the Player while\n-- gathering or casting, \"bolt\" is the visible core and trail of a Qi Palm, \"burst\" flashes\n-- where a qi art lands, \"burn\" keeps a struck fighter alight for a few seconds.\n\nlocal mode = props.mode or \"aura\"\nlocal ttl = 0        -- bolt: seconds left in flight\nlocal dx, dz = 0, 0  -- bolt: direction * speed\nlocal owner = nil\nlocal target = nil   -- burn: who is burning\nlocal burn_left = 0\n\nlocal function park()\n  self.y = -200\n  particles.set_emitting(false)\nend\n\nfunction on_start()\n  owner = world.find(\"Player\")\n  park()\nend\n\nlocal function hostile(id)\n  local name = world.name(id) or \"\"\n  return name:find(\"^Bandit\") or name:find(\"^Iron Fist\")\nend\n\nlocal function hit_at(x, y, z)\n  -- The flash, and a fire on whoever stands in it.\n  local burst = world.find(\"Qi Burst\")\n  if burst then world.send(burst, \"at\", string.format(\"%.2f,%.2f,%.2f\", x, y, z)) end\n  local burn = world.find(\"Qi Burn\")\n  for _, id in ipairs(world.overlap(x, y, z, 1.6)) do\n    if hostile(id) and burn then world.send(burn, \"burn\", tostring(id)) break end\n  end\n  camera.shake(0.3, 0.2)\n  sound.play(\"metal-hit\")\nend\n\nfunction on_message(name, value)\n  if mode == \"aura\" and name == \"cast\" then\n    particles.set_emitting(value == 1)\n  elseif mode == \"bolt\" and name == \"fire\" then\n    local x, y, z, vx, vz = value:match(\"^([%-%d.]+),([%-%d.]+),([%-%d.]+),([%-%d.]+),([%-%d.]+)$\")\n    if x then\n      self.x, self.y, self.z = tonumber(x), tonumber(y), tonumber(z)\n      dx, dz = tonumber(vx), tonumber(vz)\n      ttl = 1.6\n      particles.set_emitting(true)\n    end\n  elseif mode == \"burst\" and name == \"at\" then\n    local x, y, z = value:match(\"^([%-%d.]+),([%-%d.]+),([%-%d.]+)$\")\n    if x then\n      self.x, self.y, self.z = tonumber(x), tonumber(y), tonumber(z)\n      particles.burst(60)\n    end\n  elseif mode == \"burn\" and name == \"burn\" then\n    target = tonumber(value)\n    burn_left = 4\n    particles.set_emitting(true)\n  end\nend\n\nfunction on_tick(dt)\n  if mode == \"aura\" and owner and world.alive(owner) then\n    local x, y, z = world.position(owner)\n    self.x, self.y, self.z = x, y + 0.2, z\n  elseif mode == \"bolt\" and ttl > 0 then\n    ttl = ttl - dt\n    self.x, self.z = self.x + dx * dt, self.z + dz * dt\n    for _, id in ipairs(world.overlap(self.x, self.y, self.z, 0.8)) do\n      if hostile(id) then\n        hit_at(self.x, self.y, self.z)\n        ttl = 0\n        break\n      end\n    end\n    if ttl <= 0 then park() end\n  elseif mode == \"burn\" and burn_left > 0 then\n    burn_left = burn_left - dt\n    if target and world.alive(target) then\n      local x, y, z = world.position(target)\n      self.x, self.y, self.z = x, y + 0.2, z\n    else\n      burn_left = 0\n    end\n    if burn_left <= 0 then park() end\n  end\nend\n",
+     "props": {
+      "mode": "burst"
+     }
+    }
+   }
+  },
+  {
+   "name": "Qi Burn",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": -200,
+      "z": 86
+     }
+    },
+    "Particles": {
+     "preset": "Fire",
+     "color": {
+      "x": 0.6235294117647059,
+      "y": 0.9411764705882353,
+      "z": 1
+     },
+     "rate": 40,
+     "lifetime": 0.7,
+     "speed": 1.4,
+     "size": 0.22,
+     "endColor": {
+      "x": 1,
+      "y": 0.47843137254901963,
+      "z": 0.16470588235294117
+     },
+     "endSize": 0.5,
+     "gravityScale": -0.3,
+     "shape": "Sphere",
+     "shapeSize": 0.5,
+     "coneAngle": 25,
+     "space": "World",
+     "burst": 0
+    },
+    "Script": {
+     "source": "-- @prop mode aura\n-- Qi effects, one emitter per entity (props.mode): \"aura\" glows around the Player while\n-- gathering or casting, \"bolt\" is the visible core and trail of a Qi Palm, \"burst\" flashes\n-- where a qi art lands, \"burn\" keeps a struck fighter alight for a few seconds.\n\nlocal mode = props.mode or \"aura\"\nlocal ttl = 0        -- bolt: seconds left in flight\nlocal dx, dz = 0, 0  -- bolt: direction * speed\nlocal owner = nil\nlocal target = nil   -- burn: who is burning\nlocal burn_left = 0\n\nlocal function park()\n  self.y = -200\n  particles.set_emitting(false)\nend\n\nfunction on_start()\n  owner = world.find(\"Player\")\n  park()\nend\n\nlocal function hostile(id)\n  local name = world.name(id) or \"\"\n  return name:find(\"^Bandit\") or name:find(\"^Iron Fist\")\nend\n\nlocal function hit_at(x, y, z)\n  -- The flash, and a fire on whoever stands in it.\n  local burst = world.find(\"Qi Burst\")\n  if burst then world.send(burst, \"at\", string.format(\"%.2f,%.2f,%.2f\", x, y, z)) end\n  local burn = world.find(\"Qi Burn\")\n  for _, id in ipairs(world.overlap(x, y, z, 1.6)) do\n    if hostile(id) and burn then world.send(burn, \"burn\", tostring(id)) break end\n  end\n  camera.shake(0.3, 0.2)\n  sound.play(\"metal-hit\")\nend\n\nfunction on_message(name, value)\n  if mode == \"aura\" and name == \"cast\" then\n    particles.set_emitting(value == 1)\n  elseif mode == \"bolt\" and name == \"fire\" then\n    local x, y, z, vx, vz = value:match(\"^([%-%d.]+),([%-%d.]+),([%-%d.]+),([%-%d.]+),([%-%d.]+)$\")\n    if x then\n      self.x, self.y, self.z = tonumber(x), tonumber(y), tonumber(z)\n      dx, dz = tonumber(vx), tonumber(vz)\n      ttl = 1.6\n      particles.set_emitting(true)\n    end\n  elseif mode == \"burst\" and name == \"at\" then\n    local x, y, z = value:match(\"^([%-%d.]+),([%-%d.]+),([%-%d.]+)$\")\n    if x then\n      self.x, self.y, self.z = tonumber(x), tonumber(y), tonumber(z)\n      particles.burst(60)\n    end\n  elseif mode == \"burn\" and name == \"burn\" then\n    target = tonumber(value)\n    burn_left = 4\n    particles.set_emitting(true)\n  end\nend\n\nfunction on_tick(dt)\n  if mode == \"aura\" and owner and world.alive(owner) then\n    local x, y, z = world.position(owner)\n    self.x, self.y, self.z = x, y + 0.2, z\n  elseif mode == \"bolt\" and ttl > 0 then\n    ttl = ttl - dt\n    self.x, self.z = self.x + dx * dt, self.z + dz * dt\n    for _, id in ipairs(world.overlap(self.x, self.y, self.z, 0.8)) do\n      if hostile(id) then\n        hit_at(self.x, self.y, self.z)\n        ttl = 0\n        break\n      end\n    end\n    if ttl <= 0 then park() end\n  elseif mode == \"burn\" and burn_left > 0 then\n    burn_left = burn_left - dt\n    if target and world.alive(target) then\n      local x, y, z = world.position(target)\n      self.x, self.y, self.z = x, y + 0.2, z\n    else\n      burn_left = 0\n    end\n    if burn_left <= 0 then park() end\n  end\nend\n",
+     "props": {
+      "mode": "burn"
+     }
     }
    }
   }

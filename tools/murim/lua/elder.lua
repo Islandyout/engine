@@ -1,4 +1,4 @@
--- @prop gear
+-- @prop gear none
 -- Elder Mu greets the Player at the sect gate, once.
 local spoken = false
 function on_tick()
@@ -19,5 +19,5 @@ function on_tick()
 end
 
 function on_start()
-  if props.gear and props.gear ~= "" then world.wear(props.gear) end
+  if props.gear and props.gear ~= "" and props.gear ~= "none" then world.wear(props.gear) end
 end
