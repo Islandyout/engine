@@ -817,7 +817,8 @@ struct Fighter final {
     // faces the aim, the fire button shoots instead of striking, and the aim
     // button (shared with heavy and block on the mouse and pad) does neither.
     bool gun_aim{false};
-    // The built-in move set in use ("sword" or "martial"), swapped to suit
+    // The built-in move set in use ("sword", "martial", or "custom" for an
+    // author's own list, never swapped), swapped to suit
     // the blade when a Weapons melee slot comes into hand.
     std::string moveset;
     bool dash_sprint{false}; // sprinting from a held dodge this tick

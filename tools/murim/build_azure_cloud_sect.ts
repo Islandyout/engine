@@ -240,7 +240,7 @@ function wall(name: string, x0: number, z0: number, x1: number, z1: number, gap?
   wall("Sect wall W side", x - 24, z - 24, x - 24, z + 16, { from: z - 8 - 2.6, to: z - 8 + 2.6 });
   wall("Sect wall E side", x + 24, z - 24, x + 24, z + 16);
   wall("Sect wall back", x - 24, z - 24, x + 24, z - 24);
-  place("Meditation altar", "incense-burner", x, z - 3, 0, true, 1.3);
+  place("Meditation altar", "incense-burner", x - 6, z + 4, 0, true, 1.3);
   place("Alchemy furnace", "incense-burner", x + 13, z + 2, 0, true, 1.8);
   place("Furnace stand", "stone-lantern", x + 15.5, z + 2, 0, true, 0.8);
   place("Stele", "stele", x - 9, z + 11, 0.3, true);
@@ -470,7 +470,7 @@ const hallBounds = modelBounds(W("pagoda-hall"));
 const HALL_DOOR_Z = SECT_FRONT + hallBounds.max[2]! + 0.6;
 {
   // The anvil beside the furnace, a notice of the hall's door, and shrines for the road, the village and Heaven Peak.
-  place("Anvil", "anvil-forge", SECT.x + 15.5, SECT.z - 7, -1.3, true);
+  place("Anvil", "anvil-forge", SECT.x + 15, SECT.z + 9, -1.3, true);
   scene.add("Hall door", [SECT.x, ground(SECT.x, HALL_DOOR_Z) + 0.2, HALL_DOOR_Z], {});
   place("Village shrine", "roadside-shrine", VILLAGE.x + 7, VILLAGE.z - 8, 0.6, true, 0.85);
   place("Peak shrine", "roadside-shrine", 8, -98, 0.2, true, 1.1);
@@ -806,8 +806,8 @@ scene.add("Input", [0, -40, 0], {
       "interact: e, pad_y",
       "sprint: shift, pad_lb",
       "crouch: ctrl, pad_b",
-      "light: mouse_left, j, pad_x",
-      "heavy: mouse_right, k, pad_y",
+      "light: mouse_left, pad_x",
+      "heavy: mouse_right, pad_y",
       "kick: f, pad_b",
       "special: u, pad_rb",
       "dodge: x, alt, pad_ls",

@@ -2717,6 +2717,28 @@ int main() {
             check(logs == "open;1.0;shut;");
         }
 
+        // A Custom move list survives drawing a sword from the Weapons loadout.
+        {
+            editor_begin();
+            add_player(0);
+            editor_set_melee(0, 2, "zap: input=light hit=0.05-0.1 dmg=8 reach=1.2\n", 0, 0, 0.5, 0.5, 0.25, 0, 60);
+            editor_set_weapons(0, "sword: melee=sword equip=0");
+            editor_set_script_source(0, "t = 0\nfunction on_tick(dt) t = t + 1\n"
+                                        " if t == 2 then inventory.select(self.id, 1) end\n"
+                                        " if t == 20 then melee.perform('zap') end\n"
+                                        " if t == 24 then log(melee.move()) end end");
+            check(editor_commit() == 1);
+            std::string logs;
+            for (int i = 0; i < 40; ++i) {
+                editor_tick();
+                const int commands = editor_take_commands();
+                for (int c = 0; c < commands; ++c)
+                    if (std::string(editor_command_text(c, 0)) == "log")
+                        logs += std::string(editor_command_text(c, 1)) + ";";
+            }
+            check(logs == "zap;");
+        }
+
         // GATEBREAKER M2: melee.tune scales the damage a fighter deals and
         // sets its maximum health (keeping the share it has).
         {

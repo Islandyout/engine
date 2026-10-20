@@ -234,8 +234,8 @@ local function journal_text()
     end
   elseif tab == 2 then
     local name, nxt = rank_of()
-    lines[#lines + 1] = "done|" .. name .. "|" .. contribution .. " contribution" .. (nxt and (", next rank at " .. nxt[2]) or "")
-    lines[#lines + 1] = string.format("done|Standing|Sect %d  ·  Village %d  ·  Bandits %d", rep.sect, rep.village, rep.bandits)
+    lines[#lines + 1] = "done|" .. name .. " · " .. contribution .. " contribution" .. (nxt and (" (next rank at " .. nxt[2] .. ")") or "") .. "|"
+    lines[#lines + 1] = string.format("done|Standing: sect %d · village %d · bandits %d|", rep.sect, rep.village, rep.bandits)
     for id in pairs(active) do
       for _, m in ipairs(MISSIONS) do
         if m.id == id then lines[#lines + 1] = string.format("active|%s (%d/%d)|%s", m.name, progress_of(m), m.n, m.text) end
