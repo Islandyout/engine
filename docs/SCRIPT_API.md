@@ -64,6 +64,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 |---|---|
 | `physics.add_force(id: integer, x: number, y: number, z: number)` | A force for this tick. |
 | `physics.add_impulse(id: integer, x: number, y: number, z: number)` | An instant change of momentum. |
+| `physics.set_gravity_scale(scale: number, id?: integer)` | How hard gravity pulls this body: 1 normal, 0 floats (a flying sword), negative rises. Back to 1 to land. |
 
 ## sound
 

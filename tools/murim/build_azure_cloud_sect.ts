@@ -1,0 +1,474 @@
+// Generates AZURE CLOUD SECT (games/my-games/azure-cloud-sect), an open-world
+// murim cultivation slice built on this engine. Run from apps/editor:
+//
+//   npm run murim
+//
+// The valley is code rather than hand-placed so the terrain sculpt that flattens
+// it, the sect buildings and the enemy camps all come from one set of
+// coordinates. North is -z: the Player starts at the sect gate in the south and
+// follows the road north through the bandit camp to the shrine and its guardian.
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { encodeSculpt, generateHeights, sampleHeight } from "../../apps/editor/src/editor/terrain";
+import { widgetInfo } from "../../apps/editor/src/editor/uiKit";
+import { martialArtsMoves } from "../../apps/editor/src/scene/meleeMoves";
+import type { UIWidget } from "../../apps/editor/src/scene/Components";
+import { ROOT, SceneBuilder, component, rgb, vec } from "../lib/scene_kit";
+import type { Components, V3 } from "../lib/scene_kit";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const lua = (file: string) => readFileSync(join(here, "lua", file), "utf8");
+const scene = new SceneBuilder();
+
+// ---------------------------------------------------------------- terrain --
+const TERRAIN = { size: 240, resolution: 121, height: 16, seed: 23, frequency: 0.9, octaves: 5 };
+const base = generateHeights({ ...TERRAIN, sculpt: "" });
+const baseAt = (x: number, z: number) => sampleHeight(base, TERRAIN.resolution, TERRAIN.size, x, z);
+const smoothstep = (t: number) => {
+  const c = Math.min(Math.max(t, 0), 1);
+  return c * c * (3 - 2 * c);
+};
+const average = (x: number, z: number, r: number) => {
+  let sum = 0;
+  let count = 0;
+  for (let dx = -r; dx <= r; dx += 4)
+    for (let dz = -r; dz <= r; dz += 4) {
+      sum += baseAt(x + dx, z + dz);
+      count++;
+    }
+  return sum / count;
+};
+
+const SECT = { x: 0, z: 78 }; // sect courtyard and gate
+const CAMP = { x: -6, z: 4 }; // bandit camp
+const SHRINE = { x: 0, z: -78 }; // the guardian's shrine
+const roadX = (z: number) => 9 * Math.sin(z / 34); // the road meanders
+const pads = [
+  { ...SECT, r: 24, h: average(SECT.x, SECT.z, 16) },
+  { ...CAMP, r: 20, h: average(CAMP.x, CAMP.z, 12) },
+  { ...SHRINE, r: 22, h: average(SHRINE.x, SHRINE.z, 12) + 2 },
+];
+const roadHeight = (z: number) => {
+  // Between the pads the road follows the rolling land, eased towards the pad heights at its ends.
+  const t = smoothstep((SECT.z - z) / (SECT.z - SHRINE.z));
+  return baseAt(roadX(z), z) * 0.45 + (pads[0]!.h * (1 - t) + pads[2]!.h * t) * 0.55;
+};
+
+const sculpt = new Int16Array(TERRAIN.resolution * TERRAIN.resolution);
+{
+  const n = TERRAIN.resolution;
+  const step = TERRAIN.size / (n - 1);
+  for (let row = 0; row < n; row++)
+    for (let column = 0; column < n; column++) {
+      const x = -TERRAIN.size / 2 + column * step;
+      const z = -TERRAIN.size / 2 + row * step;
+      const b = base[row * n + column]!;
+      let h = b;
+      const blend = (target: number, distance: number, falloff: number) => {
+        h += (target - h) * (1 - smoothstep(distance / falloff));
+      };
+      if (z < SECT.z && z > SHRINE.z) blend(roadHeight(z), Math.max(0, Math.abs(x - roadX(z)) - 3.5), 9);
+      for (const p of pads) blend(p.h, Math.max(0, Math.hypot(x - p.x, z - p.z) - p.r), 12);
+      // Ridges around the edge keep the valley closed.
+      const edge = Math.max(Math.abs(x), Math.abs(z));
+      if (edge > 96) h += ((edge - 96) / 24) ** 2 * 22;
+      sculpt[row * n + column] = Math.max(-32000, Math.min(32000, Math.round((h - b) * 100)));
+    }
+}
+const heights = generateHeights({ ...TERRAIN, sculpt: encodeSculpt(sculpt) }, sculpt);
+const ground = (x: number, z: number) => sampleHeight(heights, TERRAIN.resolution, TERRAIN.size, x, z);
+
+// ------------------------------------------------------------ light, sky --
+scene.add("Environment", [0, -40, 0], {
+  Environment: {
+    sky: "Procedural",
+    skyColor: rgb("#6f9fc9"),
+    horizonColor: rgb("#f3e3c8"),
+    groundColor: rgb("#52604a"),
+    sunElevation: 34,
+    sunAzimuth: 130,
+    sunIntensity: 3.1,
+    sunColor: rgb("#fff0d6"),
+    ambientIntensity: 1.2,
+    fog: "Exponential",
+    fogColor: rgb("#d4dde0"),
+    fogNear: 40,
+    fogFar: 260,
+    fogDensity: 0.007,
+    shadows: !process.env.MURIM_LITE,
+    exposure: 1,
+  },
+  PostProcessing: {
+    ambientOcclusion: false,
+    shadowQuality: "Medium",
+    bloom: 0.3,
+    bloomThreshold: 0.85,
+    contrast: 0.08,
+    saturation: 0.04,
+    temperature: 0.06,
+    vignette: 0.25,
+  },
+});
+
+const exclusions = [
+  [SECT.x - 26, SECT.z - 26, SECT.x + 26, SECT.z + 26],
+  [CAMP.x - 16, CAMP.z - 16, CAMP.x + 16, CAMP.z + 16],
+  [SHRINE.x - 20, SHRINE.z - 20, SHRINE.x + 20, SHRINE.z + 20],
+];
+scene.add("Valley", [0, 0, 0], {
+  Terrain: {
+    ...TERRAIN,
+    sculpt: encodeSculpt(sculpt),
+    grassColor: rgb("#5f7a3a"),
+    rockColor: rgb("#7b776e"),
+    sandColor: rgb("#a99a74"),
+    snowColor: rgb("#eef0ec"),
+    sandHeight: -2,
+    snowHeight: 40,
+    rockSlope: 0.78,
+    scatter: process.env.MURIM_LITE ? "" : [
+      "255 0.0014 0.7 1.0 0.85 trunk",
+      "256 0.0010 0.6 0.9 0.85 trunk",
+      "259 0.0030 0.7 1.1 0.8 trunk",
+      "260 0.0020 1.0 1.5 0.8 trunk",
+      "42 0.0009 0.8 1.8 0.6 collide",
+      "43 0.0014 0.8 1.4 0.6 collide",
+      "37 0.004 0.8 1.3 0.8",
+      "38 0.003 0.8 1.3 0.8",
+      ...exclusions.map((r) => `exclude ${r.join(" ")}`),
+    ].join("\n"),
+  },
+});
+
+// ---------------------------------------------------------------- helpers --
+const RED = "#8f1d1d";
+const GOLD = "#c9a24a";
+const STONE = "#b9b2a2";
+const TEAL = "#1f5b63";
+const CREAM = "#e9dfc6";
+const solid = (name: string, x: number, z: number, size: V3, hex: string, options: { yaw?: number; lift?: number; look?: Record<string, unknown> } = {}) =>
+  scene.box(name, [x, ground(x, z) + (options.lift ?? 0) + size[1] / 2, z], size, hex, options.yaw ? { Rotation: { euler: vec(0, options.yaw, 0) } } : {}, options.look);
+// A box standing on top of something else (absolute y of its bottom).
+const stack = (name: string, x: number, y: number, z: number, size: V3, hex: string, collide = true, look: Record<string, unknown> = {}) => {
+  const id = scene.box(name, [x, y + size[1] / 2, z], size, hex, {}, look);
+  if (!collide) delete (scene.entities[id]!.components as Components).Collider;
+  return id;
+};
+const emissive = (hex: string, strength = 1.5) => ({ emissive: rgb(hex), emissiveIntensity: strength });
+
+// A tiered pagoda: stone terrace, a painted hall with pillars, upswept roofs.
+function pagoda(name: string, x: number, z: number, tiers: number, width: number) {
+  const y0 = ground(x, z);
+  stack(`${name} terrace`, x, y0, z, [width + 6, 1.2, width + 6], STONE);
+  let y = y0 + 1.2;
+  let w = width;
+  for (let t = 0; t < tiers; t++) {
+    const hall = 3.4 - t * 0.2;
+    stack(`${name} hall ${t + 1}`, x, y, z, [w, hall, w], CREAM);
+    for (const sx of [-1, 1])
+      for (const sz of [-1, 1]) stack(`${name} pillar ${t + 1}`, x + (sx * (w - 0.5)) / 2, y, z + (sz * (w - 0.5)) / 2, [0.6, hall, 0.6], RED);
+    stack(`${name} gold band ${t + 1}`, x, y + hall - 0.35, z, [w + 0.3, 0.3, w + 0.3], GOLD, false);
+    y += hall;
+    stack(`${name} roof ${t + 1}`, x, y, z, [w + 3.2, 0.5, w + 3.2], TEAL);
+    stack(`${name} roof ridge ${t + 1}`, x, y + 0.5, z, [w + 0.6, 0.45, w + 0.6], TEAL);
+    // Upturned eaves at the four corners.
+    for (const sx of [-1, 1])
+      for (const sz of [-1, 1])
+        stack(`${name} eave ${t + 1}`, x + (sx * (w + 3.2)) / 2, y + 0.3, z + (sz * (w + 3.2)) / 2, [0.7, 0.7, 0.7], TEAL, false);
+    y += 0.95;
+    w = Math.max(3, w - 2.2);
+  }
+  stack(`${name} finial`, x, y, z, [0.35, 2.2, 0.35], GOLD, false, emissive(GOLD, 0.4));
+}
+
+// The sect gate: red pillars, a lintel and a tiled roof, with a plaque.
+function gate(name: string, x: number, z: number, span: number) {
+  const y0 = ground(x, z);
+  for (const s of [-1, 1]) {
+    stack(`${name} base`, x + (s * span) / 2, y0, z, [1.6, 0.5, 1.6], STONE);
+    stack(`${name} pillar`, x + (s * span) / 2, y0 + 0.5, z, [0.9, 6, 0.9], RED);
+  }
+  stack(`${name} lintel`, x, y0 + 5.2, z, [span + 1.6, 0.8, 1.2], RED, false);
+  stack(`${name} plaque`, x, y0 + 4.2, z, [3.4, 0.9, 0.3], "#1a1a1a", false, emissive(GOLD, 0.15));
+  stack(`${name} roof`, x, y0 + 6.0, z, [span + 4, 0.5, 3.2], TEAL, false);
+  stack(`${name} roof top`, x, y0 + 6.5, z, [span + 1.8, 0.5, 1.8], TEAL, false);
+}
+
+// A wall run with pillars, along x or z.
+function wall(name: string, x0: number, z0: number, x1: number, z1: number, gap?: { from: number; to: number }) {
+  const length = Math.hypot(x1 - x0, z1 - z0);
+  const steps = Math.ceil(length / 4);
+  for (let i = 0; i < steps; i++) {
+    const t = (i + 0.5) / steps;
+    const x = x0 + (x1 - x0) * t;
+    const z = z0 + (z1 - z0) * t;
+    if (gap && (x0 === x1 ? z : x) > gap.from && (x0 === x1 ? z : x) < gap.to) continue;
+    const alongX = Math.abs(x1 - x0) > Math.abs(z1 - z0);
+    solid(`${name} ${i + 1}`, x, z, alongX ? [length / steps + 0.1, 2.4, 0.7] : [0.7, 2.4, length / steps + 0.1], CREAM);
+    solid(`${name} cap ${i + 1}`, x, z, alongX ? [length / steps + 0.3, 0.35, 1.0] : [1.0, 0.35, length / steps + 0.3], TEAL, { lift: 2.4, look: {} });
+  }
+}
+
+// -------------------------------------------------------------- the sect --
+{
+  const { x, z } = SECT;
+  pagoda("Great Hall", x, z - 12, 3, 9);
+  pagoda("East Pavilion", x + 20, z - 4, 2, 5);
+  pagoda("West Pavilion", x - 20, z - 4, 2, 5);
+  gate("Sect Gate", x, z + 14, 8);
+  wall("Sect wall W", x - 22, z + 14, x - 4, z + 14);
+  wall("Sect wall E", x + 4, z + 14, x + 22, z + 14);
+  wall("Sect wall N W", x - 22, z - 24, x - 22, z + 14);
+  wall("Sect wall N E", x + 22, z - 24, x + 22, z + 14);
+  // Training ground: dummies and weapon racks.
+  for (const [i, dx] of [-14, -11, -8].entries())
+    scene.box(`Training Dummy ${i + 1}`, [x + dx, ground(x + dx, z + 4) + 0.9, z + 4], [0.6, 1.8, 0.6], "#a67c52", {
+      Health: { current: 9999, maximum: 9999 },
+      Script: { source: "function on_damaged(amount) world.heal(self.id, amount) end", props: {} },
+    });
+  // Lanterns along the approach.
+  for (const dz of [-2, 4, 10])
+    for (const s of [-1, 1]) {
+      stack("Lantern post", x + s * 5, ground(x + s * 5, z + dz), z + dz, [0.25, 2.6, 0.25], "#3a2a22", false);
+      stack("Lantern", x + s * 5, ground(x + s * 5, z + dz) + 2.6, z + dz, [0.45, 0.6, 0.45], "#c8372a", false, emissive("#ff5a3a", 1.4));
+    }
+  for (const s of [-1, 1]) scene.model("Banner", 179, [x + s * 8, ground(x + s * 8, z + 12), z + 11.5], 0, false, 1.6);
+}
+
+// ---------------------------------------------------------- the elder NPC --
+scene.add("Elder Mu", [SECT.x + 1, ground(SECT.x + 1, SECT.z - 1) + 0.9, SECT.z - 1], {
+  Scale: { value: vec(0.6, 1.8, 0.6) },
+  Rotation: { euler: vec(0, Math.PI, 0) },
+  Renderable: { mesh: 132, material: 0, visible: true },
+  Material: { color: rgb("#ecdcc8"), roughness: 0.8, keepTextures: false },
+  RigidBody: { mass: 70, dynamic: true },
+  Collider: {},
+  Script: { source: lua("elder.lua"), props: { gear: "214:#f2eee0 216:#d8d2c0 215:#d8d2c0 217:#8a7a5a" } },
+});
+
+// --------------------------------------------------- the bandit camp --
+{
+  const { x, z } = CAMP;
+  for (const [i, [dx, dz]] of [[-9, -6], [9, -5], [-8, 8], [8, 9]].entries()) {
+    solid(`Tent ${i + 1}`, x + dx!, z + dz!, [4.5, 2.4, 4.5], "#7a5a3a", { yaw: 0.4 * i });
+    solid(`Tent flap ${i + 1}`, x + dx!, z + dz!, [4.7, 0.3, 4.7], "#5a4028", { lift: 2.4, yaw: 0.4 * i });
+  }
+  scene.model("Camp crates", 185, [x + 3, ground(x + 3, z - 3), z - 3], 0.5, true, 1.4);
+  scene.model("Camp barrel", 180, [x - 2, ground(x - 2, z + 1), z + 1], 0, true, 1.5);
+  scene.add("Camp fire", [x, ground(x, z) + 0.4, z], {
+    Scale: { value: vec(0.9, 0.5, 0.9) },
+    Renderable: { mesh: 0, material: 0, visible: true },
+    Material: { color: rgb("#ff7a2a"), roughness: 0.6, keepTextures: false, ...emissive("#ff6a1a", 2.5) },
+    Light: component("Light", { color: rgb("#ff8a3a"), intensity: 5, range: 16 }),
+  });
+  scene.add("Camp chest", [x + 6, ground(x + 6, z - 1) + 0.4, z - 1], {
+    Scale: { value: vec(1, 0.8, 0.7) },
+    Renderable: { mesh: 183, material: 0, visible: true },
+    RigidBody: { dynamic: false },
+    Collider: {},
+    Container: { table: "1 item Qi Elixir\n1 item Qi Elixir\n0.6 item Breakthrough Pill\n1 health 60", hold: 0.6 },
+  });
+}
+
+const fighter = (name: string, x: number, z: number, opts: { mesh?: number; hex: string; health: number; scale?: number; melee: Components; props: Record<string, unknown>; yaw?: number }) => {
+  const s = opts.scale ?? 1;
+  scene.add(name, [x, ground(x, z) + 0.9 * s, z], {
+    Scale: { value: vec(0.6 * s, 1.8 * s, 0.6 * s) },
+    Rotation: { euler: vec(0, opts.yaw ?? 0, 0) },
+    Renderable: { mesh: opts.mesh ?? 176, material: 0, visible: true },
+    Material: { color: rgb(opts.hex), roughness: 0.75, keepTextures: false },
+    RigidBody: { mass: 70 * s, dynamic: true },
+    Collider: {},
+    Health: { current: opts.health, maximum: opts.health },
+    Melee: { team: 1, ai: true, ...opts.melee },
+    Script: { source: lua("enemy.lua"), props: opts.props },
+  });
+};
+for (const [i, [dx, dz]] of [[-3, -5], [5, -2], [-2, 6], [6, 5]].entries())
+  fighter(`Bandit ${i + 1}`, CAMP.x + dx!, CAMP.z + dz!, {
+    hex: ["#e6d2bc", "#d9c4aa", "#e2cdb4", "#d4bfa6"][i]!,
+    health: 90 + i * 15,
+    melee: { aggression: 0.4 + i * 0.1, skill: 0.25 + i * 0.1, style: i % 2 ? "Sword" : "Martial arts", rightHand: i % 2 ? 205 : 0 },
+    props: { qi: 35, drop: i % 2, gear: ["214:#6b4a3a 216:#3a3228 215:#2a2a2a 217:#2a2a2a", "214:#5a5a42 216:#3a3a2a 215:#2a2a2a 217:#2a2a2a", "214:#7a3d3d 216:#3a2a2a 215:#2a2a2a 217:#2a2a2a", "214:#4a4a5a 216:#2a2a34 215:#2a2a2a 217:#2a2a2a"][i]! },
+  });
+
+// ---------------------------------------------------- the shrine and boss --
+{
+  const { x, z } = SHRINE;
+  pagoda("Shrine", x, z - 8, 2, 7);
+  for (const s of [-1, 1]) {
+    stack("Shrine pillar", x + s * 9, ground(x + s * 9, z + 4), z + 4, [1.1, 7, 1.1], RED);
+    stack("Shrine brazier", x + s * 5, ground(x + s * 5, z + 6), z + 6, [0.9, 1.1, 0.9], "#2d2a28", true, emissive("#ff7a2a", 0.4));
+  }
+  scene.add("Shrine fire", [x - 5, ground(x - 5, z + 6) + 1.5, z + 6], { Light: component("Light", { color: rgb("#ff8a3a"), intensity: 5, range: 14 }) });
+  scene.add("Shrine fire 2", [x + 5, ground(x + 5, z + 6) + 1.5, z + 6], { Light: component("Light", { color: rgb("#ff8a3a"), intensity: 5, range: 14 }) });
+  fighter("Iron Fist Elder", x, z + 2, {
+    hex: "#cdbca8",
+    health: 520,
+    scale: 1.25,
+    yaw: 0,
+    melee: { aggression: 0.75, skill: 0.8, poise: 120, breakTime: 3, guard: 140 },
+    props: { qi: 200, pill: 1, gear: "214:#3b3b46 218:#8f1d1d 216:#26262c 215:#26262c 217:#1a1a1a" },
+  });
+}
+
+// ---------------------------------------------------- wildlife in the valley --
+for (const [i, [x, z]] of [[28, 30], [-34, 44], [22, -30], [-30, -40]].entries())
+  scene.add(`Deer ${i + 1}`, [x!, ground(x!, z!) + 0.5, z!], {
+    Scale: { value: vec(0.5, 1.1, 1.5) },
+    Renderable: { mesh: 238, material: 0, visible: true },
+    RigidBody: { mass: 60, dynamic: true },
+    Collider: {},
+    AIState: { state: "Walking" },
+    Pedestrian: { archetype: 2 },
+    Wildlife: { wary: 16, flee: 7, speed: 6, leash: 28 },
+  });
+
+// -------------------------------------------------------------- the player --
+const MOVES = [
+  martialArtsMoves.trimEnd(),
+  "# Qi arts: each realm opens another (locked until the script unlocks it)",
+  "qi_palm: clip=energy_throw input=skill1 dur=0.8 hit=0.26-0.3 cancel=0.55 dmg=24 projectile=22 knock=5 stun=0.6 mana=18 cooldown=0.8 locked limb=hand_r",
+  "wind_palm: clip=ground_pound input=skill2 dur=1.0 hit=0.3-0.42 cancel=0.8 dmg=28 aoe=4 knock=10 launch=3 stun=0.8 stop=0.1 mana=35 cooldown=3 locked limb=hand_r",
+  "tiger_rush: clip=dash_strike input=skill3 dur=1.0 hit=0.15-0.45 cancel=0.75 dmg=32 reach=1.4 lunge=6 knock=7 stun=0.7 stop=0.1 mana=30 cooldown=4 armor locked limb=hand_r",
+  "nine_dragons: clip=ground_pound input=ultimate dur=1.2 hit=0.3-0.45 cancel=0.95 dmg=70 aoe=5.5 knock=12 launch=6 stun=1.2 stop=0.18 cost=70 armor knockdown unblockable finisher locked limb=hand_r",
+].join("\n") + "\n";
+const [startX, startZ] = (process.env.MURIM_START ?? "").split(",").map(Number);
+const spawn: V3 = process.env.MURIM_START ? [startX!, ground(startX!, startZ!) + 1, startZ!] : [SECT.x, ground(SECT.x, SECT.z + 8) + 1, SECT.z + 8];
+scene.add("Player", spawn, {
+  Scale: { value: vec(0.6, 1.8, 0.6) },
+  Rotation: { euler: vec(0, Math.PI, 0) },
+  Renderable: { mesh: 132, material: 0, visible: true },
+  Player: {},
+  RigidBody: { mass: 70, dynamic: true },
+  Collider: {},
+  CharacterController: { mode: "ThirdPerson", walkSpeed: 3.6, sprintSpeed: 7.4, jumpHeight: 1.1, acceleration: 30, airControl: 6, stepHeight: 0.5 },
+  Health: { current: 100, maximum: 100 },
+  Melee: { team: 0, ai: false, energy: 40, style: "Custom", moves: MOVES, manaMax: 60, manaRegen: 6 },
+  Inventory: {
+    slots: 24,
+    maxWeight: 30,
+    weights: "Qi Elixir=0.2, Breakthrough Pill=0.2, Azure Robe=2",
+    stats: "Azure Robe: slot=body armor=10\nJade Charm: health=25\nIron Gloves: slot=hands damage=10",
+  },
+  Script: { source: lua("player.lua"), props: process.env.MURIM_REALM ? { realm: Number(process.env.MURIM_REALM), qi: Number(process.env.MURIM_QI ?? 0) } : {} },
+});
+scene.add("Camera", [spawn[0], spawn[1] + 3, spawn[2] + 6], {
+  Camera: { fov: 60, far: 700 },
+  CameraFollow: { target: "", offset: vec(0, 2.2, -4.8), smoothing: 0.12, lookHeight: 1.3, collision: true, orbit: true },
+});
+scene.add("Input", [0, -40, 0], {
+  InputActions: {
+    bindings: [
+      "move_x: d, -a, right, -left, pad_lx",
+      "move_y: w, -s, up, -down, -pad_ly",
+      "look_x: mouse_dx*0.05, pad_rx",
+      "look_y: mouse_dy*0.05, pad_ry",
+      "jump: space, pad_a",
+      "interact: e, pad_y",
+      "sprint: shift, pad_lb",
+      "crouch: ctrl, pad_b",
+      "light: mouse_left, j, pad_x",
+      "heavy: mouse_right, k, pad_y",
+      "kick: f, l, pad_b",
+      "special: u, pad_rb",
+      "dodge: x, alt, pad_ls",
+      "block: r, pad_lt",
+      "lock: mouse_middle, t, pad_rs",
+      "skill1: 1, q",
+      "skill2: 2",
+      "skill3: 3",
+      "ultimate: 4, g",
+      "meditate: m",
+      "breakthrough: b",
+      "elixir: h",
+      "fly: v",
+      "controls: o",
+    ].join("\n"),
+  },
+});
+
+// ------------------------------------------------------------ objectives --
+scene.add("Quests", [0, -40, 0], {
+  Objectives: {
+    list: [
+      "meet-elder | Meet Elder Mu | Speak with the elder inside the sect gate. | reach Elder Mu 5 |",
+      "gather-qi | Gather qi | Stand still and hold M to meditate. | script |",
+      "breakthrough | Break through | Fill your qi bar, then press B with a Breakthrough Pill. | script |",
+      "bandits | Clear the road | Defeat the four bandits in the valley camp. | kill Bandit 4 |",
+      "guardian | Face the guardian | Climb to the shrine and defeat the Iron Fist Elder. | kill Iron Fist 1 |",
+    ].join("\n"),
+  },
+});
+
+// -------------------------------------------------------------------- HUD --
+const WHITE = rgb("#ffffff");
+const widget = (name: string, kind: UIWidget, extra: Record<string, unknown> = {}) => {
+  const kit = widgetInfo(kind);
+  scene.add(name, [0, -40, 0], {
+    UI: component("UI", {
+      kind: "Widget",
+      widget: kind,
+      style: "Modern",
+      anchor: kit.anchor,
+      offsetX: kit.offsetX,
+      offsetY: kit.offsetY,
+      text: kit.text,
+      visibleWhen: kit.visibleWhen,
+      action: "none",
+      ...extra,
+    }),
+  });
+};
+const ui = (name: string, value: Record<string, unknown>) => scene.add(name, [0, -40, 0], { UI: component("UI", value) });
+// Layout: everything sits inside a 5% safe margin; the fighter bars are the steadiest, strongest thing on
+// screen (bottom-left), the cultivation readout is a quieter line above them, the objective is top-right,
+// and the controls are one key away instead of a line of small print.
+const MARGIN_X = 96;
+const MARGIN_Y = 54;
+widget("Fighter bars", "Fighter bars", { style: "Minimal", offsetX: MARGIN_X, offsetY: -MARGIN_Y });
+widget("Damage numbers", "Damage numbers", { style: "Minimal" });
+widget("Boss bar", "Boss bar", { style: "Minimal" });
+widget("Objective", "Objective", { style: "Minimal", anchor: "top-left", offsetX: MARGIN_X, offsetY: MARGIN_Y, visibleWhen: "play" });
+widget("Minimap", "Minimap", { style: "Minimal", anchor: "top-right", offsetX: -MARGIN_X, offsetY: MARGIN_Y });
+widget("Compass", "Compass", { style: "Minimal", anchor: "top-center", offsetY: MARGIN_Y });
+widget("Waypoints", "Waypoints", { style: "Minimal" });
+widget("Notification", "Notification", { style: "Minimal" });
+widget("Inventory", "Inventory", { style: "Minimal", anchor: "center", visibleWhen: "toggle", toggleKey: "KeyI" });
+widget("Interact prompt", "Interact prompt", { style: "Minimal" });
+ui("Realm", { kind: "Text", text: "Mortal  ·  Qi 0 / 100", anchor: "bottom-left", offsetX: MARGIN_X, offsetY: -MARGIN_Y - 114, fontSize: 16, color: WHITE, opacity: 0.92 });
+ui("Qi", { kind: "Bar", text: "", anchor: "bottom-left", offsetX: MARGIN_X, offsetY: -MARGIN_Y - 100, width: 360, height: 5, color: rgb("#7fe0d4"), opacity: 0.95, value: 0 });
+ui("Hint", { kind: "Text", text: "", anchor: "bottom-center", offsetY: -MARGIN_Y - 84, fontSize: 17, color: WHITE, opacity: 0.95 });
+ui("Controls tip", { kind: "Text", text: "O  Controls and settings      I  Bag", anchor: "bottom-right", offsetX: -MARGIN_X, offsetY: -MARGIN_Y, fontSize: 13, color: WHITE, opacity: 0.55 });
+// ------------------------------------------------------------ qi effects --
+const fxEmitter = (name: string, mode: string, particles: Record<string, unknown>, extra: Components = {}) =>
+  scene.add(name, [SECT.x, -200, SECT.z + 8], {
+    Particles: component("Particles", particles),
+    Script: { source: lua("qifx.lua"), props: { mode } },
+    ...extra,
+  });
+const TEAL_GLOW = rgb("#7fe0d4");
+fxEmitter("Qi Aura", "aura", { preset: "Sparkle", color: TEAL_GLOW, endColor: rgb("#1c6e8a"), rate: 0, lifetime: 1.1, speed: 0.9, size: 0.1, endSize: 0.2, gravityScale: -0.15, shape: "Sphere", shapeSize: 0.7, space: "World" });
+fxEmitter("Qi Bolt", "bolt", { preset: "Sparkle", color: rgb("#e8fffb"), endColor: rgb("#2aa8c4"), rate: 90, lifetime: 0.35, speed: 0.4, size: 0.2, endSize: 0.1, gravityScale: 0, shape: "Sphere", shapeSize: 0.12, space: "World" });
+fxEmitter("Qi Burst", "burst", { preset: "Sparkle", color: rgb("#ffffff"), endColor: rgb("#3fc5d8"), rate: 0, lifetime: 0.6, speed: 6, size: 0.16, endSize: 0.05, gravityScale: 0.2, shape: "Sphere", shapeSize: 0.3, space: "World" });
+fxEmitter("Qi Burn", "burn", { preset: "Fire", color: rgb("#9ff0ff"), endColor: rgb("#ff7a2a"), rate: 40, lifetime: 0.7, speed: 1.4, size: 0.22, endSize: 0.5, gravityScale: -0.3, shape: "Sphere", shapeSize: 0.5, space: "World" });
+
+const out = process.env.MURIM_OUT ?? join(ROOT, "games/my-games/azure-cloud-sect/scene.json");
+mkdirSync(dirname(out), { recursive: true });
+writeFileSync(out, JSON.stringify({ format: 1, name: "Azure Cloud Sect", hud: "widgets", entities: scene.entities, prefabs: scene.prefabs }, null, 1) + "\n");
+writeFileSync(
+  join(dirname(out), "game.json"),
+  JSON.stringify(
+    {
+      name: "Azure Cloud Sect",
+      genre: "Action RPG",
+      description: "An open-world murim cultivation slice: gather qi, break through realms, learn qi arts, ride a flying sword and face the shrine guardian.",
+      scene: "scene.json",
+      accent: "#4fd1c5",
+    },
+    null,
+    2,
+  ) + "\n",
+);
+console.log(`wrote ${out}: ${scene.entities.length} entities`);

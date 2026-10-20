@@ -21,6 +21,7 @@ import { boneSubtree, filterClip, upperBodyBone } from "./characterRig";
 import { FighterField, MeleeEventField } from "./bridgeFields";
 import { buildRibbon, updateTrail, type TrailPoint } from "./trail";
 import { ComicFx } from "./comicFx";
+import { bindingRows, keyLabel } from "./playerSettings";
 
 export const combatClipsPath = "./kit/people/combat_clips.glb";
 
@@ -203,6 +204,8 @@ export class CombatView {
   // Manhwa lettering, speed lines and impact frames (on with the Manhwa style).
   readonly comic = new ComicFx();
   private comboAge = 9;
+  // The keys written on the skill slots: the scene's skill1..3 and ultimate bindings (Q, E, R, F by default).
+  private slotKeys = ["Q", "E", "R", "F"];
 
   constructor(
     scene: THREE.Scene,
@@ -217,6 +220,19 @@ export class CombatView {
     points.frustumCulled = false;
     this.group.add(points);
     scene.add(this.group);
+  }
+
+  // Labels the skill slots from an InputActions text (undefined: the defaults).
+  setSlotKeys(bindings: string | undefined) {
+    const keys = ["Q", "E", "R", "F"];
+    if (bindings) {
+      const rows = bindingRows(bindings);
+      ["skill1", "skill2", "skill3", "ultimate"].forEach((action, i) => {
+        const code = rows.find((r) => r.action === action)?.code;
+        if (code) keys[i] = keyLabel(code);
+      });
+    }
+    this.slotKeys = keys;
   }
 
   // Whether the view drives this fighter's body (its clips are attached).
@@ -743,10 +759,10 @@ export class CombatView {
   // Q, E, R and F: the skills and the ultimate, with their cooldowns.
   private drawSlots(ctx: CanvasRenderingContext2D, width: number, height: number, player: number): string[] {
     const slots: [string, number][] = [
-      ["Q", FighterField.slotSkill1],
-      ["E", FighterField.slotSkill2],
-      ["R", FighterField.slotSkill3],
-      ["F", FighterField.slotUltimate],
+      [this.slotKeys[0]!, FighterField.slotSkill1],
+      [this.slotKeys[1]!, FighterField.slotSkill2],
+      [this.slotKeys[2]!, FighterField.slotSkill3],
+      [this.slotKeys[3]!, FighterField.slotUltimate],
     ];
     const states = slots.map(([key, field]) => [key, this.host.value(player, field)] as const).filter(([, v]) => v !== -1);
     if (!states.length) return [];
@@ -762,7 +778,7 @@ export class CombatView {
       ctx.fillStyle = "rgba(8,10,20,0.75)";
       ctx.fillRect(x, y, size, size);
       ctx.lineWidth = 2 * scale;
-      ctx.strokeStyle = ready ? (key === "F" ? "#ffd84a" : "#7cc4ff") : "rgba(160,170,190,0.6)";
+      ctx.strokeStyle = ready ? (key === this.slotKeys[3] ? "#ffd84a" : "#7cc4ff") : "rgba(160,170,190,0.6)";
       ctx.strokeRect(x, y, size, size);
       if (value > 0) {
         // The cooldown sweeps away clockwise.

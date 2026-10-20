@@ -203,6 +203,11 @@ function physics.add_force(id, x, y, z) end
 ---@param z number
 function physics.add_impulse(id, x, y, z) end
 
+--- How hard gravity pulls this body: 1 normal, 0 floats (a flying sword), negative rises. Back to 1 to land.
+---@param scale number
+---@param id? integer
+function physics.set_gravity_scale(scale, id) end
+
 --- Plays a sound from the catalog.
 ---@param name string
 function sound.play(name) end
