@@ -1,6 +1,6 @@
 {
   "name": "game-engine-editor",
-  "version": "0.92.0",
+  "version": "0.93.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,8 @@
     "build": "npm run typecheck && vite build",
     "fps": "tsx ../../tools/fps/build_last_signal.ts",
     "racing": "tsx ../../tools/racing/build_high_heat.ts",
-    "city": "tsx ../../tools/city/build_city_template.ts"
+    "city": "tsx ../../tools/city/build_city_template.ts",
+    "murim": "tsx ../../tools/murim/build_azure_cloud_sect.ts"
   },
   "dependencies": {
     "three": "0.169.0"

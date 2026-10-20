@@ -242,6 +242,12 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "physics"
   },
   {
+    "name": "physics.set_gravity_scale",
+    "signature": "physics.set_gravity_scale(scale: number, id?: integer)",
+    "doc": "How hard gravity pulls this body: 1 normal, 0 floats (a flying sword), negative rises. Back to 1 to land.",
+    "group": "physics"
+  },
+  {
     "name": "sound.play",
     "signature": "sound.play(name: string)",
     "doc": "Plays a sound from the catalog.",

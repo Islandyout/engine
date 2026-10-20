@@ -790,6 +790,31 @@ int main() {
         }
 
         {
+            // physics.set_gravity_scale: a body at 0 floats instead of falling; non-finite is rejected.
+            World world;
+            world.register_component<Box>("box");
+            world.register_component<RigidBody>("rigidbody");
+            world.register_component<Script>("script");
+            const auto entity = world.create();
+            world.set(entity, Box{{0, 5, 0}, {1, 1, 1}});
+            world.set(entity, RigidBody{});
+            world.set(entity, Script{R"lua(
+                function on_start() physics.set_gravity_scale(0) end
+            )lua"});
+            TestHost host;
+            Runtime runtime;
+            runtime.set_host(&host);
+            runtime.step(world, 1.0F / 60);
+            check(world.get<RigidBody>(entity)->gravity_scale == 0.0F, "set_gravity_scale sets the body's scale");
+            world.set(entity, Script{R"lua(
+                function on_start() physics.set_gravity_scale(0 / 0) end
+            )lua"});
+            Runtime bad;
+            bad.set_host(&host);
+            bad.step(world, 1.0F / 60);
+            check(world.get<RigidBody>(entity)->gravity_scale == 0.0F, "a NaN scale is rejected and leaves the scale alone");
+        }
+        {
             // world.path returns waypoints around a wall, or nil without a grid.
             World world;
             world.register_component<Box>("box");

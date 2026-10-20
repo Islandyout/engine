@@ -34,6 +34,7 @@ export const builtins = [
   ["host", "send", "(kind: string, text: string)", "A raw message to the host (the named helpers below send these for you)."],
   ["physics", "add_force", "(id: integer, x: number, y: number, z: number)", "A force for this tick."],
   ["physics", "add_impulse", "(id: integer, x: number, y: number, z: number)", "An instant change of momentum."],
+  ["physics", "set_gravity_scale", "(scale: number, id?: integer)", "How hard gravity pulls this body: 1 normal, 0 floats (a flying sword), negative rises. Back to 1 to land."],
   ["sound", "play", "(name: string)", "Plays a sound from the catalog."],
   ["sound", "play_at", "(name: string, x: number, y: number, z: number, volume?: number)", "Plays a sound in the world."],
   ["sound", "volume", "(bus: string, level: number)", "Sets a mixer bus volume 0-1 (master, sfx, music, ambient, ui)."],

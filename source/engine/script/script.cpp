@@ -1198,6 +1198,17 @@ struct LuaApi final {
         return 0;
     }
 
+    // physics.set_gravity_scale(scale[, id]): 1 is normal, 0 floats (a flying sword), negative rises.
+    static int set_gravity_scale(lua_State *L) {
+        if (auto *body = body_for(L, 2)) {
+            const auto scale = number_arg(L, 1);
+            if (!std::isfinite(scale))
+                return luaL_error(L, "physics.set_gravity_scale: the scale must be a finite number");
+            body->gravity_scale = scale;
+        }
+        return 0;
+    }
+
     // -- Native input ------------------------------------------
     static const ActionState *action_state(lua_State *L) {
         auto &self = runtime(L);
@@ -1361,7 +1372,8 @@ struct LuaApi final {
                {"path", path},
                {"set_clock", set_clock}});
         table(L, self, "host", {{"send", host_send}});
-        table(L, self, "physics", {{"add_force", add_force}, {"add_impulse", add_impulse}});
+        table(L, self, "physics",
+              {{"add_force", add_force}, {"add_impulse", add_impulse}, {"set_gravity_scale", set_gravity_scale}});
         table(L, self, "sound", {{"play", play_sound}, {"play_at", play_sound_at}, {"volume", sound_volume}});
         table(L, self, "ui",
               {{"set_text", set_ui_text},
