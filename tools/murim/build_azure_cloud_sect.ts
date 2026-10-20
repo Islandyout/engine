@@ -224,10 +224,12 @@ function wall(name: string, x0: number, z0: number, x1: number, z1: number, gap?
   for (const px of [-5.2, -1.9, 1.9, 5.2]) blocker("Gate pillar", x + px, z + 16, [0.9, 6, 0.9]);
   wall("Sect wall W", x - 24, z + 16, x - 7, z + 16);
   wall("Sect wall E", x + 7, z + 16, x + 24, z + 16);
-  wall("Sect wall W side", x - 24, z - 24, x - 24, z + 16);
+  wall("Sect wall W side", x - 24, z - 24, x - 24, z + 16, { from: z - 8 - 2.6, to: z - 8 + 2.6 });
   wall("Sect wall E side", x + 24, z - 24, x + 24, z + 16);
   wall("Sect wall back", x - 24, z - 24, x + 24, z - 24);
-  place("Incense burner", "incense-burner", x, z - 3, 0, true);
+  place("Meditation altar", "incense-burner", x, z - 3, 0, true, 1.3);
+  place("Alchemy furnace", "incense-burner", x + 13, z + 2, 0, true, 1.8);
+  place("Furnace stand", "stone-lantern", x + 15.5, z + 2, 0, true, 0.8);
   place("Stele", "stele", x - 9, z + 11, 0.3, true);
   place("Stele", "stele", x + 9, z + 11, -0.3, true);
   for (const [px, pz] of [[-17, -6], [17, -6]] as const) {
@@ -247,8 +249,20 @@ function wall(name: string, x0: number, z0: number, x1: number, z1: number, gap?
     for (const s of [-1, 1]) place("Stone lantern", "stone-lantern", x + s * 5.5, z + dz, 0, true, 1.1);
 }
 
+// Instructor Hua teaches scroll arts for silver (see player.lua); the alchemy furnace beside the training ground brews
+// spirit herbs into elixirs and pills.
+scene.add("Instructor Hua", [SECT.x + 8, ground(SECT.x + 8, SECT.z + 7) + 0.9, SECT.z + 7], {
+  Scale: { value: vec(0.6, 1.8, 0.6) },
+  Rotation: { euler: vec(0, -2.2, 0) },
+  Renderable: { mesh: 132, material: 0, visible: true },
+  Material: { color: rgb("#e6d2bc"), roughness: 0.8, keepTextures: false },
+  RigidBody: { mass: 70, dynamic: true },
+  Collider: {},
+  Script: { source: lua("elder.lua").replace("local spoken = false", "local spoken = true"), props: { gear: "214:#2f4f6a 216:#2a3a4a 218:#c9a24a 215:#d8d0bc 217:#2a2a30" } },
+});
+
 // ---------------------------------------------------------- the elder NPC --
-scene.add("Elder Mu", [SECT.x + 1, ground(SECT.x + 1, SECT.z - 1) + 0.9, SECT.z - 1], {
+scene.add("Elder Mu", [SECT.x + 3.5, ground(SECT.x + 3.5, SECT.z - 1) + 0.9, SECT.z - 1], {
   Scale: { value: vec(0.6, 1.8, 0.6) },
   Rotation: { euler: vec(0, Math.PI, 0) },
   Renderable: { mesh: 132, material: 0, visible: true },
@@ -262,8 +276,8 @@ scene.add("Elder Mu", [SECT.x + 1, ground(SECT.x + 1, SECT.z - 1) + 0.9, SECT.z 
 {
   const { x, z } = CAMP;
   for (const [i, [dx, dz]] of [[-9, -6], [9, -5], [-8, 8], [8, 9]].entries()) {
-    solid(`Tent ${i + 1}`, x + dx!, z + dz!, [4.5, 2.4, 4.5], "#7a5a3a", { yaw: 0.4 * i });
-    solid(`Tent flap ${i + 1}`, x + dx!, z + dz!, [4.7, 0.3, 4.7], "#5a4028", { lift: 2.4, yaw: 0.4 * i });
+    // Doors face the fire.
+    place(`Tent ${i + 1}`, "canvas-tent", x + dx!, z + dz!, Math.atan2(dz!, -dx!), true);
   }
   scene.model("Camp crates", 185, [x + 3, ground(x + 3, z - 3), z - 3], 0.5, true, 1.4);
   scene.model("Camp barrel", 180, [x - 2, ground(x - 2, z + 1), z + 1], 0, true, 1.5);
@@ -306,7 +320,7 @@ const SPEAR_MOVES = [
   "sweep: clip=sword_heavy_a input=heavy dur=1.2 hit=0.35-0.45 cancel=0.7 dmg=14 reach=2.0 radius=1.1 knock=4 stun=0.6 armor limb=hand_r",
   ROLL,
 ].join("\n") + "\n";
-const ADEPT_MOVES = ["qi_bolt: clip=energy_throw input=light dur=1.1 hit=0.45-0.5 cancel=0.8 dmg=8 projectile=13 knock=3 stun=0.4 limb=hand_r", ROLL].join("\n") + "\n";
+const ADEPT_MOVES = ["qi_bolt: clip=energy_throw input=light dur=1.1 hit=0.45-0.5 cancel=0.8 dmg=8 projectile=13 shape=3 knock=3 stun=0.4 limb=hand_r", ROLL].join("\n") + "\n";
 const SKIN = ["#e6d2bc", "#d9c4aa", "#e2cdb4", "#d4bfa6", "#dccab4"];
 const BANDITS: { name: string; at: number[]; health: number; qi: number; drop: number; silver: number; gear: string; melee: Components }[] = [
   { name: "Bandit Brawler", at: [-9, -9], health: 80, qi: 30, drop: 0, silver: 12, gear: "214:#6b4a3a 216:#3a3228 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.35, skill: 0.2 } },
@@ -346,19 +360,16 @@ BANDITS.forEach((b, i) => fighter(b.name, CAMP.x + b.at[0]!, CAMP.z + b.at[1]!, 
 const VEINS: [number, number][] = [[-30, 52], [36, 24], [-44, -32], [8, -60]];
 {
   const rx = roadX(54) + 8;
-  place("Roadside shrine", "pavilion", rx, 54, -0.5, false, 0.55);
-  for (const [dx, dz] of [[-1.5, -1.5], [1.5, -1.5], [-1.5, 1.5], [1.5, 1.5]] as const) blocker("Roadside shrine pillar", rx + dx, 54 + dz, [0.4, 2.4, 0.4]);
-  place("Roadside incense", "incense-burner", rx, 54, 0, true, 0.6);
+  place("Wayside shrine", "roadside-shrine", rx, 54, -0.3, true);
   place("Roadside lantern", "stone-lantern", rx - 3.6, 58, 0, true);
   place("Roadside lantern", "stone-lantern", rx + 3.6, 58, 0, true);
   // The ruined watchtower on the hill east of the road: one tier standing, a fallen wall, rubble.
-  place("Watchtower", "pagoda-tier-small", 36, -4, 0.4, true, 1.15);
+  place("Watchtower", "watchtower", 36, -4, 0.4, true);
   place("Watchtower wall", "garden-wall", 31, -1, 1.1, true);
   place("Watchtower wall", "garden-wall", 41, -8, 0.2, true, 0.8);
   for (const [dx, dz, f] of [[-4, 4, 0], [5, 3, 1], [2, -6, 0], [-6, -3, 1]] as const) place("Rubble", ["rock-large", "rock-medium"][f]!, 36 + dx, -4 + dz, dx, true, 1.3);
   // The hermit's hut and his practice ground, west of the road.
-  place("Hermit's hut", "pavilion", -42, -20, 0.3, false, 0.7);
-  for (const [dx, dz] of [[-1.9, -1.9], [1.9, -1.9], [-1.9, 1.9], [1.9, 1.9]] as const) blocker("Hermit hut pillar", -42 + dx, -20 + dz, [0.5, 2.8, 0.5]);
+  place("Hermit's hut", "thatched-hut", -42, -20, 0.3, true);
   place("Hermit's lantern", "stone-lantern", -37, -15, 0, true);
   place("Hermit's dummy", "wooden-training-dummy", -46, -13, 0.8, true);
   place("Hermit's rack", "weapon-rack", -48, -19, 1.2, true);
@@ -381,10 +392,11 @@ const VEINS: [number, number][] = [[-30, 52], [36, 24], [-44, -32], [8, -60]];
 // (it is by the old watchtower). Both are talked to with E; the dialogue is driven from player.lua.
 {
   const { x, z } = VILLAGE;
-  place("Village house", "pagoda-hall", x - 8, z - 4, 0.3, true, 0.55);
-  place("Village house", "pagoda-hall", x + 8, z - 5, -0.3, true, 0.55);
-  place("Village house", "pagoda-hall", x + 1, z + 9, 3.0, true, 0.55);
-  place("Market stall rack", "weapon-rack", x - 2, z + 1, 0, true);
+  // Houses face the square in the middle.
+  place("Village house", "farmhouse", x - 9, z - 3, -0.25, true);
+  place("Village house", "farmhouse", x + 9, z - 4, 0.25, true);
+  place("Village house", "farmhouse", x + 1, z + 10, Math.PI, true);
+  place("Market stall", "market-stall", x - 2, z + 3, Math.PI, true);
   place("Market incense", "incense-burner", x + 2.5, z + 1, 0, true, 0.7);
   for (const [dx, dz] of [[-5, 4], [5, 4], [-5, -3], [5, -2]] as const) place("Village lantern", "stone-lantern", x + dx, z + dz, 0, true);
   for (const [dx, dz] of [[-11, 6], [12, 4], [-9, 11]] as const) place("Village bamboo", "bamboo-clump", x + dx, z + dz, dx, false);
@@ -401,8 +413,26 @@ const VEINS: [number, number][] = [[-30, 52], [36, 24], [-44, -32], [8, -60]];
   villager("Merchant Lin", x - 1, z + 3.5, 0, "214:#8a5a2a 216:#5a4430 218:#c9a24a 215:#e6d0a0 217:#3a2a22", "#ecdcc8");
   villager("Wen", x + 6, z + 2, -1.6, "214:#5a7a5a 216:#4a4a3a 215:#3a3a3a 217:#3a2a22", "#e6d2bc");
 }
+// Spirit herbs grow in the grass off the paths: pick them (hold E) and brew them at the furnace.
+{
+  const pads2 = [SECT, CAMP, SHRINE, VILLAGE];
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  let placed = 0;
+  while (placed < 16) {
+    const hx = (rnd() - 0.5) * 200, hz = (rnd() - 0.5) * 200;
+    if (pads2.some((q) => Math.hypot(hx - q.x, hz - q.z) < 22) || Math.abs(hx - roadX(hz)) < 6) continue;
+    placed++;
+    scene.model(`Spirit herb ${placed}`, 38, [hx, ground(hx, hz), hz], rnd() * 6, true, 0.7, {
+      Material: { color: rgb("#6fe0b8"), roughness: 0.6, keepTextures: false, ...emissive("#3fd0a0", 1.2) },
+      Container: { table: "1 item Spirit Herb", hold: 0.5 },
+    });
+  }
+}
+
 // Wen's cart, abandoned near the watchtower.
-place("Lost Cart", "crates-stacked", 41, 0, 0.5, true);
+place("Lost Cart", "hand-cart", 41, 0, 0.5, true);
+place("Lost crates", "crates-stacked", 43.2, 1.2, 0.2, true, 0.7);
 
 // ---------------------------------------------------- wildlife in the valley --
 for (const [i, [x, z]] of [[28, 30], [-34, 44], [22, -30], [-30, -40]].entries())
@@ -420,9 +450,13 @@ for (const [i, [x, z]] of [[28, 30], [-34, 44], [22, -30], [-30, -40]].entries()
 const MOVES = [
   martialArtsMoves.trimEnd(),
   "# Qi arts: each realm opens another (locked until the script unlocks it)",
-  "qi_palm: clip=energy_throw input=skill1 dur=0.8 hit=0.26-0.3 cancel=0.55 dmg=24 projectile=22 knock=5 stun=0.6 mana=18 cooldown=0.8 locked limb=hand_r",
+  "qi_palm: clip=energy_throw input=skill1 dur=0.8 hit=0.26-0.3 cancel=0.55 dmg=24 projectile=22 shape=0 knock=5 stun=0.6 mana=18 cooldown=0.8 locked limb=hand_r",
   "wind_palm: clip=ground_pound input=skill2 dur=1.0 hit=0.3-0.42 cancel=0.8 dmg=28 aoe=4 knock=10 launch=3 stun=0.8 stop=0.1 mana=35 cooldown=3 locked limb=hand_r",
   "tiger_rush: clip=dash_strike input=skill3 dur=1.0 hit=0.15-0.45 cancel=0.75 dmg=32 reach=1.4 lunge=6 knock=7 stun=0.7 stop=0.1 mana=30 cooldown=4 armor locked limb=hand_r",
+  "# Scroll arts: learned from Instructor Hua, used with keys 5 to 7 (the script performs them by name).",
+  "sword_qi: clip=energy_throw input=special seq=ffbb dur=0.8 hit=0.26-0.3 cancel=0.55 dmg=30 projectile=20 shape=1 knock=4 stun=0.6 mana=22 cooldown=1.2 locked limb=hand_r",
+  "thunder_lance: clip=energy_throw input=special seq=lrlr dur=0.9 hit=0.3-0.34 cancel=0.6 dmg=42 projectile=36 shape=4 knock=3 stun=1.0 stagger=45 mana=30 cooldown=2.5 locked limb=hand_r",
+  "flame_palm: clip=energy_throw input=special seq=bbff dur=0.9 hit=0.3-0.34 cancel=0.6 dmg=26 projectile=14 shape=3 knock=5 stun=0.6 mana=24 cooldown=1.6 locked limb=hand_r",
   "nine_dragons: clip=ground_pound input=ultimate dur=1.2 hit=0.3-0.45 cancel=0.95 dmg=70 aoe=5.5 knock=12 launch=6 stun=1.2 stop=0.18 cost=70 armor knockdown unblockable finisher locked limb=hand_r",
 ].join("\n") + "\n";
 const [startX, startZ] = (process.env.MURIM_START ?? "").split(",").map(Number);
@@ -440,10 +474,10 @@ scene.add("Player", spawn, {
   Inventory: {
     slots: 24,
     maxWeight: 30,
-    weights: "Qi Elixir=0.2, Breakthrough Pill=0.2, Silver=0.01, Azure Robe=2",
+    weights: "Qi Elixir=0.2, Breakthrough Pill=0.2, Jade Dew Pill=0.2, Spirit Herb=0.05, Silver=0.01, Azure Robe=2",
     stats: "Azure Robe: slot=body armor=10\nJade Charm: health=25\nIron Gloves: slot=hands damage=10",
   },
-  Script: { source: lua("player.lua"), props: process.env.MURIM_REALM ? { realm: Number(process.env.MURIM_REALM), qi: Number(process.env.MURIM_QI ?? 0) } : {} },
+  Script: { source: lua("player.lua"), props: process.env.MURIM_REALM ? { realm: Number(process.env.MURIM_REALM), qi: Number(process.env.MURIM_QI ?? 0), silver: Number(process.env.MURIM_SILVER ?? 0) } : {} },
 });
 scene.add("Camera", [spawn[0], spawn[1] + 3, spawn[2] + 6], {
   Camera: { fov: 60, far: 700 },
@@ -475,6 +509,10 @@ scene.add("Input", [0, -40, 0], {
       "breakthrough: b",
       "elixir: h",
       "fly: v",
+      "heal: z",
+      "art1: 5",
+      "art2: 6",
+      "art3: 7",
       "controls: o",
     ].join("\n"),
   },
@@ -541,7 +579,7 @@ widget("Character sheet", "Character sheet", { ...style, anchor: "center", width
 widget("Skill tree", "Skill tree", { ...style, anchor: "center", width: 520, height: 400, visibleWhen: "toggle", toggleKey: "KeyK", text: "Cultivation tree" });
 widget("Quest log", "Quest log", { ...style, anchor: "center", width: 480, height: 360, visibleWhen: "toggle", toggleKey: "KeyJ", text: "Journal" });
 widget("Death screen", "Death screen", { ...style, anchor: "center", width: 640, height: 320, text: "" });
-ui("Menu keys", { kind: "Text", text: "I  Bag     C  Character     J  Journal     K  Arts     M  Map     O  Controls", anchor: "bottom-right", offsetX: -MARGIN_X, offsetY: -MARGIN_Y, fontSize: 13, color: rgb("#ffffff"), opacity: 0.55 });
+widget("Key hints", "Key hints", { ...style, anchor: "bottom-right", offsetX: -MARGIN_X, offsetY: -MARGIN_Y, width: 600, height: 40, text: "I|Bag\nC|Stats\nJ|Journal\nK|Arts\nM|Map" });
 
 // ------------------------------------------------------------ qi effects --
 const fxEmitter = (name: string, mode: string, particles: Record<string, unknown>, extra: Components = {}) =>

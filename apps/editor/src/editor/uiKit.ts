@@ -84,6 +84,7 @@ export const widgetCatalog: readonly WidgetInfo[] = [
   info("Character sheet", "Menus & dialogue", "Stats and progress bars. Text: title, subtitle, then '# Section', 'Label|Value' or 'bar|Label|0..1|readout' lines.", "center", [0, 0], [440, 400], "toggle"),
   info("Quest log", "Menus & dialogue", "The journal. Text: title, then 'state|Title|Detail' lines (active, done, todo).", "center", [0, 0], [460, 340], "toggle"),
   info("Skill tree", "Menus & dialogue", "Passive perks bought with points. Text: title, subtitle, then 'node|id|Name|state|col|row|requires|cost|icon|Detail' lines (state learned, available or locked; requires is an id or empty). A click on an available node sends node:<id>.", "center", [0, 0], [520, 400], "toggle"),
+  info("Key hints", "Menus & dialogue", "A row of key caps with what each opens. Text: one 'KEY|Label' per line.", "bottom-right", [24, 24], [560, 40], "always"),
 ];
 
 export function widgetInfo(name: UIWidget): WidgetInfo {

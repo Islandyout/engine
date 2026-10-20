@@ -354,6 +354,13 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 331, category: "wuxia", name: "Oak low-poly B", path: "./kit/wuxia/oak-low-poly-b.glb" },
   { id: 332, category: "wuxia", name: "Blossom tree", path: "./kit/wuxia/blossom-tree.glb" },
   { id: 333, category: "wuxia", name: "Bamboo clump", path: "./kit/wuxia/bamboo-clump.glb" },
+  { id: 334, category: "wuxia", name: "Canvas tent", path: "./kit/wuxia/canvas-tent.glb" },
+  { id: 335, category: "wuxia", name: "Farmhouse", path: "./kit/wuxia/farmhouse.glb" },
+  { id: 336, category: "wuxia", name: "Watchtower", path: "./kit/wuxia/watchtower.glb" },
+  { id: 337, category: "wuxia", name: "Thatched hut", path: "./kit/wuxia/thatched-hut.glb" },
+  { id: 338, category: "wuxia", name: "Roadside shrine", path: "./kit/wuxia/roadside-shrine.glb" },
+  { id: 339, category: "wuxia", name: "Market stall", path: "./kit/wuxia/market-stall.glb" },
+  { id: 340, category: "wuxia", name: "Hand cart", path: "./kit/wuxia/hand-cart.glb" },
 ];
 
 export const catalogCategories = Array.from(

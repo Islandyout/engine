@@ -434,6 +434,8 @@ struct Projectile final {
     float damage{15.0F};
     float gravity{0.0F};
     float splash{0.0F};
+    // The look of a melee move's projectile (see Move::shape); -1 is a plain bolt.
+    int shape{-1};
 };
 
 constexpr float move_speed = 4.8F; // units/s; matches the native playground's tuned feel

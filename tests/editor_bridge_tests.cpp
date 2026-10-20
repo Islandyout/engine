@@ -2967,6 +2967,33 @@ int main() {
               std::string(editor_last_error()).find("no Collider") != std::string::npos);
     }
 
+    // A move's `shape=` reaches its projectile (the look the editor draws), and a bad one is refused.
+    {
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 0, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        editor_set_melee(0, 2, "bolt: clip=energy_throw input=light dur=0.5 hit=0.1-0.15 cancel=0.4 dmg=5 projectile=10 shape=4", 0, 0, 0.5, 0.5, 0.25, 0, 60);
+        check(editor_commit() == 1);
+        check(std::string(editor_melee_error()).empty());
+        for (int i = 0; i < 3; ++i)
+            editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("KeyJ", 1);
+        editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("KeyJ", 0);
+        for (int i = 0; i < 30 && editor_projectile_count() == 0; ++i)
+            editor_tick();
+        check(editor_projectile_count() == 1);
+        check(editor_projectile_value(0, 6) == 4);   // the shape
+        check(editor_projectile_value(0, 5) > 5);     // flying along +z at the move's speed
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_melee(0, 2, "bolt: clip=energy_throw input=light dur=0.5 hit=0.1-0.15 cancel=0.4 dmg=5 projectile=10 shape=9", 0, 0, 0.5, 0.5, 0.25, 0, 60);
+        editor_commit();
+        check(std::string(editor_melee_error()).find("shape") != std::string::npos);
+    }
+
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "
                  "reset, limits, authored box size, hierarchy-child exclusion, player-only WASD "
                  "movement, jump/sustained-flight, Collider box and sphere obstacle blocking, "

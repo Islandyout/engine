@@ -832,7 +832,17 @@ EXPORT double editor_projectile_value(int index, int field) {
     const auto entities = active->world.query<engine::Box, Projectile>();
     if (index < 0 || static_cast<std::size_t>(index) >= entities.size())
         return 0;
-    const auto &b = *active->world.get<engine::Box>(entities[static_cast<std::size_t>(index)]);
-    return field == 0 ? b.center.x : field == 1 ? b.center.y : b.center.z;
+    const auto entity = entities[static_cast<std::size_t>(index)];
+    const auto &b = *active->world.get<engine::Box>(entity);
+    const auto &shot = *active->world.get<Projectile>(entity);
+    switch (field) {
+    case 0: return b.center.x;
+    case 1: return b.center.y;
+    case 2: return b.center.z;
+    case 3: return shot.velocity.x;
+    case 4: return shot.velocity.y;
+    case 5: return shot.velocity.z;
+    default: return shot.shape;
+    }
 }
 }

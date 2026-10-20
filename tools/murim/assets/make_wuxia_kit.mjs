@@ -43,6 +43,11 @@ const MATERIALS = {
   blossom_b: "#f3c6d2",
   bamboo: "#86ad4f",
   bamboo_node: "#5d8036",
+  canvas: "#cdbb92",
+  canvas_dark: "#a8956b",
+  thatch: "#b39a58",
+  thatch_dark: "#8c7640",
+  hide: "#6d4a33",
 };
 
 // ------------------------------------------------------------------- meshes --
@@ -140,6 +145,41 @@ class Model {
     }
     // A finial at the ridge.
     this.cyl("gold", cx, y0 + rise - 0.1, cz, Math.min(0.3, w * 0.08), 0.5, 6, 0.02);
+  }
+  // A gabled roof over a w (along the ridge, x) by d plan at height y0: two slopes in courses that alternate in
+  // colour, a dark underside and closed ends. Overhang is how far it sticks out past the walls on every side.
+  gable(cx, y0, cz, w, d, rise, overhang = 0.5, matA = "roof_a", matB = "roof_b", strips = 6) {
+    const hw = w / 2 + overhang, hd = d / 2 + overhang, yr = y0 + rise * (hd / (d / 2));
+    for (const side of [1, -1]) {
+      for (let k = 0; k < strips; k++) {
+        const t0 = k / strips, t1 = (k + 1) / strips; // 0 at the eave, 1 at the ridge
+        const mat = k % 2 ? matB : matA;
+        const P = (x, t) => [cx + x, y0 + (yr - y0) * t, cz + side * hd * (1 - t)];
+        const a = P(-hw, t0), b = P(hw, t0), c = P(hw, t1), d2 = P(-hw, t1);
+        if (side > 0) this.quad(mat, a, b, c, d2);
+        else this.quad(mat, b, a, d2, c);
+        const lo = (q) => [q[0], q[1] - 0.16, q[2]];
+        if (side > 0) this.quad("roof_edge", lo(b), lo(a), lo(d2), lo(c));
+        else this.quad("roof_edge", lo(a), lo(b), lo(c), lo(d2));
+      }
+    }
+    for (const sx of [1, -1]) {
+      const A = [cx + sx * hw, y0, cz + hd], B = [cx + sx * hw, y0, cz - hd], C = [cx + sx * hw, yr, cz];
+      if (sx > 0) this.tri("roof_edge", A, B, C);
+      else this.tri("roof_edge", B, A, C);
+    }
+    // A ridge cap.
+    this.box("roof_edge", cx, yr + 0.05, cz, hw * 2 + 0.1, 0.16, 0.22);
+  }
+  // A solid disc with its axis along z (a plank wheel), centred at (cx, cy, cz).
+  disc(m, cx, cy, cz, r, thick, seg = 14) {
+    for (let k = 0; k < seg; k++) {
+      const a0 = (k / seg) * Math.PI * 2, a1 = ((k + 1) / seg) * Math.PI * 2;
+      const p = (a, z) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r, cz + z];
+      this.tri(m, [cx, cy, cz + thick / 2], p(a0, thick / 2), p(a1, thick / 2));
+      this.tri(m, [cx, cy, cz - thick / 2], p(a1, -thick / 2), p(a0, -thick / 2));
+      this.quad(m, p(a0, thick / 2), p(a0, -thick / 2), p(a1, -thick / 2), p(a1, thick / 2));
+    }
   }
   // A quad seen from both sides (thin shells such as a bridge deck).
   quad2(m, a, b, c, d) {
@@ -420,6 +460,149 @@ pieces["pagoda-tier-small"] = tier("pagoda-tier-small", 5.5, 3.2, 2.2);
   pieces["stele"] = m;
 }
 
+
+// ---- Everyday buildings: the sect's pagodas are grand; these are what people actually live in. Each is one solid
+// mass with a roof that sits ON its walls (nothing floats, nothing is a roof alone).
+
+// A canvas tent: two slopes of cloth over a ridge pole, a dark doorway with tie-back flaps, pegs and guy ropes.
+{
+  const m = new Model("canvas-tent");
+  const w = 4.6, d = 3.6, rise = 2.3;
+  // The cloth: ridge along x. Slopes in two shades of stripe.
+  for (const side of [1, -1])
+    for (let k = 0; k < 4; k++) {
+      const t0 = k / 4, t1 = (k + 1) / 4;
+      const P = (x, t) => [x, rise * t, side * (d / 2) * (1 - t)];
+      const [a, b, c, e] = [P(-w / 2, t0), P(w / 2, t0), P(w / 2, t1), P(-w / 2, t1)];
+      const mat = k % 2 ? "canvas_dark" : "canvas";
+      if (side > 0) m.quad2(mat, a, b, c, e);
+      else m.quad2(mat, b, a, e, c);
+    }
+  for (const sx of [1, -1]) {
+    const A = [sx * w / 2, 0, d / 2], B = [sx * w / 2, 0, -d / 2], C = [sx * w / 2, rise, 0];
+    if (sx > 0) m.tri("canvas", A, B, C); else m.tri("canvas", B, A, C);
+    if (sx < 0) m.tri("canvas", A, B, C); else m.tri("canvas", B, A, C);
+  }
+  // The doorway on the front end (+x): a dark triangle just proud of the cloth, flaps pulled to either side.
+  m.tri("black", [w / 2 + 0.03, 0, 0.8], [w / 2 + 0.03, 0, -0.8], [w / 2 + 0.03, 1.6, 0]);
+  m.tri("canvas_dark", [w / 2 + 0.05, 0, 0.8], [w / 2 + 0.05, 0, 0.1], [w / 2 + 0.05, 1.55, 0.05]);
+  m.tri("canvas_dark", [w / 2 + 0.05, 0, -0.1], [w / 2 + 0.05, 0, -0.8], [w / 2 + 0.05, 1.55, -0.05]);
+  // Ridge pole, end posts, pegs and ropes.
+  m.box("wood", 0, rise + 0.04, 0, w + 0.9, 0.1, 0.1);
+  for (const sx of [1, -1]) m.cyl("wood", sx * (w / 2 + 0.35), 0, 0, 0.06, rise + 0.1, 5);
+  for (const sx of [1, -1]) for (const sz of [1, -1]) {
+    m.cyl("wood_dark", sx * (w / 2 + 0.7), 0, sz * (d / 2 + 0.9), 0.05, 0.4, 4);
+    m.box("hide", sx * (w / 2 + 0.35), rise * 0.45, sz * (d / 2 + 0.45), 0.04, 0.04, 1.3);
+  }
+  // A bedroll by the door.
+  m.cyl("hide", w / 2 + 0.55, 0.12, -1.6, 0.14, 1.0, 6);
+  pieces["canvas-tent"] = m;
+}
+
+// A farmhouse: plaster walls on a stone footing, timber frame, one gabled tile roof, a door, shutters, a chimney.
+{
+  const m = new Model("farmhouse");
+  const w = 6.4, d = 4.6, h = 2.7;
+  m.box("stone", 0, 0.2, 0, w + 0.3, 0.4, d + 0.3);
+  m.box("plaster", 0, 0.4 + h / 2, 0, w, h, d);
+  for (const sx of [-1, 0, 1]) m.box("wood_dark", sx * (w / 2), 0.4 + h / 2, 0, 0.18, h, d + 0.1);
+  for (const sz of [1, -1]) {
+    for (const sx of [-1, 0, 1]) m.box("wood_dark", sx * (w / 2 - 0.1), 0.4 + h / 2, sz * (d / 2), 0.18, h, 0.18);
+    m.box("wood_dark", 0, 0.4 + h, sz * (d / 2), w + 0.2, 0.16, 0.2);
+  }
+  m.gable(0, 0.4 + h, 0, w, d, 1.9, 0.55);
+  // The door and two shuttered windows on the +z face.
+  m.box("wood", -0.9, 0.4 + 0.95, d / 2 + 0.04, 1.0, 1.9, 0.08);
+  m.box("gold", -0.55, 0.4 + 0.95, d / 2 + 0.1, 0.07, 0.07, 0.05);
+  for (const wx of [1.1, 2.3]) {
+    m.box("wood_dark", wx, 0.4 + 1.5, d / 2 + 0.04, 0.8, 0.8, 0.07);
+    m.box("black", wx, 0.4 + 1.5, d / 2 + 0.08, 0.6, 0.6, 0.03);
+  }
+  // A chimney through the roof's slope.
+  m.box("stone_dark", -2.2, 0.4 + h + 1.2, -0.9, 0.6, 2.2, 0.6);
+  m.box("stone", -2.2, 0.4 + h + 2.35, -0.9, 0.8, 0.12, 0.8);
+  pieces["farmhouse"] = m;
+}
+
+// A watchtower: a stone shaft, a timber lookout with rails, a small hip roof on posts, a ladder up the face.
+{
+  const m = new Model("watchtower");
+  const s = 3.4, h = 6.4;
+  m.box("stone", 0, 0.25, 0, s + 0.8, 0.5, s + 0.8);
+  m.box("stone_dark", 0, 0.5 + h / 2, 0, s, h, s);
+  for (const k of [1, 2, 3]) m.box("stone", 0, 0.5 + (h * k) / 4, 0, s + 0.12, 0.12, s + 0.12);
+  m.box("black", 0, 1.5, s / 2 + 0.02, 0.9, 1.8, 0.05);
+  const top = 0.5 + h;
+  m.box("wood", 0, top + 0.1, 0, s + 1.2, 0.2, s + 1.2);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) m.cyl("wood_dark", sx * (s / 2 + 0.45), top + 0.2, sz * (s / 2 + 0.45), 0.09, 2.4, 6);
+  for (const sz of [-1, 1]) m.box("wood", 0, top + 0.95, sz * (s / 2 + 0.45), s + 0.9, 0.1, 0.08);
+  for (const sx of [-1, 1]) m.box("wood", sx * (s / 2 + 0.45), top + 0.95, 0, 0.08, 0.1, s + 0.9);
+  m.roof(0, top + 2.5, 0, s + 0.9, s + 0.9, 1.1, 0.5, 0.3, 4);
+  // The ladder.
+  for (const lx of [-0.3, 0.3]) m.box("wood", lx, 0.5 + h / 2, s / 2 + 0.35, 0.07, h, 0.07);
+  for (let r = 0; r < 12; r++) m.box("wood", 0, 0.9 + r * 0.5, s / 2 + 0.35, 0.6, 0.05, 0.05);
+  pieces["watchtower"] = m;
+}
+
+// A hermit's hut: low walls of rough timber, a deep thatched hip roof, a doorway, a woodpile.
+{
+  const m = new Model("thatched-hut");
+  const w = 4.2, h = 2.1;
+  m.box("stone_dark", 0, 0.15, 0, w + 0.3, 0.3, w + 0.3);
+  m.box("wood", 0, 0.3 + h / 2, 0, w, h, w);
+  for (let k = 0; k < 5; k++) m.box("wood_dark", -w / 2 + 0.4 + k * (w - 0.8) / 4, 0.3 + h / 2, w / 2 + 0.02, 0.1, h, 0.06);
+  m.box("black", 0.6, 0.3 + 0.85, w / 2 + 0.04, 0.9, 1.7, 0.06);
+  // A hip roof from a four-sided cone, thatch in two tones.
+  m.cyl("thatch", 0, 0.3 + h, 0, w * 0.98, 1.9, 4, 0.12);
+  m.cyl("thatch_dark", 0, 0.3 + h - 0.12, 0, w * 1.0, 0.12, 4);
+  m.cyl("wood_dark", 0, 0.3 + h + 1.8, 0, 0.1, 0.5, 5);
+  // Woodpile.
+  for (let k = 0; k < 4; k++) m.cyl("wood", -w / 2 - 0.5, 0.18 + (k % 2) * 0.3, -0.6 + k * 0.28, 0.12, 1.3, 6);
+  pieces["thatched-hut"] = m;
+}
+
+// A roadside shrine: a stone plinth, a little red timber shrine with a gabled tile roof, an offering bowl.
+{
+  const m = new Model("roadside-shrine");
+  m.box("stone", 0, 0.15, 0, 2.6, 0.3, 2.2);
+  m.box("stone_dark", 0, 0.4, 1.2, 1.4, 0.2, 0.5);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) m.box("red", sx * 0.85, 0.3 + 0.85, sz * 0.6, 0.18, 1.7, 0.18);
+  m.box("red_dark", 0, 0.3 + 1.0, -0.6, 1.8, 1.4, 0.08);
+  m.box("gold", 0, 0.3 + 0.85, -0.54, 0.4, 0.7, 0.04);
+  m.gable(0, 2.0, 0, 1.8, 1.4, 0.85, 0.55);
+  m.cyl("gold", 0, 0.4, 1.2, 0.22, 0.2, 8, 0.28);
+  pieces["roadside-shrine"] = m;
+}
+
+// A market stall: a counter, a striped awning on two posts, jars and a crate.
+{
+  const m = new Model("market-stall");
+  m.box("wood", 0, 0.5, 0, 2.6, 0.12, 1.1);
+  for (const sx of [-1, 1]) m.box("wood_dark", sx * 1.2, 0.25, 0, 0.1, 0.5, 0.9);
+  for (const sx of [-1, 1]) m.cyl("wood_dark", sx * 1.3, 0, -0.5, 0.07, 2.3, 6);
+  for (let k = 0; k < 6; k++) {
+    const x0 = -1.6 + k * 0.54;
+    m.quad2(k % 2 ? "red" : "plaster", [x0, 2.3, -0.5], [x0 + 0.54, 2.3, -0.5], [x0 + 0.54, 1.95, 0.75], [x0, 1.95, 0.75]);
+  }
+  for (const [x, r] of [[-0.8, 0.2], [-0.35, 0.16], [0.3, 0.2]]) m.cyl("jade", x, 0.56, 0.1, r, 0.34, 8, r * 0.7);
+  m.box("wood", 0.9, 0.8, 0.1, 0.5, 0.4, 0.4);
+  pieces["market-stall"] = m;
+}
+
+// A hand cart with two spoked wheels, a bed and shafts; the cart in Wen's side quest.
+{
+  const m = new Model("hand-cart");
+  m.box("wood", 0, 0.8, 0, 2.2, 0.15, 1.3);
+  for (const sz of [-1, 1]) m.box("wood_dark", 0, 1.05, sz * 0.62, 2.2, 0.4, 0.08);
+  m.box("wood_dark", -1.05, 1.05, 0, 0.08, 0.4, 1.3);
+  for (const sz of [-1, 1]) m.box("wood", 1.9, 0.78, sz * 0.5, 1.7, 0.08, 0.08);
+  for (const sz of [-1, 1]) {
+    m.disc("wood_dark", 0, 0.62, sz * 0.78, 0.62, 0.1);
+    m.disc("wood", 0, 0.62, sz * 0.78 + sz * 0.06, 0.12, 0.06, 8);
+  }
+  m.box("wood", 0, 0.62, 0, 0.1, 0.1, 1.7);
+  pieces["hand-cart"] = m;
+}
 
 // ---- Trees: low-poly, a few hundred triangles each (the old kit trees are eight thousand), so a forest costs a
 // fraction of what it did. Deterministic jitter keeps each from looking like a copy of a cone.

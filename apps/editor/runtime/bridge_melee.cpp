@@ -579,6 +579,7 @@ void Runtime::step_melee(engine::World &w) {
             Projectile shot{{facing.x * move.projectile, 0, facing.z * move.projectile}, self};
             shot.damage = move.damage * fighter.stat_damage * (move.mana > 0 ? fighter.stat_skill : 1.0F);
             shot.lifetime = 1.6F;
+            shot.shape = move.shape;
             w.defer_set(projectile, shot);
             push_melee({MeleeEventKind::fire, index_of(self), -1, origin, move.projectile, state.move, 0});
         }

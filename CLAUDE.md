@@ -47,5 +47,6 @@ Generated files, regenerate rather than hand-edit:
 - Scripts are untrusted: keep the Lua sandbox limits (instruction budget,
   64 MB memory cap, pattern step limit) in place.
 - Pin new CI actions to a commit SHA.
+- HUD text and key hints use the UI kit's widgets (e.g. Key hints), never loose Text lines placed by hand.
 - Keep history in `docs/changelog/`, not in code comments.
 - Commit messages say what changed and why.

@@ -97,7 +97,7 @@ test("the RPG widgets: script-fed text, buttons that reach the script, and hidin
     return { hits: hits.map((h) => h.action), drew: calls.some((c) => /^(fill|stroke|fillText|fillRect|strokeText)\(/.test(c)) };
   };
   // Hidden until a script gives them something to show.
-  for (const widget of ["Status effects", "Target frame", "Death screen", "Character sheet", "Quest log", "Resource bar", "Skill tree"] as const) assert.equal(draw(widget, "").drew, false, `${widget} with no text`);
+  for (const widget of ["Status effects", "Target frame", "Death screen", "Character sheet", "Quest log", "Resource bar", "Skill tree", "Key hints"] as const) assert.equal(draw(widget, "").drew, false, `${widget} with no text`);
   assert.equal(draw("Damage direction", "90", { textAge: 2 }).drew, false, "a hit arc fades after a second");
   assert.equal(draw("Damage direction", "90", { textAge: 0.2 }).drew, true);
   // The skill slots: nothing without a fighter's skills, a plate per slot with them.
@@ -111,6 +111,7 @@ test("the RPG widgets: script-fed text, buttons that reach the script, and hidin
   const tree = "Tree\n2 insight\nnode|a|Iron Body|learned|0|0||1|cross|Health\nnode|b|Diamond Body|available|0|1|a|2|shield|More\nnode|c|Sword Heart|locked|1|1|b|2|nope|Crit\nnode|bad|x|y|z";
   assert.deepEqual(draw("Skill tree", tree).hits, ["event:close", "event:node:b"]);
   assert.deepEqual(draw("Skill tree", "Tree\nnothing").hits, [], "no nodes, no panel");
+  assert.ok(draw("Key hints", "I|Bag\nC|Character\nbad").drew);
   // Status effects tolerate bad lines.
   assert.ok(draw("Status effects", "Burning|abc|bad\n|3|good\nShield|2|good|4").drew);
 });

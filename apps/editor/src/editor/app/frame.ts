@@ -1,3 +1,4 @@
+import { makeProjectile, updateProjectile } from "../projectileView";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type {
@@ -270,12 +271,16 @@ export function installFrame(C: Ctx): void {
       }
       if (steps > 0 && player) C.playerPrevY = player.position.y;
       const projectileCount = C.runtime._editor_projectile_count();
-      while (C.projectileMeshes.length < projectileCount)
-        C.scene.add((C.projectileMeshes[C.projectileMeshes.length] = new THREE.Mesh(C.projectileGeometry, C.projectileMaterial)));
       while (C.projectileMeshes.length > projectileCount) C.scene.remove(C.projectileMeshes.pop()!);
-      C.projectileMeshes.forEach((mesh, i) =>
-        mesh.position.set(C.runtime._editor_projectile_value(i, 0), C.runtime._editor_projectile_value(i, 1), C.runtime._editor_projectile_value(i, 2)),
-      );
+      for (let i = 0; i < projectileCount; i++) {
+        const v = (field: number) => C.runtime._editor_projectile_value(i, field);
+        const shape = v(6);
+        if (C.projectileMeshes[i]?.userData.shape !== shape) {
+          if (C.projectileMeshes[i]) C.scene.remove(C.projectileMeshes[i]!);
+          C.scene.add((C.projectileMeshes[i] = makeProjectile(shape)));
+        }
+        updateProjectile(C.projectileMeshes[i]!, v(0), v(1), v(2), v(3), v(4), v(5), performance.now() / 1000);
+      }
       C.updateCars(dt);
       if (C.spaceView && C.shipIndex >= 0 && C.objects[C.shipIndex]) {
         const context = C.audioContext;

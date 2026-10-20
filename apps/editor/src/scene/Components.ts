@@ -450,6 +450,7 @@ export const uiWidgetNames = [
   "Character sheet",
   "Quest log",
   "Skill tree",
+  "Key hints",
 ] as const;
 export type UIWidget = (typeof uiWidgetNames)[number];
 export const uiStyleNames = ["Modern", "Battle Royale", "Tactical", "Fantasy", "Sci-fi", "Minimal"] as const;

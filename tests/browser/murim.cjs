@@ -43,11 +43,16 @@ const { saveFailure } = require("./evidence.cjs");
     assert.equal(widgets.filter((w) => w === "Fighter bars").length, 1, "one Fighter bars widget");
     assert.ok(!widgets.includes("Health"), "no Health widget over the fighter bars");
     assert.equal(scene.hud, "widgets", "the scene owns its HUD");
-    for (const w of ["Skill bar", "Resource bar", "Status effects", "Target frame", "Damage direction", "Death screen", "Character sheet", "Quest log", "Skill tree", "Minimap", "Compass", "Objective"])
+    for (const w of ["Skill bar", "Resource bar", "Status effects", "Target frame", "Damage direction", "Death screen", "Character sheet", "Quest log", "Skill tree", "Key hints", "Minimap", "Compass", "Objective"])
       assert.ok(widgets.includes(w), `the HUD has a ${w}`);
-    // No hand-made text or bar standing in for a widget: the one plain text is the menu key line.
+    // The village, the sect's teacher and furnace, the shrines and the herbs are all in the world (the buildings are kit models, not boxes).
+    const names = new Set(scene.entities.map((e) => e.name));
+    for (const n of ["Instructor Hua", "Alchemy furnace", "Meditation altar", "Wayside shrine", "Merchant Lin", "Wen", "Spirit herb 1", "Tent 1", "Watchtower"])
+      assert.ok(names.has(n), `the scene has ${n}`);
+    assert.ok(!scene.entities.some((e) => /^Tent flap/.test(e.name)), "tents are models, not stacked boxes");
+    // No hand-made text or bar standing in for a widget.
     const plain = scene.entities.map((e) => e.components.UI).filter((ui) => ui && ui.kind !== "Widget");
-    assert.deepEqual(plain.map((ui) => ui.kind + ":" + ui.text), ["Text:I  Bag     C  Character     J  Journal     K  Arts     M  Map     O  Controls"]);
+    assert.deepEqual(plain, [], "every piece of HUD text is a widget");
     assert.ok(scene.entities.every((e) => !e.components.UI || e.components.UI.kind !== "Widget" || e.components.UI.style === "Minimal"), "one style across the HUD");
     assert.match(before, /Meet Elder Mu/i, "the first objective is showing");
     const qi = (s) => Number((s.match(/Qi ([\d.]+) \/ \d+/) || [])[1]);

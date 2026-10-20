@@ -448,6 +448,34 @@ const skillTree: Draw = (p, r, d, o, hits) => {
   if (shown.detail) p.text(shown.detail, x + pad, fy + 24 * s, 12, { raw: true, color: k.dim, plain: true, max: areaW });
 };
 
+// ---- Key hints ----
+
+// Text: one "KEY|Label" per line. Drawn as a single right-aligned row of key caps and labels on a plate, so the keys that open
+// the menus read as part of the HUD instead of loose text (the prompt rows of Genshin, Ghost of Tsushima and Elden Ring).
+const keyHints: Draw = (p, r, d, o) => {
+  const { k, s } = p;
+  const text = o.preview ? o.text || "I|Bag\nC|Character\nJ|Journal\nM|Map" : o.text;
+  const items = text.split("\n").map((line) => line.split("|")).filter((parts) => parts[0] && parts[1]) as [string, string][];
+  if (!items.length) return;
+  const { left: x, top: y, width: w, height: h } = r;
+  const cap = Math.min(h - 14 * s, 22 * s);
+  const size = cap / s;
+  const gap = 14 * s, inner = 7 * s, pad = 12 * s;
+  const widths = items.map(([key, label]) => Math.max(cap, p.measure(key, size * 0.55, { raw: true }) + 10 * s) + inner + p.measure(label, 12, { raw: true }));
+  const total = widths.reduce((a, b) => a + b, 0) + gap * (items.length - 1) + pad * 2;
+  const left = x + w - total;
+  backing(p, left, y, total, h);
+  p.panel(left, y, total, h);
+  let cx = left + pad;
+  items.forEach(([key, label], i) => {
+    const kw = Math.max(cap, p.measure(key, size * 0.55, { raw: true }) + 10 * s);
+    p.key(key, cx + kw / 2, y + h / 2, size);
+    p.text(label, cx + kw + inner, y + h / 2, 12, { raw: true, color: k.dim, plain: true });
+    cx += widths[i]! + gap;
+  });
+};
+
+registerDraw("Key hints", keyHints);
 registerDraw("Skill bar", skillBar);
 registerDraw("Resource bar", resourceBar);
 registerDraw("Status effects", statusEffects);

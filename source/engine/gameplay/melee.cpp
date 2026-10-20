@@ -302,7 +302,11 @@ MoveParse parse_moves(std::string_view text) {
                 ok = non_negative(move.cooldown);
             else if (key == "projectile")
                 ok = non_negative(move.projectile) && number <= 200;
-            else if (key == "track")
+            else if (key == "shape") {
+                ok = number >= 0 && number <= 5 && number == std::floor(number);
+                if (ok)
+                    move.shape = static_cast<int>(number);
+            } else if (key == "track")
                 ok = non_negative(move.track) && number <= 180;
             else if (key == "hits") {
                 ok = number >= 1 && number <= 20 && number == std::floor(number);

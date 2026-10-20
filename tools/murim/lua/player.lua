@@ -1,4 +1,5 @@
 -- @prop realm 1
+-- @prop silver 0
 -- @prop qi 0
 -- The cultivator: qi, realms, breakthroughs, qi arts and the flying sword.
 -- Hold N to meditate, B to break through (needs a Breakthrough Pill and
@@ -28,10 +29,18 @@ local flying = false
 local channel = 0            -- seconds left of a breakthrough, 0 when not attempting
 local meditating = false
 local shown = {}
+local sky = fx               -- the engine's fx (weather, time of day); `fx` below is this script's own effect ids
 local fx = {}
 local QI_ARTS = { qi_palm = true, wind_palm = true, tiger_rush = true, nine_dragons = true }
 local casting = false
 local last_move = ""
+local save_game              -- defined further down
+local air_jumps = 0            -- qinggong: jumps spent in the air since touching down
+local DAY_SECONDS = 720        -- a day in the valley lasts twelve minutes
+local day_hours = 9            -- the in-game time, 0 to 24
+local weather_left = 45        -- seconds until the weather is rolled again
+local rain = 0
+local sky_clock = 2
 local stage = 1              -- 1 early, 2 middle, 3 late, 4 peak within the realm (monotonic until the next realm)
 local STAGES = { "Early", "Middle", "Late", "Peak" }
 local tribulation = 0        -- seconds of heavenly lightning left
@@ -96,7 +105,10 @@ local function status_text()
   if channel > 0 then out[#out + 1] = string.format("Breaking through|%.1f|good|%d", channel, CHANNEL) end
   if not talking then
     local near = near_npc_name
-    if near then out[#out + 1] = "Press E: talk to " .. near .. "|0|good" end
+    if near then
+      local verb = (near == "Alchemy furnace" and "use the ") or ((near == "Wayside shrine" or near == "Meditation altar") and "pray at the ") or "talk to "
+      out[#out + 1] = "Press E: " .. verb .. near:lower():gsub("^%l", string.upper) .. "|0|good"
+    end
   end
   if tribulation > 0 then out[#out + 1] = string.format("Heavenly tribulation: keep moving|%.0f|bad|%d", tribulation, TRIBULATION) end
   if meditating then out[#out + 1] = in_vein and "Meditating at a spirit vein: x3|0|good" or "Meditating|0|good" end
@@ -115,6 +127,7 @@ local function sheet_text()
     "# Cultivation",
     string.format("bar|Qi|%.2f|%d / %d", math.min(1, qi / r.need), math.floor(qi), r.need),
     string.format("Next realm|%s", REALMS[realm + 1] and REALMS[realm + 1].name or "Peak"),
+    string.format("Time|%02d:%02d", math.floor(day_hours), math.floor(day_hours % 1 * 60)),
     "# Combat",
     string.format("Damage|x%.2f", r.damage),
     string.format("Speed|%+d%%", math.floor((r.speed - 1) * 100 + 0.5)),
@@ -124,6 +137,8 @@ local function sheet_text()
     "# Carried",
     string.format("Qi Elixirs|%d", inventory.count(self.id, "Qi Elixir")),
     string.format("Breakthrough Pills|%d", inventory.count(self.id, "Breakthrough Pill")),
+    string.format("Jade Dew Pills|%d", inventory.count(self.id, "Jade Dew Pill")),
+    string.format("Spirit Herbs|%d", inventory.count(self.id, "Spirit Herb")),
     "Body|" .. (inventory.equipped(self.id, "body") ~= "" and inventory.equipped(self.id, "body") or "none"),
   }
   return table.concat(lines, "\n")
@@ -132,7 +147,15 @@ end
 -- Talking: the Dialogue widget shows what the NPC says and numbered choices; keys 1 to 3 pick one (the widget's own
 -- numbers). Merchant Lin sells for silver; Wen has a lost cart to find.
 local TALK_RANGE = 3.6
-local PRICES = { elixir = 20, pill = 120 }
+local PRICES = { elixir = 20, pill = 120, dew = 14 }
+-- Scroll arts taught by Instructor Hua: move name, price, key, what it is.
+local ARTS = {
+  { move = "sword_qi",      name = "Sword Qi",      price = 80,  key = "5", action = "art1", info = "a crescent of sword light" },
+  { move = "thunder_lance", name = "Thunder Lance", price = 140, key = "6", action = "art2", info = "a fast bolt that staggers" },
+  { move = "flame_palm",    name = "Flame Palm",    price = 100, key = "7", action = "art3", info = "a fireball that sets foes alight" },
+}
+local arts_learned = {}
+local herbs_needed = { elixir = 3, dew = 2, pill = 8 }
 local talking = nil              -- the NPC's name while a conversation is open
 local cart_state = nil           -- nil not offered, "active", "found", "done"
 
@@ -144,14 +167,42 @@ local function say(speaker, line, choices)
   ui.set_text("Dialogue", text)
 end
 
+-- The number keys pick a reply and are also the skill keys, so mana is set aside while talking (a skill needs mana).
+local held_mana = nil
 local function close_talk()
   talking = nil
   ui.set_text("Dialogue", "")
+  if held_mana then melee.mana(held_mana) held_mana = nil end
+end
+
+local function begin_talk(name)
+  talking = name
+  local mana = melee.mana(0)
+  held_mana = mana
+  melee.mana(-mana)
 end
 
 local function merchant_root(note)
-  say("Merchant Lin", note or ("Fine wares for a traveller. You have " .. silver() .. " silver."),
-    { "Buy a Qi Elixir (" .. PRICES.elixir .. " silver)", "Buy a Breakthrough Pill (" .. PRICES.pill .. " silver)", "Leave" })
+  say("Merchant Lin", note or ("Fine wares for a traveller. You have " .. silver() .. " silver. E to leave."),
+    { "Buy a Qi Elixir (" .. PRICES.elixir .. " silver)", "Buy a Jade Dew Pill, heals (" .. PRICES.dew .. " silver)", "Buy a Breakthrough Pill (" .. PRICES.pill .. " silver)" })
+end
+
+local function hua_root(note)
+  if realm < 2 then say("Instructor Hua", "Qi arts need a body that holds qi. Come back as a Qi Gathering cultivator.", { "I understand." }) return end
+  local choices = {}
+  for _, a in ipairs(ARTS) do
+    choices[#choices + 1] = arts_learned[a.move] and (a.name .. ": learned, key " .. a.key) or (a.name .. " (" .. a.price .. " silver): " .. a.info)
+  end
+  say("Instructor Hua", note or ("A scroll holds an art; the rest is practice. You have " .. silver() .. " silver. E to leave."), choices)
+end
+
+local function furnace_root(note)
+  say("Alchemy furnace", note or ("Spirit herbs: " .. inventory.count(self.id, "Spirit Herb") .. ". Gather them from the grass; E to leave."),
+    { "Brew a Qi Elixir (" .. herbs_needed.elixir .. " herbs)", "Brew a Jade Dew Pill (" .. herbs_needed.dew .. " herbs)", "Brew a Breakthrough Pill (" .. herbs_needed.pill .. " herbs, 40 silver)" })
+end
+
+local function shrine_root(note)
+  say("Wayside shrine", note or "A quiet place. Pray here to rest, restore yourself and make this your place of return.", { "Pray and rest" })
 end
 
 local function wen_root()
@@ -168,17 +219,51 @@ end
 
 local function choose(n)
   if talking == "Merchant Lin" then
-    if n == 1 or n == 2 then
-      local item, price = n == 1 and "Qi Elixir" or "Breakthrough Pill", n == 1 and PRICES.elixir or PRICES.pill
-      if silver() < price then merchant_root("You cannot afford that. You have " .. silver() .. " silver.")
-      elseif inventory.space(self.id, item) < 1 then merchant_root("You cannot carry any more of those.")
-      else
-        inventory.remove(self.id, "Silver", price)
-        inventory.add(self.id, item, 1)
-        sound.play("coin handle")
-        merchant_root("Sold. You have " .. silver() .. " silver left.")
-      end
-    else close_talk() end
+    local item, price = table.unpack(({ { "Qi Elixir", PRICES.elixir }, { "Jade Dew Pill", PRICES.dew }, { "Breakthrough Pill", PRICES.pill } })[n])
+    if silver() < price then merchant_root("You cannot afford that. You have " .. silver() .. " silver.")
+    elseif inventory.space(self.id, item) < 1 then merchant_root("You cannot carry any more of those.")
+    else
+      inventory.remove(self.id, "Silver", price)
+      inventory.add(self.id, item, 1)
+      sound.play("coin handle")
+      merchant_root("Sold. You have " .. silver() .. " silver left.")
+    end
+  elseif talking == "Instructor Hua" then
+    local a = realm >= 2 and ARTS[n]
+    if not a then close_talk()
+    elseif arts_learned[a.move] then hua_root("You already know " .. a.name .. ": press " .. a.key .. ".")
+    elseif silver() < a.price then hua_root("The scroll costs " .. a.price .. " silver; you have " .. silver() .. ".")
+    else
+      inventory.remove(self.id, "Silver", a.price)
+      arts_learned[a.move] = true
+      melee.unlock(a.move)
+      sound.play("book open")
+      ui.set_text("Notification", a.name .. " learned\nPress " .. a.key .. " to use it.")
+      save_game()
+      hua_root("Well studied. Press " .. a.key .. " in a fight.")
+    end
+  elseif talking == "Alchemy furnace" then
+    local kind = ({ "elixir", "dew", "pill" })[n]
+    local item = ({ elixir = "Qi Elixir", dew = "Jade Dew Pill", pill = "Breakthrough Pill" })[kind]
+    local coin = kind == "pill" and 40 or 0
+    if inventory.count(self.id, "Spirit Herb") < herbs_needed[kind] then furnace_root("You need " .. herbs_needed[kind] .. " spirit herbs.")
+    elseif silver() < coin then furnace_root("The pill needs " .. coin .. " silver of rare reagents.")
+    elseif inventory.space(self.id, item) < 1 then furnace_root("You cannot carry any more of those.")
+    else
+      inventory.remove(self.id, "Spirit Herb", herbs_needed[kind])
+      if coin > 0 then inventory.remove(self.id, "Silver", coin) end
+      inventory.add(self.id, item, 1)
+      sound.play("force field")
+      furnace_root("The furnace glows: a " .. item .. ".")
+    end
+  elseif talking == "Wayside shrine" or talking == "Meditation altar" then
+    shrine_root("Rested. This is now where you return.")
+    spawn = { self.x, self.y + 0.5, self.z }
+    world.heal(self.id, 999)
+    held_mana = 999
+    save_game()
+    hud.announce("You rest. Health and mana restored; you will return here.")
+    sound.play("bell")
   elseif talking == "Wen" then
     if cart_state == nil and n == 1 then
       cart_state = "active"
@@ -196,7 +281,7 @@ local function choose(n)
 end
 
 local function near_npc()
-  for _, name in ipairs({ "Merchant Lin", "Wen" }) do
+  for _, name in ipairs({ "Merchant Lin", "Wen", "Instructor Hua", "Alchemy furnace", "Wayside shrine", "Meditation altar" }) do
     local id = world.find(name)
     if id then
       local x, _, z = world.position(id)
@@ -223,14 +308,19 @@ local function talk_tick()
     local id = world.find(talking)
     local x, _, z = world.position(id)
     if (x - self.x) ^ 2 + (z - self.z) ^ 2 > (TALK_RANGE + 2.5) ^ 2 then close_talk() return end
+    if input.action_pressed("interact") then close_talk() return end
     for n, key in ipairs({ "1", "2", "3" }) do
       if input.pressed(key) then choose(n) break end
     end
   elseif input.action_pressed("interact") then
     local name = near_npc()
     if name then
-      talking = name
-      if name == "Merchant Lin" then merchant_root() else wen_root() end
+      begin_talk(name)
+      if name == "Merchant Lin" then merchant_root()
+      elseif name == "Instructor Hua" then hua_root()
+      elseif name == "Alchemy furnace" then furnace_root()
+      elseif talking == "Wayside shrine" or talking == "Meditation altar" then shrine_root()
+      else wen_root() end
     end
   end
 end
@@ -309,6 +399,7 @@ local function learn(id)
       apply_realm(true)
       ui.set_text("Skill tree", tree_text())
       hud.announce(perk[2] .. " learned: " .. perk[8])
+      if save_game then save_game() end
       sound.play("bell")
       return
     end
@@ -388,6 +479,7 @@ local function succeed()
   objective.complete("breakthrough")
   if realm >= FLY_REALM then hud.announce("You can ride the flying sword: press V.") end
   quest_state["breakthrough"] = "done"
+  save_game()
 end
 
 -- Qi effects: a glow while meditating or casting, the Qi Palm's core and trail, and a flash for the area arts.
@@ -446,13 +538,52 @@ local function valley_map()
   add("label 14 -100 Heaven Peak")
   add("label 41 8 Lost Cart")
   add("title Azure Cloud Sect|VALLEY MAP")
-  for _, l in ipairs({ "player You", "giver Elder or quest giver", "smith Merchant Lin", "vein Spirit vein: meditate here", "target Iron Fist Elder" }) do add("legend " .. l) end
+  for _, l in ipairs({ "player You", "giver Elder or quest giver", "smith Merchant Lin", "mat Alchemy furnace", "home Shrine: rest and return", "vein Spirit vein: meditate here", "target Iron Fist Elder" }) do add("legend " .. l) end
   hud.map_layout(table.concat(lines, "\n"))
   hud.minimap(false)
-  hud.map_marker("elder", "giver", 0, 70, "", "Elder Mu")
+  hud.map_marker("elder", "giver", 3.5, 77, "", "Elder Mu")
   hud.map_marker("shrine", "target", 0, -78, "", "Iron Fist Elder")
   hud.map_marker("shop", "smith", -24, 38, "", "Merchant Lin")
+  hud.map_marker("hua", "giver", 8, 85, "", "Instructor Hua")
+  hud.map_marker("furnace", "mat", 13, 80, "", "Alchemy furnace")
+  hud.map_marker("shrine1", "home", 17, 54, "", "Wayside shrine")
   for i, v in ipairs(veins) do hud.map_marker("vein" .. i, "vein", v[1], v[2], "#7fe0ff", "Spirit vein") end
+end
+
+-- Progress is saved at shrines and altars and when something is learned: realm, qi, insight, perks, arts, what is
+-- carried and where you return to. A save from an earlier visit is loaded at the start (unless a test sets the realm).
+local CARRIED = { "Silver", "Qi Elixir", "Jade Dew Pill", "Breakthrough Pill", "Spirit Herb" }
+save_game = function()
+  local counts, keys = {}, {}
+  for _, name in ipairs(CARRIED) do counts[#counts + 1] = name .. "=" .. inventory.count(self.id, name) end
+  for id in pairs(perks_learned) do keys[#keys + 1] = id end
+  local arts = {}
+  for move in pairs(arts_learned) do arts[#arts + 1] = move end
+  save.set("azure-cloud-sect", string.format("realm=%d;stage=%d;qi=%.1f;insight=%d;spawn=%.2f,%.2f,%.2f;perks=%s;arts=%s;carried=%s",
+    realm, stage, qi, insight, spawn[1], spawn[2], spawn[3], table.concat(keys, ","), table.concat(arts, ","), table.concat(counts, ",")))
+end
+
+local function load_game()
+  local text = save.get("azure-cloud-sect")
+  if not text or text == "" then return false end
+  local f = {}
+  for k, v in text:gmatch("(%w+)=([^;]*)") do f[k] = v end
+  realm = math.max(1, math.min(#REALMS, tonumber(f.realm) or 1))
+  stage = math.max(1, math.min(4, tonumber(f.stage) or 1))
+  qi = tonumber(f.qi) or 0
+  insight = tonumber(f.insight) or insight
+  for id in (f.perks or ""):gmatch("[^,]+") do perks_learned[id] = true end
+  for move in (f.arts or ""):gmatch("[^,]+") do arts_learned[move] = true melee.unlock(move) end
+  for name, n in (f.carried or ""):gmatch("([%w ]+)=(%d+)") do
+    local have = inventory.count(self.id, name)
+    if tonumber(n) > have then inventory.add(self.id, name, tonumber(n) - have) elseif tonumber(n) < have then inventory.remove(self.id, name, have - tonumber(n)) end
+  end
+  local x, y, z = (f.spawn or ""):match("([%-%d.]+),([%-%d.]+),([%-%d.]+)")
+  if x then
+    spawn = { tonumber(x), tonumber(y), tonumber(z) }
+    world.set_position(self.id, spawn[1], spawn[2], spawn[3])
+  end
+  return true
 end
 
 function on_start()
@@ -472,7 +603,8 @@ function on_start()
   inventory.add(self.id, "Azure Robe", 1)
   inventory.equip(self.id, "body", "Azure Robe")
   inventory.add(self.id, "Qi Elixir", 3)
-  inventory.add(self.id, "Silver", 40)
+  inventory.add(self.id, "Silver", 40 + math.floor(tonumber(props.silver) or 0))
+  inventory.add(self.id, "Jade Dew Pill", 2)
   inventory.add(self.id, "Breakthrough Pill", 1)
   insight = insight + 2 * (realm - 1)
   apply_realm(true)
@@ -494,6 +626,10 @@ function on_start()
     end
   end)
   valley_map()
+  if (tonumber(props.realm) or 1) == 1 and (tonumber(props.silver) or 0) == 0 and load_game() then
+    apply_realm(true)
+    hud.announce("Progress loaded. Pray at a shrine to save again.")
+  end
   refresh()
 end
 
@@ -521,6 +657,7 @@ end
 
 function on_death()
   dead = true
+  close_talk()
   tribulation = 0
   land()
   channel = 0
@@ -592,6 +729,40 @@ function on_tick(dt)
     inventory.remove(self.id, "Qi Elixir", 1)
     qi = math.min(r.need, qi + ELIXIR_QI)
   end
+
+  -- Jade Dew Pill: a quick heal.
+  if input.action_pressed("heal") and inventory.count(self.id, "Jade Dew Pill") > 0 then
+    inventory.remove(self.id, "Jade Dew Pill", 1)
+    world.heal(self.id, 60)
+    sound.play("force field")
+  end
+
+  -- Scroll arts, once learned: keys 5, 6, 7.
+  if not flying and channel == 0 and not talking then
+    for _, a in ipairs(ARTS) do
+      if arts_learned[a.move] and input.action_pressed(a.action) then melee.perform(a.move) end
+    end
+  end
+
+  -- Qinggong: from Foundation, a second jump in the air; from Golden Core, a third.
+  local airborne = math.abs(self.vy or 0) > 0.6
+  if not airborne then air_jumps = 0
+  elseif input.action_pressed("jump") and not flying and air_jumps < realm - 2 then
+    air_jumps = air_jumps + 1
+    world.set_velocity(self.id, vx, 6.2, vz)
+    sound.play("cloth swish")
+  end
+
+  -- The day turns and the weather comes and goes (a short rain is rolled every minute or two).
+  day_hours = (day_hours + dt * 24 / DAY_SECONDS) % 24
+  weather_left = weather_left - dt
+  if weather_left <= 0 then
+    weather_left = 60 + math.random() * 90
+    rain = math.random() < 0.3 and 0.35 + math.random() * 0.3 or 0
+    sky.weather(rain, rain > 0 and 0.35 or 0.08, 1.5, 0.5)
+  end
+  sky_clock = sky_clock + dt
+  if sky_clock >= 2 then sky_clock = 0 sky.time_of_day(day_hours) end
 
   -- Breakthrough: needs full qi and a pill, then a few quiet seconds.
   if input.action_pressed("breakthrough") and channel == 0 and realm < #REALMS and qi >= r.need
