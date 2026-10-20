@@ -32,8 +32,9 @@ const { saveFailure } = require("./evidence.cjs");
     await page.waitForTimeout(600);
     await page.locator("div,li,article", { has: page.locator("text=Azure Cloud Sect") }).locator("button", { hasText: "Edit" }).last().click();
     await page.waitForFunction(() => Number(((document.querySelector("#status")?.textContent || "").match(/(\d+) entities/) || [])[1] || 0) > 100, null, { timeout: 240000 });
-    await page.getByRole("button", { name: "Stats" }).first().click();
-    await page.click("#play");
+    // The editor draws the whole valley in software on CI, so a click can wait a while for the page.
+    await page.getByRole("button", { name: "Stats" }).first().click({ timeout: 180000 });
+    await page.click("#play", { timeout: 180000 });
     await page.waitForFunction(() => document.querySelector("#status")?.dataset.mode === "play", null, { timeout: 120000 });
     await page.waitForTimeout(6000);
     const read = () => page.evaluate(() => {
