@@ -333,6 +333,21 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 310, category: "weapons", name: "Heater shield", path: "./kit/weapons/shield-heater.glb" },
   { id: 311, category: "weapons", name: "Heater shield 2", path: "./kit/weapons/shield-heater-2.glb" },
   { id: 312, category: "weapons", name: "Celtic shield", path: "./kit/weapons/shield-celtic.glb" },
+  { id: 313, category: "wuxia", name: "Pagoda hall", path: "./kit/wuxia/pagoda-hall.glb" },
+  { id: 314, category: "wuxia", name: "Pagoda tier large", path: "./kit/wuxia/pagoda-tier-large.glb" },
+  { id: 315, category: "wuxia", name: "Pagoda tier small", path: "./kit/wuxia/pagoda-tier-small.glb" },
+  { id: 316, category: "wuxia", name: "Pagoda spire", path: "./kit/wuxia/pagoda-spire.glb" },
+  { id: 317, category: "wuxia", name: "Paifang gate", path: "./kit/wuxia/paifang-gate.glb" },
+  { id: 318, category: "wuxia", name: "Pavilion", path: "./kit/wuxia/pavilion.glb" },
+  { id: 319, category: "wuxia", name: "Stone lantern", path: "./kit/wuxia/stone-lantern.glb" },
+  { id: 320, category: "wuxia", name: "Paper lantern", path: "./kit/wuxia/paper-lantern.glb" },
+  { id: 321, category: "wuxia", name: "Garden wall", path: "./kit/wuxia/garden-wall.glb" },
+  { id: 322, category: "wuxia", name: "Moon gate", path: "./kit/wuxia/moon-gate.glb" },
+  { id: 323, category: "wuxia", name: "Arched stone bridge", path: "./kit/wuxia/arched-stone-bridge.glb" },
+  { id: 324, category: "wuxia", name: "Wooden training dummy", path: "./kit/wuxia/wooden-training-dummy.glb" },
+  { id: 325, category: "wuxia", name: "Weapon rack", path: "./kit/wuxia/weapon-rack.glb" },
+  { id: 326, category: "wuxia", name: "Incense burner", path: "./kit/wuxia/incense-burner.glb" },
+  { id: 327, category: "wuxia", name: "Stele", path: "./kit/wuxia/stele.glb" },
 ];
 
 export const catalogCategories = Array.from(

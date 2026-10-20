@@ -199,7 +199,7 @@ function on_start()
   -- props.realm starts further along (for testing and demos).
   realm = math.max(1, math.min(#REALMS, math.floor(tonumber(props.realm) or 1)))
   qi = math.max(0, tonumber(props.qi) or 0)
-  world.wear("214:#6fc3dd 218:#f0e8d0")
+  world.wear("214:#eee8d8 216:#eee8d8 218:#2f7f9a 215:#3a3a44 217:#2a2a30")
   inventory.add(self.id, "Azure Robe", 1)
   inventory.equip(self.id, "body", "Azure Robe")
   inventory.add(self.id, "Qi Elixir", 3)
@@ -212,7 +212,7 @@ function on_start()
     local id = world.find(entity)
     if id then
       local x, y, z = world.position(id)
-      ui.marker(marker, x, y + 2.5, z, marker)
+      ui.marker(marker, x, y + 2.5, z)
     end
   end
   every(1, function()

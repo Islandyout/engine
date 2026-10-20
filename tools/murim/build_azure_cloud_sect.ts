@@ -14,7 +14,7 @@ import { encodeSculpt, generateHeights, sampleHeight } from "../../apps/editor/s
 import { widgetInfo } from "../../apps/editor/src/editor/uiKit";
 import { martialArtsMoves } from "../../apps/editor/src/scene/meleeMoves";
 import type { UIWidget } from "../../apps/editor/src/scene/Components";
-import { ROOT, SceneBuilder, component, rgb, vec } from "../lib/scene_kit";
+import { ROOT, SceneBuilder, component, modelId, rgb, vec } from "../lib/scene_kit";
 import type { Components, V3 } from "../lib/scene_kit";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -157,83 +157,75 @@ const stack = (name: string, x: number, y: number, z: number, size: V3, hex: str
 };
 const emissive = (hex: string, strength = 1.5) => ({ emissive: rgb(hex), emissiveIntensity: strength });
 
-// A tiered pagoda: stone terrace, a painted hall with pillars, upswept roofs.
-function pagoda(name: string, x: number, z: number, tiers: number, width: number) {
-  const y0 = ground(x, z);
-  stack(`${name} terrace`, x, y0, z, [width + 6, 1.2, width + 6], STONE);
-  let y = y0 + 1.2;
-  let w = width;
+// The wuxia kit (tools/murim/assets/make_wuxia_kit.mjs): models are placed by their origin on the ground.
+const W = (file: string) => modelId(file);
+// An invisible solid box: a collider with nothing drawn, for the parts of a model you must not walk through.
+const blocker = (name: string, x: number, z: number, size: V3, lift = 0) =>
+  scene.add(name, [x, ground(x, z) + lift + size[1] / 2, z], { Scale: { value: vec(...size) }, RigidBody: { dynamic: false }, Collider: { type: "AABB" } });
+// A building from the kit with its footprint solid: passable models (gates, pavilions) pass `solid = false` and blockers.
+const place = (name: string, file: string, x: number, z: number, yaw = 0, solid = true, scale = 1, extra: Components = {}) =>
+  scene.model(name, W(file), [x, ground(x, z), z], yaw, solid, scale, extra);
+
+// The Great Hall and the shrine: a hall with its roof, stacked tiers above it, a spire on top. `lift` is how high the
+// next piece's base sits (each tier's base is buried in the roof below).
+function pagoda(name: string, x: number, z: number, tiers: number) {
+  const base = ground(x, z);
+  scene.model(`${name} hall`, W("pagoda-hall"), [x, base, z], 0, true);
+  let y = base + 7.4;
+  const files = ["pagoda-tier-large", "pagoda-tier-small"];
   for (let t = 0; t < tiers; t++) {
-    const hall = 3.4 - t * 0.2;
-    stack(`${name} hall ${t + 1}`, x, y, z, [w, hall, w], CREAM);
-    for (const sx of [-1, 1])
-      for (const sz of [-1, 1]) stack(`${name} pillar ${t + 1}`, x + (sx * (w - 0.5)) / 2, y, z + (sz * (w - 0.5)) / 2, [0.6, hall, 0.6], RED);
-    stack(`${name} gold band ${t + 1}`, x, y + hall - 0.35, z, [w + 0.3, 0.3, w + 0.3], GOLD, false);
-    y += hall;
-    stack(`${name} roof ${t + 1}`, x, y, z, [w + 3.2, 0.5, w + 3.2], TEAL);
-    stack(`${name} roof ridge ${t + 1}`, x, y + 0.5, z, [w + 0.6, 0.45, w + 0.6], TEAL);
-    // Upturned eaves at the four corners.
-    for (const sx of [-1, 1])
-      for (const sz of [-1, 1])
-        stack(`${name} eave ${t + 1}`, x + (sx * (w + 3.2)) / 2, y + 0.3, z + (sz * (w + 3.2)) / 2, [0.7, 0.7, 0.7], TEAL, false);
-    y += 0.95;
-    w = Math.max(3, w - 2.2);
+    const file = files[Math.min(t, files.length - 1)]!;
+    scene.model(`${name} tier ${t + 1}`, W(file), [x, y, z], 0, false);
+    y += file === "pagoda-tier-large" ? 5.6 : 5.0;
   }
-  stack(`${name} finial`, x, y, z, [0.35, 2.2, 0.35], GOLD, false, emissive(GOLD, 0.4));
+  scene.model(`${name} spire`, W("pagoda-spire"), [x, y - 0.4, z], 0, false);
 }
 
-// The sect gate: red pillars, a lintel and a tiled roof, with a plaque.
-function gate(name: string, x: number, z: number, span: number) {
-  const y0 = ground(x, z);
-  for (const s of [-1, 1]) {
-    stack(`${name} base`, x + (s * span) / 2, y0, z, [1.6, 0.5, 1.6], STONE);
-    stack(`${name} pillar`, x + (s * span) / 2, y0 + 0.5, z, [0.9, 6, 0.9], RED);
-  }
-  stack(`${name} lintel`, x, y0 + 5.2, z, [span + 1.6, 0.8, 1.2], RED, false);
-  stack(`${name} plaque`, x, y0 + 4.2, z, [3.4, 0.9, 0.3], "#1a1a1a", false, emissive(GOLD, 0.15));
-  stack(`${name} roof`, x, y0 + 6.0, z, [span + 4, 0.5, 3.2], TEAL, false);
-  stack(`${name} roof top`, x, y0 + 6.5, z, [span + 1.8, 0.5, 1.8], TEAL, false);
-}
-
-// A wall run with pillars, along x or z.
+// A run of garden wall along x or z; the gap (a gate) is left open.
 function wall(name: string, x0: number, z0: number, x1: number, z1: number, gap?: { from: number; to: number }) {
   const length = Math.hypot(x1 - x0, z1 - z0);
-  const steps = Math.ceil(length / 4);
+  const steps = Math.round(length / 4);
+  const alongX = Math.abs(x1 - x0) > Math.abs(z1 - z0);
   for (let i = 0; i < steps; i++) {
     const t = (i + 0.5) / steps;
     const x = x0 + (x1 - x0) * t;
     const z = z0 + (z1 - z0) * t;
-    if (gap && (x0 === x1 ? z : x) > gap.from && (x0 === x1 ? z : x) < gap.to) continue;
-    const alongX = Math.abs(x1 - x0) > Math.abs(z1 - z0);
-    solid(`${name} ${i + 1}`, x, z, alongX ? [length / steps + 0.1, 2.4, 0.7] : [0.7, 2.4, length / steps + 0.1], CREAM);
-    solid(`${name} cap ${i + 1}`, x, z, alongX ? [length / steps + 0.3, 0.35, 1.0] : [1.0, 0.35, length / steps + 0.3], TEAL, { lift: 2.4, look: {} });
+    const at = alongX ? x : z;
+    if (gap && at > gap.from && at < gap.to) continue;
+    place(`${name} ${i + 1}`, "garden-wall", x, z, alongX ? 0 : Math.PI / 2, true, length / steps / 4.2);
   }
 }
 
 // -------------------------------------------------------------- the sect --
 {
   const { x, z } = SECT;
-  pagoda("Great Hall", x, z - 12, 3, 9);
-  pagoda("East Pavilion", x + 20, z - 4, 2, 5);
-  pagoda("West Pavilion", x - 20, z - 4, 2, 5);
-  gate("Sect Gate", x, z + 14, 8);
-  wall("Sect wall W", x - 22, z + 14, x - 4, z + 14);
-  wall("Sect wall E", x + 4, z + 14, x + 22, z + 14);
-  wall("Sect wall N W", x - 22, z - 24, x - 22, z + 14);
-  wall("Sect wall N E", x + 22, z - 24, x + 22, z + 14);
-  // Training ground: dummies and weapon racks.
-  for (const [i, dx] of [-14, -11, -8].entries())
-    scene.box(`Training Dummy ${i + 1}`, [x + dx, ground(x + dx, z + 4) + 0.9, z + 4], [0.6, 1.8, 0.6], "#a67c52", {
+  pagoda("Great Hall", x, z - 14, 2);
+  // The gate: four pillars to walk between, a stele and incense in the yard, lanterns lining the way.
+  place("Sect Gate", "paifang-gate", x, z + 16, 0, false);
+  for (const px of [-5.2, -1.9, 1.9, 5.2]) blocker("Gate pillar", x + px, z + 16, [0.9, 6, 0.9]);
+  wall("Sect wall W", x - 24, z + 16, x - 7, z + 16);
+  wall("Sect wall E", x + 7, z + 16, x + 24, z + 16);
+  wall("Sect wall W side", x - 24, z - 24, x - 24, z + 16);
+  wall("Sect wall E side", x + 24, z - 24, x + 24, z + 16);
+  wall("Sect wall back", x - 24, z - 24, x + 24, z - 24);
+  place("Incense burner", "incense-burner", x, z - 3, 0, true);
+  place("Stele", "stele", x - 9, z + 11, 0.3, true);
+  place("Stele", "stele", x + 9, z + 11, -0.3, true);
+  for (const [px, pz] of [[-17, -6], [17, -6]] as const) {
+    place("Pavilion", "pavilion", x + px, z + pz, 0, false);
+    for (const [dx, dz] of [[-2.7, -2.7], [2.7, -2.7], [-2.7, 2.7], [2.7, 2.7]] as const) blocker("Pavilion pillar", x + px + dx, z + pz + dz, [0.6, 4, 0.6]);
+  }
+  place("Moon gate", "moon-gate", x - 24, z - 8, Math.PI / 2, false);
+  // Training ground: wooden dummies that heal what you do to them, and a weapon rack.
+  for (const [i, dx] of [-15, -12, -9].entries())
+    place(`Training Dummy ${i + 1}`, "wooden-training-dummy", x + dx, z + 5, 0.4, true, 1, {
       Health: { current: 9999, maximum: 9999 },
       Script: { source: "function on_damaged(amount) world.heal(self.id, amount) end", props: {} },
     });
-  // Lanterns along the approach.
-  for (const dz of [-2, 4, 10])
-    for (const s of [-1, 1]) {
-      stack("Lantern post", x + s * 5, ground(x + s * 5, z + dz), z + dz, [0.25, 2.6, 0.25], "#3a2a22", false);
-      stack("Lantern", x + s * 5, ground(x + s * 5, z + dz) + 2.6, z + dz, [0.45, 0.6, 0.45], "#c8372a", false, emissive("#ff5a3a", 1.4));
-    }
-  for (const s of [-1, 1]) scene.model("Banner", 179, [x + s * 8, ground(x + s * 8, z + 12), z + 11.5], 0, false, 1.6);
+  place("Weapon rack", "weapon-rack", x - 12, z + 9, 0, true);
+  // Stone lanterns along the approach.
+  for (const dz of [-4, 2, 8, 13])
+    for (const s of [-1, 1]) place("Stone lantern", "stone-lantern", x + s * 5.5, z + dz, 0, true, 1.1);
 }
 
 // ---------------------------------------------------------- the elder NPC --
@@ -244,7 +236,7 @@ scene.add("Elder Mu", [SECT.x + 1, ground(SECT.x + 1, SECT.z - 1) + 0.9, SECT.z 
   Material: { color: rgb("#ecdcc8"), roughness: 0.8, keepTextures: false },
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
-  Script: { source: lua("elder.lua"), props: { gear: "214:#f2eee0 216:#d8d2c0 215:#d8d2c0 217:#8a7a5a" } },
+  Script: { source: lua("elder.lua"), props: { gear: "214:#f4f0e4 216:#e6e0cc 218:#d8b46a 215:#e6e0cc 217:#8a7a5a" } },
 });
 
 // --------------------------------------------------- the bandit camp --
@@ -296,7 +288,10 @@ for (const [i, [dx, dz]] of [[-3, -5], [5, -2], [-2, 6], [6, 5]].entries())
 // ---------------------------------------------------- the shrine and boss --
 {
   const { x, z } = SHRINE;
-  pagoda("Shrine", x, z - 8, 2, 7);
+  pagoda("Shrine", x, z - 10, 1);
+  place("Shrine gate", "paifang-gate", x, z + 14, 0, false);
+  for (const px of [-5.2, -1.9, 1.9, 5.2]) blocker("Shrine gate pillar", x + px, z + 14, [0.9, 6, 0.9]);
+  place("Shrine incense burner", "incense-burner", x, z - 1, 0, true);
   for (const s of [-1, 1]) {
     stack("Shrine pillar", x + s * 9, ground(x + s * 9, z + 4), z + 4, [1.1, 7, 1.1], RED);
     stack("Shrine brazier", x + s * 5, ground(x + s * 5, z + 6), z + 6, [0.9, 1.1, 0.9], "#2d2a28", true, emissive("#ff7a2a", 0.4));
