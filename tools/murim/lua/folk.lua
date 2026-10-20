@@ -93,10 +93,10 @@ function render(note)
       say(name, note or (dest and ("To " .. dest.label .. ".") or "You have not found a shrine to ride to."), dest and { "Ride there (10 silver)", "Another place", "Back" } or { "Back" })
     end
   elseif name == "Disciple Lan" then
-    say(name, note or (lan_following and "Lead on, senior." or "I could walk with you, if you like."), { lan_following and "Wait here." or "Walk with me.", "Spar with me", "Never mind" })
+    say(name, note or (lan_following and "Lead on, senior. Meditate beside me and we will cultivate together." or "I could walk with you, if you like."), { lan_following and "Wait here." or "Walk with me.", "Spar with me", "Never mind" })
   elseif is_shrine(name) then
     if node == "root" then
-      say(name, note or "A quiet place. Pray here to rest and make it your place of return, or ride on to another shrine.", { "Pray and rest", "Travel to another shrine", "Change robes" })
+      say(name, note or "A quiet place. Pray here to rest and make it your place of return, or ride on to another shrine.", { "Pray and rest", "Travel to another shrine", "Change appearance" })
     elseif node == "travel" then
       local list = discovered()
       local dest = list[travel_at]
@@ -210,7 +210,7 @@ function choose(n)
         world.send(p, "rest", string.format("%.2f,%.2f,%.2f", sx + 2.2, sy + 1.2, sz + 2.2))
         render("Rested. This is now where you return.")
       elseif n == 2 then node, travel_at = "travel", 1 render()
-      else world.send(p, "robe", "next") render("The robes change.") end
+      else end_talk() world.send(p, "mirror", "1") end
     elseif node == "travel" then
       local list = discovered()
       if n == 1 and list[travel_at] then travel_to(list[travel_at], nil)
@@ -221,6 +221,7 @@ function choose(n)
 end
 
 function on_message(name, value)
+  if name == "lang" then set_language(value) return end
   if name == "realm" then realm = tonumber(value) or realm
   elseif name == "arts" then for move in tostring(value):gmatch("[^,]+") do arts[move] = true end
   elseif name == "affinity" then affinity = tostring(value)
@@ -234,6 +235,13 @@ function on_tick(dt)
   clock = clock + dt
   local p = player_id()
   if not p then return end
+  -- Dual cultivation: Lan at your side, close enough, shares your meditation (the Player reads this flag).
+  partner_clock = (partner_clock or 0) - dt
+  if partner_clock <= 0 then
+    partner_clock = 0.5
+    local d = lan_following and distance_to("Disciple Lan") or nil
+    world.send(p, "partner", (d and d < 4) and "1" or "0")
+  end
   -- The cart is found by walking up to it.
   if cart == "active" then
     local d = distance_to("Lost Cart")

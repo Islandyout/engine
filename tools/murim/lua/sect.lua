@@ -277,6 +277,7 @@ local function on_slain(name)
 end
 
 function on_message(name, value)
+  if name == "lang" then set_language(value) return end
   value = tostring(value)
   if name == "journal" then journal_quests = value
   elseif name == "slain" then on_slain(value)

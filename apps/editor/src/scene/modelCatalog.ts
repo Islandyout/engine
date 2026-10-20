@@ -374,6 +374,12 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 351, category: "wuxia", name: "Altar table", path: "./kit/wuxia/altar-table.glb" },
   { id: 352, category: "wuxia", name: "Bookshelf", path: "./kit/wuxia/bookshelf.glb" },
   { id: 353, category: "wuxia", name: "Tea table", path: "./kit/wuxia/tea-table.glb" },
+  // Robed bodies (tools/murim/assets/make_robes.mjs): skinned to the people rig, worn with world.wear.
+  { id: 354, category: "gear", name: "Gear: long skirt", path: "./kit/people/gear-skirt.glb" },
+  { id: 355, category: "gear", name: "Gear: outer robe", path: "./kit/people/gear-robe.glb" },
+  { id: 356, category: "gear", name: "Hair: topknot", path: "./kit/people/hair-knot.glb" },
+  { id: 357, category: "gear", name: "Hair: long", path: "./kit/people/hair-long.glb" },
+  { id: 358, category: "gear", name: "Hat: scholar", path: "./kit/people/hat-scholar.glb" },
 ];
 
 export const catalogCategories = Array.from(

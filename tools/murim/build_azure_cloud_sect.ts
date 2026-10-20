@@ -20,6 +20,11 @@ import type { Components, V3 } from "../lib/scene_kit";
 const here = dirname(fileURLToPath(import.meta.url));
 const lua = (file: string) => readFileSync(join(here, "lua", file), "utf8");
 const scene = new SceneBuilder();
+// A robed body: the long skirt piece in the gear's own colours, and hair (people.ts gear ids 354-358).
+const robed = (gear: string, hair = "356:#1c1618") => {
+  const col = (id: number) => new RegExp(`${id}:(#[0-9a-fA-F]{6})`).exec(gear)?.[1] ?? "#d8d0bc";
+  return `${gear} 354:${/218:#/.test(gear) ? col(218) : col(216)} ${hair}`;
+};
 
 // ---------------------------------------------------------------- terrain --
 const TERRAIN = { size: 240, resolution: 121, height: 16, seed: 23, frequency: 0.9, octaves: 5 };
@@ -271,7 +276,7 @@ scene.add("Instructor Hua", [SECT.x + 8, ground(SECT.x + 8, SECT.z + 7) + 0.9, S
   Material: { color: rgb("#e6d2bc"), roughness: 0.8, keepTextures: false },
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
-  Script: { source: lua("elder.lua").replace("local spoken = false", "local spoken = true"), props: { gear: "214:#2f4f6a 216:#2a3a4a 218:#c9a24a 215:#d8d0bc 217:#2a2a30" } },
+  Script: { source: lua("elder.lua").replace("local spoken = false", "local spoken = true"), props: { gear: robed("214:#2f4f6a 216:#2a3a4a 218:#c9a24a 215:#d8d0bc 217:#2a2a30") } },
 });
 
 // ---------------------------------------------------------- the elder NPC --
@@ -282,7 +287,7 @@ scene.add("Elder Mu", [SECT.x + 3.5, ground(SECT.x + 3.5, SECT.z - 1) + 0.9, SEC
   Material: { color: rgb("#ecdcc8"), roughness: 0.8, keepTextures: false },
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
-  Script: { source: lua("elder.lua"), props: { gear: "214:#f4f0e4 216:#e6e0cc 218:#d8b46a 215:#e6e0cc 217:#8a7a5a" } },
+  Script: { source: lua("elder.lua"), props: { gear: robed("214:#f4f0e4 216:#e6e0cc 218:#d8b46a 215:#e6e0cc 217:#8a7a5a", "357:#d8d8d8") } },
 });
 
 // --------------------------------------------------- the bandit camp --
@@ -429,8 +434,8 @@ const VEINS: [number, number][] = [[-30, 52], [36, 24], [-44, -32], [8, -60]];
       Collider: {},
       Script: { source: lua("elder.lua").replace("local spoken = false", "local spoken = true"), props: { gear } },
     });
-  villager("Merchant Lin", x - 1, z + 3.5, 0, "214:#8a5a2a 216:#5a4430 218:#c9a24a 215:#e6d0a0 217:#3a2a22", "#ecdcc8");
-  villager("Wen", x + 6, z + 2, -1.6, "214:#5a7a5a 216:#4a4a3a 215:#3a3a3a 217:#3a2a22", "#e6d2bc");
+  villager("Merchant Lin", x - 1, z + 3.5, 0, robed("214:#8a5a2a 216:#5a4430 218:#c9a24a 215:#e6d0a0 217:#3a2a22", "358:#2a2a34 356:#1c1618"), "#ecdcc8");
+  villager("Wen", x + 6, z + 2, -1.6, "214:#5a7a5a 216:#4a4a3a 215:#3a3a3a 217:#3a2a22 356:#3a2a1c", "#e6d2bc");
 }
 // Spirit herbs grow in the grass off the paths: pick them (hold E) and brew them at the furnace.
 {
@@ -462,7 +467,7 @@ const SYSTEMS = [
   { name: "Valley", files: ["items.lua", "talk.lua", "valley.lua"] },
   { name: "Folk", files: ["items.lua", "talk.lua", "folk.lua"] },
 ];
-SYSTEMS.forEach(({ name, files }, i) => scene.add(name, [i * 2, -40, 4], { Script: { source: files.map((f) => lua(f)).join("\n"), props: name === "Valley" ? { intro: process.env.MURIM_NOINTRO ? 0 : 1 } : {} } }));
+SYSTEMS.forEach(({ name, files }, i) => scene.add(name, [i * 2, -40, 4], { Script: { source: ["lang.lua", ...files].map((f) => lua(f)).join("\n"), props: name === "Valley" ? { intro: process.env.MURIM_NOINTRO ? 0 : 1, mirror: process.env.MURIM_MIRROR ? 1 : 0 } : {} } }));
 
 // ----------------------------------------------------- more of the valley --
 const SECT_FRONT = SECT.z - 14; // the Great Hall's centre
@@ -489,7 +494,7 @@ const HALL_DOOR_Z = SECT_FRONT + hallBounds.max[2]! + 0.6;
       Script: { source: lua(script).replace("local spoken = false", "local spoken = true"), props: { gear } },
       ...extra,
     });
-  person("Stablemaster Gu", 132, -38, 45, -2.4, "214:#6a4a2a 216:#4a3a2a 218:#b08a4a 215:#2a2a2a 217:#3a2a22", "#e2cdb4", "elder.lua");
+  person("Stablemaster Gu", 132, -38, 45, -2.4, robed("214:#6a4a2a 216:#4a3a2a 218:#b08a4a 215:#2a2a2a 217:#3a2a22", "358:#6a4a2a"), "#e2cdb4", "elder.lua");
   scene.add("Spirit Fox", [-37.5, ground(-37.5, 47.5) + 0.5, 47.5], {
     Scale: { value: vec(0.45, 0.6, 0.9) },
     Renderable: { mesh: 240, material: 0, visible: true },
@@ -508,7 +513,7 @@ scene.add("Disciple Lan", [SECT.x - 6, ground(SECT.x - 6, SECT.z + 3) + 0.9, SEC
   Collider: {},
   Health: { current: 160, maximum: 160 },
   Melee: { team: 0, ai: true, aggression: 0.6, skill: 0.5, poise: 40, breakTime: 2 },
-  Script: { source: lua("companion.lua"), props: { kind: "lan", gear: "214:#3a6a8a 216:#e8e4d0 218:#d8c070 215:#3a3a3a 217:#2a2a2a" } },
+  Script: { source: lua("companion.lua"), props: { kind: "lan", gear: robed("214:#3a6a8a 216:#e8e4d0 218:#d8c070 215:#3a3a3a 217:#2a2a2a", "357:#1c1618") } },
 });
 // The Spirit Guardian the Spirit Guardian art calls: a pale ally fighter that follows you for twenty-five seconds.
 const guardianParts = fighterParts({ hex: "#9fe8ff", health: 140, melee: { team: 0, aggression: 0.7, skill: 0.6 }, props: { gear: "214:#7fd0e8 216:#7fd0e8 215:#7fd0e8 217:#7fd0e8" } });
@@ -594,8 +599,8 @@ for (const [i, [wx, wz]] of [[52, 18], [58, 26], [-52, -44], [-60, -50]].entries
       Melee: { team, ai: true, aggression: 0.5, skill: 0.5 },
       Script: { source: lua("sparring.lua"), props: { gear } },
     });
-  sparrer("Sparring Disciple A", SECT.x - 4, SECT.z + 12, 5, Math.PI / 2, "214:#3a6a8a 216:#e8e4d0 218:#d8c070 215:#3a3a3a 217:#2a2a2a");
-  sparrer("Sparring Disciple B", SECT.x - 1.4, SECT.z + 12, 6, -Math.PI / 2, "214:#8a4a3a 216:#e8e4d0 218:#d8c070 215:#3a3a3a 217:#2a2a2a");
+  sparrer("Sparring Disciple A", SECT.x - 4, SECT.z + 12, 5, Math.PI / 2, robed("214:#3a6a8a 216:#e8e4d0 218:#d8c070 215:#3a3a3a 217:#2a2a2a"));
+  sparrer("Sparring Disciple B", SECT.x - 1.4, SECT.z + 12, 6, -Math.PI / 2, robed("214:#8a4a3a 216:#e8e4d0 218:#d8c070 215:#3a3a3a 217:#2a2a2a"));
   const farmer = (name: string, mesh: number, x: number, z: number, stops: string) =>
     scene.add(name, [x, ground(x, z) + 0.9, z], {
       Scale: { value: vec(0.6, 1.8, 0.6) },
@@ -776,6 +781,7 @@ scene.add("Player", spawn, {
   Scale: { value: vec(0.6, 1.8, 0.6) },
   Rotation: { euler: vec(0, Number(process.env.MURIM_YAW ?? Math.PI), 0) },
   Renderable: { mesh: 132, material: 0, visible: true },
+  Material: { color: rgb("#e6cdb0"), roughness: 0.8, keepTextures: false },
   Player: {},
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
@@ -789,7 +795,7 @@ scene.add("Player", spawn, {
     weights: "Qi Elixir=0.2, Breakthrough Pill=0.2, Jade Dew Pill=0.2, Spirit Herb=0.05, Silver=0.01, Azure Robe=2",
     stats: "Azure Robe: slot=body armor=10\nJade Charm: health=25\nIron Gloves: slot=hands damage=10",
   },
-  Script: { source: lua("player.lua").replace("--@STANCES@", STANCE_TABLE), props: process.env.MURIM_REALM ? { realm: Number(process.env.MURIM_REALM), qi: Number(process.env.MURIM_QI ?? 0), silver: Number(process.env.MURIM_SILVER ?? 0) } : {} },
+  Script: { source: lua("lang.lua") + "\n" + lua("player.lua").replace("--@STANCES@", STANCE_TABLE), props: process.env.MURIM_REALM ? { realm: Number(process.env.MURIM_REALM), qi: Number(process.env.MURIM_QI ?? 0), silver: Number(process.env.MURIM_SILVER ?? 0) } : {} },
 });
 scene.add("Camera", [spawn[0], spawn[1] + 3, spawn[2] + 6], {
   Camera: { fov: 60, far: 700 },

@@ -216,6 +216,7 @@ local function pick(id)
 end
 
 function on_message(name, value)
+  if name == "lang" then set_language(value) return end
   if name == "open" then open(tostring(value))
   elseif name == "discount" then discount = tonumber(value) or 0
   elseif name == "standing" then rep_good = tonumber(value) or 0 end

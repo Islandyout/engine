@@ -50,6 +50,8 @@ local held_mana, talking_now = nil, false
 local ward, formation = nil, nil                -- a Ward Talisman's soak; a planted array flag
 local perks_learned, meridians_learned = {}, {}
 local arts_learned, affinity, robe = {}, "", 1
+local hair, cut, creating = 1, 1, false
+local partner, dual_time = false, 0
 local guardian_cd, fire_cd = 0, 0
 local stance, bow_dry, bow_move = "fists", false, ""
 local effects, dot_acc = {}, 0
@@ -164,7 +166,21 @@ local ROBES = {
   { "Ink",     "214:#2a2a34 216:#1e1e26 218:#c9a24a 215:#16161c 217:#16161c" },
   { "Saffron", "214:#d89a3a 216:#f0e6c8 218:#8f2d2d 215:#3a3a3a 217:#2a2a2a" },
 }
-local function dress() world.wear(ROBES[robe][2]) end
+local HAIRS = { { "Topknot", "356:#1c1618" }, { "Long", "357:#1c1618" }, { "Scholar's cap", "356:#1c1618 358:#2a2a34" }, { "Shaven", "" } }
+local CUTS = { { "Tunic", "" }, { "Long robe", "354:%s 355:%s" } }
+local function dress()
+  local spec = ROBES[robe][2]
+  local top = spec:match("214:(#%x+)") or "#eeeeee"
+  local tint = spec:match("218:(#%x+)") or spec:match("216:(#%x+)") or top
+  spec = spec .. " " .. HAIRS[hair][2] .. " " .. CUTS[cut][2]:format(tint, top)
+  world.wear(spec)
+end
+
+-- The mirror: robe colour, hair, cut and language, changed live while the Dialogue panel is up. E ends it.
+local function mirror_text()
+  ui.set_text("Dialogue", "Mirror: E when you are happy with how you look.\n> Robe: " .. ROBES[robe][1] .. "\n> Hair: " .. HAIRS[hair][1]
+    .. "\n> Cut: " .. CUTS[cut][1] .. "\n> Language: " .. (LANG == "zh" and "中文" or "English"))
+end
 
 local function status_text()
   local r = REALMS[realm]
@@ -172,7 +188,7 @@ local function status_text()
   if channel > 0 then out[#out + 1] = string.format("Breaking through|%.1f|good|%d", channel, CHANNEL) end
   if not talking_now and prompt_left > 0 then out[#out + 1] = "Press E: " .. prompt_text .. "|0|good" end
   if tribulation > 0 then out[#out + 1] = string.format("Heavenly tribulation: keep moving|%.0f|bad|%d", tribulation, TRIBULATION) end
-  if meditating then out[#out + 1] = (in_vein and "Meditating at a spirit vein: x3|0|good") or (formation and "Meditating in an array: x2|0|good") or "Meditating|0|good" end
+  if meditating then out[#out + 1] = (in_vein and "Meditating at a spirit vein: x3|0|good") or (formation and "Meditating in an array: x2|0|good") or (partner and "Dual cultivation with Lan: x1.8|0|good") or "Meditating|0|good" end
   if flying then out[#out + 1] = "Flying sword|0|good" end
   for name, e in pairs(effects) do out[#out + 1] = string.format("%s|%.0f|bad|%.0f", AFFLICTIONS[name].label, e.left, e.max) end
   if ward then out[#out + 1] = string.format("Ward: %d|%.0f|good|20", ward.absorb, ward.left) end
@@ -465,8 +481,8 @@ save_game = function()
   local counts, worn = {}, {}
   for _, name in ipairs(CARRIED) do local n = inventory.count(self.id, name) if n > 0 then counts[#counts + 1] = name .. "=" .. n end end
   for _, slot in ipairs(WORN) do local w = inventory.equipped(self.id, slot) if w ~= "" then worn[#worn + 1] = slot .. "=" .. w end end
-  save.set("azure-cloud-sect", string.format("realm=%d;stage=%d;qi=%.1f;insight=%d;spawn=%.2f,%.2f,%.2f;perks=%s;mer=%s;arts=%s;aff=%s;robe=%d;carried=%s;worn=%s",
-    realm, stage, qi, insight, spawn[1], spawn[2], spawn[3], keys_of(perks_learned), keys_of(meridians_learned), keys_of(arts_learned), affinity, robe, table.concat(counts, ";"), table.concat(worn, ";")))
+  save.set("azure-cloud-sect", string.format("realm=%d;stage=%d;qi=%.1f;insight=%d;spawn=%.2f,%.2f,%.2f;perks=%s;mer=%s;arts=%s;aff=%s;robe=%d;hair=%d;cut=%d;carried=%s;worn=%s",
+    realm, stage, qi, insight, spawn[1], spawn[2], spawn[3], keys_of(perks_learned), keys_of(meridians_learned), keys_of(arts_learned), affinity, robe, hair, cut, table.concat(counts, ";"), table.concat(worn, ";")))
 end
 
 local function load_game()
@@ -483,6 +499,8 @@ local function load_game()
   for move in (f.arts or ""):gmatch("[^,]+") do arts_learned[move] = true if move ~= "guardian" then melee.unlock(move) end end
   affinity = f.aff or ""
   robe = math.max(1, math.min(#ROBES, tonumber(f.robe) or 1))
+  hair = math.max(1, math.min(#HAIRS, tonumber(f.hair) or 1))
+  cut = math.max(1, math.min(#CUTS, tonumber(f.cut) or 1))
   return true, f
 end
 
@@ -573,6 +591,7 @@ function on_message(name, value)
   if name == "kill" then qi = math.min(REALMS[realm].need, qi + (tonumber(value) or 20))
   elseif name == "qi" then qi = math.min(REALMS[realm].need, qi + (tonumber(value) or 0))
   elseif name == "slain" then send("Sect", "slain", value)
+  elseif name == "partner" then partner = value == "1"
   elseif name == "insight" then insight = insight + (tonumber(value) or 1)
   elseif name == "hours" then day_hours = tonumber(value) or day_hours
   elseif name == "inside" then
@@ -605,6 +624,13 @@ function on_message(name, value)
     save_game()
     hud.announce("You rest. Health and mana restored; you will return here.")
     sound.play("bell")
+  elseif name == "mirror" then
+    if value == "1" and not creating then
+      creating = true
+      if not held_mana then held_mana = melee.mana(0) melee.mana(-held_mana) end
+      talking_now = true
+      mirror_text()
+    end
   elseif name == "robe" then
     robe = robe % #ROBES + 1
     dress()
@@ -727,6 +753,31 @@ function on_tick(dt)
   prompt_left = prompt_left - dt
   if dead then audio_tick(dt) return end
   clock = clock + dt
+  if creating then
+    local changed = false
+    for n, key in ipairs({ "1", "2", "3", "4" }) do
+      if input.pressed(key) and clock_total - (last_press["m" .. key] or -1) > 0.3 then
+        last_press["m" .. key] = clock_total
+        changed = true
+        if n == 1 then robe = robe % #ROBES + 1
+        elseif n == 2 then hair = hair % #HAIRS + 1
+        elseif n == 3 then cut = cut % #CUTS + 1
+        else
+          set_language(LANG == "zh" and "en" or "zh")
+          shown = {}
+          for _, system in ipairs({ "Sect", "Valley", "Folk", "Economy" }) do local id = world.find(system) if id then world.send(id, "lang", LANG) end end
+        end
+      end
+    end
+    if changed then dress() mirror_text() end
+    if tapped("interact") then
+      creating = false
+      ui.set_text("Dialogue", "")
+      if held_mana then melee.mana(held_mana) held_mana = nil end
+      talking_now = false
+      save_game()
+    end
+  end
   fire_cd, guardian_cd = math.max(0, fire_cd - dt), math.max(0, guardian_cd - dt)
   audio_tick(dt)
   if deviation > 0 then deviation = math.max(0, deviation - dt) end
@@ -748,7 +799,11 @@ function on_tick(dt)
     elseif (formation.x - self.x) ^ 2 + (formation.z - self.z) ^ 2 < 36 then array = true end
   end
   if meditating and qi < r.need then
-    qi = math.min(r.need, qi + MEDITATE_QI * (1 + total_of("med")) * (deviation > 0 and 0.4 or 1) * (in_vein and VEIN_BONUS or array and 2 or 1) * dt)
+    qi = math.min(r.need, qi + MEDITATE_QI * (1 + total_of("med")) * (deviation > 0 and 0.4 or 1) * (in_vein and VEIN_BONUS or array and 2 or 1) * (partner and 1.8 or 1) * dt)
+    if partner then
+      dual_time = dual_time + dt
+      if dual_time >= 40 then dual_time = 0 insight = insight + 1 hud.announce("Dual cultivation: your bond with Lan deepens. Insight +1") end
+    end
     if qi >= 20 then objective.complete("gather-qi") end
     send("Sect", "codex", "qi")
   end

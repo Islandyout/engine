@@ -2,6 +2,7 @@
 -- between shrines, doors into the hall and the cave, the lake's fishing, and the introduction. Other scripts ask it things
 -- with world.send(valley, name, value).
 -- @prop intro 1
+-- @prop mirror 0
 local sky = fx
 local player
 local day_hours = 9
@@ -49,6 +50,7 @@ end
 
 -- ---- Messages
 function on_message(name, value)
+  if name == "lang" then set_language(value) return end
   value = tostring(value)
   if name == "travel" then
     local pos, label = value:match("^([^|]+)|(.*)$")
@@ -149,6 +151,14 @@ local function watch_bag()
   end
 end
 
+local intro_open = false
+-- The look of the character is chosen once, when the opening shots end (or are skipped with Enter or Space).
+local function open_mirror()
+  if not intro_open then return end
+  intro_open = false
+  world.send(world.find("Player"), "mirror", "1")
+end
+
 function on_start()
   me()
   local text = save.get("azure-cloud-sect-valley")
@@ -163,7 +173,11 @@ function on_start()
         .. "-6 18 -16 > -6 3 4 | Below, a bandit camp has closed the road. | | 4\n"
         .. "0 34 -52 > 0 10 -78 | And at the foot of Heaven Peak, a shrine, and the guardian who will not let you pass. | | 5")
     end)
+    -- After the shots, the mirror: the look of the character is chosen before the first step.
+    intro_open = true
+    after(24, function() open_mirror() end)
   end
+  if (tonumber(props.mirror) or 0) > 0 then after(1.5, function() world.send(world.find("Player"), "mirror", "1") end) end
   audio.ambience("wind", 0.4)
   -- Started inside a room (a test, a saved game): the lighting and sound follow.
   after(0.3, function()
@@ -181,6 +195,7 @@ end
 
 function on_tick(dt)
   tap_tick(dt)
+  if intro_open and (input.pressed("enter") or input.pressed("space")) then after(0.5, open_mirror) end
   clock = clock + dt
   if not me() then return end
   day_hours = (day_hours + dt * 24 / DAY_SECONDS) % 24

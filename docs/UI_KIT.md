@@ -1,6 +1,6 @@
 # The UI kit
 
-Ready-made game UI. There are 36 widgets in six styles, so a game doesn't start from plain text.
+Ready-made game UI. There are 38 widgets in six styles, so a game doesn't start from plain text.
 
 - **What a widget is**: a `UI` component with `kind: "Widget"`, a `widget` name and a `style`.
 - **The code**: `apps/editor/src/editor/uiKit.ts`.
@@ -80,6 +80,8 @@ Eight widgets for games with abilities, status and a journal. Most are **script-
 | Quest log | The journal: the active goal highlighted, finished ones ticked | `Title`, then `state\|Title\|Detail` (state `active`, `done` or `todo`) | The Witcher 3, Skyrim, Genshin |
 | Skill tree | Passive perks linked by what they need; learned, available (click to learn) and locked | `Title`, a subtitle, then `node\|id\|Name\|state\|col\|row\|requires\|cost\|icon\|Detail` lines (state `learned`, `available` or `locked`); a click sends `node:<id>` | Path of Exile, Skyrim, Elden Ring |
 | Key hints | One right-aligned plate of key caps and labels for the menu keys (I Bag, C Character...) | One `KEY\|Label` per line | Genshin, Ghost of Tsushima, Elden Ring prompts |
+| Shop window | A list window to buy, sell or craft from, with tabs | `Title`, a subtitle, an optional `tabs\|1\|A\|B`, then `row\|id\|Name\|icon\|right\|state\|Detail` lines (state `ok`, `locked`, `sold`); a click sends `pick:<id>` | Skyrim barter, Diablo vendors |
+| Quick slots | Consumables on keys, with counts | One `KEY\|icon\|count\|Label` per line | Souls-likes, Diablo belt |
 
 - Give the sheets `visibleWhen: toggle` and a `toggleKey` (`KeyC`, `KeyJ`) so a key opens them.
 - `on_ui("objective", "start:<id>")` and `"complete:<id>"` tell a script what the Objectives did, so a quest log can mirror them.

@@ -1,6 +1,6 @@
 # Azure Cloud Sect: what a game like this needs
 
-An all-encompassing list, built from the reference screens in `tools/ui_refs` (action RPG HUDs, menus, maps) and from what wuxia and cultivation action games do. **Have** means in the slice and checked; **Added** means built in the pass that wrote this list; **Gap** means still missing; **Partly** means some of the row is built. Each gap is listed with the engine work it would take.
+An all-encompassing list, built from the reference screens in `tools/ui_refs` (action RPG HUDs, menus, maps) and from what wuxia and cultivation action games do. **Have** means in the slice and checked; **Added** means built in the pass that wrote this list; **Gap** means still missing. Each gap is listed with the engine work it would take.
 
 ## Combat
 
@@ -37,7 +37,7 @@ An all-encompassing list, built from the reference screens in `tools/ui_refs` (a
 | Elements and affinities (fire, lightning, wind) tied to arts | Added | Arts exist; no affinity system |
 | Formations, talismans, spirit beasts | Added | |
 | Sect rank, contribution points, a mission board | Added | Needs a board widget and rotating missions |
-| Companions and dual cultivation | Partly | Companions (Lan, the fox) done; dual cultivation not built |
+| Companions and dual cultivation | Added | Lan and the fox follow; meditating beside Lan is dual cultivation (x1.8, insight over time) |
 
 ## World
 
@@ -101,6 +101,6 @@ An all-encompassing list, built from the reference screens in `tools/ui_refs` (a
 | Save and load | Added | One slot, in `save.set` |
 | Settings and key list | Have | Esc |
 | Music and ambience by place and danger | Have | Synthesized; no recorded score |
-| Localisation | Gap | Strings are in the scripts |
-| Multiple characters or a character creator | Gap | One body, tinted gear |
-| Better NPC bodies and clothing (robes, hair, faces) | Gap | The mannequin plus gear parts looks thin; needs a robed character model |
+| Localisation | Added | `lang.lua`: HUD words and announcements look up a Chinese table (the mirror switches language); the kit's own labels and some long lines stay English |
+| Multiple characters or a character creator | Added | The mirror after the opening shots: robe colour, hair, cut and language, saved |
+| Better NPC bodies and clothing (robes, hair, faces) | Added | Skinned robe, skirt, hair and cap pieces on the people rig, skin tone on the Player; faces are still blank |
