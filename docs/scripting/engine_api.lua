@@ -449,6 +449,11 @@ function melee.set_ai(on, aggression, skill) end
 ---@return number?
 function melee.unlock(move) end
 
+--- Makes a move unusable again (a stance switch, a spent art); 1 when the move exists.
+---@param move string
+---@return number?
+function melee.relock(move) end
+
 --- Its poise bar 0-1, and 1 while it's Broken.
 ---@return number, number
 function melee.stagger() end

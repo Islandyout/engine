@@ -554,6 +554,12 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "melee"
   },
   {
+    "name": "melee.relock",
+    "signature": "melee.relock(move: string): number?",
+    "doc": "Makes a move unusable again (a stance switch, a spent art); 1 when the move exists.",
+    "group": "melee"
+  },
+  {
     "name": "melee.stagger",
     "signature": "melee.stagger(): number, number",
     "doc": "Its poise bar 0-1, and 1 while it's Broken.",

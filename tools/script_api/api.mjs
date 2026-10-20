@@ -86,6 +86,7 @@ export const builtins = [
   ["melee", "target", "(): integer?", "Who it faces and fights."],
   ["melee", "set_ai", "(on: boolean, aggression?: number, skill?: number)", "Hands the fighter to (or takes it from) its melee brain."],
   ["melee", "unlock", "(move: string): number?", "Makes a move marked locked usable; 1 when the move exists."],
+  ["melee", "relock", "(move: string): number?", "Makes a move unusable again (a stance switch, a spent art); 1 when the move exists."],
   ["melee", "stagger", "(): number, number", "Its poise bar 0-1, and 1 while it's Broken."],
   ["melee", "mana", "(add?: number): number, number", "Adds mana (a potion; capped at the max) and returns its mana and max."],
   ["melee", "follow", "(leader?: integer, slot?: integer)", "Makes this AI fighter an ally of the leader: with no hostile within reach it walks to its slot (0 left, 1 right, 2 behind) and won't chase hostiles more than 16 m from the leader; nil stops it."],

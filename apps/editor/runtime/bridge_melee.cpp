@@ -621,6 +621,11 @@ bool BridgeHost::melee(engine::World &world, engine::Entity self, const std::str
         if (index >= 0 && static_cast<std::size_t>(index) < state.locked.size())
             state.locked[static_cast<std::size_t>(index)] = 0;
         out = {index >= 0 ? 1.0 : 0.0};
+    } else if (op == "relock") {
+        const int index = move_index(fighter->moves, text);
+        if (index >= 0 && static_cast<std::size_t>(index) < state.locked.size())
+            state.locked[static_cast<std::size_t>(index)] = 1;
+        out = {index >= 0 ? 1.0 : 0.0};
     } else if (op == "stagger") {
         out = {fighter->settings.poise > 0 ? state.stagger / fighter->settings.poise : 0.0,
                state.broken > 0 ? 1.0 : 0.0};
