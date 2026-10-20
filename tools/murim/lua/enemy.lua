@@ -2,11 +2,13 @@
 -- @prop qi 25
 -- @prop drop 0
 -- @prop pill 0
+-- @prop silver 0
 -- A bandit or the shrine guardian: qi for the Player when defeated, and sometimes an elixir.
 function on_death(attacker)
   local player = world.find("Player")
   if not player then return end
   world.send(player, "kill", tonumber(props.qi) or 25)
+  if (tonumber(props.silver) or 0) > 0 then inventory.add(player, "Silver", tonumber(props.silver)) end
   if (props.drop or 0) > 0 then inventory.add(player, "Qi Elixir", props.drop) end
   if (props.pill or 0) > 0 then
     inventory.add(player, "Breakthrough Pill", props.pill)

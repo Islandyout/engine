@@ -19,6 +19,7 @@ local VEIN_BONUS = 3
 local veins = {}             -- {x, z} of each Spirit Vein
 local in_vein = false
 local ELIXIR_QI = 60
+local TRIBULATION = 12       -- seconds of lightning when entering Foundation or higher
 local CHANNEL = 3            -- seconds a breakthrough takes
 
 local realm = 1
@@ -31,6 +32,10 @@ local fx = {}
 local QI_ARTS = { qi_palm = true, wind_palm = true, tiger_rush = true, nine_dragons = true }
 local casting = false
 local last_move = ""
+local stage = 1              -- 1 early, 2 middle, 3 late, 4 peak within the realm (monotonic until the next realm)
+local STAGES = { "Early", "Middle", "Late", "Peak" }
+local tribulation = 0        -- seconds of heavenly lightning left
+local next_strike = 0
 local deviation = 0          -- seconds left of a qi deviation (meditation is slower)
 local dead = false
 local spawn = { 0, 0, 0 }
@@ -56,19 +61,26 @@ end
 
 local function apply_realm(first)
   local r = REALMS[realm]
-  melee.tune(r.damage, r.speed, r.crit, -1, r.health, r.mana)
+  melee.tune(r.damage * (1 + 0.05 * (stage - 1)), r.speed, r.crit, -1, r.health, r.mana)
   for move in r.unlock:gmatch("[%w_]+") do melee.unlock(move) end
   if not first then world.heal(self.id, r.health) end
 end
+
+local near_npc_name = nil     -- set each tick: the NPC within talking range
 
 local function status_text()
   local r = REALMS[realm]
   local out = {}
   if channel > 0 then out[#out + 1] = string.format("Breaking through|%.1f|good|%d", channel, CHANNEL) end
+  if not talking then
+    local near = near_npc_name
+    if near then out[#out + 1] = "Press E: talk to " .. near .. "|0|good" end
+  end
+  if tribulation > 0 then out[#out + 1] = string.format("Heavenly tribulation: keep moving|%.0f|bad|%d", tribulation, TRIBULATION) end
   if meditating then out[#out + 1] = in_vein and "Meditating at a spirit vein: x3|0|good" or "Meditating|0|good" end
   if flying then out[#out + 1] = "Flying sword|0|good" end
   if deviation > 0 then out[#out + 1] = string.format("Qi deviation|%.0f|bad|12", deviation) end
-  if realm < #REALMS and qi >= r.need and channel <= 0 then
+  if realm < #REALMS and qi >= r.need and channel <= 0 and tribulation <= 0 then
     out[#out + 1] = inventory.count(self.id, "Breakthrough Pill") > 0 and "Qi is full: press B|0|good" or "Qi is full: needs a Breakthrough Pill|0|neutral"
   end
   return table.concat(out, "\n")
@@ -95,9 +107,117 @@ local function sheet_text()
   return table.concat(lines, "\n")
 end
 
+-- Talking: the Dialogue widget shows what the NPC says and numbered choices; keys 1 to 3 pick one (the widget's own
+-- numbers). Merchant Lin sells for silver; Wen has a lost cart to find.
+local TALK_RANGE = 3.6
+local PRICES = { elixir = 20, pill = 120 }
+local talking = nil              -- the NPC's name while a conversation is open
+local cart_state = nil           -- nil not offered, "active", "found", "done"
+
+local function silver() return inventory.count(self.id, "Silver") end
+
+local function say(speaker, line, choices)
+  local text = speaker .. ": " .. line
+  for _, c in ipairs(choices) do text = text .. "\n> " .. c end
+  ui.set_text("Dialogue", text)
+end
+
+local function close_talk()
+  talking = nil
+  ui.set_text("Dialogue", "")
+end
+
+local function merchant_root(note)
+  say("Merchant Lin", note or ("Fine wares for a traveller. You have " .. silver() .. " silver."),
+    { "Buy a Qi Elixir (" .. PRICES.elixir .. " silver)", "Buy a Breakthrough Pill (" .. PRICES.pill .. " silver)", "Leave" })
+end
+
+local function wen_root()
+  if cart_state == nil then
+    say("Wen", "Bandits took my cart on the road. It was last seen near the old watchtower. Could you look?", { "I will look for it.", "Not now." })
+  elseif cart_state == "active" then
+    say("Wen", "Any sign of my cart?", { "Still looking." })
+  elseif cart_state == "found" then
+    say("Wen", "My cart! Thank you. Take this, it is all I have.", { "Accept the reward" })
+  else
+    say("Wen", "The valley is safer with you in it.", { "Farewell." })
+  end
+end
+
+local function choose(n)
+  if talking == "Merchant Lin" then
+    if n == 1 or n == 2 then
+      local item, price = n == 1 and "Qi Elixir" or "Breakthrough Pill", n == 1 and PRICES.elixir or PRICES.pill
+      if silver() < price then merchant_root("You cannot afford that. You have " .. silver() .. " silver.")
+      elseif inventory.space(self.id, item) < 1 then merchant_root("You cannot carry any more of those.")
+      else
+        inventory.remove(self.id, "Silver", price)
+        inventory.add(self.id, item, 1)
+        sound.play("coin")
+        merchant_root("Sold. You have " .. silver() .. " silver left.")
+      end
+    else close_talk() end
+  elseif talking == "Wen" then
+    if cart_state == nil and n == 1 then
+      cart_state = "active"
+      ui.set_text("Notification", "Side quest\nFind Wen's cart near the old watchtower.")
+      wen_root()
+    elseif cart_state == "found" and n == 1 then
+      cart_state = "done"
+      inventory.add(self.id, "Silver", 60)
+      inventory.add(self.id, "Qi Elixir", 2)
+      ui.set_text("Notification", "Side quest complete\n60 silver and 2 Qi Elixirs.")
+      wen_root()
+    else close_talk() end
+  end
+end
+
+local function near_npc()
+  for _, name in ipairs({ "Merchant Lin", "Wen" }) do
+    local id = world.find(name)
+    if id then
+      local x, _, z = world.position(id)
+      if (x - self.x) ^ 2 + (z - self.z) ^ 2 < TALK_RANGE ^ 2 then return name end
+    end
+  end
+  return nil
+end
+
+local function talk_tick()
+  -- The cart is found by walking up to it.
+  if cart_state == "active" then
+    local cart = world.find("Lost Cart")
+    if cart then
+      local x, _, z = world.position(cart)
+      if (x - self.x) ^ 2 + (z - self.z) ^ 2 < 25 then
+        cart_state = "found"
+        ui.set_text("Notification", "Side quest\nYou found Wen's cart. Return to him.")
+      end
+    end
+  end
+  if talking then
+    -- Walking away ends the conversation.
+    local id = world.find(talking)
+    local x, _, z = world.position(id)
+    if (x - self.x) ^ 2 + (z - self.z) ^ 2 > (TALK_RANGE + 2.5) ^ 2 then close_talk() return end
+    for n, key in ipairs({ "1", "2", "3" }) do
+      if input.pressed(key) then choose(n) break end
+    end
+  elseif input.action_pressed("interact") then
+    local name = near_npc()
+    if name then
+      talking = name
+      if name == "Merchant Lin" then merchant_root() else wen_root() end
+    end
+  end
+end
+
 local function journal_text()
   local lines = { "Journal" }
   for _, q in ipairs(QUESTS) do lines[#lines + 1] = (quest_state[q[1]] or "todo") .. "|" .. q[2] .. "|" .. q[3] end
+  if cart_state then
+    lines[#lines + 1] = (cart_state == "done" and "done" or "active") .. "|Wen's cart|" .. (cart_state == "active" and "Find Wen's cart near the old watchtower." or cart_state == "found" and "You found it. Return to Wen." or "Returned to Wen.")
+  end
   return table.concat(lines, "\n")
 end
 
@@ -118,7 +238,7 @@ end
 
 local function refresh()
   local r = REALMS[realm]
-  set_text("Qi bar", string.format("%s\nQi %d / %d\n#7fe0d4", r.name, math.floor(qi), r.need))
+  set_text("Qi bar", string.format("%s · %s\nQi %d / %d\n#7fe0d4", r.name, STAGES[stage], math.floor(qi), r.need))
   set_value("Qi bar", math.min(1, qi / r.need))
   set_text("Status", status_text())
   local target, health = target_text()
@@ -147,11 +267,38 @@ local function fail_breakthrough()
   camera.shake(0.5, 0.5)
 end
 
+-- Entering Foundation or higher, the heavens answer: for a few seconds a ring marks where lightning will strike (where
+-- you stand) and a moment later it does. Step out of the ring.
+local function begin_tribulation()
+  channel = 0
+  tribulation = TRIBULATION
+  next_strike = 1.5
+  ui.set_text("Notification", "Heavenly tribulation\nLightning gathers. Keep moving!")
+  hud.announce("Heavenly tribulation! Keep moving and stay out of the red rings.")
+  sound.play("force-field")
+  camera.shake(0.4, 0.6)
+end
+
+local function strike_at(x, y, z)
+  local mark = world.find("Qi Mark")
+  if mark then world.send(mark, "at", string.format("%.2f,%.2f,%.2f,1.4", x, y - 0.8, z)) end
+  after(1.4, function()
+    if dead or tribulation <= 0 then return end
+    local burst = world.find("Qi Burst")
+    if burst then world.send(burst, "at", string.format("%.2f,%.2f,%.2f", x, y, z)) end
+    camera.shake(0.7, 0.4)
+    sound.play("explosion")
+    if (self.x - x) ^ 2 + (self.z - z) ^ 2 < 9 then world.damage(self.id, REALMS[realm].health * 0.22) end
+  end)
+end
+
 local function succeed()
   channel = 0
   inventory.remove(self.id, "Breakthrough Pill", 1)
   realm = realm + 1
+  stage = 1
   qi = 0
+  tribulation = 0
   apply_realm(false)
   ui.set_text("Notification", "Breakthrough!\nYou have entered the " .. REALMS[realm].name .. " realm.")
   hud.announce("Breakthrough! You are now in the " .. REALMS[realm].name .. " realm.")
@@ -217,6 +364,7 @@ function on_start()
   inventory.add(self.id, "Azure Robe", 1)
   inventory.equip(self.id, "body", "Azure Robe")
   inventory.add(self.id, "Qi Elixir", 3)
+  inventory.add(self.id, "Silver", 40)
   inventory.add(self.id, "Breakthrough Pill", 1)
   apply_realm(true)
   spawn = { self.x, self.y + 0.5, self.z }
@@ -263,6 +411,7 @@ end
 
 function on_death()
   dead = true
+  tribulation = 0
   land()
   channel = 0
   meditating = false
@@ -294,6 +443,8 @@ end
 function on_tick(dt)
   if dead then return end
   clock = clock + dt
+  near_npc_name = near_npc()
+  talk_tick()
   if deviation > 0 then deviation = math.max(0, deviation - dt) end
   local r = REALMS[realm]
   local vx, vz = self.vx, self.vz
@@ -314,6 +465,14 @@ function on_tick(dt)
     if (v[1] - self.x) ^ 2 + (v[2] - self.z) ^ 2 < VEIN_RADIUS * VEIN_RADIUS then in_vein = true break end
   end
 
+  -- Stages within a realm: each quarter of the qi bar is a stage, and each is a little stronger.
+  local reached = math.min(4, math.floor(qi / r.need * 4) + 1)
+  if reached > stage then
+    stage = reached
+    apply_realm(true)
+    ui.set_text("Notification", r.name .. "\n" .. STAGES[stage] .. " stage reached")
+  end
+
   -- Qi Elixir.
   if input.action_pressed("elixir") and inventory.count(self.id, "Qi Elixir") > 0 and qi < r.need then
     inventory.remove(self.id, "Qi Elixir", 1)
@@ -330,8 +489,19 @@ function on_tick(dt)
     if not still then fail_breakthrough()
     else
       channel = channel - dt
-      if channel <= 0 then succeed() end
+      if channel <= 0 then if realm >= 2 then begin_tribulation() else succeed() end end
     end
+  end
+
+  -- The tribulation's lightning.
+  if tribulation > 0 then
+    tribulation = tribulation - dt
+    next_strike = next_strike - dt
+    if next_strike <= 0 and tribulation > 1.6 then
+      next_strike = 2.2
+      strike_at(self.x, self.y, self.z)
+    end
+    if tribulation <= 0 and not dead then succeed() end
   end
 
   -- The flying sword.

@@ -46,7 +46,9 @@ const SHRINE = { x: 0, z: -78 }; // the guardian's shrine
 // Heaven Peak and two crags (x, z, height, spread): a skyline to walk towards.
 const PEAKS: [number, number, number, number][] = [[14, -118, 78, 26], [-58, -70, 30, 14], [64, -40, 26, 12]];
 const roadX = (z: number) => 9 * Math.sin(z / 34); // the road meanders
+const VILLAGE = { x: -24, z: 38 }; // Willow Village: a merchant, Wen, three houses
 const pads = [
+  { ...VILLAGE, r: 12, h: average(VILLAGE.x, VILLAGE.z, 8) },
   { ...SECT, r: 24, h: average(SECT.x, SECT.z, 16) },
   { ...CAMP, r: 20, h: average(CAMP.x, CAMP.z, 12) },
   { ...SHRINE, r: 22, h: average(SHRINE.x, SHRINE.z, 12) + 2 },
@@ -118,6 +120,7 @@ scene.add("Environment", [0, -40, 0], {
 
 const clearing = (x: number, z: number, r: number) => [x - r, z - r, x + r, z + r];
 const exclusions = [
+  clearing(VILLAGE.x, VILLAGE.z, 17),
   clearing(roadX(54) + 8, 54, 9),
   clearing(36, -4, 14),
   clearing(-44, -18, 12),
@@ -305,14 +308,14 @@ const SPEAR_MOVES = [
 ].join("\n") + "\n";
 const ADEPT_MOVES = ["qi_bolt: clip=energy_throw input=light dur=1.1 hit=0.45-0.5 cancel=0.8 dmg=8 projectile=13 knock=3 stun=0.4 limb=hand_r", ROLL].join("\n") + "\n";
 const SKIN = ["#e6d2bc", "#d9c4aa", "#e2cdb4", "#d4bfa6", "#dccab4"];
-const BANDITS = [
-  { name: "Bandit Brawler", at: [-9, -9], health: 80, qi: 30, drop: 0, gear: "214:#6b4a3a 216:#3a3228 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.35, skill: 0.2 } },
-  { name: "Bandit Swordsman", at: [-3, -11], health: 95, qi: 35, drop: 1, gear: "214:#5a5a42 216:#3a3a2a 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.45, skill: 0.3, style: "Sword", rightHand: 205 } },
-  { name: "Bandit Spearman", at: [6, -2], health: 105, qi: 40, drop: 0, gear: "214:#7a3d3d 216:#3a2a2a 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.5, skill: 0.35, style: "Custom", moves: SPEAR_MOVES, rightHand: 208 } },
-  { name: "Bandit Qi Adept 1", at: [-4, 8], health: 60, qi: 45, drop: 1, gear: "214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.4, skill: 0.4, style: "Custom", moves: ADEPT_MOVES, range: 9 } },
-  { name: "Bandit Qi Adept 2", at: [8, 7], health: 60, qi: 45, drop: 1, gear: "214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.4, skill: 0.4, style: "Custom", moves: ADEPT_MOVES, range: 9 } },
+const BANDITS: { name: string; at: number[]; health: number; qi: number; drop: number; silver: number; gear: string; melee: Components }[] = [
+  { name: "Bandit Brawler", at: [-9, -9], health: 80, qi: 30, drop: 0, silver: 12, gear: "214:#6b4a3a 216:#3a3228 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.35, skill: 0.2 } },
+  { name: "Bandit Swordsman", at: [-3, -11], health: 95, qi: 35, drop: 1, silver: 15, gear: "214:#5a5a42 216:#3a3a2a 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.45, skill: 0.3, style: "Sword", rightHand: 205 } },
+  { name: "Bandit Spearman", at: [6, -2], health: 105, qi: 40, drop: 0, silver: 18, gear: "214:#7a3d3d 216:#3a2a2a 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.5, skill: 0.35, style: "Custom", moves: SPEAR_MOVES, rightHand: 208 } },
+  { name: "Bandit Qi Adept 1", at: [-4, 8], health: 60, qi: 45, drop: 1, silver: 20, gear: "214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.4, skill: 0.4, style: "Custom", moves: ADEPT_MOVES, range: 9 } },
+  { name: "Bandit Qi Adept 2", at: [8, 7], health: 60, qi: 45, drop: 1, silver: 20, gear: "214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.4, skill: 0.4, style: "Custom", moves: ADEPT_MOVES, range: 9 } },
 ];
-BANDITS.forEach((b, i) => fighter(b.name, CAMP.x + b.at[0]!, CAMP.z + b.at[1]!, { hex: SKIN[i]!, health: b.health, melee: b.melee, props: { qi: b.qi, drop: b.drop, gear: b.gear }, yaw: 0 }));
+BANDITS.forEach((b, i) => fighter(b.name, CAMP.x + b.at[0]!, CAMP.z + b.at[1]!, { hex: SKIN[i]!, health: b.health, melee: b.melee, props: { qi: b.qi, drop: b.drop, silver: b.silver, gear: b.gear }, yaw: 0 }));
 
 // ---------------------------------------------------- the shrine and boss --
 {
@@ -373,6 +376,34 @@ const VEINS: [number, number][] = [[-30, 52], [36, 24], [-44, -32], [8, -60]];
   });
 }
 
+// --------------------------------------------------------- Willow Village --
+// A safe place off the road: a merchant who sells elixirs and pills for silver, and Wen, whose cart the bandits took
+// (it is by the old watchtower). Both are talked to with E; the dialogue is driven from player.lua.
+{
+  const { x, z } = VILLAGE;
+  place("Village house", "pagoda-hall", x - 8, z - 4, 0.3, true, 0.55);
+  place("Village house", "pagoda-hall", x + 8, z - 5, -0.3, true, 0.55);
+  place("Village house", "pagoda-hall", x + 1, z + 9, 3.0, true, 0.55);
+  place("Market stall rack", "weapon-rack", x - 2, z + 1, 0, true);
+  place("Market incense", "incense-burner", x + 2.5, z + 1, 0, true, 0.7);
+  for (const [dx, dz] of [[-5, 4], [5, 4], [-5, -3], [5, -2]] as const) place("Village lantern", "stone-lantern", x + dx, z + dz, 0, true);
+  for (const [dx, dz] of [[-11, 6], [12, 4], [-9, 11]] as const) place("Village bamboo", "bamboo-clump", x + dx, z + dz, dx, false);
+  const villager = (name: string, vx: number, vz: number, yaw: number, gear: string, hex: string) =>
+    scene.add(name, [vx, ground(vx, vz) + 0.9, vz], {
+      Scale: { value: vec(0.6, 1.8, 0.6) },
+      Rotation: { euler: vec(0, yaw, 0) },
+      Renderable: { mesh: 132, material: 0, visible: true },
+      Material: { color: rgb(hex), roughness: 0.8, keepTextures: false },
+      RigidBody: { mass: 70, dynamic: true },
+      Collider: {},
+      Script: { source: lua("elder.lua").replace("local spoken = false", "local spoken = true"), props: { gear } },
+    });
+  villager("Merchant Lin", x - 1, z + 3.5, 0, "214:#8a5a2a 216:#5a4430 218:#c9a24a 215:#e6d0a0 217:#3a2a22", "#ecdcc8");
+  villager("Wen", x + 6, z + 2, -1.6, "214:#5a7a5a 216:#4a4a3a 215:#3a3a3a 217:#3a2a22", "#e6d2bc");
+}
+// Wen's cart, abandoned near the watchtower.
+place("Lost Cart", "crates-stacked", 41, 0, 0.5, true);
+
 // ---------------------------------------------------- wildlife in the valley --
 for (const [i, [x, z]] of [[28, 30], [-34, 44], [22, -30], [-30, -40]].entries())
   scene.add(`Deer ${i + 1}`, [x!, ground(x!, z!) + 0.5, z!], {
@@ -409,7 +440,7 @@ scene.add("Player", spawn, {
   Inventory: {
     slots: 24,
     maxWeight: 30,
-    weights: "Qi Elixir=0.2, Breakthrough Pill=0.2, Azure Robe=2",
+    weights: "Qi Elixir=0.2, Breakthrough Pill=0.2, Silver=0.01, Azure Robe=2",
     stats: "Azure Robe: slot=body armor=10\nJade Charm: health=25\nIron Gloves: slot=hands damage=10",
   },
   Script: { source: lua("player.lua"), props: process.env.MURIM_REALM ? { realm: Number(process.env.MURIM_REALM), qi: Number(process.env.MURIM_QI ?? 0) } : {} },
@@ -504,6 +535,7 @@ widget("Damage numbers", "Damage numbers", style);
 widget("Boss bar", "Boss bar", style);
 widget("Notification", "Notification", style);
 widget("Interact prompt", "Interact prompt", style);
+widget("Dialogue", "Dialogue", { ...style, anchor: "bottom-center", offsetY: -MARGIN_Y - 176, width: 660, height: 150, text: "" });
 widget("Inventory", "Inventory", { ...style, anchor: "center", visibleWhen: "toggle", toggleKey: "KeyI" });
 widget("Character sheet", "Character sheet", { ...style, anchor: "center", width: 440, height: 440, visibleWhen: "toggle", toggleKey: "KeyC", text: "Cultivator\nMortal realm" });
 widget("Quest log", "Quest log", { ...style, anchor: "center", width: 480, height: 360, visibleWhen: "toggle", toggleKey: "KeyJ", text: "Journal" });
@@ -521,6 +553,7 @@ const TEAL_GLOW = rgb("#7fe0d4");
 fxEmitter("Qi Aura", "aura", { preset: "Sparkle", color: TEAL_GLOW, endColor: rgb("#1c6e8a"), rate: 0, lifetime: 1.1, speed: 0.9, size: 0.1, endSize: 0.2, gravityScale: -0.15, shape: "Sphere", shapeSize: 0.7, space: "World" });
 fxEmitter("Qi Bolt", "bolt", { preset: "Sparkle", color: rgb("#e8fffb"), endColor: rgb("#2aa8c4"), rate: 90, lifetime: 0.35, speed: 0.4, size: 0.2, endSize: 0.1, gravityScale: 0, shape: "Sphere", shapeSize: 0.12, space: "World" });
 fxEmitter("Qi Burst", "burst", { preset: "Sparkle", color: rgb("#ffffff"), endColor: rgb("#3fc5d8"), rate: 0, lifetime: 0.6, speed: 6, size: 0.16, endSize: 0.05, gravityScale: 0.2, shape: "Sphere", shapeSize: 0.3, space: "World" });
+fxEmitter("Qi Mark", "mark", { preset: "Sparkle", color: rgb("#ff5a4a"), endColor: rgb("#ffb347"), rate: 70, lifetime: 0.7, speed: 0.15, size: 0.2, endSize: 0.05, gravityScale: 0, shape: "Sphere", shapeSize: 3, space: "World" });
 fxEmitter("Qi Burn", "burn", { preset: "Fire", color: rgb("#9ff0ff"), endColor: rgb("#ff7a2a"), rate: 40, lifetime: 0.7, speed: 1.4, size: 0.22, endSize: 0.5, gravityScale: -0.3, shape: "Sphere", shapeSize: 0.5, space: "World" });
 
 const out = process.env.MURIM_OUT ?? join(ROOT, "games/my-games/azure-cloud-sect/scene.json");
