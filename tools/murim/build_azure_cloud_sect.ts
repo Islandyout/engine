@@ -293,13 +293,26 @@ const fighter = (name: string, x: number, z: number, opts: { mesh?: number; hex:
     Script: { source: lua("enemy.lua"), props: opts.props },
   });
 };
-for (const [i, [dx, dz]] of [[-3, -5], [5, -2], [-2, 6], [6, 5]].entries())
-  fighter(`Bandit ${i + 1}`, CAMP.x + dx!, CAMP.z + dz!, {
-    hex: ["#e6d2bc", "#d9c4aa", "#e2cdb4", "#d4bfa6"][i]!,
-    health: 90 + i * 15,
-    melee: { aggression: 0.4 + i * 0.1, skill: 0.25 + i * 0.1, style: i % 2 ? "Sword" : "Martial arts", rightHand: i % 2 ? 205 : 0 },
-    props: { qi: 35, drop: i % 2, gear: ["214:#6b4a3a 216:#3a3228 215:#2a2a2a 217:#2a2a2a", "214:#5a5a42 216:#3a3a2a 215:#2a2a2a 217:#2a2a2a", "214:#7a3d3d 216:#3a2a2a 215:#2a2a2a 217:#2a2a2a", "214:#4a4a5a 216:#2a2a34 215:#2a2a2a 217:#2a2a2a"][i]! },
-  });
+// Four kinds of bandit, each reading differently so a fight has something to learn: a brawler (fists, quick light
+// strings), a swordsman (a balanced blade), a spearman (long thrusts and a slow sweep to read and dodge) and
+// qi adepts (stay back and throw qi). All are Mortals; the first two are at the camp's edge, so the road opens with a
+// fair two-on-one before the rest take notice.
+const ROLL = "roll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis";
+const SPEAR_MOVES = [
+  "thrust: clip=sword_light_a input=light dur=0.75 hit=0.22-0.3 cancel=0.4 dmg=9 reach=2.2 radius=0.5 lunge=1.3 stun=0.4 limb=hand_r",
+  "sweep: clip=sword_heavy_a input=heavy dur=1.2 hit=0.35-0.45 cancel=0.7 dmg=14 reach=2.0 radius=1.1 knock=4 stun=0.6 armor limb=hand_r",
+  ROLL,
+].join("\n") + "\n";
+const ADEPT_MOVES = ["qi_bolt: clip=energy_throw input=light dur=1.1 hit=0.45-0.5 cancel=0.8 dmg=8 projectile=13 knock=3 stun=0.4 limb=hand_r", ROLL].join("\n") + "\n";
+const SKIN = ["#e6d2bc", "#d9c4aa", "#e2cdb4", "#d4bfa6", "#dccab4"];
+const BANDITS = [
+  { name: "Bandit Brawler", at: [-9, -9], health: 80, qi: 30, drop: 0, gear: "214:#6b4a3a 216:#3a3228 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.35, skill: 0.2 } },
+  { name: "Bandit Swordsman", at: [-3, -11], health: 95, qi: 35, drop: 1, gear: "214:#5a5a42 216:#3a3a2a 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.45, skill: 0.3, style: "Sword", rightHand: 205 } },
+  { name: "Bandit Spearman", at: [6, -2], health: 105, qi: 40, drop: 0, gear: "214:#7a3d3d 216:#3a2a2a 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.5, skill: 0.35, style: "Custom", moves: SPEAR_MOVES, rightHand: 208 } },
+  { name: "Bandit Qi Adept 1", at: [-4, 8], health: 60, qi: 45, drop: 1, gear: "214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.4, skill: 0.4, style: "Custom", moves: ADEPT_MOVES, range: 9 } },
+  { name: "Bandit Qi Adept 2", at: [8, 7], health: 60, qi: 45, drop: 1, gear: "214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.4, skill: 0.4, style: "Custom", moves: ADEPT_MOVES, range: 9 } },
+];
+BANDITS.forEach((b, i) => fighter(b.name, CAMP.x + b.at[0]!, CAMP.z + b.at[1]!, { hex: SKIN[i]!, health: b.health, melee: b.melee, props: { qi: b.qi, drop: b.drop, gear: b.gear }, yaw: 0 }));
 
 // ---------------------------------------------------- the shrine and boss --
 {
@@ -443,7 +456,7 @@ scene.add("Quests", [0, -40, 0], {
       "meet-elder | Meet Elder Mu | Speak with the elder inside the sect gate. | reach Elder Mu 5 |",
       "gather-qi | Gather qi | Stand still and hold M to meditate. | script |",
       "breakthrough | Break through | Fill your qi bar, then press B with a Breakthrough Pill. | script |",
-      "bandits | Clear the road | Defeat the four bandits in the valley camp. | kill Bandit 4 |",
+      "bandits | Clear the road | Defeat the five bandits in the valley camp. | kill Bandit 5 |",
       "guardian | Face the guardian | Climb to the shrine and defeat the Iron Fist Elder. | kill Iron Fist 1 |",
     ].join("\n"),
   },

@@ -4537,13 +4537,13 @@
    }
   },
   {
-   "name": "Bandit 1",
+   "name": "Bandit Brawler",
    "components": {
     "Transform": {
      "position": {
-      "x": -9,
-      "y": 1.472924867272377,
-      "z": -1
+      "x": -15,
+      "y": 1.4757904648780822,
+      "z": -5
      }
     },
     "Scale": {
@@ -4603,16 +4603,16 @@
      "bounciness": 0
     },
     "Health": {
-     "current": 90,
-     "maximum": 90
+     "current": 80,
+     "maximum": 80
     },
     "Melee": {
      "style": "Martial arts",
      "moves": "# Punches (light): jab, cross, hook, uppercut\njab: clip=jab input=light dur=0.55 hit=0.10-0.16 cancel=0.2 dmg=6 reach=0.9 lunge=0.25 stun=0.3 limb=hand_l\ncross: clip=cross input=light after=jab dur=0.62 hit=0.15-0.22 cancel=0.26 dmg=8 reach=1.0 lunge=0.3 stun=0.35 limb=hand_r\nhook: clip=hook input=light after=cross dur=0.72 hit=0.15-0.23 cancel=0.32 dmg=10 reach=1.0 lunge=0.35 knock=2.5 stun=0.4 limb=hand_r\nuppercut: clip=uppercut input=light after=hook dur=0.78 hit=0.18-0.28 cancel=0.45 dmg=13 reach=0.9 lunge=0.3 launch=7.5 knock=1 stun=0.6 stop=0.1 limb=hand_r\n# Kicks: front kick, roundhouse, side kick (alternating legs)\nfront_kick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=10 reach=1.25 height=0.55 lunge=0.4 knock=3.5 stun=0.4 limb=foot_r\nroundhouse: clip=roundhouse_l input=kick after=front_kick|jab|cross dur=0.9 hit=0.38-0.48 cancel=0.6 dmg=14 reach=1.3 height=0.8 lunge=0.35 knock=4.5 stun=0.5 stop=0.09 limb=foot_l\nside_kick: clip=side_kick_r input=kick after=roundhouse|hook dur=0.92 hit=0.30-0.40 cancel=0.62 dmg=16 reach=1.45 height=0.65 lunge=0.35 knock=8 stun=0.7 stop=0.11 knockdown finisher limb=foot_r\n# Heavies\npower_hook: clip=hook input=heavy dur=0.95 hit=0.22-0.32 cancel=0.55 dmg=15 reach=1.05 lunge=0.5 knock=4.5 stun=0.55 stop=0.1 armor limb=hand_r\nlauncher: clip=uppercut input=heavy after=jab|cross dur=0.85 hit=0.2-0.3 cancel=0.5 dmg=11 reach=0.95 lunge=0.35 launch=8.5 stun=0.7 stop=0.1 limb=hand_r\nknee_strike: clip=knee input=heavy after=hook|power_hook dur=0.8 hit=0.36-0.46 cancel=0.6 dmg=14 reach=0.75 lunge=0.6 knock=2 stun=0.7 stop=0.1 limb=calf_r\n# In the air (after a jump, or chasing a launched target)\nair_punch: clip=cross input=light air after=air_punch|air_kick|start dur=0.45 hit=0.10-0.18 cancel=0.2 dmg=6 reach=1.0 launch=3.5 stun=0.4 lunge=0 limb=hand_r\nair_kick: clip=roundhouse_r input=kick air after=air_punch|start dur=0.6 hit=0.25-0.36 cancel=0.4 dmg=9 reach=1.2 launch=3 knock=2 stun=0.5 lunge=0 limb=foot_r\n# Running\ndash_attack: clip=shoulder_dash input=light sprint dur=0.75 hit=0.08-0.35 cancel=0.5 dmg=10 reach=0.9 lunge=2.4 knock=7 stun=0.6 stop=0.08 limb=upperarm_l\n# Dodges (invulnerable while rolling)\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis\nslide: clip=slide input=dodge sprint dur=0.7 hit=0-0 cancel=0.55 dmg=0 lunge=4.2 free iframes=0-0.45 track=0 limb=pelvis\n# Specials (energy, built by landing hits): neutral, forward, back, back-forward\nenergy_blast: clip=energy_throw input=special dur=0.8 hit=0.26-0.3 cancel=0.55 dmg=18 projectile=18 knock=5 stun=0.6 cost=25 cooldown=0.6 lunge=0 limb=hand_r\nflying_strike: clip=dash_strike input=special seq=f dur=1.0 hit=0.15-0.45 cancel=0.75 dmg=20 reach=1.1 lunge=4 knock=6 stun=0.7 stop=0.1 cost=35 armor limb=hand_r\nrising_dragon: clip=rising_strike input=special seq=b dur=0.7 hit=0.1-0.3 cancel=0.55 dmg=18 reach=1.0 launch=10 stun=0.9 stop=0.12 cost=35 iframes=0-0.15 lunge=0.3 limb=hand_r\nmeteor_smash: clip=ground_pound input=special seq=bf dur=1.1 hit=0.3-0.42 cancel=0.9 dmg=35 aoe=3 knock=9 launch=4 stun=1 stop=0.16 cost=70 armor knockdown unblockable finisher lunge=0.2 limb=hand_r\n",
      "team": 1,
      "ai": true,
-     "aggression": 0.4,
-     "skill": 0.25,
+     "aggression": 0.35,
+     "skill": 0.2,
      "reaction": 0.25,
      "energy": 0,
      "guard": 60,
@@ -4628,7 +4628,7 @@
     "Script": {
      "source": "-- @prop gear none\n-- @prop qi 25\n-- @prop drop 0\n-- @prop pill 0\n-- A bandit or the shrine guardian: qi for the Player when defeated, and sometimes an elixir.\nfunction on_death(attacker)\n  local player = world.find(\"Player\")\n  if not player then return end\n  world.send(player, \"kill\", tonumber(props.qi) or 25)\n  if (props.drop or 0) > 0 then inventory.add(player, \"Qi Elixir\", props.drop) end\n  if (props.pill or 0) > 0 then\n    inventory.add(player, \"Breakthrough Pill\", props.pill)\n    hud.announce(\"The guardian drops a Breakthrough Pill.\")\n  end\nend\n\nfunction on_start()\n  -- Clothes give the mannequin a body: robes, trousers, gloves and boots.\n  if props.gear and props.gear ~= \"\" and props.gear ~= \"none\" then world.wear(props.gear) end\nend\n",
      "props": {
-      "qi": 35,
+      "qi": 30,
       "drop": 0,
       "gear": "214:#6b4a3a 216:#3a3228 215:#2a2a2a 217:#2a2a2a"
      }
@@ -4636,13 +4636,13 @@
    }
   },
   {
-   "name": "Bandit 2",
+   "name": "Bandit Swordsman",
    "components": {
     "Transform": {
      "position": {
-      "x": -1,
-      "y": 1.4693753361701964,
-      "z": 2
+      "x": -9,
+      "y": 1.4774980187416076,
+      "z": -7
      }
     },
     "Scale": {
@@ -4702,16 +4702,16 @@
      "bounciness": 0
     },
     "Health": {
-     "current": 105,
-     "maximum": 105
+     "current": 95,
+     "maximum": 95
     },
     "Melee": {
      "style": "Sword",
      "moves": "# Punches (light): jab, cross, hook, uppercut\njab: clip=jab input=light dur=0.55 hit=0.10-0.16 cancel=0.2 dmg=6 reach=0.9 lunge=0.25 stun=0.3 limb=hand_l\ncross: clip=cross input=light after=jab dur=0.62 hit=0.15-0.22 cancel=0.26 dmg=8 reach=1.0 lunge=0.3 stun=0.35 limb=hand_r\nhook: clip=hook input=light after=cross dur=0.72 hit=0.15-0.23 cancel=0.32 dmg=10 reach=1.0 lunge=0.35 knock=2.5 stun=0.4 limb=hand_r\nuppercut: clip=uppercut input=light after=hook dur=0.78 hit=0.18-0.28 cancel=0.45 dmg=13 reach=0.9 lunge=0.3 launch=7.5 knock=1 stun=0.6 stop=0.1 limb=hand_r\n# Kicks: front kick, roundhouse, side kick (alternating legs)\nfront_kick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=10 reach=1.25 height=0.55 lunge=0.4 knock=3.5 stun=0.4 limb=foot_r\nroundhouse: clip=roundhouse_l input=kick after=front_kick|jab|cross dur=0.9 hit=0.38-0.48 cancel=0.6 dmg=14 reach=1.3 height=0.8 lunge=0.35 knock=4.5 stun=0.5 stop=0.09 limb=foot_l\nside_kick: clip=side_kick_r input=kick after=roundhouse|hook dur=0.92 hit=0.30-0.40 cancel=0.62 dmg=16 reach=1.45 height=0.65 lunge=0.35 knock=8 stun=0.7 stop=0.11 knockdown finisher limb=foot_r\n# Heavies\npower_hook: clip=hook input=heavy dur=0.95 hit=0.22-0.32 cancel=0.55 dmg=15 reach=1.05 lunge=0.5 knock=4.5 stun=0.55 stop=0.1 armor limb=hand_r\nlauncher: clip=uppercut input=heavy after=jab|cross dur=0.85 hit=0.2-0.3 cancel=0.5 dmg=11 reach=0.95 lunge=0.35 launch=8.5 stun=0.7 stop=0.1 limb=hand_r\nknee_strike: clip=knee input=heavy after=hook|power_hook dur=0.8 hit=0.36-0.46 cancel=0.6 dmg=14 reach=0.75 lunge=0.6 knock=2 stun=0.7 stop=0.1 limb=calf_r\n# In the air (after a jump, or chasing a launched target)\nair_punch: clip=cross input=light air after=air_punch|air_kick|start dur=0.45 hit=0.10-0.18 cancel=0.2 dmg=6 reach=1.0 launch=3.5 stun=0.4 lunge=0 limb=hand_r\nair_kick: clip=roundhouse_r input=kick air after=air_punch|start dur=0.6 hit=0.25-0.36 cancel=0.4 dmg=9 reach=1.2 launch=3 knock=2 stun=0.5 lunge=0 limb=foot_r\n# Running\ndash_attack: clip=shoulder_dash input=light sprint dur=0.75 hit=0.08-0.35 cancel=0.5 dmg=10 reach=0.9 lunge=2.4 knock=7 stun=0.6 stop=0.08 limb=upperarm_l\n# Dodges (invulnerable while rolling)\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis\nslide: clip=slide input=dodge sprint dur=0.7 hit=0-0 cancel=0.55 dmg=0 lunge=4.2 free iframes=0-0.45 track=0 limb=pelvis\n# Specials (energy, built by landing hits): neutral, forward, back, back-forward\nenergy_blast: clip=energy_throw input=special dur=0.8 hit=0.26-0.3 cancel=0.55 dmg=18 projectile=18 knock=5 stun=0.6 cost=25 cooldown=0.6 lunge=0 limb=hand_r\nflying_strike: clip=dash_strike input=special seq=f dur=1.0 hit=0.15-0.45 cancel=0.75 dmg=20 reach=1.1 lunge=4 knock=6 stun=0.7 stop=0.1 cost=35 armor limb=hand_r\nrising_dragon: clip=rising_strike input=special seq=b dur=0.7 hit=0.1-0.3 cancel=0.55 dmg=18 reach=1.0 launch=10 stun=0.9 stop=0.12 cost=35 iframes=0-0.15 lunge=0.3 limb=hand_r\nmeteor_smash: clip=ground_pound input=special seq=bf dur=1.1 hit=0.3-0.42 cancel=0.9 dmg=35 aoe=3 knock=9 launch=4 stun=1 stop=0.16 cost=70 armor knockdown unblockable finisher lunge=0.2 limb=hand_r\n",
      "team": 1,
      "ai": true,
-     "aggression": 0.5,
-     "skill": 0.35,
+     "aggression": 0.45,
+     "skill": 0.3,
      "reaction": 0.25,
      "energy": 0,
      "guard": 60,
@@ -4735,13 +4735,13 @@
    }
   },
   {
-   "name": "Bandit 3",
+   "name": "Bandit Spearman",
    "components": {
     "Transform": {
      "position": {
-      "x": -8,
-      "y": 1.4749505758285522,
-      "z": 10
+      "x": 0,
+      "y": 1.4692571997642516,
+      "z": 2
      }
     },
     "Scale": {
@@ -4801,20 +4801,20 @@
      "bounciness": 0
     },
     "Health": {
-     "current": 120,
-     "maximum": 120
+     "current": 105,
+     "maximum": 105
     },
     "Melee": {
-     "style": "Martial arts",
-     "moves": "# Punches (light): jab, cross, hook, uppercut\njab: clip=jab input=light dur=0.55 hit=0.10-0.16 cancel=0.2 dmg=6 reach=0.9 lunge=0.25 stun=0.3 limb=hand_l\ncross: clip=cross input=light after=jab dur=0.62 hit=0.15-0.22 cancel=0.26 dmg=8 reach=1.0 lunge=0.3 stun=0.35 limb=hand_r\nhook: clip=hook input=light after=cross dur=0.72 hit=0.15-0.23 cancel=0.32 dmg=10 reach=1.0 lunge=0.35 knock=2.5 stun=0.4 limb=hand_r\nuppercut: clip=uppercut input=light after=hook dur=0.78 hit=0.18-0.28 cancel=0.45 dmg=13 reach=0.9 lunge=0.3 launch=7.5 knock=1 stun=0.6 stop=0.1 limb=hand_r\n# Kicks: front kick, roundhouse, side kick (alternating legs)\nfront_kick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=10 reach=1.25 height=0.55 lunge=0.4 knock=3.5 stun=0.4 limb=foot_r\nroundhouse: clip=roundhouse_l input=kick after=front_kick|jab|cross dur=0.9 hit=0.38-0.48 cancel=0.6 dmg=14 reach=1.3 height=0.8 lunge=0.35 knock=4.5 stun=0.5 stop=0.09 limb=foot_l\nside_kick: clip=side_kick_r input=kick after=roundhouse|hook dur=0.92 hit=0.30-0.40 cancel=0.62 dmg=16 reach=1.45 height=0.65 lunge=0.35 knock=8 stun=0.7 stop=0.11 knockdown finisher limb=foot_r\n# Heavies\npower_hook: clip=hook input=heavy dur=0.95 hit=0.22-0.32 cancel=0.55 dmg=15 reach=1.05 lunge=0.5 knock=4.5 stun=0.55 stop=0.1 armor limb=hand_r\nlauncher: clip=uppercut input=heavy after=jab|cross dur=0.85 hit=0.2-0.3 cancel=0.5 dmg=11 reach=0.95 lunge=0.35 launch=8.5 stun=0.7 stop=0.1 limb=hand_r\nknee_strike: clip=knee input=heavy after=hook|power_hook dur=0.8 hit=0.36-0.46 cancel=0.6 dmg=14 reach=0.75 lunge=0.6 knock=2 stun=0.7 stop=0.1 limb=calf_r\n# In the air (after a jump, or chasing a launched target)\nair_punch: clip=cross input=light air after=air_punch|air_kick|start dur=0.45 hit=0.10-0.18 cancel=0.2 dmg=6 reach=1.0 launch=3.5 stun=0.4 lunge=0 limb=hand_r\nair_kick: clip=roundhouse_r input=kick air after=air_punch|start dur=0.6 hit=0.25-0.36 cancel=0.4 dmg=9 reach=1.2 launch=3 knock=2 stun=0.5 lunge=0 limb=foot_r\n# Running\ndash_attack: clip=shoulder_dash input=light sprint dur=0.75 hit=0.08-0.35 cancel=0.5 dmg=10 reach=0.9 lunge=2.4 knock=7 stun=0.6 stop=0.08 limb=upperarm_l\n# Dodges (invulnerable while rolling)\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis\nslide: clip=slide input=dodge sprint dur=0.7 hit=0-0 cancel=0.55 dmg=0 lunge=4.2 free iframes=0-0.45 track=0 limb=pelvis\n# Specials (energy, built by landing hits): neutral, forward, back, back-forward\nenergy_blast: clip=energy_throw input=special dur=0.8 hit=0.26-0.3 cancel=0.55 dmg=18 projectile=18 knock=5 stun=0.6 cost=25 cooldown=0.6 lunge=0 limb=hand_r\nflying_strike: clip=dash_strike input=special seq=f dur=1.0 hit=0.15-0.45 cancel=0.75 dmg=20 reach=1.1 lunge=4 knock=6 stun=0.7 stop=0.1 cost=35 armor limb=hand_r\nrising_dragon: clip=rising_strike input=special seq=b dur=0.7 hit=0.1-0.3 cancel=0.55 dmg=18 reach=1.0 launch=10 stun=0.9 stop=0.12 cost=35 iframes=0-0.15 lunge=0.3 limb=hand_r\nmeteor_smash: clip=ground_pound input=special seq=bf dur=1.1 hit=0.3-0.42 cancel=0.9 dmg=35 aoe=3 knock=9 launch=4 stun=1 stop=0.16 cost=70 armor knockdown unblockable finisher lunge=0.2 limb=hand_r\n",
+     "style": "Custom",
+     "moves": "thrust: clip=sword_light_a input=light dur=0.75 hit=0.22-0.3 cancel=0.4 dmg=9 reach=2.2 radius=0.5 lunge=1.3 stun=0.4 limb=hand_r\nsweep: clip=sword_heavy_a input=heavy dur=1.2 hit=0.35-0.45 cancel=0.7 dmg=14 reach=2.0 radius=1.1 knock=4 stun=0.6 armor limb=hand_r\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis\n",
      "team": 1,
      "ai": true,
-     "aggression": 0.6000000000000001,
-     "skill": 0.45,
+     "aggression": 0.5,
+     "skill": 0.35,
      "reaction": 0.25,
      "energy": 0,
      "guard": 60,
-     "rightHand": 0,
+     "rightHand": 208,
      "leftHand": 0,
      "poise": 0,
      "breakTime": 2.5,
@@ -4826,7 +4826,7 @@
     "Script": {
      "source": "-- @prop gear none\n-- @prop qi 25\n-- @prop drop 0\n-- @prop pill 0\n-- A bandit or the shrine guardian: qi for the Player when defeated, and sometimes an elixir.\nfunction on_death(attacker)\n  local player = world.find(\"Player\")\n  if not player then return end\n  world.send(player, \"kill\", tonumber(props.qi) or 25)\n  if (props.drop or 0) > 0 then inventory.add(player, \"Qi Elixir\", props.drop) end\n  if (props.pill or 0) > 0 then\n    inventory.add(player, \"Breakthrough Pill\", props.pill)\n    hud.announce(\"The guardian drops a Breakthrough Pill.\")\n  end\nend\n\nfunction on_start()\n  -- Clothes give the mannequin a body: robes, trousers, gloves and boots.\n  if props.gear and props.gear ~= \"\" and props.gear ~= \"none\" then world.wear(props.gear) end\nend\n",
      "props": {
-      "qi": 35,
+      "qi": 40,
       "drop": 0,
       "gear": "214:#7a3d3d 216:#3a2a2a 215:#2a2a2a 217:#2a2a2a"
      }
@@ -4834,13 +4834,13 @@
    }
   },
   {
-   "name": "Bandit 4",
+   "name": "Bandit Qi Adept 1",
    "components": {
     "Transform": {
      "position": {
-      "x": 0,
-      "y": 1.4701535046100616,
-      "z": 9
+      "x": -10,
+      "y": 1.472280704975128,
+      "z": 12
      }
     },
     "Scale": {
@@ -4900,34 +4900,133 @@
      "bounciness": 0
     },
     "Health": {
-     "current": 135,
-     "maximum": 135
+     "current": 60,
+     "maximum": 60
     },
     "Melee": {
-     "style": "Sword",
-     "moves": "# Punches (light): jab, cross, hook, uppercut\njab: clip=jab input=light dur=0.55 hit=0.10-0.16 cancel=0.2 dmg=6 reach=0.9 lunge=0.25 stun=0.3 limb=hand_l\ncross: clip=cross input=light after=jab dur=0.62 hit=0.15-0.22 cancel=0.26 dmg=8 reach=1.0 lunge=0.3 stun=0.35 limb=hand_r\nhook: clip=hook input=light after=cross dur=0.72 hit=0.15-0.23 cancel=0.32 dmg=10 reach=1.0 lunge=0.35 knock=2.5 stun=0.4 limb=hand_r\nuppercut: clip=uppercut input=light after=hook dur=0.78 hit=0.18-0.28 cancel=0.45 dmg=13 reach=0.9 lunge=0.3 launch=7.5 knock=1 stun=0.6 stop=0.1 limb=hand_r\n# Kicks: front kick, roundhouse, side kick (alternating legs)\nfront_kick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=10 reach=1.25 height=0.55 lunge=0.4 knock=3.5 stun=0.4 limb=foot_r\nroundhouse: clip=roundhouse_l input=kick after=front_kick|jab|cross dur=0.9 hit=0.38-0.48 cancel=0.6 dmg=14 reach=1.3 height=0.8 lunge=0.35 knock=4.5 stun=0.5 stop=0.09 limb=foot_l\nside_kick: clip=side_kick_r input=kick after=roundhouse|hook dur=0.92 hit=0.30-0.40 cancel=0.62 dmg=16 reach=1.45 height=0.65 lunge=0.35 knock=8 stun=0.7 stop=0.11 knockdown finisher limb=foot_r\n# Heavies\npower_hook: clip=hook input=heavy dur=0.95 hit=0.22-0.32 cancel=0.55 dmg=15 reach=1.05 lunge=0.5 knock=4.5 stun=0.55 stop=0.1 armor limb=hand_r\nlauncher: clip=uppercut input=heavy after=jab|cross dur=0.85 hit=0.2-0.3 cancel=0.5 dmg=11 reach=0.95 lunge=0.35 launch=8.5 stun=0.7 stop=0.1 limb=hand_r\nknee_strike: clip=knee input=heavy after=hook|power_hook dur=0.8 hit=0.36-0.46 cancel=0.6 dmg=14 reach=0.75 lunge=0.6 knock=2 stun=0.7 stop=0.1 limb=calf_r\n# In the air (after a jump, or chasing a launched target)\nair_punch: clip=cross input=light air after=air_punch|air_kick|start dur=0.45 hit=0.10-0.18 cancel=0.2 dmg=6 reach=1.0 launch=3.5 stun=0.4 lunge=0 limb=hand_r\nair_kick: clip=roundhouse_r input=kick air after=air_punch|start dur=0.6 hit=0.25-0.36 cancel=0.4 dmg=9 reach=1.2 launch=3 knock=2 stun=0.5 lunge=0 limb=foot_r\n# Running\ndash_attack: clip=shoulder_dash input=light sprint dur=0.75 hit=0.08-0.35 cancel=0.5 dmg=10 reach=0.9 lunge=2.4 knock=7 stun=0.6 stop=0.08 limb=upperarm_l\n# Dodges (invulnerable while rolling)\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis\nslide: clip=slide input=dodge sprint dur=0.7 hit=0-0 cancel=0.55 dmg=0 lunge=4.2 free iframes=0-0.45 track=0 limb=pelvis\n# Specials (energy, built by landing hits): neutral, forward, back, back-forward\nenergy_blast: clip=energy_throw input=special dur=0.8 hit=0.26-0.3 cancel=0.55 dmg=18 projectile=18 knock=5 stun=0.6 cost=25 cooldown=0.6 lunge=0 limb=hand_r\nflying_strike: clip=dash_strike input=special seq=f dur=1.0 hit=0.15-0.45 cancel=0.75 dmg=20 reach=1.1 lunge=4 knock=6 stun=0.7 stop=0.1 cost=35 armor limb=hand_r\nrising_dragon: clip=rising_strike input=special seq=b dur=0.7 hit=0.1-0.3 cancel=0.55 dmg=18 reach=1.0 launch=10 stun=0.9 stop=0.12 cost=35 iframes=0-0.15 lunge=0.3 limb=hand_r\nmeteor_smash: clip=ground_pound input=special seq=bf dur=1.1 hit=0.3-0.42 cancel=0.9 dmg=35 aoe=3 knock=9 launch=4 stun=1 stop=0.16 cost=70 armor knockdown unblockable finisher lunge=0.2 limb=hand_r\n",
+     "style": "Custom",
+     "moves": "qi_bolt: clip=energy_throw input=light dur=1.1 hit=0.45-0.5 cancel=0.8 dmg=8 projectile=13 knock=3 stun=0.4 limb=hand_r\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis\n",
      "team": 1,
      "ai": true,
-     "aggression": 0.7000000000000001,
-     "skill": 0.55,
+     "aggression": 0.4,
+     "skill": 0.4,
      "reaction": 0.25,
      "energy": 0,
      "guard": 60,
-     "rightHand": 205,
+     "rightHand": 0,
      "leftHand": 0,
      "poise": 0,
      "breakTime": 2.5,
      "manaMax": 100,
      "manaRegen": 8,
-     "range": 0,
+     "range": 9,
      "shield": false
     },
     "Script": {
      "source": "-- @prop gear none\n-- @prop qi 25\n-- @prop drop 0\n-- @prop pill 0\n-- A bandit or the shrine guardian: qi for the Player when defeated, and sometimes an elixir.\nfunction on_death(attacker)\n  local player = world.find(\"Player\")\n  if not player then return end\n  world.send(player, \"kill\", tonumber(props.qi) or 25)\n  if (props.drop or 0) > 0 then inventory.add(player, \"Qi Elixir\", props.drop) end\n  if (props.pill or 0) > 0 then\n    inventory.add(player, \"Breakthrough Pill\", props.pill)\n    hud.announce(\"The guardian drops a Breakthrough Pill.\")\n  end\nend\n\nfunction on_start()\n  -- Clothes give the mannequin a body: robes, trousers, gloves and boots.\n  if props.gear and props.gear ~= \"\" and props.gear ~= \"none\" then world.wear(props.gear) end\nend\n",
      "props": {
-      "qi": 35,
+      "qi": 45,
       "drop": 1,
-      "gear": "214:#4a4a5a 216:#2a2a34 215:#2a2a2a 217:#2a2a2a"
+      "gear": "214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a"
+     }
+    }
+   }
+  },
+  {
+   "name": "Bandit Qi Adept 2",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 2,
+      "y": 1.4729797780513763,
+      "z": 11
+     }
+    },
+    "Scale": {
+     "value": {
+      "x": 0.6,
+      "y": 1.8,
+      "z": 0.6
+     }
+    },
+    "Rotation": {
+     "euler": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     }
+    },
+    "Renderable": {
+     "mesh": 176,
+     "material": 0,
+     "visible": true
+    },
+    "Material": {
+     "color": {
+      "x": 0.8627450980392157,
+      "y": 0.792156862745098,
+      "z": 0.7058823529411765
+     },
+     "metalness": 0,
+     "roughness": 0.75,
+     "emissive": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     "emissiveIntensity": 1,
+     "opacity": 1,
+     "keepTextures": false,
+     "texture": "",
+     "parts": ""
+    },
+    "RigidBody": {
+     "mass": 70,
+     "inverseMass": 1,
+     "dynamic": true
+    },
+    "Collider": {
+     "type": "AABB",
+     "halfExtents": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.5
+     },
+     "radius": 0.5,
+     "isTrigger": false,
+     "layer": 0,
+     "mask": 4294967295,
+     "bounciness": 0
+    },
+    "Health": {
+     "current": 60,
+     "maximum": 60
+    },
+    "Melee": {
+     "style": "Custom",
+     "moves": "qi_bolt: clip=energy_throw input=light dur=1.1 hit=0.45-0.5 cancel=0.8 dmg=8 projectile=13 knock=3 stun=0.4 limb=hand_r\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis\n",
+     "team": 1,
+     "ai": true,
+     "aggression": 0.4,
+     "skill": 0.4,
+     "reaction": 0.25,
+     "energy": 0,
+     "guard": 60,
+     "rightHand": 0,
+     "leftHand": 0,
+     "poise": 0,
+     "breakTime": 2.5,
+     "manaMax": 100,
+     "manaRegen": 8,
+     "range": 9,
+     "shield": false
+    },
+    "Script": {
+     "source": "-- @prop gear none\n-- @prop qi 25\n-- @prop drop 0\n-- @prop pill 0\n-- A bandit or the shrine guardian: qi for the Player when defeated, and sometimes an elixir.\nfunction on_death(attacker)\n  local player = world.find(\"Player\")\n  if not player then return end\n  world.send(player, \"kill\", tonumber(props.qi) or 25)\n  if (props.drop or 0) > 0 then inventory.add(player, \"Qi Elixir\", props.drop) end\n  if (props.pill or 0) > 0 then\n    inventory.add(player, \"Breakthrough Pill\", props.pill)\n    hud.announce(\"The guardian drops a Breakthrough Pill.\")\n  end\nend\n\nfunction on_start()\n  -- Clothes give the mannequin a body: robes, trousers, gloves and boots.\n  if props.gear and props.gear ~= \"\" and props.gear ~= \"none\" then world.wear(props.gear) end\nend\n",
+     "props": {
+      "qi": 45,
+      "drop": 1,
+      "gear": "214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a"
      }
     }
    }
@@ -10156,7 +10255,7 @@
      "hands": ""
     },
     "Script": {
-     "source": "-- @prop realm 1\n-- @prop qi 0\n-- The cultivator: qi, realms, breakthroughs, qi arts and the flying sword.\n-- Hold M to meditate, B to break through (needs a Breakthrough Pill and\n-- enough qi), H drinks a Qi Elixir, V rides the flying sword.\n\nlocal REALMS = {\n  { name = \"Mortal\",       need = 100, damage = 1.0,  speed = 1.0,  crit = 0.05, health = 100, mana = 60,  unlock = \"\" },\n  { name = \"Qi Gathering\", need = 250, damage = 1.25, speed = 1.05, crit = 0.08, health = 150, mana = 100, unlock = \"qi_palm\" },\n  { name = \"Foundation\",   need = 500, damage = 1.6,  speed = 1.1,  crit = 0.12, health = 220, mana = 150, unlock = \"wind_palm\" },\n  { name = \"Golden Core\",  need = 999, damage = 2.1,  speed = 1.18, crit = 0.18, health = 320, mana = 220, unlock = \"tiger_rush nine_dragons\" },\n}\nlocal FLY_REALM = 3          -- Foundation and above can ride the sword\nlocal FLY_SPEED = 13\nlocal FLY_QI = 3             -- qi per second\nlocal MEDITATE_QI = 9        -- qi per second while meditating\nlocal VEIN_RADIUS = 7        -- metres from a spirit vein's stele inside which meditation is three times faster\nlocal VEIN_BONUS = 3\nlocal veins = {}             -- {x, z} of each Spirit Vein\nlocal in_vein = false\nlocal ELIXIR_QI = 60\nlocal CHANNEL = 3            -- seconds a breakthrough takes\n\nlocal realm = 1\nlocal qi = 0\nlocal flying = false\nlocal channel = 0            -- seconds left of a breakthrough, 0 when not attempting\nlocal meditating = false\nlocal shown = {}\nlocal fx = {}\nlocal QI_ARTS = { qi_palm = true, wind_palm = true, tiger_rush = true, nine_dragons = true }\nlocal casting = false\nlocal last_move = \"\"\nlocal deviation = 0          -- seconds left of a qi deviation (meditation is slower)\nlocal dead = false\nlocal spawn = { 0, 0, 0 }\nlocal hit_flip = 0\nlocal clock = 0\nlocal refresh_clock = 0\nlocal QUESTS = {\n  { \"meet-elder\", \"Meet Elder Mu\", \"Speak with the elder inside the sect gate.\" },\n  { \"gather-qi\", \"Gather qi\", \"Stand still and hold M to meditate.\" },\n  { \"breakthrough\", \"Break through\", \"Fill your qi bar, then press B with a Breakthrough Pill.\" },\n  { \"bandits\", \"Clear the road\", \"Defeat the four bandits in the valley camp.\" },\n  { \"guardian\", \"Face the guardian\", \"Climb to the shrine and defeat the Iron Fist Elder.\" },\n}\nlocal quest_state = { [\"meet-elder\"] = \"active\" }\n\nlocal function set_text(name, text)\n  if shown[name] ~= text then shown[name] = text; ui.set_text(name, text) end\nend\nlocal function set_value(name, v)\n  v = math.floor(v * 100 + 0.5) / 100\n  if shown[name] ~= v then shown[name] = v; ui.set_value(name, v) end\nend\n\nlocal function apply_realm(first)\n  local r = REALMS[realm]\n  melee.tune(r.damage, r.speed, r.crit, -1, r.health, r.mana)\n  for move in r.unlock:gmatch(\"[%w_]+\") do melee.unlock(move) end\n  if not first then world.heal(self.id, r.health) end\nend\n\nlocal function status_text()\n  local r = REALMS[realm]\n  local out = {}\n  if channel > 0 then out[#out + 1] = string.format(\"Breaking through|%.1f|good|%d\", channel, CHANNEL) end\n  if meditating then out[#out + 1] = in_vein and \"Meditating at a spirit vein: x3|0|good\" or \"Meditating|0|good\" end\n  if flying then out[#out + 1] = \"Flying sword|0|good\" end\n  if deviation > 0 then out[#out + 1] = string.format(\"Qi deviation|%.0f|bad|12\", deviation) end\n  if realm < #REALMS and qi >= r.need and channel <= 0 then\n    out[#out + 1] = inventory.count(self.id, \"Breakthrough Pill\") > 0 and \"Qi is full: press B|0|good\" or \"Qi is full: needs a Breakthrough Pill|0|neutral\"\n  end\n  return table.concat(out, \"\\n\")\nend\n\nlocal function sheet_text()\n  local r = REALMS[realm]\n  local lines = {\n    \"Cultivator\", r.name .. \" realm\",\n    \"# Cultivation\",\n    string.format(\"bar|Qi|%.2f|%d / %d\", math.min(1, qi / r.need), math.floor(qi), r.need),\n    string.format(\"Next realm|%s\", REALMS[realm + 1] and REALMS[realm + 1].name or \"Peak\"),\n    \"# Combat\",\n    string.format(\"Damage|x%.2f\", r.damage),\n    string.format(\"Speed|%+d%%\", math.floor((r.speed - 1) * 100 + 0.5)),\n    string.format(\"Critical chance|%d%%\", math.floor(r.crit * 100 + 0.5)),\n    string.format(\"Health|%d\", r.health),\n    string.format(\"Mana|%d\", r.mana),\n    \"# Carried\",\n    string.format(\"Qi Elixirs|%d\", inventory.count(self.id, \"Qi Elixir\")),\n    string.format(\"Breakthrough Pills|%d\", inventory.count(self.id, \"Breakthrough Pill\")),\n    \"Body|\" .. (inventory.equipped(self.id, \"body\") ~= \"\" and inventory.equipped(self.id, \"body\") or \"none\"),\n  }\n  return table.concat(lines, \"\\n\")\nend\n\nlocal function journal_text()\n  local lines = { \"Journal\" }\n  for _, q in ipairs(QUESTS) do lines[#lines + 1] = (quest_state[q[1]] or \"todo\") .. \"|\" .. q[2] .. \"|\" .. q[3] end\n  return table.concat(lines, \"\\n\")\nend\n\nlocal function target_text()\n  local t = melee.target()\n  if not t or not world.alive(t) then return \"\", 0 end\n  local name = world.name(t) or \"\"\n  local subtitle\n  if name:find(\"^Bandit\") then subtitle = \"Mortal\"\n  elseif name:find(\"^Iron\") then subtitle = \"Qi Gathering\"\n  else return \"\", 0 end\n  local tx, _, tz = world.position(t)\n  if (tx - self.x) ^ 2 + (tz - self.z) ^ 2 > 22 * 22 then return \"\", 0 end\n  local hp, max = world.health(t)\n  return name .. \"\\n\" .. subtitle, (hp or 0) / math.max(1, max or 1)\nend\n\nlocal function refresh()\n  local r = REALMS[realm]\n  set_text(\"Qi bar\", string.format(\"%s\\nQi %d / %d\\n#7fe0d4\", r.name, math.floor(qi), r.need))\n  set_value(\"Qi bar\", math.min(1, qi / r.need))\n  set_text(\"Status\", status_text())\n  local target, health = target_text()\n  set_text(\"Target\", target)\n  set_value(\"Target\", health)\n  -- The panels are only rebuilt a couple of times a second.\n  if clock >= 0.5 then\n    clock = 0\n    set_text(\"Character sheet\", sheet_text())\n    set_text(\"Quest log\", journal_text())\n  end\nend\n\nlocal function land()\n  if not flying then return end\n  flying = false\n  physics.set_gravity_scale(1)\nend\n\nlocal function fail_breakthrough()\n  channel = 0\n  qi = qi * 0.7\n  deviation = 12\n  ui.set_text(\"Notification\", \"Qi deviation\\nThe breakthrough failed and your qi scatters.\")\n  hud.announce(\"Qi deviation! The breakthrough failed and part of your qi scatters.\")\n  camera.shake(0.5, 0.5)\nend\n\nlocal function succeed()\n  channel = 0\n  inventory.remove(self.id, \"Breakthrough Pill\", 1)\n  realm = realm + 1\n  qi = 0\n  apply_realm(false)\n  ui.set_text(\"Notification\", \"Breakthrough!\\nYou have entered the \" .. REALMS[realm].name .. \" realm.\")\n  hud.announce(\"Breakthrough! You are now in the \" .. REALMS[realm].name .. \" realm.\")\n  camera.shake(0.6, 0.8)\n  sound.play(\"bell\")\n  objective.complete(\"breakthrough\")\n  if realm >= FLY_REALM then hud.announce(\"You can ride the flying sword: press V.\") end\n  quest_state[\"breakthrough\"] = \"done\"\nend\n\n-- Qi effects: a glow while meditating or casting, the Qi Palm's core and trail, and a flash for the area arts.\nlocal function aim()\n  local target = melee.target()\n  if target and world.alive(target) then\n    local tx, _, tz = world.position(target)\n    local dx, dz = tx - self.x, tz - self.z\n    local d = math.sqrt(dx * dx + dz * dz)\n    if d > 0.01 then return dx / d, dz / d end\n  end\n  return camera.forward()\nend\n\nlocal function qi_effects()\n  local move = melee.move()\n  local art = QI_ARTS[move] == true\n  local active = art or meditating\n  if active ~= casting then\n    casting = active\n    if fx.aura then world.send(fx.aura, \"cast\", active and 1 or 0) end\n  end\n  if move == last_move then return end\n  last_move = move\n  if not art then return end\n  sound.play(\"force-field\")\n  if move == \"qi_palm\" and fx.bolt then\n    after(0.28, function()\n      local fx_, fz_ = aim()\n      world.send(fx.bolt, \"fire\", string.format(\"%.2f,%.2f,%.2f,%.2f,%.2f\",\n        self.x + fx_ * 0.9, self.y + 0.3, self.z + fz_ * 0.9, fx_ * 22, fz_ * 22))\n    end)\n  elseif (move == \"wind_palm\" or move == \"nine_dragons\") and fx.burst then\n    after(0.4, function()\n      world.send(fx.burst, \"at\", string.format(\"%.2f,%.2f,%.2f\", self.x, self.y - 0.6, self.z))\n      camera.shake(move == \"nine_dragons\" and 0.7 or 0.4, 0.4)\n    end)\n  end\nend\n\nfunction on_start()\n  fx.aura, fx.bolt, fx.burst = world.find(\"Qi Aura\"), world.find(\"Qi Bolt\"), world.find(\"Qi Burst\")\n  for i = 1, 8 do\n    local vein = world.find(\"Spirit Vein \" .. i)\n    if vein then\n      local vx, vy, vz = world.position(vein)\n      veins[#veins + 1] = { vx, vz }\n      ui.marker(\"Spirit Vein \" .. i, vx, vy + 3, vz)\n    end\n  end\n  -- props.realm starts further along (for testing and demos).\n  realm = math.max(1, math.min(#REALMS, math.floor(tonumber(props.realm) or 1)))\n  qi = math.max(0, tonumber(props.qi) or 0)\n  world.wear(\"214:#eee8d8 216:#eee8d8 218:#2f7f9a 215:#3a3a44 217:#2a2a30\")\n  inventory.add(self.id, \"Azure Robe\", 1)\n  inventory.equip(self.id, \"body\", \"Azure Robe\")\n  inventory.add(self.id, \"Qi Elixir\", 3)\n  inventory.add(self.id, \"Breakthrough Pill\", 1)\n  apply_realm(true)\n  spawn = { self.x, self.y + 0.5, self.z }\n  hud.pause_menu(true)   -- Esc opens settings and the key list\n  -- Markers for where to go: the elder, the camp and the shrine.\n  for marker, entity in pairs({ [\"Elder Mu\"] = \"Elder Mu\", [\"Bandit camp\"] = \"Bandit 1\", [\"Shrine\"] = \"Iron Fist Elder\" }) do\n    local id = world.find(entity)\n    if id then\n      local x, y, z = world.position(id)\n      ui.marker(marker, x, y + 2.5, z)\n    end\n  end\n  every(1, function()\n    local elder = world.find(\"Elder Mu\")\n    if elder then\n      local ex, _, ez = world.position(elder)\n      if (ex - self.x) ^ 2 + (ez - self.z) ^ 2 < 36 then ui.clear_marker(\"Elder Mu\") end\n    end\n  end)\n  refresh()\nend\n\nfunction on_message(name, value)\n  if name == \"kill\" then\n    qi = math.min(REALMS[realm].need, qi + (tonumber(value) or 20))\n  elseif name == \"qi\" then\n    qi = math.min(REALMS[realm].need, qi + (tonumber(value) or 0))\n  end\nend\n\nfunction on_damaged(amount, attacker)\n  if channel > 0 then fail_breakthrough() end\n  -- An arc on the side the blow came from, relative to where the camera looks.\n  if attacker and world.alive(attacker) then\n    local ax, _, az = world.position(attacker)\n    local fx_, fz_ = camera.forward()\n    local dx, dz = ax - self.x, az - self.z\n    local forward = dx * fx_ + dz * fz_\n    local right = -dx * fz_ + dz * fx_\n    hit_flip = 1 - hit_flip   -- a tiny change so a repeat from the same side still counts as new text\n    ui.set_text(\"Damage direction\", string.format(\"%.2f\", math.deg(math.atan(right, forward)) + hit_flip * 0.01))\n  end\nend\n\nfunction on_death()\n  dead = true\n  land()\n  channel = 0\n  meditating = false\n  ui.set_text(\"Death screen\", \"YOU HAVE FALLEN\\nYour qi scatters on the wind.\\nRise again\")\nend\n\nlocal function respawn()\n  dead = false\n  ui.set_text(\"Death screen\", \"\")\n  melee.revive()\n  world.set_position(self.id, spawn[1], spawn[2], spawn[3])\n  world.set_velocity(self.id, 0, 0, 0)\n  qi = qi * 0.5\n  deviation = 0\nend\n\nfunction on_ui(name, value)\n  if name == \"objective\" then\n    local kind, id = tostring(value):match(\"^(%a+):(.+)$\")\n    if kind == \"start\" then quest_state[id] = \"active\"\n    elseif kind == \"complete\" then quest_state[id] = \"done\" end\n  elseif name == \"Death screen\" and value == \"respawn\" then\n    respawn()\n  elseif (name == \"Character sheet\" or name == \"Quest log\") and value == \"close\" then\n    ui.close(name)\n  end\nend\n\nfunction on_tick(dt)\n  if dead then return end\n  clock = clock + dt\n  if deviation > 0 then deviation = math.max(0, deviation - dt) end\n  local r = REALMS[realm]\n  local vx, vz = self.vx, self.vz\n  local still = (vx * vx + vz * vz) < 2.25   -- under 1.5 m/s (an idle fighter shuffles a little)\n\n  -- Meditation: hold M while standing still.\n  meditating = input.action_down(\"meditate\") and still and not flying and channel == 0\n  if meditating and qi < r.need then\n    qi = math.min(r.need, qi + MEDITATE_QI * (deviation > 0 and 0.4 or 1) * (in_vein and VEIN_BONUS or 1) * dt)\n    if qi >= 20 then objective.complete(\"gather-qi\") end\n  end\n\n  if input.action_pressed(\"controls\") then hud.open_settings() end\n\n  -- Spirit veins: near one, meditation is much faster.\n  in_vein = false\n  for _, v in ipairs(veins) do\n    if (v[1] - self.x) ^ 2 + (v[2] - self.z) ^ 2 < VEIN_RADIUS * VEIN_RADIUS then in_vein = true break end\n  end\n\n  -- Qi Elixir.\n  if input.action_pressed(\"elixir\") and inventory.count(self.id, \"Qi Elixir\") > 0 and qi < r.need then\n    inventory.remove(self.id, \"Qi Elixir\", 1)\n    qi = math.min(r.need, qi + ELIXIR_QI)\n  end\n\n  -- Breakthrough: needs full qi and a pill, then a few quiet seconds.\n  if input.action_pressed(\"breakthrough\") and channel == 0 and realm < #REALMS and qi >= r.need\n     and inventory.count(self.id, \"Breakthrough Pill\") > 0 and not flying then\n    channel = CHANNEL\n    hud.announce(\"You circulate your qi, aiming for the \" .. REALMS[realm + 1].name .. \" realm...\")\n  end\n  if channel > 0 then\n    if not still then fail_breakthrough()\n    else\n      channel = channel - dt\n      if channel <= 0 then succeed() end\n    end\n  end\n\n  -- The flying sword.\n  if input.action_pressed(\"fly\") then\n    if flying then land()\n    elseif realm >= FLY_REALM and qi > 5 then\n      flying = true\n      physics.set_gravity_scale(0)\n      world.set_velocity(self.id, vx, 3, vz)\n    else\n      hud.announce(realm < FLY_REALM and \"Only a Foundation cultivator can ride a flying sword.\" or \"Not enough qi to fly.\")\n    end\n  end\n  if flying then\n    qi = qi - FLY_QI * dt\n    if qi <= 0 then qi = 0; land() hud.announce(\"Your qi ran dry. The sword falls.\")\n    else\n      local fx, fz = camera.forward()\n      local forward = input.action(\"move_y\")\n      local strafe = input.action(\"move_x\")\n      local up = 0\n      if input.action_down(\"jump\") then up = 1 elseif input.action_down(\"crouch\") then up = -1 end\n      world.set_velocity(self.id,\n        (fx * forward + fz * strafe) * FLY_SPEED,\n        up * 7,\n        (fz * forward - fx * strafe) * FLY_SPEED)\n    end\n  end\n\n  -- The readouts only need to change a few times a second.\n  refresh_clock = refresh_clock + dt\n  if refresh_clock >= 0.1 then refresh_clock = 0 refresh() end\n  qi_effects()\nend\n",
+     "source": "-- @prop realm 1\n-- @prop qi 0\n-- The cultivator: qi, realms, breakthroughs, qi arts and the flying sword.\n-- Hold M to meditate, B to break through (needs a Breakthrough Pill and\n-- enough qi), H drinks a Qi Elixir, V rides the flying sword.\n\nlocal REALMS = {\n  { name = \"Mortal\",       need = 100, damage = 1.0,  speed = 1.0,  crit = 0.05, health = 100, mana = 60,  unlock = \"\" },\n  { name = \"Qi Gathering\", need = 250, damage = 1.25, speed = 1.05, crit = 0.08, health = 150, mana = 100, unlock = \"qi_palm\" },\n  { name = \"Foundation\",   need = 500, damage = 1.6,  speed = 1.1,  crit = 0.12, health = 220, mana = 150, unlock = \"wind_palm\" },\n  { name = \"Golden Core\",  need = 999, damage = 2.1,  speed = 1.18, crit = 0.18, health = 320, mana = 220, unlock = \"tiger_rush nine_dragons\" },\n}\nlocal FLY_REALM = 3          -- Foundation and above can ride the sword\nlocal FLY_SPEED = 13\nlocal FLY_QI = 3             -- qi per second\nlocal MEDITATE_QI = 9        -- qi per second while meditating\nlocal VEIN_RADIUS = 7        -- metres from a spirit vein's stele inside which meditation is three times faster\nlocal VEIN_BONUS = 3\nlocal veins = {}             -- {x, z} of each Spirit Vein\nlocal in_vein = false\nlocal ELIXIR_QI = 60\nlocal CHANNEL = 3            -- seconds a breakthrough takes\n\nlocal realm = 1\nlocal qi = 0\nlocal flying = false\nlocal channel = 0            -- seconds left of a breakthrough, 0 when not attempting\nlocal meditating = false\nlocal shown = {}\nlocal fx = {}\nlocal QI_ARTS = { qi_palm = true, wind_palm = true, tiger_rush = true, nine_dragons = true }\nlocal casting = false\nlocal last_move = \"\"\nlocal deviation = 0          -- seconds left of a qi deviation (meditation is slower)\nlocal dead = false\nlocal spawn = { 0, 0, 0 }\nlocal hit_flip = 0\nlocal clock = 0\nlocal refresh_clock = 0\nlocal QUESTS = {\n  { \"meet-elder\", \"Meet Elder Mu\", \"Speak with the elder inside the sect gate.\" },\n  { \"gather-qi\", \"Gather qi\", \"Stand still and hold M to meditate.\" },\n  { \"breakthrough\", \"Break through\", \"Fill your qi bar, then press B with a Breakthrough Pill.\" },\n  { \"bandits\", \"Clear the road\", \"Defeat the five bandits in the valley camp.\" },\n  { \"guardian\", \"Face the guardian\", \"Climb to the shrine and defeat the Iron Fist Elder.\" },\n}\nlocal quest_state = { [\"meet-elder\"] = \"active\" }\n\nlocal function set_text(name, text)\n  if shown[name] ~= text then shown[name] = text; ui.set_text(name, text) end\nend\nlocal function set_value(name, v)\n  v = math.floor(v * 100 + 0.5) / 100\n  if shown[name] ~= v then shown[name] = v; ui.set_value(name, v) end\nend\n\nlocal function apply_realm(first)\n  local r = REALMS[realm]\n  melee.tune(r.damage, r.speed, r.crit, -1, r.health, r.mana)\n  for move in r.unlock:gmatch(\"[%w_]+\") do melee.unlock(move) end\n  if not first then world.heal(self.id, r.health) end\nend\n\nlocal function status_text()\n  local r = REALMS[realm]\n  local out = {}\n  if channel > 0 then out[#out + 1] = string.format(\"Breaking through|%.1f|good|%d\", channel, CHANNEL) end\n  if meditating then out[#out + 1] = in_vein and \"Meditating at a spirit vein: x3|0|good\" or \"Meditating|0|good\" end\n  if flying then out[#out + 1] = \"Flying sword|0|good\" end\n  if deviation > 0 then out[#out + 1] = string.format(\"Qi deviation|%.0f|bad|12\", deviation) end\n  if realm < #REALMS and qi >= r.need and channel <= 0 then\n    out[#out + 1] = inventory.count(self.id, \"Breakthrough Pill\") > 0 and \"Qi is full: press B|0|good\" or \"Qi is full: needs a Breakthrough Pill|0|neutral\"\n  end\n  return table.concat(out, \"\\n\")\nend\n\nlocal function sheet_text()\n  local r = REALMS[realm]\n  local lines = {\n    \"Cultivator\", r.name .. \" realm\",\n    \"# Cultivation\",\n    string.format(\"bar|Qi|%.2f|%d / %d\", math.min(1, qi / r.need), math.floor(qi), r.need),\n    string.format(\"Next realm|%s\", REALMS[realm + 1] and REALMS[realm + 1].name or \"Peak\"),\n    \"# Combat\",\n    string.format(\"Damage|x%.2f\", r.damage),\n    string.format(\"Speed|%+d%%\", math.floor((r.speed - 1) * 100 + 0.5)),\n    string.format(\"Critical chance|%d%%\", math.floor(r.crit * 100 + 0.5)),\n    string.format(\"Health|%d\", r.health),\n    string.format(\"Mana|%d\", r.mana),\n    \"# Carried\",\n    string.format(\"Qi Elixirs|%d\", inventory.count(self.id, \"Qi Elixir\")),\n    string.format(\"Breakthrough Pills|%d\", inventory.count(self.id, \"Breakthrough Pill\")),\n    \"Body|\" .. (inventory.equipped(self.id, \"body\") ~= \"\" and inventory.equipped(self.id, \"body\") or \"none\"),\n  }\n  return table.concat(lines, \"\\n\")\nend\n\nlocal function journal_text()\n  local lines = { \"Journal\" }\n  for _, q in ipairs(QUESTS) do lines[#lines + 1] = (quest_state[q[1]] or \"todo\") .. \"|\" .. q[2] .. \"|\" .. q[3] end\n  return table.concat(lines, \"\\n\")\nend\n\nlocal function target_text()\n  local t = melee.target()\n  if not t or not world.alive(t) then return \"\", 0 end\n  local name = world.name(t) or \"\"\n  local subtitle\n  if name:find(\"^Bandit\") then\n    subtitle = name:find(\"Brawler\") and \"Brawler · Mortal\" or name:find(\"Swordsman\") and \"Swordsman · Mortal\" or name:find(\"Spearman\") and \"Spearman · Mortal\" or \"Qi Adept · Mortal\"\n  elseif name:find(\"^Iron\") then subtitle = \"Qi Gathering\"\n  else return \"\", 0 end\n  local tx, _, tz = world.position(t)\n  if (tx - self.x) ^ 2 + (tz - self.z) ^ 2 > 22 * 22 then return \"\", 0 end\n  local hp, max = world.health(t)\n  return name .. \"\\n\" .. subtitle, (hp or 0) / math.max(1, max or 1)\nend\n\nlocal function refresh()\n  local r = REALMS[realm]\n  set_text(\"Qi bar\", string.format(\"%s\\nQi %d / %d\\n#7fe0d4\", r.name, math.floor(qi), r.need))\n  set_value(\"Qi bar\", math.min(1, qi / r.need))\n  set_text(\"Status\", status_text())\n  local target, health = target_text()\n  set_text(\"Target\", target)\n  set_value(\"Target\", health)\n  -- The panels are only rebuilt a couple of times a second.\n  if clock >= 0.5 then\n    clock = 0\n    set_text(\"Character sheet\", sheet_text())\n    set_text(\"Quest log\", journal_text())\n  end\nend\n\nlocal function land()\n  if not flying then return end\n  flying = false\n  physics.set_gravity_scale(1)\nend\n\nlocal function fail_breakthrough()\n  channel = 0\n  qi = qi * 0.7\n  deviation = 12\n  ui.set_text(\"Notification\", \"Qi deviation\\nThe breakthrough failed and your qi scatters.\")\n  hud.announce(\"Qi deviation! The breakthrough failed and part of your qi scatters.\")\n  camera.shake(0.5, 0.5)\nend\n\nlocal function succeed()\n  channel = 0\n  inventory.remove(self.id, \"Breakthrough Pill\", 1)\n  realm = realm + 1\n  qi = 0\n  apply_realm(false)\n  ui.set_text(\"Notification\", \"Breakthrough!\\nYou have entered the \" .. REALMS[realm].name .. \" realm.\")\n  hud.announce(\"Breakthrough! You are now in the \" .. REALMS[realm].name .. \" realm.\")\n  camera.shake(0.6, 0.8)\n  sound.play(\"bell\")\n  objective.complete(\"breakthrough\")\n  if realm >= FLY_REALM then hud.announce(\"You can ride the flying sword: press V.\") end\n  quest_state[\"breakthrough\"] = \"done\"\nend\n\n-- Qi effects: a glow while meditating or casting, the Qi Palm's core and trail, and a flash for the area arts.\nlocal function aim()\n  local target = melee.target()\n  if target and world.alive(target) then\n    local tx, _, tz = world.position(target)\n    local dx, dz = tx - self.x, tz - self.z\n    local d = math.sqrt(dx * dx + dz * dz)\n    if d > 0.01 then return dx / d, dz / d end\n  end\n  return camera.forward()\nend\n\nlocal function qi_effects()\n  local move = melee.move()\n  local art = QI_ARTS[move] == true\n  local active = art or meditating\n  if active ~= casting then\n    casting = active\n    if fx.aura then world.send(fx.aura, \"cast\", active and 1 or 0) end\n  end\n  if move == last_move then return end\n  last_move = move\n  if not art then return end\n  sound.play(\"force-field\")\n  if move == \"qi_palm\" and fx.bolt then\n    after(0.28, function()\n      local fx_, fz_ = aim()\n      world.send(fx.bolt, \"fire\", string.format(\"%.2f,%.2f,%.2f,%.2f,%.2f\",\n        self.x + fx_ * 0.9, self.y + 0.3, self.z + fz_ * 0.9, fx_ * 22, fz_ * 22))\n    end)\n  elseif (move == \"wind_palm\" or move == \"nine_dragons\") and fx.burst then\n    after(0.4, function()\n      world.send(fx.burst, \"at\", string.format(\"%.2f,%.2f,%.2f\", self.x, self.y - 0.6, self.z))\n      camera.shake(move == \"nine_dragons\" and 0.7 or 0.4, 0.4)\n    end)\n  end\nend\n\nfunction on_start()\n  fx.aura, fx.bolt, fx.burst = world.find(\"Qi Aura\"), world.find(\"Qi Bolt\"), world.find(\"Qi Burst\")\n  for i = 1, 8 do\n    local vein = world.find(\"Spirit Vein \" .. i)\n    if vein then\n      local vx, vy, vz = world.position(vein)\n      veins[#veins + 1] = { vx, vz }\n      ui.marker(\"Spirit Vein \" .. i, vx, vy + 3, vz)\n    end\n  end\n  -- props.realm starts further along (for testing and demos).\n  realm = math.max(1, math.min(#REALMS, math.floor(tonumber(props.realm) or 1)))\n  qi = math.max(0, tonumber(props.qi) or 0)\n  world.wear(\"214:#eee8d8 216:#eee8d8 218:#2f7f9a 215:#3a3a44 217:#2a2a30\")\n  inventory.add(self.id, \"Azure Robe\", 1)\n  inventory.equip(self.id, \"body\", \"Azure Robe\")\n  inventory.add(self.id, \"Qi Elixir\", 3)\n  inventory.add(self.id, \"Breakthrough Pill\", 1)\n  apply_realm(true)\n  spawn = { self.x, self.y + 0.5, self.z }\n  hud.pause_menu(true)   -- Esc opens settings and the key list\n  -- Markers for where to go: the elder, the camp and the shrine.\n  for marker, entity in pairs({ [\"Elder Mu\"] = \"Elder Mu\", [\"Bandit camp\"] = \"Bandit 1\", [\"Shrine\"] = \"Iron Fist Elder\" }) do\n    local id = world.find(entity)\n    if id then\n      local x, y, z = world.position(id)\n      ui.marker(marker, x, y + 2.5, z)\n    end\n  end\n  every(1, function()\n    local elder = world.find(\"Elder Mu\")\n    if elder then\n      local ex, _, ez = world.position(elder)\n      if (ex - self.x) ^ 2 + (ez - self.z) ^ 2 < 36 then ui.clear_marker(\"Elder Mu\") end\n    end\n  end)\n  refresh()\nend\n\nfunction on_message(name, value)\n  if name == \"kill\" then\n    qi = math.min(REALMS[realm].need, qi + (tonumber(value) or 20))\n  elseif name == \"qi\" then\n    qi = math.min(REALMS[realm].need, qi + (tonumber(value) or 0))\n  end\nend\n\nfunction on_damaged(amount, attacker)\n  if channel > 0 then fail_breakthrough() end\n  -- An arc on the side the blow came from, relative to where the camera looks.\n  if attacker and world.alive(attacker) then\n    local ax, _, az = world.position(attacker)\n    local fx_, fz_ = camera.forward()\n    local dx, dz = ax - self.x, az - self.z\n    local forward = dx * fx_ + dz * fz_\n    local right = -dx * fz_ + dz * fx_\n    hit_flip = 1 - hit_flip   -- a tiny change so a repeat from the same side still counts as new text\n    ui.set_text(\"Damage direction\", string.format(\"%.2f\", math.deg(math.atan(right, forward)) + hit_flip * 0.01))\n  end\nend\n\nfunction on_death()\n  dead = true\n  land()\n  channel = 0\n  meditating = false\n  ui.set_text(\"Death screen\", \"YOU HAVE FALLEN\\nYour qi scatters on the wind.\\nRise again\")\nend\n\nlocal function respawn()\n  dead = false\n  ui.set_text(\"Death screen\", \"\")\n  melee.revive()\n  world.set_position(self.id, spawn[1], spawn[2], spawn[3])\n  world.set_velocity(self.id, 0, 0, 0)\n  qi = qi * 0.5\n  deviation = 0\nend\n\nfunction on_ui(name, value)\n  if name == \"objective\" then\n    local kind, id = tostring(value):match(\"^(%a+):(.+)$\")\n    if kind == \"start\" then quest_state[id] = \"active\"\n    elseif kind == \"complete\" then quest_state[id] = \"done\" end\n  elseif name == \"Death screen\" and value == \"respawn\" then\n    respawn()\n  elseif (name == \"Character sheet\" or name == \"Quest log\") and value == \"close\" then\n    ui.close(name)\n  end\nend\n\nfunction on_tick(dt)\n  if dead then return end\n  clock = clock + dt\n  if deviation > 0 then deviation = math.max(0, deviation - dt) end\n  local r = REALMS[realm]\n  local vx, vz = self.vx, self.vz\n  local still = (vx * vx + vz * vz) < 2.25   -- under 1.5 m/s (an idle fighter shuffles a little)\n\n  -- Meditation: hold M while standing still.\n  meditating = input.action_down(\"meditate\") and still and not flying and channel == 0\n  if meditating and qi < r.need then\n    qi = math.min(r.need, qi + MEDITATE_QI * (deviation > 0 and 0.4 or 1) * (in_vein and VEIN_BONUS or 1) * dt)\n    if qi >= 20 then objective.complete(\"gather-qi\") end\n  end\n\n  if input.action_pressed(\"controls\") then hud.open_settings() end\n\n  -- Spirit veins: near one, meditation is much faster.\n  in_vein = false\n  for _, v in ipairs(veins) do\n    if (v[1] - self.x) ^ 2 + (v[2] - self.z) ^ 2 < VEIN_RADIUS * VEIN_RADIUS then in_vein = true break end\n  end\n\n  -- Qi Elixir.\n  if input.action_pressed(\"elixir\") and inventory.count(self.id, \"Qi Elixir\") > 0 and qi < r.need then\n    inventory.remove(self.id, \"Qi Elixir\", 1)\n    qi = math.min(r.need, qi + ELIXIR_QI)\n  end\n\n  -- Breakthrough: needs full qi and a pill, then a few quiet seconds.\n  if input.action_pressed(\"breakthrough\") and channel == 0 and realm < #REALMS and qi >= r.need\n     and inventory.count(self.id, \"Breakthrough Pill\") > 0 and not flying then\n    channel = CHANNEL\n    hud.announce(\"You circulate your qi, aiming for the \" .. REALMS[realm + 1].name .. \" realm...\")\n  end\n  if channel > 0 then\n    if not still then fail_breakthrough()\n    else\n      channel = channel - dt\n      if channel <= 0 then succeed() end\n    end\n  end\n\n  -- The flying sword.\n  if input.action_pressed(\"fly\") then\n    if flying then land()\n    elseif realm >= FLY_REALM and qi > 5 then\n      flying = true\n      physics.set_gravity_scale(0)\n      world.set_velocity(self.id, vx, 3, vz)\n    else\n      hud.announce(realm < FLY_REALM and \"Only a Foundation cultivator can ride a flying sword.\" or \"Not enough qi to fly.\")\n    end\n  end\n  if flying then\n    qi = qi - FLY_QI * dt\n    if qi <= 0 then qi = 0; land() hud.announce(\"Your qi ran dry. The sword falls.\")\n    else\n      local fx, fz = camera.forward()\n      local forward = input.action(\"move_y\")\n      local strafe = input.action(\"move_x\")\n      local up = 0\n      if input.action_down(\"jump\") then up = 1 elseif input.action_down(\"crouch\") then up = -1 end\n      world.set_velocity(self.id,\n        (fx * forward + fz * strafe) * FLY_SPEED,\n        up * 7,\n        (fz * forward - fx * strafe) * FLY_SPEED)\n    end\n  end\n\n  -- The readouts only need to change a few times a second.\n  refresh_clock = refresh_clock + dt\n  if refresh_clock >= 0.1 then refresh_clock = 0 refresh() end\n  qi_effects()\nend\n",
      "props": {}
     }
    }
@@ -10219,7 +10318,7 @@
      }
     },
     "Objectives": {
-     "list": "meet-elder | Meet Elder Mu | Speak with the elder inside the sect gate. | reach Elder Mu 5 |\ngather-qi | Gather qi | Stand still and hold M to meditate. | script |\nbreakthrough | Break through | Fill your qi bar, then press B with a Breakthrough Pill. | script |\nbandits | Clear the road | Defeat the four bandits in the valley camp. | kill Bandit 4 |\nguardian | Face the guardian | Climb to the shrine and defeat the Iron Fist Elder. | kill Iron Fist 1 |"
+     "list": "meet-elder | Meet Elder Mu | Speak with the elder inside the sect gate. | reach Elder Mu 5 |\ngather-qi | Gather qi | Stand still and hold M to meditate. | script |\nbreakthrough | Break through | Fill your qi bar, then press B with a Breakthrough Pill. | script |\nbandits | Clear the road | Defeat the five bandits in the valley camp. | kill Bandit 5 |\nguardian | Face the guardian | Climb to the shrine and defeat the Iron Fist Elder. | kill Iron Fist 1 |"
     }
    }
   },

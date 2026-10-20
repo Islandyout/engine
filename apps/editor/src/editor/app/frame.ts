@@ -529,6 +529,7 @@ export function installFrame(C: Ctx): void {
       C.renderer.info.reset();
     }
     C.inkPass.impact = C.combat.comic.impact * C.playerSettings.flash;
+    C.combat.flashStrength = C.playerSettings.flash;
     if (C.composer) C.composer.render();
     else C.renderer.render(C.scene, C.viewCamera);
     C.drawHud();

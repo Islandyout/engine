@@ -54,7 +54,7 @@ An honest read of the slice as it stood after the first build, against what is k
 
 1. **Done in this pass**: the wuxia kit; the sect, gate and shrine rebuilt from it; robes for the player and elder.
 2. **Done**: Heaven Peak and two crags; a roadside shrine, a ruined watchtower, a hermit's hut; four spirit veins that triple meditation speed nearby. Still to do: water, a cave.
-3. Characters and combat: three enemy archetypes (spear, sabre, qi caster) with different tells; an enemy hit flash; the first fight tuned to one or two strikes.
+3. **Done**: five bandits of four kinds (brawler, swordsman, spearman with a long thrust and a slow armoured sweep, two qi adepts who stay back and throw qi); a white hit flash on any struck fighter (the Impact flashes setting scales it). Still to do: telegraph cues on the sweep, a fair-first-fight pass with playtesting.
 4. Cultivation: stages inside each realm; a tribulation set piece at a breakthrough.
 5. Content: a village with a shop and a dialogue, two side quests, loot.
 6. Audio: CC0 music and ambience.

@@ -41,7 +41,7 @@ local QUESTS = {
   { "meet-elder", "Meet Elder Mu", "Speak with the elder inside the sect gate." },
   { "gather-qi", "Gather qi", "Stand still and hold M to meditate." },
   { "breakthrough", "Break through", "Fill your qi bar, then press B with a Breakthrough Pill." },
-  { "bandits", "Clear the road", "Defeat the four bandits in the valley camp." },
+  { "bandits", "Clear the road", "Defeat the five bandits in the valley camp." },
   { "guardian", "Face the guardian", "Climb to the shrine and defeat the Iron Fist Elder." },
 }
 local quest_state = { ["meet-elder"] = "active" }
@@ -106,7 +106,8 @@ local function target_text()
   if not t or not world.alive(t) then return "", 0 end
   local name = world.name(t) or ""
   local subtitle
-  if name:find("^Bandit") then subtitle = "Mortal"
+  if name:find("^Bandit") then
+    subtitle = name:find("Brawler") and "Brawler · Mortal" or name:find("Swordsman") and "Swordsman · Mortal" or name:find("Spearman") and "Spearman · Mortal" or "Qi Adept · Mortal"
   elseif name:find("^Iron") then subtitle = "Qi Gathering"
   else return "", 0 end
   local tx, _, tz = world.position(t)
