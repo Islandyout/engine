@@ -31,6 +31,10 @@ interface Batch {
 }
 
 const KEPT = ["position", "normal", "uv", "color"];
+// Batches are cut by place as well as by material: a single mesh for the whole world has a bounding sphere that is
+// always in view, so every triangle would be drawn every frame. In cells this wide a batch is culled when you look away
+// (a room built far from the valley costs nothing until you are in it).
+const CELL = 64;
 
 // Materials that look the same batch together even when they're separate
 // instances (every entity's Material component makes its own).
@@ -87,7 +91,7 @@ export class StaticBatcher {
         geometry.applyMatrix4(node.matrixWorld);
         geometry.morphAttributes = {};
         const signature = Object.keys(geometry.attributes).sort().join(",") + (geometry.index ? ":i" : ":n");
-        const key = `${site(index)}|${materialSignature(node.material)}|${node.castShadow ? 1 : 0}${node.receiveShadow ? 1 : 0}|${signature}`;
+        const key = `${site(index)}|${Math.floor(anchor.position.x / CELL)},${Math.floor(anchor.position.z / CELL)}|${materialSignature(node.material)}|${node.castShadow ? 1 : 0}${node.receiveShadow ? 1 : 0}|${signature}`;
         parts.push({ key, geometry, material: node.material, castShadow: node.castShadow, receiveShadow: node.receiveShadow, source: node });
       });
       if (!ok || !parts.length) {

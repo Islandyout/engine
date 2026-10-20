@@ -43,10 +43,15 @@ export interface MapLayout {
   bounds: MapRect;
   areas: MapArea[];
   roads: MapRect[];
+  paths: { x: number; z: number }[][];
   buildings: MapRect[];
   trees: { x: number; z: number }[];
   pois: MapPoint[];
   labels: { x: number; z: number; text: string }[];
+  // "title kicker|name" and "legend kind text": a game's own heading and key
+  // (no legend lines keeps the default Gate key, with its rank colours).
+  title?: { kicker: string; name: string };
+  legend?: [kind: string, text: string][];
 }
 export interface MapMarker extends MapPoint {
   id: string;
@@ -58,7 +63,7 @@ const rect = (a: number, b: number, c: number, d: number): MapRect => ({ x0: Mat
 
 // hud.map_layout's text. Undefined without a "bounds" line.
 export function parseMapLayout(spec: string): MapLayout | undefined {
-  const layout: MapLayout = { bounds: rect(0, 0, 0, 0), areas: [], roads: [], buildings: [], trees: [], pois: [], labels: [] };
+  const layout: MapLayout = { bounds: rect(0, 0, 0, 0), areas: [], roads: [], paths: [], buildings: [], trees: [], pois: [], labels: [] };
   let bounded = false;
   for (const raw of spec.split("\n")) {
     const parts = raw.trim().split(/\s+/);
@@ -77,6 +82,14 @@ export function parseMapLayout(spec: string): MapLayout | undefined {
       else if (HEX.test(parts[5] ?? "")) layout.areas.push({ ...r, color: parts[5]!, label: rest(6) });
     } else if (kind === "tree" && numbers(2)) layout.trees.push({ x: n(1), z: n(2) });
     else if (kind === "poi" && parts[1] && numbers(2, 2)) layout.pois.push({ kind: parts[1], x: n(2), z: n(3), label: rest(4) });
+    else if (kind === "path" && parts.length >= 5 && numbers(parts.length - 1)) {
+      const points = [];
+      for (let i = 1; i + 1 < parts.length; i += 2) points.push({ x: n(i), z: n(i + 1) });
+      layout.paths.push(points);
+    } else if (kind === "title" && rest(1)) {
+      const [kicker = "", ...name] = rest(1).split("|");
+      layout.title = name.length ? { kicker, name: name.join("|") } : { kicker: "", name: kicker };
+    } else if (kind === "legend" && parts[1] && parts.length > 2) (layout.legend ??= []).push([parts[1], rest(2)]);
     else if (kind === "label" && numbers(2) && parts.length > 3) layout.labels.push({ x: n(1), z: n(2), text: rest(3) });
   }
   return bounded ? layout : undefined;
@@ -331,6 +344,21 @@ export function drawIcon(ctx: CanvasRenderingContext2D, kind: string, x: number,
       ctx.fillRect(-r * 0.2, r * 0.25, r * 0.4, r * 0.6);
       break;
     }
+    case "vein": {
+      // A crystal: a pale diamond with a bright core.
+      ctx.beginPath();
+      ctx.moveTo(0, -r);
+      ctx.lineTo(r * 0.7, 0);
+      ctx.lineTo(0, r);
+      ctx.lineTo(-r * 0.7, 0);
+      ctx.closePath();
+      ctx.fillStyle = color || "#7fe0ff";
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(-r * 0.12, -r * 0.4, r * 0.24, r * 0.8);
+      break;
+    }
     case "mat": {
       ctx.beginPath();
       ctx.rect(-r * 0.8, -r * 0.8, r * 1.6, r * 1.6);
@@ -583,6 +611,20 @@ export class DistrictMap {
     }
     g.fillStyle = "#8d94a6";
     for (const road of layout.roads) g.fillRect(...box(road));
+    g.lineJoin = g.lineCap = "round";
+    for (const [width, color] of [[3 * PX + 6, "#0e1016"], [3 * PX, "#8d94a6"]] as const) {
+      g.strokeStyle = color;
+      g.lineWidth = width;
+      for (const path of layout.paths) {
+        g.beginPath();
+        path.forEach((point, i) => {
+          const p = toImage(frame, point.x, point.z);
+          if (i) g.lineTo(p.u, p.v);
+          else g.moveTo(p.u, p.v);
+        });
+        g.stroke();
+      }
+    }
     // Trees: dark green dots.
     g.fillStyle = "#2f6a3c";
     g.strokeStyle = "#0f2414";
@@ -802,10 +844,10 @@ export class DistrictMap {
       g.textBaseline = "top";
       g.fillStyle = "rgba(140,210,255,0.9)";
       g.font = `700 ${Math.round(12 * k)}px ${FONT}`;
-      g.fillText("◆  THE LEDGER  ◆", px + 18 * k, py + 12 * k);
+      g.fillText(this.layout?.title ? (this.layout.title.kicker ? `◆  ${this.layout.title.kicker}  ◆` : "") : "◆  THE LEDGER  ◆", px + 18 * k, py + 12 * k);
       g.fillStyle = "#ffffff";
       g.font = `800 ${Math.round(22 * k)}px ${FONT}`;
-      g.fillText("DISTRICT MAP", px + 18 * k, py + 28 * k);
+      g.fillText(this.layout?.title?.name ?? "DISTRICT MAP", px + 18 * k, py + 28 * k);
       // The map and the legend: side by side when wide, stacked when not;
       // the keys top right, or under the title on a narrow screen.
       const wide = pw > 720;
@@ -889,7 +931,8 @@ export class DistrictMap {
         ly += row;
       }
       const startY = ly;
-      LEGEND.forEach(([kind, text], i) => {
+      const legend = this.layout?.legend ?? LEGEND;
+      legend.forEach(([kind, text], i) => {
         const col = i % columns,
           rowIndex = Math.floor(i / columns);
         const x = lx + col * 210 * k,
@@ -900,20 +943,22 @@ export class DistrictMap {
         g.fillText(text, x + 24 * k, y);
       });
       if (wide) {
-        ly = startY + LEGEND.length * row + 8 * k;
+        ly = startY + legend.length * row + 8 * k;
         // The rank colours.
-        g.fillStyle = "rgba(140,210,255,0.9)";
-        g.font = `800 ${Math.round(12 * k)}px ${FONT}`;
-        g.fillText("GATE RANKS", lx, ly);
-        ly += row * 0.9;
-        Object.entries(RANK_COLORS).forEach(([rank, color], i) => {
-          const x = lx + 9 * k + i * 30 * k;
-          drawIcon(g, "gate", x, ly, Math.round(16 * k), color);
-          g.textAlign = "center";
-          inkText(g, rank, x, ly + 16 * k, 11 * k, color, 900);
-          g.textAlign = "left";
-        });
-        ly += row * 1.6;
+        if (!this.layout?.legend) {
+          g.fillStyle = "rgba(140,210,255,0.9)";
+          g.font = `800 ${Math.round(12 * k)}px ${FONT}`;
+          g.fillText("GATE RANKS", lx, ly);
+          ly += row * 0.9;
+          Object.entries(RANK_COLORS).forEach(([rank, color], i) => {
+            const x = lx + 9 * k + i * 30 * k;
+            drawIcon(g, "gate", x, ly, Math.round(16 * k), color);
+            g.textAlign = "center";
+            inkText(g, rank, x, ly + 16 * k, 11 * k, color, 900);
+            g.textAlign = "left";
+          });
+          ly += row * 1.6;
+        }
         if (target) {
           g.fillStyle = "rgba(140,210,255,0.9)";
           g.font = `800 ${Math.round(12 * k)}px ${FONT}`;

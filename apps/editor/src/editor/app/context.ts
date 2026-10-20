@@ -430,9 +430,7 @@ export interface Ctx {
   probeScanAt: number;
   processCombatEvents: () => void;
   profileCapture: { frames: number[]; until: number; } | undefined;
-  projectileGeometry: THREE.BoxGeometry;
-  projectileMaterial: THREE.MeshStandardMaterial;
-  projectileMeshes: THREE.Mesh<THREE.BufferGeometry<THREE.NormalBufferAttributes>, THREE.Material | THREE.Material[], THREE.Object3DEventMap>[];
+  projectileMeshes: THREE.Object3D[];
   prospect: { keys: Set<string>; label: string; range: number; } | undefined;
   rebuild: () => void;
   registerAsset: (asset: StoredAsset) => void;
@@ -459,7 +457,7 @@ export interface Ctx {
   scatterPlacements: { x: number; y: number; z: number; key: string; kind: string; scale: number; }[];
   scatterTargets: ScanTarget[];
   scene: THREE.Scene;
-  sceneWidgets: Set<"Health" | "Inventory" | "Ammo" | "Crosshair" | "Damage numbers" | "Kill feed" | "Boss bar" | "Minimap" | "Compass" | "Objective" | "Waypoints" | "Interact prompt" | "Pickup feed" | "Loot card" | "Hotbar" | "Weapon wheel" | "Pause menu" | "Main menu" | "Settings" | "Dialogue" | "Notification" | "Fighter bars" | "World health bar" | "Hint" | "Vehicle instruments" | "Flight instruments">;
+  sceneWidgets: Set<"Health" | "Inventory" | "Ammo" | "Crosshair" | "Damage numbers" | "Kill feed" | "Boss bar" | "Minimap" | "Compass" | "Objective" | "Waypoints" | "Interact prompt" | "Pickup feed" | "Loot card" | "Hotbar" | "Weapon wheel" | "Pause menu" | "Main menu" | "Settings" | "Dialogue" | "Notification" | "Fighter bars" | "World health bar" | "Hint" | "Vehicle instruments" | "Flight instruments" | "Skill bar" | "Resource bar" | "Status effects" | "Target frame" | "Damage direction" | "Death screen" | "Character sheet" | "Quest log" | "Skill tree" | "Key hints" | "Shop window" | "Quick slots">;
   scheduleContentCheck: () => void;
   scriptKeyByCode: Map<string, string>;
   scriptKeyQueue: [key: string, down: number][];
@@ -592,5 +590,6 @@ export interface Ctx {
   widgetAction: (hit: WidgetHit, x: number) => void;
   widgetHits: WidgetHit[];
   widgetTexts: Map<number, { text: string; since: number; }>;
+  captions: { text: string; at: number }[];
   zoomBlend: number;
 }

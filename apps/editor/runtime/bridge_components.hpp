@@ -434,6 +434,8 @@ struct Projectile final {
     float damage{15.0F};
     float gravity{0.0F};
     float splash{0.0F};
+    // The look of a melee move's projectile (see Move::shape); -1 is a plain bolt.
+    int shape{-1};
 };
 
 constexpr float move_speed = 4.8F; // units/s; matches the native playground's tuned feel
@@ -815,7 +817,8 @@ struct Fighter final {
     // faces the aim, the fire button shoots instead of striking, and the aim
     // button (shared with heavy and block on the mouse and pad) does neither.
     bool gun_aim{false};
-    // The built-in move set in use ("sword" or "martial"), swapped to suit
+    // The built-in move set in use ("sword", "martial", or "custom" for an
+    // author's own list, never swapped), swapped to suit
     // the blade when a Weapons melee slot comes into hand.
     std::string moveset;
     bool dash_sprint{false}; // sprinting from a held dodge this tick

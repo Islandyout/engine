@@ -1,6 +1,6 @@
 # The UI kit
 
-Ready-made game UI. There are 21 widgets in six styles, so a game doesn't start from plain text.
+Ready-made game UI. There are 38 widgets in six styles, so a game doesn't start from plain text.
 
 - **What a widget is**: a `UI` component with `kind: "Widget"`, a `widget` name and a `style`.
 - **The code**: `apps/editor/src/editor/uiKit.ts`.
@@ -63,6 +63,31 @@ The "References" column names games whose version of the widget this one follows
 | Settings | Volume, look sensitivity, invert look, aim assist, camera shake | Fortnite, Apex Legends, Call of Duty, The Last of Us Part II (accessibility), Valorant, Destiny 2 |
 | Dialogue | A speaker nameplate, a typed-out line, choices | Mass Effect, The Witcher 3, Persona 5, Hades, Disco Elysium, Zelda |
 | Notification | A banner that slides in when its text changes | Elden Ring (area names), Destiny 2, Fortnite, Xbox achievements, Assassin's Creed, Halo |
+
+### Action RPG widgets (0.94.0)
+
+Eight widgets for games with abilities, status and a journal. Most are **script-fed**: a script sets the widget's text (and value) with `ui.set_text(name, text)` and `ui.set_value(name, 0..1)`, where `name` is the widget entity's name. A widget with empty text draws nothing.
+
+| Widget | What it shows | Text format | References |
+| --- | --- | --- | --- |
+| Skill bar | Keyed ability slots: lit when ready, a cooldown sweep, red when short of mana, a lock when locked. The keys written on the slots are the scene's `skill1`..`skill3` and `ultimate` bindings. | none (the Player's fighter data) | Genshin Impact, Ghost of Tsushima, Elden Ring |
+| Resource bar | A labelled bar: qi, focus, rage, stamina | `Label`, then `readout`, then an optional `#rrggbb`; value 0..1 | Sekiro (posture), Hades (magick), Genshin (energy) |
+| Status effects | Buff and debuff pills with timers, listed top down | one `Name\|seconds\|good or bad\|total` a line | Elden Ring, Monster Hunter, Diablo |
+| Target frame | The enemy you face: name, a subtitle, health with a damage trail, poise | `Name`, `Subtitle`, `poise 0..1`; value: health | Sekiro, Dark Souls, The Witcher 3 |
+| Damage direction | An arc towards what just hit you, fading in a second | the bearing in degrees: 0 ahead, 90 on your right | Call of Duty, Ghost of Tsushima |
+| Death screen | A vignette, a title, a line and a button; the button sends `on_ui("<name>", "respawn")` | `Title`, `Line`, `Button label` | Dark Souls (YOU DIED), Hades |
+| Character sheet | Stats and progress bars; X sends `on_ui("<name>", "close")` | `Title`, `Subtitle`, then `# Section`, `Label\|Value` or `bar\|Label\|0..1\|readout` lines | Skyrim, The Witcher 3, Diablo |
+| Quest log | The journal: the active goal highlighted, finished ones ticked | `Title`, then `state\|Title\|Detail` (state `active`, `done` or `todo`) | The Witcher 3, Skyrim, Genshin |
+| Skill tree | Passive perks linked by what they need; learned, available (click to learn) and locked | `Title`, a subtitle, then `node\|id\|Name\|state\|col\|row\|requires\|cost\|icon\|Detail` lines (state `learned`, `available` or `locked`); a click sends `node:<id>` | Path of Exile, Skyrim, Elden Ring |
+| Key hints | One right-aligned plate of key caps and labels for the menu keys (I Bag, C Character...) | One `KEY\|Label` per line | Genshin, Ghost of Tsushima, Elden Ring prompts |
+| Shop window | A list window to buy, sell or craft from, with tabs | `Title`, a subtitle, an optional `tabs\|1\|A\|B`, then `row\|id\|Name\|icon\|right\|state\|Detail` lines (state `ok`, `locked`, `sold`); a click sends `pick:<id>` | Skyrim barter, Diablo vendors |
+| Quick slots | Consumables on keys, with counts | One `KEY\|icon\|count\|Label` per line | Souls-likes, Diablo belt |
+
+- Give the sheets `visibleWhen: toggle` and a `toggleKey` (`KeyC`, `KeyJ`) so a key opens them.
+- `on_ui("objective", "start:<id>")` and `"complete:<id>"` tell a script what the Objectives did, so a quest log can mirror them.
+- With a Skill bar in the scene the combat view no longer draws its own skill slots; a scene with Fighter bars and no Skill bar keeps them.
+- A button inside a widget sends `event:<name>` and the script hears `on_ui(<widget name>, <name>)`.
+- `melee.revive()` brings the Player back after a death. The Player now stays down until a script revives it (everyone else is still removed after a few seconds).
 
 ## What the research says (and how the kit follows it)
 

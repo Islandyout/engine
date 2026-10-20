@@ -650,11 +650,7 @@ async function startEditor() {
   // entity of their own, so they get their own small pool of meshes here
   // instead of living in `objects`/`rebuild()`, grown/shrunk to match
   // however many currently exist each Play-mode frame.
-  const projectileGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-  C.projectileGeometry = projectileGeometry;
-  const projectileMaterial = new THREE.MeshStandardMaterial({ color: 0x78c8ff });
-  C.projectileMaterial = projectileMaterial;
-  const projectileMeshes: THREE.Mesh[] = [];
+  const projectileMeshes: THREE.Object3D[] = [];
   C.projectileMeshes = projectileMeshes;
   const selection = new THREE.BoxHelper(new THREE.Object3D(), 0xffce70);
   C.selection = selection;
@@ -1113,6 +1109,7 @@ async function startEditor() {
   /* declared in the context */
   const widgetTexts = new Map<number, { text: string; since: number }>();
   C.widgetTexts = widgetTexts;
+  C.captions = [];
   const hiddenWidgets = new Set<number>();
   C.hiddenWidgets = hiddenWidgets;
   const sceneWidgets = new Set<UIWidget>();

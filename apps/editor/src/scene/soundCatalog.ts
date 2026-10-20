@@ -18,6 +18,10 @@ export const soundCatalog: SoundCatalogEntry[] = [
   { id: 8, category: "stinger", name: "Door Open", path: "./audio/door-open.ogg" },
   { id: 9, category: "stinger", name: "Door Close", path: "./audio/door-close.ogg" },
   { id: 10, category: "stinger", name: "Coin Pickup", path: "./audio/coin-pickup.ogg" },
+  { id: 11, category: "stinger", name: "Blade Draw", path: "./audio/blade-draw.ogg" },
+  { id: 12, category: "stinger", name: "Coin Handle", path: "./audio/coin-handle.ogg" },
+  { id: 13, category: "stinger", name: "Book Open", path: "./audio/book-open.ogg" },
+  { id: 14, category: "stinger", name: "Cloth Swish", path: "./audio/cloth-swish.ogg" },
 ];
 
 export const soundCategories = [...new Set(soundCatalog.map((s) => s.category))];

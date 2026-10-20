@@ -1,3 +1,5 @@
+import { accessibility } from "../uiKit";
+import { makeProjectile, updateProjectile } from "../projectileView";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type {
@@ -6,7 +8,7 @@ import type {
 import { groundSpeed, pickClipName } from "../animationClips";
 import { EntityField } from "../bridgeFields";
 import { applyStickLook } from "../fpsView";
-import { crowdNear } from "../frameGovernor";
+import { CHARACTER_DRAW_DISTANCE, crowdNear } from "../frameGovernor";
 import { applyGesture, findGestureBones, gestureFor } from "../gestures";
 import { updateHeldWeapons } from "../heldWeapons";
 import {
@@ -270,12 +272,16 @@ export function installFrame(C: Ctx): void {
       }
       if (steps > 0 && player) C.playerPrevY = player.position.y;
       const projectileCount = C.runtime._editor_projectile_count();
-      while (C.projectileMeshes.length < projectileCount)
-        C.scene.add((C.projectileMeshes[C.projectileMeshes.length] = new THREE.Mesh(C.projectileGeometry, C.projectileMaterial)));
       while (C.projectileMeshes.length > projectileCount) C.scene.remove(C.projectileMeshes.pop()!);
-      C.projectileMeshes.forEach((mesh, i) =>
-        mesh.position.set(C.runtime._editor_projectile_value(i, 0), C.runtime._editor_projectile_value(i, 1), C.runtime._editor_projectile_value(i, 2)),
-      );
+      for (let i = 0; i < projectileCount; i++) {
+        const v = (field: number) => C.runtime._editor_projectile_value(i, field);
+        const shape = v(6);
+        if (C.projectileMeshes[i]?.userData.shape !== shape) {
+          if (C.projectileMeshes[i]) C.scene.remove(C.projectileMeshes[i]!);
+          C.scene.add((C.projectileMeshes[i] = makeProjectile(shape)));
+        }
+        updateProjectile(C.projectileMeshes[i]!, v(0), v(1), v(2), v(3), v(4), v(5), performance.now() / 1000);
+      }
       C.updateCars(dt);
       if (C.spaceView && C.shipIndex >= 0 && C.objects[C.shipIndex]) {
         const context = C.audioContext;
@@ -297,6 +303,21 @@ export function installFrame(C: Ctx): void {
     C.animStates.forEach((state, i) => {
       if (!state) return;
       const object = C.objects[i];
+      // A character far from the camera is not drawn at all (a skinned body and its gear cost tens of thousands of
+      // triangles whether or not they are anywhere near the view).
+      if (object && C.doc.mode === "play") {
+        const far = object.position.distanceToSquared(eye) > CHARACTER_DRAW_DISTANCE * CHARACTER_DRAW_DISTANCE;
+        if (far !== !!object.userData.farHidden) {
+          object.userData.farHidden = far;
+          if (far) {
+            object.userData.visibleBefore = object.visible;
+            object.visible = false;
+          } else object.visible = object.userData.visibleBefore ?? true;
+        }
+      } else if (object?.userData.farHidden) {
+        object.userData.farHidden = false;
+        object.visible = object.userData.visibleBefore ?? true;
+      }
       if (stride > 1 && object && object.position.distanceToSquared(eye) > crowdNear * crowdNear) {
         state.skipped = (state.skipped ?? 0) + animDt;
         if ((C.crowdFrame + i) % stride !== 0) return;
@@ -529,6 +550,9 @@ export function installFrame(C: Ctx): void {
       C.renderer.info.reset();
     }
     C.inkPass.impact = C.combat.comic.impact * C.playerSettings.flash;
+    C.combat.flashStrength = C.playerSettings.flash;
+    accessibility.textScale = C.playerSettings.textScale;
+    accessibility.colorBlind = C.playerSettings.colorBlind;
     if (C.composer) C.composer.render();
     else C.renderer.render(C.scene, C.viewCamera);
     C.drawHud();

@@ -78,6 +78,7 @@ jobs:
           node tests/browser/collider.cjs
           node tests/browser/car.cjs
           node tests/browser/murim.cjs
+          node tests/browser/murim_perf.cjs
           EDITOR_NO_WEBGL=1 node tests/browser/editor.cjs
           node tests/browser/fps.cjs
           node tests/browser/last_signal.cjs

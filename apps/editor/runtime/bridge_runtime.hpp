@@ -2944,6 +2944,33 @@ struct Runtime {
                     }
                     if (!target && !wall && projectile.lifetime > 0)
                         continue;
+                    // A fighter holding block meets a qi bolt with its guard: raised within the parry window, from the
+                    // front, it knocks the bolt back at whoever threw it (and earns energy); later it only takes the
+                    // guarded share and spends guard.
+                    if (target && projectile.splash <= 0) {
+                        if (auto *defender = w.get<Fighter>(*target);
+                            defender && defender->state.mode == engine::gameplay::FighterMode::block) {
+                            const float speed = std::sqrt(projectile.velocity.x * projectile.velocity.x +
+                                                          projectile.velocity.y * projectile.velocity.y +
+                                                          projectile.velocity.z * projectile.velocity.z);
+                            const float toward = speed > 0 ? (std::sin(defender->yaw) * -projectile.velocity.x +
+                                                              std::cos(defender->yaw) * -projectile.velocity.z) / speed
+                                                           : 0;
+                            if (toward > 0) {
+                                if (defender->state.block_time <= defender->settings.parry_window) {
+                                    projectile.velocity = {-projectile.velocity.x * 1.25F, -projectile.velocity.y * 1.25F,
+                                                           -projectile.velocity.z * 1.25F};
+                                    projectile.owner = *target;
+                                    projectile.lifetime = 1.6F;
+                                    defender->state.energy = std::min(defender->settings.energy_max,
+                                                                      defender->state.energy + defender->settings.parry_gain);
+                                    continue;
+                                }
+                                defender->state.guard = std::max(0.0F, defender->state.guard - projectile.damage);
+                                projectile.damage *= 0.15F;
+                            }
+                        }
+                    }
                     if (projectile.splash > 0 && (target || wall))
                         explode(w, projectile.owner, box.center, projectile.splash, projectile.damage);
                     else if (target)

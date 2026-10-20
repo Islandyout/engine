@@ -177,6 +177,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `melee.target(): integer?` | Who it faces and fights. |
 | `melee.set_ai(on: boolean, aggression?: number, skill?: number)` | Hands the fighter to (or takes it from) its melee brain. |
 | `melee.unlock(move: string): number?` | Makes a move marked locked usable; 1 when the move exists. |
+| `melee.relock(move: string): number?` | Makes a move unusable again (a stance switch, a spent art); 1 when the move exists. |
 | `melee.stagger(): number, number` | Its poise bar 0-1, and 1 while it's Broken. |
 | `melee.mana(add?: number): number, number` | Adds mana (a potion; capped at the max) and returns its mana and max. |
 | `melee.follow(leader?: integer, slot?: integer)` | Makes this AI fighter an ally of the leader: with no hostile within reach it walks to its slot (0 left, 1 right, 2 behind) and won't chase hostiles more than 16 m from the leader; nil stops it. |
@@ -262,8 +263,8 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `hud.system_close()` | Closes the Ledger system window. |
 | `hud.panels(spec: string)` | Plays a comic-panel cutscene: one shot per line, "x y z > tx ty tz | caption | sfx | seconds". Space or Enter skips. |
 | `hud.boss(name: string, title: string)` | A boss bar (health and stagger) for the named entity; an empty name hides it. |
-| `hud.map_layout(spec: string)` | A top-down area map: the minimap (top right, while the player is inside its bounds) and the full map (M). One item per line: "bounds x0 z0 x1 z1", "area x0 z0 x1 z1 #rrggbb [label]", "road x0 z0 x1 z1", "building x0 z0 x1 z1", "tree x z", "poi kind x z [label]", "label x z text". Empty removes it. |
-| `hud.map_marker(id: string, kind: string, x: number, z: number, color: string, label: string)` | A marker on the area map and minimap: gate, station, smith, board, home, giver (a ! over the spot too), turnin (?) or target (the tracked quest, held on the minimap's rim when far); color #rrggbb or empty. The same id replaces it. |
+| `hud.map_layout(spec: string)` | A top-down area map: the minimap (top right, while the player is inside its bounds) and the full map (M). One item per line: "bounds x0 z0 x1 z1", "area x0 z0 x1 z1 #rrggbb [label]", "road x0 z0 x1 z1", "path x z x z ..." (a winding road), "building x0 z0 x1 z1", "tree x z", "poi kind x z [label]", "label x z text", "title kicker|name", "legend kind text" (your own key; none keeps the default). Empty removes it. |
+| `hud.map_marker(id: string, kind: string, x: number, z: number, color: string, label: string)` | A marker on the area map and minimap: gate, station, smith, board, home, vein, giver (a ! over the spot too), turnin (?) or target (the tracked quest, held on the minimap's rim when far); color #rrggbb or empty. The same id replaces it. |
 | `hud.clear_map_marker(id: string)` | Removes a map marker. |
 
 ## audio

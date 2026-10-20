@@ -190,6 +190,9 @@ export class CombatView {
   // Seconds of game time per real second (slow motion), for the caller's
   // simulation clock and mixers.
   timeScale = 1;
+  // How strongly a struck body flashes white (the player's Impact flashes setting, 0 to 1).
+  flashStrength = 1;
+  private readonly flashing = new Map<THREE.Object3D, number>();
   private slowLeft = 0;
   private slowTarget = 1;
   private readonly fighters = new Map<number, Fighter>();
@@ -368,6 +371,7 @@ export class CombatView {
     for (const index of [...this.fighters.keys()]) this.detach(index);
     this.armed.clear();
     this.sparks.length = 0;
+    this.flashing.clear();
     for (const burst of this.bursts) this.group.remove(burst.mesh);
     this.bursts.length = 0;
     this.timeScale = 1;
@@ -552,6 +556,7 @@ export class CombatView {
           const killed = (flags & MeleeFlag.killed) !== 0;
           const finisher = (flags & MeleeFlag.finisher) !== 0;
           this.impact(point, heavy ? 1.6 : 1, new THREE.Color(1, 0.85, 0.55));
+          this.flash(objects[target]);
           this.comic.hit(finisher || killed ? "finisher" : (flags & MeleeFlag.crit) !== 0 ? "crit" : heavy ? "heavy" : "light", point);
           host.sound(point)?.punch(heavy, 1);
           if (involved) host.shake(finisher || killed ? 0.12 : heavy ? 0.07 : 0.035, finisher ? 0.35 : 0.18);
@@ -665,6 +670,7 @@ export class CombatView {
     } else this.timeScale += (1 - this.timeScale) * (1 - Math.exp(-realDt * 8));
     if (Math.abs(1 - this.timeScale) < 0.01 && this.slowLeft <= 0) this.timeScale = 1;
     const dt = realDt * this.timeScale;
+    this.updateFlashes(realDt);
     for (const [index, fighter] of this.fighters) {
       const mode = host.value(index, FighterField.mode);
       const frozen = host.value(index, FighterField.hitstop) > 0;
@@ -754,6 +760,12 @@ export class CombatView {
       }
     }
     return lines;
+  }
+
+  // The Player's skill slots for the Skill bar: their keys and states (-1 none, -2 locked, -3 short, 0 ready, else cooldown left).
+  skillStates(player: number): { key: string; state: number }[] {
+    const fields = [FighterField.slotSkill1, FighterField.slotSkill2, FighterField.slotSkill3, FighterField.slotUltimate];
+    return fields.map((field, i) => ({ key: this.slotKeys[i]!, state: this.host.value(player, field) }));
   }
 
   // Q, E, R and F: the skills and the ultimate, with their cooldowns.
@@ -866,6 +878,45 @@ export class CombatView {
     if (count >= 2) {
       this.comboShown = count;
       this.comboAge = 0;
+    }
+  }
+
+  // A struck body goes white for a few frames: the cheapest cue that a blow landed (turn the enemy white, then back).
+  private flash(object: THREE.Object3D | undefined, seconds = 0.09) {
+    if (object && this.flashStrength > 0) this.flashing.set(object, seconds);
+  }
+
+  private updateFlashes(dt: number) {
+    for (const [object, left] of this.flashing) {
+      const remaining = left - dt;
+      const on = remaining > 0;
+      object.traverse((child) => {
+        const mesh = child as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        list.forEach((material, i) => {
+          const m = material as THREE.MeshStandardMaterial;
+          if (!m.emissive) return;
+          if (!m.userData.flashBase) {
+            // The first flash gives this mesh its own material, so one body's flash never lights its neighbours.
+            const own = m.clone();
+            own.userData.flashBase = { color: m.emissive.clone(), intensity: m.emissiveIntensity };
+            if (Array.isArray(mesh.material)) mesh.material[i] = own;
+            else mesh.material = own;
+          }
+          const used = (Array.isArray(mesh.material) ? mesh.material[i] : mesh.material) as THREE.MeshStandardMaterial;
+          const base = used.userData.flashBase as { color: THREE.Color; intensity: number };
+          if (on) {
+            used.emissive.setRGB(1, 1, 1);
+            used.emissiveIntensity = 0.9 * this.flashStrength;
+          } else {
+            used.emissive.copy(base.color);
+            used.emissiveIntensity = base.intensity;
+          }
+        });
+      });
+      if (on) this.flashing.set(object, remaining);
+      else this.flashing.delete(object);
     }
   }
 

@@ -1,7 +1,8 @@
 -- @prop mode aura
 -- Qi effects, one emitter per entity (props.mode): "aura" glows around the Player while
 -- gathering or casting, "bolt" is the visible core and trail of a Qi Palm, "burst" flashes
--- where a qi art lands, "burn" keeps a struck fighter alight for a few seconds.
+-- where a qi art lands, "burn" keeps a struck fighter alight for a few seconds, and "mark" is the red ring that
+-- shows where tribulation lightning will fall; "array" is the cyan glow of a planted formation.
 
 local mode = props.mode or "aura"
 local ttl = 0        -- bolt: seconds left in flight
@@ -9,6 +10,7 @@ local dx, dz = 0, 0  -- bolt: direction * speed
 local owner = nil
 local target = nil   -- burn: who is burning
 local burn_left = 0
+local mark_left = 0
 
 local function park()
   self.y = -200
@@ -34,7 +36,7 @@ local function hit_at(x, y, z)
     if hostile(id) and burn then world.send(burn, "burn", tostring(id)) break end
   end
   camera.shake(0.3, 0.2)
-  sound.play("metal-hit")
+  sound.play("metal hit")
 end
 
 function on_message(name, value)
@@ -53,6 +55,13 @@ function on_message(name, value)
     if x then
       self.x, self.y, self.z = tonumber(x), tonumber(y), tonumber(z)
       particles.burst(60)
+    end
+  elseif (mode == "mark" or mode == "array") and name == "at" then
+    local x, y, z, secs = value:match("^([%-%d.]+),([%-%d.]+),([%-%d.]+),([%-%d.]+)$")
+    if x then
+      self.x, self.y, self.z = tonumber(x), tonumber(y), tonumber(z)
+      mark_left = tonumber(secs)
+      particles.set_emitting(true)
     end
   elseif mode == "burn" and name == "burn" then
     target = tonumber(value)
@@ -76,6 +85,9 @@ function on_tick(dt)
       end
     end
     if ttl <= 0 then park() end
+  elseif (mode == "mark" or mode == "array") and mark_left > 0 then
+    mark_left = mark_left - dt
+    if mark_left <= 0 then park() end
   elseif mode == "burn" and burn_left > 0 then
     burn_left = burn_left - dt
     if target and world.alive(target) then

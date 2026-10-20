@@ -66,6 +66,7 @@ struct MoveDef final {
     bool finisher{false};      // the editor slows time and frames it
     int hits{1};               // hits spread over the active window
     float projectile{0.0F};    // > 0: fires an energy projectile at this speed at hit_start
+    int shape{0};              // the projectile's look: 0 orb, 1 crescent, 2 arrow, 3 fireball, 4 lightning, 5 shuriken
     float track{50.0F};        // degrees the fighter turns toward its target as the move starts
     std::string limb{"hand_r"}; // the striking limb (trails, impact point)
 };

@@ -223,7 +223,8 @@ void Runtime::step_melee(engine::World &w) {
             body.velocity.x = fighter.slide.x;
             body.velocity.z = fighter.slide.z;
             fighter.dying -= tick_dt;
-            if (fighter.dying <= 0)
+            // The Player stays down until a script revives it (melee.revive); everyone else is removed.
+            if (fighter.dying <= 0 && !player)
                 w.defer_destroy(self);
             continue;
         }
@@ -283,7 +284,7 @@ void Runtime::step_melee(engine::World &w) {
             // melee slots, only shoots: no strikes or blocks.
             const bool only_gun = gun_slot && gun->melee_slots && in_hand->offhand.empty();
             // A melee slot fights with the move set that suits its blade.
-            if (in_hand && in_hand->is_melee() && state.mode == FighterMode::idle) {
+            if (in_hand && in_hand->is_melee() && state.mode == FighterMode::idle && fighter.moveset != "custom") {
                 const auto &blade = in_hand->melee;
                 const bool martial = blade == "fists" || blade.rfind("dagger", 0) == 0 || blade.rfind("knife", 0) == 0;
                 const std::string wanted = martial ? "martial" : "sword";
@@ -578,6 +579,7 @@ void Runtime::step_melee(engine::World &w) {
             Projectile shot{{facing.x * move.projectile, 0, facing.z * move.projectile}, self};
             shot.damage = move.damage * fighter.stat_damage * (move.mana > 0 ? fighter.stat_skill : 1.0F);
             shot.lifetime = 1.6F;
+            shot.shape = move.shape;
             w.defer_set(projectile, shot);
             push_melee({MeleeEventKind::fire, index_of(self), -1, origin, move.projectile, state.move, 0});
         }
@@ -618,6 +620,11 @@ bool BridgeHost::melee(engine::World &world, engine::Entity self, const std::str
         const int index = move_index(fighter->moves, text);
         if (index >= 0 && static_cast<std::size_t>(index) < state.locked.size())
             state.locked[static_cast<std::size_t>(index)] = 0;
+        out = {index >= 0 ? 1.0 : 0.0};
+    } else if (op == "relock") {
+        const int index = move_index(fighter->moves, text);
+        if (index >= 0 && static_cast<std::size_t>(index) < state.locked.size())
+            state.locked[static_cast<std::size_t>(index)] = 1;
         out = {index >= 0 ? 1.0 : 0.0};
     } else if (op == "stagger") {
         out = {fighter->settings.poise > 0 ? state.stagger / fighter->settings.poise : 0.0,
@@ -711,11 +718,15 @@ EXPORT void editor_set_melee(int index, int style, const char *moves, double tea
     auto parsed = engine::gameplay::parse_moves(style == 1   ? engine::gameplay::sword_moves_text
                                                 : style == 2 && moves ? moves
                                                                       : engine::gameplay::default_moves_text);
-    if (!parsed.error.empty()) {
+    const bool bad_moves = !parsed.error.empty();
+    if (bad_moves) {
         staging->melee_error = parsed.error;
         parsed = engine::gameplay::parse_moves(engine::gameplay::default_moves_text);
     }
     fighter.moves = std::move(parsed.moves);
+    // A Custom move list is the author's own: a drawn weapon never swaps it.
+    if (style == 2 && !bad_moves)
+        fighter.moveset = "custom";
     fighter.settings.guard_max = static_cast<float>(std::clamp(guard, 1.0, 100000.0));
     fighter.state = engine::gameplay::make_fighter_state(fighter.moves, fighter.settings);
     fighter.state.energy = static_cast<float>(std::clamp(energy, 0.0, static_cast<double>(fighter.settings.energy_max)));

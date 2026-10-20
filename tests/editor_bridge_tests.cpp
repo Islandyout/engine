@@ -2553,6 +2553,41 @@ int main() {
         check(duel(0) == "jab blocked;");
         check(editor_value(0, 3) < 1 && editor_value(0, 3) > 0.95); // chip damage only
 
+        // A qi bolt against a block: raised just in time, it is knocked back at the thrower; held longer, only chip damage.
+        const auto bolt_duel = [&](int block_at, bool &deflected) {
+            editor_begin();
+            add_player(0);
+            check(editor_add(0, 0.9, 5, 0, 0, 0, 0.6, 1.8, 0.6, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+            editor_set_melee(1, 2, "bolt: input=light hit=0.1-0.15 dur=0.5 dmg=30 projectile=10 reach=1\n", 1, 0, 0.5, 0.5, 0.25, 0, 60);
+            editor_set_melee_yaw(1, 3.14159265);
+            editor_set_script_source(1, "t = 0\nfunction on_tick(dt) t = t + 1 if t == 20 then melee.perform('bolt') end end");
+            check(editor_commit() == 1);
+            deflected = false;
+            for (int i = 0; i < 110; ++i) {
+                editor_input_begin_frame();
+                editor_input_key("KeyR", i >= block_at ? 1 : 0);
+                editor_tick();
+                if (editor_projectile_count() > 0 && editor_projectile_value(0, 5) > 0)
+                    deflected = true;
+            }
+            editor_input_begin_frame();
+            editor_input_key("KeyR", 0);
+            editor_tick();
+        };
+        {
+            bool deflected = false, any = false;
+            for (int at = 38; at <= 50 && !any; ++at) {
+                bolt_duel(at, deflected);
+                any = deflected;
+            }
+            check(any);                                          // some timing parries it
+            check(editor_value(0, 3) > 0.99);                    // and the Player takes nothing
+            bolt_duel(0, deflected);
+            check(!deflected && editor_value(0, 3) < 1 && editor_value(0, 3) > 0.9); // guarded: chip damage only
+            bolt_duel(200, deflected);
+            check(!deflected && editor_value(0, 3) < 0.8);       // not blocking: the full 30
+        }
+
         // Launch, land, lie down, get up: the Player's scripted uppercut
         // throws an enemy fighter into the air.
         editor_begin();
@@ -2660,6 +2695,50 @@ int main() {
             check(broke && editor_fighter_value(1, 19) > 0); // Broken
         }
 
+        // melee.relock shuts an unlocked move again (a stance switch).
+        {
+            editor_begin();
+            add_player(0);
+            editor_set_melee(0, 2, "skill: input=skill1 hit=0.05-0.1 dmg=8 reach=1.2 locked\n", 0, 0, 0.5, 0.5, 0.25, 0, 60);
+            editor_set_script_source(0, "t = 0\nfunction on_tick(dt) t = t + 1\n"
+                                        " if t == 2 then melee.unlock('skill') end\n"
+                                        " if t == 4 then log(melee.perform('skill') and 'open' or 'shut') end\n"
+                                        " if t == 50 then log(tostring(melee.relock('skill'))) end\n"
+                                        " if t == 52 then log(melee.perform('skill') and 'open' or 'shut') end end");
+            check(editor_commit() == 1);
+            std::string logs;
+            for (int i = 0; i < 70; ++i) {
+                editor_tick();
+                const int commands = editor_take_commands();
+                for (int c = 0; c < commands; ++c)
+                    if (std::string(editor_command_text(c, 0)) == "log")
+                        logs += std::string(editor_command_text(c, 1)) + ";";
+            }
+            check(logs == "open;1.0;shut;");
+        }
+
+        // A Custom move list survives drawing a sword from the Weapons loadout.
+        {
+            editor_begin();
+            add_player(0);
+            editor_set_melee(0, 2, "zap: input=light hit=0.05-0.1 dmg=8 reach=1.2\n", 0, 0, 0.5, 0.5, 0.25, 0, 60);
+            editor_set_weapons(0, "sword: melee=sword equip=0");
+            editor_set_script_source(0, "t = 0\nfunction on_tick(dt) t = t + 1\n"
+                                        " if t == 2 then inventory.select(self.id, 1) end\n"
+                                        " if t == 20 then melee.perform('zap') end\n"
+                                        " if t == 24 then log(melee.move()) end end");
+            check(editor_commit() == 1);
+            std::string logs;
+            for (int i = 0; i < 40; ++i) {
+                editor_tick();
+                const int commands = editor_take_commands();
+                for (int c = 0; c < commands; ++c)
+                    if (std::string(editor_command_text(c, 0)) == "log")
+                        logs += std::string(editor_command_text(c, 1)) + ";";
+            }
+            check(logs == "zap;");
+        }
+
         // GATEBREAKER M2: melee.tune scales the damage a fighter deals and
         // sets its maximum health (keeping the share it has).
         {
@@ -2752,6 +2831,25 @@ int main() {
         check(editor_fighter_value(1, 1) == 0);       // idle again
         check(std::abs(editor_value(1, 3) - 1.0) < 1e-6); // full health
         check(camera_log == "0.0 1.0");
+        // F97: a defeated Player is not removed after its death clip (everyone else is): it stays down
+        // until a script revives it, so a death screen has something to bring back.
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.7, 1.8, 0.7, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_melee(0, 0, "", 0, 0, 0.5, 0.5, 0.25, 0, 60);
+        editor_set_script_source(0, "t = 0\nfunction on_tick() t = t + 1\n"
+                                    " if t == 2 then world.damage(self.id, 500) end\n"
+                                    " if t == 400 then melee.revive() end end");
+        check(editor_add(0, -0.5, 0, 0, 0, 0, 40, 1, 40, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_body(1, 1, 1, 0);
+        check(editor_commit() == 1);
+        for (int i = 0; i < 380; ++i)
+            editor_tick();
+        check(editor_alive(0) == 1);                  // still here long past 4 s
+        check(editor_fighter_value(0, 1) == 7);       // lying dead
+        for (int i = 0; i < 60; ++i)
+            editor_tick();
+        check(editor_fighter_value(0, 1) != 7);       // revived
+        check(std::abs(editor_value(0, 3) - 1.0) < 1e-6);
         // GATEBREAKER M4: with no sprint action bound, a held dodge sprints
         // out of a fight (whichever way the stick points, in third person)
         // and a tap dodges as it's released; with a hostile fighter near,
@@ -2946,6 +3044,33 @@ int main() {
         editor_set_name(1, "Taxi");
         check(editor_commit() == 0 && std::string(editor_last_error()).find("Taxi") != std::string::npos &&
               std::string(editor_last_error()).find("no Collider") != std::string::npos);
+    }
+
+    // A move's `shape=` reaches its projectile (the look the editor draws), and a bad one is refused.
+    {
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_controller(0, 0, 4.5, 7.5, 2.2, 1.1, 1.8, 1.1, 0.4, 45, 12);
+        editor_set_melee(0, 2, "bolt: clip=energy_throw input=light dur=0.5 hit=0.1-0.15 cancel=0.4 dmg=5 projectile=10 shape=4", 0, 0, 0.5, 0.5, 0.25, 0, 60);
+        check(editor_commit() == 1);
+        check(std::string(editor_melee_error()).empty());
+        for (int i = 0; i < 3; ++i)
+            editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("KeyJ", 1);
+        editor_tick();
+        editor_input_begin_frame();
+        editor_input_key("KeyJ", 0);
+        for (int i = 0; i < 30 && editor_projectile_count() == 0; ++i)
+            editor_tick();
+        check(editor_projectile_count() == 1);
+        check(editor_projectile_value(0, 6) == 4);   // the shape
+        check(editor_projectile_value(0, 5) > 5);     // flying along +z at the move's speed
+        editor_begin();
+        check(editor_add(0, 0.9, 0, 0, 0, 0, 0.6, 1.8, 0.6, 0, 1, 0, 100, 100, 0, 0, 0, 0, 0.5, 0, 0) == 1);
+        editor_set_melee(0, 2, "bolt: clip=energy_throw input=light dur=0.5 hit=0.1-0.15 cancel=0.4 dmg=5 projectile=10 shape=9", 0, 0, 0.5, 0.5, 0.25, 0, 60);
+        editor_commit();
+        check(std::string(editor_melee_error()).find("shape") != std::string::npos);
     }
 
     std::cout << "Editor bridge: deterministic fixed steps, atomic replacement, finite bounds, "

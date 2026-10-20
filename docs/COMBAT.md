@@ -111,6 +111,7 @@ rising_dragon: clip=rising_strike input=special seq=b dur=0.7 hit=0.1-0.3 dmg=18
 | `armor`, `unblockable`, `knockdown`, `finisher` | Flags (`unblockable` is a red attack: no block, no parry). |
 | `hits` | Hits spread over the active window. |
 | `projectile` | Fires an energy blast at this speed at the start of the window. |
+| `shape` | The blast's look: 0 orb, 1 crescent, 2 arrow, 3 fireball, 4 lightning, 5 shuriken. |
 | `track` | Degrees it turns toward its target as it starts. |
 | `limb` | The bone the trail follows (`hand_l`, `hand_r`, `foot_l`, `foot_r`, `calf_r`, ...). |
 

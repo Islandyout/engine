@@ -129,6 +129,12 @@ export function installAudio(C: Ctx): void {
   // ("coin" plays "Coin Pickup").
   function playOneShot(clip: string, position?: THREE.Vector3, volume = 1) {
     const wanted = clip.trim().toLowerCase();
+    // Sound captions (a setting): what was heard, for a player who cannot hear it.
+    if (C.playerSettings.captions && volume > 0.05 && !wanted.startsWith("sfx:footstep")) {
+      const text = `[${wanted.replace(/^sfx:/, "").replace(/:.*$/, "")}]`;
+      if (C.captions[C.captions.length - 1]?.text !== text || performance.now() - C.captions[C.captions.length - 1]!.at > 600) C.captions.push({ text, at: performance.now() });
+      if (C.captions.length > 3) C.captions.shift();
+    }
     // "sfx:<name>" plays a synthesized sound.
     if (wanted.startsWith("sfx:")) {
       const voice = position ? soundsAt(position, volume) : sounds();

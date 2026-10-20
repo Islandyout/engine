@@ -554,6 +554,12 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "melee"
   },
   {
+    "name": "melee.relock",
+    "signature": "melee.relock(move: string): number?",
+    "doc": "Makes a move unusable again (a stance switch, a spent art); 1 when the move exists.",
+    "group": "melee"
+  },
+  {
     "name": "melee.stagger",
     "signature": "melee.stagger(): number, number",
     "doc": "Its poise bar 0-1, and 1 while it's Broken.",
@@ -994,13 +1000,13 @@ export const scriptApi: ScriptApiEntry[] = [
   {
     "name": "hud.map_layout",
     "signature": "hud.map_layout(spec: string)",
-    "doc": "A top-down area map: the minimap (top right, while the player is inside its bounds) and the full map (M). One item per line: \"bounds x0 z0 x1 z1\", \"area x0 z0 x1 z1 #rrggbb [label]\", \"road x0 z0 x1 z1\", \"building x0 z0 x1 z1\", \"tree x z\", \"poi kind x z [label]\", \"label x z text\". Empty removes it.",
+    "doc": "A top-down area map: the minimap (top right, while the player is inside its bounds) and the full map (M). One item per line: \"bounds x0 z0 x1 z1\", \"area x0 z0 x1 z1 #rrggbb [label]\", \"road x0 z0 x1 z1\", \"path x z x z ...\" (a winding road), \"building x0 z0 x1 z1\", \"tree x z\", \"poi kind x z [label]\", \"label x z text\", \"title kicker|name\", \"legend kind text\" (your own key; none keeps the default). Empty removes it.",
     "group": "hud"
   },
   {
     "name": "hud.map_marker",
     "signature": "hud.map_marker(id: string, kind: string, x: number, z: number, color: string, label: string)",
-    "doc": "A marker on the area map and minimap: gate, station, smith, board, home, giver (a ! over the spot too), turnin (?) or target (the tracked quest, held on the minimap's rim when far); color #rrggbb or empty. The same id replaces it.",
+    "doc": "A marker on the area map and minimap: gate, station, smith, board, home, vein, giver (a ! over the spot too), turnin (?) or target (the tracked quest, held on the minimap's rim when far); color #rrggbb or empty. The same id replaces it.",
     "group": "hud"
   },
   {

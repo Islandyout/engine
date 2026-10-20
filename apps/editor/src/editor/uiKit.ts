@@ -7,6 +7,8 @@
 // A widget paints itself on the HUD canvas from the live game (UIData,
 // gathered by main.ts every frame) or, while editing, from sample data,
 // and returns the regions a click acts on (menus, sliders, the wheel).
+import { extraDraws } from "./uiDraws";
+import "./uiKitRpg";
 import type { UIAnchor, UIStyle, UIVisibility, UIWidget } from "../scene/Components";
 import { uiStyleNames, uiWidgetNames } from "../scene/Components";
 import type { UIRect } from "./uiLayout";
@@ -73,6 +75,18 @@ export const widgetCatalog: readonly WidgetInfo[] = [
   info("Hint", "Combat HUD", "A line of help shown while the mouse is free. Text: what it says.", "center", [0, 120], [420, 32], "play", "Click to aim with the mouse (Esc releases)"),
   info("Vehicle instruments", "Navigation", "Speedometer, gear, nitro and a road minimap while driving. One is enough for the scene.", "bottom-right", [-24, -24], [200, 200]),
   info("Flight instruments", "Navigation", "Altitude, speed, throttle, fuel and hull while flying a Spaceship. One is enough for the scene.", "center", [0, 0], [240, 160]),
+  info("Skill bar", "Combat HUD", "Keyed ability slots with cooldown sweeps, locked and short-of-mana states. Follows the keys the scene binds.", "bottom-center", [0, -24], [260, 70]),
+  info("Resource bar", "Combat HUD", "A labelled bar a script feeds: qi, focus, rage. Text: label, readout, optional #colour; value: 0 to 1.", "bottom-left", [24, -130], [320, 40], "always", "Qi\n310 / 500", 0.62),
+  info("Status effects", "Combat HUD", "Buff and debuff chips with timers. Text: one 'Name|seconds|good or bad|total' a line.", "bottom-left", [24, -176], [260, 90], "always", "Burning|4|bad|6\nQi shield|12|good|20\nWounded|0|bad"),
+  info("Target frame", "Combat HUD", "The enemy you face: name, health with a damage trail, poise. Text: name, subtitle, poise 0 to 1; value: health.", "top-center", [0, 110], [420, 64], "always", "Bandit Chief\nQi Gathering\n0.4", 0.64),
+  info("Damage direction", "Combat HUD", "An arc towards whatever just hit you. Text: the bearing in degrees, 0 ahead, 90 on your right.", "center", [0, 0], [420, 420], "always", "90"),
+  info("Death screen", "Menus & dialogue", "A fade, a title and a way back. Text: title, a line, the button's label; empty hides it. The button sends on_ui(name, \"respawn\").", "center", [0, 0], [640, 320], "always", "YOU HAVE FALLEN\nYour qi scatters on the wind.\nRise again"),
+  info("Character sheet", "Menus & dialogue", "Stats and progress bars. Text: title, subtitle, then '# Section', 'Label|Value' or 'bar|Label|0..1|readout' lines.", "center", [0, 0], [440, 400], "toggle"),
+  info("Quest log", "Menus & dialogue", "The journal. Text: title, then 'state|Title|Detail' lines (active, done, todo).", "center", [0, 0], [460, 340], "toggle"),
+  info("Skill tree", "Menus & dialogue", "Passive perks bought with points. Text: title, subtitle, then 'node|id|Name|state|col|row|requires|cost|icon|Detail' lines (state learned, available or locked; requires is an id or empty). A click on an available node sends node:<id>.", "center", [0, 0], [520, 400], "toggle"),
+  info("Key hints", "Menus & dialogue", "A row of key caps with what each opens. Text: one 'KEY|Label' per line.", "bottom-right", [24, 24], [560, 40], "always"),
+  info("Shop window", "Menus & dialogue", "A list window to buy, sell or craft from. Text: title, subtitle, optional 'tabs|1|A|B', then 'row|id|Name|icon|right|state|Detail' lines (state ok, locked, sold). A click sends pick:<id>.", "center", [0, 0], [520, 420], "toggle"),
+  info("Quick slots", "Combat HUD", "Consumables on keys with counts. Text: one 'KEY|icon|count|Label' per line.", "bottom-right", [24, 90], [320, 76], "always"),
 ];
 
 export function widgetInfo(name: UIWidget): WidgetInfo {
@@ -112,8 +126,11 @@ export interface UIData {
   gear: { weight: number; maxWeight: number; kinds: number; maxKinds: number; worn: { head: string; body: string; hands: string } } | undefined;
   settings: { master: number; sensitivity: number; invertY: boolean; aimAssist: boolean; shake: boolean };
   title: string; // the game's name
+  padConnected: boolean; // a gamepad is the active device (button labels instead of keys)
   fighter: { health: number; mana: number; energy: number; guard: number } | undefined; // the source's fighter bars
   captured: boolean; // the mouse is captured by the game
+  // The Player's skill slots (Skill bar): state -1 none, -2 locked, -3 short of mana or energy, 0 ready, else the cooldown left 0 to 1.
+  skills: { key: string; state: number }[];
 }
 
 // What a click on a widget does: "resume", "restart", "quit", "settings",
@@ -222,8 +239,15 @@ const iconPaths = {
   lock: "M7 10V7a5 5 0 0110 0v3h2v12H5V10zm3 0h4V7a2 2 0 00-4 0z",
   bag: "M5 8h14l1 13H4zM9 8a3 3 0 016 0h-2a1 1 0 00-2 0z",
   arrow: "M12 2l8 20-8-5-8 5z",
+  potion: "M9 2h6v2h-1v4l5 10a3 3 0 01-2.7 4H7.7A3 3 0 015 18l5-10V4H9z",
+  pill: "M12 3a9 9 0 100 18 9 9 0 000-18zM7.5 11.2h9v1.6h-9z",
+  scroll: "M6 3h12a2 2 0 012 2v12a3 3 0 01-3 3H7a3 3 0 01-3-3v-1h2v1a1 1 0 002 0V5a2 2 0 00-2-2zm3 4v2h8V7zm0 4v2h8v-2z",
+  robe: "M9 2l3 2 3-2 5 4-2 4-2-1v13H8V9l-2 1-2-4z",
+  bolt: "M13 2L4 14h6l-1 8 9-12h-6z",
+  flame: "M12 2c1 4 6 6 6 12a6 6 0 01-12 0c0-3 2-4 3-6 1 2 2 2 2 1 0-2 0-4 1-7z",
 } as const;
 export type IconName = keyof typeof iconPaths;
+export const iconNames: ReadonlySet<string> = new Set(Object.keys(iconPaths));
 const iconCache = new Map<IconName, Path2D>();
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
@@ -236,8 +260,12 @@ export function lootIcon(kind: number, name: string): IconName {
   if (kind === 0) return /sword|axe|hammer|dagger|knife|blade|melee|fists|bow|shield/i.test(name) ? "sword" : "gun";
   if (kind === 1) return "bullet";
   if (kind === 2) return "cross";
-  if (/coin|gold|cash|money/i.test(name)) return "coin";
+  if (/coin|gold|cash|money|silver/i.test(name)) return "coin";
   if (/key/i.test(name)) return "key";
+  if (/elixir|potion|tonic|brew/i.test(name)) return "potion";
+  if (/pill|tablet/i.test(name)) return "pill";
+  if (/scroll|manual|book|codex|art$/i.test(name)) return "scroll";
+  if (/robe|garb|cloak|vest|armou?r|tunic/i.test(name)) return "robe";
   return "gem";
 }
 
@@ -253,7 +281,7 @@ interface TextOptions {
 }
 
 // Drawing in one skin at one scale.
-class Paint {
+export class Paint {
   constructor(
     readonly ctx: CanvasRenderingContext2D,
     readonly k: Skin,
@@ -276,7 +304,7 @@ class Paint {
     c.shadowColor = "transparent";
   }
   font(size: number, weight = this.k.weight) {
-    this.ctx.font = `${this.k.italic ? "italic " : ""}${weight} ${Math.max(1, Math.round(size * this.s))}px ${this.k.font}`;
+    this.ctx.font = `${this.k.italic ? "italic " : ""}${weight} ${Math.max(1, Math.round(size * this.s * accessibility.textScale))}px ${this.k.font}`;
     const spaced = this.ctx as CanvasRenderingContext2D & { letterSpacing?: string };
     if ("letterSpacing" in spaced) spaced.letterSpacing = `${this.k.tracking * this.s}px`;
   }
@@ -651,7 +679,7 @@ class Paint {
   }
 }
 
-function roundRect(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+export function roundRect(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   const radius = Math.max(0, Math.min(r, w / 2, h / 2));
   c.moveTo(x + radius, y);
   c.arcTo(x + w, y, x + w, y + h, radius);
@@ -680,7 +708,7 @@ function shade(color: string, k: number): string {
 const inside = (pointer: UIData["pointer"], x: number, y: number, w: number, h: number) =>
   !!pointer && pointer.x >= x && pointer.x <= x + w && pointer.y >= y && pointer.y <= y + h;
 
-type Draw = (p: Paint, r: UIRect, d: UIData, o: WidgetInput, hits: UIHit[]) => void;
+export type Draw = (p: Paint, r: UIRect, d: UIData, o: WidgetInput, hits: UIHit[]) => void;
 
 // ---- Combat HUD ----
 
@@ -1114,7 +1142,7 @@ const objective: Draw = (p, r, d, o) => {
   if (!title) return;
   const { left: x, top: y, width: w, height: h } = r;
   const pad = 12 * s;
-  if (k.frame !== "soft") p.panel(x, y, w, h);
+  p.panel(x, y, w, h);
   const left = x + pad + (k.frame === "slant" ? 8 * s : 0);
   if (k.frame === "ornate") p.diamond(left + 4 * s, y + 18 * s, 4 * s, k.accent);
   p.text(k.frame === "ornate" ? "Quest" : "Objective", left + (k.frame === "ornate" ? 14 * s : 0), y + 18 * s, 11, {
@@ -1257,6 +1285,8 @@ const lootCard: Draw = (p, r, d, o) => {
   p.text("Pick up", x + pad + kw + 12 * s, ky, 12, { color: k.dim });
 };
 
+export const ITEM_TINT: Partial<Record<IconName, string>> = { coin: "#ffc83d", gem: rarityColors[3], potion: "#5fd8e8", pill: "#ffd25a", scroll: "#e8d6a8", robe: "#9ad0ff" };
+
 const inventory: Draw = (p, r, d, o, hits) => {
   const { ctx: c, k, s } = p;
   const { left: x, top: y, width: w, height: h } = r;
@@ -1285,16 +1315,23 @@ const inventory: Draw = (p, r, d, o, hits) => {
   const gap = 8 * s;
   const cell = Math.min((w - pad * 2 - gap * (cols - 1)) / cols, 80 * s);
   let top = y + 44 * s;
-  const frame = (cx: number, cy: number, lit: boolean, hover: boolean, filled: boolean) => {
+  const frame = (cx: number, cy: number, lit: boolean, hover: boolean, filled: boolean, tier?: string) => {
     c.beginPath();
     if (k.round && k.frame !== "chamfer") roundRect(c, cx, cy, cell, cell, 6 * s);
     else p.shape(cx, cy, cell, cell);
     c.fillStyle = lit || hover ? k.panelHi : "rgba(0, 0, 0, 0.35)";
     c.fill();
-    c.lineWidth = s;
-    c.strokeStyle = filled ? (lit ? (k.accent === "#ffffff" ? k.text : k.accent) : k.edge) : "rgba(255, 255, 255, 0.08)";
+    c.lineWidth = tier ? 1.6 * s : s;
+    c.strokeStyle = filled ? (tier ?? (lit ? (k.accent === "#ffffff" ? k.text : k.accent) : k.edge)) : "rgba(255, 255, 255, 0.08)";
     c.stroke();
   };
+  // What a script says about its items (Inventory text, one "Name|rarity 0-4|description|use" a line): a tier colour on the
+  // frame, and a detail pane for the one under the pointer.
+  const notes = new Map<string, { tier: number; text: string; use: boolean }>();
+  for (const line of o.text.split("\n")) {
+    const [name, tier, text = "", use = ""] = line.split("|");
+    if (name && tier !== undefined && Number.isFinite(Number(tier))) notes.set(name, { tier: Math.max(0, Math.min(4, Number(tier))), text, use: use === "use" });
+  }
   // Worn: head, body, hands. A click takes the item off.
   if (gear) {
     (["head", "body", "hands"] as const).forEach((slot, i) => {
@@ -1315,20 +1352,42 @@ const inventory: Draw = (p, r, d, o, hits) => {
     ...slots.map((slot, i) => ({ icon: (slot.melee ? "sword" : "gun") as IconName, name: slot.name, count: 0, lit: i === d.slot })),
     ...items.map((item) => ({ icon: lootIcon(3, item.name), name: item.name, count: item.count, lit: worn.has(item.name), wear: item.slot })),
   ];
-  const rows = Math.max(1, Math.floor((h - (top - y) - pad + gap) / (cell + gap)));
+  const detailH = notes.size ? 54 * s : 0;
+  const rows = Math.max(1, Math.floor((h - (top - y) - pad - detailH + gap) / (cell + gap)));
+  let hovered: (typeof entries)[number] | undefined;
   for (let i = 0; i < cols * rows; i++) {
     const cx = left + (i % cols) * (cell + gap);
     const cy = top + Math.floor(i / cols) * (cell + gap);
     const entry = entries[i];
-    frame(cx, cy, !!entry?.lit, inside(d.pointer, cx, cy, cell, cell), !!entry);
+    const note = entry ? notes.get(entry.name) : undefined;
+    const over = inside(d.pointer, cx, cy, cell, cell);
+    frame(cx, cy, !!entry?.lit, over, !!entry, note ? rarityColors[note.tier] : undefined);
     if (!entry) continue;
-    p.icon(entry.icon, cx + cell / 2, cy + cell * 0.42, cell * 0.42, entry.icon === "coin" ? "#ffc83d" : entry.icon === "gem" ? rarityColors[3] : k.text);
+    if (over) hovered = entry;
+    p.icon(entry.icon, cx + cell / 2, cy + cell * 0.42, cell * 0.42, ITEM_TINT[entry.icon] ?? k.text);
     p.text(entry.name, cx + cell / 2, cy + cell - 10 * s, 10, { align: "center", raw: true, color: k.dim, max: cell - 6 * s });
     if (entry.count > 1) p.text(String(entry.count), cx + cell - 5 * s, cy + 10 * s, 11, { align: "right", weight: 800 });
     if (i < slots.length) hits.push({ left: cx, top: cy, width: cell, height: cell, action: `slot:${i}` });
     else if (entry.wear && !entry.lit) hits.push({ left: cx, top: cy, width: cell, height: cell, action: `equip:${entry.wear}:${entry.name}` });
+    else if (note?.use) hits.push({ left: cx, top: cy, width: cell, height: cell, action: `event:use:${entry.name}` });
+  }
+  if (detailH) {
+    const dy = y + h - pad - detailH + 4 * s;
+    c.fillStyle = k.edge === "rgba(255, 255, 255, 0)" ? "rgba(255,255,255,0.18)" : k.edge;
+    c.fillRect(left, dy - 8 * s, w - pad * 2, Math.max(1, s * 0.8));
+    const shown = hovered ?? entries[d.slot] ?? entries[0];
+    const note = shown ? notes.get(shown.name) : undefined;
+    if (shown) {
+      const tierName = note ? ["Common", "Uncommon", "Rare", "Epic", "Legendary"][note.tier] : "";
+      p.text(shown.name, left, dy + 8 * s, 14, { weight: 800, raw: true, color: note ? rarityColors[note.tier] : k.text });
+      if (tierName) p.text(tierName, w + x - pad, dy + 8 * s, 11, { align: "right", color: rarityColors[note!.tier] });
+      const extra = shown.count > 1 ? `x${shown.count}  ·  ` : "";
+      p.text(extra + (note?.text ?? ""), left, dy + 30 * s, 12, { raw: true, color: k.dim, plain: true, max: w - pad * 2 });
+      if (note?.use && hovered === shown) p.text("Click to use", x + w - pad, dy + 30 * s, 11, { align: "right", color: accentOrText(k) });
+    }
   }
 };
+const accentOrText = (k: { accent: string; text: string }) => (k.accent === "#ffffff" ? k.text : k.accent);
 
 const hotbar: Draw = (p, r, d, o, hits) => {
   const { ctx: c, k, s } = p;
@@ -1613,7 +1672,7 @@ const placeholder = (label: string): Draw => (p, r, d, o) => {
   p.text(label, r.left + r.width / 2, r.top + r.height / 2, 12, { align: "center", raw: true, color: p.k.dim, max: r.width - 12 });
 };
 
-const draws: Record<UIWidget, Draw> = {
+const draws: Partial<Record<UIWidget, Draw>> = {
   "Fighter bars": fighterBars,
   "World health bar": placeholder("World health bars (shown over entities in play)"),
   Hint: hint,
@@ -1642,13 +1701,18 @@ const draws: Record<UIWidget, Draw> = {
   Notification: notification,
 };
 
+// The player's accessibility choices, set every frame from the settings: a text size over the widgets' own, and a palette
+// that does not rely on telling red from green (health in blue, danger in orange).
+export const accessibility = { textScale: 1, colorBlind: false };
+const colorBlindSkin = (skin: Skin): Skin => ({ ...skin, health: skin.health === skin.text ? skin.health : "#4aa8ff", danger: "#ff9d1f", stamina: skin.stamina === skin.text ? skin.stamina : "#ffd23f" });
+
 // Paints one widget in `rect` and returns what clicks on it do.
 export function drawWidget(ctx: CanvasRenderingContext2D, input: WidgetInput, rect: UIRect, data: UIData): UIHit[] {
   const hits: UIHit[] = [];
-  const paint = new Paint(ctx, skins[input.style], input.fontSize / 16);
+  const paint = new Paint(ctx, accessibility.colorBlind ? colorBlindSkin(skins[input.style]) : skins[input.style], input.fontSize / 16);
   ctx.save();
   try {
-    draws[input.widget](paint, rect, data, input, hits);
+    (draws[input.widget] ?? extraDraws.get(input.widget))?.(paint, rect, data, input, hits);
   } finally {
     ctx.restore();
   }
@@ -1662,6 +1726,7 @@ export function sampleUIData(time: number, width: number, height: number): UIDat
     width,
     height,
     pointer: undefined,
+    padConnected: false,
     health: 0.68,
     healthGhost: 0.8,
     healthMax: 100,
@@ -1694,6 +1759,7 @@ export function sampleUIData(time: number, width: number, height: number): UIDat
     title: "My Game",
     fighter: { health: 0.68, mana: 0.6, energy: 0.45, guard: 0.8 },
     captured: false,
+    skills: [],
   };
 }
 

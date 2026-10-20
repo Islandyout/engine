@@ -348,10 +348,13 @@ export function installSceneObjects(C: Ctx): void {
       // the mesh's literal world-space size, matching the physics Box's
       // dimensions (same s.x/y/z) instead of stacking on top of it.
       const n = cached.nativeSize;
-      // Characters (an animated model driven by AI or a controller) keep
-      // their proportions: one uniform scale from the box's height, since a
-      // rig's bind pose (arms out) says nothing about its collision width.
-      const character = catalog?.animated && (get("AICombat") || get("CharacterController") || get("Melee"));
+      // Characters (an animated person, or any animated model driven by AI or a
+      // controller) keep their proportions: one uniform scale from the box's
+      // height, since a rig's bind pose (arms out) says nothing about its
+      // collision width. A person standing still (a villager with no brain)
+      // is one too: stretched to a 0.6 m box across its T-pose it came out a
+      // third of its width.
+      const character = catalog?.animated && (catalog.category === "people" || get("AICombat") || get("CharacterController") || get("Melee"));
       if (character && n.y > 1e-6) anchor.scale.setScalar(s.y / n.y);
       else anchor.scale.set(n.x > 1e-6 ? s.x / n.x : s.x, n.y > 1e-6 ? s.y / n.y : s.y, n.z > 1e-6 ? s.z / n.z : s.z);
     } else if (s) anchor.scale.set(s.x, s.y, s.z);

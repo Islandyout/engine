@@ -278,6 +278,7 @@ export function installHud(C: Ctx): void {
       width: C.hud.width,
       height: C.hud.height,
       pointer: C.uiPointer,
+      padConnected: !!navigator.getGamepads?.().find((g) => g && g.connected),
       health,
       healthGhost: C.uiFeed.healthGhost,
       healthMax: 100,
@@ -326,6 +327,7 @@ export function installHud(C: Ctx): void {
       title: document.title,
       fighter: player >= 0 && C.combat.isFighter(player) ? fighterReadout(player) : undefined,
       captured: document.pointerLockElement === C.renderer.domElement,
+      skills: player >= 0 && C.combat.isFighter(player) ? C.combat.skillStates(player) : [],
     };
   }
 
@@ -410,7 +412,7 @@ export function installHud(C: Ctx): void {
             return C.hudScratch.z > 1 ? undefined : { x: ((C.hudScratch.x + 1) / 2) * C.hud.width, y: ((1 - C.hudScratch.y) / 2) * C.hud.height };
           },
           C.objects,
-          C.sceneWidgets.has("Fighter bars"),
+          C.sceneWidgets.has("Fighter bars") && !C.sceneWidgets.has("Skill bar"),
         ),
       );
     // Scanner reticle.
@@ -535,6 +537,25 @@ export function installHud(C: Ctx): void {
           window: C.ledger.systemText !== "",
         }),
       );
+    // Sound captions, when the player asked for them: the last few sounds, fading after three seconds.
+    if (C.playerSettings.captions && C.captions.length) {
+      const now = performance.now();
+      C.captions = C.captions.filter((c) => now - c.at < 3000);
+      const px = Math.round(16 * C.playerSettings.textScale);
+      C.hudCtx.save();
+      C.hudCtx.font = `600 ${px}px system-ui, sans-serif`;
+      C.hudCtx.textAlign = "center";
+      C.captions.forEach((c, i) => {
+        const w = C.hudCtx.measureText(c.text).width + 20;
+        const y = C.hud.height - 190 - (C.captions.length - 1 - i) * (px + 12);
+        C.hudCtx.globalAlpha = Math.min(1, (3000 - (now - c.at)) / 600);
+        C.hudCtx.fillStyle = "rgba(0, 0, 0, 0.62)";
+        C.hudCtx.fillRect(C.hud.width / 2 - w / 2, y - px, w, px + 10);
+        C.hudCtx.fillStyle = "#ffffff";
+        C.hudCtx.fillText(c.text, C.hud.width / 2, y);
+      });
+      C.hudCtx.restore();
+    }
     const hudSummary = hudLines.join(" · ");
     if (C.hudText.textContent !== hudSummary) C.hudText.textContent = hudSummary;
   }

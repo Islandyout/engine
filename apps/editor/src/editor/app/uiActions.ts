@@ -68,6 +68,9 @@ export function installUiActions(C: Ctx): void {
         if (C.playerIndex < 0 || !C.runtime._editor_select_weapon(C.playerIndex, Number(arg))) C.log(`UI: the Player has no weapon slot ${Number(arg) + 1}.`);
         else if (C.doc.mode === "pause") runUIAction("resume");
         return;
+      case "event": // a widget's own button: the script hears on_ui(<widget name>, <arg>)
+        uiEvent(hit.name, arg);
+        return;
       case "choice":
       case "next":
         uiEvent(hit.name, hit.action);
