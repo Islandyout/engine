@@ -23,6 +23,8 @@ const scene = new SceneBuilder();
 // A robed body: the long skirt piece in the gear's own colours, and hair (people.ts gear ids 354-358).
 // The textured base characters (Quaternius Universal Base Characters): catalog ids 359 male, 360 female.
 const BODY_M = 359, BODY_F = 360;
+// People stand in the Universal Animation Library 2 idles instead of the stiff default.
+const idle = (clip: string) => ({ AnimationState: { clip: `ual_${clip}`, time: 0, looping: true } });
 const robed = (gear: string, hair = "356:#1c1618") => {
   const col = (id: number) => new RegExp(`${id}:(#[0-9a-fA-F]{6})`).exec(gear)?.[1] ?? "#d8d0bc";
   return `${gear} 354:${/218:#/.test(gear) ? col(218) : col(216)} ${hair}`;
@@ -124,8 +126,10 @@ scene.add("Environment", [0, -40, 0], {
     exposure: 1,
   },
   PostProcessing: {
+    antialias: "SMAA",
+    // Ambient occlusion re-draws the whole scene for its normals, which doubles the draw calls: off for this scene's budget.
     ambientOcclusion: false,
-    shadowQuality: "Medium",
+    shadowQuality: "High",
     bloom: 0.2,
     bloomThreshold: 0.85,
     contrast: 0.08,
@@ -275,6 +279,7 @@ scene.add("Instructor Hua", [SECT.x + 8, ground(SECT.x + 8, SECT.z + 7) + 0.9, S
   Scale: { value: vec(0.6, 1.8, 0.6) },
   Rotation: { euler: vec(0, -2.2, 0) },
   Renderable: { mesh: BODY_M, material: 0, visible: true },
+  ...idle("idle_fold_arms_loop"),
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
   Script: { source: lua("elder.lua").replace("local spoken = false", "local spoken = true"), props: { gear: robed("214:#2f4f6a 216:#2a3a4a 218:#c9a24a 215:#d8d0bc 217:#2a2a30") } },
@@ -285,6 +290,7 @@ scene.add("Elder Mu", [SECT.x + 3.5, ground(SECT.x + 3.5, SECT.z - 1) + 0.9, SEC
   Scale: { value: vec(0.6, 1.8, 0.6) },
   Rotation: { euler: vec(0, Math.PI, 0) },
   Renderable: { mesh: BODY_M, material: 0, visible: true },
+  ...idle("idle_fold_arms_loop"),
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
   Script: { source: lua("elder.lua"), props: { gear: robed("214:#f4f0e4 216:#e6e0cc 218:#d8b46a 215:#e6e0cc 217:#8a7a5a", "357:#d8d8d8") } },
@@ -430,6 +436,7 @@ const VEINS: [number, number][] = [[-30, 52], [36, 24], [-44, -32], [8, -60]];
       Scale: { value: vec(0.6, 1.8, 0.6) },
       Rotation: { euler: vec(0, yaw, 0) },
       Renderable: { mesh: BODY_M, material: 0, visible: true },
+      ...idle(name === "Wen" ? "idle_no_loop" : "idle_rail_loop"),
       RigidBody: { mass: 70, dynamic: true },
       Collider: {},
       Script: { source: lua("elder.lua").replace("local spoken = false", "local spoken = true"), props: { gear } },
@@ -488,6 +495,7 @@ const HALL_DOOR_Z = SECT_FRONT + hallBounds.max[2]! + 0.6;
       Scale: { value: vec(0.6, 1.8, 0.6) },
       Rotation: { euler: vec(0, yaw, 0) },
       Renderable: { mesh: mesh === 132 ? BODY_M : mesh, material: 0, visible: true },
+      ...(mesh === 132 ? idle("idle_lantern_loop") : {}),
       ...(mesh === 132 ? {} : { Material: { color: rgb(hex), roughness: 0.8, keepTextures: false } }),
       RigidBody: { mass: 70, dynamic: true },
       Collider: {},

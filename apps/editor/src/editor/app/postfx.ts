@@ -64,7 +64,7 @@ export function installPostfx(C: Ctx): void {
       C.composer.insertPass(C.gtaoPass, 1);
     }
     if (C.gtaoPass) {
-      C.gtaoPass.enabled = ambientOcclusion;
+      C.gtaoPass.enabled = ambientOcclusion && C.governorTier().ao;
       C.gtaoPass.blendIntensity = settings.aoIntensity;
       C.gtaoPass.updateGtaoMaterial({ radius: settings.aoRadius });
     }

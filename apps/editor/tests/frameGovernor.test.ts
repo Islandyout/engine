@@ -48,6 +48,7 @@ test("frame governor: tiers only ever get cheaper", () => {
     const [a, b] = [governorTiers[i - 1]!, governorTiers[i]!];
     assert.ok(b.scale <= a.scale);
     assert.ok(b.shadows <= a.shadows);
+    assert.ok(!b.ao || a.ao, "occlusion only ever turns off as tiers get cheaper");
     assert.ok(b.scatter <= a.scatter);
     assert.ok(b.crowdStride >= a.crowdStride);
   }

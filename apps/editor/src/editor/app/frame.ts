@@ -1,3 +1,4 @@
+import { wind } from "../terrainMesh";
 import { accessibility } from "../uiKit";
 import { makeProjectile, updateProjectile } from "../projectileView";
 import * as THREE from "three";
@@ -112,6 +113,7 @@ export function installFrame(C: Ctx): void {
     let tickMs = 0;
     const dt = Math.min((now - C.previous) / 1000, 5 / 60);
     C.governFrame(now - C.previous);
+    wind.time.value = now / 1000;
     updateMouseStick(dt);
     if (C.doc.mode === "play") C.updateMusic();
     C.previous = now;

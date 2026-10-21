@@ -68,7 +68,7 @@
      "temperature": 0.06,
      "vignette": 0.25,
      "grain": 0,
-     "shadowQuality": "Medium"
+     "shadowQuality": "High"
     }
    }
   },
@@ -3761,6 +3761,11 @@
      "material": 0,
      "visible": true
     },
+    "AnimationState": {
+     "clip": "ual_idle_fold_arms_loop",
+     "time": 0,
+     "looping": true
+    },
     "RigidBody": {
      "mass": 70,
      "inverseMass": 1,
@@ -3815,6 +3820,11 @@
      "mesh": 359,
      "material": 0,
      "visible": true
+    },
+    "AnimationState": {
+     "clip": "ual_idle_fold_arms_loop",
+     "time": 0,
+     "looping": true
     },
     "RigidBody": {
      "mass": 70,
@@ -9774,6 +9784,11 @@
      "material": 0,
      "visible": true
     },
+    "AnimationState": {
+     "clip": "ual_idle_rail_loop",
+     "time": 0,
+     "looping": true
+    },
     "RigidBody": {
      "mass": 70,
      "inverseMass": 1,
@@ -9828,6 +9843,11 @@
      "mesh": 359,
      "material": 0,
      "visible": true
+    },
+    "AnimationState": {
+     "clip": "ual_idle_no_loop",
+     "time": 0,
+     "looping": true
     },
     "RigidBody": {
      "mass": 70,
@@ -11641,6 +11661,11 @@
      "mesh": 359,
      "material": 0,
      "visible": true
+    },
+    "AnimationState": {
+     "clip": "ual_idle_lantern_loop",
+     "time": 0,
+     "looping": true
     },
     "RigidBody": {
      "mass": 70,

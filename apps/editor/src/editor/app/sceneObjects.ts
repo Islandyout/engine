@@ -193,7 +193,7 @@ export function installSceneObjects(C: Ctx): void {
       const models = new Map<number, ScatterModel>();
       for (const rule of rules) {
         const cached = C.catalogCache.get(rule.model);
-        if (cached) models.set(rule.model, cached);
+        if (cached) models.set(rule.model, { ...cached, sway: plantLike(rule.model) });
         else if (C.catalogEntry(rule.model))
           loadOnce(
             C.pendingCatalogRebuilds,
@@ -509,6 +509,12 @@ export function installSceneObjects(C: Ctx): void {
     C.particleStates.push(particleState);
     C.deathStates.push(undefined);
   }
+
+  // Plants sway in the wind; rocks and buildings do not.
+  const plantLike = (meshId: number) => {
+    const entry = C.catalogEntry(meshId);
+    return !!entry && /tree|pine|oak|birch|bush|shrub|grass|fern|flower|plant|bamboo|palm|willow|reed|weed|cactus/i.test(`${entry.category} ${entry.name}`);
+  };
 
   // Loads a scene and says what the HUD migration added to an older one (hudMigration.ts).
   function loadDocument(data: unknown) {

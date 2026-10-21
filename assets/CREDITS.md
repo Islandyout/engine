@@ -779,6 +779,10 @@ animation clips. `tools/models/import_ubc.mjs` packs the glTF files into single 
 `tools/murim/assets/make_ubc_clothes.mjs` cuts the clothes (ids 369-378) from the bodies' own meshes, so they are derived from the CC0 bodies.
 Both kits share the 65-bone skeleton of the people kit, so every clip plays on every body.
 
+## Terrain detail textures (`source/kit/terrain/`)
+
+ambientCG (https://ambientcg.com), CC0 1.0: Grass004, Rock064, Ground054 and Snow015, colour and normal maps (1K JPG originals) resized to 512 px with `tools/models/downscale_textures.cjs`.
+
 ## Four more sound clips (ids 11-14 in the sound catalog)
 
 From Kenney's *RPG Audio* pack (https://kenney.nl/assets/rpg-audio, CC0 1.0), copied unmodified and renamed: `blade-draw.ogg` (`drawKnife1.ogg`),
