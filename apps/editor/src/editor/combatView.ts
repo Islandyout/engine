@@ -90,14 +90,17 @@ export function pickReaction(kind: number, alternate: boolean): string {
 // rigs that carry no clips of their own (the GATEBREAKER hunter and goblin)
 // walk and run with these.
 export const locomotionClipsPath = "./kit/people/mannequin_f.glb";
+// Quaternius Universal Animation Library 2 (CC0), clip names prefixed ual_ (tools/models/extract_clips.mjs).
+export const universalClipsPath = "./kit/people/ual2_clips.glb";
 const locomotion = ["idle", "walk", "run", "sprint"];
 
 let library: Promise<THREE.AnimationClip[]> | undefined;
 // The clip library, loaded once: the combat clips plus the locomotion.
 export function loadCombatClips(load: (path: string) => Promise<{ animations: THREE.AnimationClip[] }>): Promise<THREE.AnimationClip[]> {
-  library ??= Promise.all([load(combatClipsPath), load(locomotionClipsPath)]).then(([combat, walk]) => [
+  library ??= Promise.all([load(combatClipsPath), load(locomotionClipsPath), load(universalClipsPath)]).then(([combat, walk, universal]) => [
     ...combat.animations,
     ...walk.animations.filter((clip) => locomotion.includes(clip.name) && !combat.animations.some((c) => c.name === clip.name)),
+    ...universal.animations.filter((clip) => !combat.animations.some((c) => c.name === clip.name)),
   ]);
   library.catch(() => (library = undefined));
   return library;

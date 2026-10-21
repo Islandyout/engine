@@ -21,6 +21,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const lua = (file: string) => readFileSync(join(here, "lua", file), "utf8");
 const scene = new SceneBuilder();
 // A robed body: the long skirt piece in the gear's own colours, and hair (people.ts gear ids 354-358).
+// The textured base characters (Quaternius Universal Base Characters): catalog ids 359 male, 360 female.
+const BODY_M = 359, BODY_F = 360;
 const robed = (gear: string, hair = "356:#1c1618") => {
   const col = (id: number) => new RegExp(`${id}:(#[0-9a-fA-F]{6})`).exec(gear)?.[1] ?? "#d8d0bc";
   return `${gear} 354:${/218:#/.test(gear) ? col(218) : col(216)} ${hair}`;
@@ -272,8 +274,7 @@ function wall(name: string, x0: number, z0: number, x1: number, z1: number, gap?
 scene.add("Instructor Hua", [SECT.x + 8, ground(SECT.x + 8, SECT.z + 7) + 0.9, SECT.z + 7], {
   Scale: { value: vec(0.6, 1.8, 0.6) },
   Rotation: { euler: vec(0, -2.2, 0) },
-  Renderable: { mesh: 132, material: 0, visible: true },
-  Material: { color: rgb("#e6d2bc"), roughness: 0.8, keepTextures: false },
+  Renderable: { mesh: BODY_M, material: 0, visible: true },
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
   Script: { source: lua("elder.lua").replace("local spoken = false", "local spoken = true"), props: { gear: robed("214:#2f4f6a 216:#2a3a4a 218:#c9a24a 215:#d8d0bc 217:#2a2a30") } },
@@ -283,8 +284,7 @@ scene.add("Instructor Hua", [SECT.x + 8, ground(SECT.x + 8, SECT.z + 7) + 0.9, S
 scene.add("Elder Mu", [SECT.x + 3.5, ground(SECT.x + 3.5, SECT.z - 1) + 0.9, SECT.z - 1], {
   Scale: { value: vec(0.6, 1.8, 0.6) },
   Rotation: { euler: vec(0, Math.PI, 0) },
-  Renderable: { mesh: 132, material: 0, visible: true },
-  Material: { color: rgb("#ecdcc8"), roughness: 0.8, keepTextures: false },
+  Renderable: { mesh: BODY_M, material: 0, visible: true },
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
   Script: { source: lua("elder.lua"), props: { gear: robed("214:#f4f0e4 216:#e6e0cc 218:#d8b46a 215:#e6e0cc 217:#8a7a5a", "357:#d8d8d8") } },
@@ -314,14 +314,15 @@ scene.add("Elder Mu", [SECT.x + 3.5, ground(SECT.x + 3.5, SECT.z - 1) + 0.9, SEC
   });
 }
 
-type FighterOpts = { mesh?: number; hex: string; health: number; scale?: number; melee: Components; props: Record<string, unknown>; yaw?: number };
+type FighterOpts = { mesh?: number; tint?: boolean; hex: string; health: number; scale?: number; melee: Components; props: Record<string, unknown>; yaw?: number };
 const fighterParts = (opts: FighterOpts): Components => {
   const s = opts.scale ?? 1;
   return {
     Scale: { value: vec(0.6 * s, 1.8 * s, 0.6 * s) },
     Rotation: { euler: vec(0, opts.yaw ?? 0, 0) },
-    Renderable: { mesh: opts.mesh ?? 176, material: 0, visible: true },
-    Material: { color: rgb(opts.hex), roughness: 0.75, keepTextures: false },
+    Renderable: { mesh: opts.mesh ?? BODY_M, material: 0, visible: true },
+    // Spirits and shades are one flat colour; people keep the base body's skin and face.
+    ...(opts.tint ? { Material: { color: rgb(opts.hex), roughness: 0.75, keepTextures: false } } : {}),
     RigidBody: { mass: 70 * s, dynamic: true },
     Collider: {},
     Health: { current: opts.health, maximum: opts.health },
@@ -331,7 +332,7 @@ const fighterParts = (opts: FighterOpts): Components => {
 };
 const fighter = (name: string, x: number, z: number, opts: FighterOpts) => scene.add(name, [x, ground(x, z) + 0.9 * (opts.scale ?? 1), z], fighterParts(opts));
 // Shades: what a boss calls when it grows angry (world.spawn("Cave Shade", x, y, z)).
-const shadeParts = fighterParts({ hex: "#4a4a66", health: 60, melee: { aggression: 0.6, skill: 0.3 }, props: { qi: 20, gear: "214:#33334d 216:#26263a 215:#1a1a26 217:#1a1a26" } });
+const shadeParts = fighterParts({ tint: true, hex: "#4a4a66", health: 60, melee: { aggression: 0.6, skill: 0.3 }, props: { qi: 20, gear: "214:#33334d 216:#26263a 215:#1a1a26 217:#1a1a26" } });
 delete shadeParts.Rotation; // a prefab has no facing of its own
 scene.prefab("Cave Shade", shadeParts);
 // Four kinds of bandit, each reading differently so a fight has something to learn: a brawler (fists, quick light
@@ -428,8 +429,7 @@ const VEINS: [number, number][] = [[-30, 52], [36, 24], [-44, -32], [8, -60]];
     scene.add(name, [vx, ground(vx, vz) + 0.9, vz], {
       Scale: { value: vec(0.6, 1.8, 0.6) },
       Rotation: { euler: vec(0, yaw, 0) },
-      Renderable: { mesh: 132, material: 0, visible: true },
-      Material: { color: rgb(hex), roughness: 0.8, keepTextures: false },
+      Renderable: { mesh: BODY_M, material: 0, visible: true },
       RigidBody: { mass: 70, dynamic: true },
       Collider: {},
       Script: { source: lua("elder.lua").replace("local spoken = false", "local spoken = true"), props: { gear } },
@@ -487,8 +487,8 @@ const HALL_DOOR_Z = SECT_FRONT + hallBounds.max[2]! + 0.6;
     scene.add(name, [x, ground(x, z) + 0.9, z], {
       Scale: { value: vec(0.6, 1.8, 0.6) },
       Rotation: { euler: vec(0, yaw, 0) },
-      Renderable: { mesh, material: 0, visible: true },
-      Material: { color: rgb(hex), roughness: 0.8, keepTextures: false },
+      Renderable: { mesh: mesh === 132 ? BODY_M : mesh, material: 0, visible: true },
+      ...(mesh === 132 ? {} : { Material: { color: rgb(hex), roughness: 0.8, keepTextures: false } }),
       RigidBody: { mass: 70, dynamic: true },
       Collider: {},
       Script: { source: lua(script).replace("local spoken = false", "local spoken = true"), props: { gear } },
@@ -507,8 +507,7 @@ const HALL_DOOR_Z = SECT_FRONT + hallBounds.max[2]! + 0.6;
 scene.add("Disciple Lan", [SECT.x - 6, ground(SECT.x - 6, SECT.z + 3) + 0.9, SECT.z + 3], {
   Scale: { value: vec(0.6, 1.8, 0.6) },
   Rotation: { euler: vec(0, 0.6, 0) },
-  Renderable: { mesh: 176, material: 0, visible: true },
-  Material: { color: rgb("#e6d2bc"), roughness: 0.75, keepTextures: false },
+  Renderable: { mesh: BODY_F, material: 0, visible: true },
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
   Health: { current: 160, maximum: 160 },
@@ -516,7 +515,7 @@ scene.add("Disciple Lan", [SECT.x - 6, ground(SECT.x - 6, SECT.z + 3) + 0.9, SEC
   Script: { source: lua("companion.lua"), props: { kind: "lan", gear: robed("214:#3a6a8a 216:#e8e4d0 218:#d8c070 215:#3a3a3a 217:#2a2a2a", "357:#1c1618") } },
 });
 // The Spirit Guardian the Spirit Guardian art calls: a pale ally fighter that follows you for twenty-five seconds.
-const guardianParts = fighterParts({ hex: "#9fe8ff", health: 140, melee: { team: 0, aggression: 0.7, skill: 0.6 }, props: { gear: "214:#7fd0e8 216:#7fd0e8 215:#7fd0e8 217:#7fd0e8" } });
+const guardianParts = fighterParts({ tint: true, hex: "#9fe8ff", health: 140, melee: { team: 0, aggression: 0.7, skill: 0.6 }, props: { gear: "214:#7fd0e8 216:#7fd0e8 215:#7fd0e8 217:#7fd0e8" } });
 delete guardianParts.Rotation;
 guardianParts.Script = { source: lua("companion.lua"), props: { kind: "guardian", gear: "214:#7fd0e8 216:#7fd0e8 215:#7fd0e8 217:#7fd0e8" } };
 guardianParts.Material = { color: rgb("#9fe8ff"), roughness: 0.4, keepTextures: false, opacity: 0.7, ...emissive("#5fd0f0", 1.2) };
@@ -587,12 +586,11 @@ for (const [i, [wx, wz]] of [[52, 18], [58, 26], [-52, -44], [-60, -50]].entries
 
 // Disciples spar on the training ground and farmers walk their fields through the day.
 {
-  const sparrer = (name: string, x: number, z: number, team: number, yaw: number, gear: string) =>
+  const sparrer = (name: string, x: number, z: number, team: number, yaw: number, gear: string, body = BODY_M) =>
     scene.add(name, [x, ground(x, z) + 0.9, z], {
       Scale: { value: vec(0.6, 1.8, 0.6) },
       Rotation: { euler: vec(0, yaw, 0) },
-      Renderable: { mesh: 176, material: 0, visible: true },
-      Material: { color: rgb("#e6d2bc"), roughness: 0.75, keepTextures: false },
+      Renderable: { mesh: body, material: 0, visible: true },
       RigidBody: { mass: 70, dynamic: true },
       Collider: {},
       Health: { current: 9999, maximum: 9999 },
@@ -600,7 +598,7 @@ for (const [i, [wx, wz]] of [[52, 18], [58, 26], [-52, -44], [-60, -50]].entries
       Script: { source: lua("sparring.lua"), props: { gear } },
     });
   sparrer("Sparring Disciple A", SECT.x - 4, SECT.z + 12, 5, Math.PI / 2, robed("214:#3a6a8a 216:#e8e4d0 218:#d8c070 215:#3a3a3a 217:#2a2a2a"));
-  sparrer("Sparring Disciple B", SECT.x - 1.4, SECT.z + 12, 6, -Math.PI / 2, robed("214:#8a4a3a 216:#e8e4d0 218:#d8c070 215:#3a3a3a 217:#2a2a2a"));
+  sparrer("Sparring Disciple B", SECT.x - 1.4, SECT.z + 12, 6, -Math.PI / 2, robed("214:#8a4a3a 216:#e8e4d0 218:#d8c070 215:#3a3a3a 217:#2a2a2a"), BODY_F);
   const farmer = (name: string, mesh: number, x: number, z: number, stops: string) =>
     scene.add(name, [x, ground(x, z) + 0.9, z], {
       Scale: { value: vec(0.6, 1.8, 0.6) },
@@ -674,7 +672,7 @@ if (!process.env.MURIM_SKIP?.includes("cave")) {
   lamp("Cave light 2", CX, BASE_Y + 4, CZ0 + 38, "#9a8aff", 3.5, 20);
   lamp("Cave light 3", CX, BASE_Y + 4, CZ0 + 68, "#ff8a7a", 4, 22);
   const shade = (name: string, x: number, z: number) =>
-    fighterAt(name, CX + x, BASE_Y + 0.95, CZ0 + z, { hex: "#4a4a66", health: 70, melee: { aggression: 0.55, skill: 0.3 }, props: { qi: 25, silver: 8, gear: "214:#33334d 216:#26263a 215:#1a1a26 217:#1a1a26" } });
+    fighterAt(name, CX + x, BASE_Y + 0.95, CZ0 + z, { tint: true, hex: "#4a4a66", health: 70, melee: { aggression: 0.55, skill: 0.3 }, props: { qi: 25, silver: 8, gear: "214:#33334d 216:#26263a 215:#1a1a26 217:#1a1a26" } });
   shade("Cave Shade 1", -4, 12); shade("Cave Shade 2", 5, 16);
   shade("Cave Shade 3", -5, 38); shade("Cave Shade 4", 4, 40); shade("Cave Shade 5", 0, 46);
   scene.add("Cave chest", [CX + 11, BASE_Y + 0.4, CZ0 + 42], {
@@ -685,6 +683,7 @@ if (!process.env.MURIM_SKIP?.includes("cave")) {
     Container: { table: "1 item Spirit Stone\n0.7 item Spirit Stone\n0.5 item Fire Talisman\n0.4 item Ward Talisman\n0.3 item Array Flag\n0.3 item Jade Circlet", hold: 0.8 },
   });
   fighterAt("Cave Guardian", CX, BASE_Y + 1.2, CZ0 + 72, {
+    tint: true,
     hex: "#8f8f9a", health: 640, scale: 1.35,
     melee: { aggression: 0.8, skill: 0.8, poise: 140, breakTime: 3, guard: 150 },
     props: { qi: 260, phases: 1, dungeon: 1, loot: "Dragon Crown|Cloud Silk Robe", telegraph: "meteor_smash,power_hook", summon: "Cave Shade", gear: "214:#2a2a40 216:#1e1e30 218:#7fe6ff 215:#1a1a26 217:#1a1a26" },
@@ -724,7 +723,12 @@ const stanceMoves = (text: string, prefix: string) => {
   return { text: lines.join("\n"), names };
 };
 const moveNames = (text: string) => text.split("\n").filter((l) => l.trim() && !l.startsWith("#") && !/input=dodge/.test(l)).map((l) => l.slice(0, l.indexOf(":")));
-const BLADE = stanceMoves(swordMoves, "sw_");
+// The blade's light chain uses the Universal Animation Library 2 sword swings (ual_ clips); the rest of the sword set is the engine's.
+const wuxiaSword = swordMoves
+  .replace("clip=sword_light_a input=light dur=0.6 hit=0.12-0.2 cancel=0.26", "clip=ual_sword_regular_a input=light dur=0.5 hit=0.14-0.24 cancel=0.3")
+  .replace("clip=sword_light_b input=light after=slash_a dur=0.65 hit=0.11-0.19 cancel=0.28", "clip=ual_sword_regular_b input=light after=slash_a dur=0.6 hit=0.15-0.27 cancel=0.34")
+  .replace("clip=sword_light_c input=light after=slash_b dur=1.0 hit=0.26-0.36 cancel=0.55", "clip=ual_sword_regular_c input=light after=slash_b dur=1.4 hit=0.4-0.6 cancel=0.9");
+const BLADE = stanceMoves(wuxiaSword, "sw_");
 const SPEAR = stanceMoves(
   [
     "thrust: clip=sword_light_a input=light dur=0.7 hit=0.2-0.28 cancel=0.38 dmg=10 reach=2.3 radius=0.5 lunge=1.2 stun=0.4 limb=hand_r",
@@ -775,13 +779,14 @@ const MOVES = [
   "flame_palm: clip=energy_throw input=special seq=bbff dur=0.9 hit=0.3-0.34 cancel=0.6 dmg=26 projectile=14 shape=3 knock=5 stun=0.6 mana=24 cooldown=1.6 locked limb=hand_r",
   "nine_dragons: clip=ground_pound input=ultimate dur=1.2 hit=0.3-0.45 cancel=0.95 dmg=70 aoe=5.5 knock=12 launch=6 stun=1.2 stop=0.18 cost=70 armor knockdown unblockable finisher locked limb=hand_r",
 ].join("\n") + "\n";
+const PLAYER_BODY = Number(process.env.MURIM_BODY ?? BODY_M);
 const [startX, startZ, startY] = (process.env.MURIM_START ?? "").split(",").map(Number);
 const spawn: V3 = process.env.MURIM_START ? [startX!, startY ?? ground(startX!, startZ!) + 1, startZ!] : [SECT.x, ground(SECT.x, SECT.z + 8) + 1, SECT.z + 8];
 scene.add("Player", spawn, {
   Scale: { value: vec(0.6, 1.8, 0.6) },
   Rotation: { euler: vec(0, Number(process.env.MURIM_YAW ?? Math.PI), 0) },
-  Renderable: { mesh: 132, material: 0, visible: true },
-  Material: { color: rgb("#e6cdb0"), roughness: 0.8, keepTextures: false },
+  Renderable: { mesh: PLAYER_BODY, material: 0, visible: true },
+  ...(PLAYER_BODY === 132 ? { Material: { color: rgb("#e6cdb0"), roughness: 0.8, keepTextures: false } } : {}),
   Player: {},
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
@@ -799,7 +804,7 @@ scene.add("Player", spawn, {
 });
 scene.add("Camera", [spawn[0], spawn[1] + 3, spawn[2] + 6], {
   Camera: { fov: 60, far: 700 },
-  CameraFollow: { target: "", offset: vec(0, 2.2, -4.8), smoothing: 0.12, lookHeight: 1.3, collision: true, orbit: true },
+  CameraFollow: { target: "", offset: process.env.MURIM_CAM ? vec(...(process.env.MURIM_CAM.split(",").map(Number) as [number, number, number])) : vec(0, 2.2, -4.8), smoothing: 0.12, lookHeight: Number(process.env.MURIM_LOOK ?? 1.3), collision: true, orbit: true },
 });
 scene.add("Input", [0, -40, 0], {
   InputActions: {

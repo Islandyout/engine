@@ -166,7 +166,7 @@ local ROBES = {
   { "Ink",     "214:#2a2a34 216:#1e1e26 218:#c9a24a 215:#16161c 217:#16161c" },
   { "Saffron", "214:#d89a3a 216:#f0e6c8 218:#8f2d2d 215:#3a3a3a 217:#2a2a2a" },
 }
-local HAIRS = { { "Topknot", "356:#1c1618" }, { "Long", "357:#1c1618" }, { "Scholar's cap", "356:#1c1618 358:#2a2a34" }, { "Shaven", "" } }
+local HAIRS = { { "Parted", "363:#1c1618" }, { "Long", "361:#1c1618" }, { "Buns", "362:#1c1618" }, { "Scholar's cap", "358:#2a2a34" }, { "Shaven", "364:#1c1618" } }
 local CUTS = { { "Tunic", "" }, { "Long robe", "354:%s 355:%s" } }
 local function dress()
   local spec = ROBES[robe][2]

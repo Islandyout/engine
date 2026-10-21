@@ -24,11 +24,42 @@ export function installScriptHost(C: Ctx): void {
       .map((m) => ({ id: Number(m[1]), tint: m[2] }));
   }
 
+  // A character on a base body (Quaternius Universal Base Characters) is dressed from clothes cut to its own shape, so
+  // a script that wears the old gear ids (214 body, 216 trousers, 217 boots, 218 sash/pauldron, 354 skirt, 356-357 hair)
+  // gets the matching pieces: the old pieces were modelled on another body and would sink into this one.
+  const ubcPieces = {
+    male: { 214: 369, 216: 370, 217: 371, 218: 372, 354: 373 },
+    female: { 214: 374, 216: 375, 217: 376, 218: 377, 354: 378 },
+  } as const;
+  function ubcOutfit(sex: "male" | "female", spec: { id: number; tint?: string }[]) {
+    const pieces: Record<number, number> = ubcPieces[sex];
+    const out: { id: number; tint?: string }[] = [];
+    let hair = false;
+    for (const part of spec) {
+      if (pieces[part.id]) out.push({ id: pieces[part.id]!, tint: part.tint });
+      else if (part.id === 356) (hair = true), out.push({ id: sex === "male" ? 363 : 362, tint: part.tint });
+      else if (part.id === 357) (hair = true), out.push({ id: 361, tint: part.tint });
+      else if (part.id === 358) out.push(part);
+      else if (part.id >= 361 && part.id <= 366) (hair = true), out.push(part);
+      // 215 bracers and 355 outer robe have no counterpart: the skin shows, the sleeves are the top's.
+    }
+    // The bodies are bald: nobody goes without hair unless they wear a cap or choose the shaven style.
+    if (!hair && !spec.some((part) => part.id === 358 || part.id === 364 || part.id === 365)) out.push({ id: sex === "male" ? 363 : 361 });
+    return out;
+  }
+
   function setOutfit(index: number, spec: { id: number; tint?: string }[]) {
     for (const piece of C.outfits.get(index) ?? []) piece.removeFromParent();
     C.outfits.delete(index);
     const anchor = C.objects[index];
     if (!anchor) return;
+    let sex: "male" | "female" | undefined;
+    anchor.traverse((node) => {
+      const m = /^super ?hero_(male|female)/i.exec(node.name);
+      if (m && !sex) sex = m[1]!.toLowerCase() as "male" | "female";
+    });
+    const asked = spec;
+    if (sex) spec = ubcOutfit(sex, spec);
     let body: THREE.SkinnedMesh | undefined;
     anchor.traverse((node) => {
       if (!body && (node as THREE.SkinnedMesh).isSkinnedMesh) body = node as THREE.SkinnedMesh;
@@ -41,7 +72,7 @@ export function installScriptHost(C: Ctx): void {
       if (!cached) {
         // Worn once it has loaded (unless something else was put on since).
         C.loadCatalogModel(id)?.then(() => {
-          if (C.outfits.get(index) === pieces) setOutfit(index, spec);
+          if (C.outfits.get(index) === pieces) setOutfit(index, asked);
         });
         continue;
       }
