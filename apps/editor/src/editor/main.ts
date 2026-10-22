@@ -1874,6 +1874,8 @@ async function startEditor() {
   // editor-only chrome hidden by the .player-mode CSS class (style.css) and
   // Play started automatically below instead of waiting for a click.
   const exportedScene = document.getElementById("exported-scene")?.textContent;
+  // A player build downloads every model it uses before the first frame; a bar says how far along that is.
+  const loading = exportedScene ? showLoadingScreen(document.title) : undefined;
   try {
     if (exportedScene) {
       app.classList.add("player-mode");
@@ -1901,7 +1903,14 @@ async function startEditor() {
         // The first-person arms' fallback character (holdFirstPersonWeapons).
         if (doc.scene.effectiveHas(entity, "Player") && doc.scene.effectiveHas(entity, "Weapons")) meshIds.add(firstPersonBodyFallback);
       }
-      await Promise.all([...meshIds].map((id) => C.loadCatalogModel(id)?.catch((error) => log(`Catalog model ${id} failed to load: ${String(error)}`))));
+      let loaded = 0;
+      await Promise.all(
+        [...meshIds].map((id) =>
+          C.loadCatalogModel(id)
+            ?.catch((error) => log(`Catalog model ${id} failed to load: ${String(error)}`))
+            .finally(() => loading?.progress(++loaded / meshIds.size)),
+        ),
+      );
     } else {
       const saved = localStorage.getItem("game-engine-editor:scene");
       if (saved) C.loadDocument(JSON.parse(saved));
@@ -1925,6 +1934,7 @@ async function startEditor() {
   C.rebuild();
   if (exportedScene) {
     el<HTMLButtonElement>("play").click();
+    loading?.done();
     // That click() is script-triggered, not a real user gesture (verified:
     // navigator.userActivation isn't set by it in a real browser -- an
     // automation-driven one like Playwright's own default state already
@@ -1999,3 +2009,25 @@ void startEditor().catch((error) => {
   console.error(error);
   document.getElementById("status")!.textContent = "Editor failed: " + String(error);
 });
+
+// The loading screen of a player build: the game's name over a bar, built from DOM nodes (nothing here comes from user text as HTML).
+function showLoadingScreen(title: string) {
+  const cover = document.createElement("div");
+  Object.assign(cover.style, {
+    position: "fixed", inset: "0", zIndex: "50", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "18px",
+    background: "#0e1316", color: "#e8e2d0", font: "600 22px system-ui, sans-serif", letterSpacing: "0.06em",
+  });
+  const name = document.createElement("div");
+  name.textContent = title;
+  const track = document.createElement("div");
+  Object.assign(track.style, { width: "min(320px, 70vw)", height: "4px", background: "#2a3236", borderRadius: "2px", overflow: "hidden" });
+  const bar = document.createElement("div");
+  Object.assign(bar.style, { width: "0%", height: "100%", background: "#c9a24a", transition: "width 0.2s" });
+  track.append(bar);
+  cover.append(name, track);
+  document.body.append(cover);
+  return {
+    progress: (fraction: number) => void (bar.style.width = `${Math.round(Math.min(1, fraction) * 100)}%`),
+    done: () => cover.remove(),
+  };
+}
