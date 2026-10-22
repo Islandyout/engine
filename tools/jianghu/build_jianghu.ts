@@ -211,6 +211,12 @@ function pagoda(name: string, x: number, z: number, tiers: number) {
   scene.model(`${name} spire`, W("pagoda-spire"), [x, y - 0.2, z], 0, false);
 }
 
+// Clothes colours as written in world.ts are the dye; on the base bodies' textures the dark ones read as black, so they are lifted toward white.
+const bright = (gear: string, amount = 0.4) =>
+  gear.replace(/#([0-9a-f]{6})/gi, (_m, hex: string) => {
+    const lift = (i: number) => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - amount) + 255 * amount).toString(16).padStart(2, "0");
+    return `#${lift(0)}${lift(2)}${lift(4)}`;
+  });
 const outfit = (gear: string, female = false) => `${gear} ${female ? "361:#1c1618" : "363:#1c1618"}`;
 
 type FighterOpts = { mesh?: number; tint?: boolean; hex: string; health: number; scale?: number; melee: Components; props: Record<string, unknown>; yaw?: number };
@@ -259,6 +265,38 @@ const fighter = (name: string, x: number, z: number, opts: FighterOpts) => scene
     });
   for (const [x, z] of [[-30, 6], [-30, -6], [30, 6], [30, -6], [-6, 30], [6, 30], [-12, -42], [12, -42]] as const) place("Stone lantern", "stone-lantern", x, z, 0, true, 1.1);
   place("Moon gate", "moon-gate", 36, -30, 0, false);
+}
+
+// ------------------------------------------------------- roads, paving --
+// Roads are strips of packed earth along each polyline (a flat slab every few metres, walkable); the city's two streets and its plaza are paved in stone.
+{
+  const slab = (name: string, x: number, z: number, yaw: number, size: V3, hex: string, look: Record<string, unknown> = {}) => {
+    const id = scene.box(name, [x, ground(x, z) + size[1] / 2 - 0.03, z], size, hex, { Rotation: { euler: vec(0, yaw, 0) } }, { roughness: 0.95, ...look });
+    delete (scene.entities[id]!.components as Components).Collider;
+    delete (scene.entities[id]!.components as Components).RigidBody;
+  };
+  for (const road of ROADS)
+    for (let i = 0; i + 1 < road.length; i++) {
+      const [ax, az] = road[i]!, [bx, bz] = road[i + 1]!;
+      const length = Math.hypot(bx - ax, bz - az);
+      const yaw = Math.atan2(bx - ax, bz - az);
+      const n = Math.ceil(length / 5);
+      for (let k = 0; k < n; k++) {
+        const t = (k + 0.5) / n;
+        const x = ax + (bx - ax) * t, z = az + (bz - az) * t;
+        if (Math.abs(x) < 54 && Math.abs(z) < 54) continue; // the city is paved below
+        slab("Road", x, z, yaw, [3.8, 0.12, length / n + 0.4], k % 2 ? "#a58d68" : "#9c845f");
+      }
+    }
+  const STONE = { texture: "./kit/surfaces/stone-color.jpg" };
+  // Streets eight metres wide, a slab each eight metres; the plaza is the three by three round the middle.
+  for (let k = -6; k <= 6; k++) {
+    if (Math.abs(k) > 0) {
+      slab("Paving", 0, k * 8, 0, [8, 0.1, 8], "#ffffff", STONE); // the north-south street
+      slab("Paving", k * 8, 0, 0, [8, 0.1, 8], "#ffffff", STONE); // the east-west street
+    }
+  }
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) slab("Plaza", i * 8, j * 8, 0, [8, 0.1, 8], "#ffffff", STONE);
 }
 
 // ----------------------------------------------------------- the hubs --
@@ -314,7 +352,7 @@ const npcFor = (n: (typeof NPCS)[number]) => {
     ...idle(n.idle ?? "idle_rail_loop"),
     RigidBody: { mass: 70, dynamic: true },
     Collider: {},
-    Script: { source: lua("elder.lua").replace("local spoken = false", "local spoken = true"), props: { gear: n.gear } },
+    Script: { source: lua("elder.lua").replace("local spoken = false", "local spoken = true"), props: { gear: bright(n.gear) } },
   });
 };
 NPCS.forEach(npcFor);
@@ -355,7 +393,7 @@ FOES.forEach((f, i) => {
   fighter(f.name, x, z, {
     hex: SKIN[i % SKIN.length]!, health: hp, scale: f.scale, yaw: f.yaw ?? 0, melee,
     props: {
-      qi: 10 * f.realm + 10, drop: f.drop ?? 0, pill: f.pill ?? 0, silver: f.silver ?? 0, gear: f.gear ?? DEFAULT_GEAR, loot: f.loot ?? "none",
+      qi: 10 * f.realm + 10, drop: f.drop ?? 0, pill: f.pill ?? 0, silver: f.silver ?? 0, gear: bright(f.gear ?? DEFAULT_GEAR, 0.3), loot: f.loot ?? "none",
       realm: f.realm, peaceful: f.peaceful ? 1 : 0, duel: f.duel ? 1 : 0, reward: f.reward ?? "none", telegraph: f.kind === "spear" ? "sweep" : "none",
     },
   });
@@ -574,7 +612,7 @@ widget("Damage numbers", "Damage numbers", style);
 widget("Boss bar", "Boss bar", style);
 widget("Notification", "Notification", style);
 widget("Interact prompt", "Interact prompt", style);
-widget("Dialogue", "Dialogue", { ...style, anchor: "bottom-center", offsetY: -MARGIN_Y - 176, width: 660, height: 150, text: "" });
+widget("Dialogue", "Dialogue", { ...style, anchor: "bottom-center", offsetY: -MARGIN_Y - 176, width: 660, height: 120, text: "" });
 widget("Inventory", "Inventory", { ...style, anchor: "center", visibleWhen: "toggle", toggleKey: "KeyI" });
 widget("Character sheet", "Character sheet", { ...style, anchor: "center", width: 440, height: 440, visibleWhen: "toggle", toggleKey: "KeyC", text: "Cultivator\nMortal realm" });
 widget("Skill tree", "Skill tree", { ...style, anchor: "center", width: 520, height: 400, visibleWhen: "toggle", toggleKey: "KeyO", text: "Cultivation tree" });
