@@ -59,6 +59,7 @@ import { installEffects } from "./app/effects";
 import { installEnvironment } from "./app/environment";
 import { installExplorer } from "./app/explorer";
 import { installFrame } from "./app/frame";
+import { installBow } from "./app/bow";
 import { installHeldGuns } from "./app/heldGuns";
 import { installHud } from "./app/hud";
 import { installInput } from "./app/input";
@@ -211,6 +212,7 @@ async function startEditor() {
   installPostfx(C);
   installAudio(C);
   installHeldGuns(C);
+  installBow(C);
   installEffects(C);
   installActions(C);
   installAssets(C);

@@ -140,6 +140,24 @@ export class Sfx {
     this.burst(t, "bandpass", 4000, 0.15 * volume, 0.03, 4);
   }
 
+  // A bow: the wood and string creaking as it is drawn (over `seconds`), the string's twang on release, an arrow's thud into a target.
+  bowDraw(seconds: number, volume = 1) {
+    const t = this.now;
+    this.tone(t, "sawtooth", 90, 190, 0.05 * volume, seconds);
+    this.burst(t + seconds * 0.2, "bandpass", 700, 0.06 * volume, seconds * 0.7, 6);
+  }
+  bowLoose(power: number, volume = 1) {
+    const t = this.now;
+    this.tone(t, "triangle", 260 + power * 160, 140, 0.22 * volume, 0.22);
+    this.tone(t, "sine", 520 + power * 300, 260, 0.1 * volume, 0.12);
+    this.burst(t, "highpass", 3200, 0.14 * volume, 0.06, 1);
+  }
+  arrowThud(volume = 1) {
+    const t = this.now;
+    this.tone(t, "sine", 160, 70, 0.3 * volume, 0.1);
+    this.burst(t, "lowpass", 900, 0.25 * volume, 0.07, 1);
+  }
+
   // Magazine out, magazine in and a bolt/slide, spread over the reload.
   reload(seconds: number, volume = 1) {
     const t = this.now;

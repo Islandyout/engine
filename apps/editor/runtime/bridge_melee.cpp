@@ -621,6 +621,34 @@ bool BridgeHost::melee(engine::World &world, engine::Entity self, const std::str
         if (index >= 0 && static_cast<std::size_t>(index) < state.locked.size())
             state.locked[static_cast<std::size_t>(index)] = 0;
         out = {index >= 0 ? 1.0 : 0.0};
+    } else if (op == "shoot") {
+        // dx, dy, dz, speed, damage, gravity: an arrow (projectile shape 6) from the chest, along a direction.
+        // A fighter in a fall, a stun or dead cannot loose one.
+        const bool can = args.size() >= 5 && state.mode != FighterMode::stun && state.mode != FighterMode::dead &&
+                         state.mode != FighterMode::down && state.mode != FighterMode::airborne;
+        const auto *box = world.get<engine::Box>(self);
+        double length = 0;
+        if (can)
+            length = std::sqrt(args[0] * args[0] + args[1] * args[1] + args[2] * args[2]);
+        if (can && box && length > 1e-6 && std::isfinite(length) && std::isfinite(args[3]) && std::isfinite(args[4])) {
+            const engine::Vec3 dir{static_cast<float>(args[0] / length), static_cast<float>(args[1] / length),
+                                   static_cast<float>(args[2] / length)};
+            const float speed = std::clamp(static_cast<float>(args[3]), 5.0F, 90.0F);
+            const engine::Vec3 origin{box->center.x + dir.x * (half_width(*box) + 0.5F),
+                                      box->center.y + box->size.y * 0.25F + dir.y * 0.5F,
+                                      box->center.z + dir.z * (half_width(*box) + 0.5F)};
+            const auto projectile = world.defer_create();
+            world.defer_set(projectile, engine::Box{origin, engine::Vec3{0.3F, 0.3F, 0.3F}});
+            Projectile arrow{{dir.x * speed, dir.y * speed, dir.z * speed}, self};
+            arrow.damage = std::max(0.0F, static_cast<float>(args[4])) * fighter->stat_damage;
+            arrow.gravity = args.size() > 5 ? std::clamp(static_cast<float>(args[5]), 0.0F, 3.0F) : 0.0F;
+            arrow.lifetime = 4.0F;
+            arrow.shape = 6;
+            world.defer_set(projectile, arrow);
+            push_melee({MeleeEventKind::fire, index_of(self), -1, origin, speed, -1, 0});
+            out = {1.0};
+        } else
+            out = {0.0};
     } else if (op == "relock") {
         const int index = move_index(fighter->moves, text);
         if (index >= 0 && static_cast<std::size_t>(index) < state.locked.size())

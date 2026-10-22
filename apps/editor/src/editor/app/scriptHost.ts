@@ -1,3 +1,4 @@
+import { cutBody, regionsCoveredBy } from "../bodyCut";
 import * as THREE from "three";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { ambienceLayers, type AmbienceLayer } from "../ambience";
@@ -30,15 +31,16 @@ export function installScriptHost(C: Ctx): void {
   // a script that wears the old gear ids (214 body, 216 trousers, 217 boots, 218 sash/pauldron, 354 skirt, 356-357 hair)
   // gets the matching pieces: the old pieces were modelled on another body and would sink into this one.
   const ubcPieces = {
-    male: { 214: 369, 216: 370, 217: 371, 218: 372, 354: 373 },
-    female: { 214: 374, 216: 375, 217: 376, 218: 377, 354: 378 },
+    male: { 214: [379, 380], 216: [381], 217: [382] },
+    female: { 214: [389, 390], 216: [391], 217: [392] },
   } as const;
   function ubcOutfit(sex: "male" | "female", spec: { id: number; tint?: string }[]) {
-    const pieces: Record<number, number> = ubcPieces[sex];
+    const pieces: Record<number, readonly number[]> = ubcPieces[sex];
     const out: { id: number; tint?: string }[] = [];
     let hair = false;
     for (const part of spec) {
-      if (pieces[part.id]) out.push({ id: pieces[part.id]!, tint: part.tint });
+      if (pieces[part.id]) for (const id of pieces[part.id]!) out.push({ id, tint: part.tint });
+      else if (part.id >= 379) out.push(part);
       else if (part.id === 356) (hair = true), out.push({ id: sex === "male" ? 363 : 362, tint: part.tint });
       else if (part.id === 357) (hair = true), out.push({ id: 361, tint: part.tint });
       else if (part.id === 358) out.push(part);
@@ -78,6 +80,14 @@ export function installScriptHost(C: Ctx): void {
       if (!body && (node as THREE.SkinnedMesh).isSkinnedMesh) body = node as THREE.SkinnedMesh;
     });
     if (!body?.parent) return;
+    // Clothes made for the base bodies cover what they cover: the body's triangles under them are left out (bodyCut.ts).
+    if (sex) {
+      let skin: THREE.SkinnedMesh | undefined;
+      anchor.traverse((node) => {
+        if (!skin && (node as THREE.SkinnedMesh).isSkinnedMesh && /^super ?hero_/i.test(node.name)) skin = node as THREE.SkinnedMesh;
+      });
+      if (skin) cutBody(skin, regionsCoveredBy(spec.map((part) => part.id)));
+    }
     const bones = new Map(body.skeleton.bones.map((bone) => [bone.name, bone]));
     const pieces: THREE.Object3D[] = [];
     for (const { id, tint } of spec) {

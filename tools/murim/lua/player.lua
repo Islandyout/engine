@@ -50,10 +50,10 @@ local held_mana, talking_now = nil, false
 local ward, formation = nil, nil                -- a Ward Talisman's soak; a planted array flag
 local perks_learned, meridians_learned = {}, {}
 local arts_learned, affinity, robe = {}, "", 1
-local hair, cut, creating = 1, 2, false
+local hair, cut, creating = 1, 1, false
 local partner, dual_time = false, 0
 local guardian_cd, fire_cd = 0, 0
-local stance, bow_dry, bow_move = "fists", false, ""
+local stance, bow_t, bow_cd, bow_loose, bow_sent = "fists", 0, 0, 0, ""
 local effects, dot_acc = {}, 0
 local save_game
 local QUESTS = {
@@ -144,17 +144,17 @@ end
 local STANCES = --@STANCES@
 local STANCE_ORDER = { "fists", "blade", "spear", "glaive", "bow" }
 local STANCE_LABEL = { fists = "Fists", blade = "Sword", spear = "Spear", glaive = "Glaive", bow = "Bow" }
-local BOW_SHOTS = { "bw_shot", "bw_power" }
+-- The bow: hold the left mouse button to draw, let go to loose; hold the right one to aim. Everything else is on keys.
+local BOW_DRAW, BOW_MIN, BOW_NOCK, BOW_LOOSE = 0.9, 0.3, 0.45, 0.4   -- seconds: full draw, least draw that shoots, nocking the next, the release pose
+local BOW_SPEED, BOW_DAMAGE, BOW_DROP = { 24, 58 }, { 7, 30 }, 0.3   -- arrow speed and damage at the least and the full draw; gravity scale
+local BOW_SPREAD = { hip = 4.5, aim = 0.5 }                          -- degrees, at the least draw (a full draw halves it)
 local function set_stance(name)
   for key, moves in pairs(STANCES) do
     for _, m in ipairs(moves) do if key == name then melee.unlock(m) else melee.relock(m) end end
   end
-  stance, bow_dry = name, false
+  stance, bow_t, bow_cd, bow_loose = name, 0, 0, 0
   for i, key in ipairs(STANCE_ORDER) do if key == name then inventory.select(self.id, i) end end
-  if name == "bow" and inventory.count(self.id, "Arrow") == 0 then
-    bow_dry = true
-    for _, m in ipairs(BOW_SHOTS) do melee.relock(m) end
-  end
+  if name ~= "bow" then bow_sent = "" host.send("bow", "off") end
 end
 
 -- ---- Scroll arts: key, and the move each performs. Folk teaches them; learn_art unlocks one.
@@ -167,13 +167,12 @@ local ROBES = {
   { "Saffron", "214:#d89a3a 216:#f0e6c8 218:#8f2d2d 215:#3a3a3a 217:#2a2a2a" },
 }
 local HAIRS = { { "Parted", "363:#1c1618" }, { "Long", "361:#1c1618" }, { "Buns", "362:#1c1618" }, { "Scholar's cap", "358:#2a2a34" }, { "Shaven", "364:#1c1618" } }
-local CUTS = { { "Tunic", "" }, { "Long robe", "354:%s 355:%s" } }
+-- Clothes by Quaternius (Modular Character Outfits - Fantasy): the Peasant set takes the robe colour, the Ranger set keeps its own.
+local CUTS = { { "Peasant", "" }, { "Ranger", "ranger" } }
 local function dress()
   local spec = ROBES[robe][2]
-  local top = spec:match("214:(#%x+)") or "#eeeeee"
-  local tint = spec:match("218:(#%x+)") or spec:match("216:(#%x+)") or top
-  spec = spec .. " " .. HAIRS[hair][2] .. " " .. CUTS[cut][2]:format(tint, top)
-  world.wear(spec)
+  if CUTS[cut][2] == "ranger" and (props.ranger or "") ~= "" then spec = props.ranger end
+  world.wear(spec .. " " .. HAIRS[hair][2])
 end
 
 -- The mirror: robe colour, hair, cut and language, changed live while the Dialogue panel is up. E ends it.
@@ -923,17 +922,60 @@ function on_tick(dt)
   end
   if stance == "bow" then
     local have = inventory.count(self.id, "Arrow")
-    if have == 0 and not bow_dry then
-      bow_dry = true
-      for _, m in ipairs(BOW_SHOTS) do melee.relock(m) end
-      hud.announce("Out of arrows.")
-    elseif have > 0 and bow_dry then
-      bow_dry = false
-      for _, m in ipairs(BOW_SHOTS) do melee.unlock(m) end
+    local mode = melee.state()
+    local aiming = input.action_down("aim")
+    local draw_time = BOW_DRAW / (1 + 0.08 * (realm - 1))
+    local busy = flying or talking_now or dead or mode == "stun" or mode == "down" or mode == "getup" or mode == "airborne" or mode == "block"
+    bow_cd, bow_loose = math.max(0, bow_cd - dt), math.max(0, bow_loose - dt)
+    if input.action_down("shoot") and have > 0 and not busy and bow_cd <= 0 and bow_loose <= 0 then
+      bow_t = math.min(draw_time, bow_t + dt)
+    elseif bow_t > 0 then
+      local power = bow_t / draw_time
+      bow_t = 0
+      if power >= BOW_MIN / draw_time and have > 0 and not busy then
+        -- Loosed along the camera's line (or at the locked target), spread by how wildly it was drawn.
+        local fx, fz, fy = camera.forward()
+        local c = math.sqrt(math.max(0, 1 - fy * fy))
+        local dx, dy, dz = fx * c, fy, fz * c
+        local target = melee.target()
+        local tx, ty, tz = nil, nil, nil
+        if target then tx, ty, tz = world.position(target) end
+        if tx then
+          local ex, ey, ez = tx - self.x, ty + 0.2 - (self.y + 0.4), tz - self.z
+          local d = math.max(0.1, math.sqrt(ex * ex + ey * ey + ez * ez))
+          ey = ey + d * 0.04 -- the arrow falls on the way: aim a little high
+          local l = math.sqrt(ex * ex + ey * ey + ez * ez)
+          dx, dy, dz = ex / l, ey / l, ez / l
+        end
+        local cone = math.rad((aiming and BOW_SPREAD.aim or BOW_SPREAD.hip) * (1.5 - power))
+        local a, b = math.random() * 2 * math.pi, math.random() * cone
+        local rx, rz = -dz, dx
+        dx, dy, dz = dx + (rx * math.cos(a)) * b, dy + math.sin(a) * b, dz + (rz * math.cos(a)) * b
+        local speed = BOW_SPEED[1] + (BOW_SPEED[2] - BOW_SPEED[1]) * power
+        local damage = (BOW_DAMAGE[1] + (BOW_DAMAGE[2] - BOW_DAMAGE[1]) * power) * (1 + 0.15 * (realm - 1))
+        if melee.shoot(dx, dy, dz, speed, damage, BOW_DROP) then
+          inventory.remove(self.id, "Arrow", 1)
+          bow_cd, bow_loose = BOW_NOCK, BOW_LOOSE
+          sound.play("sfx:bow:loose" .. string.format("%.2f", power))
+          camera.shake(0.05 + 0.08 * power, 0.12)
+          if inventory.count(self.id, "Arrow") == 0 then hud.announce("That was your last arrow.") end
+        end
+      end
     end
-    local now = melee.move()
-    if (now == "bw_shot" or now == "bw_power") and now ~= bow_move then inventory.remove(self.id, "Arrow", 1) end
-    bow_move = now
+    if have == 0 and input.action_pressed("shoot") then hud.announce("Out of arrows. Hunters sell them in Willow Village.") end
+    -- A drawn bow slows you, an aimed one more.
+    if bow_t > 0 or aiming then
+      local hv = (aiming and 0.45 or 0.7)
+      world.set_velocity(self.id, vx * hv, self.vy or 0, vz * hv)
+    end
+    -- What the body shows: the bow low, drawn (paced to the draw time), held, or just loosed.
+    local state = bow_loose > 0 and "loose" or bow_t > 0 and (bow_t >= draw_time and "hold" or "draw") or "idle"
+    local message = string.format("%s %.2f %d", state, draw_time, aiming and 1 or 0)
+    if message ~= bow_sent then
+      if state == "draw" and not bow_sent:find("^draw") then sound.play("sfx:bow:draw" .. string.format("%.2f", draw_time)) end
+      bow_sent = message
+      host.send("bow", message)
+    end
   end
 
   -- Breakthrough: needs full qi and a pill, then a few quiet seconds.

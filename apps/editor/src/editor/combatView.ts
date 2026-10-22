@@ -99,11 +99,17 @@ const locomotion = ["idle", "walk", "run", "sprint"];
 let library: Promise<THREE.AnimationClip[]> | undefined;
 // The clip library, loaded once: the combat clips plus the locomotion.
 export function loadCombatClips(load: (path: string) => Promise<{ animations: THREE.AnimationClip[] }>): Promise<THREE.AnimationClip[]> {
-  library ??= Promise.all([load(combatClipsPath), load(locomotionClipsPath), load(universalClipsPath)]).then(([combat, walk, universal]) => [
-    ...combat.animations,
-    ...walk.animations.filter((clip) => locomotion.includes(clip.name) && !combat.animations.some((c) => c.name === clip.name)),
-    ...universal.animations.filter((clip) => !combat.animations.some((c) => c.name === clip.name)),
-  ]);
+  library ??= Promise.all([load(combatClipsPath), load(locomotionClipsPath), load(universalClipsPath)]).then(([combat, walk, universal]) => {
+    const clips = [
+      ...combat.animations,
+      ...walk.animations.filter((clip) => locomotion.includes(clip.name) && !combat.animations.some((c) => c.name === clip.name)),
+      ...universal.animations.filter((clip) => !combat.animations.some((c) => c.name === clip.name)),
+    ];
+    // A bow carried low (the first frames of the notching clip) and the draw itself (nock to full draw, without the reach for the quiver).
+    const notch = clips.find((clip) => clip.name === "bow_notch");
+    if (notch) clips.push(THREE.AnimationUtils.subclip(notch, "bow_idle", 0, 2, 30), THREE.AnimationUtils.subclip(notch, "bow_draw", 15, 60, 30));
+    return clips;
+  });
   library.catch(() => (library = undefined));
   return library;
 }
@@ -119,6 +125,8 @@ interface Fighter {
   // Its stance clips: the boxing guard unarmed or with daggers, a sword
   // guard with a blade (arm()).
   guardClip: string;
+  // How fast the guard clip plays (a bow's draw is paced to the script's draw time).
+  guardScale: number;
   blockClip: string;
   upper: Set<string>;
   clips: THREE.AnimationClip[];
@@ -297,6 +305,26 @@ export class CombatView {
     fighter.pose = ""; // re-pick the stance next frame
   }
 
+  // A bow's pose for the Player's bow stance: held low and relaxed (idle), nocked and drawn (draw, paced to `seconds`),
+  // held at full draw (hold), released (loose); "off" puts the weapon guard back.
+  bowPose(index: number, state: "off" | "idle" | "draw" | "hold" | "loose", seconds = 1) {
+    const fighter = this.fighters.get(index);
+    if (!fighter) return;
+    if (state === "off") {
+      fighter.guardScale = 1;
+      this.arm(index, this.armed.get(index) ?? "unarmed", true);
+      return;
+    }
+    const name = { idle: "bow_idle", draw: "bow_draw", hold: "bow_aim", loose: "bow_shoot" }[state];
+    const clip = fighter.clips.find((c) => c.name === name);
+    if (!clip || !fighter.full.has(name)) return;
+    if (fighter.guardClip === name && fighter.guardScale === (state === "draw" ? clip.duration / Math.max(0.2, seconds) : 1)) return;
+    fighter.guardClip = name;
+    fighter.guardScale = state === "draw" ? clip.duration / Math.max(0.2, seconds) : 1;
+    if (fighter.upper.size) fighter.guardUpper = fighter.mixer.clipAction(filterClip(clip, fighter.upper, true));
+    fighter.pose = "";
+  }
+
   // Readies a fighter's body: the library's clips join its own, and the
   // guard (upper body) and strafing legs become their own layers.
   attach(index: number, object: THREE.Object3D, mixer: THREE.AnimationMixer, actions: Map<string, Action>, clips: THREE.AnimationClip[], current?: string) {
@@ -339,6 +367,7 @@ export class CombatView {
       lower,
       guardUpper,
       guardClip: "guard",
+      guardScale: 1,
       blockClip: "block",
       upper,
       clips,
@@ -527,6 +556,7 @@ export class CombatView {
           action.setEffectiveTimeScale(2);
         } else {
           this.setPose(fighter, `free:${clipName}`, [stance.loop ? this.loop(action) : this.once(action)], 0.15);
+          if (stance.clip === "guard") action.setEffectiveTimeScale(fighter.guardScale);
           if (stance.clip === "run" || stance.clip === "sprint") action.setEffectiveTimeScale(1);
         }
       }

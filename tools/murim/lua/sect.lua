@@ -66,7 +66,7 @@ local active = {}               -- mission id -> progress count
 local completed = 0
 
 local TIPS = {
-  start = { "Tip", "Hold N while standing still to gather qi. K opens your arts, J the journal." },
+  start = { "Tip", "Hold N while standing still to gather qi. O opens your arts, Tab the journal. J and K strike, F kicks, R blocks." },
   fight = { "Tip", "Hold R to block; raise it just as a blow lands to parry. T locks on, X dodges." },
   stance = { "Tip", "Y changes stance: sword, spear, glaive and bow each have their own moves." },
   herb = { "Tip", "Hold E at a glowing herb to pick it. The furnace brews them into pills." },

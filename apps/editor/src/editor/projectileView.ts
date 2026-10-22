@@ -3,10 +3,10 @@
 // so a dozen of them cost almost nothing to draw.
 import * as THREE from "three";
 
-const SHAPES = ["orb", "crescent", "arrow", "fireball", "lightning", "shuriken"] as const;
+const SHAPES = ["orb", "crescent", "arrow", "fireball", "lightning", "shuriken", "wooden arrow"] as const;
 export const projectileShapeNames = SHAPES;
 
-const COLORS = [0x7fe6ff, 0xbfe9ff, 0xfff0b0, 0xff7a2a, 0xc9a8ff, 0xd8e4ee];
+const COLORS = [0x7fe6ff, 0xbfe9ff, 0xfff0b0, 0xff7a2a, 0xc9a8ff, 0xd8e4ee, 0xd8c9a8];
 
 let halo: THREE.CanvasTexture | undefined;
 function haloTexture() {
@@ -51,6 +51,20 @@ export function makeProjectile(shape: number): THREE.Group {
   const add = (mesh: THREE.Object3D) => (group.add(mesh), mesh);
   if (shape < 0 || shape >= SHAPES.length) {
     add(new THREE.Mesh(geometry("box", () => new THREE.BoxGeometry(0.3, 0.3, 0.3)), new THREE.MeshStandardMaterial({ color: 0x78c8ff })));
+    return group;
+  }
+  if (shape === 6) {
+    // A real arrow: a wooden shaft, a steel head and three feathers, lit like the world (a bow's arrow does not glow).
+    const wood = new THREE.MeshStandardMaterial({ color: 0x8a6a3c, roughness: 0.8 });
+    const steel = new THREE.MeshStandardMaterial({ color: 0xb8bcc4, roughness: 0.35, metalness: 0.7 });
+    const feather = new THREE.MeshStandardMaterial({ color: 0xe8e2d0, roughness: 0.9, side: THREE.DoubleSide });
+    add(new THREE.Mesh(geometry("arrow-shaft", () => new THREE.CylinderGeometry(0.012, 0.012, 0.8, 6).rotateX(Math.PI / 2)), wood));
+    add(new THREE.Mesh(geometry("arrow-head", () => new THREE.ConeGeometry(0.03, 0.12, 8).rotateX(Math.PI / 2).translate(0, 0, 0.46)), steel));
+    for (let i = 0; i < 3; i++) {
+      const vane = new THREE.Mesh(geometry("arrow-vane", () => new THREE.PlaneGeometry(0.05, 0.16).translate(0.03, 0, -0.34)), feather);
+      vane.rotation.z = (i / 3) * Math.PI * 2;
+      add(vane);
+    }
     return group;
   }
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTexture(), color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));

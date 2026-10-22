@@ -436,6 +436,11 @@ EXPORT void editor_set_camera_forward(double x, double z) {
         active->camera_forward_z = static_cast<float>(z / length);
     }
 }
+// The camera's vertical look component (the unit direction's y), once per rendered frame: a bow aims where the camera does.
+EXPORT void editor_set_camera_pitch(double y) {
+    if (std::isfinite(y))
+        active->camera_pitch = static_cast<float>(std::clamp(y, -0.99, 0.99));
+}
 // The first-person look direction (radians), once per rendered frame before
 // that frame's ticks. Pitch is clamped to just short of straight up/down.
 EXPORT void editor_set_look(double yaw, double pitch) {

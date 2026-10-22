@@ -810,7 +810,7 @@ struct LuaApi final {
         if (!self.host_ || !self.world_ ||
             !self.host_->melee(*self.world_, self_entity(L), op, args, text, other, out, text_out, other_out))
             return lua_pushnil(L), 1;
-        if (std::string_view(op) == "perform")
+        if (std::string_view(op) == "perform" || std::string_view(op) == "shoot")
             return lua_pushboolean(L, !out.empty() && out[0] != 0), 1;
         if (std::string_view(op) == "target") {
             if (other_out)
@@ -844,6 +844,12 @@ struct LuaApi final {
     static int melee_unlock(lua_State *L) { return melee_call(L, "unlock", {}, luaL_checkstring(L, 1)); }
     // melee.relock(name) -> found: the move is unusable again
     static int melee_relock(lua_State *L) { return melee_call(L, "relock", {}, luaL_checkstring(L, 1)); }
+    // melee.shoot(dx, dy, dz, speed, damage, gravity?) -> loosed: an arrow along a direction (gravity is a scale of the world's)
+    static int melee_shoot(lua_State *L) {
+        return melee_call(L, "shoot",
+                          {number_arg(L, 1), number_arg(L, 2), number_arg(L, 3), number_arg(L, 4), number_arg(L, 5),
+                           number_arg(L, 6, 0.0F)});
+    }
     // melee.stagger() -> poise bar 0..1, broken (1 while Broken)
     static int melee_stagger(lua_State *L) { return melee_call(L, "stagger", {}); }
     // melee.tune(damage, speed, crit, skill, health_max?, mana_max?) -> the four scales
@@ -1427,6 +1433,7 @@ struct LuaApi final {
                {"set_ai", melee_set_ai},
                {"unlock", melee_unlock},
                {"relock", melee_relock},
+               {"shoot", melee_shoot},
                {"stagger", melee_stagger},
                {"tune", melee_tune},
                {"follow", melee_follow},

@@ -299,6 +299,7 @@ export function installHud(C: Ctx): void {
       slot,
       spread,
       hostile: C.shooterActive() && C.tps.over >= 0,
+      bow: C.bowSight(),
       hitAge: time - C.uiFeed.hitAt,
       killAge: time - C.uiFeed.killAt,
       heading,

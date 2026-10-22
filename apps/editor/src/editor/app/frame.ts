@@ -142,6 +142,7 @@ export function installFrame(C: Ctx): void {
       // wherever the camera is pointed right now, including mid-orbit.
       C.viewCamera.getWorldDirection(C.cameraForwardScratch);
       C.runtime._editor_set_camera_forward(C.cameraForwardScratch.x, C.cameraForwardScratch.z);
+      C.runtime._editor_set_camera_pitch(C.cameraForwardScratch.y);
       for (const [code, down] of C.keyQueue) C.runtime.ccall("editor_input_key", null, ["string", "number"], [code, down]);
       C.keyQueue.length = 0;
       C.flushPointerInput();
@@ -306,6 +307,7 @@ export function installFrame(C: Ctx): void {
     const eye = C.viewCamera.position;
     C.lightPool.update(C.viewCamera.position);
     if (C.doc.mode === "play") C.combat.frame(dt, C.tickAlpha, C.viewCamera);
+    if (C.doc.mode === "play") C.updateBow();
     // Slow motion (a finisher, a parry) slows every body with the game clock.
     const animDt = C.doc.mode === "play" ? dt * C.combat.timeScale : dt;
     C.animStates.forEach((state, i) => {
