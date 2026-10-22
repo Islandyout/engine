@@ -72,6 +72,7 @@ export const fieldHelp: Record<string, string> = {
   "Walker.route": "Points 'x,z' separated by spaces. End a point with * to wait there for a safe crossing to the next.",
   "Walker.follow": "An entity's name to follow instead of walking the route.",
   "ModelInstances.instances": "One copy per line: model id, x, z, then optional yaw (degrees), scale and 'solid' (its whole footprint blocks) or 'trunk' (a tree: only its trunk does).",
+  "Terrain.paths": "One road per line: dirt or stone, its width in metres, then x z points along it (the terrain's own coordinates). Painted into the ground's colour and detail layer, so it follows every slope.",
   "Terrain.scatter":
     "One rule per line: model id, density (per square metre), optional scale range, flattest-allowed slope (minimum normal y), 'collide' or 'trunk', then options: spacing=M (no two closer), cluster=0..1 and clusterSize=M (groves and clearings), height=A..B, on=grass,sand,rock,snow, tilt=0..1 (lean with the slope), tint=0..1 (vary brightness), near=M (grown round the camera out to M metres as it moves, a few to the square metre: grass; the density is at most 1). 'exclude x0 z0 x1 z1' or 'exclude x z r' keeps an area clear.",
   "SpaceSystem.bodies":

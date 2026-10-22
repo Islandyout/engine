@@ -159,6 +159,7 @@ export function installSceneObjects(C: Ctx): void {
       sandHeight: t.sandHeight,
       snowHeight: t.snowHeight,
       rockSlope: t.rockSlope,
+      paths: t.paths,
     };
   }
 

@@ -589,6 +589,7 @@ A heightfield ground with noise, sculpting, colour bands and scattered models.
 | `snowHeight` | 9 | Snow above height |
 | `rockSlope` | 0.82 | Rock where slope normal y < |
 | `scatter` | "" | Scatter (model density [min max] [minNormalY] [collide]). One rule per line: model id, density (per square metre), optional scale range, flattest-allowed slope (minimum normal y), 'collide' or 'trunk', then options: spacing=M (no two closer), cluster=0..1 and clusterSize=M (groves and clearings), height=A..B, on=grass,sand,rock,snow, tilt=0..1 (lean with the slope), tint=0..1 (vary brightness), near=M (grown round the camera out to M metres as it moves, a few to the square metre: grass; the density is at most 1). 'exclude x0 z0 x1 z1' or 'exclude x z r' keeps an area clear. |
+| `paths` | "" | Paths (dirt\|stone width x z x z ...). One road per line: dirt or stone, its width in metres, then x z points along it (the terrain's own coordinates). Painted into the ground's colour and detail layer, so it follows every slope. |
 
 ### ModelInstances
 

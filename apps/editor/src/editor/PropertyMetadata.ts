@@ -87,6 +87,7 @@ const metadata: Record<string, PropertyMetadata> = {
   "Terrain.sandHeight": { label: "Sand below height", step: "0.5" },
   "Terrain.snowHeight": { label: "Snow above height", step: "0.5" },
   "Terrain.rockSlope": { label: "Rock where slope normal y <", step: "0.01" },
+  "Terrain.paths": { label: "Paths (dirt|stone width x z x z ...)", multiline: true },
   "Terrain.scatter": { label: "Scatter (model density [min max] [minNormalY] [collide])", multiline: true },
   "AICombat.team": { label: "Team (Player is 0)", step: "1" },
   "AICombat.behavior": { options: choice(["Patrol", "Guard", "Hunt"]) },

@@ -4,6 +4,7 @@
 import * as THREE from "three";
 import { DynamicLod, type LodPart } from "./scatterLod";
 import type { Vec3 } from "../scene/Components";
+import { parsePaths, pathStrength } from "./terrainPaths";
 import { fbm, generateHeights, type ScatterInstance, type TerrainParams } from "./terrain";
 
 export interface TerrainLook {
@@ -14,6 +15,7 @@ export interface TerrainLook {
   sandHeight: number; // below this: sand
   snowHeight: number; // above this: snow
   rockSlope: number; // normal y below this blends to rock
+  paths?: string; // roads painted into the ground (terrainPaths.ts)
 }
 
 const scratch = { color: new THREE.Color(), rock: new THREE.Color() };
@@ -37,6 +39,9 @@ export function shapeTerrain(geometry: THREE.BufferGeometry, heights: Float32Arr
     geometry.setAttribute("splat", splat);
   }
   const band = 0.6;
+  const { paths } = parsePaths(look.paths ?? "");
+  const cell = position.count > 1 ? Math.abs(position.getX(1) - position.getX(0)) || 4 : 4;
+  const dirt = new THREE.Color(0.55, 0.42, 0.26), stone = new THREE.Color(0.5, 0.49, 0.46);
   for (let i = 0; i < position.count; i++) {
     const h = heights[i]!;
     const c = scratch.color;
@@ -54,9 +59,22 @@ export function shapeTerrain(geometry: THREE.BufferGeometry, heights: Float32Arr
     sand = Math.min(1, sand);
     snow = Math.min(1, snow);
     const grass = Math.max(0, 1 - sand - snow);
-    splat.setXYZW(i, grass * (1 - steep), steep, sand * (1 - steep), snow * (1 - steep));
+    let gw = grass * (1 - steep), rw = steep, sw = sand * (1 - steep), nw = snow * (1 - steep);
     const x = position.getX(i),
       z = position.getZ(i);
+    // Roads: the ground takes the road's colour and detail layer (packed earth is the sand layer, paving the rock layer).
+    if (paths.length) {
+      const d = pathStrength(paths, "dirt", x, z, cell * 0.9), s = pathStrength(paths, "stone", x, z, cell * 0.9);
+      if (d > 0) {
+        c.lerp(dirt, d);
+        [gw, rw, sw, nw] = [gw * (1 - d), rw * (1 - d), sw * (1 - d) + d, nw * (1 - d)];
+      }
+      if (s > 0) {
+        c.lerp(stone, s);
+        [gw, rw, sw, nw] = [gw * (1 - s), rw * (1 - s) + s, sw * (1 - s), nw * (1 - s)];
+      }
+    }
+    splat.setXYZW(i, gw, rw, sw, nw);
     const variation = 1 + fbm(x * 0.15, z * 0.15, seed + 5, 3) * 0.12;
     color.setXYZ(i, c.r * variation, c.g * variation, c.b * variation);
   }

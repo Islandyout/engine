@@ -16,7 +16,7 @@ import * as kitModule from "../lib/scene_kit";
 import type { Components, V3 } from "../lib/scene_kit";
 // scene_kit is CommonJS to tsx beside this ES module, so its exports may sit on `default`.
 const kit: typeof kitModule = (kitModule as unknown as { default?: typeof kitModule }).default ?? kitModule;
-const { ROOT, SceneBuilder, component, modelId, rgb, vec } = kit;
+const { ROOT, SceneBuilder, component, modelBounds, modelId, rgb, vec } = kit;
 import { QUESTS } from "./quests";
 import { FOES, GATES, HUBS, MAP, NPCS, PEAK, REGIONS, ROADS, THINGS, roadDistance } from "./world";
 
@@ -130,6 +130,19 @@ const sculpt = new Int16Array(TERRAIN.resolution * TERRAIN.resolution);
 }
 const heights = generateHeights({ ...TERRAIN, sculpt: encodeSculpt(sculpt) }, sculpt);
 const ground = (x: number, z: number) => sampleHeight(heights, TERRAIN.resolution, TERRAIN.size, x, z);
+// The lowest ground under a footprint (half-sizes rx, rz, turned by yaw): a building stood on this height has its uphill side in the hill, not a gap under its downhill side.
+const footGround = (x: number, z: number, rx: number, rz = rx, yaw = 0) => {
+  let low = Infinity;
+  const c = Math.cos(yaw), s = Math.sin(yaw);
+  for (const u of [-1, 0, 1])
+    for (const v of [-1, 0, 1]) low = Math.min(low, ground(x + (u * rx * c + v * rz * s), z + (-u * rx * s + v * rz * c)));
+  return low;
+};
+// A catalog model's footprint half-sizes at a scale, from its bounds (at most 7 m, so a big hall does not sink on one far corner).
+const footOf = (id: number, scale: number): [number, number] => {
+  const b = modelBounds(id);
+  return [Math.min(7, ((b.max[0]! - b.min[0]!) / 2) * scale * 0.9), Math.min(7, ((b.max[2]! - b.min[2]!) / 2) * scale * 0.9)];
+};
 
 // ------------------------------------------------------------ light, sky --
 scene.add("Environment", [0, -40, 0], {
@@ -162,6 +175,11 @@ scene.add("World terrain", [0, 0, 0], {
     sandHeight: -5, snowHeight: 62, rockSlope: 0.78,
     // Realistic plants and rocks only: EZ-Tree trees (255-261), photoscanned rocks (399-403), real-blade grass (404-406). Big things first,
     // so the small ones fill round them; groves gather the trees, and grass grows on the green, stone on the rock.
+    // Roads and the city's streets are painted into the ground (terrainPaths.ts): packed earth along each road, stone for the streets and plaza.
+    paths: [
+      ...ROADS.map((road) => `dirt 5 ${road.map(([x, z]) => `${x} ${z}`).join(" ")}`),
+      "stone 8 -50 0 50 0", "stone 8 0 -50 0 50", "stone 22 -0.5 -6 0.5 -6",
+    ].join("\n"),
     scatter: process.env.MURIM_LITE ? "" : [
       "259 0.00045 0.9 1.4 0.85 trunk spacing=5 cluster=0.8 clusterSize=70 tilt=0 tint=0.15", "260 0.00035 0.9 1.3 0.85 trunk spacing=4 cluster=0.8 clusterSize=70",
       "255 0.00030 0.9 1.3 0.85 trunk spacing=7 cluster=0.7 clusterSize=60 tint=0.12", "256 0.00022 0.9 1.3 0.85 trunk spacing=7 cluster=0.7 clusterSize=60",
@@ -180,7 +198,7 @@ scene.add("World terrain", [0, 0, 0], {
 const blocker = (name: string, x: number, z: number, size: V3, lift = 0) =>
   scene.add(name, [x, ground(x, z) + lift + size[1] / 2, z], { Scale: { value: vec(...size) }, Renderable: { mesh: 0, material: 0, visible: false }, RigidBody: { dynamic: false }, Collider: { type: "AABB" } });
 const place = (name: string, file: string, x: number, z: number, yaw = 0, solid = true, scale = 1, extra: Components = {}) =>
-  scene.model(name, W(file), [x, ground(x, z), z], yaw, solid, scale, extra);
+  scene.model(name, W(file), [x, footGround(x, z, ...footOf(W(file), scale), yaw), z], yaw, solid, scale, extra);
 function wall(name: string, x0: number, z0: number, x1: number, z1: number, gap?: { from: number; to: number }) {
   const length = Math.hypot(x1 - x0, z1 - z0);
   const steps = Math.round(length / 4);
@@ -196,7 +214,7 @@ function wall(name: string, x0: number, z0: number, x1: number, z1: number, gap?
 // The Great Hall and the shrine: a hall with its roof, stacked tiers above it, a spire on top. `lift` is how high the
 // next piece's base sits (each tier's base is buried in the roof below).
 function pagoda(name: string, x: number, z: number, tiers: number) {
-  const base = ground(x, z);
+  const base = footGround(x, z, 5);
   scene.model(`${name} hall`, W("pagoda-hall"), [x, base, z], 0, true);
   let y = base + 6.5; // where the hall's roof has narrowed to the width of the first tier
   const tiersOf = { "pagoda-tier-large": { h: 3.4, rise: 2.4 }, "pagoda-tier-small": { h: 3.0, rise: 2.0 } } as const;
@@ -265,38 +283,6 @@ const fighter = (name: string, x: number, z: number, opts: FighterOpts) => scene
     });
   for (const [x, z] of [[-30, 6], [-30, -6], [30, 6], [30, -6], [-6, 30], [6, 30], [-12, -42], [12, -42]] as const) place("Stone lantern", "stone-lantern", x, z, 0, true, 1.1);
   place("Moon gate", "moon-gate", 36, -30, 0, false);
-}
-
-// ------------------------------------------------------- roads, paving --
-// Roads are strips of packed earth along each polyline (a flat slab every few metres, walkable); the city's two streets and its plaza are paved in stone.
-{
-  const slab = (name: string, x: number, z: number, yaw: number, size: V3, hex: string, look: Record<string, unknown> = {}) => {
-    const id = scene.box(name, [x, ground(x, z) + size[1] / 2 - 0.03, z], size, hex, { Rotation: { euler: vec(0, yaw, 0) } }, { roughness: 0.95, ...look });
-    delete (scene.entities[id]!.components as Components).Collider;
-    delete (scene.entities[id]!.components as Components).RigidBody;
-  };
-  for (const road of ROADS)
-    for (let i = 0; i + 1 < road.length; i++) {
-      const [ax, az] = road[i]!, [bx, bz] = road[i + 1]!;
-      const length = Math.hypot(bx - ax, bz - az);
-      const yaw = Math.atan2(bx - ax, bz - az);
-      const n = Math.ceil(length / 5);
-      for (let k = 0; k < n; k++) {
-        const t = (k + 0.5) / n;
-        const x = ax + (bx - ax) * t, z = az + (bz - az) * t;
-        if (Math.abs(x) < 54 && Math.abs(z) < 54) continue; // the city is paved below
-        slab("Road", x, z, yaw, [3.8, 0.12, length / n + 0.4], k % 2 ? "#a58d68" : "#9c845f");
-      }
-    }
-  const STONE = { texture: "./kit/surfaces/stone-color.jpg" };
-  // Streets eight metres wide, a slab each eight metres; the plaza is the three by three round the middle.
-  for (let k = -6; k <= 6; k++) {
-    if (Math.abs(k) > 0) {
-      slab("Paving", 0, k * 8, 0, [8, 0.1, 8], "#ffffff", STONE); // the north-south street
-      slab("Paving", k * 8, 0, 0, [8, 0.1, 8], "#ffffff", STONE); // the east-west street
-    }
-  }
-  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) slab("Plaza", i * 8, j * 8, 0, [8, 0.1, 8], "#ffffff", STONE);
 }
 
 // ----------------------------------------------------------- the hubs --
@@ -402,7 +388,7 @@ FOES.forEach((f, i) => {
 // ----------------------------------------------------------- the things --
 for (const t of THINGS) {
   const [x, z] = t.at;
-  scene.model(t.name, W(t.model), [x, ground(x, z), z], t.yaw ?? 0, true, t.scale ?? 1);
+  scene.model(t.name, W(t.model), [x, footGround(x, z, ...footOf(W(t.model), t.scale ?? 1), t.yaw ?? 0), z], t.yaw ?? 0, true, t.scale ?? 1);
   if (t.glow) scene.add(`${t.name} glow`, [x, ground(x, z) + 1.6, z], { Light: component("Light", { color: rgb(t.glow), intensity: 3, range: 9 }) });
 }
 
@@ -411,7 +397,7 @@ for (const t of THINGS) {
   ["Crate", 185, 18, 20, "Silver:0.3 Qi Elixir:0.15"], ["Barrel", 180, 19.2, 21, "Arrow:0.6"], ["Crate", 185, -20, -28, "Silver:0.4"],
   ["Barrel", 180, 336, 4, "Silver:0.3 Spirit Herb:0.4"], ["Crate", 185, 384, -80, "Silver:0.5 Jade Dew Pill:0.3"], ["Barrel", 180, -384, 90, "Silver:0.5"],
 ].forEach(([name, mesh, x, z, loot], i) =>
-  scene.model(`${name} ${i + 1}`, mesh as number, [x as number, ground(x as number, z as number), z as number], i * 0.9, true, 1.2, {
+  scene.model(`${name} ${i + 1}`, mesh as number, [x as number, footGround(x as number, z as number, 0.7), z as number], i * 0.9, true, 1.2, {
     Health: { current: 12, maximum: 12 },
     Script: { source: lua("breakable.lua"), props: { loot } },
   }),

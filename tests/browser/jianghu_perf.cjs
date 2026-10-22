@@ -30,7 +30,7 @@ const { saveFailure } = require("./evidence.cjs");
     await page.waitForFunction(() => document.querySelector("#runtime")?.textContent === "C++ runtime ready");
     await page.click("#games");
     await page.waitForTimeout(600);
-    await page.locator("div,li,article", { has: page.locator("text=Jianghu Road") }).locator("button", { hasText: "Edit" }).last().click();
+    await page.locator("div,li,article", { has: page.locator("text=Jianghu Road") }).last().locator("button", { hasText: "Edit" }).first().click();
     await page.waitForFunction(() => Number(((document.querySelector("#status")?.textContent || "").match(/(\d+) entities/) || [])[1] || 0) > 100, null, { timeout: 240000 });
     // The editor draws the whole map in software on CI, so a click can wait a while for the page.
     await page.getByRole("button", { name: "Stats" }).first().click({ timeout: 180000 });

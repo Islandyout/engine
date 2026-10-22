@@ -704,6 +704,7 @@ export function normalizeComponent(
         snowHeight: number(value.snowHeight, "Terrain.snowHeight"),
         rockSlope: number(value.rockSlope, "Terrain.rockSlope"),
         scatter: string(value.scatter, "Terrain.scatter"),
+        paths: value.paths === undefined ? "" : string(value.paths, "Terrain.paths"),
       };
     }
     case "AICombat": {

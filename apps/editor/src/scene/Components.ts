@@ -733,6 +733,8 @@ export interface TerrainComponent {
   snowHeight: number;
   rockSlope: number;
   scatter: string;
+  // Roads and paved streets painted into the ground, one per line: "dirt|stone width x z x z ..." (terrainPaths.ts).
+  paths: string;
 }
 
 // Post-processing: anti-aliasing, ambient occlusion, bloom, color

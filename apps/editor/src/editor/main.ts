@@ -1875,7 +1875,12 @@ async function startEditor() {
   // Play started automatically below instead of waiting for a click.
   const exportedScene = document.getElementById("exported-scene")?.textContent;
   // A player build downloads every model it uses before the first frame; a bar says how far along that is.
-  const loading = exportedScene ? showLoadingScreen(document.title) : undefined;
+  const loading = exportedScene
+    ? {
+        progress: (fraction: number) => void (document.getElementById("boot-bar")?.style.setProperty("width", `${Math.round(Math.min(1, fraction) * 100)}%`)),
+        done: () => document.getElementById("boot")?.remove(),
+      }
+    : undefined;
   try {
     if (exportedScene) {
       app.classList.add("player-mode");
@@ -2009,25 +2014,3 @@ void startEditor().catch((error) => {
   console.error(error);
   document.getElementById("status")!.textContent = "Editor failed: " + String(error);
 });
-
-// The loading screen of a player build: the game's name over a bar, built from DOM nodes (nothing here comes from user text as HTML).
-function showLoadingScreen(title: string) {
-  const cover = document.createElement("div");
-  Object.assign(cover.style, {
-    position: "fixed", inset: "0", zIndex: "50", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "18px",
-    background: "#0e1316", color: "#e8e2d0", font: "600 22px system-ui, sans-serif", letterSpacing: "0.06em",
-  });
-  const name = document.createElement("div");
-  name.textContent = title;
-  const track = document.createElement("div");
-  Object.assign(track.style, { width: "min(320px, 70vw)", height: "4px", background: "#2a3236", borderRadius: "2px", overflow: "hidden" });
-  const bar = document.createElement("div");
-  Object.assign(bar.style, { width: "0%", height: "100%", background: "#c9a24a", transition: "width 0.2s" });
-  track.append(bar);
-  cover.append(name, track);
-  document.body.append(cover);
-  return {
-    progress: (fraction: number) => void (bar.style.width = `${Math.round(Math.min(1, fraction) * 100)}%`),
-    done: () => cover.remove(),
-  };
-}
