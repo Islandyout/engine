@@ -29,7 +29,7 @@ local function persist()
   local list = {}
   for id in pairs(visited) do list[#list + 1] = id end
   table.sort(list)
-  save.set("azure-cloud-sect-regions", "visited=" .. table.concat(list, ","))
+  save.set("jianghu-road-regions", "visited=" .. table.concat(list, ","))
 end
 
 local function announce(r)
@@ -56,7 +56,7 @@ function on_message(name, value)
 end
 
 function on_start()
-  local list = tostring(save.get("azure-cloud-sect-regions") or ""):match("visited=(.*)$")
+  local list = tostring(save.get("jianghu-road-regions") or ""):match("visited=(.*)$")
   if list then for id in list:gmatch("[^,]+") do visited[id] = true end end
 end
 
