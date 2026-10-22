@@ -304,8 +304,9 @@ function tier(name, w, h, rise) {
   m.roof(0, h + 0.2, 0, w, w, rise, 1.1, 0.6, 6);
   return m;
 }
-pieces["pagoda-tier-large"] = tier("pagoda-tier-large", 8, 3.6, 2.6);
-pieces["pagoda-tier-small"] = tier("pagoda-tier-small", 5.5, 3.2, 2.2);
+// Each tier is no wider than the roof under it at the height it sits (the hall roof is ~6 m wide at y 6.5, a tier's roof ~4.4 m wide halfway up).
+pieces["pagoda-tier-large"] = tier("pagoda-tier-large", 6, 3.4, 2.4);
+pieces["pagoda-tier-small"] = tier("pagoda-tier-small", 4.4, 3.0, 2.0);
 
 // The spire: rings and a jewel, on a short mast.
 {

@@ -404,6 +404,27 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 376, category: "gear", name: "Outfit F: boots", path: "./kit/people/ubc-female-boots.glb" },
   { id: 377, category: "gear", name: "Outfit F: sash", path: "./kit/people/ubc-female-sash.glb" },
   { id: 378, category: "gear", name: "Outfit F: long skirt", path: "./kit/people/ubc-female-skirt.glb" },
+  // Quaternius Modular Character Outfits - Fantasy (CC0, tools/models/import_outfits.mjs): Peasant and Ranger clothes made for the base bodies.
+  { id: 379, category: "gear", name: "Peasant M: body", path: "./kit/people/ubc-male-peasant-body.glb" },
+  { id: 380, category: "gear", name: "Peasant M: arms", path: "./kit/people/ubc-male-peasant-arms.glb" },
+  { id: 381, category: "gear", name: "Peasant M: legs", path: "./kit/people/ubc-male-peasant-legs.glb" },
+  { id: 382, category: "gear", name: "Peasant M: feet", path: "./kit/people/ubc-male-peasant-feet.glb" },
+  { id: 383, category: "gear", name: "Ranger M: body", path: "./kit/people/ubc-male-ranger-body.glb" },
+  { id: 384, category: "gear", name: "Ranger M: arms", path: "./kit/people/ubc-male-ranger-arms.glb" },
+  { id: 385, category: "gear", name: "Ranger M: legs", path: "./kit/people/ubc-male-ranger-legs.glb" },
+  { id: 386, category: "gear", name: "Ranger M: boots", path: "./kit/people/ubc-male-ranger-feet-boots.glb" },
+  { id: 387, category: "gear", name: "Ranger M: hood", path: "./kit/people/ubc-male-ranger-head-hood.glb" },
+  { id: 388, category: "gear", name: "Ranger M: pauldron", path: "./kit/people/ubc-male-ranger-acc-pauldron.glb" },
+  { id: 389, category: "gear", name: "Peasant F: body", path: "./kit/people/ubc-female-peasant-body.glb" },
+  { id: 390, category: "gear", name: "Peasant F: arms", path: "./kit/people/ubc-female-peasant-arms.glb" },
+  { id: 391, category: "gear", name: "Peasant F: legs", path: "./kit/people/ubc-female-peasant-legs.glb" },
+  { id: 392, category: "gear", name: "Peasant F: feet", path: "./kit/people/ubc-female-peasant-feet.glb" },
+  { id: 393, category: "gear", name: "Ranger F: body", path: "./kit/people/ubc-female-ranger-body.glb" },
+  { id: 394, category: "gear", name: "Ranger F: arms", path: "./kit/people/ubc-female-ranger-arms.glb" },
+  { id: 395, category: "gear", name: "Ranger F: legs", path: "./kit/people/ubc-female-ranger-legs.glb" },
+  { id: 396, category: "gear", name: "Ranger F: boots", path: "./kit/people/ubc-female-ranger-feet.glb" },
+  { id: 397, category: "gear", name: "Ranger F: hood", path: "./kit/people/ubc-female-ranger-head-hood.glb" },
+  { id: 398, category: "gear", name: "Ranger F: pauldrons", path: "./kit/people/ubc-female-ranger-acc-pauldrons.glb" },
 ];
 
 export const catalogCategories = Array.from(

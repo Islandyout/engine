@@ -142,7 +142,7 @@ function world.give_item(id, name, n) end
 ---@return boolean
 function world.take_item(id, name, n) end
 
---- The first hit along a ray: {id, x, y, z, nx, ny, nz, distance}.
+--- The first hit along a ray, as several return values (nil when nothing is hit): what was hit (an entity id, or "ground"), the distance, the hit point and the surface normal.
 ---@param ox any
 ---@param oy any
 ---@param oz any
@@ -151,7 +151,7 @@ function world.take_item(id, name, n) end
 ---@param dz any
 ---@param max number
 ---@param mask? integer
----@return table?
+---@return (id|"ground", distance, x, y, z, nx, ny, nz)?
 function world.raycast(ox, oy, oz, dx, dy, dz, max, mask) end
 
 --- Entities with colliders inside a sphere.
@@ -449,6 +449,16 @@ function melee.set_ai(on, aggression, skill) end
 ---@return number?
 function melee.unlock(move) end
 
+--- Looses an arrow from the chest along a direction (not when stunned, down or in the air): speed m/s, its damage (times the fighter's damage), gravity as a scale of the world's. It stops at the first wall or body; a hit high on a tall body counts double.
+---@param dx number
+---@param dy number
+---@param dz number
+---@param speed number
+---@param damage number
+---@param gravity? number
+---@return boolean
+function melee.shoot(dx, dy, dz, speed, damage, gravity) end
+
 --- Makes a move unusable again (a stance switch, a spent art); 1 when the move exists.
 ---@param move string
 ---@return number?
@@ -702,7 +712,7 @@ function world.wear(models) end
 ---@param name string
 function world.wildlife_state(name) end
 
---- The camera's horizontal facing (x, z), a unit vector: keep what you spawn out of view.
+--- The camera's horizontal facing (x, z), a unit vector, and a third value: how far it looks up (its direction's y, -1..1).
 function camera.forward() end
 
 --- Makes an objective (an id from an Objectives component) the active one.

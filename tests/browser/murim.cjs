@@ -46,7 +46,7 @@ const { saveFailure } = require("./evidence.cjs");
     await page.waitForFunction(() => /Mirror/.test(document.body.innerText), null, { timeout: 300000 });
     const tap = async (key) => { await page.keyboard.down(key); await until(8); await page.keyboard.up(key); await until(8); };
     await tap("3");
-    assert.match(await text(), /Cut: Tunic/, "key 3 changes the cut (the long robe is the starting cut)");
+    assert.match(await text(), /Cut: Ranger/, "key 3 changes the cut (the peasant clothes are the starting cut)");
     await tap("4");
     assert.match(await text(), /凡人/, "the language key switches the HUD to Chinese");
     await tap("4");

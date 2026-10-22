@@ -200,6 +200,7 @@ export class LedgerHud {
       ctx.strokeStyle = "#08060c";
       ctx.strokeRect(x, y, boxW, boxH);
       ctx.fillStyle = "#08060c";
+      ctx.textAlign = "left";
       ctx.textBaseline = "top";
       text.forEach((line, i) => ctx.fillText(line, x + 14 * scale, y + 10 * scale + i * lineHeight));
       ctx.globalAlpha = 1;

@@ -433,6 +433,9 @@ export interface Ctx {
   probe: ReflectionProbe;
   probeScanAt: number;
   processCombatEvents: () => void;
+  setBow: (index: number, text: string) => void;
+  updateBow: () => void;
+  bowSight: () => number;
   profileCapture: { frames: number[]; until: number; } | undefined;
   projectileMeshes: THREE.Object3D[];
   prospect: { keys: Set<string>; label: string; range: number; } | undefined;

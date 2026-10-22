@@ -216,14 +216,17 @@ const place = (name: string, file: string, x: number, z: number, yaw = 0, solid 
 function pagoda(name: string, x: number, z: number, tiers: number) {
   const base = ground(x, z);
   scene.model(`${name} hall`, W("pagoda-hall"), [x, base, z], 0, true);
-  let y = base + 7.4;
-  const files = ["pagoda-tier-large", "pagoda-tier-small"];
+  let y = base + 6.5; // where the hall's roof has narrowed to the width of the first tier
+  const tiersOf = { "pagoda-tier-large": { h: 3.4, rise: 2.4 }, "pagoda-tier-small": { h: 3.0, rise: 2.0 } } as const;
+  const files = ["pagoda-tier-large", "pagoda-tier-small"] as const;
   for (let t = 0; t < tiers; t++) {
     const file = files[Math.min(t, files.length - 1)]!;
+    const { h, rise } = tiersOf[file];
     scene.model(`${name} tier ${t + 1}`, W(file), [x, y, z], 0, false);
-    y += file === "pagoda-tier-large" ? 5.6 : 5.0;
+    // The next tier stands halfway up this roof; the spire stands on its peak.
+    y += t === tiers - 1 ? h + rise : h + 0.2 + rise * 0.5;
   }
-  scene.model(`${name} spire`, W("pagoda-spire"), [x, y - 0.4, z], 0, false);
+  scene.model(`${name} spire`, W("pagoda-spire"), [x, y - 0.2, z], 0, false);
 }
 
 // A run of garden wall along x or z; the gap (a gate) is left open.
@@ -716,7 +719,7 @@ for (const [i, [x, z]] of [[28, 30], [-34, 44], [22, -30], [-30, -40]].entries()
   });
 
 // -------------------------------------------------------------- the player --
-// Stances: fists, sword, spear, glaive and bow each have their own moves on the same buttons. Every stance but fists
+// Stances: fists, sword, spear, glaive and bow each have their own moves on the same buttons (the bow's arrows are loosed by the script on the mouse: see player.lua). Every stance but fists
 // starts locked; player.lua unlocks one and relocks the rest when you switch (Y), and holds the matching weapon.
 const stanceMoves = (text: string, prefix: string) => {
   const names: string[] = [];
@@ -763,8 +766,8 @@ const GLAIVE = stanceMoves(
 );
 const BOW = stanceMoves(
   [
-    "shot: clip=energy_throw input=light dur=0.65 hit=0.22-0.26 cancel=0.42 dmg=12 projectile=40 shape=2 knock=2 stun=0.3 cooldown=0.35 limb=hand_r",
-    "power: clip=energy_throw input=heavy dur=1.0 hit=0.4-0.44 cancel=0.7 dmg=28 projectile=52 shape=2 knock=5 stun=0.6 cooldown=1.6 limb=hand_r",
+    "bash: clip=hook input=light dur=0.6 hit=0.18-0.26 cancel=0.4 dmg=7 reach=1.2 radius=0.6 knock=3 stun=0.4 limb=hand_r",
+    "shove: clip=shoulder_dash input=heavy dur=0.8 hit=0.2-0.36 cancel=0.5 dmg=9 reach=1.3 radius=0.7 lunge=1.5 knock=6 stun=0.6 limb=hand_r",
     "back_kick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=6 reach=1.3 height=0.55 knock=6 stun=0.5 limb=foot_r",
   ].join("\n"),
   "bw_",
@@ -803,14 +806,14 @@ scene.add("Player", spawn, {
   CharacterController: { mode: "ThirdPerson", walkSpeed: 3.6, sprintSpeed: 7.4, jumpHeight: 1.1, acceleration: 30, airControl: 6, stepHeight: 0.5 },
   Health: { current: Number(process.env.MURIM_HP ?? 100), maximum: 100 },
   Melee: { team: 0, ai: false, energy: 40, style: "Custom", moves: MOVES, manaMax: 60, manaRegen: 6 },
-  Weapons: component("Weapons", { loadout: "fists: melee=fists\nblade: melee=sword\nspear: melee=spear\nglaive: melee=scythe\nbow: melee=bow\n", aimAssist: 0, assistRange: 1 }),
+  Weapons: component("Weapons", { loadout: "fists: melee=fists\nblade: melee=sword\nspear: melee=spear\nglaive: melee=scythe\nbow: melee=fists\n", aimAssist: 0, assistRange: 1 }),
   Inventory: {
     slots: 24,
     maxWeight: 30,
     weights: "Qi Elixir=0.2, Breakthrough Pill=0.2, Jade Dew Pill=0.2, Spirit Herb=0.05, Silver=0.01, Azure Robe=2",
     stats: "Azure Robe: slot=body armor=10\nJade Charm: health=25\nIron Gloves: slot=hands damage=10",
   },
-  Script: { source: lua("lang.lua") + "\n" + lua("player.lua").replace("--@STANCES@", STANCE_TABLE), props: process.env.MURIM_REALM ? { realm: Number(process.env.MURIM_REALM), qi: Number(process.env.MURIM_QI ?? 0), silver: Number(process.env.MURIM_SILVER ?? 0) } : {} },
+  Script: { source: lua("lang.lua") + "\n" + lua("player.lua").replace("--@STANCES@", STANCE_TABLE), props: { stance: process.env.MURIM_STANCE ?? "none", ranger: PLAYER_BODY === BODY_M ? "383 384 385 386 388" : "393 394 395 396 398", ...(process.env.MURIM_REALM ? { realm: Number(process.env.MURIM_REALM), qi: Number(process.env.MURIM_QI ?? 0), silver: Number(process.env.MURIM_SILVER ?? 0) } : {}) } },
 });
 scene.add("Camera", [spawn[0], spawn[1] + 3, spawn[2] + 6], {
   Camera: { fov: 60, far: 700 },
@@ -827,8 +830,8 @@ scene.add("Input", [0, -40, 0], {
       "interact: e, pad_y",
       "sprint: shift, pad_lb",
       "crouch: ctrl, pad_b",
-      "light: mouse_left, pad_x",
-      "heavy: mouse_right, pad_y",
+      "light: j, pad_x",
+      "heavy: k, pad_y",
       "kick: f, pad_b",
       "special: u, pad_rb",
       "dodge: x, alt, pad_ls",
@@ -851,7 +854,9 @@ scene.add("Input", [0, -40, 0], {
       "talisman2: 9",
       "art2: 6",
       "art3: 7",
-      "controls: o",
+      "controls: escape",
+      "shoot: mouse_left, pad_rt",
+      "aim: mouse_right, pad_lt",
     ].join("\n"),
   },
 });
@@ -906,6 +911,7 @@ widget("Compass", "Compass", { ...style, anchor: "top-center", offsetY: MARGIN_Y
 widget("Target", "Target frame", { ...style, anchor: "top-center", offsetY: MARGIN_Y + 56, width: 420, height: 64, text: "", value: 0 });
 widget("Minimap", "Minimap", { ...style, anchor: "top-right", offsetX: -MARGIN_X, offsetY: MARGIN_Y });
 widget("Waypoints", "Waypoints", style);
+widget("Crosshair", "Crosshair", style); // a drawn bow's sight (it shows nothing otherwise)
 widget("Damage direction", "Damage direction", { ...style, anchor: "center", width: 420, height: 420, text: "" });
 widget("Damage numbers", "Damage numbers", style);
 widget("Boss bar", "Boss bar", style);
@@ -914,14 +920,14 @@ widget("Interact prompt", "Interact prompt", style);
 widget("Dialogue", "Dialogue", { ...style, anchor: "bottom-center", offsetY: -MARGIN_Y - 176, width: 660, height: 150, text: "" });
 widget("Inventory", "Inventory", { ...style, anchor: "center", visibleWhen: "toggle", toggleKey: "KeyI" });
 widget("Character sheet", "Character sheet", { ...style, anchor: "center", width: 440, height: 440, visibleWhen: "toggle", toggleKey: "KeyC", text: "Cultivator\nMortal realm" });
-widget("Skill tree", "Skill tree", { ...style, anchor: "center", width: 520, height: 400, visibleWhen: "toggle", toggleKey: "KeyK", text: "Cultivation tree" });
-widget("Quest log", "Quest log", { ...style, anchor: "center", width: 540, height: 470, visibleWhen: "toggle", toggleKey: "KeyJ", text: "Journal" });
+widget("Skill tree", "Skill tree", { ...style, anchor: "center", width: 520, height: 400, visibleWhen: "toggle", toggleKey: "KeyO", text: "Cultivation tree" });
+widget("Quest log", "Quest log", { ...style, anchor: "center", width: 540, height: 470, visibleWhen: "toggle", toggleKey: "Tab", text: "Journal" });
 widget("Meridians", "Skill tree", { ...style, anchor: "center", width: 560, height: 460, visibleWhen: "toggle", toggleKey: "KeyP", text: "Meridians" });
 widget("Shop window", "Shop window", { ...style, anchor: "center", width: 560, height: 480, visibleWhen: "toggle", text: "" });
 widget("Quick slots", "Quick slots", { ...style, anchor: "bottom-right", offsetX: -MARGIN_X, offsetY: -MARGIN_Y - 116, width: 330, height: 76, text: "" });
 widget("Tip", "Notification", { ...style, anchor: "bottom-center", offsetY: -MARGIN_Y - 100 });
 widget("Death screen", "Death screen", { ...style, anchor: "center", width: 640, height: 320, text: "" });
-widget("Key hints", "Key hints", { ...style, anchor: "bottom-right", offsetX: -MARGIN_X, offsetY: -MARGIN_Y, width: 600, height: 76, text: "I|Bag|Menu\nC|Stats\nJ|Journal\nK|Arts\nP|Body\nM|Map\nY|Stance|Y" });
+widget("Key hints", "Key hints", { ...style, anchor: "bottom-right", offsetX: -MARGIN_X, offsetY: -MARGIN_Y, width: 600, height: 76, text: "I|Bag|Menu\nC|Stats\nTab|Journal\nO|Arts\nP|Body\nM|Map\nY|Stance|Y" });
 
 // ------------------------------------------------------------ qi effects --
 const fxEmitter = (name: string, mode: string, particles: Record<string, unknown>, extra: Components = {}) =>

@@ -109,6 +109,7 @@ export interface UIData {
   slot: number;
   spread: number; // crosshair gap, px
   hostile: boolean; // the crosshair is over an enemy
+  bow: number; // a bow's draw 0..1 while it is aimed or drawn (the crosshair closes as it fills), -1 otherwise
   hitAge: number; // seconds since the last hit (Infinity: none)
   killAge: number;
   heading: number; // radians: 0 north (-z), clockwise
@@ -799,12 +800,13 @@ const ammo: Draw = (p, r, d) => {
 };
 
 const crosshair: Draw = (p, r, d) => {
-  if (d.weapon?.melee) return;
+  if (d.weapon?.melee && d.bow < 0) return;
   const { ctx: c, k, s } = p;
   const cx = r.left + r.width / 2,
     cy = r.top + r.height / 2;
   const color = d.hostile ? k.danger : k.frame === "ornate" ? k.accent : k.frame === "chamfer" ? k.accent : "#ffffff";
-  const gap = 5 * s + d.spread;
+  // A drawn bow: the sight starts wide and closes on the target as the string comes back.
+  const gap = 5 * s + (d.bow >= 0 ? (1 - d.bow) * 26 * s : d.spread);
   c.lineCap = "butt";
   const lines = (length: number, width: number) => {
     c.lineWidth = width + 2 * s;
@@ -1741,6 +1743,7 @@ export function sampleUIData(time: number, width: number, height: number): UIDat
     slot: 1,
     spread: 4,
     hostile: false,
+    bow: -1,
     hitAge: (time % 2) < 0.3 ? time % 2 : Infinity,
     killAge: Infinity,
     heading: 0,

@@ -195,8 +195,8 @@ export const scriptApi: ScriptApiEntry[] = [
   },
   {
     "name": "world.raycast",
-    "signature": "world.raycast(ox, oy, oz, dx, dy, dz, max: number, mask?: integer): table?",
-    "doc": "The first hit along a ray: {id, x, y, z, nx, ny, nz, distance}.",
+    "signature": "world.raycast(ox, oy, oz, dx, dy, dz, max: number, mask?: integer): (id|\"ground\", distance, x, y, z, nx, ny, nz)?",
+    "doc": "The first hit along a ray, as several return values (nil when nothing is hit): what was hit (an entity id, or \"ground\"), the distance, the hit point and the surface normal.",
     "group": "world"
   },
   {
@@ -554,6 +554,12 @@ export const scriptApi: ScriptApiEntry[] = [
     "group": "melee"
   },
   {
+    "name": "melee.shoot",
+    "signature": "melee.shoot(dx: number, dy: number, dz: number, speed: number, damage: number, gravity?: number): boolean",
+    "doc": "Looses an arrow from the chest along a direction (not when stunned, down or in the air): speed m/s, its damage (times the fighter's damage), gravity as a scale of the world's. It stops at the first wall or body; a hit high on a tall body counts double.",
+    "group": "melee"
+  },
+  {
     "name": "melee.relock",
     "signature": "melee.relock(move: string): number?",
     "doc": "Makes a move unusable again (a stance switch, a spent art); 1 when the move exists.",
@@ -868,7 +874,7 @@ export const scriptApi: ScriptApiEntry[] = [
   {
     "name": "camera.forward",
     "signature": "camera.forward()",
-    "doc": "The camera's horizontal facing (x, z), a unit vector: keep what you spawn out of view.",
+    "doc": "The camera's horizontal facing (x, z), a unit vector, and a third value: how far it looks up (its direction's y, -1..1).",
     "group": "camera"
   },
   {

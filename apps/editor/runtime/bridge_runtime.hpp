@@ -75,6 +75,8 @@ struct Runtime {
     // down -z, which this default simply assumes until told otherwise.
     float camera_forward_x{0.0F};
     float camera_forward_z{-1.0F};
+    // The camera's vertical look component (unit direction's y): up positive. Set once per frame by editor_set_camera_pitch.
+    float camera_pitch{0.0F};
     // First-person look direction in radians, set by editor_set_look() once
     // per rendered frame (the editor owns mouse look so it stays smooth at
     // any display rate). yaw 0 looks down -z; pitch > 0 looks up.
@@ -2944,6 +2946,12 @@ struct Runtime {
                     }
                     if (!target && !wall && projectile.lifetime > 0)
                         continue;
+                    // An arrow (shape 6) that meets a tall body high up is a head shot: double damage.
+                    if (target && projectile.shape == 6) {
+                        const auto &hit_box = *w.get<engine::Box>(*target);
+                        if (hit_box.size.y >= 1.2F && box.center.y >= hit_box.center.y + hit_box.size.y * 0.28F)
+                            projectile.damage *= 2.0F;
+                    }
                     // A fighter holding block meets a qi bolt with its guard: raised within the parry window, from the
                     // front, it knocks the bolt back at whoever threw it (and earns energy); later it only takes the
                     // guarded share and spends guard.
@@ -3154,7 +3162,7 @@ inline bool BridgeHost::space(engine::World &world, const std::string &op, const
     // last editor_set_camera_forward), with or without a SpaceSystem, so a
     // script can keep what it spawns out of view (camera.forward()).
     if (op == "camera") {
-        out = {runtime_.camera_forward_x, runtime_.camera_forward_z};
+        out = {runtime_.camera_forward_x, runtime_.camera_forward_z, runtime_.camera_pitch};
         return true;
     }
     // The scene clock (world.set_clock) works with or without a SpaceSystem.

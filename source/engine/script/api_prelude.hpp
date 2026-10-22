@@ -23,7 +23,7 @@ function space.set_wind(x, y, z) return space.call("wind", "", x, y, z) end
 function space.allow_boarding(allowed) return space.call("board_key", "", allowed and 1 or 0) end
 function world.wear(models) host.send("outfit", models or "") end
 function world.wildlife_state(name) local r = space.call("wildlife", name) return r and r[1] or -1 end
-function camera.forward() local r = space.call("camera") if not r then return 0, -1 end return r[1], r[2] end
+function camera.forward() local r = space.call("camera") if not r then return 0, -1, 0 end return r[1], r[2], r[3] or 0 end
 function objective.start(id) host.send("objective", "start|" .. id) end
 function objective.complete(id) host.send("objective", "complete|" .. id) end
 function objective.progress(id, n) host.send("objective", "progress|" .. id .. "|" .. n) end

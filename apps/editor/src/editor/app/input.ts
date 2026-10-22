@@ -108,7 +108,8 @@ export function installInput(C: Ctx): void {
         C.uiTextOverrides.set(a, b);
         // Banners and objectives are read out to screen readers.
         if (a === "Banner" || a === "Objective") C.announcer.say(b);
-      } else if (kind === "host" && a === "outfit")
+      } else if (kind === "host" && a === "bow") C.setBow(C.runtime._editor_command_entity(i), b);
+      else if (kind === "host" && a === "outfit")
         C.setOutfit(C.runtime._editor_command_entity(i), C.parseOutfit(b));
       else if (kind === "host") C.handleHost(a, b);
       else if (kind === "particles_burst" || kind === "particles_emitting") {

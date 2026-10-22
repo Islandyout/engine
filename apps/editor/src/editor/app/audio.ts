@@ -152,6 +152,9 @@ export function installAudio(C: Ctx): void {
       else if (name === "footstep") voice.footstep(detail === "grass" ? "grass" : "hard", position ? 1 : volume);
       else if (name === "reload") voice.reload(1.5, position ? 1 : volume);
       else if (name === "click") voice.dryFire(position ? 1 : volume);
+      else if (name === "bow" && detail.startsWith("draw")) voice.bowDraw(Number(detail.slice(4)) || 0.9, position ? 1 : volume);
+      else if (name === "bow") voice.bowLoose(Number(detail.replace("loose", "")) || 1, position ? 1 : volume);
+      else if (name === "arrow") voice.arrowThud(position ? 1 : volume);
       else if (name === "hit") voice.hitmarker(detail === "kill", position ? 1 : volume);
       else C.log(`sound.play: no synthesized sound "${name}"`);
       return;
