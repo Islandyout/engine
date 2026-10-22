@@ -450,12 +450,12 @@ save_game = function()
   local counts, worn = {}, {}
   for _, name in ipairs(CARRIED) do local n = inventory.count(self.id, name) if n > 0 then counts[#counts + 1] = name .. "=" .. n end end
   for _, slot in ipairs(WORN) do local w = inventory.equipped(self.id, slot) if w ~= "" then worn[#worn + 1] = slot .. "=" .. w end end
-  save.set("azure-cloud-sect", string.format("realm=%d;stage=%d;qi=%.1f;insight=%d;spawn=%.2f,%.2f,%.2f;perks=%s;mer=%s;arts=%s;aff=%s;robe=%d;hair=%d;cut=%d;carried=%s;worn=%s",
+  save.set("jianghu-road", string.format("realm=%d;stage=%d;qi=%.1f;insight=%d;spawn=%.2f,%.2f,%.2f;perks=%s;mer=%s;arts=%s;aff=%s;robe=%d;hair=%d;cut=%d;carried=%s;worn=%s",
     realm, stage, qi, insight, spawn[1], spawn[2], spawn[3], keys_of(perks_learned), keys_of(meridians_learned), keys_of(arts_learned), affinity, robe, hair, cut, table.concat(counts, ";"), table.concat(worn, ";")))
 end
 
 local function load_game()
-  local text = save.get("azure-cloud-sect")
+  local text = save.get("jianghu-road")
   if not text or text == "" then return false end
   local f = {}
   for k, v in text:gmatch("(%w+)=([^;]*)") do f[k] = v end
@@ -476,7 +476,7 @@ end
 -- The bag as saved (counts, with the gear that was worn). Items are written "Name=count" separated by ";", which the key=value
 -- reader above cannot split, so they are read here from the raw text.
 local function load_bag()
-  local text = save.get("azure-cloud-sect") or ""
+  local text = save.get("jianghu-road") or ""
   local carried = text:match("carried=(.-);worn=") or text:match("carried=(.*)$") or ""
   local have = {}
   for name, n in carried:gmatch("([%w +]+)=(%d+)") do have[name] = tonumber(n) end

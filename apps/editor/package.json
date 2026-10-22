@@ -10,7 +10,8 @@
     "fps": "tsx ../../tools/fps/build_last_signal.ts",
     "racing": "tsx ../../tools/racing/build_high_heat.ts",
     "city": "tsx ../../tools/city/build_city_template.ts",
-    "murim": "tsx ../../tools/murim/build_azure_cloud_sect.ts"
+    "murim": "tsx ../../tools/murim/build_azure_cloud_sect.ts",
+    "jianghu": "tsx ../../tools/jianghu/build_jianghu.ts"
   },
   "dependencies": {
     "three": "0.169.0"

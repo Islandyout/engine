@@ -1,7 +1,7 @@
 -- Localisation: what the HUD shows is looked up in a table before it is drawn. The scripts keep their English strings
 -- (they are also the keys items and quests are found by); only display text for a few widgets and the announcements is
 -- translated, phrase by phrase, longest phrases first. L switches language in the Player; the other scripts are told.
-LANG = save.get("azure-cloud-sect-lang")
+LANG = save.get("jianghu-road-lang")
 if LANG ~= "zh" then LANG = "en" end
 
 local ZH = {
@@ -200,7 +200,7 @@ end
 function set_language(code)
   LANG = code == "zh" and "zh" or "en"
   cache, cached = {}, 0
-  save.set("azure-cloud-sect-lang", LANG)
+  save.set("jianghu-road-lang", LANG)
 end
 
 -- Widgets whose text is words for a reader (not formats the kit parses by name).
