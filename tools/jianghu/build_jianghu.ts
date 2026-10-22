@@ -8,7 +8,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { encodeSculpt, generateHeights, sampleHeight } from "../../apps/editor/src/editor/terrain";
+import { encodeSculpt, fbm, generateHeights, sampleHeight } from "../../apps/editor/src/editor/terrain";
 import { widgetInfo } from "../../apps/editor/src/editor/uiKit";
 import { martialArtsMoves, swordMoves } from "../../apps/editor/src/scene/meleeMoves";
 import type { UIWidget } from "../../apps/editor/src/scene/Components";
@@ -57,7 +57,8 @@ const average = (x: number, z: number, r: number) => {
     }
   return sum / count;
 };
-// Level ground for the city and each hub.
+const edgeOf = (x: number, z: number) => Math.max(Math.abs(x), Math.abs(z));
+// Level ground for the city and each hub (at the height the region's shape gives that place: the fortress stands on its plateau, the bones gate in its basin).
 const pads = [
   { x: 0, z: 0, r: 58 },
   { ...HUBS.greenhollow, r: 20 },
@@ -66,19 +67,22 @@ const pads = [
   { ...HUBS.gorgeHall, r: 20 },
   { ...HUBS.fortress, r: 22 },
   { ...HUBS.bonesGate, r: 22 },
-  { x: 250, z: 60, r: 12 }, // Old Lotus' pond
-  { x: -300, z: 58, r: 12 }, // the duelling pier
-].map((p) => ({ ...p, h: average(p.x, p.z, 10) }));
+  { x: 248, z: 56, r: 9 }, // Old Lotus' hut by the pond
+  { x: -338, z: 26, r: 10 }, // the shore by the pier
+  { x: 0, z: -398, r: 8 }, // the summit
+].map((p) => ({ ...p, h: average(p.x, p.z, 10) + regionShape(p.x, p.z) }));
 // The lake beside Port Jade.
-const LAKE = { x: -405, z: 20, rx: 58, rz: 48, depth: 5 };
+const LAKE = { x: -405, z: 20, rx: 58, rz: 48, depth: 2.4 };
+// Old Lotus' pond.
+const POND = { x: 266, z: 62, rx: 13, rz: 9, depth: 1.5 };
+const pondLevel = average(POND.x + POND.rx + 8, POND.z, 3) - 0.1;
 const lakeLevel = average(LAKE.x + LAKE.rx + 12, LAKE.z, 4) - 0.2;
-const edgeOf = (x: number, z: number) => Math.max(Math.abs(x), Math.abs(z));
 
 // The shape each region gives the land (metres added to the noise).
 function regionShape(x: number, z: number): number {
   let h = 0;
   // Heaven Peak and its summit, to the north.
-  h += PEAK.height * Math.exp(-((x - PEAK.x) ** 2 + (z - PEAK.z) ** 2) / (2 * PEAK.spread * PEAK.spread));
+  h += PEAK.height * Math.exp(-((x - PEAK.x) ** 2 + (z - PEAK.z) ** 2) / (2 * PEAK.spread * PEAK.spread)) * (0.78 + 0.44 * (fbm(x / 22, z / 22, 7, 4) * 0.5 + 0.5));
   // Frostfang Ridge: a high cold plateau in the north-east.
   h += 36 * (1 - smoothstep((Math.hypot(x - HUBS.fortress.x, z - HUBS.fortress.z) - 95) / 70));
   // Crimson Maple Gorge: a raised shelf with a canyon cut along its middle.
@@ -97,7 +101,7 @@ function regionShape(x: number, z: number): number {
   h -= 3 * (1 - smoothstep(Math.hypot(x - HUBS.portJade.x, z - HUBS.portJade.z) / 170));
   // Mountains round the edge of the map close it in.
   const edge = edgeOf(x, z);
-  if (edge > 430) h += ((edge - 430) / 70) ** 2 * 80;
+  if (edge > 425) h += ((edge - 425) / 75) ** 1.7 * 62 * (0.8 + 0.4 * (fbm(x / 30, z / 30, 3, 4) * 0.5 + 0.5)) + 5 * fbm(x / 9, z / 9, 5, 3) * Math.min(1, (edge - 425) / 30);
   return h;
 }
 
@@ -117,12 +121,19 @@ const sculpt = new Int16Array(TERRAIN.resolution * TERRAIN.resolution);
       // Roads follow the slow shape of the land; the summit road is allowed to climb.
       const d = roadDistance(x, z);
       if (d < 20) blend(average(x, z, 8) + regionShape(x, z) * 0.7, Math.max(0, d - 3), 14);
-      for (const p of pads) blend(p.h + (Math.hypot(p.x - HUBS.peakShrine.x, p.z - HUBS.peakShrine.z) < 1 ? regionShape(p.x, p.z) : 0), Math.max(0, Math.hypot(x - p.x, z - p.z) - p.r), p.r > 50 ? 48 : 16);
+      for (const p of pads) blend(p.h, Math.max(0, Math.hypot(x - p.x, z - p.z) - p.r), p.r > 50 ? 48 : 16);
       {
         const e = Math.hypot((x - LAKE.x) / LAKE.rx, (z - LAKE.z) / LAKE.rz);
         if (e < 1.5) {
           const bed = e < 1 ? lakeLevel + 0.6 - (LAKE.depth + 0.6) * (1 - e * e) : lakeLevel + 0.6 + (e - 1) * 1.4;
           h += (bed - h) * (1 - smoothstep((e - 1.15) / 0.35));
+        }
+      }
+      {
+        const e = Math.hypot((x - POND.x) / POND.rx, (z - POND.z) / POND.rz);
+        if (e < 1.6) {
+          const bed = e < 1 ? pondLevel + 0.3 - (POND.depth + 0.3) * (1 - e * e) : pondLevel + 0.3 + (e - 1) * 1.1;
+          h += (bed - h) * (1 - smoothstep((e - 1.2) / 0.4));
         }
       }
       sculpt[row * n + column] = Math.max(-32000, Math.min(32000, Math.round((h - b) * 100)));
@@ -160,7 +171,11 @@ scene.add("Environment", [0, -40, 0], {
 
 // The trees keep off the city, the hubs and the roads (a rectangle every few metres along each road).
 const clearing = (x: number, z: number, r: number) => [x - r, z - r, x + r, z + r];
-const exclusions: number[][] = [clearing(0, 0, 62), ...pads.slice(1).map((p) => clearing(p.x, p.z, p.r + 4))];
+const exclusions: number[][] = [
+  clearing(0, 0, 62), ...pads.slice(1).map((p) => clearing(p.x, p.z, p.r + 4)),
+  clearing(LAKE.x, LAKE.z, 64), clearing(POND.x, POND.z, 20), // water
+  clearing(320, 340, 118), // the Sunken Valley of Bones is bare
+];
 for (const road of ROADS)
   for (let i = 0; i + 1 < road.length; i++) {
     const [ax, az] = road[i]!, [bx, bz] = road[i + 1]!;
@@ -171,14 +186,18 @@ scene.add("World terrain", [0, 0, 0], {
   Terrain: {
     ...TERRAIN,
     sculpt: encodeSculpt(sculpt),
-    grassColor: rgb("#5f7a3a"), rockColor: rgb("#7b776e"), sandColor: rgb("#a99a74"), snowColor: rgb("#eef0ec"),
+    grassColor: rgb("#5f7a3a"), rockColor: rgb("#8a7c68"), sandColor: rgb("#a99a74"), snowColor: rgb("#eef0ec"),
     sandHeight: -5, snowHeight: 62, rockSlope: 0.78,
     // Realistic plants and rocks only: EZ-Tree trees (255-261), photoscanned rocks (399-403), real-blade grass (404-406). Big things first,
     // so the small ones fill round them; groves gather the trees, and grass grows on the green, stone on the rock.
     // Roads and the city's streets are painted into the ground (terrainPaths.ts): packed earth along each road, stone for the streets and plaza.
     paths: [
       ...ROADS.map((road) => `dirt 5 ${road.map(([x, z]) => `${x} ${z}`).join(" ")}`),
-      "stone 8 -50 0 50 0", "stone 8 0 -50 0 50", "stone 22 -0.5 -6 0.5 -6",
+      "gravel 8 -50 0 50 0", "gravel 8 0 -50 0 50", "gravel 22 -0.5 -6 0.5 -6",
+      // Yards at the hubs, the shore of the lake and pond, and the dust of the old battlefield.
+      ...Object.values(HUBS).slice(1).map((h) => `gravel 34 ${h.x} ${h.z} ${h.x + 0.1} ${h.z}`),
+      `sand ${(LAKE.rx + 6) * 2} ${LAKE.x} ${LAKE.z} ${LAKE.x + 0.1} ${LAKE.z}`, `sand 40 ${POND.x} ${POND.z} ${POND.x + 0.1} ${POND.z}`,
+      "ash 230 320 340 320.1 340",
     ].join("\n"),
     scatter: process.env.MURIM_LITE ? "" : [
       "259 0.00045 0.9 1.4 0.85 trunk spacing=5 cluster=0.8 clusterSize=70 tilt=0 tint=0.15", "260 0.00035 0.9 1.3 0.85 trunk spacing=4 cluster=0.8 clusterSize=70",
@@ -285,6 +304,80 @@ const fighter = (name: string, x: number, z: number, opts: FighterOpts) => scene
   place("Moon gate", "moon-gate", 36, -30, 0, false);
 }
 
+
+// ------------------------------------------------------- water, camps, ruins --
+const fireLight = (name: string, x: number, y: number, z: number) =>
+  scene.add(name, [x, y, z], { Light: component("Light", { color: rgb("#ff8a3a"), intensity: 5, range: 18 }), Particles: component("Particles", { preset: "Fire", color: rgb("#ffb347"), endColor: rgb("#ff4a1a"), rate: 18, lifetime: 0.8, speed: 0.9, size: 0.25, endSize: 0.05, gravityScale: -0.3, shape: "Sphere", shapeSize: 0.25, space: "World" }) });
+// A camp: tents facing a fire, with crates and a banner. `layout` is [dx, dz] of each tent from the middle.
+function camp(name: string, x: number, z: number, layout: [number, number][], banner = true) {
+  fireLight(`${name} fire`, x, ground(x, z) + 0.6, z);
+  place(`${name} fire ring`, "stone-lantern", x, z, 0, false, 0.6);
+  layout.forEach(([dx, dz], i) => place(`${name} tent ${i + 1}`, "canvas-tent", x + dx, z + dz, Math.atan2(-dx, -dz), true));
+  scene.model(`${name} crates`, 185, [x + 3.2, footGround(x + 3.2, z - 2.5, 0.5), z - 2.5], 0.5, true, 0.8);
+  scene.model(`${name} barrel`, 180, [x - 2.6, footGround(x - 2.6, z + 2, 0.4), z + 2], 0, true, 0.7);
+  if (banner) place(`${name} banner`, "hall-banner", x - 4, z - 4, 0.6, false, 0.9);
+}
+// The Black Wind lookout in the bamboo, the smugglers' reeds, the fortress yard.
+camp("Black Wind camp", 374, -92, [[-7, -3], [6, -6], [8, 4]]);
+place("Black Wind cart", "hand-cart", 366, -84, 1.9, true, 0.9);
+camp("Smugglers' camp", -388, 94, [[-6, -2], [6, -3]]);
+camp("Fortress yard", 340, -338, [[-12, 4], [12, 5]], false);
+place("Fortress gate", "paifang-gate", 340, -320, 0, false, 1.2);
+for (const s of [-4.4, 4.4]) blocker("Fortress gate pillar", 340 + s * 1.2, -320, [1, 6, 1]);
+for (const dx of [-8, 8, -16, 16]) place("Fortress banner", "hall-banner", 340 + dx, -322, 0, false, 1);
+for (const [dx, dz] of [[-6, -8], [6, -8], [-6, 0], [6, 0]] as const) place("Fortress lantern", "stone-lantern", 340 + dx, -338 + dz, 0, true, 1.3);
+// Boulders and outcrops give the outer hubs a landscape of their own.
+for (const [hub, rocks] of [
+  ["gorgeHall", [[-14, 6, 402, 2.6], [16, -4, 403, 3.2], [-6, 16, 402, 2], [22, 10, 403, 2.4]]],
+  ["fortress", [[-24, -12, 403, 3.4], [26, -10, 402, 3], [-18, 18, 402, 2.2], [20, 20, 403, 2.8]]],
+  ["peakShrine", [[-20, -8, 403, 3], [20, -10, 402, 2.6], [-10, -18, 402, 2.2]]],
+  ["bonesGate", [[-24, 10, 403, 3.6], [24, -12, 402, 3.2], [0, 24, 403, 2.8], [-14, -24, 402, 3.4], [16, 20, 403, 3]]],
+] as const)
+  for (const [dx, dz, model, scale] of rocks) {
+    const x = HUBS[hub].x + dx, z = HUBS[hub].z + dz;
+    scene.model(`${hub} boulder`, model, [x, footGround(x, z, scale * 0.7), z], (dx + dz) * 0.37, true, scale);
+  }
+// The Sunken Valley of Bones: pale spires, wrecked carts, broken racks and ragged banners on the dust.
+for (let i = 0; i < 16; i++) {
+  const a = i * 2.399, r = 22 + (i % 5) * 19;
+  const x = 320 + Math.cos(a) * r, z = 340 + Math.sin(a) * r * 0.9;
+  if (Math.hypot(x - 320, z - 335) < 12) continue;
+  place(`Bone spire ${i + 1}`, "stalagmites", x, z, a, true, 1.1 + (i % 4) * 0.35);
+}
+for (const [i, [x, z]] of [[300, 372], [340, 372], [286, 340], [354, 330], [312, 306]].entries()) {
+  place(`Wrecked cart ${i + 1}`, i % 2 ? "weapon-rack" : "hand-cart", x!, z!, i * 1.3, true, 0.9);
+  place(`Ragged banner ${i + 1}`, "hall-banner", x! + 3, z! - 2, i * 0.9, false, 0.9);
+}
+place("Cracked arch", "cave-arch", 320, 292, 0, false, 1.1);
+// Old Lotus' hut: a thatched hut, a tea table, bamboo, lanterns.
+place("Lotus hut", "thatched-hut", 244, 50, 2.4, true, 1.1);
+place("Lotus tea table", "tea-table", 252, 56, 0.6, true, 1);
+place("Lotus lantern", "stone-lantern", 250, 62, 0, true, 1.1);
+for (const [dx, dz] of [[-10, 8], [-14, 2], [-6, 14], [-12, -6]] as const) place("Lotus bamboo", "bamboo-clump", 248 + dx, 56 + dz, dx, false, 1.2);
+// The pier and boats at Port Jade, and the summit's altar.
+place("Port Jade pier", "lake-pier", -351, 26, 1.57, true, 1);
+place("Summit lantern", "stone-lantern", -3, -392, 0, true, 1.4);
+place("Summit lantern", "stone-lantern", 3, -392, 0, true, 1.4);
+scene.add("Summit glow", [0, ground(0, -396) + 2.5, -396], { Light: component("Light", { color: rgb("#ffd98a"), intensity: 6, range: 20 }) });
+// Water: the lake and the pond, flat sheets over their basins.
+const waterSheet = (name: string, x: number, z: number, rx: number, rz: number, level: number) => {
+  const id = scene.box(name, [x, level, z], [rx * 2, 0.1, rz * 2], "#3f86b8", {}, { roughness: 0.05, metalness: 0.1, opacity: 0.78, texture: "builtin:water", ...emissive("#2a5f88", 0.35) });
+  delete (scene.entities[id]!.components as Components).Collider;
+  delete (scene.entities[id]!.components as Components).RigidBody;
+};
+waterSheet("Lake water", LAKE.x, LAKE.z, LAKE.rx * 0.93, LAKE.rz * 0.93, lakeLevel);
+waterSheet("Pond water", POND.x, POND.z, POND.rx * 0.82, POND.rz * 0.82, pondLevel - 0.12);
+
+// ----------------------------------------------------------- the city, filled --
+// Houses along the streets, courtyard trees, a well and a furnace, so the city is a town and not a lawn with a hall in it.
+for (const [x, z, yaw] of [[-36, -12, 1.57], [-36, 30, 1.57], [36, 12, -1.57], [36, 32, -1.57], [-14, 38, 3.14], [14, -42, 0], [-38, -34, 0.8], [34, -34, -0.8], [-26, 44, 3.14], [24, 42, 3.14]] as const)
+  place("Townhouse", "farmhouse", x, z, yaw, true, 1.15);
+for (const [x, z] of [[-18, 34], [18, 34], [-34, 4], [34, 4], [-8, -36], [10, -38]] as const) place("Courtyard hut", "thatched-hut", x, z, (x + z) * 0.2, true, 0.9);
+for (const [x, z] of [[-24, 20], [24, -20], [-28, -4], [30, 18], [-12, -10], [14, -6]] as const) place("Courtyard oak", "eztree-oak", x, z, x, true, 0.9);
+place("Well", "incense-burner", 12, 16, 0, true, 2.2);
+place("Alchemy furnace", "incense-burner", -35, 14, 0, true, 1.9);
+for (const [x, z] of [[-20, 0], [20, 0], [0, 20], [0, -20], [-20, -40], [20, -40], [-40, -20], [40, -20]] as const) place("Street lantern", "stone-lantern", x + (x === 0 ? 5 : 0), z + (z === 0 ? 5 : 0), 0, true, 1.1);
+
 // ----------------------------------------------------------- the hubs --
 {
   const h = HUBS;
@@ -379,7 +472,7 @@ FOES.forEach((f, i) => {
   fighter(f.name, x, z, {
     hex: SKIN[i % SKIN.length]!, health: hp, scale: f.scale, yaw: f.yaw ?? 0, melee,
     props: {
-      qi: 10 * f.realm + 10, drop: f.drop ?? 0, pill: f.pill ?? 0, silver: f.silver ?? 0, gear: bright(f.gear ?? DEFAULT_GEAR, 0.3), loot: f.loot ?? "none",
+      qi: 10 * f.realm + 10, drop: f.drop ?? 0, pill: f.pill ?? 0, silver: f.silver ?? 0, gear: bright(f.gear ?? DEFAULT_GEAR, 0.42), loot: f.loot ?? "none",
       realm: f.realm, peaceful: f.peaceful ? 1 : 0, duel: f.duel ? 1 : 0, reward: f.reward ?? "none", telegraph: f.kind === "spear" ? "sweep" : "none",
     },
   });
@@ -397,7 +490,7 @@ for (const t of THINGS) {
   ["Crate", 185, 18, 20, "Silver:0.3 Qi Elixir:0.15"], ["Barrel", 180, 19.2, 21, "Arrow:0.6"], ["Crate", 185, -20, -28, "Silver:0.4"],
   ["Barrel", 180, 336, 4, "Silver:0.3 Spirit Herb:0.4"], ["Crate", 185, 384, -80, "Silver:0.5 Jade Dew Pill:0.3"], ["Barrel", 180, -384, 90, "Silver:0.5"],
 ].forEach(([name, mesh, x, z, loot], i) =>
-  scene.model(`${name} ${i + 1}`, mesh as number, [x as number, footGround(x as number, z as number, 0.7), z as number], i * 0.9, true, 1.2, {
+  scene.model(`${name} ${i + 1}`, mesh as number, [x as number, footGround(x as number, z as number, 0.5), z as number], i * 0.9, true, 0.75, {
     Health: { current: 12, maximum: 12 },
     Script: { source: lua("breakable.lua"), props: { loot } },
   }),
@@ -501,7 +594,7 @@ scene.add("Player", spawn, {
     slots: 24,
     maxWeight: 30,
     weights: "Qi Elixir=0.2, Breakthrough Pill=0.2, Jade Dew Pill=0.2, Spirit Herb=0.05, Silver=0.01",
-    stats: "Jade Charm: health=25\nSilver Pier Sash: slot=body speed=6 health=30\nJade Bamboo Sword: slot=hands damage=25",
+    stats: "Jade Charm: health=25\nSilver Pier Sash: slot=body speed=6 health=30\nJade Bamboo Sword: slot=hands damage=25\nGuardian's Wraps: slot=hands damage=22\nFrostfang Blade: slot=hands damage=30\nBlood Lotus Seal: slot=head health=40\nWarlord's Seal: slot=head damage=20 health=60",
   },
   Script: {
     source: [lua("lang.lua"), bestiaryLua, lua("player.lua").replace("--@STANCES@", STANCE_TABLE)].join("\n"),

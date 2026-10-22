@@ -4,7 +4,7 @@
 import * as THREE from "three";
 import { DynamicLod, type LodPart } from "./scatterLod";
 import type { Vec3 } from "../scene/Components";
-import { parsePaths, pathStrength } from "./terrainPaths";
+import { parsePaths, pathKinds, pathStrength, type PathKind } from "./terrainPaths";
 import { fbm, generateHeights, type ScatterInstance, type TerrainParams } from "./terrain";
 
 export interface TerrainLook {
@@ -41,7 +41,8 @@ export function shapeTerrain(geometry: THREE.BufferGeometry, heights: Float32Arr
   const band = 0.6;
   const { paths } = parsePaths(look.paths ?? "");
   const cell = position.count > 1 ? Math.abs(position.getX(1) - position.getX(0)) || 4 : 4;
-  const dirt = new THREE.Color(0.55, 0.42, 0.26), stone = new THREE.Color(0.5, 0.49, 0.46);
+  const used = new Set(paths.map((p) => p.kind));
+  const pathKindNames = Object.keys(pathKinds) as PathKind[];
   for (let i = 0; i < position.count; i++) {
     const h = heights[i]!;
     const c = scratch.color;
@@ -62,17 +63,15 @@ export function shapeTerrain(geometry: THREE.BufferGeometry, heights: Float32Arr
     let gw = grass * (1 - steep), rw = steep, sw = sand * (1 - steep), nw = snow * (1 - steep);
     const x = position.getX(i),
       z = position.getZ(i);
-    // Roads: the ground takes the road's colour and detail layer (packed earth is the sand layer, paving the rock layer).
-    if (paths.length) {
-      const d = pathStrength(paths, "dirt", x, z, cell * 0.9), s = pathStrength(paths, "stone", x, z, cell * 0.9);
-      if (d > 0) {
-        c.lerp(dirt, d);
-        [gw, rw, sw, nw] = [gw * (1 - d), rw * (1 - d), sw * (1 - d) + d, nw * (1 - d)];
-      }
-      if (s > 0) {
-        c.lerp(stone, s);
-        [gw, rw, sw, nw] = [gw * (1 - s), rw * (1 - s) + s, sw * (1 - s), nw * (1 - s)];
-      }
+    // Roads: the ground takes the path's colour and detail layer (earth, gravel, sand and ash are the sand layer, paving the rock layer).
+    for (const kind of pathKindNames) {
+      if (!used.has(kind)) continue;
+      const w = pathStrength(paths, kind, x, z, cell * 0.9);
+      if (w <= 0) continue;
+      const [r, g, b] = pathKinds[kind].color;
+      c.lerp(scratch.rock.setRGB(r, g, b, THREE.SRGBColorSpace), w);
+      const rock = pathKinds[kind].layer === "rock";
+      [gw, rw, sw, nw] = [gw * (1 - w), rw * (1 - w) + (rock ? w : 0), sw * (1 - w) + (rock ? 0 : w), nw * (1 - w)];
     }
     splat.setXYZW(i, gw, rw, sw, nw);
     const variation = 1 + fbm(x * 0.15, z * 0.15, seed + 5, 3) * 0.12;

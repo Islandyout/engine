@@ -100,6 +100,11 @@ local MERIDIANS = {
 local MANUALS = {
   breath_of_clouds = { name = "Breath of Clouds", med = 0.20 },
   bamboo_breeze = { name = "Bamboo Breeze", speed = 0.08 },
+  iron_hide = { name = "Iron Hide", hp = 0.15 },
+  lotus_step = { name = "Lotus Step", speed = 0.06, dmg = 0.04 },
+  keen_eye = { name = "Keen Eye", crit = 0.05 },
+  warlord_hide = { name = "Warlord's Hide", hp = 0.20, dmg = 0.06 },
+  nine_dragon_breath = { name = "Nine-Dragon Breath", dmg = 0.15, hp = 0.20, med = 0.50 },
 }
 local manuals_learned = {}
 local function total_of(field)

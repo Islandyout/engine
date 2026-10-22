@@ -64,10 +64,21 @@ export const NPCS: Npc[] = [
   { name: "Merchant Lin", region: "cloudgate", at: [14, 10], yaw: Math.PI, gear: "214:#8a5a2a 216:#5a4430 218:#c9a24a 217:#3a2a22", chatter: "Elixirs, pills, arrows. Silver only.", shop: "merchant" },
   { name: "Farmer Dao", region: "willow", at: [-90, 86], yaw: 0.6, gear: "214:#5a7a5a 216:#4a4a3a 217:#3a2a22", chatter: "The wolves come at dusk. The mill is the nearest to them." },
   { name: "Hunter Bo", region: "bamboo", at: [326, -2], yaw: 2.4, gear: "214:#4a5a3a 216:#3a3a2a 217:#2a2a22", chatter: "A hunter's work is patience. Wolves know it too." },
-  { name: "Herbalist Qiu", region: "bamboo", at: [338, -18], yaw: -1, gear: "214:#7a8a5a 216:#4a4a3a 217:#3a2a22", female: true, chatter: "Spirit herbs grow where the bamboo thins. Bring me some and I will brew." },
+  { name: "Herbalist Qiu", region: "bamboo", at: [338, -18], yaw: -1, gear: "214:#7a8a5a 216:#4a4a3a 217:#3a2a22", female: true, chatter: "Spirit herbs grow where the bamboo thins. Bring me some and I will brew.", shop: "alchemy" },
   { name: "Captive Tao", region: "bamboo", at: [372, -78], yaw: 1, gear: "214:#8a6a4a 216:#5a4a3a 217:#3a2a22", chatter: "They tied me here two days ago. Please." },
   { name: "Shipwright Hui", region: "marches", at: [-324, 26], yaw: 0.8, gear: "214:#3a5a7a 216:#2a3a4a 217:#2a2a2a", female: true, chatter: "A barge is a month of my life. They took it in a night." },
   { name: "Innkeeper Pan", region: "cloudgate", at: [-16, -22], yaw: 1.2, gear: "214:#8a4a3a 216:#4a3a2a 217:#2a2a22", chatter: "Rest here and the world will still be waiting in the morning." },
+  // Ambient townsfolk: they talk (chatter), and the smith and the alchemist trade.
+  { name: "Blacksmith Ren", region: "cloudgate", at: [30, -8], yaw: -1.57, gear: "214:#9a7a5a 216:#6a5a4a 217:#4a3a32", chatter: "Iron remembers every blow. So should you.", shop: "forge", idle: "idle_fold_arms_loop" },
+  { name: "Alchemist Sun", region: "cloudgate", at: [-31, 14], yaw: 1.57, gear: "214:#7a9a6a 216:#5a6a4a 218:#c9a24a 217:#4a3a32", female: true, chatter: "A pill is only patience, ground fine.", shop: "alchemy" },
+  { name: "Baker Mo", region: "cloudgate", at: [22, 27], yaw: 3.14, gear: "214:#c9b48a 216:#8a7a5a 217:#4a3a32", chatter: "Steamed buns, still warm. Everyone in Cloudgate is a customer sooner or later." },
+  { name: "Student Ying", region: "cloudgate", at: [-5, -22], yaw: 0.5, gear: "214:#5a7aa0 216:#e8e4d0 217:#3a3a3a", female: true, chatter: "Master Mei says the first realm is only learning to be quiet." },
+  { name: "Night Watch Hao", region: "cloudgate", at: [-44, 6], yaw: 1.57, gear: "214:#6a6a7a 216:#4a4a5a 217:#3a3a3a", chatter: "Nothing hostile gets past the wall. What is past the wall is another matter." },
+  { name: "Storyteller Pei", region: "cloudgate", at: [8, 25], yaw: 3.6, gear: "214:#a07a8a 216:#6a5a6a 217:#3a3a3a", chatter: "Seven realms, they say. The seventh has a mountain to itself, north of the shrine." },
+  { name: "Child Xiao", region: "bamboo", at: [336, 4], yaw: 2.2, gear: "214:#c07a5a 216:#6a5a4a 217:#3a2a22", scale: 0.8, chatter: "I saw a wolf as big as a pony. Hunter Bo says I did not." },
+  { name: "Fisher Ling", region: "marches", at: [-338, 33], yaw: 1.2, gear: "214:#6a8aa0 216:#4a5a6a 217:#3a3a3a", female: true, chatter: "The carp bite at dawn. The smugglers bite at night." },
+  { name: "Dockhand Bao", region: "marches", at: [-320, 8], yaw: 0.4, gear: "214:#8a8a6a 216:#5a5a4a 217:#3a2a22", chatter: "Wei fights on the shore pier. He has never once been in a hurry." },
+  { name: "Shrine Keeper Yan", region: "peak", at: [10, -292], yaw: 3.6, gear: "214:#d8d0b8 216:#b8b098 218:#8f1d1d 217:#3a3a3a", chatter: "The shrine keeps the road. The Iron Fist keeps the shrine." },
 ];
 
 // ---------------------------------------------------------------- fighters --
@@ -96,12 +107,30 @@ export const FOES: Foe[] = [
   { name: "Smuggler 2", kind: "sword", realm: 2, at: [-388, 92], region: "marches", silver: 14, gear: "214:#3a4a5a 216:#2a2a2a 217:#2a2a2a" },
   { name: "Smuggler 3", kind: "spear", realm: 2, at: [-380, 100], region: "marches", silver: 14, gear: "214:#3a4a5a 216:#2a2a2a 217:#2a2a2a" },
   { name: "Boss Kang", kind: "duelist", realm: 3, at: [-394, 96], hp: 1.2, region: "marches", silver: 70, loot: "Barge Key", gear: "214:#1e2e3a 216:#14202a 218:#c9a24a 217:#1a1a1a" },
-  { name: "Silver Hand Wei", kind: "duelist", realm: 3, at: [-300, 58], region: "marches", peaceful: true, duel: true, reward: "Silver Pier Sash", gear: "214:#5a5a6a 216:#2a2a3a 218:#c0c0d0 217:#1a1a1a" },
+  { name: "Silver Hand Wei", kind: "duelist", realm: 3, at: [-350, 24], region: "marches", peaceful: true, duel: true, reward: "Silver Pier Sash", gear: "214:#5a5a6a 216:#2a2a3a 218:#c0c0d0 217:#1a1a1a" },
   // Outer regions: one dangerous thing each for now (see docs/JIANGHU_ROAD_DESIGN.md).
   { name: "Iron Fist Elder", kind: "brawler", realm: 4, at: [0, -332], hp: 1.2, scale: 1.25, region: "peak", silver: 120, pill: 1, gear: "214:#3b3b46 218:#8f1d1d 216:#26262c 217:#1a1a1a" },
-  { name: "Blood Lotus Duelist", kind: "duelist", realm: 5, at: [-330, -330], region: "gorge", peaceful: true, duel: true, gear: "214:#5a1a2a 216:#2a1018 218:#c9a24a 217:#1a1a1a" },
+  { name: "Blood Lotus Duelist", kind: "duelist", realm: 5, at: [-330, -330], region: "gorge", peaceful: true, duel: true, reward: "Blood Lotus Seal", gear: "214:#5a1a2a 216:#2a1018 218:#c9a24a 217:#1a1a1a" },
   { name: "Frostfang Warden", kind: "spear", realm: 5, at: [338, -340], hp: 1.4, scale: 1.2, region: "frostfang", silver: 150, gear: "214:#2a3a4a 216:#1a2a3a 218:#cfe8ff 217:#1a1a1a" },
-  { name: "Bone Warlord", kind: "duelist", realm: 6, at: [320, 335], hp: 1.6, scale: 1.3, region: "bones", silver: 300, pill: 2, gear: "214:#3a3a30 216:#26261e 218:#cfc8a8 217:#1a1a1a" },
+  { name: "Bone Warlord", kind: "duelist", realm: 6, at: [320, 335], hp: 1.6, scale: 1.3, region: "bones", silver: 300, pill: 2, loot: "Warlord's Seal", gear: "214:#3a3a30 216:#26261e 218:#cfc8a8 217:#1a1a1a" },
+  // Strangers on the roads: how strong they are is not on their faces. Each yields at first blood and gives something for the trouble.
+  { name: "Drunken Master Lu", kind: "brawler", realm: 2, at: [182, 14], region: "willow", peaceful: true, duel: true, reward: "Jade Dew Pill", gear: "214:#9a5a4a 216:#6a5a4a 217:#3a2a22" },
+  { name: "Wandering Nun Ji", kind: "duelist", realm: 4, at: [-190, 34], region: "marches", peaceful: true, duel: true, reward: "Jade Circlet", gear: "214:#b8b0a0 216:#8a8272 217:#3a3a3a" },
+  { name: "Mountain Hermit Gu", kind: "duelist", realm: 6, at: [44, -236], region: "peak", peaceful: true, duel: true, reward: "Qi Elixir", gear: "214:#8a8a7a 216:#6a6a5a 217:#4a4a3a" },
+  { name: "Dire Wolf", kind: "wolf", realm: 3, at: [300, 20], hp: 1.4, scale: 1.25, region: "bamboo", loot: "Wolf Pelt" },
+  // Heaven Peak: the guardian's pupils and the guardian.
+  { name: "Peak Acolyte 1", kind: "brawler", realm: 3, at: [-12, -326], region: "peak", silver: 30, gear: "214:#c8c0a8 216:#9a9278 217:#3a3a3a" },
+  { name: "Peak Acolyte 2", kind: "sword", realm: 3, at: [14, -322], region: "peak", silver: 30, gear: "214:#c8c0a8 216:#9a9278 217:#3a3a3a" },
+  // Crimson Maple Gorge: disciples of the Blood Lotus Sect.
+  { name: "Blood Lotus Disciple 1", kind: "sword", realm: 4, at: [-352, -322], region: "gorge", silver: 60, gear: "214:#a8505a 216:#5a2a32 218:#c9a24a 217:#2a2a2a" },
+  { name: "Blood Lotus Disciple 2", kind: "adept", realm: 4, at: [-326, -344], region: "gorge", silver: 60, gear: "214:#a8505a 216:#5a2a32 218:#c9a24a 217:#2a2a2a" },
+  // Frostfang Ridge: the fortress guard.
+  { name: "Frostfang Guard 1", kind: "spear", realm: 4, at: [326, -330], region: "frostfang", silver: 70, gear: "214:#5a7a9a 216:#3a4a5a 218:#cfe8ff 217:#2a2a2a" },
+  { name: "Frostfang Guard 2", kind: "sword", realm: 4, at: [352, -332], region: "frostfang", silver: 70, gear: "214:#5a7a9a 216:#3a4a5a 218:#cfe8ff 217:#2a2a2a" },
+  // The Sunken Valley of Bones.
+  { name: "Bone Wraith 1", kind: "adept", realm: 5, at: [300, 352], region: "bones", silver: 0, gear: "214:#9a9a86 216:#7a7a66 217:#4a4a3a" },
+  { name: "Bone Wraith 2", kind: "adept", realm: 5, at: [336, 358], region: "bones", silver: 0, gear: "214:#9a9a86 216:#7a7a66 217:#4a4a3a" },
+  { name: "Bone Wraith 3", kind: "brawler", realm: 5, at: [318, 366], region: "bones", silver: 0, gear: "214:#9a9a86 216:#7a7a66 217:#4a4a3a" },
 ];
 
 // ------------------------------------------------------------------ things --
@@ -119,7 +148,17 @@ export const THINGS: Thing[] = [
   { name: "Wind-still stele", model: "stele", at: [392, 118], scale: 1.2, prompt: "read the stele", region: "bamboo", glow: "#9ff5e8", note: "Carved: What the wind will not touch, the sword keeps. Two spirits guard the cache." },
   { name: "Jade Bamboo cache", model: "altar-table", at: [394, 124], prompt: "open the cache", region: "bamboo", give: ["Jade Bamboo Sword"], glow: "#6fe0b8", note: "A sword of living jade bamboo lies in the cache. It is yours." },
   { name: "Barge Key hook", model: "weapon-rack", at: [-326, 40], prompt: "check the hook", region: "marches" },
-  { name: "Moored barge", model: "lake-pier", at: [-340, 44], yaw: 1.57, prompt: "board the barge", region: "marches" },
+  { name: "Moored barge", model: "lake-pier", at: [-346, 46], yaw: 1.57, prompt: "board the barge", region: "marches" },
+  // Waystones at the outer hubs (found by arriving), the fortress ledger, a frozen tomb and the last manual.
+  { name: "Gorge waystone", model: "roadside-shrine", at: [-330, -322], prompt: "touch the Gorge waystone", region: "gorge", action: "waystone" },
+  { name: "Fortress waystone", model: "roadside-shrine", at: [328, -338], prompt: "touch the Fortress waystone", region: "frostfang", action: "waystone" },
+  { name: "Bones waystone", model: "roadside-shrine", at: [306, 318], prompt: "touch the Bones waystone", region: "bones", action: "waystone" },
+  { name: "Fortress ledger", model: "notice-board", at: [334, -346], yaw: 0.4, prompt: "read the fortress ledger", region: "frostfang", note: "Names, silver and a route: the Black Wind sells passage to anyone who pays. Several names are crossed through." },
+  { name: "Frostfang sword tomb", model: "altar-table", at: [372, -392], prompt: "open the sword tomb", region: "frostfang", give: ["Frostfang Blade"], glow: "#bfe8ff", note: "Under the ice lies a pale blade that has never been drawn in anger. It is yours." },
+  { name: "Warlord's stele", model: "stele", at: [312, 338], scale: 1.4, prompt: "read the stele", region: "bones", note: "Carved in an old hand: Here the Nine Banners fell, and here their general lay down." },
+  { name: "Battle standard", model: "hall-banner", at: [330, 346], yaw: 0.3, prompt: "examine the standard", region: "bones", note: "A banner, torn, with nine dragons in red thread. Dust comes off in your hand." },
+  { name: "Old well of bones", model: "incense-burner", at: [322, 356], scale: 1.6, prompt: "look into the well", region: "bones", note: "No water. Something below the dust breathes out, slowly, like a sleeper." },
+  { name: "Nine-Dragon manual", model: "altar-table", at: [0, -396], prompt: "take the manual", region: "summit", give: ["Nine Dragon Manual"], glow: "#ffd98a", note: "Nine dragons coil on the cover. Whoever reads the last manual is no longer a man of this world." },
 ];
 
 // Every name a quest may use: people, fighters, things.

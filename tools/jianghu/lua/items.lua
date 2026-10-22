@@ -34,6 +34,11 @@ ITEMS = {
   ["Barge Key"]         = { tier = 1, icon = "gem",    desc = "A brass key stamped with Port Jade's mark.", sell = 0 },
   ["Jade Bamboo Sword"] = { tier = 4, icon = "sword",  desc = "Damage +25%. Cut from the still grove: it never makes a sound until it strikes.", sell = 600 },
   ["Silver Pier Sash"]  = { tier = 3, icon = "robe",   desc = "Speed +6%, health +30. Wei's master wore it.", sell = 240 },
+  ["Guardian's Wraps"]  = { tier = 3, icon = "sword",  desc = "Damage +22. The Iron Fist's own, taken off after he fell.", sell = 260 },
+  ["Blood Lotus Seal"]  = { tier = 3, icon = "gem",    desc = "Health +40. A wax seal of the Blood Lotus Sect; the duelist gave it up with a bow.", sell = 280 },
+  ["Frostfang Blade"]   = { tier = 4, icon = "sword",  desc = "Damage +30%. A pale blade from the tomb under the ice; it never dulls.", sell = 700 },
+  ["Warlord's Seal"]    = { tier = 4, icon = "gem",    desc = "Health +60, damage +20. The Bone Warlord's, from his own hand.", sell = 650 },
+  ["Nine Dragon Manual"] = { tier = 4, icon = "scroll", desc = "The last manual. Whoever reads it is no longer a man of this world.", sell = 0 },
   ["Silver"]            = { tier = 0, icon = "coin",   desc = "Coin of the valley.", sell = 0 },
   ["Sect Token"]        = { tier = 2, icon = "star",   desc = "Proof of rank in the Azure Cloud Sect.", sell = 0 },
 }
@@ -49,7 +54,7 @@ GEAR_UP = {
 GEAR_SLOT = {
   ["Azure Robe"] = "body", ["Azure Robe +1"] = "body", ["Azure Robe +2"] = "body", ["Azure Robe +3"] = "body", ["Cloud Silk Robe"] = "body",
   ["Iron Gloves"] = "hands", ["Iron Gloves +1"] = "hands", ["Iron Gloves +2"] = "hands", ["Tiger Gloves"] = "hands",
-  ["Jade Circlet"] = "head", ["Dragon Crown"] = "head", ["Jade Bamboo Sword"] = "weapon", ["Silver Pier Sash"] = "waist",
+  ["Jade Circlet"] = "head", ["Blood Lotus Seal"] = "head", ["Warlord's Seal"] = "head", ["Guardian's Wraps"] = "hands", ["Frostfang Blade"] = "weapon", ["Dragon Crown"] = "head", ["Jade Bamboo Sword"] = "weapon", ["Silver Pier Sash"] = "waist",
 }
 
 -- The Inventory widget's notes: one "Name|tier|description|use" line for every item.
