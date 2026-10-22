@@ -14,6 +14,7 @@ import {
 import { createTouchControls } from "../touchControls";
 import { parseVisor } from "../visor";
 import { hangingPieces, makeSway, swayMaterial } from "../clothSway";
+import { ClothSkirt, findClothBones } from "../cloth";
 import type { Ctx } from "./context";
 
 export function installScriptHost(C: Ctx): void {
@@ -80,6 +81,22 @@ export function installScriptHost(C: Ctx): void {
     const bones = new Map(body.skeleton.bones.map((bone) => [bone.name, bone]));
     const pieces: THREE.Object3D[] = [];
     for (const { id, tint } of spec) {
+      // The long skirts of the base bodies are real cloth: simulated particles hung from the waist (cloth.ts), not a skinned shell.
+      if (sex && (id === 373 || id === 378)) {
+        const bones = findClothBones(anchor);
+        if (bones) {
+          const feet = (bones.footL.getWorldPosition(new THREE.Vector3()).y + bones.footR.getWorldPosition(new THREE.Vector3()).y) / 2;
+          const waist = bones.pelvis.getWorldPosition(new THREE.Vector3()).y;
+          const material = new THREE.MeshStandardMaterial({ color: tint ?? "#dddddd", roughness: 0.85, side: THREE.DoubleSide });
+          const skirt = new ClothSkirt(bones, anchor, material, { length: THREE.MathUtils.clamp(waist - feet - 0.06, 0.5, 1.1), waist: sex === "male" ? [0.2, 0.15] : [0.19, 0.14] });
+          skirt.mesh.userData.cloth = skirt;
+          markCharacter(skirt.mesh);
+          body.parent.add(skirt.mesh);
+          pieces.push(skirt.mesh);
+          C.cloths.add(skirt);
+          continue;
+        }
+      }
       const cached = C.catalogCache.get(id);
       if (!cached) {
         // Worn once it has loaded (unless something else was put on since).

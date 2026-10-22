@@ -357,10 +357,10 @@ const ADEPT_MOVES = ["qi_bolt: clip=energy_throw input=light dur=1.1 hit=0.45-0.
 const SKIN = ["#e6d2bc", "#d9c4aa", "#e2cdb4", "#d4bfa6", "#dccab4"];
 const BANDITS: { name: string; at: number[]; health: number; qi: number; drop: number; silver: number; gear: string; melee: Components }[] = [
   { name: "Bandit Brawler", at: [-9, -9], health: 80, qi: 30, drop: 0, silver: 12, gear: "214:#6b4a3a 216:#3a3228 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.35, skill: 0.2 } },
-  { name: "Bandit Swordsman", at: [-3, -11], health: 95, qi: 35, drop: 1, silver: 15, gear: "214:#5a5a42 216:#3a3a2a 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.45, skill: 0.3, style: "Sword", rightHand: 205 } },
+  { name: "Bandit Swordsman", at: [-3, -11], health: 95, qi: 35, drop: 1, silver: 15, gear: robed("214:#5a5a42 216:#3a3a2a 215:#2a2a2a 217:#2a2a2a"), melee: { aggression: 0.45, skill: 0.3, style: "Sword", rightHand: 205 } },
   { name: "Bandit Spearman", at: [6, -2], health: 105, qi: 40, drop: 0, silver: 18, gear: "214:#7a3d3d 216:#3a2a2a 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.5, skill: 0.35, style: "Custom", moves: SPEAR_MOVES, rightHand: 208 } },
-  { name: "Bandit Qi Adept 1", at: [-4, 8], health: 60, qi: 45, drop: 1, silver: 20, gear: "214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.4, skill: 0.4, style: "Custom", moves: ADEPT_MOVES, range: 9 } },
-  { name: "Bandit Qi Adept 2", at: [8, 7], health: 60, qi: 45, drop: 1, silver: 20, gear: "214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.4, skill: 0.4, style: "Custom", moves: ADEPT_MOVES, range: 9 } },
+  { name: "Bandit Qi Adept 1", at: [-4, 8], health: 60, qi: 45, drop: 1, silver: 20, gear: robed("214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a"), melee: { aggression: 0.4, skill: 0.4, style: "Custom", moves: ADEPT_MOVES, range: 9 } },
+  { name: "Bandit Qi Adept 2", at: [8, 7], health: 60, qi: 45, drop: 1, silver: 20, gear: robed("214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a"), melee: { aggression: 0.4, skill: 0.4, style: "Custom", moves: ADEPT_MOVES, range: 9 } },
 ];
 BANDITS.forEach((b, i) => fighter(b.name, CAMP.x + b.at[0]!, CAMP.z + b.at[1]!, { hex: SKIN[i]!, health: b.health, melee: b.melee, props: { qi: b.qi, drop: b.drop, silver: b.silver, gear: b.gear, telegraph: /Spearman/.test(b.name) ? "sweep" : "none" }, yaw: 0 }));
 
@@ -382,7 +382,7 @@ BANDITS.forEach((b, i) => fighter(b.name, CAMP.x + b.at[0]!, CAMP.z + b.at[1]!, 
     scale: 1.25,
     yaw: 0,
     melee: { aggression: 0.75, skill: 0.8, poise: 120, breakTime: 3, guard: 140 },
-    props: { qi: 200, pill: 1, phases: 1, telegraph: "meteor_smash,power_hook", gear: "214:#3b3b46 218:#8f1d1d 216:#26262c 215:#26262c 217:#1a1a1a" },
+    props: { qi: 200, pill: 1, phases: 1, telegraph: "meteor_smash,power_hook", gear: robed("214:#3b3b46 218:#8f1d1d 216:#26262c 215:#26262c 217:#1a1a1a") },
   });
 }
 

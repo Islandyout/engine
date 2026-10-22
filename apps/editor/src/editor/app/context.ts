@@ -1,4 +1,5 @@
 import type { SwayTracker } from "../clothSway";
+import type { ClothSkirt } from "../cloth";
 import type { DepthFxPass } from "../depthFx";
 import type { ObjectiveDef } from "../actionScript";
 import * as THREE from "three";
@@ -545,6 +546,8 @@ export interface Ctx {
   groundAt: (x: number, z: number) => number | undefined;
   // Hanging cloth and hair follow the characters' movement (clothSway.ts).
   clothSway: SwayTracker;
+  // Simulated skirts, stepped each frame while their character is near (cloth.ts).
+  cloths: Set<ClothSkirt>;
   terrainMeshes: Map<number, { mesh: THREE.Mesh; params: TerrainParams; look: TerrainLook; offsets: Int16Array; }>;
   terrainParams: (t: TerrainComponent) => TerrainParams;
   textureCache: Map<string, THREE.Texture>;

@@ -870,6 +870,7 @@ async function startEditor() {
   const outfits = new Map<number, THREE.Object3D[]>();
   C.outfits = outfits;
   C.clothSway = new SwayTracker();
+  C.cloths = new Set();
   // The settings panel while it's open: during Play the game waits and the
   // keys stay with the panel (Esc closes it).
   /* declared in the context */

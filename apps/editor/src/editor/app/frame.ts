@@ -366,6 +366,13 @@ export function installFrame(C: Ctx): void {
         });
       }
     }
+    // Simulated cloth: only for characters near the camera (and only in play); the rest keep the shape they last had.
+    for (const cloth of C.cloths) {
+      if (!cloth.mesh.parent) {
+        cloth.dispose();
+        C.cloths.delete(cloth);
+      } else if (C.doc.mode === "play" && cloth.anchor.visible && cloth.anchor.position.distanceToSquared(eye) < 35 * 35) cloth.update(animDt, now / 1000);
+    }
     // Weapon guards and two-handed grips, over the clips' poses.
     updateHeldWeapons(animDt, (body) => C.combat.guarding(body));
     C.updateGunPoses(animDt);

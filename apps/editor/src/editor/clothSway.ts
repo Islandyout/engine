@@ -10,8 +10,6 @@ export const hangingPieces: Record<number, [number, number]> = {
   357: [1.75, 1.2], // long hair (hunter rig)
   361: [1.75, 1.15], // long hair (base body)
   362: [1.78, 1.5], // buns
-  373: [1.0, 0.14], // long skirt (base male)
-  378: [1.0, 0.14], // long skirt (base female)
 };
 
 export interface Sway {
