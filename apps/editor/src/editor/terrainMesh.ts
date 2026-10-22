@@ -2,6 +2,7 @@
 // slope (sand, grass, rock, snow) over tiling detail layers, and
 // instanced foliage/rock scatter from catalog models.
 import * as THREE from "three";
+import { DynamicLod, type LodPart } from "./scatterLod";
 import type { Vec3 } from "../scene/Components";
 import { fbm, generateHeights, type ScatterInstance, type TerrainParams } from "./terrain";
 
@@ -274,7 +275,8 @@ function chunkInstances(all: ScatterInstance[], size: number) {
   return chunks;
 }
 
-export function buildScatter(instances: ScatterInstance[], models: Map<number, ScatterModel>): THREE.Group {
+// With `dynamicLod`, a model that has a far version chooses it per instance as the camera moves (scatterLod.ts), not per chunk.
+export function buildScatter(instances: ScatterInstance[], models: Map<number, ScatterModel>, options: { dynamicLod?: boolean } = {}): THREE.Group {
   const group = new THREE.Group();
   group.name = "terrain-scatter";
   const byModel = new Map<number, ScatterInstance[]>();
@@ -301,6 +303,35 @@ export function buildScatter(instances: ScatterInstance[], models: Map<number, S
     // Small props (bushes, small rocks) don't cast shadows: they cost a full
     // shadow pass for marks nobody sees.
     const castShadow = bounds.max.y - bounds.min.y > 2.5;
+    if (options.dynamicLod && far) {
+      const n = all.length;
+      const placements = new Float32Array(n * 16), xs = new Float32Array(n), zs = new Float32Array(n);
+      const tints = all.some((i) => i.tint !== undefined) ? new Float32Array(n).fill(1) : undefined;
+      all.forEach((instance, i) => {
+        rotation.setFromAxisAngle(up, instance.yaw);
+        if (instance.up) rotation.premultiply(lean.setFromUnitVectors(up, tiltTo.set(...instance.up)));
+        placement.compose(
+          new THREE.Vector3(instance.x, instance.y - bottom * instance.scale, instance.z),
+          rotation,
+          new THREE.Vector3(instance.scale, instance.scale, instance.scale),
+        );
+        placement.toArray(placements, i * 16);
+        xs[i] = instance.x;
+        zs[i] = instance.z;
+        if (tints && instance.tint !== undefined) tints[i] = instance.tint;
+      });
+      const parts = (object: THREE.Object3D): LodPart[] => {
+        const list: LodPart[] = [];
+        object.traverse((child) => {
+          if (!(child instanceof THREE.Mesh) || Array.isArray(child.material)) return;
+          const material = models.get(id)!.sway ? swayingMaterial(child.material, bounds.max.y - bottom, bottom) : child.material;
+          list.push({ geometry: child.geometry, material, local: child.matrixWorld.clone() });
+        });
+        return list;
+      };
+      group.add(new DynamicLod(placements, xs, zs, tints, parts(root), parts(far), castShadow).group);
+      continue;
+    }
     // Instances are grouped into square chunks so frustum culling can drop
     // what's off screen (one InstancedMesh for the whole map is always
     // drawn, and drawn again for shadows).

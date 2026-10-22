@@ -211,7 +211,7 @@ export function installSceneObjects(C: Ctx): void {
             (error) => C.log(`Catalog model ${rule.model} failed to load: ${String(error)}`),
           );
       }
-      group.add(buildScatter(scatterInstances(params, heights, rules, exclusions, t), models));
+      group.add(buildScatter(scatterInstances(params, heights, rules, exclusions, t), models, { dynamicLod: true }));
       // Rules with near=M are grown round the camera instead (grassField.ts).
       const field = new GrassField(rules, terrainFoliageGround(params, heights, exclusions, t), models, params.seed, swayingMaterial);
       if (!field.empty) group.add(field.group);

@@ -16,11 +16,11 @@ function rng(seed) {
 
 // name, blade count, tuft height range (m), radius of the clump (m), root colour, tip colour
 const KINDS = [
-  { name: "meadow", blades: 28, height: [0.28, 0.5], radius: 0.16, root: [0.07, 0.16, 0.04], tip: [0.42, 0.58, 0.2], seed: 11 },
-  { name: "tall", blades: 22, height: [0.55, 0.9], radius: 0.2, root: [0.08, 0.15, 0.04], tip: [0.55, 0.62, 0.26], seed: 23 },
-  { name: "dry", blades: 24, height: [0.3, 0.6], radius: 0.18, root: [0.14, 0.12, 0.05], tip: [0.62, 0.52, 0.28], seed: 37 },
+  { name: "meadow", blades: 22, height: [0.28, 0.5], radius: 0.16, root: [0.07, 0.16, 0.04], tip: [0.42, 0.58, 0.2], seed: 11 },
+  { name: "tall", blades: 18, height: [0.55, 0.9], radius: 0.2, root: [0.08, 0.15, 0.04], tip: [0.55, 0.62, 0.26], seed: 23 },
+  { name: "dry", blades: 20, height: [0.3, 0.6], radius: 0.18, root: [0.14, 0.12, 0.05], tip: [0.62, 0.52, 0.28], seed: 37 },
 ];
-const SEGMENTS = 4;
+const SEGMENTS = 3;
 
 for (const kind of KINDS) {
   const r = rng(kind.seed);
