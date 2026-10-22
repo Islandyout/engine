@@ -216,14 +216,17 @@ const place = (name: string, file: string, x: number, z: number, yaw = 0, solid 
 function pagoda(name: string, x: number, z: number, tiers: number) {
   const base = ground(x, z);
   scene.model(`${name} hall`, W("pagoda-hall"), [x, base, z], 0, true);
-  let y = base + 7.4;
-  const files = ["pagoda-tier-large", "pagoda-tier-small"];
+  let y = base + 6.5; // where the hall's roof has narrowed to the width of the first tier
+  const tiersOf = { "pagoda-tier-large": { h: 3.4, rise: 2.4 }, "pagoda-tier-small": { h: 3.0, rise: 2.0 } } as const;
+  const files = ["pagoda-tier-large", "pagoda-tier-small"] as const;
   for (let t = 0; t < tiers; t++) {
     const file = files[Math.min(t, files.length - 1)]!;
+    const { h, rise } = tiersOf[file];
     scene.model(`${name} tier ${t + 1}`, W(file), [x, y, z], 0, false);
-    y += file === "pagoda-tier-large" ? 5.6 : 5.0;
+    // The next tier stands halfway up this roof; the spire stands on its peak.
+    y += t === tiers - 1 ? h + rise : h + 0.2 + rise * 0.5;
   }
-  scene.model(`${name} spire`, W("pagoda-spire"), [x, y - 0.4, z], 0, false);
+  scene.model(`${name} spire`, W("pagoda-spire"), [x, y - 0.2, z], 0, false);
 }
 
 // A run of garden wall along x or z; the gap (a gate) is left open.

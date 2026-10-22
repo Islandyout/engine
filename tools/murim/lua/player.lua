@@ -857,8 +857,8 @@ function on_tick(dt)
     local sp = math.sqrt(vx * vx + vz * vz)
     if sp > 2 and wall_t < 1.3 and qi > 3 then
       local dx, dz = vx / sp, vz / sp
-      local hit = world.raycast(self.x + dx * 0.4, self.y, self.z + dz * 0.4, dx, 0, dz, 0.7)
-      if hit and math.abs(hit.ny or 0) < 0.35 then
+      local hit, _, _, _, _, _, ny = world.raycast(self.x + dx * 0.4, self.y, self.z + dz * 0.4, dx, 0, dz, 0.7)
+      if hit and hit ~= "ground" and math.abs(ny or 0) < 0.35 then
         wall_t = wall_t + dt
         qi = math.max(0, qi - 4 * dt)
         world.set_velocity(self.id, vx * 0.15, 3.6, vz * 0.15)
@@ -871,13 +871,13 @@ function on_tick(dt)
   grapple_cd = math.max(0, grapple_cd - dt)
   if input.action_pressed("grapple") and grapple_cd <= 0 and qi >= 12 and realm >= 2 and not flying and not talking_now then
     local fx_, fz_ = camera.forward()
-    local hit = world.raycast(self.x, self.y + 1.2, self.z, fx_, 0.2, fz_, 28)
+    local hit, _, hx, hy, hz = world.raycast(self.x, self.y + 1.2, self.z, fx_, 0.2, fz_, 28)
     if hit then
-      local dx, dy, dz = hit.x - self.x, hit.y - self.y, hit.z - self.z
+      local dx, dy, dz = hx - self.x, hy - self.y, hz - self.z
       local d = math.max(0.1, math.sqrt(dx * dx + dy * dy + dz * dz))
       qi = qi - 12
       grapple_cd = 3
-      grapple = { x = hit.x - dx / d * 1.3, y = hit.y - dy / d * 1.3 + 0.4, z = hit.z - dz / d * 1.3, left = 0.5 }
+      grapple = { x = hx - dx / d * 1.3, y = hy - dy / d * 1.3 + 0.4, z = hz - dz / d * 1.3, left = 0.5 }
       sound.play("cloth swish")
       camera.shake(0.15, 0.2)
     else

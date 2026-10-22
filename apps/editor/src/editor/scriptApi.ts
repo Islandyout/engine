@@ -195,8 +195,8 @@ export const scriptApi: ScriptApiEntry[] = [
   },
   {
     "name": "world.raycast",
-    "signature": "world.raycast(ox, oy, oz, dx, dy, dz, max: number, mask?: integer): table?",
-    "doc": "The first hit along a ray: {id, x, y, z, nx, ny, nz, distance}.",
+    "signature": "world.raycast(ox, oy, oz, dx, dy, dz, max: number, mask?: integer): (id|\"ground\", distance, x, y, z, nx, ny, nz)?",
+    "doc": "The first hit along a ray, as several return values (nil when nothing is hit): what was hit (an entity id, or \"ground\"), the distance, the hit point and the surface normal.",
     "group": "world"
   },
   {

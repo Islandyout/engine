@@ -19,7 +19,8 @@ export function installHud(C: Ctx): void {
   // Script waypoints: a diamond with a label and distance, pinned to the
   // screen edge (pointing the way) when off screen or behind the view.
   function drawWaypoints() {
-    if (!C.uiMarkers.size) return;
+    // The Waypoints widget draws the same markers; both at once doubled every label.
+    if (!C.uiMarkers.size || C.sceneWidgets.has("Waypoints")) return;
     const from = C.viewCamera.getWorldPosition(new THREE.Vector3());
     const margin = 36;
     for (const { position, label } of C.uiMarkers.values()) {

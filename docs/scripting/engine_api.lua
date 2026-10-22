@@ -142,7 +142,7 @@ function world.give_item(id, name, n) end
 ---@return boolean
 function world.take_item(id, name, n) end
 
---- The first hit along a ray: {id, x, y, z, nx, ny, nz, distance}.
+--- The first hit along a ray, as several return values (nil when nothing is hit): what was hit (an entity id, or "ground"), the distance, the hit point and the surface normal.
 ---@param ox any
 ---@param oy any
 ---@param oz any
@@ -151,7 +151,7 @@ function world.take_item(id, name, n) end
 ---@param dz any
 ---@param max number
 ---@param mask? integer
----@return table?
+---@return (id|"ground", distance, x, y, z, nx, ny, nz)?
 function world.raycast(ox, oy, oz, dx, dy, dz, max, mask) end
 
 --- Entities with colliders inside a sphere.

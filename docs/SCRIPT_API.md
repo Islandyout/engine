@@ -44,7 +44,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `world.items(id: integer, name: string): integer` | Deprecated: use inventory.count. How many of an item (a key, coins) the entity carries. |
 | `world.give_item(id: integer, name: string, n?: integer): integer` | Deprecated: use inventory.add. Gives it n of an item (default 1); returns its new count. |
 | `world.take_item(id: integer, name: string, n?: integer): boolean` | Deprecated: use inventory.remove. Takes n of an item (default 1) if it has them; false (and takes none) if not. |
-| `world.raycast(ox, oy, oz, dx, dy, dz, max: number, mask?: integer): table?` | The first hit along a ray: {id, x, y, z, nx, ny, nz, distance}. |
+| `world.raycast(ox, oy, oz, dx, dy, dz, max: number, mask?: integer): (id|"ground", distance, x, y, z, nx, ny, nz)?` | The first hit along a ray, as several return values (nil when nothing is hit): what was hit (an entity id, or "ground"), the distance, the hit point and the surface normal. |
 | `world.overlap(x, y, z, radius: number, mask?: integer): integer[]` | Entities with colliders inside a sphere. |
 | `world.send(id: integer, name: string, value?: any)` | Calls the entity's on_message(name, value, sender). |
 | `world.path(x, y, z, tx, ty, tz: number): table[]?` | Waypoints {x, y, z} around obstacles, or nil when unreachable. |
