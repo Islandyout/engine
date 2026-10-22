@@ -645,7 +645,6 @@ bool BridgeHost::melee(engine::World &world, engine::Entity self, const std::str
             arrow.lifetime = 4.0F;
             arrow.shape = 6;
             world.defer_set(projectile, arrow);
-            push_melee({MeleeEventKind::fire, index_of(self), -1, origin, speed, -1, 0});
             out = {1.0};
         } else
             out = {0.0};
