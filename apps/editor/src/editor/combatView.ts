@@ -17,6 +17,7 @@
 //   - the fighter HUD: health, energy and guard, the combo count, the
 //     lock-on marker.
 import * as THREE from "three";
+import { KICKS, guardedKick, makeHighBlock } from "./fightPoses";
 import { Decals } from "./decals";
 import { boneSubtree, filterClip, upperBodyBone } from "./characterRig";
 import { FighterField, MeleeEventField } from "./bridgeFields";
@@ -295,9 +296,9 @@ export class CombatView {
     const fighter = this.fighters.get(index);
     if (!fighter) return;
     const guard = weapon === "unarmed" ? "guard" : "sword_idle";
-    const block = weapon === "shield" ? "shield_block" : weapon === "blade" ? "sword_block" : "block";
+    const block = weapon === "shield" ? "shield_block" : weapon === "blade" ? "sword_block" : "block_high";
     if (!fighter.full.has(guard)) return;
-    fighter.blockClip = fighter.full.has(block) ? block : "block";
+    fighter.blockClip = fighter.full.has(block) ? block : fighter.full.has("block_high") ? "block_high" : "block";
     if (fighter.guardClip === guard) return;
     fighter.guardClip = guard;
     const clip = fighter.clips.find((c) => c.name === guard);
@@ -329,6 +330,22 @@ export class CombatView {
   // guard (upper body) and strafing legs become their own layers.
   attach(index: number, object: THREE.Object3D, mixer: THREE.AnimationMixer, actions: Map<string, Action>, clips: THREE.AnimationClip[], current?: string) {
     this.detach(index);
+    // A high guard block and kicks that keep the hands up, made on this skeleton from its guard (fightPoses.ts).
+    const guardClip = clips.find((c) => c.name === "guard");
+    if (guardClip && !clips.some((c) => c.name === "block_high")) {
+      const derived: THREE.AnimationClip[] = [];
+      const high = makeHighBlock(object, guardClip);
+      if (high) derived.push(high);
+      for (const name of KICKS) {
+        const kick = clips.find((c) => c.name === name);
+        if (kick) derived.push(guardedKick(object, kick, guardClip));
+      }
+      clips = [...clips.filter((c) => !derived.some((d) => d.name === c.name)), ...derived];
+      for (const clip of derived) {
+        actions.get(clip.name)?.stop();
+        actions.set(clip.name, mixer.clipAction(clip));
+      }
+    }
     for (const clip of clips) if (!actions.has(clip.name)) actions.set(clip.name, mixer.clipAction(clip));
     const upper = boneSubtree(object, upperBodyBone);
     const lower = new Map<string, Action>();
@@ -368,7 +385,7 @@ export class CombatView {
       guardUpper,
       guardClip: "guard",
       guardScale: 1,
-      blockClip: "block",
+      blockClip: actions.has("block_high") ? "block_high" : "block",
       upper,
       clips,
       playing,

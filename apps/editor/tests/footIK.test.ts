@@ -47,3 +47,34 @@ test("a character on a slope: the body drops to the lower foot and the high foot
   assert.ok(Math.abs(feet[0]!.y - -0.1) < 0.01, `the low foot follows the body down (${feet[0]!.y})`);
   assert.ok(Math.abs(feet[1]!.y - 0.1) < 0.01, `the high foot is solved back up to where it was (${feet[1]!.y})`);
 });
+
+test("a held pose is not turned further each frame", () => {
+  const root = new THREE.Group();
+  const bone = (name: string, parent: THREE.Object3D, x: number, y: number, z = 0) => {
+    const b = new THREE.Bone();
+    b.name = name;
+    b.position.set(x, y, z);
+    parent.add(b);
+    return b;
+  };
+  const pelvis = bone("pelvis", root, 0, 1);
+  for (const [side, x] of [["l", -0.1], ["r", 0.1]] as const) {
+    const thigh = bone(`thigh_${side}`, pelvis, x, 0);
+    const calf = bone(`calf_${side}`, thigh, 0, -0.45, 0.04);
+    bone(`foot_${side}`, calf, 0, -0.45, -0.04);
+  }
+  root.updateMatrixWorld(true);
+  const ik = new FootIK(root);
+  const ground = (x: number) => (x < 0 ? -0.2 : 0);
+  const rightFoot = () => ik.legs[1]!.foot.getWorldPosition(new THREE.Vector3());
+  ik.apply(ground);
+  const first = rightFoot();
+  // Each frame the editor puts the body back; a paused animation does not touch the bones, so they keep what the solver wrote.
+  for (let frame = 0; frame < 30; frame++) {
+    root.position.y = 0;
+    ik.apply(ground);
+  }
+  assert.ok(rightFoot().distanceTo(first) < 1e-4, "the foot stays where the first solve put it");
+  const knee = ik.legs[1]!.calf.getWorldPosition(new THREE.Vector3());
+  assert.ok(Number.isFinite(knee.x + knee.y + knee.z) && knee.distanceTo(first) < 0.6, "and the leg is not folded or flung");
+});

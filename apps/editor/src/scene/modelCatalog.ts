@@ -425,6 +425,16 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 396, category: "gear", name: "Ranger F: boots", path: "./kit/people/ubc-female-ranger-feet.glb" },
   { id: 397, category: "gear", name: "Ranger F: hood", path: "./kit/people/ubc-female-ranger-head-hood.glb" },
   { id: 398, category: "gear", name: "Ranger F: pauldrons", path: "./kit/people/ubc-female-ranger-acc-pauldrons.glb" },
+  // Realistic rocks (Poly Haven scans, CC0, simplified by tools/models/import_rocks.mjs) and grass tufts of real blades (tools/models/make_grass.mjs).
+  { id: 399, category: "nature", name: "Rock: scan 07", path: "./kit/nature/rock-07.glb" },
+  { id: 400, category: "nature", name: "Rock: scan 09", path: "./kit/nature/rock-09.glb" },
+  { id: 401, category: "nature", name: "Stone: scan 01", path: "./kit/nature/rock-stone-01.glb" },
+  { id: 402, category: "nature", name: "Boulder: scan 05", path: "./kit/nature/rock-boulder-05.glb" },
+  { id: 403, category: "nature", name: "Boulder: scan 06", path: "./kit/nature/rock-boulder-06.glb" },
+  { id: 404, category: "nature", name: "Grass: meadow tuft", path: "./kit/nature/grass-meadow.glb" },
+  { id: 405, category: "nature", name: "Grass: tall tuft", path: "./kit/nature/grass-tall.glb" },
+  { id: 406, category: "nature", name: "Grass: dry tuft", path: "./kit/nature/grass-dry.glb" },
+  { id: 407, category: "nature", name: "Bamboo stand", path: "./kit/nature/bamboo-stand.glb" },
 ];
 
 export const catalogCategories = Array.from(

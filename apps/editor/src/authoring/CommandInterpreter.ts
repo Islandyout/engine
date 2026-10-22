@@ -835,6 +835,7 @@ export function defaultComponent(
         snowHeight: 9,
         rockSlope: 0.82,
         scatter: "",
+        paths: "",
       };
     case "Melee":
       return {

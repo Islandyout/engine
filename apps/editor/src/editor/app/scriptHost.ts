@@ -86,7 +86,9 @@ export function installScriptHost(C: Ctx): void {
       anchor.traverse((node) => {
         if (!skin && (node as THREE.SkinnedMesh).isSkinnedMesh && /^super ?hero_/i.test(node.name)) skin = node as THREE.SkinnedMesh;
       });
-      if (skin) cutBody(skin, regionsCoveredBy(spec.map((part) => part.id)));
+      // Only under pieces already loaded: cutting for a piece still downloading left a floating head for the first seconds of a game
+      // (the outfit is set again, and cut again, as each piece arrives).
+      if (skin) cutBody(skin, regionsCoveredBy(spec.filter((part) => C.catalogCache.has(part.id) || part.id === 373 || part.id === 378).map((part) => part.id)));
     }
     const bones = new Map(body.skeleton.bones.map((bone) => [bone.name, bone]));
     const pieces: THREE.Object3D[] = [];
@@ -147,6 +149,14 @@ export function installScriptHost(C: Ctx): void {
       }
     }
     C.outfits.set(index, pieces);
+    // Until every piece has arrived the character is not drawn at all (a body cut for the clothes that are here, and bare where the
+    // rest should be, was a head and hands on the ground, then a half-dressed man): `pending` counts the pieces still downloading.
+    const pending = spec.filter((part) => !C.catalogCache.has(part.id) && part.id !== 373 && part.id !== 378).length;
+    const worn = new Set<THREE.Object3D>(pieces);
+    anchor.traverse((node) => {
+      if ((node as THREE.Mesh).isMesh) node.visible = pending === 0 || !(node as THREE.SkinnedMesh).isSkinnedMesh ? true : false;
+    });
+    for (const mesh of worn) mesh.visible = pending === 0;
   }
 
   function handleHost(kind: string, text: string) {

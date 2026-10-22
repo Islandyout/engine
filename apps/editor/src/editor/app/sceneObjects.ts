@@ -26,10 +26,12 @@ import {
 	generateHeights,
 	parseScatter,
 	scatterInstances,
+	terrainFoliageGround,
 	type TerrainParams
 } from "../terrain";
 import { makeWater } from "../water";
-import { buildScatter, buildTerrainMesh, disposeTerrainMesh, type ScatterModel, type TerrainLook } from "../terrainMesh";
+import { GrassField } from "../grassField";
+import { buildScatter, buildTerrainMesh, disposeTerrainMesh, swayingMaterial, type ScatterModel, type TerrainLook } from "../terrainMesh";
 import { resolveAssetUrl } from "../userAssets";
 import { buildViewmodel } from "../viewmodels";
 import type { Ctx } from "./context";
@@ -157,6 +159,7 @@ export function installSceneObjects(C: Ctx): void {
       sandHeight: t.sandHeight,
       snowHeight: t.snowHeight,
       rockSlope: t.rockSlope,
+      paths: t.paths,
     };
   }
 
@@ -209,7 +212,10 @@ export function installSceneObjects(C: Ctx): void {
             (error) => C.log(`Catalog model ${rule.model} failed to load: ${String(error)}`),
           );
       }
-      group.add(buildScatter(scatterInstances(params, heights, rules, exclusions, t), models));
+      group.add(buildScatter(scatterInstances(params, heights, rules, exclusions, t), models, { dynamicLod: true }));
+      // Rules with near=M are grown round the camera instead (grassField.ts).
+      const field = new GrassField(rules, terrainFoliageGround(params, heights, exclusions, t), models, params.seed, swayingMaterial);
+      if (!field.empty) group.add(field.group);
     }
     C.terrainMeshes.set(index, { mesh, params, look, offsets });
     return group;
@@ -435,12 +441,14 @@ export function installSceneObjects(C: Ctx): void {
       anchor.add(made);
       C.lightPool.register(made);
     }
-    // Every mesh casts and receives shadows; a Material component overrides
-    // the surface (see applyMaterial).
+    // Every mesh casts and receives shadows (except those that chose for
+    // themselves: scatter, its far versions and the grass, marked
+    // ownShadow); a Material component overrides the surface (see
+    // applyMaterial).
     const materialOverride = get("Material");
     object.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
-      child.castShadow = true;
+      if (!child.userData.ownShadow) child.castShadow = true;
       child.receiveShadow = true;
       if (materialOverride && materialAppliesTo(child, materialOverride)) applyMaterial(child, materialOverride);
     });

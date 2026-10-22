@@ -567,7 +567,8 @@
      "sandHeight": -2.594654296986614,
      "snowHeight": 60,
      "rockSlope": 0.82,
-     "scatter": "255 0.0012 0.55 0.85 0.85 trunk\n256 0.0008 0.45 0.7 0.85 trunk\n259 0.0022 0.55 0.95 0.8 trunk\n260 0.0016 0.9 1.4 0.8 trunk\n42 0.0007 0.7 1.6 0.6 collide\n43 0.0012 0.8 1.3 0.6 collide\n37 0.004 0.8 1.3 0.8\n38 0.003 0.8 1.3 0.8\nexclude -46 -46 46 46\nexclude -8 36 8 114\nexclude -18 52 18 80\nexclude -12 96 12 116\nexclude -7 -80 7 -36\nexclude -20 -108 20 -74"
+     "scatter": "255 0.0012 0.55 0.85 0.85 trunk\n256 0.0008 0.45 0.7 0.85 trunk\n259 0.0022 0.55 0.95 0.8 trunk\n260 0.0016 0.9 1.4 0.8 trunk\n42 0.0007 0.7 1.6 0.6 collide\n43 0.0012 0.8 1.3 0.6 collide\n37 0.004 0.8 1.3 0.8\n38 0.003 0.8 1.3 0.8\nexclude -46 -46 46 46\nexclude -8 36 8 114\nexclude -18 52 18 80\nexclude -12 96 12 116\nexclude -7 -80 7 -36\nexclude -20 -108 20 -74",
+     "paths": ""
     }
    }
   },

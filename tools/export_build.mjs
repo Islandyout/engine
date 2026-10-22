@@ -92,6 +92,13 @@ function bake(html, sceneText, name) {
   // exported page.
   const title = escapeHtml(name);
   html = html.replace(/<title>[^<]*<\/title>/, () => `<title>${title}</title>`);
+  // A loading screen from the first paint: the game's name over a bar that main.ts fills as the models arrive, and removes when play starts.
+  // (It is in the page itself, not made by script: a script-made cover changed how the game started, and the murim browser test failed.)
+  const cover =
+    '<div id="boot" style="position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#0e1316;color:#e8e2d0;font:600 22px system-ui,sans-serif;letter-spacing:0.06em">' +
+    `<div>${title}</div>` +
+    '<div style="width:min(320px,70vw);height:4px;background:#2a3236;border-radius:2px;overflow:hidden"><div id="boot-bar" style="width:0%;height:100%;background:#c9a24a;transition:width 0.2s"></div></div></div>';
+  html = html.replace("<body>", () => `<body>${cover}`);
 
   // The scene is embedded as literal JSON text, not re-serialized -- avoids
   // any risk of this tool's own JSON.stringify subtly changing a value

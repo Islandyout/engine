@@ -1874,6 +1874,13 @@ async function startEditor() {
   // editor-only chrome hidden by the .player-mode CSS class (style.css) and
   // Play started automatically below instead of waiting for a click.
   const exportedScene = document.getElementById("exported-scene")?.textContent;
+  // A player build downloads every model it uses before the first frame; a bar says how far along that is.
+  const loading = exportedScene
+    ? {
+        progress: (fraction: number) => void (document.getElementById("boot-bar")?.style.setProperty("width", `${Math.round(Math.min(1, fraction) * 100)}%`)),
+        done: () => document.getElementById("boot")?.remove(),
+      }
+    : undefined;
   try {
     if (exportedScene) {
       app.classList.add("player-mode");
@@ -1901,7 +1908,14 @@ async function startEditor() {
         // The first-person arms' fallback character (holdFirstPersonWeapons).
         if (doc.scene.effectiveHas(entity, "Player") && doc.scene.effectiveHas(entity, "Weapons")) meshIds.add(firstPersonBodyFallback);
       }
-      await Promise.all([...meshIds].map((id) => C.loadCatalogModel(id)?.catch((error) => log(`Catalog model ${id} failed to load: ${String(error)}`))));
+      let loaded = 0;
+      await Promise.all(
+        [...meshIds].map((id) =>
+          C.loadCatalogModel(id)
+            ?.catch((error) => log(`Catalog model ${id} failed to load: ${String(error)}`))
+            .finally(() => loading?.progress(++loaded / meshIds.size)),
+        ),
+      );
     } else {
       const saved = localStorage.getItem("game-engine-editor:scene");
       if (saved) C.loadDocument(JSON.parse(saved));
@@ -1925,6 +1939,7 @@ async function startEditor() {
   C.rebuild();
   if (exportedScene) {
     el<HTMLButtonElement>("play").click();
+    loading?.done();
     // That click() is script-triggered, not a real user gesture (verified:
     // navigator.userActivation isn't set by it in a real browser -- an
     // automation-driven one like Playwright's own default state already

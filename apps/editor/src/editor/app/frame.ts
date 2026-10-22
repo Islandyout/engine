@@ -11,7 +11,7 @@ import type {
 import { groundSpeed, pickClipName } from "../animationClips";
 import { EntityField } from "../bridgeFields";
 import { applyStickLook } from "../fpsView";
-import { CHARACTER_DRAW_DISTANCE, crowdNear } from "../frameGovernor";
+import { CHARACTER_DRAW_DISTANCE, CHARACTER_SHADOW_DISTANCE, crowdNear } from "../frameGovernor";
 import { applyGesture, findGestureBones, gestureFor } from "../gestures";
 import { updateHeldWeapons } from "../heldWeapons";
 import {
@@ -19,6 +19,8 @@ import {
 } from "../playerSettings";
 import { activityAliases, routineActivity } from "../routineActivity";
 import { setSignalHeads, type SignalHeads } from "../signalHeads";
+import { updateGrassFields } from "../grassField";
+import { updateDynamicLods } from "../scatterLod";
 import { updateScatterLod } from "../terrainMesh";
 import type { Ctx } from "./context";
 import { AnimState } from "./context";
@@ -328,6 +330,20 @@ export function installFrame(C: Ctx): void {
         object.userData.farHidden = false;
         object.visible = object.userData.visibleBefore ?? true;
       }
+      // Beyond CHARACTER_SHADOW_DISTANCE a character casts no shadow: the shadow pass draws its body and gear a second time, and at
+      // that range its shadow is a few pixels. Switched only when it crosses the line.
+      if (object && C.doc.mode === "play" && !object.userData.farHidden) {
+        const shade = object.position.distanceToSquared(eye) < CHARACTER_SHADOW_DISTANCE * CHARACTER_SHADOW_DISTANCE;
+        if (shade !== (object.userData.casting ?? true)) {
+          object.userData.casting = shade;
+          object.traverse((node) => {
+            if ((node as THREE.Mesh).isMesh) {
+              if (!shade) node.userData.castBefore ??= node.castShadow;
+              node.castShadow = shade ? (node.userData.castBefore ?? true) : false;
+            }
+          });
+        }
+      }
       if (stride > 1 && object && object.position.distanceToSquared(eye) > crowdNear * crowdNear) {
         state.skipped = (state.skipped ?? 0) + animDt;
         if ((C.crowdFrame + i) % stride !== 0) return;
@@ -575,6 +591,8 @@ export function installFrame(C: Ctx): void {
     }
     C.updateSunShadow();
     updateScatterLod(C.viewCamera.getWorldPosition(new THREE.Vector3()));
+    updateGrassFields(C.viewCamera.getWorldPosition(new THREE.Vector3()));
+    updateDynamicLods(C.viewCamera.getWorldPosition(new THREE.Vector3()));
     if (C.doc.mode === "play")
       C.objects.forEach((o, i) => {
         const heads = o?.userData.signalHeads as SignalHeads | undefined;
