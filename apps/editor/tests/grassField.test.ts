@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { grassCell, grassFade, cellTufts } from "../src/editor/grassField";
+import { grassCell, cellTufts } from "../src/editor/grassField";
 import { parseScatter } from "../src/editor/terrain";
 import type { FoliageGround } from "../src/editor/foliage";
 
@@ -32,12 +32,4 @@ test("grass keeps to its layer, its slope and clearings", () => {
   assert.equal(cellTufts(rules[0]!, 0, 0, 0, flat("sand"), 1).length, 0, "no grass on sand");
   assert.equal(cellTufts(rules[0]!, 0, 0, 0, { ...flat("grass"), normal: () => [0.8, 0.6, 0] }, 1).length, 0, "none on a steep slope");
   assert.equal(cellTufts(rules[0]!, 0, 0, 0, { ...flat("grass"), blocked: () => true }, 1).length, 0, "none in an exclusion");
-});
-
-test("tufts shrink to nothing at the edge of their reach", () => {
-  assert.equal(grassFade(0, 30), 1);
-  assert.equal(grassFade(20, 30), 1);
-  assert.ok(grassFade(27, 30) > 0 && grassFade(27, 30) < 1);
-  assert.equal(grassFade(30, 30), 0);
-  assert.equal(grassFade(45, 30), 0);
 });

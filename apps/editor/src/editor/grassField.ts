@@ -2,19 +2,15 @@
 // ground within M metres of the camera, a few per square metre, and regrown as the camera moves. A map a kilometre across can have
 // grass a step apart where you stand, for the cost of a few thousand instances, and none where you are not.
 //
-// Placement is a pure function of the cell (cell coordinates, rule, seed), so the same patch of ground always grows the same tufts.
+// Placement is a pure function of the cell (cell coordinates, rule, seed), so the same patch of ground always grows the same tufts. Each cell's
+// matrices are built once, when it comes into reach, and kept; regrowing is then copying arrays, and the fade at the edge of reach is in the shader.
 import * as THREE from "three";
 import type { FoliageGround, ScatterRule } from "./foliage";
 import { hash } from "./terrain";
-import type { ScatterModel } from "./terrainMesh";
+import type { GrassFade, ScatterModel } from "./terrainMesh";
 
 // Metres per side of a grass cell.
 export const grassCell = 4;
-// A tuft fades (shrinks) over the outer fraction of its rule's distance, so the edge of the field is a slope, not a line.
-const fadeBand = 0.3;
-// The camera must move this far before the field regrows.
-const regrowDistance = 1.5;
-
 export interface Tuft {
   x: number;
   y: number;
@@ -52,11 +48,6 @@ export function cellTufts(rule: ScatterRule, ruleIndex: number, cx: number, cz: 
   return out;
 }
 
-// How much of its size a tuft keeps at this distance from the camera for a rule's reach.
-export function grassFade(distance: number, reach: number): number {
-  return Math.min(1, Math.max(0, (reach - distance) / (reach * fadeBand)));
-}
-
 interface Layer {
   rule: ScatterRule;
   ruleIndex: number;
@@ -64,7 +55,8 @@ interface Layer {
   // The model's mesh transforms (child.matrixWorld), lifted so the root stands on y = 0.
   parts: THREE.Matrix4[];
   bottom: number;
-  cells: Map<string, Tuft[]>;
+  // Per cell: its tufts' matrices for each mesh of the model (16 floats a tuft) and their brightness.
+  cells: Map<string, { count: number; matrices: Float32Array[]; tints: Float32Array }>;
 }
 
 const fields = new Set<GrassField>();
@@ -75,13 +67,15 @@ export class GrassField {
   private last: { x: number; z: number } | undefined;
   // True once it has been in a scene: after that, leaving one ends it.
   seen = false;
+  // Where the camera is, terrain-local x/z: the shader shrinks tufts toward the edge of their reach round it.
+  private center = { value: new THREE.Vector2() };
 
   constructor(
     rules: ScatterRule[],
     private ground: FoliageGround,
     models: Map<number, ScatterModel>,
     private seed: number,
-    makeMaterial: (material: THREE.Material, height: number, bottom: number) => THREE.Material,
+    makeMaterial: (material: THREE.Material, height: number, bottom: number, fade: GrassFade) => THREE.Material,
   ) {
     this.group.name = "terrain-grass";
     rules.forEach((rule, ruleIndex) => {
@@ -89,11 +83,13 @@ export class GrassField {
       if (!model || !rule.near) return;
       model.scene.updateMatrixWorld(true);
       const bounds = new THREE.Box3().setFromObject(model.scene);
-      const capacity = Math.ceil(Math.PI * rule.near * rule.near * rule.density * 1.35) + 256;
+      const capacity = Math.ceil(Math.PI * (rule.near + grassCell) ** 2 * rule.density * 1.2) + 256;
       const layer: Layer = { rule, ruleIndex, meshes: [], parts: [], bottom: bounds.min.y, cells: new Map() };
+      const fade: GrassFade = { center: this.center, reach: rule.near };
       model.scene.traverse((child) => {
         if (!(child instanceof THREE.Mesh) || Array.isArray(child.material)) return;
-        const mesh = new THREE.InstancedMesh(child.geometry, makeMaterial(child.material, bounds.max.y - bounds.min.y, bounds.min.y), capacity);
+        const mesh = new THREE.InstancedMesh(child.geometry, makeMaterial(child.material, bounds.max.y - bounds.min.y, bounds.min.y, fade), capacity);
+        mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
         mesh.count = 0;
         mesh.frustumCulled = false; // its tufts move with the camera: a fixed bounding sphere would be wrong
         mesh.castShadow = false;
@@ -111,51 +107,53 @@ export class GrassField {
     return this.layers.length === 0;
   }
 
-  // Regrows the tufts round (x, z), the camera in the terrain's own coordinates.
+  private grow(layer: Layer, cx: number, cz: number) {
+    const tufts = cellTufts(layer.rule, layer.ruleIndex, cx, cz, this.ground, this.seed);
+    const matrices = layer.parts.map(() => new Float32Array(tufts.length * 16));
+    const tints = new Float32Array(tufts.length);
+    const matrix = new THREE.Matrix4(), placement = new THREE.Matrix4(), rotation = new THREE.Quaternion(), position = new THREE.Vector3(), size = new THREE.Vector3();
+    const up = new THREE.Vector3(0, 1, 0);
+    tufts.forEach((t, i) => {
+      rotation.setFromAxisAngle(up, t.yaw);
+      placement.compose(position.set(t.x, t.y - layer.bottom * t.scale, t.z), rotation, size.set(t.scale, t.scale, t.scale));
+      layer.parts.forEach((part, p) => matrix.multiplyMatrices(placement, part).toArray(matrices[p]!, i * 16));
+      tints[i] = t.tint;
+    });
+    return { count: tufts.length, matrices, tints };
+  }
+
+  // Moves the field to the camera at (x, z), terrain-local: the shader fade follows it every frame, and tufts are regrown when it crosses into another cell.
   update(x: number, z: number) {
-    if (this.last && Math.hypot(x - this.last.x, z - this.last.z) < regrowDistance) return;
-    this.last = { x, z };
-    const matrix = new THREE.Matrix4(),
-      placement = new THREE.Matrix4(),
-      rotation = new THREE.Quaternion(),
-      up = new THREE.Vector3(0, 1, 0),
-      position = new THREE.Vector3(),
-      size = new THREE.Vector3(),
-      tint = new THREE.Color();
+    this.center.value.set(x, z);
+    const cellX = Math.floor(x / grassCell), cellZ = Math.floor(z / grassCell);
+    if (this.last && this.last.x === cellX && this.last.z === cellZ) return;
+    this.last = { x: cellX, z: cellZ };
     for (const layer of this.layers) {
-      const reach = layer.rule.near!;
-      const c0 = Math.floor((x - reach) / grassCell), c1 = Math.floor((x + reach) / grassCell);
-      const d0 = Math.floor((z - reach) / grassCell), d1 = Math.floor((z + reach) / grassCell);
-      // Forget the cells that are out of reach, grow the ones that came into it.
+      const cells = Math.ceil(layer.rule.near! / grassCell) + 1;
       const live = new Set<string>();
-      for (let cx = c0; cx <= c1; cx++)
-        for (let cz = d0; cz <= d1; cz++) {
+      for (let cx = cellX - cells; cx <= cellX + cells; cx++)
+        for (let cz = cellZ - cells; cz <= cellZ + cells; cz++) {
+          if (Math.hypot((cx + 0.5 - x / grassCell) * grassCell, (cz + 0.5 - z / grassCell) * grassCell) > layer.rule.near! + grassCell * 1.5) continue;
           const key = `${cx},${cz}`;
           live.add(key);
-          if (!layer.cells.has(key)) layer.cells.set(key, cellTufts(layer.rule, layer.ruleIndex, cx, cz, this.ground, this.seed));
+          if (!layer.cells.has(key)) layer.cells.set(key, this.grow(layer, cx, cz));
         }
       for (const key of layer.cells.keys()) if (!live.has(key)) layer.cells.delete(key);
       const capacity = layer.meshes[0]?.instanceMatrix.count ?? 0;
       let n = 0;
-      for (const tufts of layer.cells.values())
-        for (const t of tufts) {
-          const fade = grassFade(Math.hypot(t.x - x, t.z - z), reach);
-          if (fade <= 0.04 || n >= capacity) continue;
-          const s = t.scale * fade;
-          rotation.setFromAxisAngle(up, t.yaw);
-          placement.compose(position.set(t.x, t.y - layer.bottom * s, t.z), rotation, size.set(s, s, s));
-          tint.setScalar(t.tint);
-          layer.meshes.forEach((mesh, i) => {
-            matrix.multiplyMatrices(placement, layer.parts[i]!);
-            mesh.setMatrixAt(n, matrix);
-            mesh.setColorAt(n, tint);
-          });
-          n++;
-        }
+      for (const cell of layer.cells.values()) {
+        if (n + cell.count > capacity) break;
+        layer.meshes.forEach((mesh, p) => {
+          (mesh.instanceMatrix.array as Float32Array).set(cell.matrices[p]!, n * 16);
+          const colours = mesh.instanceColor!.array as Float32Array;
+          for (let i = 0; i < cell.count; i++) colours.fill(cell.tints[i]!, (n + i) * 3, (n + i) * 3 + 3);
+        });
+        n += cell.count;
+      }
       for (const mesh of layer.meshes) {
         mesh.count = n;
         mesh.instanceMatrix.needsUpdate = true;
-        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+        mesh.instanceColor!.needsUpdate = true;
       }
     }
   }

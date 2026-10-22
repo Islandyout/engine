@@ -204,15 +204,24 @@ export interface ScatterModel {
 
 // Wind: one clock for every swaying plant, advanced each frame by the editor (seconds).
 export const wind = { time: { value: 0 }, strength: { value: 1 } };
-export function swayingMaterial(material: THREE.Material, height: number, bottom: number): THREE.Material {
+// `fade`: tufts shrink to nothing toward `reach` metres from `center` (terrain-local x/z, updated each frame), in the shader.
+export interface GrassFade {
+  center: { value: THREE.Vector2 };
+  reach: number;
+}
+export function swayingMaterial(material: THREE.Material, height: number, bottom: number, fade?: GrassFade): THREE.Material {
   const cloned = material.clone();
   cloned.onBeforeCompile = (shader) => {
     shader.uniforms.uWindTime = wind.time;
     shader.uniforms.uWindStrength = wind.strength;
     shader.uniforms.uPlantHeight = { value: Math.max(0.1, height) };
     shader.uniforms.uPlantBottom = { value: bottom };
+    if (fade) {
+      shader.uniforms.uFadeCenter = fade.center;
+      shader.uniforms.uFadeReach = { value: fade.reach };
+    }
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nuniform float uWindTime, uWindStrength, uPlantHeight, uPlantBottom;")
+      .replace("#include <common>", `#include <common>\nuniform float uWindTime, uWindStrength, uPlantHeight, uPlantBottom;${fade ? "\nuniform vec2 uFadeCenter;\nuniform float uFadeReach;" : ""}`)
       .replace(
         "#include <begin_vertex>",
         `#include <begin_vertex>
@@ -228,10 +237,13 @@ export function swayingMaterial(material: THREE.Material, height: number, bottom
   float bend = up * up * uPlantHeight * 0.035 * uWindStrength;
   transformed.x += gust * bend;
   transformed.z += gust * bend * 0.5;
+  ${fade ? `#ifdef USE_INSTANCING
+  transformed *= clamp((uFadeReach - distance(instanceMatrix[3].xz, uFadeCenter)) / (uFadeReach * 0.3), 0.0, 1.0);
+  #endif` : ""}
 }`,
       );
   };
-  cloned.customProgramCacheKey = () => "plant-sway";
+  cloned.customProgramCacheKey = () => (fade ? "plant-sway-fade" : "plant-sway");
   return cloned;
 }
 
