@@ -50,7 +50,7 @@ local held_mana, talking_now = nil, false
 local ward, formation = nil, nil                -- a Ward Talisman's soak; a planted array flag
 local perks_learned, meridians_learned = {}, {}
 local arts_learned, affinity, robe = {}, "", 1
-local hair, cut, creating = 1, 1, false
+local hair, cut, creating = 1, 2, false
 local partner, dual_time = false, 0
 local guardian_cd, fire_cd = 0, 0
 local stance, bow_dry, bow_move = "fists", false, ""
@@ -166,7 +166,7 @@ local ROBES = {
   { "Ink",     "214:#2a2a34 216:#1e1e26 218:#c9a24a 215:#16161c 217:#16161c" },
   { "Saffron", "214:#d89a3a 216:#f0e6c8 218:#8f2d2d 215:#3a3a3a 217:#2a2a2a" },
 }
-local HAIRS = { { "Topknot", "356:#1c1618" }, { "Long", "357:#1c1618" }, { "Scholar's cap", "356:#1c1618 358:#2a2a34" }, { "Shaven", "" } }
+local HAIRS = { { "Parted", "363:#1c1618" }, { "Long", "361:#1c1618" }, { "Buns", "362:#1c1618" }, { "Scholar's cap", "358:#2a2a34" }, { "Shaven", "364:#1c1618" } }
 local CUTS = { { "Tunic", "" }, { "Long robe", "354:%s 355:%s" } }
 local function dress()
   local spec = ROBES[robe][2]
@@ -727,7 +727,7 @@ local function audio_tick(dt)
       if hostile(n) and world.alive(id) then fight = true break end
     end
   end
-  local m = dead and "off" or fight and "tension" or (day_hours >= 20 or day_hours < 5) and "night" or "explore"
+  local m = dead and "off" or fight and "wuxia-tension" or (day_hours >= 20 or day_hours < 5) and "wuxia-night" or "wuxia-explore"
   if m ~= mood then mood = m audio.music(m) end
   local settled = false
   for _, name in ipairs({ "Elder Mu", "Merchant Lin" }) do

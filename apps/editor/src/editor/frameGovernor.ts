@@ -12,6 +12,8 @@ export interface GovernorTier {
   // 2 full shadow map, 1 half-size, 0 off.
   shadows: 0 | 1 | 2;
   bloom: boolean;
+  // Screen-space ambient occlusion (a full-screen pass), when the scene asks for it.
+  ao: boolean;
   // Fraction of scattered plants and rocks drawn.
   scatter: number;
   // Milliseconds a frame may spend building planet terrain.
@@ -26,11 +28,11 @@ export interface GovernorTier {
 }
 
 export const governorTiers: GovernorTier[] = [
-  { scale: 1, shadows: 2, bloom: true, scatter: 1, chunkMs: 4, crowdStride: 1, skyLow: false, simStride: 1 },
+  { scale: 1, shadows: 2, bloom: true, ao: true, scatter: 1, chunkMs: 4, crowdStride: 1, skyLow: false, simStride: 1 },
   {
     scale: 0.85,
     shadows: 2,
-    bloom: true,
+    bloom: true, ao: true,
     scatter: 1,
     chunkMs: 4,
     crowdStride: 1,
@@ -40,7 +42,7 @@ export const governorTiers: GovernorTier[] = [
   {
     scale: 0.75,
     shadows: 1,
-    bloom: true,
+    bloom: true, ao: true,
     scatter: 0.85,
     chunkMs: 3,
     crowdStride: 2,
@@ -50,7 +52,7 @@ export const governorTiers: GovernorTier[] = [
   {
     scale: 0.7,
     shadows: 1,
-    bloom: false,
+    bloom: false, ao: false,
     scatter: 0.7,
     chunkMs: 3,
     crowdStride: 2,
@@ -60,7 +62,7 @@ export const governorTiers: GovernorTier[] = [
   {
     scale: 0.6,
     shadows: 0,
-    bloom: false,
+    bloom: false, ao: false,
     scatter: 0.55,
     chunkMs: 2,
     crowdStride: 3,
@@ -70,7 +72,7 @@ export const governorTiers: GovernorTier[] = [
   {
     scale: 0.5,
     shadows: 0,
-    bloom: false,
+    bloom: false, ao: false,
     scatter: 0.4,
     chunkMs: 2,
     crowdStride: 4,

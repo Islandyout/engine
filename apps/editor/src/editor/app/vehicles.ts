@@ -142,6 +142,8 @@ export function installVehicles(C: Ctx): void {
       C.renderer.shadowMap.enabled = profile.shadows && tier.shadows > 0;
     }
     if (C.bloomPass) C.bloomPass.enabled = tier.bloom;
+    C.applyDepthFx();
+    if (C.gtaoPass) C.gtaoPass.enabled = C.postSettings.ambientOcclusion && C.postSettings.style !== "Manhwa" && tier.ao;
     const mapSize = shadowQualities[C.postSettings.shadowQuality].mapSize / (tier.shadows === 1 ? 2 : 1);
     if (C.sun.shadow.mapSize.x !== mapSize) {
       C.sun.shadow.mapSize.set(mapSize, mapSize);

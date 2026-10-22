@@ -778,6 +778,8 @@ export function defaultComponent(
         temperature: 0,
         vignette: 0.3,
         grain: 0,
+        lightShafts: 0,
+        contactShadows: 0,
         shadowQuality: "High",
       };
     case "AudioSettings":

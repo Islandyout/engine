@@ -506,6 +506,8 @@
      "temperature": 0.12,
      "vignette": 0.35,
      "grain": 0.06,
+     "lightShafts": 0,
+     "contactShadows": 0,
      "shadowQuality": "Medium"
     },
     "AudioSettings": {

@@ -19,6 +19,7 @@ test("a free fighter stands in guard, shuffles toward where it moves, and runs w
 
 test("reactions match the hit", () => {
   assert.equal(pickReaction(StunKind.heavy, false), "hit_knockback");
+  assert.equal(pickReaction(StunKind.heavy, true), "ual_hit_knockback");
   assert.equal(pickReaction(StunKind.guardBreak, false), "guard_break");
   assert.equal(pickReaction(StunKind.parried, true), "guard_break");
   assert.notEqual(pickReaction(StunKind.light, true), pickReaction(StunKind.light, false));
@@ -54,4 +55,7 @@ test("the clip library adds the locomotion every stance names, for rigs with no 
   for (const stance of [pickStance(FighterMode.idle, 0, 0, true, 0, 0), pickStance(FighterMode.idle, 4.5, 0, true, 1, 0), pickStance(FighterMode.idle, 6, 0, true, 1, 0)])
     assert.ok(clips.has(stance.clip), `missing stance clip ${stance.clip}`);
   for (const name of ["idle", "walk", "run", "sprint"]) assert.ok(clips.has(name), `missing locomotion ${name}`);
+  // Every reaction the fighters can pick is in the library, the Universal Animation Library 2 ones included.
+  for (const kind of [StunKind.light, StunKind.heavy, StunKind.guardBreak, StunKind.knockdown])
+    for (const alternate of [false, true]) assert.ok(clips.has(pickReaction(kind, alternate)), `missing reaction clip ${pickReaction(kind, alternate)}`);
 });

@@ -1,3 +1,6 @@
+import { wind } from "../terrainMesh";
+import { waterTime } from "../water";
+import { FootIK } from "../footIK";
 import { accessibility } from "../uiKit";
 import { makeProjectile, updateProjectile } from "../projectileView";
 import * as THREE from "three";
@@ -107,11 +110,16 @@ export function installFrame(C: Ctx): void {
     return C.dirtyCheck.value;
   }
 
+  const feetIK = new WeakMap<THREE.Object3D, FootIK | null>();
+  const feetDrop = new WeakMap<THREE.Object3D, { base: number; written: number }>();
+
   function frame(now: number) {
     const frameStart = performance.now();
     let tickMs = 0;
     const dt = Math.min((now - C.previous) / 1000, 5 / 60);
     C.governFrame(now - C.previous);
+    wind.time.value = now / 1000;
+    waterTime.value = now / 1000;
     updateMouseStick(dt);
     if (C.doc.mode === "play") C.updateMusic();
     C.previous = now;
@@ -335,7 +343,38 @@ export function installFrame(C: Ctx): void {
         applyGesture(bones, kind, now / 1000, i);
       }
     });
-    if (C.doc.mode === "play") C.combat.plant(dt);
+    C.clothSway.update(dt, now / 1000, (anchor) => anchor.visible && anchor.position.distanceToSquared(eye) < 40 * 40);
+    if (C.doc.mode === "play") {
+      C.combat.plant(dt);
+      // Standing on a slope: the feet follow the terrain (characters within 30 m; the farther ones are too small to show it).
+      if (C.terrainMeshes.size) {
+        C.animStates.forEach((state, i) => {
+          const object = C.objects[i];
+          if (!state || !object || object.userData.farHidden || object.position.distanceToSquared(eye) > 30 * 30) return;
+          let ik = feetIK.get(object);
+          if (ik === undefined) {
+            const made = new FootIK(object);
+            feetIK.set(object, (ik = made.legs.length === 2 ? made : null));
+          }
+          if (!ik) return;
+          // The body's drop is undone first when nothing else has moved it since (a still character is not re-synced each frame).
+          const last = feetDrop.get(object);
+          if (last && object.position.y === last.written) object.position.y = last.base;
+          const base = object.position.y;
+          const ground = C.groundAt(object.position.x, object.position.z);
+          // Only a character standing on the terrain (not one flying, or inside a room far above it).
+          if (ground !== undefined && Math.abs(object.position.y - 0.9 - ground) < 1.2) ik.apply(C.groundAt);
+          feetDrop.set(object, { base, written: object.position.y });
+        });
+      }
+    }
+    // Simulated cloth: only for characters near the camera (and only in play); the rest keep the shape they last had.
+    for (const cloth of C.cloths) {
+      if (!cloth.mesh.parent) {
+        cloth.dispose();
+        C.cloths.delete(cloth);
+      } else if (C.doc.mode === "play" && cloth.anchor.visible && cloth.anchor.position.distanceToSquared(eye) < 35 * 35) cloth.update(animDt, now / 1000);
+    }
     // Weapon guards and two-handed grips, over the clips' poses.
     updateHeldWeapons(animDt, (body) => C.combat.guarding(body));
     C.updateGunPoses(animDt);
@@ -542,6 +581,7 @@ export function installFrame(C: Ctx): void {
     C.renderPass.camera = C.viewCamera;
     if (C.gtaoPass) C.gtaoPass.camera = C.viewCamera;
     C.inkPass.camera = C.viewCamera;
+    C.depthFxPass.setCamera(C.viewCamera);
     if (C.gradingPass.enabled) (C.gradingPass.uniforms as Record<string, { value: number }>).time!.value = (now / 1000) % 100;
     // Counted over every pass of the frame (bloom included), not just the
     // last one, for the Stats overlay's draw calls and triangles.

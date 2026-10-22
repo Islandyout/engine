@@ -1,5 +1,5 @@
 // Terrain rendering: the heightfield mesh, colored by height and
-// slope (sand, grass, rock, snow) over a tiling detail texture, and
+// slope (sand, grass, rock, snow) over tiling detail layers, and
 // instanced foliage/rock scatter from catalog models.
 import * as THREE from "three";
 import type { Vec3 } from "../scene/Components";
@@ -13,30 +13,6 @@ export interface TerrainLook {
   sandHeight: number; // below this: sand
   snowHeight: number; // above this: snow
   rockSlope: number; // normal y below this blends to rock
-}
-
-let detailTexture: THREE.Texture | undefined;
-function detail(): THREE.Texture {
-  if (detailTexture) return detailTexture;
-  const size = 256;
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d")!;
-  const image = ctx.createImageData(size, size);
-  for (let y = 0; y < size; y++)
-    for (let x = 0; x < size; x++) {
-      // Tileable: noise on a torus-ish wrap via periodic sampling.
-      const n = fbm(x / 16, y / 16, 77, 4) * 0.5 + fbm(x / 4, y / 4, 78, 2) * 0.25;
-      const v = Math.round(220 + n * 60);
-      const i = (y * size + x) * 4;
-      image.data[i] = image.data[i + 1] = image.data[i + 2] = Math.max(0, Math.min(255, v));
-      image.data[i + 3] = 255;
-    }
-  ctx.putImageData(image, 0, 0);
-  detailTexture = new THREE.CanvasTexture(canvas);
-  detailTexture.wrapS = detailTexture.wrapT = THREE.RepeatWrapping;
-  detailTexture.colorSpace = THREE.SRGBColorSpace;
-  return detailTexture;
 }
 
 const scratch = { color: new THREE.Color(), rock: new THREE.Color() };
@@ -54,6 +30,12 @@ export function shapeTerrain(geometry: THREE.BufferGeometry, heights: Float32Arr
     color = new THREE.BufferAttribute(new Float32Array(position.count * 3), 3);
     geometry.setAttribute("color", color);
   }
+  let splat = geometry.getAttribute("splat") as THREE.BufferAttribute | undefined;
+  if (!splat) {
+    splat = new THREE.BufferAttribute(new Float32Array(position.count * 4), 4);
+    geometry.setAttribute("splat", splat);
+  }
+  const band = 0.6;
   for (let i = 0; i < position.count; i++) {
     const h = heights[i]!;
     const c = scratch.color;
@@ -61,29 +43,143 @@ export function shapeTerrain(geometry: THREE.BufferGeometry, heights: Float32Arr
     else if (h > look.snowHeight) toColor(look.snowColor, c);
     else toColor(look.grassColor, c);
     // Soft bands instead of hard lines.
-    const band = 0.6;
     if (h >= look.sandHeight && h < look.sandHeight + band) c.lerp(toColor(look.sandColor, scratch.rock), 1 - (h - look.sandHeight) / band);
     if (h <= look.snowHeight && h > look.snowHeight - band) c.lerp(toColor(look.snowColor, scratch.rock), 1 - (look.snowHeight - h) / band);
     const steep = Math.min(1, Math.max(0, (look.rockSlope - normal.getY(i)) * 8));
     if (steep > 0) c.lerp(toColor(look.rockColor, scratch.rock), steep);
+    // The same classes as weights, for the detail textures: grass, rock, sand, snow.
+    let sand = h < look.sandHeight ? 1 : h < look.sandHeight + band ? 1 - (h - look.sandHeight) / band : 0;
+    let snow = h > look.snowHeight ? 1 : h > look.snowHeight - band ? 1 - (look.snowHeight - h) / band : 0;
+    sand = Math.min(1, sand);
+    snow = Math.min(1, snow);
+    const grass = Math.max(0, 1 - sand - snow);
+    splat.setXYZW(i, grass * (1 - steep), steep, sand * (1 - steep), snow * (1 - steep));
     const x = position.getX(i),
       z = position.getZ(i);
     const variation = 1 + fbm(x * 0.15, z * 0.15, seed + 5, 3) * 0.12;
     color.setXYZ(i, c.r * variation, c.g * variation, c.b * variation);
   }
   color.needsUpdate = true;
+  splat.needsUpdate = true;
   geometry.computeBoundingSphere();
   geometry.computeBoundingBox();
+}
+
+// Detail layers (ambientCG, CC0; tools/models/downscale_textures.cjs): each class of ground has a colour map and a normal map, tiled in
+// world space. The terrain keeps its palette (vertex colours); the layers add what a flat colour lacks, the grain of grass, rock and sand,
+// by multiplying each layer's colour over its own average. Loaded once and shared by every terrain.
+const layerNames = ["grass", "rock", "sand", "snow"] as const;
+const layerTextures: { color: THREE.Texture; normal: THREE.Texture; mean: THREE.Vector3 }[] = [];
+function layers() {
+  if (layerTextures.length) return layerTextures;
+  const loader = new THREE.TextureLoader();
+  for (const name of layerNames) {
+    const white = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
+    white.needsUpdate = true;
+    const flat = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1);
+    flat.needsUpdate = true;
+    const entry = { color: white as THREE.Texture, normal: flat as THREE.Texture, mean: new THREE.Vector3(1, 1, 1) };
+    layerTextures.push(entry);
+    const tiled = (texture: THREE.Texture, srgb: boolean) => {
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      texture.anisotropy = 4;
+      return texture;
+    };
+    loader.load(`./kit/terrain/${name}-color.jpg`, (texture) => {
+      entry.color = tiled(texture, true);
+      // The layer's average colour (linear), so the detail multiplies without shifting the palette.
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 1;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(texture.image as CanvasImageSource, 0, 0, 1, 1);
+      const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+      const lin = (v: number) => THREE.MathUtils.clamp(new THREE.Color().setRGB(v / 255, 0, 0, THREE.SRGBColorSpace).r, 0.02, 1);
+      entry.mean.set(lin(r!), lin(g!), lin(b!));
+      for (const uniforms of terrainUniforms) refreshUniforms(uniforms);
+    });
+    loader.load(`./kit/terrain/${name}-normal.jpg`, (texture) => {
+      entry.normal = tiled(texture, false);
+      for (const uniforms of terrainUniforms) refreshUniforms(uniforms);
+    });
+  }
+  return layerTextures;
+}
+const terrainUniforms = new Set<Record<string, THREE.IUniform>>();
+function refreshUniforms(uniforms: Record<string, THREE.IUniform>) {
+  layers().forEach((layer, i) => {
+    uniforms[`tColor${i}`]!.value = layer.color;
+    uniforms[`tNormal${i}`]!.value = layer.normal;
+    uniforms[`mean${i}`]!.value = layer.mean;
+  });
+}
+
+function terrainMaterial(size: number): THREE.MeshStandardMaterial {
+  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
+  // A normal map must exist for the shader to build a tangent frame; the layers' own normals replace its lookup.
+  material.normalMap = layers()[0]!.normal;
+  material.normalScale.set(0.8, 0.8);
+  material.onBeforeCompile = (shader) => {
+    for (let i = 0; i < 4; i++) {
+      shader.uniforms[`tColor${i}`] = { value: null };
+      shader.uniforms[`tNormal${i}`] = { value: null };
+      shader.uniforms[`mean${i}`] = { value: new THREE.Vector3(1, 1, 1) };
+    }
+    shader.uniforms.tileSize = { value: 3.2 };
+    refreshUniforms(shader.uniforms);
+    terrainUniforms.add(shader.uniforms);
+    const decl = Array.from({ length: 4 }, (_, i) => `uniform sampler2D tColor${i}; uniform sampler2D tNormal${i}; uniform vec3 mean${i};`).join("\n");
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute vec4 splat;\nvarying vec4 vSplat;\nvarying vec2 vGround;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvSplat = splat;\nvGround = (modelMatrix * vec4(position, 1.0)).xz;");
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+varying vec4 vSplat;
+varying vec2 vGround;
+uniform float tileSize;
+${decl}
+// Two scales per layer, so the repeat does not show.
+vec3 layerColor(sampler2D t, vec3 mean) {
+  vec3 a = texture2D(t, vGround / tileSize).rgb;
+  vec3 b = texture2D(t, vGround / (tileSize * 4.7) + 0.31).rgb;
+  // Mostly brightness: the layers' own hues would turn a green meadow purple and yellow, the palette is the scene's.
+  vec3 c = a * b / (mean * mean);
+  float l = dot(c, vec3(0.299, 0.587, 0.114));
+  return clamp(mix(vec3(l), c, 0.3), 0.45, 1.9);
+}
+vec3 layerNormal(sampler2D t) {
+  vec3 a = texture2D(t, vGround / tileSize).xyz * 2.0 - 1.0;
+  vec3 b = texture2D(t, vGround / (tileSize * 4.7) + 0.31).xyz * 2.0 - 1.0;
+  return vec3(a.xy + b.xy, a.z * b.z);
+}`,
+      )
+      .replace(
+        "#include <color_fragment>",
+        `#include <color_fragment>
+{
+  vec4 w = vSplat / max(dot(vSplat, vec4(1.0)), 0.001);
+  vec3 detail = w.x * layerColor(tColor0, mean0) + w.y * layerColor(tColor1, mean1) + w.z * layerColor(tColor2, mean2) + w.w * layerColor(tColor3, mean3);
+  diffuseColor.rgb *= detail;
+}`,
+      )
+      .replace(
+        "vec3 mapN = texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0;",
+        `vec4 nw = vSplat / max(dot(vSplat, vec4(1.0)), 0.001);
+	vec3 mapN = normalize(nw.x * layerNormal(tNormal0) + nw.y * layerNormal(tNormal1) + nw.z * layerNormal(tNormal2) + nw.w * layerNormal(tNormal3));`,
+      );
+  };
+  material.customProgramCacheKey = () => "terrain-splat";
+  void size;
+  return material;
 }
 
 export function buildTerrainMesh(params: TerrainParams, look: TerrainLook, heights = generateHeights(params)): THREE.Mesh {
   const geometry = new THREE.PlaneGeometry(params.size, params.size, params.resolution - 1, params.resolution - 1);
   geometry.rotateX(-Math.PI / 2);
   shapeTerrain(geometry, heights, look, params.seed);
-  const texture = detail().clone();
-  texture.repeat.set(params.size / 6, params.size / 6);
-  texture.needsUpdate = true;
-  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, map: texture });
+  const material = terrainMaterial(params.size);
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = "terrain";
   mesh.receiveShadow = true;
@@ -94,15 +190,48 @@ export function buildTerrainMesh(params: TerrainParams, look: TerrainLook, heigh
 // Frees what buildTerrainMesh allocated: its geometry, material and texture clone.
 export function disposeTerrainMesh(mesh: THREE.Mesh) {
   mesh.geometry.dispose();
-  const material = mesh.material as THREE.MeshStandardMaterial;
-  material.map?.dispose();
-  material.dispose();
+  (mesh.material as THREE.MeshStandardMaterial).dispose();
 }
 
 export interface ScatterModel {
   scene: THREE.Object3D;
   // The model's distant version (a "LOD1" node in its GLB), if it has one.
   far?: THREE.Object3D;
+  // Plants sway in the wind (the top of the model moves, the root stays).
+  sway?: boolean;
+}
+
+// Wind: one clock for every swaying plant, advanced each frame by the editor (seconds).
+export const wind = { time: { value: 0 }, strength: { value: 1 } };
+function swayingMaterial(material: THREE.Material, height: number, bottom: number): THREE.Material {
+  const cloned = material.clone();
+  cloned.onBeforeCompile = (shader) => {
+    shader.uniforms.uWindTime = wind.time;
+    shader.uniforms.uWindStrength = wind.strength;
+    shader.uniforms.uPlantHeight = { value: Math.max(0.1, height) };
+    shader.uniforms.uPlantBottom = { value: bottom };
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nuniform float uWindTime, uWindStrength, uPlantHeight, uPlantBottom;")
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+{
+  // How far up the plant this vertex is (0 at the root): the tip moves most. Each instance has its own phase.
+  float up = clamp((position.y - uPlantBottom) / uPlantHeight, 0.0, 1.0);
+  #ifdef USE_INSTANCING
+    float phase = instanceMatrix[3].x * 0.31 + instanceMatrix[3].z * 0.23;
+  #else
+    float phase = 0.0;
+  #endif
+  float gust = sin(uWindTime * 1.3 + phase) * 0.6 + sin(uWindTime * 2.9 + phase * 1.7 + position.y) * 0.4;
+  float bend = up * up * uPlantHeight * 0.035 * uWindStrength;
+  transformed.x += gust * bend;
+  transformed.z += gust * bend * 0.5;
+}`,
+      );
+  };
+  cloned.customProgramCacheKey = () => "plant-sway";
+  return cloned;
 }
 
 // Within this many metres of the camera (to a chunk's nearest edge), a chunk
@@ -196,7 +325,8 @@ export function buildScatter(instances: ScatterInstance[], models: Map<number, S
       }
       const place = (child: THREE.Object3D, lod: number) => {
         if (!(child instanceof THREE.Mesh)) return;
-        const instanced = new THREE.InstancedMesh(child.geometry, child.material, list.length);
+        const sways = models.get(id)!.sway && !Array.isArray(child.material);
+        const instanced = new THREE.InstancedMesh(child.geometry, sways ? swayingMaterial(child.material as THREE.Material, bounds.max.y - bottom, bottom) : child.material, list.length);
         instanced.userData.instances = list;
         instanced.userData.chunkSize = size;
         if (far) {

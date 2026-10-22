@@ -1,3 +1,4 @@
+import { SwayTracker } from "./clothSway";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
@@ -30,6 +31,7 @@ import { applyMouseLook, ViewEffects, type Look } from "./fpsView";
 import { LedgerHud } from "./ledger";
 import { LightPool } from "./lightPool";
 import { attachDepth, InkPass, installToonShading } from "./manhwa";
+import { DepthFxPass } from "./depthFx";
 import { DistrictMap } from "./minimap";
 import { burst } from "./particles";
 import { ProblemsPanel } from "./problemsPanel";
@@ -563,6 +565,10 @@ async function startEditor() {
   composer?.insertPass(viewmodelPass, 1);
   // Right after the scene (and the viewmodel): it needs the depth the scene left.
   composer?.insertPass(inkPass, 2);
+  // Light shafts and contact shadows read the same depth, and go ahead of the ink pass.
+  const depthFxPass = new DepthFxPass(camera, sun);
+  C.depthFxPass = depthFxPass;
+  composer?.insertPass(depthFxPass, 2);
   // Post-processing (postFx.ts): grading and anti-aliasing after
   // tone mapping, ambient occlusion on the world before the viewmodel.
   const gradingPass = new ShaderPass(gradingShader);
@@ -863,6 +869,8 @@ async function startEditor() {
   // objects[].
   const outfits = new Map<number, THREE.Object3D[]>();
   C.outfits = outfits;
+  C.clothSway = new SwayTracker();
+  C.cloths = new Set();
   // The settings panel while it's open: during Play the game waits and the
   // keys stay with the panel (Esc closes it).
   /* declared in the context */

@@ -1,3 +1,6 @@
+import type { SwayTracker } from "../clothSway";
+import type { ClothSkirt } from "../cloth";
+import type { DepthFxPass } from "../depthFx";
 import type { ObjectiveDef } from "../actionScript";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -338,6 +341,7 @@ export interface Ctx {
   gradingPass: ShaderPass;
   grid: THREE.GridHelper;
   gtaoPass: GTAOPass | undefined;
+  depthFxPass: DepthFxPass;
   gunPoses: Map<number, { pose: GunPose; gun: string; raised: number; kick: number; oneHanded?: boolean; rest: THREE.Object3D; object: THREE.Object3D; hands: string; holders: THREE.Object3D[]; blades?: THREE.Object3D[]; }>;
   handleHost: (kind: string, text: string) => void;
   harvest: (key: string) => void;
@@ -439,6 +443,7 @@ export interface Ctx {
   renderer: THREE.WebGLRenderer | CanvasRenderer;
   renderPass: RenderPass;
   resizeAntialias: () => void;
+  applyDepthFx: () => void;
   resolveActionClip: (state: AnimState, requested: string) => string | undefined;
   retiredNoted: Set<number>;
   rig: { position: THREE.Vector3; yaw: number; pitch: number; placed: boolean; frameDt: number; fovExtra: number; lastTarget: THREE.Object3D | undefined; lastTargetPosition: THREE.Vector3; movementDirection: THREE.Vector3; movementSpeed: number; };
@@ -537,6 +542,12 @@ export interface Ctx {
   talkerResting: Set<number>;
   talkerScan: number;
   talkerWasResting: Set<number>;
+  // The terrain's height at a world x, z (undefined off every terrain): foot IK stands characters on it.
+  groundAt: (x: number, z: number) => number | undefined;
+  // Hanging cloth and hair follow the characters' movement (clothSway.ts).
+  clothSway: SwayTracker;
+  // Simulated skirts, stepped each frame while their character is near (cloth.ts).
+  cloths: Set<ClothSkirt>;
   terrainMeshes: Map<number, { mesh: THREE.Mesh; params: TerrainParams; look: TerrainLook; offsets: Int16Array; }>;
   terrainParams: (t: TerrainComponent) => TerrainParams;
   textureCache: Map<string, THREE.Texture>;

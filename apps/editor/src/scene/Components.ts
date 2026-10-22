@@ -577,7 +577,7 @@ export interface MaterialComponent {
   emissiveIntensity: number;
   opacity: number;
   keepTextures: boolean;
-  // Color texture: a URL, or "asset:<file>" for an imported image.
+  // Color texture: a URL, "asset:<file>" for an imported image, or "builtin:water" for a rippling water surface.
   texture: string;
   // Which parts of a catalog model it applies to: meshes whose
   // own material's name contains one of these comma-separated words
@@ -761,6 +761,8 @@ export interface PostProcessingComponent {
   temperature: number; // -1 (cool) .. 1 (warm)
   vignette: number; // 0..1
   grain: number; // 0..1
+  lightShafts: number; // 0..1, rays through gaps when the sun is in view (editor/atmosphere.ts)
+  contactShadows: number; // 0..1, short shadows from the depth buffer that ground props and feet
   shadowQuality: ShadowQuality;
 }
 

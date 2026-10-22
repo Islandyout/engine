@@ -13,6 +13,8 @@ import {
 } from "../playerSettings";
 import { createTouchControls } from "../touchControls";
 import { parseVisor } from "../visor";
+import { hangingPieces, makeSway, swayMaterial } from "../clothSway";
+import { ClothSkirt, findClothBones } from "../cloth";
 import type { Ctx } from "./context";
 
 export function installScriptHost(C: Ctx): void {
@@ -24,11 +26,53 @@ export function installScriptHost(C: Ctx): void {
       .map((m) => ({ id: Number(m[1]), tint: m[2] }));
   }
 
+  // A character on a base body (Quaternius Universal Base Characters) is dressed from clothes cut to its own shape, so
+  // a script that wears the old gear ids (214 body, 216 trousers, 217 boots, 218 sash/pauldron, 354 skirt, 356-357 hair)
+  // gets the matching pieces: the old pieces were modelled on another body and would sink into this one.
+  const ubcPieces = {
+    male: { 214: 369, 216: 370, 217: 371, 218: 372, 354: 373 },
+    female: { 214: 374, 216: 375, 217: 376, 218: 377, 354: 378 },
+  } as const;
+  function ubcOutfit(sex: "male" | "female", spec: { id: number; tint?: string }[]) {
+    const pieces: Record<number, number> = ubcPieces[sex];
+    const out: { id: number; tint?: string }[] = [];
+    let hair = false;
+    for (const part of spec) {
+      if (pieces[part.id]) out.push({ id: pieces[part.id]!, tint: part.tint });
+      else if (part.id === 356) (hair = true), out.push({ id: sex === "male" ? 363 : 362, tint: part.tint });
+      else if (part.id === 357) (hair = true), out.push({ id: 361, tint: part.tint });
+      else if (part.id === 358) out.push(part);
+      else if (part.id >= 361 && part.id <= 366) (hair = true), out.push(part);
+      // 215 bracers and 355 outer robe have no counterpart: the skin shows, the sleeves are the top's.
+    }
+    // The bodies are bald: nobody goes without hair unless they wear a cap or choose the shaven style.
+    if (!hair && !spec.some((part) => part.id === 358 || part.id === 364 || part.id === 365)) out.push({ id: sex === "male" ? 363 : 361 });
+    return out;
+  }
+
+  // One sway state per character (every hanging piece it wears shares it); the tracker feeds it the character's movement.
+  const swayStates = new WeakMap<THREE.Object3D, ReturnType<typeof makeSway>>();
+  function swayFor(anchor: THREE.Object3D) {
+    let sway = swayStates.get(anchor);
+    if (!sway) {
+      swayStates.set(anchor, (sway = makeSway()));
+      C.clothSway.track(anchor, sway);
+    }
+    return sway;
+  }
+
   function setOutfit(index: number, spec: { id: number; tint?: string }[]) {
     for (const piece of C.outfits.get(index) ?? []) piece.removeFromParent();
     C.outfits.delete(index);
     const anchor = C.objects[index];
     if (!anchor) return;
+    let sex: "male" | "female" | undefined;
+    anchor.traverse((node) => {
+      const m = /^super ?hero_(male|female)/i.exec(node.name);
+      if (m && !sex) sex = m[1]!.toLowerCase() as "male" | "female";
+    });
+    const asked = spec;
+    if (sex) spec = ubcOutfit(sex, spec);
     let body: THREE.SkinnedMesh | undefined;
     anchor.traverse((node) => {
       if (!body && (node as THREE.SkinnedMesh).isSkinnedMesh) body = node as THREE.SkinnedMesh;
@@ -37,11 +81,27 @@ export function installScriptHost(C: Ctx): void {
     const bones = new Map(body.skeleton.bones.map((bone) => [bone.name, bone]));
     const pieces: THREE.Object3D[] = [];
     for (const { id, tint } of spec) {
+      // The long skirts of the base bodies are real cloth: simulated particles hung from the waist (cloth.ts), not a skinned shell.
+      if (sex && (id === 373 || id === 378)) {
+        const bones = findClothBones(anchor);
+        if (bones) {
+          const feet = (bones.footL.getWorldPosition(new THREE.Vector3()).y + bones.footR.getWorldPosition(new THREE.Vector3()).y) / 2;
+          const waist = bones.pelvis.getWorldPosition(new THREE.Vector3()).y;
+          const material = new THREE.MeshStandardMaterial({ color: tint ?? "#dddddd", roughness: 0.85, side: THREE.DoubleSide });
+          const skirt = new ClothSkirt(bones, anchor, material, { length: THREE.MathUtils.clamp(waist - feet - 0.06, 0.5, 1.1), waist: sex === "male" ? [0.2, 0.15] : [0.19, 0.14] });
+          skirt.mesh.userData.cloth = skirt;
+          markCharacter(skirt.mesh);
+          body.parent.add(skirt.mesh);
+          pieces.push(skirt.mesh);
+          C.cloths.add(skirt);
+          continue;
+        }
+      }
       const cached = C.catalogCache.get(id);
       if (!cached) {
         // Worn once it has loaded (unless something else was put on since).
         C.loadCatalogModel(id)?.then(() => {
-          if (C.outfits.get(index) === pieces) setOutfit(index, spec);
+          if (C.outfits.get(index) === pieces) setOutfit(index, asked);
         });
         continue;
       }
@@ -65,6 +125,13 @@ export function installScriptHost(C: Ctx): void {
           mesh.material = material;
         }
         markCharacter(mesh);
+        // Skirts, robes and long hair swing with the character.
+        const hang = hangingPieces[id];
+        if (hang) {
+          const material = (mesh.material as THREE.Material).clone();
+          swayMaterial(material, swayFor(anchor), hang[0], hang[1]);
+          mesh.material = material;
+        }
         body.parent.add(mesh);
         pieces.push(mesh);
       }

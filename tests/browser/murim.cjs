@@ -42,10 +42,11 @@ const { saveFailure } = require("./evidence.cjs");
     }
     const text = () => page.evaluate(() => document.body.innerText);
     // The opening shots end in the mirror: robe, hair, cut and language are chosen live, and E ends it.
-    await page.waitForFunction(() => /Mirror/.test(document.body.innerText), null, { timeout: 60000 });
+    // The mirror opens when the shots end, or 25 simulated seconds in at the latest: on a slow runner that is minutes of wall time.
+    await page.waitForFunction(() => /Mirror/.test(document.body.innerText), null, { timeout: 300000 });
     const tap = async (key) => { await page.keyboard.down(key); await until(8); await page.keyboard.up(key); await until(8); };
     await tap("3");
-    assert.match(await text(), /Cut: Long robe/, "key 3 changes the cut");
+    assert.match(await text(), /Cut: Tunic/, "key 3 changes the cut (the long robe is the starting cut)");
     await tap("4");
     assert.match(await text(), /凡人/, "the language key switches the HUD to Chinese");
     await tap("4");

@@ -67,6 +67,8 @@
      "temperature": 0.04,
      "vignette": 0.1,
      "grain": 0,
+     "lightShafts": 0,
+     "contactShadows": 0,
      "shadowQuality": "High"
     }
    }

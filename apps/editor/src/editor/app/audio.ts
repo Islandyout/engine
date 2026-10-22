@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { SampleBank } from "../sampleBank";
 import { soundCatalog } from "../../scene/soundCatalog";
 import { AudioMixer, FootstepTracker, type Bus } from "../audioMixer";
 import { EntityField } from "../bridgeFields";
@@ -16,7 +17,13 @@ export function installAudio(C: Ctx): void {
   }
 
   function sounds(): Sfx {
-    C.sfx ??= new Sfx(getAudioContext(), audioMixer().buses.sfx);
+    if (!C.sfx) {
+      C.sfx = new Sfx(getAudioContext(), audioMixer().buses.sfx);
+      // The recorded layer loads in the background; until it has, the synthesized voices play alone.
+      const bank = new SampleBank(getAudioContext());
+      C.sfx.samples = bank;
+      void bank.load();
+    }
     return C.sfx;
   }
 

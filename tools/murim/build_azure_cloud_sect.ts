@@ -21,6 +21,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 const lua = (file: string) => readFileSync(join(here, "lua", file), "utf8");
 const scene = new SceneBuilder();
 // A robed body: the long skirt piece in the gear's own colours, and hair (people.ts gear ids 354-358).
+// The textured base characters (Quaternius Universal Base Characters): catalog ids 359 male, 360 female.
+const BODY_M = 359, BODY_F = 360;
+// People stand in the Universal Animation Library 2 idles instead of the stiff default.
+const idle = (clip: string) => ({ AnimationState: { clip: `ual_${clip}`, time: 0, looping: true } });
 const robed = (gear: string, hair = "356:#1c1618") => {
   const col = (id: number) => new RegExp(`${id}:(#[0-9a-fA-F]{6})`).exec(gear)?.[1] ?? "#d8d0bc";
   return `${gear} 354:${/218:#/.test(gear) ? col(218) : col(216)} ${hair}`;
@@ -122,8 +126,12 @@ scene.add("Environment", [0, -40, 0], {
     exposure: 1,
   },
   PostProcessing: {
+    antialias: "SMAA",
+    lightShafts: 0.5,
+    contactShadows: 0.7,
+    // Ambient occlusion re-draws the whole scene for its normals, which doubles the draw calls: off for this scene's budget.
     ambientOcclusion: false,
-    shadowQuality: "Medium",
+    shadowQuality: "High",
     bloom: 0.2,
     bloomThreshold: 0.85,
     contrast: 0.08,
@@ -269,11 +277,11 @@ function wall(name: string, x0: number, z0: number, x1: number, z1: number, gap?
 
 // Instructor Hua teaches scroll arts for silver (see player.lua); the alchemy furnace beside the training ground brews
 // spirit herbs into elixirs and pills.
-scene.add("Instructor Hua", [SECT.x + 8, ground(SECT.x + 8, SECT.z + 7) + 0.9, SECT.z + 7], {
-  Scale: { value: vec(0.6, 1.8, 0.6) },
+scene.add("Instructor Hua", [SECT.x + 8, ground(SECT.x + 8, SECT.z + 7) + 1, SECT.z + 7], {
+  Scale: { value: vec(0.63, 1.89, 0.63) }, // a tall teacher
   Rotation: { euler: vec(0, -2.2, 0) },
-  Renderable: { mesh: 132, material: 0, visible: true },
-  Material: { color: rgb("#e6d2bc"), roughness: 0.8, keepTextures: false },
+  Renderable: { mesh: BODY_M, material: 0, visible: true },
+  ...idle("idle_fold_arms_loop"),
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
   Script: { source: lua("elder.lua").replace("local spoken = false", "local spoken = true"), props: { gear: robed("214:#2f4f6a 216:#2a3a4a 218:#c9a24a 215:#d8d0bc 217:#2a2a30") } },
@@ -281,10 +289,10 @@ scene.add("Instructor Hua", [SECT.x + 8, ground(SECT.x + 8, SECT.z + 7) + 0.9, S
 
 // ---------------------------------------------------------- the elder NPC --
 scene.add("Elder Mu", [SECT.x + 3.5, ground(SECT.x + 3.5, SECT.z - 1) + 0.9, SECT.z - 1], {
-  Scale: { value: vec(0.6, 1.8, 0.6) },
+  Scale: { value: vec(0.58, 1.74, 0.58) }, // an old man, a little stooped and shorter
   Rotation: { euler: vec(0, Math.PI, 0) },
-  Renderable: { mesh: 132, material: 0, visible: true },
-  Material: { color: rgb("#ecdcc8"), roughness: 0.8, keepTextures: false },
+  Renderable: { mesh: BODY_M, material: 0, visible: true },
+  ...idle("idle_fold_arms_loop"),
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
   Script: { source: lua("elder.lua"), props: { gear: robed("214:#f4f0e4 216:#e6e0cc 218:#d8b46a 215:#e6e0cc 217:#8a7a5a", "357:#d8d8d8") } },
@@ -314,14 +322,15 @@ scene.add("Elder Mu", [SECT.x + 3.5, ground(SECT.x + 3.5, SECT.z - 1) + 0.9, SEC
   });
 }
 
-type FighterOpts = { mesh?: number; hex: string; health: number; scale?: number; melee: Components; props: Record<string, unknown>; yaw?: number };
+type FighterOpts = { mesh?: number; tint?: boolean; hex: string; health: number; scale?: number; melee: Components; props: Record<string, unknown>; yaw?: number };
 const fighterParts = (opts: FighterOpts): Components => {
   const s = opts.scale ?? 1;
   return {
     Scale: { value: vec(0.6 * s, 1.8 * s, 0.6 * s) },
     Rotation: { euler: vec(0, opts.yaw ?? 0, 0) },
-    Renderable: { mesh: opts.mesh ?? 176, material: 0, visible: true },
-    Material: { color: rgb(opts.hex), roughness: 0.75, keepTextures: false },
+    Renderable: { mesh: opts.mesh ?? BODY_M, material: 0, visible: true },
+    // Spirits and shades are one flat colour; people keep the base body's skin and face.
+    ...(opts.tint ? { Material: { color: rgb(opts.hex), roughness: 0.75, keepTextures: false } } : {}),
     RigidBody: { mass: 70 * s, dynamic: true },
     Collider: {},
     Health: { current: opts.health, maximum: opts.health },
@@ -331,7 +340,7 @@ const fighterParts = (opts: FighterOpts): Components => {
 };
 const fighter = (name: string, x: number, z: number, opts: FighterOpts) => scene.add(name, [x, ground(x, z) + 0.9 * (opts.scale ?? 1), z], fighterParts(opts));
 // Shades: what a boss calls when it grows angry (world.spawn("Cave Shade", x, y, z)).
-const shadeParts = fighterParts({ hex: "#4a4a66", health: 60, melee: { aggression: 0.6, skill: 0.3 }, props: { qi: 20, gear: "214:#33334d 216:#26263a 215:#1a1a26 217:#1a1a26" } });
+const shadeParts = fighterParts({ tint: true, hex: "#4a4a66", health: 60, melee: { aggression: 0.6, skill: 0.3 }, props: { qi: 20, gear: "214:#33334d 216:#26263a 215:#1a1a26 217:#1a1a26" } });
 delete shadeParts.Rotation; // a prefab has no facing of its own
 scene.prefab("Cave Shade", shadeParts);
 // Four kinds of bandit, each reading differently so a fight has something to learn: a brawler (fists, quick light
@@ -348,10 +357,10 @@ const ADEPT_MOVES = ["qi_bolt: clip=energy_throw input=light dur=1.1 hit=0.45-0.
 const SKIN = ["#e6d2bc", "#d9c4aa", "#e2cdb4", "#d4bfa6", "#dccab4"];
 const BANDITS: { name: string; at: number[]; health: number; qi: number; drop: number; silver: number; gear: string; melee: Components }[] = [
   { name: "Bandit Brawler", at: [-9, -9], health: 80, qi: 30, drop: 0, silver: 12, gear: "214:#6b4a3a 216:#3a3228 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.35, skill: 0.2 } },
-  { name: "Bandit Swordsman", at: [-3, -11], health: 95, qi: 35, drop: 1, silver: 15, gear: "214:#5a5a42 216:#3a3a2a 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.45, skill: 0.3, style: "Sword", rightHand: 205 } },
+  { name: "Bandit Swordsman", at: [-3, -11], health: 95, qi: 35, drop: 1, silver: 15, gear: robed("214:#5a5a42 216:#3a3a2a 215:#2a2a2a 217:#2a2a2a"), melee: { aggression: 0.45, skill: 0.3, style: "Sword", rightHand: 205 } },
   { name: "Bandit Spearman", at: [6, -2], health: 105, qi: 40, drop: 0, silver: 18, gear: "214:#7a3d3d 216:#3a2a2a 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.5, skill: 0.35, style: "Custom", moves: SPEAR_MOVES, rightHand: 208 } },
-  { name: "Bandit Qi Adept 1", at: [-4, 8], health: 60, qi: 45, drop: 1, silver: 20, gear: "214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.4, skill: 0.4, style: "Custom", moves: ADEPT_MOVES, range: 9 } },
-  { name: "Bandit Qi Adept 2", at: [8, 7], health: 60, qi: 45, drop: 1, silver: 20, gear: "214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a", melee: { aggression: 0.4, skill: 0.4, style: "Custom", moves: ADEPT_MOVES, range: 9 } },
+  { name: "Bandit Qi Adept 1", at: [-4, 8], health: 60, qi: 45, drop: 1, silver: 20, gear: robed("214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a"), melee: { aggression: 0.4, skill: 0.4, style: "Custom", moves: ADEPT_MOVES, range: 9 } },
+  { name: "Bandit Qi Adept 2", at: [8, 7], health: 60, qi: 45, drop: 1, silver: 20, gear: robed("214:#4a4a7a 216:#2a2a44 218:#6a6aa0 215:#2a2a2a 217:#2a2a2a"), melee: { aggression: 0.4, skill: 0.4, style: "Custom", moves: ADEPT_MOVES, range: 9 } },
 ];
 BANDITS.forEach((b, i) => fighter(b.name, CAMP.x + b.at[0]!, CAMP.z + b.at[1]!, { hex: SKIN[i]!, health: b.health, melee: b.melee, props: { qi: b.qi, drop: b.drop, silver: b.silver, gear: b.gear, telegraph: /Spearman/.test(b.name) ? "sweep" : "none" }, yaw: 0 }));
 
@@ -373,7 +382,7 @@ BANDITS.forEach((b, i) => fighter(b.name, CAMP.x + b.at[0]!, CAMP.z + b.at[1]!, 
     scale: 1.25,
     yaw: 0,
     melee: { aggression: 0.75, skill: 0.8, poise: 120, breakTime: 3, guard: 140 },
-    props: { qi: 200, pill: 1, phases: 1, telegraph: "meteor_smash,power_hook", gear: "214:#3b3b46 218:#8f1d1d 216:#26262c 215:#26262c 217:#1a1a1a" },
+    props: { qi: 200, pill: 1, phases: 1, telegraph: "meteor_smash,power_hook", gear: robed("214:#3b3b46 218:#8f1d1d 216:#26262c 215:#26262c 217:#1a1a1a") },
   });
 }
 
@@ -426,10 +435,10 @@ const VEINS: [number, number][] = [[-30, 52], [36, 24], [-44, -32], [8, -60]];
   for (const [dx, dz] of [[-11, 6], [12, 4], [-9, 11]] as const) place("Village bamboo", "bamboo-clump", x + dx, z + dz, dx, false);
   const villager = (name: string, vx: number, vz: number, yaw: number, gear: string, hex: string) =>
     scene.add(name, [vx, ground(vx, vz) + 0.9, vz], {
-      Scale: { value: vec(0.6, 1.8, 0.6) },
+      Scale: { value: name === "Wen" ? vec(0.57, 1.7, 0.57) : vec(0.6, 1.8, 0.6) },
       Rotation: { euler: vec(0, yaw, 0) },
-      Renderable: { mesh: 132, material: 0, visible: true },
-      Material: { color: rgb(hex), roughness: 0.8, keepTextures: false },
+      Renderable: { mesh: BODY_M, material: 0, visible: true },
+      ...idle(name === "Wen" ? "idle_no_loop" : "idle_rail_loop"),
       RigidBody: { mass: 70, dynamic: true },
       Collider: {},
       Script: { source: lua("elder.lua").replace("local spoken = false", "local spoken = true"), props: { gear } },
@@ -487,8 +496,9 @@ const HALL_DOOR_Z = SECT_FRONT + hallBounds.max[2]! + 0.6;
     scene.add(name, [x, ground(x, z) + 0.9, z], {
       Scale: { value: vec(0.6, 1.8, 0.6) },
       Rotation: { euler: vec(0, yaw, 0) },
-      Renderable: { mesh, material: 0, visible: true },
-      Material: { color: rgb(hex), roughness: 0.8, keepTextures: false },
+      Renderable: { mesh: mesh === 132 ? BODY_M : mesh, material: 0, visible: true },
+      ...(mesh === 132 ? idle("idle_lantern_loop") : {}),
+      ...(mesh === 132 ? {} : { Material: { color: rgb(hex), roughness: 0.8, keepTextures: false } }),
       RigidBody: { mass: 70, dynamic: true },
       Collider: {},
       Script: { source: lua(script).replace("local spoken = false", "local spoken = true"), props: { gear } },
@@ -505,10 +515,9 @@ const HALL_DOOR_Z = SECT_FRONT + hallBounds.max[2]! + 0.6;
 }
 // Disciple Lan fights beside you when asked: an ally fighter on your side.
 scene.add("Disciple Lan", [SECT.x - 6, ground(SECT.x - 6, SECT.z + 3) + 0.9, SECT.z + 3], {
-  Scale: { value: vec(0.6, 1.8, 0.6) },
+  Scale: { value: vec(0.56, 1.68, 0.56) }, // Lan is a young woman: shorter than the men
   Rotation: { euler: vec(0, 0.6, 0) },
-  Renderable: { mesh: 176, material: 0, visible: true },
-  Material: { color: rgb("#e6d2bc"), roughness: 0.75, keepTextures: false },
+  Renderable: { mesh: BODY_F, material: 0, visible: true },
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
   Health: { current: 160, maximum: 160 },
@@ -516,7 +525,7 @@ scene.add("Disciple Lan", [SECT.x - 6, ground(SECT.x - 6, SECT.z + 3) + 0.9, SEC
   Script: { source: lua("companion.lua"), props: { kind: "lan", gear: robed("214:#3a6a8a 216:#e8e4d0 218:#d8c070 215:#3a3a3a 217:#2a2a2a", "357:#1c1618") } },
 });
 // The Spirit Guardian the Spirit Guardian art calls: a pale ally fighter that follows you for twenty-five seconds.
-const guardianParts = fighterParts({ hex: "#9fe8ff", health: 140, melee: { team: 0, aggression: 0.7, skill: 0.6 }, props: { gear: "214:#7fd0e8 216:#7fd0e8 215:#7fd0e8 217:#7fd0e8" } });
+const guardianParts = fighterParts({ tint: true, hex: "#9fe8ff", health: 140, melee: { team: 0, aggression: 0.7, skill: 0.6 }, props: { gear: "214:#7fd0e8 216:#7fd0e8 215:#7fd0e8 217:#7fd0e8" } });
 delete guardianParts.Rotation;
 guardianParts.Script = { source: lua("companion.lua"), props: { kind: "guardian", gear: "214:#7fd0e8 216:#7fd0e8 215:#7fd0e8 217:#7fd0e8" } };
 guardianParts.Material = { color: rgb("#9fe8ff"), roughness: 0.4, keepTextures: false, opacity: 0.7, ...emissive("#5fd0f0", 1.2) };
@@ -525,7 +534,7 @@ scene.prefab("Spirit Guardian", guardianParts);
 // Water Dragon Lake: a sheet of water over the basin, a pier, the shore where you cast, and a few fish rising.
 {
   const waterY = lakeLevel + 0.05;
-  const water = scene.box("Lake water", [LAKE.x, waterY, LAKE.z], [LAKE.rx * 2 + 4, 0.1, LAKE.rz * 2 + 4], "#3f86b8", {}, { roughness: 0.1, metalness: 0.2, opacity: 0.72, ...emissive("#2a5f88", 0.6) });
+  const water = scene.box("Lake water", [LAKE.x, waterY, LAKE.z], [LAKE.rx * 2 + 4, 0.1, LAKE.rz * 2 + 4], "#3f86b8", {}, { roughness: 0.05, metalness: 0.1, opacity: 0.78, texture: "builtin:water", ...emissive("#2a5f88", 0.35) });
   delete (scene.entities[water]!.components as Components).Collider;
   place("Lake pier", "lake-pier", LAKE.x + LAKE.rx - 2.2, LAKE.z, -Math.PI / 2, false, 1);
   scene.add("Lake shore", [LAKE.x + LAKE.rx - 1.6, ground(LAKE.x + LAKE.rx - 1.6, LAKE.z) + 0.3, LAKE.z], {});
@@ -587,12 +596,11 @@ for (const [i, [wx, wz]] of [[52, 18], [58, 26], [-52, -44], [-60, -50]].entries
 
 // Disciples spar on the training ground and farmers walk their fields through the day.
 {
-  const sparrer = (name: string, x: number, z: number, team: number, yaw: number, gear: string) =>
+  const sparrer = (name: string, x: number, z: number, team: number, yaw: number, gear: string, body = BODY_M) =>
     scene.add(name, [x, ground(x, z) + 0.9, z], {
       Scale: { value: vec(0.6, 1.8, 0.6) },
       Rotation: { euler: vec(0, yaw, 0) },
-      Renderable: { mesh: 176, material: 0, visible: true },
-      Material: { color: rgb("#e6d2bc"), roughness: 0.75, keepTextures: false },
+      Renderable: { mesh: body, material: 0, visible: true },
       RigidBody: { mass: 70, dynamic: true },
       Collider: {},
       Health: { current: 9999, maximum: 9999 },
@@ -600,7 +608,7 @@ for (const [i, [wx, wz]] of [[52, 18], [58, 26], [-52, -44], [-60, -50]].entries
       Script: { source: lua("sparring.lua"), props: { gear } },
     });
   sparrer("Sparring Disciple A", SECT.x - 4, SECT.z + 12, 5, Math.PI / 2, robed("214:#3a6a8a 216:#e8e4d0 218:#d8c070 215:#3a3a3a 217:#2a2a2a"));
-  sparrer("Sparring Disciple B", SECT.x - 1.4, SECT.z + 12, 6, -Math.PI / 2, robed("214:#8a4a3a 216:#e8e4d0 218:#d8c070 215:#3a3a3a 217:#2a2a2a"));
+  sparrer("Sparring Disciple B", SECT.x - 1.4, SECT.z + 12, 6, -Math.PI / 2, robed("214:#8a4a3a 216:#e8e4d0 218:#d8c070 215:#3a3a3a 217:#2a2a2a"), BODY_F);
   const farmer = (name: string, mesh: number, x: number, z: number, stops: string) =>
     scene.add(name, [x, ground(x, z) + 0.9, z], {
       Scale: { value: vec(0.6, 1.8, 0.6) },
@@ -674,7 +682,7 @@ if (!process.env.MURIM_SKIP?.includes("cave")) {
   lamp("Cave light 2", CX, BASE_Y + 4, CZ0 + 38, "#9a8aff", 3.5, 20);
   lamp("Cave light 3", CX, BASE_Y + 4, CZ0 + 68, "#ff8a7a", 4, 22);
   const shade = (name: string, x: number, z: number) =>
-    fighterAt(name, CX + x, BASE_Y + 0.95, CZ0 + z, { hex: "#4a4a66", health: 70, melee: { aggression: 0.55, skill: 0.3 }, props: { qi: 25, silver: 8, gear: "214:#33334d 216:#26263a 215:#1a1a26 217:#1a1a26" } });
+    fighterAt(name, CX + x, BASE_Y + 0.95, CZ0 + z, { tint: true, hex: "#4a4a66", health: 70, melee: { aggression: 0.55, skill: 0.3 }, props: { qi: 25, silver: 8, gear: "214:#33334d 216:#26263a 215:#1a1a26 217:#1a1a26" } });
   shade("Cave Shade 1", -4, 12); shade("Cave Shade 2", 5, 16);
   shade("Cave Shade 3", -5, 38); shade("Cave Shade 4", 4, 40); shade("Cave Shade 5", 0, 46);
   scene.add("Cave chest", [CX + 11, BASE_Y + 0.4, CZ0 + 42], {
@@ -685,6 +693,7 @@ if (!process.env.MURIM_SKIP?.includes("cave")) {
     Container: { table: "1 item Spirit Stone\n0.7 item Spirit Stone\n0.5 item Fire Talisman\n0.4 item Ward Talisman\n0.3 item Array Flag\n0.3 item Jade Circlet", hold: 0.8 },
   });
   fighterAt("Cave Guardian", CX, BASE_Y + 1.2, CZ0 + 72, {
+    tint: true,
     hex: "#8f8f9a", health: 640, scale: 1.35,
     melee: { aggression: 0.8, skill: 0.8, poise: 140, breakTime: 3, guard: 150 },
     props: { qi: 260, phases: 1, dungeon: 1, loot: "Dragon Crown|Cloud Silk Robe", telegraph: "meteor_smash,power_hook", summon: "Cave Shade", gear: "214:#2a2a40 216:#1e1e30 218:#7fe6ff 215:#1a1a26 217:#1a1a26" },
@@ -724,7 +733,12 @@ const stanceMoves = (text: string, prefix: string) => {
   return { text: lines.join("\n"), names };
 };
 const moveNames = (text: string) => text.split("\n").filter((l) => l.trim() && !l.startsWith("#") && !/input=dodge/.test(l)).map((l) => l.slice(0, l.indexOf(":")));
-const BLADE = stanceMoves(swordMoves, "sw_");
+// The blade's light chain uses the Universal Animation Library 2 sword swings (ual_ clips); the rest of the sword set is the engine's.
+const wuxiaSword = swordMoves
+  .replace("clip=sword_light_a input=light dur=0.6 hit=0.12-0.2 cancel=0.26", "clip=ual_sword_regular_a input=light dur=0.5 hit=0.14-0.24 cancel=0.3")
+  .replace("clip=sword_light_b input=light after=slash_a dur=0.65 hit=0.11-0.19 cancel=0.28", "clip=ual_sword_regular_b input=light after=slash_a dur=0.6 hit=0.15-0.27 cancel=0.34")
+  .replace("clip=sword_light_c input=light after=slash_b dur=1.0 hit=0.26-0.36 cancel=0.55", "clip=ual_sword_regular_c input=light after=slash_b dur=1.4 hit=0.4-0.6 cancel=0.9");
+const BLADE = stanceMoves(wuxiaSword, "sw_");
 const SPEAR = stanceMoves(
   [
     "thrust: clip=sword_light_a input=light dur=0.7 hit=0.2-0.28 cancel=0.38 dmg=10 reach=2.3 radius=0.5 lunge=1.2 stun=0.4 limb=hand_r",
@@ -775,13 +789,14 @@ const MOVES = [
   "flame_palm: clip=energy_throw input=special seq=bbff dur=0.9 hit=0.3-0.34 cancel=0.6 dmg=26 projectile=14 shape=3 knock=5 stun=0.6 mana=24 cooldown=1.6 locked limb=hand_r",
   "nine_dragons: clip=ground_pound input=ultimate dur=1.2 hit=0.3-0.45 cancel=0.95 dmg=70 aoe=5.5 knock=12 launch=6 stun=1.2 stop=0.18 cost=70 armor knockdown unblockable finisher locked limb=hand_r",
 ].join("\n") + "\n";
+const PLAYER_BODY = Number(process.env.MURIM_BODY ?? BODY_M);
 const [startX, startZ, startY] = (process.env.MURIM_START ?? "").split(",").map(Number);
 const spawn: V3 = process.env.MURIM_START ? [startX!, startY ?? ground(startX!, startZ!) + 1, startZ!] : [SECT.x, ground(SECT.x, SECT.z + 8) + 1, SECT.z + 8];
 scene.add("Player", spawn, {
   Scale: { value: vec(0.6, 1.8, 0.6) },
   Rotation: { euler: vec(0, Number(process.env.MURIM_YAW ?? Math.PI), 0) },
-  Renderable: { mesh: 132, material: 0, visible: true },
-  Material: { color: rgb("#e6cdb0"), roughness: 0.8, keepTextures: false },
+  Renderable: { mesh: PLAYER_BODY, material: 0, visible: true },
+  ...(PLAYER_BODY === 132 ? { Material: { color: rgb("#e6cdb0"), roughness: 0.8, keepTextures: false } } : {}),
   Player: {},
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
@@ -799,7 +814,7 @@ scene.add("Player", spawn, {
 });
 scene.add("Camera", [spawn[0], spawn[1] + 3, spawn[2] + 6], {
   Camera: { fov: 60, far: 700 },
-  CameraFollow: { target: "", offset: vec(0, 2.2, -4.8), smoothing: 0.12, lookHeight: 1.3, collision: true, orbit: true },
+  CameraFollow: { target: "", offset: process.env.MURIM_CAM ? vec(...(process.env.MURIM_CAM.split(",").map(Number) as [number, number, number])) : vec(0, 2.2, -4.8), smoothing: 0.12, lookHeight: Number(process.env.MURIM_LOOK ?? 1.3), collision: true, orbit: true },
 });
 scene.add("Input", [0, -40, 0], {
   InputActions: {
@@ -922,6 +937,18 @@ fxEmitter("Qi Burst", "burst", { preset: "Sparkle", color: rgb("#ffffff"), endCo
 fxEmitter("Qi Mark", "mark", { preset: "Sparkle", color: rgb("#ff5a4a"), endColor: rgb("#ffb347"), rate: 70, lifetime: 0.7, speed: 0.15, size: 0.2, endSize: 0.05, gravityScale: 0, shape: "Sphere", shapeSize: 3, space: "World" });
 fxEmitter("Qi Array", "array", { preset: "Sparkle", color: rgb("#9ff5e8"), endColor: rgb("#2a9ac4"), rate: 45, lifetime: 1.4, speed: 0.3, size: 0.16, endSize: 0.05, gravityScale: -0.1, shape: "Sphere", shapeSize: 4, space: "World" });
 fxEmitter("Qi Burn", "burn", { preset: "Fire", color: rgb("#9ff0ff"), endColor: rgb("#ff7a2a"), rate: 40, lifetime: 0.7, speed: 1.4, size: 0.22, endSize: 0.5, gravityScale: -0.3, shape: "Sphere", shapeSize: 0.5, space: "World" });
+
+// ------------------------------------------------------------ ambient life --
+// Things that drift: blossom petals over the courtyard, pollen in the meadow by the village, motes of dust in the hall and
+// fireflies by the lake. World-space emitters, so what they release stays where the wind leaves it.
+{
+  const drift = (name: string, at: V3, particles: Record<string, unknown>) =>
+    scene.add(name, at, { Particles: component("Particles", { space: "World", shape: "Box", ...particles }) });
+  drift("Blossom petals", [SECT.x, ground(SECT.x, SECT.z + 6) + 5, SECT.z + 6], { preset: "Confetti", color: rgb("#f6c9d6"), endColor: rgb("#e8a5bb"), rate: 5, lifetime: 9, speed: 0.35, size: 0.1, endSize: 0.07, gravityScale: 0.05, shapeSize: 14 });
+  drift("Meadow pollen", [VILLAGE.x, ground(VILLAGE.x, VILLAGE.z) + 1.6, VILLAGE.z], { preset: "Sparkle", color: rgb("#fff3c4"), endColor: rgb("#f6e08a"), rate: 7, lifetime: 7, speed: 0.25, size: 0.07, endSize: 0.03, gravityScale: -0.01, shapeSize: 18 });
+  drift("Lake fireflies", [LAKE.x, lakeLevel + 1.4, LAKE.z - LAKE.rz - 3], { preset: "Sparkle", color: rgb("#d8ff7a"), endColor: rgb("#7fd84a"), rate: 4, lifetime: 6, speed: 0.2, size: 0.09, endSize: 0.02, gravityScale: -0.01, shapeSize: 9 });
+  drift("Hall dust", [300, BASE_Y + 3.5, 0], { preset: "Sparkle", color: rgb("#ffe8bd"), endColor: rgb("#d9b98a"), rate: 4, lifetime: 8, speed: 0.1, size: 0.05, endSize: 0.03, gravityScale: -0.005, shapeSize: 7 });
+}
 
 const out = process.env.MURIM_OUT ?? join(ROOT, "games/my-games/azure-cloud-sect/scene.json");
 mkdirSync(dirname(out), { recursive: true });

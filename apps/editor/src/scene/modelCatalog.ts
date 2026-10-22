@@ -380,6 +380,30 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 356, category: "gear", name: "Hair: topknot", path: "./kit/people/hair-knot.glb" },
   { id: 357, category: "gear", name: "Hair: long", path: "./kit/people/hair-long.glb" },
   { id: 358, category: "gear", name: "Hat: scholar", path: "./kit/people/hat-scholar.glb" },
+  // Quaternius Universal Base Characters (CC0, tools/models/import_ubc.mjs): textured bodies with faces on the same 65-bone rig,
+  // and hairstyles rigged to the head bone (worn with world.wear).
+  { id: 359, category: "people", name: "Base character M", path: "./kit/people/ubc-male.glb", animated: true },
+  { id: 360, category: "people", name: "Base character F", path: "./kit/people/ubc-female.glb", animated: true },
+  { id: 361, category: "gear", name: "Hair: long", path: "./kit/people/ubc-hair-long.glb" },
+  { id: 362, category: "gear", name: "Hair: buns", path: "./kit/people/ubc-hair-buns.glb" },
+  { id: 363, category: "gear", name: "Hair: parted", path: "./kit/people/ubc-hair-simpleparted.glb" },
+  { id: 364, category: "gear", name: "Hair: buzzed", path: "./kit/people/ubc-hair-buzzed.glb" },
+  { id: 365, category: "gear", name: "Hair: buzzed (F)", path: "./kit/people/ubc-hair-buzzedfemale.glb" },
+  { id: 366, category: "gear", name: "Beard", path: "./kit/people/ubc-hair-beard.glb" },
+  { id: 367, category: "gear", name: "Eyebrows", path: "./kit/people/ubc-eyebrows-regular.glb" },
+  { id: 368, category: "gear", name: "Eyebrows (F)", path: "./kit/people/ubc-eyebrows-female.glb" },
+  // Clothes cut from the base bodies themselves (tools/murim/assets/make_ubc_clothes.mjs): a character on a base body is dressed
+  // from these when a script wears the old gear ids (see ubcOutfit in app/scriptHost.ts).
+  { id: 369, category: "gear", name: "Outfit M: top", path: "./kit/people/ubc-male-top.glb" },
+  { id: 370, category: "gear", name: "Outfit M: trousers", path: "./kit/people/ubc-male-legs.glb" },
+  { id: 371, category: "gear", name: "Outfit M: boots", path: "./kit/people/ubc-male-boots.glb" },
+  { id: 372, category: "gear", name: "Outfit M: sash", path: "./kit/people/ubc-male-sash.glb" },
+  { id: 373, category: "gear", name: "Outfit M: long skirt", path: "./kit/people/ubc-male-skirt.glb" },
+  { id: 374, category: "gear", name: "Outfit F: top", path: "./kit/people/ubc-female-top.glb" },
+  { id: 375, category: "gear", name: "Outfit F: trousers", path: "./kit/people/ubc-female-legs.glb" },
+  { id: 376, category: "gear", name: "Outfit F: boots", path: "./kit/people/ubc-female-boots.glb" },
+  { id: 377, category: "gear", name: "Outfit F: sash", path: "./kit/people/ubc-female-sash.glb" },
+  { id: 378, category: "gear", name: "Outfit F: long skirt", path: "./kit/people/ubc-female-skirt.glb" },
 ];
 
 export const catalogCategories = Array.from(
