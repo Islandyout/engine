@@ -341,6 +341,7 @@ export function installFrame(C: Ctx): void {
         applyGesture(bones, kind, now / 1000, i);
       }
     });
+    C.clothSway.update(dt, now / 1000, (anchor) => anchor.visible && anchor.position.distanceToSquared(eye) < 40 * 40);
     if (C.doc.mode === "play") {
       C.combat.plant(dt);
       // Standing on a slope: the feet follow the terrain (characters within 30 m; the farther ones are too small to show it).
@@ -571,6 +572,7 @@ export function installFrame(C: Ctx): void {
     C.renderPass.camera = C.viewCamera;
     if (C.gtaoPass) C.gtaoPass.camera = C.viewCamera;
     C.inkPass.camera = C.viewCamera;
+    C.depthFxPass.setCamera(C.viewCamera);
     if (C.gradingPass.enabled) (C.gradingPass.uniforms as Record<string, { value: number }>).time!.value = (now / 1000) % 100;
     // Counted over every pass of the frame (bloom included), not just the
     // last one, for the Stats overlay's draw calls and triangles.

@@ -761,6 +761,8 @@ export interface PostProcessingComponent {
   temperature: number; // -1 (cool) .. 1 (warm)
   vignette: number; // 0..1
   grain: number; // 0..1
+  lightShafts: number; // 0..1, rays through gaps when the sun is in view (editor/atmosphere.ts)
+  contactShadows: number; // 0..1, short shadows from the depth buffer that ground props and feet
   shadowQuality: ShadowQuality;
 }
 

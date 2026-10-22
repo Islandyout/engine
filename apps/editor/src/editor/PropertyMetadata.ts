@@ -371,6 +371,8 @@ const metadata: Record<string, PropertyMetadata> = {
   "PostProcessing.temperature": { label: "Temperature (cool -1 to warm 1)", step: "0.05" },
   "PostProcessing.vignette": { label: "Vignette (0-1)", step: "0.05" },
   "PostProcessing.grain": { label: "Film grain (0-1)", step: "0.05" },
+  "PostProcessing.lightShafts": { label: "Light shafts (0-1, when the sun is in view)", step: "0.05" },
+  "PostProcessing.contactShadows": { label: "Contact shadows (0-1)", step: "0.05" },
   "PostProcessing.shadowQuality": { label: "Sun shadow quality", options: choice(["Low", "Medium", "High"]) },
   "AudioSettings.master": { label: "Master volume (0-2)", step: "0.05" },
   "AudioSettings.sfx": { label: "SFX volume", step: "0.05" },

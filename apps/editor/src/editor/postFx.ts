@@ -23,6 +23,8 @@ export const defaultPostSettings: PostSettings = {
   temperature: 0,
   vignette: 0,
   grain: 0,
+  lightShafts: 0,
+  contactShadows: 0,
   shadowQuality: "Medium",
 };
 

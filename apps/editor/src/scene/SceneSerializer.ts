@@ -392,6 +392,8 @@ export function normalizeComponent(
         temperature: within(value.temperature, "PostProcessing.temperature", -1, 1),
         vignette: within(value.vignette, "PostProcessing.vignette", 0, 1),
         grain: within(value.grain, "PostProcessing.grain", 0, 1),
+        lightShafts: value.lightShafts === undefined ? 0 : within(value.lightShafts, "PostProcessing.lightShafts", 0, 1),
+        contactShadows: value.contactShadows === undefined ? 0 : within(value.contactShadows, "PostProcessing.contactShadows", 0, 1),
         shadowQuality,
       };
     }

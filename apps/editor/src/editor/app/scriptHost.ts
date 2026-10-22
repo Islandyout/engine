@@ -13,6 +13,7 @@ import {
 } from "../playerSettings";
 import { createTouchControls } from "../touchControls";
 import { parseVisor } from "../visor";
+import { hangingPieces, makeSway, swayMaterial } from "../clothSway";
 import type { Ctx } from "./context";
 
 export function installScriptHost(C: Ctx): void {
@@ -46,6 +47,17 @@ export function installScriptHost(C: Ctx): void {
     // The bodies are bald: nobody goes without hair unless they wear a cap or choose the shaven style.
     if (!hair && !spec.some((part) => part.id === 358 || part.id === 364 || part.id === 365)) out.push({ id: sex === "male" ? 363 : 361 });
     return out;
+  }
+
+  // One sway state per character (every hanging piece it wears shares it); the tracker feeds it the character's movement.
+  const swayStates = new WeakMap<THREE.Object3D, ReturnType<typeof makeSway>>();
+  function swayFor(anchor: THREE.Object3D) {
+    let sway = swayStates.get(anchor);
+    if (!sway) {
+      swayStates.set(anchor, (sway = makeSway()));
+      C.clothSway.track(anchor, sway);
+    }
+    return sway;
   }
 
   function setOutfit(index: number, spec: { id: number; tint?: string }[]) {
@@ -96,6 +108,13 @@ export function installScriptHost(C: Ctx): void {
           mesh.material = material;
         }
         markCharacter(mesh);
+        // Skirts, robes and long hair swing with the character.
+        const hang = hangingPieces[id];
+        if (hang) {
+          const material = (mesh.material as THREE.Material).clone();
+          swayMaterial(material, swayFor(anchor), hang[0], hang[1]);
+          mesh.material = material;
+        }
         body.parent.add(mesh);
         pieces.push(mesh);
       }

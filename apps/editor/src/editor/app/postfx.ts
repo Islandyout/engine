@@ -68,6 +68,7 @@ export function installPostfx(C: Ctx): void {
       C.gtaoPass.blendIntensity = settings.aoIntensity;
       C.gtaoPass.updateGtaoMaterial({ radius: settings.aoRadius });
     }
+    applyDepthFx();
     const quality = shadowQualities[settings.shadowQuality];
     // The frame governor halves the map under load.
     const mapSize = quality.mapSize / (C.governorTier().shadows === 1 ? 2 : 1);
@@ -82,6 +83,16 @@ export function installPostfx(C: Ctx): void {
     resizeAntialias();
   }
 
+  // Light shafts and contact shadows: on when the scene asks, the frame governor allows (they are full-screen depth passes), and
+  // nothing that swaps buffers ahead of them (Manhwa ink, ambient occlusion) is on.
+  function applyDepthFx() {
+    const s = C.postSettings;
+    const wanted = !!C.composer && s.style !== "Manhwa" && !(s.ambientOcclusion && C.gtaoPass?.enabled) && (s.lightShafts > 0 || s.contactShadows > 0);
+    C.depthFxPass.enabled = wanted && C.governorTier().ao;
+    C.depthFxPass.shafts = s.lightShafts;
+    C.depthFxPass.contact = s.contactShadows;
+  }
+
   function resizeAntialias() {
     const ratio = C.renderer instanceof THREE.WebGLRenderer ? C.renderer.getPixelRatio() : 1;
     const w = Math.max(1, C.viewport.clientWidth),
@@ -90,5 +101,5 @@ export function installPostfx(C: Ctx): void {
     // About 2 px at 720p, scaling with the view so lines keep their weight.
     C.inkPass.width = ratio * Math.max(1.5, h / 360);
   }
-  Object.assign(C, { makeEffectPoints, applyInk, applyPostProcessing, resizeAntialias });
+  Object.assign(C, { makeEffectPoints, applyInk, applyPostProcessing, resizeAntialias, applyDepthFx });
 }

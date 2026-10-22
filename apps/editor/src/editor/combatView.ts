@@ -17,6 +17,7 @@
 //   - the fighter HUD: health, energy and guard, the combo count, the
 //     lock-on marker.
 import * as THREE from "three";
+import { Decals } from "./decals";
 import { boneSubtree, filterClip, upperBodyBone } from "./characterRig";
 import { FighterField, MeleeEventField } from "./bridgeFields";
 import { buildRibbon, updateTrail, type TrailPoint } from "./trail";
@@ -75,7 +76,8 @@ export function pickStance(mode: number, speed: number, verticalSpeed: number, g
 export function pickReaction(kind: number, alternate: boolean): string {
   switch (kind) {
     case StunKind.heavy:
-      return "hit_knockback";
+      // Two knock-back reactions (the second from the Universal Animation Library 2) so repeated hits do not look copied.
+      return alternate ? "ual_hit_knockback" : "hit_knockback";
     case StunKind.guardBreak:
     case StunKind.parried:
       return "guard_break";
@@ -205,6 +207,8 @@ export class CombatView {
   private readonly sparkPositions = new Float32Array(maxSparks * 3);
   private readonly sparkColors = new Float32Array(maxSparks * 3);
   private readonly bursts: Burst[] = [];
+  // Cracks, scorch and dust left on the ground by heavy blows and falls.
+  private readonly decals: Decals;
   private readonly glow = glowTexture();
   private comboShown = 0;
   // Manhwa lettering, speed lines and impact frames (on with the Manhwa style).
@@ -226,6 +230,7 @@ export class CombatView {
     points.frustumCulled = false;
     this.group.add(points);
     scene.add(this.group);
+    this.decals = new Decals(this.group);
   }
 
   // Labels the skill slots from an InputActions text (undefined: the defaults).
@@ -377,6 +382,7 @@ export class CombatView {
     this.flashing.clear();
     for (const burst of this.bursts) this.group.remove(burst.mesh);
     this.bursts.length = 0;
+    this.decals.clear();
     this.timeScale = 1;
     this.slowLeft = 0;
     this.comboShown = 0;
@@ -967,9 +973,15 @@ export class CombatView {
     ring.scale.setScalar(0.3);
     this.group.add(ring);
     this.bursts.push({ mesh: ring, age: 0, life: 0.45, grow: 2.2 * size, opacity: 0.8 });
+    // What it leaves behind: a big shock cracks and scorches the ground, a small one scuffs it.
+    if (size >= 3) {
+      this.decals.add("scorch", point, size * 1.3);
+      this.decals.add("crack", point, size * 1.1);
+    } else this.decals.add("scuff", point, size * 1.4, 8);
   }
 
   private stepEffects(dt: number, camera: THREE.Camera) {
+    this.decals.update(dt);
     let n = 0;
     for (let i = this.sparks.length - 1; i >= 0; i--) {
       const spark = this.sparks[i]!;

@@ -127,6 +127,8 @@ scene.add("Environment", [0, -40, 0], {
   },
   PostProcessing: {
     antialias: "SMAA",
+    lightShafts: 0.5,
+    contactShadows: 0.7,
     // Ambient occlusion re-draws the whole scene for its normals, which doubles the draw calls: off for this scene's budget.
     ambientOcclusion: false,
     shadowQuality: "High",

@@ -564,6 +564,8 @@ Screen effects: bloom, ambient occlusion, colour grading, vignette, grain, and t
 | `temperature` | 0 | Temperature (cool -1 to warm 1) |
 | `vignette` | 0.3 | Vignette (0-1) |
 | `grain` | 0 | Film grain (0-1) |
+| `lightShafts` | 0 | Light shafts (0-1, when the sun is in view) |
+| `contactShadows` | 0 | Contact shadows (0-1) |
 | `shadowQuality` | "High" | Sun shadow quality. one of Low, Medium, High |
 
 ### Terrain
