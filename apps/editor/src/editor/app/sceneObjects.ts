@@ -28,6 +28,7 @@ import {
 	scatterInstances,
 	type TerrainParams
 } from "../terrain";
+import { makeWater } from "../water";
 import { buildScatter, buildTerrainMesh, disposeTerrainMesh, type ScatterModel, type TerrainLook } from "../terrainMesh";
 import { resolveAssetUrl } from "../userAssets";
 import { buildViewmodel } from "../viewmodels";
@@ -72,8 +73,11 @@ export function installSceneObjects(C: Ctx): void {
       standard.emissiveIntensity = m.emissiveIntensity;
       standard.opacity = m.opacity;
       standard.transparent = m.opacity < 1;
-      const textureUrl = resolveAssetUrl(m.texture, C.importedImages);
-      if (textureUrl) standard.map = loadTexture(textureUrl);
+      if (m.texture === "builtin:water") makeWater(standard);
+      else {
+        const textureUrl = resolveAssetUrl(m.texture, C.importedImages);
+        if (textureUrl) standard.map = loadTexture(textureUrl);
+      }
       standard.depthWrite = m.opacity >= 1;
       return standard;
     };

@@ -136,7 +136,7 @@ const metadata: Record<string, PropertyMetadata> = {
   "Material.opacity": { label: "Opacity (0-1)", step: "0.05" },
   "Material.emissiveIntensity": { label: "Emissive intensity", step: "0.1" },
   "Material.keepTextures": { label: "Keep model textures (tint only)" },
-  "Material.texture": { label: "Texture (URL or asset:file.png)" },
+  "Material.texture": { label: "Texture (URL, asset:file.png or builtin:water)" },
   "Material.parts": { label: "Only parts named (comma-separated, empty = all)" },
   "Material.color.x": { label: "color R (0-1)", step: "0.05" },
   "Material.color.y": { label: "color G (0-1)", step: "0.05" },

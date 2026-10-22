@@ -3740,15 +3740,15 @@
     "Transform": {
      "position": {
       "x": 8,
-      "y": -2.765273189544678,
+      "y": -2.6652731895446777,
       "z": 85
      }
     },
     "Scale": {
      "value": {
-      "x": 0.6,
-      "y": 1.8,
-      "z": 0.6
+      "x": 0.63,
+      "y": 1.89,
+      "z": 0.63
      }
     },
     "Rotation": {
@@ -3806,9 +3806,9 @@
     },
     "Scale": {
      "value": {
-      "x": 0.6,
-      "y": 1.8,
-      "z": 0.6
+      "x": 0.58,
+      "y": 1.74,
+      "z": 0.58
      }
     },
     "Rotation": {
@@ -9829,9 +9829,9 @@
     },
     "Scale": {
      "value": {
-      "x": 0.6,
-      "y": 1.8,
-      "z": 0.6
+      "x": 0.57,
+      "y": 1.7,
+      "z": 0.57
      }
     },
     "Rotation": {
@@ -11755,9 +11755,9 @@
     },
     "Scale": {
      "value": {
-      "x": 0.6,
-      "y": 1.8,
-      "z": 0.6
+      "x": 0.56,
+      "y": 1.68,
+      "z": 0.56
      }
     },
     "Rotation": {
@@ -11850,17 +11850,17 @@
       "y": 0.5254901960784314,
       "z": 0.7215686274509804
      },
-     "metalness": 0.2,
-     "roughness": 0.1,
+     "metalness": 0.1,
+     "roughness": 0.05,
      "emissive": {
       "x": 0.16470588235294117,
       "y": 0.37254901960784315,
       "z": 0.5333333333333333
      },
-     "emissiveIntensity": 0.6,
-     "opacity": 0.72,
+     "emissiveIntensity": 0.35,
+     "opacity": 0.78,
      "keepTextures": false,
-     "texture": "",
+     "texture": "builtin:water",
      "parts": ""
     },
     "RigidBody": {
@@ -18376,6 +18376,150 @@
      "props": {
       "mode": "burn"
      }
+    }
+   }
+  },
+  {
+   "name": "Blossom petals",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 0,
+      "y": 1.338686227798462,
+      "z": 84
+     }
+    },
+    "Particles": {
+     "preset": "Confetti",
+     "color": {
+      "x": 0.9647058823529412,
+      "y": 0.788235294117647,
+      "z": 0.8392156862745098
+     },
+     "rate": 5,
+     "lifetime": 9,
+     "speed": 0.35,
+     "size": 0.1,
+     "endColor": {
+      "x": 0.9098039215686274,
+      "y": 0.6470588235294118,
+      "z": 0.7333333333333333
+     },
+     "endSize": 0.07,
+     "gravityScale": 0.05,
+     "shape": "Box",
+     "shapeSize": 14,
+     "coneAngle": 25,
+     "space": "World",
+     "burst": 0
+    }
+   }
+  },
+  {
+   "name": "Meadow pollen",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -24,
+      "y": -1.3623947143554687,
+      "z": 38
+     }
+    },
+    "Particles": {
+     "preset": "Sparkle",
+     "color": {
+      "x": 1,
+      "y": 0.9529411764705882,
+      "z": 0.7686274509803922
+     },
+     "rate": 7,
+     "lifetime": 7,
+     "speed": 0.25,
+     "size": 0.07,
+     "endColor": {
+      "x": 0.9647058823529412,
+      "y": 0.8784313725490196,
+      "z": 0.5411764705882353
+     },
+     "endSize": 0.03,
+     "gravityScale": -0.01,
+     "shape": "Box",
+     "shapeSize": 18,
+     "coneAngle": 25,
+     "space": "World",
+     "burst": 0
+    }
+   }
+  },
+  {
+   "name": "Lake fireflies",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": -62,
+      "y": -4.988817977905274,
+      "z": 5
+     }
+    },
+    "Particles": {
+     "preset": "Sparkle",
+     "color": {
+      "x": 0.8470588235294118,
+      "y": 1,
+      "z": 0.47843137254901963
+     },
+     "rate": 4,
+     "lifetime": 6,
+     "speed": 0.2,
+     "size": 0.09,
+     "endColor": {
+      "x": 0.4980392156862745,
+      "y": 0.8470588235294118,
+      "z": 0.2901960784313726
+     },
+     "endSize": 0.02,
+     "gravityScale": -0.01,
+     "shape": "Box",
+     "shapeSize": 9,
+     "coneAngle": 25,
+     "space": "World",
+     "burst": 0
+    }
+   }
+  },
+  {
+   "name": "Hall dust",
+   "components": {
+    "Transform": {
+     "position": {
+      "x": 300,
+      "y": 43.5,
+      "z": 0
+     }
+    },
+    "Particles": {
+     "preset": "Sparkle",
+     "color": {
+      "x": 1,
+      "y": 0.9098039215686274,
+      "z": 0.7411764705882353
+     },
+     "rate": 4,
+     "lifetime": 8,
+     "speed": 0.1,
+     "size": 0.05,
+     "endColor": {
+      "x": 0.8509803921568627,
+      "y": 0.7254901960784313,
+      "z": 0.5411764705882353
+     },
+     "endSize": 0.03,
+     "gravityScale": -0.005,
+     "shape": "Box",
+     "shapeSize": 7,
+     "coneAngle": 25,
+     "space": "World",
+     "burst": 0
     }
    }
   }

@@ -577,7 +577,7 @@ export interface MaterialComponent {
   emissiveIntensity: number;
   opacity: number;
   keepTextures: boolean;
-  // Color texture: a URL, or "asset:<file>" for an imported image.
+  // Color texture: a URL, "asset:<file>" for an imported image, or "builtin:water" for a rippling water surface.
   texture: string;
   // Which parts of a catalog model it applies to: meshes whose
   // own material's name contains one of these comma-separated words

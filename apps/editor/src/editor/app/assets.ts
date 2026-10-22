@@ -7,6 +7,7 @@ import { catalogReplacements, modelCatalog, retiredCatalogIds } from "../../scen
 import { soundCatalog } from "../../scene/soundCatalog";
 import { fuzzyRank } from "../fuzzy";
 import { markCharacter } from "../manhwa";
+import { addSurfaceDetailTo } from "../surfaceDetail";
 import { assetKind, assignId, displayName, storeAsset, type StoredAsset } from "../userAssets";
 import type { Ctx } from "./context";
 import { CachedModel } from "./context";
@@ -74,6 +75,8 @@ export function installAssets(C: Ctx): void {
         const nativeSize = bounds.getSize(new THREE.Vector3());
         const nativeCenter = bounds.getCenter(new THREE.Vector3());
         const cached = { scene: gltf.scene, far, clips: gltf.animations, nativeSize, nativeCenter };
+        // The wuxia kit's buildings and props are flat vertex colours: plaster, wood, tile and stone grain goes over them.
+        if (entry.category === "wuxia") addSurfaceDetailTo(gltf.scene);
         if (entry.animated) {
           markCharacter(gltf.scene);
           // Where its lowest foot bone stands in the rest pose, relative to

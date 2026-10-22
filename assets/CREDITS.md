@@ -783,6 +783,10 @@ Both kits share the 65-bone skeleton of the people kit, so every clip plays on e
 
 ambientCG (https://ambientcg.com), CC0 1.0: Grass004, Rock064, Ground054 and Snow015, colour and normal maps (1K JPG originals) resized to 512 px with `tools/models/downscale_textures.cjs`.
 
+## Building surface textures (`source/kit/surfaces/`)
+
+ambientCG (https://ambientcg.com), CC0 1.0: Plaster001, Planks037A, RoofingTiles013A and Rock051, colour maps (the normal maps are shipped but not used yet), resized to 512 px.
+
 ## Four more sound clips (ids 11-14 in the sound catalog)
 
 From Kenney's *RPG Audio* pack (https://kenney.nl/assets/rpg-audio, CC0 1.0), copied unmodified and renamed: `blade-draw.ogg` (`drawKnife1.ogg`),

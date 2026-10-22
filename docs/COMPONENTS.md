@@ -383,7 +383,7 @@ Colour, roughness, metalness, glow and texture overrides.
 | `emissiveIntensity` | 1 | Emissive intensity |
 | `opacity` | 1 | Opacity (0-1) |
 | `keepTextures` | true | Keep model textures (tint only) |
-| `texture` | "" | Texture (URL or asset:file.png) |
+| `texture` | "" | Texture (URL, asset:file.png or builtin:water) |
 | `parts` | "" | Only parts named (comma-separated, empty = all). Only tint the model's parts with these names, e.g. TunicCloth,MantleCloth. |
 
 ### Animator

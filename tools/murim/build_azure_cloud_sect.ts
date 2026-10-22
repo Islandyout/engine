@@ -277,8 +277,8 @@ function wall(name: string, x0: number, z0: number, x1: number, z1: number, gap?
 
 // Instructor Hua teaches scroll arts for silver (see player.lua); the alchemy furnace beside the training ground brews
 // spirit herbs into elixirs and pills.
-scene.add("Instructor Hua", [SECT.x + 8, ground(SECT.x + 8, SECT.z + 7) + 0.9, SECT.z + 7], {
-  Scale: { value: vec(0.6, 1.8, 0.6) },
+scene.add("Instructor Hua", [SECT.x + 8, ground(SECT.x + 8, SECT.z + 7) + 1, SECT.z + 7], {
+  Scale: { value: vec(0.63, 1.89, 0.63) }, // a tall teacher
   Rotation: { euler: vec(0, -2.2, 0) },
   Renderable: { mesh: BODY_M, material: 0, visible: true },
   ...idle("idle_fold_arms_loop"),
@@ -289,7 +289,7 @@ scene.add("Instructor Hua", [SECT.x + 8, ground(SECT.x + 8, SECT.z + 7) + 0.9, S
 
 // ---------------------------------------------------------- the elder NPC --
 scene.add("Elder Mu", [SECT.x + 3.5, ground(SECT.x + 3.5, SECT.z - 1) + 0.9, SECT.z - 1], {
-  Scale: { value: vec(0.6, 1.8, 0.6) },
+  Scale: { value: vec(0.58, 1.74, 0.58) }, // an old man, a little stooped and shorter
   Rotation: { euler: vec(0, Math.PI, 0) },
   Renderable: { mesh: BODY_M, material: 0, visible: true },
   ...idle("idle_fold_arms_loop"),
@@ -435,7 +435,7 @@ const VEINS: [number, number][] = [[-30, 52], [36, 24], [-44, -32], [8, -60]];
   for (const [dx, dz] of [[-11, 6], [12, 4], [-9, 11]] as const) place("Village bamboo", "bamboo-clump", x + dx, z + dz, dx, false);
   const villager = (name: string, vx: number, vz: number, yaw: number, gear: string, hex: string) =>
     scene.add(name, [vx, ground(vx, vz) + 0.9, vz], {
-      Scale: { value: vec(0.6, 1.8, 0.6) },
+      Scale: { value: name === "Wen" ? vec(0.57, 1.7, 0.57) : vec(0.6, 1.8, 0.6) },
       Rotation: { euler: vec(0, yaw, 0) },
       Renderable: { mesh: BODY_M, material: 0, visible: true },
       ...idle(name === "Wen" ? "idle_no_loop" : "idle_rail_loop"),
@@ -515,7 +515,7 @@ const HALL_DOOR_Z = SECT_FRONT + hallBounds.max[2]! + 0.6;
 }
 // Disciple Lan fights beside you when asked: an ally fighter on your side.
 scene.add("Disciple Lan", [SECT.x - 6, ground(SECT.x - 6, SECT.z + 3) + 0.9, SECT.z + 3], {
-  Scale: { value: vec(0.6, 1.8, 0.6) },
+  Scale: { value: vec(0.56, 1.68, 0.56) }, // Lan is a young woman: shorter than the men
   Rotation: { euler: vec(0, 0.6, 0) },
   Renderable: { mesh: BODY_F, material: 0, visible: true },
   RigidBody: { mass: 70, dynamic: true },
@@ -534,7 +534,7 @@ scene.prefab("Spirit Guardian", guardianParts);
 // Water Dragon Lake: a sheet of water over the basin, a pier, the shore where you cast, and a few fish rising.
 {
   const waterY = lakeLevel + 0.05;
-  const water = scene.box("Lake water", [LAKE.x, waterY, LAKE.z], [LAKE.rx * 2 + 4, 0.1, LAKE.rz * 2 + 4], "#3f86b8", {}, { roughness: 0.1, metalness: 0.2, opacity: 0.72, ...emissive("#2a5f88", 0.6) });
+  const water = scene.box("Lake water", [LAKE.x, waterY, LAKE.z], [LAKE.rx * 2 + 4, 0.1, LAKE.rz * 2 + 4], "#3f86b8", {}, { roughness: 0.05, metalness: 0.1, opacity: 0.78, texture: "builtin:water", ...emissive("#2a5f88", 0.35) });
   delete (scene.entities[water]!.components as Components).Collider;
   place("Lake pier", "lake-pier", LAKE.x + LAKE.rx - 2.2, LAKE.z, -Math.PI / 2, false, 1);
   scene.add("Lake shore", [LAKE.x + LAKE.rx - 1.6, ground(LAKE.x + LAKE.rx - 1.6, LAKE.z) + 0.3, LAKE.z], {});
@@ -937,6 +937,18 @@ fxEmitter("Qi Burst", "burst", { preset: "Sparkle", color: rgb("#ffffff"), endCo
 fxEmitter("Qi Mark", "mark", { preset: "Sparkle", color: rgb("#ff5a4a"), endColor: rgb("#ffb347"), rate: 70, lifetime: 0.7, speed: 0.15, size: 0.2, endSize: 0.05, gravityScale: 0, shape: "Sphere", shapeSize: 3, space: "World" });
 fxEmitter("Qi Array", "array", { preset: "Sparkle", color: rgb("#9ff5e8"), endColor: rgb("#2a9ac4"), rate: 45, lifetime: 1.4, speed: 0.3, size: 0.16, endSize: 0.05, gravityScale: -0.1, shape: "Sphere", shapeSize: 4, space: "World" });
 fxEmitter("Qi Burn", "burn", { preset: "Fire", color: rgb("#9ff0ff"), endColor: rgb("#ff7a2a"), rate: 40, lifetime: 0.7, speed: 1.4, size: 0.22, endSize: 0.5, gravityScale: -0.3, shape: "Sphere", shapeSize: 0.5, space: "World" });
+
+// ------------------------------------------------------------ ambient life --
+// Things that drift: blossom petals over the courtyard, pollen in the meadow by the village, motes of dust in the hall and
+// fireflies by the lake. World-space emitters, so what they release stays where the wind leaves it.
+{
+  const drift = (name: string, at: V3, particles: Record<string, unknown>) =>
+    scene.add(name, at, { Particles: component("Particles", { space: "World", shape: "Box", ...particles }) });
+  drift("Blossom petals", [SECT.x, ground(SECT.x, SECT.z + 6) + 5, SECT.z + 6], { preset: "Confetti", color: rgb("#f6c9d6"), endColor: rgb("#e8a5bb"), rate: 5, lifetime: 9, speed: 0.35, size: 0.1, endSize: 0.07, gravityScale: 0.05, shapeSize: 14 });
+  drift("Meadow pollen", [VILLAGE.x, ground(VILLAGE.x, VILLAGE.z) + 1.6, VILLAGE.z], { preset: "Sparkle", color: rgb("#fff3c4"), endColor: rgb("#f6e08a"), rate: 7, lifetime: 7, speed: 0.25, size: 0.07, endSize: 0.03, gravityScale: -0.01, shapeSize: 18 });
+  drift("Lake fireflies", [LAKE.x, lakeLevel + 1.4, LAKE.z - LAKE.rz - 3], { preset: "Sparkle", color: rgb("#d8ff7a"), endColor: rgb("#7fd84a"), rate: 4, lifetime: 6, speed: 0.2, size: 0.09, endSize: 0.02, gravityScale: -0.01, shapeSize: 9 });
+  drift("Hall dust", [300, BASE_Y + 3.5, 0], { preset: "Sparkle", color: rgb("#ffe8bd"), endColor: rgb("#d9b98a"), rate: 4, lifetime: 8, speed: 0.1, size: 0.05, endSize: 0.03, gravityScale: -0.005, shapeSize: 7 });
+}
 
 const out = process.env.MURIM_OUT ?? join(ROOT, "games/my-games/azure-cloud-sect/scene.json");
 mkdirSync(dirname(out), { recursive: true });

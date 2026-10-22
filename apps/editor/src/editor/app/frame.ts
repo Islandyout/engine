@@ -1,4 +1,5 @@
 import { wind } from "../terrainMesh";
+import { waterTime } from "../water";
 import { FootIK } from "../footIK";
 import { accessibility } from "../uiKit";
 import { makeProjectile, updateProjectile } from "../projectileView";
@@ -118,6 +119,7 @@ export function installFrame(C: Ctx): void {
     const dt = Math.min((now - C.previous) / 1000, 5 / 60);
     C.governFrame(now - C.previous);
     wind.time.value = now / 1000;
+    waterTime.value = now / 1000;
     updateMouseStick(dt);
     if (C.doc.mode === "play") C.updateMusic();
     C.previous = now;
