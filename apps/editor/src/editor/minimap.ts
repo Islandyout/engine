@@ -52,6 +52,9 @@ export interface MapLayout {
   // (no legend lines keeps the default Gate key, with its rank colours).
   title?: { kicker: string; name: string };
   legend?: [kind: string, text: string][];
+  // "north -z": a world whose north is -z (the compass's north): the full map and the north-up minimap turn half round, so north
+  // is up on them too. Without it north is +z.
+  northNegZ?: boolean;
 }
 export interface MapMarker extends MapPoint {
   id: string;
@@ -86,6 +89,8 @@ export function parseMapLayout(spec: string): MapLayout | undefined {
       const points = [];
       for (let i = 1; i + 1 < parts.length; i += 2) points.push({ x: n(i), z: n(i + 1) });
       layout.paths.push(points);
+    } else if (kind === "north" && (parts[1] === "-z" || parts[1] === "+z")) {
+      layout.northNegZ = parts[1] === "-z";
     } else if (kind === "title" && rest(1)) {
       const [kicker = "", ...name] = rest(1).split("|");
       layout.title = name.length ? { kicker, name: name.join("|") } : { kicker: "", name: kicker };
@@ -128,29 +133,36 @@ export function minimapDiameter(size: string | undefined, width: number, height:
 export const RANK_COLORS: Record<string, string> = { E: "#a9b4c4", D: "#5fd16a", C: "#4aa8ff", B: "#b866ff", A: "#ffb020", S: "#ff4545" };
 
 // The layout image: PX pixels a metre, north (+z) up, +x to the left, with a
-// margin of river and street around the bounds.
+// margin of river and street around the bounds; with `flip` (north -z), the
+// same turned half round: -z up, +x to the right.
 const PX = 4;
 const MARGIN = 10;
-export function imageFrame(bounds: MapRect) {
+export function imageFrame(bounds: MapRect, flip = false) {
   const x0 = bounds.x0 - MARGIN,
     x1 = bounds.x1 + MARGIN,
     z0 = bounds.z0 - MARGIN,
     z1 = bounds.z1 + MARGIN;
-  return { x0, x1, z0, z1, width: Math.ceil((x1 - x0) * PX), height: Math.ceil((z1 - z0) * PX) };
+  return { x0, x1, z0, z1, width: Math.ceil((x1 - x0) * PX), height: Math.ceil((z1 - z0) * PX), flip };
 }
+type Frame = { x0?: number; x1: number; z0?: number; z1: number; flip?: boolean };
 // World (x, z) to the layout image's pixels.
-export function toImage(frame: { x1: number; z1: number }, x: number, z: number) {
+export function toImage(frame: Frame, x: number, z: number) {
+  if (frame.flip) return { u: (x - frame.x0!) * PX, v: (z - frame.z0!) * PX };
   return { u: (frame.x1 - x) * PX, v: (frame.z1 - z) * PX };
 }
 
 // The canvas transform [a, b, c, d, e, f] that draws the layout image on the
 // minimap: centred on the player (px, pz) at (cx, cy), `scale` pixels a
 // metre, `forward` up.
-export function minimapTransform(frame: { x1: number; z1: number }, px: number, pz: number, fx: number, fz: number, scale: number, cx: number, cy: number) {
+export function minimapTransform(frame: Frame, px: number, pz: number, fx: number, fz: number, scale: number, cx: number, cy: number) {
   const k = scale / PX;
   const r0 = -(frame.x1 - px) * fz + (frame.z1 - pz) * fx;
   const u0 = (frame.x1 - px) * fx + (frame.z1 - pz) * fz;
-  return [k * fz, k * fx, -k * fx, k * fz, cx + scale * r0, cy - scale * u0] as const;
+  const [a, b, c, d, e, f] = [k * fz, k * fx, -k * fx, k * fz, cx + scale * r0, cy - scale * u0];
+  if (!frame.flip) return [a, b, c, d, e, f] as const;
+  // The flipped image is the plain one turned half round: (u, v) there is (W - u, H - v) here.
+  const W = (frame.x1 - frame.x0!) * PX, H = (frame.z1 - frame.z0!) * PX;
+  return [-a, -b, -c, -d, e + a * W + c * H, f + b * W + d * H] as const;
 }
 
 // The full map's box inside (x, y, w, h): the image's aspect, centred.
@@ -455,7 +467,7 @@ export class DistrictMap {
   host(kind: string, text: string) {
     if (kind === "map_layout") {
       this.layout = text.trim() ? parseMapLayout(text) : undefined;
-      this.frame = this.layout && imageFrame(this.layout.bounds);
+      this.frame = this.layout && imageFrame(this.layout.bounds, !!this.layout.northNegZ);
       this.image = undefined;
       this.drawnAt = this.bigAt = -Infinity;
       if (!this.layout) this.open = false;
@@ -596,7 +608,8 @@ export class DistrictMap {
     g.fillStyle = "#1a1e29";
     g.fillRect(0, 0, frame.width, frame.height);
     const box = (r: MapRect) => {
-      const a = toImage(frame, r.x1, r.z1);
+      // The top-left corner: (x1, z1) on a plain image, (x0, z0) on a flipped one.
+      const a = frame.flip ? toImage(frame, r.x0, r.z0) : toImage(frame, r.x1, r.z1);
       return [a.u, a.v, (r.x1 - r.x0) * PX, (r.z1 - r.z0) * PX] as const;
     };
     for (const area of layout.areas) {
@@ -677,7 +690,7 @@ export class DistrictMap {
   }
 
   private forward(view: MapView): { x: number; z: number } {
-    if (this.northUp) return { x: 0, z: 1 };
+    if (this.northUp) return { x: 0, z: this.layout?.northNegZ ? -1 : 1 };
     const dir = view.camera.getWorldDirection(new THREE.Vector3());
     const length = Math.hypot(dir.x, dir.z);
     return length > 1e-4 ? { x: dir.x / length, z: dir.z / length } : { x: 0, z: 1 };
@@ -867,7 +880,8 @@ export class DistrictMap {
       g.lineWidth = 3;
       g.strokeStyle = INK;
       g.strokeRect(fit.x, fit.y, fit.w, fit.h);
-      const at = (x: number, z: number) => ({ x: fit.x + (frame.x1 - x) * fit.scale, y: fit.y + (frame.z1 - z) * fit.scale });
+      const at = (x: number, z: number) =>
+        frame.flip ? { x: fit.x + (x - frame.x0) * fit.scale, y: fit.y + (z - frame.z0) * fit.scale } : { x: fit.x + (frame.x1 - x) * fit.scale, y: fit.y + (frame.z1 - z) * fit.scale };
       g.save();
       g.beginPath();
       g.rect(fit.x, fit.y, fit.w, fit.h);
@@ -911,7 +925,7 @@ export class DistrictMap {
       // The hunter, on top of everything.
       const h = this.facing(view);
       const s = at(me.x, me.z);
-      drawIcon(g, "player", s.x, s.y, icon * 1.2, "", { x: -h.x, y: -h.z });
+      drawIcon(g, "player", s.x, s.y, icon * 1.2, "", frame.flip ? { x: h.x, y: h.z } : { x: -h.x, y: -h.z });
       g.restore();
       // N, above the map.
       g.textAlign = "center";

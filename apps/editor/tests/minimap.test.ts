@@ -171,3 +171,24 @@ test("the map opens only with a layout, inside its bounds, and not over a cutsce
   map.host("map_layout", "");
   assert.equal(map.canOpen, false, "an empty layout removes the map");
 });
+
+test("a north -z map turns half round: -z up, +x right, and the minimap transform agrees with the image", async () => {
+  const { parseMapLayout } = await import("../src/editor/minimap");
+  const layout = parseMapLayout("bounds -100 -100 100 100\nnorth -z")!;
+  assert.equal(layout.northNegZ, true);
+  const frame = imageFrame(layout.bounds, true);
+  const north = toImage(frame, 0, -50), south = toImage(frame, 0, 50), east = toImage(frame, 50, 0), west = toImage(frame, -50, 0);
+  assert.ok(north.v < south.v, "-z (north) is higher on the image");
+  assert.ok(east.u > west.u, "+x (east) is to the right");
+  // The minimap transform puts each world point where the image has it.
+  for (const [fx, fz] of [[0, -1], [1, 0], [0.6, 0.8]] as const) {
+    const [a, b, c, d, e, f] = minimapTransform(frame, 10, 20, fx, fz, 2, 90, 90);
+    const plain = imageFrame(layout.bounds, false);
+    const [a0, b0, c0, d0, e0, f0] = minimapTransform(plain, 10, 20, fx, fz, 2, 90, 90);
+    for (const [x, z] of [[0, 0], [40, -30], [-25, 60]] as const) {
+      const p = toImage(frame, x, z), q = toImage(plain, x, z);
+      close(a * p.u + c * p.v + e, a0 * q.u + c0 * q.v + e0, "same screen x");
+      close(b * p.u + d * p.v + f, b0 * q.u + d0 * q.v + f0, "same screen y");
+    }
+  }
+});

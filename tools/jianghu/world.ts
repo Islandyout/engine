@@ -36,7 +36,9 @@ export const ROADS: [number, number][][] = [
   [[-330, 20], [-340, -60], [-335, -160], [-340, -250], [-340, -340]],
   [[0, -300], [100, -330], [220, -345], [340, -350]],
 ];
-export const PEAK = { x: 0, z: -400, height: 118, spread: 34 };
+export const PEAK = { x: 0, z: -400, height: 104, spread: 40 };
+// The pilgrims' path from the Peak shrine up to Nine-Dragon Summit: switchbacks, so the climb is a walk and not a wall.
+export const SUMMIT_PATH: [number, number][] = [[0, -318], [34, -330], [-30, -342], [32, -354], [-26, -366], [24, -377], [-18, -386], [8, -393], [0, -398]];
 export const GATES = [
   { name: "South gate", x: 0, z: 48 },
   { name: "East gate", x: 48, z: 0 },

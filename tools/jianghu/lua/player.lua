@@ -52,7 +52,7 @@ local mood = ""
 local day_hours = 9
 local inside = ""
 local prompt_text, prompt_left = "", 0
-local held_mana, talking_now = nil, false
+local talking_now = false
 local ward, formation = nil, nil                -- a Ward Talisman's soak; a planted array flag
 local perks_learned, meridians_learned = {}, {}
 local arts_learned, affinity, robe = {}, "", 1
@@ -172,6 +172,19 @@ local STANCE_LABEL = { fists = "Fists", blade = "Sword", spear = "Spear", glaive
 local BOW_DRAW, BOW_MIN, BOW_NOCK, BOW_LOOSE = 0.9, 0.3, 0.45, 0.4   -- seconds: full draw, least draw that shoots, nocking the next, the release pose
 local BOW_SPEED, BOW_DAMAGE, BOW_DROP = { 24, 58 }, { 7, 30 }, 0.3   -- arrow speed and damage at the least and the full draw; gravity scale
 local BOW_SPREAD = { hip = 4.5, aim = 0.5 }                          -- degrees, at the least draw (a full draw halves it)
+-- While talking (or at the mirror) the number keys pick replies, so the qi arts on those keys are locked, and unlocked again after:
+-- the mana bar stays as it is.
+local KEY_ARTS = { "qi_palm", "wind_palm", "tiger_rush", "nine_dragons", "sky_palm", "heaven_seal", "void_strike", "world_ender" }
+local function hush_arts(on)
+  if on then
+    for _, move in ipairs(KEY_ARTS) do melee.relock(move) end
+    return
+  end
+  for i = 1, realm do for move in REALMS[i].unlock:gmatch("[%w_]+") do melee.unlock(move) end end
+  for i = 1, realm do for move in (REALMS[i].retire or ""):gmatch("[%w_]+") do melee.relock(move) end end
+  for move in pairs(arts_learned) do if move ~= "guardian" then melee.unlock(move) end end
+end
+
 local function set_stance(name)
   for key, moves in pairs(STANCES) do
     for _, m in ipairs(moves) do if key == name then melee.unlock(m) else melee.relock(m) end end
@@ -560,14 +573,12 @@ function on_message(name, value)
     ui.set_visible("Waypoints", value == "")   -- the valley's markers mean nothing inside a room
   elseif name == "prompt" then prompt_text, prompt_left = value, 0.45
   elseif name == "talk" then
-    -- The number keys pick a reply and are also the skill keys, so mana is set aside while talking (a skill needs mana).
-    if value == "1" and not held_mana then
-      local mana = melee.mana(0)
-      held_mana = mana
-      melee.mana(-mana)
+    -- The number keys pick a reply and are also the skill keys: the arts on them are locked while talking.
+    if value == "1" and not talking_now then
+      hush_arts(true)
       talking_now = true
-    elseif value == "0" then
-      if held_mana then melee.mana(held_mana) held_mana = nil end
+    elseif value == "0" and talking_now then
+      hush_arts(false)
       talking_now = false
     end
   elseif name == "learn_art" then
@@ -580,7 +591,7 @@ function on_message(name, value)
     local x, y, z = value:match("^([%-%d.]+),([%-%d.]+),([%-%d.]+)$")
     if x then spawn = { tonumber(x), tonumber(y), tonumber(z) } end
     world.heal(self.id, 999)
-    if held_mana then held_mana = 999 else melee.mana(999) end
+    melee.mana(999)
     cure(true)
     save_game()
     hud.announce("You rest. Health and mana restored; you will return here.")
@@ -588,7 +599,7 @@ function on_message(name, value)
   elseif name == "mirror" then
     if value == "1" and not creating then
       creating = true
-      if not held_mana then held_mana = melee.mana(0) melee.mana(-held_mana) end
+      if not talking_now then hush_arts(true) end
       talking_now = true
       mirror_text()
     end
@@ -640,7 +651,7 @@ end
 
 function on_death()
   dead = true
-  if held_mana then melee.mana(held_mana) held_mana = nil end
+  if talking_now then hush_arts(false) end
   talking_now = false
   tribulation = 0
   land()
@@ -730,7 +741,7 @@ function on_tick(dt)
     if tapped("interact") then
       creating = false
       ui.set_text("Dialogue", "")
-      if held_mana then melee.mana(held_mana) held_mana = nil end
+      if talking_now then hush_arts(false) end
       talking_now = false
       save_game()
     end

@@ -86,7 +86,9 @@ export function installScriptHost(C: Ctx): void {
       anchor.traverse((node) => {
         if (!skin && (node as THREE.SkinnedMesh).isSkinnedMesh && /^super ?hero_/i.test(node.name)) skin = node as THREE.SkinnedMesh;
       });
-      if (skin) cutBody(skin, regionsCoveredBy(spec.map((part) => part.id)));
+      // Only under pieces already loaded: cutting for a piece still downloading left a floating head for the first seconds of a game
+      // (the outfit is set again, and cut again, as each piece arrives).
+      if (skin) cutBody(skin, regionsCoveredBy(spec.filter((part) => C.catalogCache.has(part.id) || part.id === 373 || part.id === 378).map((part) => part.id)));
     }
     const bones = new Map(body.skeleton.bones.map((bone) => [bone.name, bone]));
     const pieces: THREE.Object3D[] = [];

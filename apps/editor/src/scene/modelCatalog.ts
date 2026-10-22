@@ -434,6 +434,7 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 404, category: "nature", name: "Grass: meadow tuft", path: "./kit/nature/grass-meadow.glb" },
   { id: 405, category: "nature", name: "Grass: tall tuft", path: "./kit/nature/grass-tall.glb" },
   { id: 406, category: "nature", name: "Grass: dry tuft", path: "./kit/nature/grass-dry.glb" },
+  { id: 407, category: "nature", name: "Bamboo stand", path: "./kit/nature/bamboo-stand.glb" },
 ];
 
 export const catalogCategories = Array.from(

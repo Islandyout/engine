@@ -21,6 +21,14 @@ local function persist()
   save.set("jianghu-world", string.format("hours=%.2f;found=%s", day_hours, table.concat(list, ",")))
 end
 
+-- A found waystone goes on the world map.
+function mark_waystone(w)
+  local id = world.find(w.entity)
+  if not id then return end
+  local x, _, z = world.position(id)
+  hud.map_marker("way_" .. w.label, "home", x, z, "", w.label .. " waystone")
+end
+
 local function discovered()
   local list = {}
   for _, w in ipairs(WAYSTONES) do if found[w.entity] and w.entity ~= menu_for then list[#list + 1] = w end end
@@ -86,6 +94,7 @@ function on_start()
     local h = text:match("hours=([%d.]+)")
     if h then day_hours = tonumber(h) end
     for name in (text:match("found=(.*)$") or ""):gmatch("[^,]+") do found[name] = true end
+    for _, w in ipairs(WAYSTONES) do if found[w.entity] then mark_waystone(w) end end
   elseif (tonumber(props.intro) or 1) > 0 then
     -- A new road starts with a look in the mirror.
     after(2, function() world.send(me(), "mirror", "1") end)
@@ -133,6 +142,7 @@ function on_tick(dt)
         local d = distance_to(w.entity)
         if d and d < 14 then
           found[w.entity] = true
+          mark_waystone(w)
           ui.set_text("Notification", "Waystone found\n" .. w.label)
           persist()
         end

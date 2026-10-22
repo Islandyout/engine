@@ -18,7 +18,7 @@ import type { Components, V3 } from "../lib/scene_kit";
 const kit: typeof kitModule = (kitModule as unknown as { default?: typeof kitModule }).default ?? kitModule;
 const { ROOT, SceneBuilder, component, modelBounds, modelId, rgb, vec } = kit;
 import { QUESTS } from "./quests";
-import { FOES, GATES, HUBS, MAP, NPCS, PEAK, REGIONS, ROADS, THINGS, roadDistance } from "./world";
+import { FOES, GATES, HUBS, MAP, NPCS, PEAK, REGIONS, ROADS, SUMMIT_PATH, THINGS, roadDistance } from "./world";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const luaRaw = (file: string) => readFileSync(join(here, "lua", file), "utf8");
@@ -105,6 +105,22 @@ function regionShape(x: number, z: number): number {
   return h;
 }
 
+// The height the summit path has at (x, z) and how far (x, z) is from it: the path rises evenly by its length from the shrine pad to the summit pad.
+const summitEnds = [pads.find((p) => p.x === HUBS.peakShrine.x && p.z === HUBS.peakShrine.z)!.h, pads.find((p) => p.z === -398)!.h];
+const summitLength = SUMMIT_PATH.slice(1).reduce((sum, [x, z], i) => sum + Math.hypot(x - SUMMIT_PATH[i]![0], z - SUMMIT_PATH[i]![1]), 0);
+function summitAt(x: number, z: number) {
+  let best = { d: Infinity, h: 0 };
+  let walked = 0;
+  for (let i = 0; i + 1 < SUMMIT_PATH.length; i++) {
+    const [ax, az] = SUMMIT_PATH[i]!, [bx, bz] = SUMMIT_PATH[i + 1]!;
+    const len = Math.hypot(bx - ax, bz - az);
+    const t = Math.min(1, Math.max(0, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / (len * len)));
+    const d = Math.hypot(x - (ax + (bx - ax) * t), z - (az + (bz - az) * t));
+    if (d < best.d) best = { d, h: summitEnds[0]! + (summitEnds[1]! - summitEnds[0]!) * ((walked + t * len) / summitLength) };
+    walked += len;
+  }
+  return best;
+}
 const sculpt = new Int16Array(TERRAIN.resolution * TERRAIN.resolution);
 {
   const n = TERRAIN.resolution;
@@ -135,6 +151,11 @@ const sculpt = new Int16Array(TERRAIN.resolution * TERRAIN.resolution);
           const bed = e < 1 ? pondLevel + 0.3 - (POND.depth + 0.3) * (1 - e * e) : pondLevel + 0.3 + (e - 1) * 1.1;
           h += (bed - h) * (1 - smoothstep((e - 1.2) / 0.4));
         }
+      }
+      // The summit path: a ledge cut into the mountain, rising evenly from the shrine to the top.
+      {
+        const p = summitAt(x, z);
+        if (p.d < 5.5) h += (p.h - h) * (1 - smoothstep((p.d - 2.2) / 3.3));
       }
       sculpt[row * n + column] = Math.max(-32000, Math.min(32000, Math.round((h - b) * 100)));
     }
@@ -193,6 +214,7 @@ scene.add("World terrain", [0, 0, 0], {
     // Roads and the city's streets are painted into the ground (terrainPaths.ts): packed earth along each road, stone for the streets and plaza.
     paths: [
       ...ROADS.map((road) => `dirt 5 ${road.map(([x, z]) => `${x} ${z}`).join(" ")}`),
+      `gravel 3.5 ${SUMMIT_PATH.map(([x, z]) => `${x} ${z}`).join(" ")}`,
       "gravel 8 -50 0 50 0", "gravel 8 0 -50 0 50", "gravel 22 -0.5 -6 0.5 -6",
       // Yards at the hubs, the shore of the lake and pond, and the dust of the old battlefield.
       ...Object.values(HUBS).slice(1).map((h) => `gravel 34 ${h.x} ${h.z} ${h.x + 0.1} ${h.z}`),
@@ -206,6 +228,14 @@ scene.add("World terrain", [0, 0, 0], {
       "403 0.00005 1.6 4.2 0.7 collide spacing=6 tilt=0.4 tint=0.2", "402 0.00005 1.4 3.6 0.7 collide spacing=6 tilt=0.4 tint=0.2",
       "399 0.00014 3 8 0.8 collide tilt=0.5 tint=0.2", "401 0.0003 3 9 0.85 tilt=0.7 tint=0.2", "400 0.0003 4 10 0.85 tilt=0.7 tint=0.2",
       "261 0.0007 0.8 1.4 0.85 spacing=2.5 cluster=0.6 clusterSize=35 tint=0.15",
+      // Each region its own growth: bamboo groves in the forest, maples (the aspens' gold) in the gorge, pine and boulders on the ridge and the peak, ash and bushes in the marches.
+      "407 0.012 0.8 1.25 0.8 trunk spacing=2.2 cluster=0.75 clusterSize=30 tint=0.15 in=330,-10,150",
+      "257 0.004 0.9 1.4 0.8 trunk spacing=5 cluster=0.5 clusterSize=40 tint=0.12 in=-340,-340,125",
+      "403 0.0006 1.5 4 0.6 collide spacing=6 tilt=0.4 tint=0.2 in=-340,-340,125",
+      "259 0.004 0.9 1.4 0.8 trunk spacing=5 cluster=0.6 clusterSize=45 tint=0.12 in=340,-350,135", "260 0.003 0.8 1.2 0.8 trunk spacing=4 in=340,-350,135",
+      "402 0.0007 1.5 4 0.6 collide spacing=6 tilt=0.4 tint=0.2 in=340,-350,135",
+      "259 0.003 0.9 1.3 0.75 trunk spacing=5 cluster=0.5 in=0,-330,100", "403 0.0005 1.4 3.4 0.55 collide spacing=7 tilt=0.4 in=0,-340,90",
+      "256 0.002 0.9 1.3 0.8 trunk spacing=6 cluster=0.6 in=-330,20,160", "261 0.004 0.9 1.5 0.85 spacing=2.5 cluster=0.6 in=-330,20,160",
       // Grass is grown round the camera (near=M): a few tufts to the square metre where you stand, none where you are not.
       "404 1.0 0.8 1.4 0.9 on=grass tint=0.25 near=30", "404 0.7 1.0 1.7 0.9 on=grass tint=0.3 near=26", "405 0.14 0.9 1.5 0.9 on=grass tint=0.2 near=36", "406 0.35 0.8 1.3 0.9 on=sand,rock tint=0.2 near=28",
       ...exclusions.map((r) => `exclude ${r.map((v) => v.toFixed(0)).join(" ")}`),
@@ -353,7 +383,7 @@ place("Cracked arch", "cave-arch", 320, 292, 0, false, 1.1);
 place("Lotus hut", "thatched-hut", 244, 50, 2.4, true, 1.1);
 place("Lotus tea table", "tea-table", 252, 56, 0.6, true, 1);
 place("Lotus lantern", "stone-lantern", 250, 62, 0, true, 1.1);
-for (const [dx, dz] of [[-10, 8], [-14, 2], [-6, 14], [-12, -6]] as const) place("Lotus bamboo", "bamboo-clump", 248 + dx, 56 + dz, dx, false, 1.2);
+for (const [dx, dz] of [[-10, 8], [-14, 2], [-6, 14], [-12, -6]] as const) place("Lotus bamboo", "bamboo-stand", 248 + dx, 56 + dz, dx, false, 1.2);
 // The pier and boats at Port Jade, and the summit's altar.
 place("Port Jade pier", "lake-pier", -351, 26, 1.57, true, 1);
 place("Summit lantern", "stone-lantern", -3, -392, 0, true, 1.4);
@@ -367,6 +397,29 @@ const waterSheet = (name: string, x: number, z: number, rx: number, rz: number, 
 };
 waterSheet("Lake water", LAKE.x, LAKE.z, LAKE.rx * 0.93, LAKE.rz * 0.93, lakeLevel);
 waterSheet("Pond water", POND.x, POND.z, POND.rx * 0.82, POND.rz * 0.82, pondLevel - 0.12);
+
+// ------------------------------------------------------- small finds along the way --
+// Something every half-minute of walking, tied to a landmark you can see from the road (a broken cart, a shrine, a stele, a hollow by a rock):
+// a little silver, herbs, a pill, arrows. Each opens once (Container: E to search).
+for (const [i, [x, z, model, table, yaw]] of ([
+  [130, 32, "hand-cart", "1 item Silver\n1 item Silver\n0.6 item Arrow", 1.2],
+  [210, -30, "roadside-shrine", "1 item Jade Dew Pill\n0.5 item Spirit Herb", 2.6],
+  [262, 20, "stele", "1 item Spirit Herb\n0.8 item Spirit Herb", 0.3],
+  [-140, 46, "hand-cart", "1 item Silver\n0.7 item Qi Elixir", -0.6],
+  [-230, -20, "roadside-shrine", "1 item Jade Dew Pill\n1 item Silver", 1.4],
+  [-366, -110, "stele", "1 item Spirit Stone", 0.8],
+  [-352, -220, "incense-burner", "1 item Qi Elixir\n0.5 item Breakthrough Pill", 0],
+  [40, -150, "roadside-shrine", "1 item Silver\n1 item Spirit Herb", 3.0],
+  [-30, -240, "stele", "1 item Spirit Stone\n0.4 item Breakthrough Pill", 0.2],
+  [160, -330, "hand-cart", "1 item Silver\n1 item Silver\n1 item Arrow", 1.9],
+  [270, -352, "roadside-shrine", "1 item Qi Elixir\n1 item Jade Dew Pill", 2.2],
+  [70, 160, "hand-cart", "1 item Silver\n0.6 item Iron Ore", 0.9],
+  [170, 262, "stele", "1 item Spirit Herb\n1 item Spirit Herb", 0.5],
+  [260, 302, "incense-burner", "1 item Breakthrough Pill", 0],
+  [-90, -100, "ore-rock", "1 item Iron Ore\n1 item Iron Ore\n0.3 item Spirit Stone", 0.4],
+  [120, -120, "ore-rock", "1 item Iron Ore\n0.5 item Spirit Stone", 1.1],
+] as [number, number, string, string, number][]).entries())
+  place(`Wayside find ${i + 1}`, model, x, z, yaw, true, 1, { Container: { table, hold: 0.8 } });
 
 // ----------------------------------------------------------- the city, filled --
 // Houses along the streets, courtyard trees, a well and a furnace, so the city is a town and not a lawn with a hall in it.
@@ -728,7 +781,7 @@ const WAYSTONES = THINGS.filter((t) => t.action === "waystone").map((t) => ({ en
 const fill = (file: string) =>
   lua(file)
     .replace("--@QUESTS@", toLua(QUESTS)).replace("--@NPCS@", toLua(NPC_DATA)).replace("--@THINGS@", toLua(THING_DATA))
-    .replace("--@REGIONS@", toLua(REGIONS)).replace("--@WAYSTONES@", toLua(WAYSTONES));
+    .replace("--@REGIONS@", toLua(REGIONS)).replace("--@MAP@", toLua({ roads: ROADS, hubs: [{ x: 0, z: 0, name: "Cloudgate" }, { ...HUBS.greenhollow, name: "Greenhollow" }, { ...HUBS.portJade, name: "Port Jade" }, { ...HUBS.peakShrine, name: "Peak shrine" }, { ...HUBS.gorgeHall, name: "Blood Lotus hall" }, { ...HUBS.fortress, name: "Black Wind fortress" }, { ...HUBS.bonesGate, name: "Bones gate" }, { x: 0, z: -398, name: "Nine-Dragon Summit" }] })).replace("--@WAYSTONES@", toLua(WAYSTONES));
 const SYSTEMS = [
   { name: "Economy", files: ["items.lua", "shop.lua"] },
   { name: "World", files: ["items.lua", "talk.lua", "world.lua"] },

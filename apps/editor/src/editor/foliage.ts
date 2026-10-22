@@ -18,6 +18,8 @@
 //                  rocks follow the ground; trees, at 0, grow straight up);
 //   tint=0..1      how much each instance's brightness varies (+-), so a
 //                  field of one model doesn't read as copies;
+//   in=X,Z,R       only inside this circle (terrain-local x/z), its density counted over
+//                  the circle: a region's own trees, rocks or bamboo;
 //   near=M         not placed in the terrain at all: grown round the camera, out
 //                  to M metres, as it moves (grassField.ts), so a rule can
 //                  carry real density (tufts a step apart) over a whole map.
@@ -42,6 +44,7 @@ export interface ScatterRule {
   tilt?: number;
   tint?: number;
   near?: number;
+  within?: [number, number, number];
 }
 
 export interface ScatterInstance {
@@ -88,6 +91,12 @@ export function parseFoliageOption(rule: ScatterRule, word: string): string | un
       rule.heightMax = Number(match[2]);
       return undefined;
     }
+    case "in": {
+      const parts = value.split(",").map(Number);
+      if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n)) || !(parts[2]! > 0)) return 'in must be "x,z,radius"';
+      rule.within = parts as [number, number, number];
+      return undefined;
+    }
     case "on": {
       const layers = value.split(",").filter(Boolean);
       const bad = layers.find((l) => !(foliageLayers as readonly string[]).includes(l));
@@ -96,7 +105,7 @@ export function parseFoliageOption(rule: ScatterRule, word: string): string | un
       return undefined;
     }
     default:
-      return `unknown option "${key}" (spacing, cluster, clusterSize, height, on, tilt, tint, near)`;
+      return `unknown option "${key}" (spacing, cluster, clusterSize, height, on, tilt, tint, near, in)`;
   }
 }
 
@@ -154,12 +163,19 @@ export function placeFoliage(rules: ScatterRule[], ground: FoliageGround, area: 
   };
   rules.forEach((rule, r) => {
     if (rule.near) return; // grown round the camera (grassField.ts)
-    const count = Math.min(cap - out.length, Math.round(rule.density * countArea));
+    // A rule kept to a circle places its count over the circle, sampling only its square.
+    const ring = rule.within;
+    const ruleArea = ring ? Math.PI * ring[2] * ring[2] : countArea;
+    const rx0 = ring ? ring[0] - ring[2] : area.x0, rz0 = ring ? ring[1] - ring[2] : area.z0;
+    const rw = ring ? ring[2] * 2 : w, rd = ring ? ring[2] * 2 : d;
+    const count = Math.min(cap - out.length, Math.round(rule.density * ruleArea));
     const clustered = (rule.cluster ?? 0) > 0;
     let placed = 0;
     for (let k = 0; k < count * 3 && placed < count; k++) {
-      const x = area.x0 + hash(k, r, seed + 7) * w;
-      const z = area.z0 + hash(k, r + 31, seed + 13) * d;
+      const x = rx0 + hash(k, r, seed + 7) * rw;
+      const z = rz0 + hash(k, r + 31, seed + 13) * rd;
+      if (ring && Math.hypot(x - ring[0], z - ring[1]) > ring[2]) continue;
+      if (x < area.x0 || x > area.x1 || z < area.z0 || z > area.z1) continue;
       const n = ground.normal(x, z);
       if (n[1] < rule.maxSlope) continue;
       if (ground.blocked?.(x, z)) continue;

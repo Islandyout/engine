@@ -33,3 +33,18 @@ test("grass keeps to its layer, its slope and clearings", () => {
   assert.equal(cellTufts(rules[0]!, 0, 0, 0, { ...flat("grass"), normal: () => [0.8, 0.6, 0] }, 1).length, 0, "none on a steep slope");
   assert.equal(cellTufts(rules[0]!, 0, 0, 0, { ...flat("grass"), blocked: () => true }, 1).length, 0, "none in an exclusion");
 });
+
+test("in=x,z,r keeps a rule to its circle", () => {
+  const { rules, errors } = parseScatter("404 0.01 1 1 0.5 in=100,-50,30");
+  assert.deepEqual(errors, []);
+  assert.deepEqual(rules[0]!.within, [100, -50, 30]);
+  assert.match(parseScatter("404 0.01 1 1 0.5 in=1,2").errors.join(), /in must be/);
+});
+
+test("a rule kept to a circle places its density over the circle and nowhere else", async () => {
+  const { placeFoliage } = await import("../src/editor/foliage");
+  const { rules } = parseScatter("1 0.01 1 1 0.5 in=100,-50,30");
+  const out = placeFoliage(rules, { height: () => 0, normal: () => [0, 1, 0] }, { x0: -500, z0: -500, x1: 500, z1: 500 }, 3);
+  assert.ok(out.length > 15 && out.length <= 29, `about pi * 30^2 * 0.01 = 28 (${out.length})`);
+  for (const i of out) assert.ok(Math.hypot(i.x - 100, i.z + 50) <= 30);
+});

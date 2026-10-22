@@ -2,6 +2,7 @@
 -- its name and how dangerous it is for you, so strength can be read before it is felt. A region you have not been to is
 -- announced in full the first time and briefly afterwards.
 REGIONS = --@REGIONS@
+MAPDATA = --@MAP@
 local TIER_WORD = { "green", "yellow", "orange", "red", "black" }
 local TIER_NAME = { "Safe", "Frontier", "Wild", "Deadly", "Forbidden" }
 local REALM_NAMES = { "Mortal", "Qi Gathering", "Foundation", "Golden Core", "Nascent Soul", "Spirit Severing", "Void Ascendant" }
@@ -32,10 +33,44 @@ local function persist()
   save.set("jianghu-road-regions", "visited=" .. table.concat(list, ","))
 end
 
+-- The world map (M) and the minimap: regions you have been to are drawn in their colour with their name; the rest are mist.
+-- Roads are always on it (they are how you find your way); hubs are marked once their region is known.
+local TIER_COLOUR = { "#4f7a3c", "#6f7a3a", "#8a6a34", "#8a3a2c", "#3a2c3a" }
+local function draw_map()
+  local lines = { "bounds -500 -500 500 500", "north -z", "area -500 -500 500 500 #24302a" }
+  -- Biggest first, so a small region sits on top of the one round it.
+  local order = {}
+  for _, r in ipairs(REGIONS) do order[#order + 1] = r end
+  table.sort(order, function(a, b) return a.circles[1][3] > b.circles[1][3] end)
+  for _, r in ipairs(order) do
+    local c = r.circles[1]
+    local known = visited[r.id]
+    lines[#lines + 1] = string.format("area %.0f %.0f %.0f %.0f %s%s", c[1] - c[3] * 0.8, c[2] - c[3] * 0.8, c[1] + c[3] * 0.8, c[2] + c[3] * 0.8,
+      known and TIER_COLOUR[r.tier] or "#2e3833", known and (" " .. r.name) or "")
+  end
+  for _, r in ipairs(order) do
+    local c = r.circles[1]
+    lines[#lines + 1] = string.format("label %.0f %.0f %s", c[1], c[2] + c[3] * 0.55, visited[r.id] and r.name or "?")
+  end
+  for _, road in ipairs(MAPDATA.roads) do
+    local pts = {}
+    for _, p in ipairs(road) do pts[#pts + 1] = string.format("%.0f %.0f", p[1], p[2]) end
+    lines[#lines + 1] = "path " .. table.concat(pts, " ")
+  end
+  lines[#lines + 1] = "title Jianghu Road|WORLD MAP"
+  for _, l in ipairs({ "player You", "home Waystone: rest and travel", "giver Quest giver", "target Strong opponent" }) do lines[#lines + 1] = "legend " .. l end
+  hud.map_layout(table.concat(lines, "\n"))
+  hud.minimap(false)
+  for _, h in ipairs(MAPDATA.hubs) do
+    local r = region_at(h.x, h.z)
+    if r and visited[r.id] then hud.map_marker("hub_" .. h.name, "gate", h.x, h.z, "", h.name) end
+  end
+end
+
 local function announce(r)
   local first = not visited[r.id]
   visited[r.id] = true
-  if first then persist() end
+  if first then persist() draw_map() end
   local lo, hi = r.lo, r.hi
   local span = lo == hi and ("Realm " .. lo) or ("Realms " .. lo .. " to " .. hi)
   local _, word, danger = threat_of(hi, realm)
@@ -58,6 +93,7 @@ end
 function on_start()
   local list = tostring(save.get("jianghu-road-regions") or ""):match("visited=(.*)$")
   if list then for id in list:gmatch("[^,]+") do visited[id] = true end end
+  draw_map()
 end
 
 function on_tick(dt)
