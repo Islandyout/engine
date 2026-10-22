@@ -537,6 +537,8 @@ export interface Ctx {
   talkerResting: Set<number>;
   talkerScan: number;
   talkerWasResting: Set<number>;
+  // The terrain's height at a world x, z (undefined off every terrain): foot IK stands characters on it.
+  groundAt: (x: number, z: number) => number | undefined;
   terrainMeshes: Map<number, { mesh: THREE.Mesh; params: TerrainParams; look: TerrainLook; offsets: Int16Array; }>;
   terrainParams: (t: TerrainComponent) => TerrainParams;
   textureCache: Map<string, THREE.Texture>;

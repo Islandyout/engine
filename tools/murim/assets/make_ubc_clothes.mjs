@@ -92,8 +92,45 @@ function build(sex) {
   }
   const pelvis = names.indexOf("pelvis");
 
+  // Taubin smoothing (a shrinking pass, then an inflating one) over a piece's own triangles: cloth does not follow muscle.
+  function smooth(out, rounds) {
+    const n = out.pos.length / 3;
+    const near = Array.from({ length: n }, () => new Set());
+    for (let t = 0; t < out.index.length; t += 3) {
+      const [a, b, c] = [out.index[t], out.index[t + 1], out.index[t + 2]];
+      near[a].add(b).add(c); near[b].add(a).add(c); near[c].add(a).add(b);
+    }
+    const step = (lambda) => {
+      const next = out.pos.slice();
+      for (let v = 0; v < n; v++) {
+        if (!near[v].size) continue;
+        for (let k = 0; k < 3; k++) {
+          let sum = 0;
+          for (const u of near[v]) sum += out.pos[u * 3 + k];
+          next[v * 3 + k] = out.pos[v * 3 + k] + lambda * (sum / near[v].size - out.pos[v * 3 + k]);
+        }
+      }
+      out.pos = next;
+    };
+    for (let i = 0; i < rounds; i++) { step(0.5); step(-0.53); }
+    // New normals from the smoothed faces.
+    const nor = new Array(n * 3).fill(0);
+    for (let t = 0; t < out.index.length; t += 3) {
+      const [a, b, c] = [out.index[t], out.index[t + 1], out.index[t + 2]];
+      const u = [0, 1, 2].map((k) => out.pos[b * 3 + k] - out.pos[a * 3 + k]);
+      const w = [0, 1, 2].map((k) => out.pos[c * 3 + k] - out.pos[a * 3 + k]);
+      const f = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+      for (const v of [a, b, c]) for (let k = 0; k < 3; k++) nor[v * 3 + k] += f[k];
+    }
+    for (let v = 0; v < n; v++) {
+      const l = Math.hypot(nor[v * 3], nor[v * 3 + 1], nor[v * 3 + 2]) || 1;
+      for (let k = 0; k < 3; k++) out.nor[v * 3 + k] = nor[v * 3 + k] / l;
+    }
+    return out;
+  }
+
   // A piece: the triangles whose three vertices pass `keep`, pushed out by `push`, optionally reshaped by `shape`.
-  function piece({ keep, push, shape, hang = 0 }) {
+  function piece({ keep, push, shape, hang = 0, smoothing = 6 }) {
     const remap = new Map();
     const out = { pos: [], nor: [], joints: [], weights: [], index: [] };
     const take = (v) => {
@@ -122,20 +159,28 @@ function build(sex) {
       const [a, b, c] = [index[t], index[t + 1], index[t + 2]];
       if (keep(a) && keep(b) && keep(c)) out.index.push(take(a), take(b), take(c));
     }
-    return out;
+    return smoothing ? smooth(out, smoothing) : out;
   }
   const r = (v) => region(dominant[v]);
   const y = (v) => pos[v * 3 + 1];
   const ax = (v) => Math.abs(pos[v * 3]);
-  const top = piece({ keep: (v) => r(v) === "torso" || (r(v) === "arm" && ax(v) < 0.62), push: 0.011 });
-  const legs = piece({ keep: (v) => r(v) === "hip" || r(v) === "leg", push: 0.011 });
-  const boots = piece({ keep: (v) => r(v) === "foot" || (r(v) === "leg" && y(v) < 0.36), push: 0.016 });
-  const sash = piece({ keep: (v) => (r(v) === "torso" || r(v) === "hip") && y(v) > 0.94 && y(v) < 1.07, push: 0.026 });
+  // Loose cloth: a few centimetres off the skin, sleeves widening toward the wrist like a wuxia robe, trousers a little full.
+  // Only the forearm widens (a wuxia sleeve hangs from the elbow); the upper arm stays close.
+  const sleeve = (v) => (dominant[v].startsWith("lowerarm") ? Math.max(0, Math.min(1, (ax(v) - 0.33) / 0.35)) : 0);
+  const top = piece({
+    keep: (v) => r(v) === "torso" || (r(v) === "arm" && ax(v) < 0.68),
+    push: (v) => (r(v) === "arm" ? 0.016 + 0.028 * sleeve(v) : 0.024),
+    smoothing: 8,
+  });
+  const legs = piece({ keep: (v) => r(v) === "hip" || r(v) === "leg", push: (v) => (r(v) === "leg" && y(v) < 0.6 ? 0.03 : 0.024), smoothing: 8 });
+  const boots = piece({ keep: (v) => r(v) === "foot" || (r(v) === "leg" && y(v) < 0.36), push: 0.02, smoothing: 4 });
+  const sash = piece({ keep: (v) => (r(v) === "torso" || r(v) === "hip") && y(v) > 0.94 && y(v) < 1.07, push: 0.042, smoothing: 4 });
   const yTop = 1.0, yHem = 0.14, axisZ = -0.02;
   const skirt = piece({
     keep: (v) => r(v) === "hip" || r(v) === "leg",
-    push: 0.012,
+    push: 0.02,
     hang: 0.7,
+    smoothing: 8,
     shape: ([x, py, z]) => {
       const t = Math.max(0, Math.min(1, (yTop - py) / (yTop - yHem)));
       const s = 1.06 + 0.9 * t * t;

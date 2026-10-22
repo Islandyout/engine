@@ -144,7 +144,10 @@ ${decl}
 vec3 layerColor(sampler2D t, vec3 mean) {
   vec3 a = texture2D(t, vGround / tileSize).rgb;
   vec3 b = texture2D(t, vGround / (tileSize * 4.7) + 0.31).rgb;
-  return clamp(a * b / (mean * mean), 0.25, 2.2);
+  // Mostly brightness: the layers' own hues would turn a green meadow purple and yellow, the palette is the scene's.
+  vec3 c = a * b / (mean * mean);
+  float l = dot(c, vec3(0.299, 0.587, 0.114));
+  return clamp(mix(vec3(l), c, 0.3), 0.45, 1.9);
 }
 vec3 layerNormal(sampler2D t) {
   vec3 a = texture2D(t, vGround / tileSize).xyz * 2.0 - 1.0;

@@ -1,4 +1,5 @@
 import { wind } from "../terrainMesh";
+import { FootIK } from "../footIK";
 import { accessibility } from "../uiKit";
 import { makeProjectile, updateProjectile } from "../projectileView";
 import * as THREE from "three";
@@ -107,6 +108,9 @@ export function installFrame(C: Ctx): void {
     C.dirtyCheck.value = C.doc.dirty;
     return C.dirtyCheck.value;
   }
+
+  const feetIK = new WeakMap<THREE.Object3D, FootIK | null>();
+  const feetDrop = new WeakMap<THREE.Object3D, { base: number; written: number }>();
 
   function frame(now: number) {
     const frameStart = performance.now();
@@ -337,7 +341,30 @@ export function installFrame(C: Ctx): void {
         applyGesture(bones, kind, now / 1000, i);
       }
     });
-    if (C.doc.mode === "play") C.combat.plant(dt);
+    if (C.doc.mode === "play") {
+      C.combat.plant(dt);
+      // Standing on a slope: the feet follow the terrain (characters within 30 m; the farther ones are too small to show it).
+      if (C.terrainMeshes.size) {
+        C.animStates.forEach((state, i) => {
+          const object = C.objects[i];
+          if (!state || !object || object.userData.farHidden || object.position.distanceToSquared(eye) > 30 * 30) return;
+          let ik = feetIK.get(object);
+          if (ik === undefined) {
+            const made = new FootIK(object);
+            feetIK.set(object, (ik = made.legs.length === 2 ? made : null));
+          }
+          if (!ik) return;
+          // The body's drop is undone first when nothing else has moved it since (a still character is not re-synced each frame).
+          const last = feetDrop.get(object);
+          if (last && object.position.y === last.written) object.position.y = last.base;
+          const base = object.position.y;
+          const ground = C.groundAt(object.position.x, object.position.z);
+          // Only a character standing on the terrain (not one flying, or inside a room far above it).
+          if (ground !== undefined && Math.abs(object.position.y - 0.9 - ground) < 1.2) ik.apply(C.groundAt);
+          feetDrop.set(object, { base, written: object.position.y });
+        });
+      }
+    }
     // Weapon guards and two-handed grips, over the clips' poses.
     updateHeldWeapons(animDt, (body) => C.combat.guarding(body));
     C.updateGunPoses(animDt);

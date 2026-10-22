@@ -510,6 +510,30 @@ export function installSceneObjects(C: Ctx): void {
     C.deathStates.push(undefined);
   }
 
+  // The terrain's height at a world position (bilinear over the mesh's own heights), or undefined off every terrain.
+  const groundPoint = new THREE.Vector3();
+  function groundAt(x: number, z: number): number | undefined {
+    for (const { mesh, params } of C.terrainMeshes.values()) {
+      const half = params.size / 2;
+      mesh.parent?.updateWorldMatrix(true, false);
+      groundPoint.set(x, 0, z);
+      mesh.worldToLocal(groundPoint);
+      if (Math.abs(groundPoint.x) > half || Math.abs(groundPoint.z) > half) continue;
+      const position = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
+      const n = params.resolution;
+      const step = params.size / (n - 1);
+      const fx = Math.min(Math.max((groundPoint.x + half) / step, 0), n - 1.0001);
+      const fz = Math.min(Math.max((groundPoint.z + half) / step, 0), n - 1.0001);
+      const c = Math.floor(fx), r = Math.floor(fz), tx = fx - c, tz = fz - r;
+      const at = (cc: number, rr: number) => position.getY(rr * n + cc);
+      const top = at(c, r) + (at(c + 1, r) - at(c, r)) * tx;
+      const bottom = at(c, r + 1) + (at(c + 1, r + 1) - at(c, r + 1)) * tx;
+      return mesh.parent ? mesh.parent.localToWorld(new THREE.Vector3(0, top + (bottom - top) * tz, 0)).y : top + (bottom - top) * tz;
+    }
+    return undefined;
+  }
+  C.groundAt = groundAt;
+
   // Plants sway in the wind; rocks and buildings do not.
   const plantLike = (meshId: number) => {
     const entry = C.catalogEntry(meshId);
