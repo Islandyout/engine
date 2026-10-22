@@ -149,6 +149,14 @@ export function installScriptHost(C: Ctx): void {
       }
     }
     C.outfits.set(index, pieces);
+    // Until every piece has arrived the character is not drawn at all (a body cut for the clothes that are here, and bare where the
+    // rest should be, was a head and hands on the ground, then a half-dressed man): `pending` counts the pieces still downloading.
+    const pending = spec.filter((part) => !C.catalogCache.has(part.id) && part.id !== 373 && part.id !== 378).length;
+    const worn = new Set<THREE.Object3D>(pieces);
+    anchor.traverse((node) => {
+      if ((node as THREE.Mesh).isMesh) node.visible = pending === 0 || !(node as THREE.SkinnedMesh).isSkinnedMesh ? true : false;
+    });
+    for (const mesh of worn) mesh.visible = pending === 0;
   }
 
   function handleHost(kind: string, text: string) {
