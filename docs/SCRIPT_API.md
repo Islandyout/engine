@@ -107,7 +107,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | Function | What it does |
 |---|---|
 | `camera.shake(intensity?: number, seconds?: number)` | Shakes the game camera (defaults 0.3, 0.4 s). |
-| `camera.forward()` | The camera's horizontal facing (x, z), a unit vector: keep what you spawn out of view. |
+| `camera.forward()` | The camera's horizontal facing (x, z), a unit vector, and a third value: how far it looks up (its direction's y, -1..1). |
 
 ## vehicle
 
@@ -177,6 +177,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 | `melee.target(): integer?` | Who it faces and fights. |
 | `melee.set_ai(on: boolean, aggression?: number, skill?: number)` | Hands the fighter to (or takes it from) its melee brain. |
 | `melee.unlock(move: string): number?` | Makes a move marked locked usable; 1 when the move exists. |
+| `melee.shoot(dx: number, dy: number, dz: number, speed: number, damage: number, gravity?: number): boolean` | Looses an arrow from the chest along a direction (not when stunned, down or in the air): speed m/s, its damage (times the fighter's damage), gravity as a scale of the world's. It stops at the first wall or body; a hit high on a tall body counts double. |
 | `melee.relock(move: string): number?` | Makes a move unusable again (a stance switch, a spent art); 1 when the move exists. |
 | `melee.stagger(): number, number` | Its poise bar 0-1, and 1 while it's Broken. |
 | `melee.mana(add?: number): number, number` | Adds mana (a potion; capped at the max) and returns its mana and max. |
