@@ -8,6 +8,15 @@
 export const musicMoods = ["off", "title", "explore", "night", "flight", "space", "signal", "tension"] as const;
 export type MusicMood = (typeof musicMoods)[number];
 
+// Moods backed by a recording instead of the generator (CC0 tracks from OpenGameArt, see assets/CREDITS.md): a game picks one by
+// name, host.send("music", "wuxia-explore"). The track loops, fades in and out, and the generator stays quiet while it plays.
+export const recordedMoods: Record<string, string> = {
+  "wuxia-title": "asianoriental2_0",
+  "wuxia-explore": "asianoriental1_0",
+  "wuxia-night": "orien1_0",
+  "wuxia-tension": "prepare_your_swords_0",
+};
+
 interface MoodSpec {
   root: number; // MIDI note of the tonic
   scale: number[]; // semitones
@@ -228,6 +237,10 @@ export class Music {
   private readonly dry: GainNode;
   private readonly wet: GainNode;
   private mood: MusicMood = "off";
+  // The recorded track playing (or loading) and the buffers fetched so far.
+  private recorded = "";
+  private track?: { source: AudioBufferSourceNode; gain: GainNode };
+  private readonly buffers = new Map<string, Promise<AudioBuffer | undefined>>();
   private next = 0; // context time of the next step
   private step = 0;
   private chord = 0;
@@ -237,7 +250,7 @@ export class Music {
 
   constructor(
     private readonly context: BaseAudioContext,
-    output: AudioNode,
+    private readonly output: AudioNode,
   ) {
     this.master = context.createGain();
     this.master.gain.value = 0;
@@ -252,10 +265,60 @@ export class Music {
   }
 
   get current() {
-    return this.mood;
+    return this.recorded || this.mood;
+  }
+
+  // A recorded track: fetched once, looped, faded in over three seconds.
+  private playRecorded(name: string) {
+    const file = recordedMoods[name]!;
+    let buffer = this.buffers.get(file);
+    if (!buffer) {
+      buffer = fetch(`./audio/music/${file}.ogg`)
+        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+        .then((data) => this.context.decodeAudioData(data))
+        .catch(() => undefined);
+      this.buffers.set(file, buffer);
+    }
+    void buffer.then((decoded) => {
+      if (!decoded || this.recorded !== name) return;
+      const gain = this.context.createGain();
+      gain.gain.value = 0;
+      gain.gain.linearRampToValueAtTime(0.55, this.context.currentTime + 3);
+      const source = this.context.createBufferSource();
+      source.buffer = decoded;
+      source.loop = true;
+      source.connect(gain).connect(this.output);
+      source.start();
+      this.track = { source, gain };
+    });
+  }
+
+  private stopRecorded(fade = 1.5) {
+    const track = this.track;
+    this.track = undefined;
+    if (!track) return;
+    const now = this.context.currentTime;
+    track.gain.gain.cancelScheduledValues(now);
+    track.gain.gain.setValueAtTime(track.gain.gain.value, now);
+    track.gain.gain.linearRampToValueAtTime(0, now + fade);
+    track.source.stop(now + fade + 0.05);
   }
 
   setMood(mood: string) {
+    if (mood === this.recorded && mood) return;
+    this.stopRecorded();
+    this.recorded = "";
+    if (recordedMoods[mood]) {
+      // The generator falls silent; the recording takes over.
+      this.recorded = mood;
+      this.master.gain.cancelScheduledValues(this.context.currentTime);
+      this.master.gain.linearRampToValueAtTime(0, this.context.currentTime + 1.5);
+      this.mood = "off";
+      this.pad?.stop(this.context.currentTime + 1.5);
+      this.pad = undefined;
+      this.playRecorded(mood);
+      return;
+    }
     const next = (musicMoods as readonly string[]).includes(mood) ? (mood as MusicMood) : "off";
     if (next === this.mood) return;
     const now = this.context.currentTime;
@@ -274,7 +337,7 @@ export class Music {
 
   // Schedules the next half second of notes; call every frame.
   update() {
-    if (this.mood === "off") return;
+    if (this.mood === "off" || this.recorded) return;
     const spec = moods[this.mood];
     const now = this.context.currentTime;
     if (this.next < now) this.next = now + 0.05;
@@ -291,6 +354,7 @@ export class Music {
   }
 
   dispose() {
+    this.stopRecorded(0);
     this.pad?.stop(this.context.currentTime);
     this.master.disconnect();
   }

@@ -1018,7 +1018,7 @@ export const scriptApi: ScriptApiEntry[] = [
   {
     "name": "audio.music",
     "signature": "audio.music(mood: string)",
-    "doc": "off, title, explore, night, flight, space, signal or tension.",
+    "doc": "off, title, explore, night, flight, space, signal or tension (generated), or a recorded track: wuxia-title, wuxia-explore, wuxia-night or wuxia-tension.",
     "group": "audio"
   },
   {

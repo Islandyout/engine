@@ -727,7 +727,7 @@ local function audio_tick(dt)
       if hostile(n) and world.alive(id) then fight = true break end
     end
   end
-  local m = dead and "off" or fight and "tension" or (day_hours >= 20 or day_hours < 5) and "night" or "explore"
+  local m = dead and "off" or fight and "wuxia-tension" or (day_hours >= 20 or day_hours < 5) and "wuxia-night" or "wuxia-explore"
   if m ~= mood then mood = m audio.music(m) end
   local settled = false
   for _, name in ipairs({ "Elder Mu", "Merchant Lin" }) do

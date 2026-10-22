@@ -787,6 +787,12 @@ ambientCG (https://ambientcg.com), CC0 1.0: Grass004, Rock064, Ground054 and Sno
 
 ambientCG (https://ambientcg.com), CC0 1.0: Plaster001, Planks037A, RoofingTiles013A and Rock051, colour maps (the normal maps are shipped but not used yet), resized to 512 px.
 
+## Recorded music (`source/audio/music/`) and impact samples (`source/audio/impacts/`)
+
+Music from OpenGameArt, each page marked CC0: "Asianoriental1" (https://opengameart.org/content/asianoriental1, exploring), "Asianoriental2" (https://opengameart.org/content/asianoriental2, title),
+"Orient Peace Valley" (https://opengameart.org/content/orient-peace-valley, night) and "Prepare your swords" (https://opengameart.org/content/prepare-your-swords, danger). Used by the `wuxia-*` music moods.
+Impact and footstep samples (punches, plate hits, a bell, soft falls, wood, grass and concrete steps): Kenney's Impact Sounds (https://kenney.nl/assets/impact-sounds), CC0 1.0, copied unmodified.
+
 ## Four more sound clips (ids 11-14 in the sound catalog)
 
 From Kenney's *RPG Audio* pack (https://kenney.nl/assets/rpg-audio, CC0 1.0), copied unmodified and renamed: `blade-draw.ogg` (`drawKnife1.ogg`),

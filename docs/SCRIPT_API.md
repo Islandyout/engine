@@ -271,7 +271,7 @@ Scripts are Lua 5.4, one per entity (the Script component). These are the callba
 
 | Function | What it does |
 |---|---|
-| `audio.music(mood: string)` | off, title, explore, night, flight, space, signal or tension. |
+| `audio.music(mood: string)` | off, title, explore, night, flight, space, signal or tension (generated), or a recorded track: wuxia-title, wuxia-explore, wuxia-night or wuxia-tension. |
 | `audio.ambience(layer: string, level: number)` | An ambience layer's level 0-1: wind, rain, settlement, wildlife or signal. |
 
 ## fx

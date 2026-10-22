@@ -23,8 +23,12 @@ const voices: Record<GunSound, GunVoice> = {
   launcher: { body: 500, decay: 0.45, thump: 70, crack: 0.2, level: 0.9 },
 };
 
+import type { SampleBank } from "./sampleBank";
+
 export class Sfx {
   private readonly noise: AudioBuffer;
+  // Recorded samples layered over the synthesized voices (set once they have loaded).
+  samples: SampleBank | undefined;
 
   constructor(
     private readonly context: BaseAudioContext,
@@ -91,11 +95,19 @@ export class Sfx {
 
   // The same voices, played into another node (a positional source).
   at(output: AudioNode): Sfx {
-    return new Sfx(this.context, output, this.noise);
+    const voice = new Sfx(this.context, output, this.noise);
+    voice.samples = this.samples;
+    return voice;
+  }
+
+  // A recorded sample on top of the synthesized voice.
+  private layer(group: string, volume: number, when = this.now, rate = 1) {
+    this.samples?.play(group, this.output, volume, when, rate);
   }
 
   footstep(surface: "grass" | "hard", volume = 1) {
     const t = this.now;
+    this.layer(surface === "grass" ? "stepGrass" : "stepHard", 0.5 * volume);
     if (surface === "grass") {
       this.burst(t, "bandpass", 1100 + Math.random() * 500, 0.22 * volume, 0.11, 0.8);
       this.burst(t + 0.02, "highpass", 3500, 0.06 * volume, 0.08);
@@ -192,6 +204,7 @@ export class Sfx {
   // boom for heavy hits.
   punch(heavy = false, volume = 1) {
     const t = this.now;
+    this.layer(heavy ? "punchHeavy" : "punchLight", 0.9 * volume);
     this.burst(t, "lowpass", heavy ? 380 : 520, (heavy ? 0.9 : 0.6) * volume, heavy ? 0.2 : 0.11);
     this.burst(t, "bandpass", 1800 + Math.random() * 600, 0.28 * volume, 0.035, 1.5);
     this.tone(t, "sine", heavy ? 95 : 140, heavy ? 40 : 70, (heavy ? 0.7 : 0.35) * volume, heavy ? 0.28 : 0.14);
@@ -200,6 +213,7 @@ export class Sfx {
   // Forearms meeting a blow.
   block(volume = 1) {
     const t = this.now;
+    this.layer("block", 0.7 * volume);
     this.burst(t, "bandpass", 900, 0.45 * volume, 0.06, 1.2);
     this.tone(t, "triangle", 320, 220, 0.12 * volume, 0.08);
   }
@@ -207,6 +221,7 @@ export class Sfx {
   // A perfect parry: a bright ring.
   parry(volume = 1) {
     const t = this.now;
+    this.layer("bell", 0.45 * volume, t, 1.6);
     this.burst(t, "highpass", 4000, 0.25 * volume, 0.05);
     this.tone(t, "sine", 1760, 1700, 0.3 * volume, 0.5);
     this.tone(t, "sine", 2637, 2600, 0.18 * volume, 0.45);
@@ -215,6 +230,7 @@ export class Sfx {
   // A body hitting the floor.
   bodyFall(volume = 1) {
     const t = this.now;
+    this.layer("fall", 0.8 * volume);
     this.burst(t, "lowpass", 260, 0.9 * volume, 0.3);
     this.tone(t, "sine", 70, 35, 0.5 * volume, 0.3);
   }
@@ -231,6 +247,7 @@ export class Sfx {
   // A crate or chest opening: a wooden knock and a creak.
   crate(volume = 1) {
     const t = this.now;
+    this.layer("wood", 0.7 * volume);
     this.burst(t, "lowpass", 700, 0.6 * volume, 0.12);
     this.tone(t + 0.05, "sawtooth", 140, 95, 0.08 * volume, 0.35);
   }

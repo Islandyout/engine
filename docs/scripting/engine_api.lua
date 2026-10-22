@@ -815,7 +815,7 @@ function hud.map_marker(id, kind, x, z, color, label) end
 ---@param id string
 function hud.clear_map_marker(id) end
 
---- off, title, explore, night, flight, space, signal or tension.
+--- off, title, explore, night, flight, space, signal or tension (generated), or a recorded track: wuxia-title, wuxia-explore, wuxia-night or wuxia-tension.
 ---@param mood string
 function audio.music(mood) end
 
