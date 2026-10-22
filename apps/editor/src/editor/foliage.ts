@@ -17,7 +17,10 @@
 //   tilt=0..1      how far the instance leans with the slope (grass and
 //                  rocks follow the ground; trees, at 0, grow straight up);
 //   tint=0..1      how much each instance's brightness varies (+-), so a
-//                  field of one model doesn't read as copies.
+//                  field of one model doesn't read as copies;
+//   near=M         not placed in the terrain at all: grown round the camera, out
+//                  to M metres, as it moves (grassField.ts), so a rule can
+//                  carry real density (tufts a step apart) over a whole map.
 // Rules are placed in order, so list big things (trees) before small ones:
 // the small ones then fill round them.
 import { fbm, hash } from "./terrain";
@@ -38,6 +41,7 @@ export interface ScatterRule {
   layers?: string[];
   tilt?: number;
   tint?: number;
+  near?: number;
 }
 
 export interface ScatterInstance {
@@ -69,6 +73,7 @@ export function parseFoliageOption(rule: ScatterRule, word: string): string | un
   switch (key) {
     case "spacing":
     case "clusterSize":
+    case "near":
       if (!Number.isFinite(number) || number <= 0) return `${key} must be a positive number of metres`;
       rule[key] = number;
       return undefined;
@@ -91,7 +96,7 @@ export function parseFoliageOption(rule: ScatterRule, word: string): string | un
       return undefined;
     }
     default:
-      return `unknown option "${key}" (spacing, cluster, clusterSize, height, on, tilt, tint)`;
+      return `unknown option "${key}" (spacing, cluster, clusterSize, height, on, tilt, tint, near)`;
   }
 }
 
@@ -148,6 +153,7 @@ export function placeFoliage(rules: ScatterRule[], ground: FoliageGround, area: 
     list.push({ x, z, r });
   };
   rules.forEach((rule, r) => {
+    if (rule.near) return; // grown round the camera (grassField.ts)
     const count = Math.min(cap - out.length, Math.round(rule.density * countArea));
     const clustered = (rule.cluster ?? 0) > 0;
     let placed = 0;

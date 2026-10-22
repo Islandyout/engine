@@ -203,7 +203,7 @@ export interface ScatterModel {
 
 // Wind: one clock for every swaying plant, advanced each frame by the editor (seconds).
 export const wind = { time: { value: 0 }, strength: { value: 1 } };
-function swayingMaterial(material: THREE.Material, height: number, bottom: number): THREE.Material {
+export function swayingMaterial(material: THREE.Material, height: number, bottom: number): THREE.Material {
   const cloned = material.clone();
   cloned.onBeforeCompile = (shader) => {
     shader.uniforms.uWindTime = wind.time;

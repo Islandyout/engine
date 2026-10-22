@@ -19,6 +19,7 @@ import {
 } from "../playerSettings";
 import { activityAliases, routineActivity } from "../routineActivity";
 import { setSignalHeads, type SignalHeads } from "../signalHeads";
+import { updateGrassFields } from "../grassField";
 import { updateScatterLod } from "../terrainMesh";
 import type { Ctx } from "./context";
 import { AnimState } from "./context";
@@ -575,6 +576,7 @@ export function installFrame(C: Ctx): void {
     }
     C.updateSunShadow();
     updateScatterLod(C.viewCamera.getWorldPosition(new THREE.Vector3()));
+    updateGrassFields(C.viewCamera.getWorldPosition(new THREE.Vector3()));
     if (C.doc.mode === "play")
       C.objects.forEach((o, i) => {
         const heads = o?.userData.signalHeads as SignalHeads | undefined;

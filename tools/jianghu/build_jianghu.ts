@@ -117,7 +117,7 @@ const sculpt = new Int16Array(TERRAIN.resolution * TERRAIN.resolution);
       // Roads follow the slow shape of the land; the summit road is allowed to climb.
       const d = roadDistance(x, z);
       if (d < 20) blend(average(x, z, 8) + regionShape(x, z) * 0.7, Math.max(0, d - 3), 14);
-      for (const p of pads) blend(p.h + (Math.hypot(p.x - HUBS.peakShrine.x, p.z - HUBS.peakShrine.z) < 1 ? regionShape(p.x, p.z) : 0), Math.max(0, Math.hypot(x - p.x, z - p.z) - p.r), 14);
+      for (const p of pads) blend(p.h + (Math.hypot(p.x - HUBS.peakShrine.x, p.z - HUBS.peakShrine.z) < 1 ? regionShape(p.x, p.z) : 0), Math.max(0, Math.hypot(x - p.x, z - p.z) - p.r), p.r > 50 ? 48 : 16);
       {
         const e = Math.hypot((x - LAKE.x) / LAKE.rx, (z - LAKE.z) / LAKE.rz);
         if (e < 1.5) {
@@ -159,11 +159,18 @@ scene.add("World terrain", [0, 0, 0], {
     ...TERRAIN,
     sculpt: encodeSculpt(sculpt),
     grassColor: rgb("#5f7a3a"), rockColor: rgb("#7b776e"), sandColor: rgb("#a99a74"), snowColor: rgb("#eef0ec"),
-    sandHeight: -2, snowHeight: 62, rockSlope: 0.78,
+    sandHeight: -5, snowHeight: 62, rockSlope: 0.78,
+    // Realistic plants and rocks only: EZ-Tree trees (255-261), photoscanned rocks (399-403), real-blade grass (404-406). Big things first,
+    // so the small ones fill round them; groves gather the trees, and grass grows on the green, stone on the rock.
     scatter: process.env.MURIM_LITE ? "" : [
-      "330 0.00050 0.8 1.2 0.85 trunk", "331 0.00030 0.8 1.2 0.85 trunk", "328 0.00080 0.8 1.2 0.8 trunk", "329 0.00050 0.8 1.3 0.8 trunk",
-      "332 0.00010 0.8 1.2 0.7 trunk", "333 0.00020 0.8 1.3 0.7", "42 0.00030 0.8 1.8 0.6 collide", "43 0.00040 0.8 1.4 0.6 collide",
-      "37 0.00030 0.8 1.3 0.8", "38 0.00020 0.8 1.3 0.8",
+      "259 0.00045 0.9 1.4 0.85 trunk spacing=5 cluster=0.8 clusterSize=70 tilt=0 tint=0.15", "260 0.00035 0.9 1.3 0.85 trunk spacing=4 cluster=0.8 clusterSize=70",
+      "255 0.00030 0.9 1.3 0.85 trunk spacing=7 cluster=0.7 clusterSize=60 tint=0.12", "256 0.00022 0.9 1.3 0.85 trunk spacing=7 cluster=0.7 clusterSize=60",
+      "257 0.00018 0.9 1.3 0.85 trunk spacing=6 cluster=0.7 clusterSize=60",
+      "403 0.00005 1.6 4.2 0.7 collide spacing=6 tilt=0.4 tint=0.2", "402 0.00005 1.4 3.6 0.7 collide spacing=6 tilt=0.4 tint=0.2",
+      "399 0.00014 3 8 0.8 collide tilt=0.5 tint=0.2", "401 0.0003 3 9 0.85 tilt=0.7 tint=0.2", "400 0.0003 4 10 0.85 tilt=0.7 tint=0.2",
+      "261 0.0007 0.8 1.4 0.85 spacing=2.5 cluster=0.6 clusterSize=35 tint=0.15",
+      // Grass is grown round the camera (near=M): a few tufts to the square metre where you stand, none where you are not.
+      "404 1.0 0.8 1.4 0.9 on=grass tint=0.25 near=30", "404 0.7 1.0 1.7 0.9 on=grass tint=0.3 near=26", "405 0.14 0.9 1.5 0.9 on=grass tint=0.2 near=36", "406 0.35 0.8 1.3 0.9 on=sand,rock tint=0.2 near=28",
       ...exclusions.map((r) => `exclude ${r.map((v) => v.toFixed(0)).join(" ")}`),
     ].join("\n"),
   },

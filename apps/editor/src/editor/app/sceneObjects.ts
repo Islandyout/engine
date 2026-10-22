@@ -26,10 +26,12 @@ import {
 	generateHeights,
 	parseScatter,
 	scatterInstances,
+	terrainFoliageGround,
 	type TerrainParams
 } from "../terrain";
 import { makeWater } from "../water";
-import { buildScatter, buildTerrainMesh, disposeTerrainMesh, type ScatterModel, type TerrainLook } from "../terrainMesh";
+import { GrassField } from "../grassField";
+import { buildScatter, buildTerrainMesh, disposeTerrainMesh, swayingMaterial, type ScatterModel, type TerrainLook } from "../terrainMesh";
 import { resolveAssetUrl } from "../userAssets";
 import { buildViewmodel } from "../viewmodels";
 import type { Ctx } from "./context";
@@ -210,6 +212,9 @@ export function installSceneObjects(C: Ctx): void {
           );
       }
       group.add(buildScatter(scatterInstances(params, heights, rules, exclusions, t), models));
+      // Rules with near=M are grown round the camera instead (grassField.ts).
+      const field = new GrassField(rules, terrainFoliageGround(params, heights, exclusions, t), models, params.seed, swayingMaterial);
+      if (!field.empty) group.add(field.group);
     }
     C.terrainMeshes.set(index, { mesh, params, look, offsets });
     return group;

@@ -174,7 +174,7 @@ export function applyBrush(
     }
 }
 
-import { parseFoliageOption, placeFoliage, type ScatterInstance, type ScatterRule } from "./foliage";
+import { parseFoliageOption, placeFoliage, type FoliageGround, type ScatterInstance, type ScatterRule } from "./foliage";
 export type { ScatterRule, ScatterInstance } from "./foliage";
 
 // Where no scatter is placed: a rectangle, "exclude x0 z0 x1 z1", or a
@@ -250,6 +250,30 @@ export function terrainLayer(layers: TerrainLayers, height: number, normalY: num
 
 // Deterministic placements for every rule, at most 4000 in total
 // (foliage.ts placeFoliage, on this heightfield).
+// What the ground is like at each point of a terrain, for placing plants: its height, slope, layer and exclusions (local x/z).
+export function terrainFoliageGround(
+  params: TerrainParams,
+  heights: Float32Array,
+  exclusions: ScatterExclusion[] = [],
+  layers?: TerrainLayers,
+): FoliageGround {
+  const { size, resolution } = params;
+  const e = size / (resolution - 1);
+  const at = (x: number, z: number) => sampleHeight(heights, resolution, size, x, z);
+  return {
+    height: at,
+    normal: (x, z) => {
+      const dx = (at(x + e, z) - at(x - e, z)) / (2 * e);
+      const dz = (at(x, z + e) - at(x, z - e)) / (2 * e);
+      const l = Math.sqrt(1 + dx * dx + dz * dz);
+      return [-dx / l, 1 / l, -dz / l];
+    },
+    layer: layers ? (_x, _z, height, ny) => terrainLayer(layers, height, ny) : undefined,
+    blocked: (x, z) =>
+      exclusions.some((ex) => (ex.radius !== undefined ? Math.hypot(x - ex.x0, z - ex.z0) < ex.radius : x >= ex.x0 && x <= ex.x1 && z >= ex.z0 && z <= ex.z1)),
+  };
+}
+
 export function scatterInstances(
   params: TerrainParams,
   heights: Float32Array,
@@ -257,24 +281,13 @@ export function scatterInstances(
   exclusions: ScatterExclusion[] = [],
   layers?: TerrainLayers,
 ): ScatterInstance[] {
-  const { size, resolution } = params;
-  const e = size / (resolution - 1);
-  const at = (x: number, z: number) => sampleHeight(heights, resolution, size, x, z);
+  const { size } = params;
   return placeFoliage(
     rules,
-    {
-      height: at,
-      normal: (x, z) => {
-        const dx = (at(x + e, z) - at(x - e, z)) / (2 * e);
-        const dz = (at(x, z + e) - at(x, z - e)) / (2 * e);
-        const l = Math.sqrt(1 + dx * dx + dz * dz);
-        return [-dx / l, 1 / l, -dz / l];
-      },
-      layer: layers ? (_x, _z, height, ny) => terrainLayer(layers, height, ny) : undefined,
-      blocked: (x, z) =>
-        exclusions.some((ex) => (ex.radius !== undefined ? Math.hypot(x - ex.x0, z - ex.z0) < ex.radius : x >= ex.x0 && x <= ex.x1 && z >= ex.z0 && z <= ex.z1)),
-    },
+    terrainFoliageGround(params, heights, exclusions, layers),
     { x0: -size * 0.49, z0: -size * 0.49, x1: size * 0.49, z1: size * 0.49, countArea: size * size },
     params.seed,
+    // A small terrain places at most 4000 instances; a very large one (over 700 m a side) one per 60 square metres, so a kilometre of land is not bare.
+    size > 700 ? Math.round((size * size) / 60) : 4000,
   );
 }
