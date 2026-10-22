@@ -3,6 +3,7 @@ import { EntityField } from "../bridgeFields";
 import { EngineVoice, SirenVoice, TireVoice } from "../carAudio";
 import { type CarView } from "../carFx";
 import { governorTiers, presetFloor } from "../frameGovernor";
+import { setScatterDensity } from "../scatterLod";
 import {
 	qualityProfile
 } from "../playerSettings";
@@ -161,6 +162,7 @@ export function installVehicles(C: Ctx): void {
   // Draws the first `fraction` of each scatter chunk's instances (their
   // order is random, so this thins evenly).
   function applyScatterDensity(fraction: number) {
+    setScatterDensity(fraction); // terrain scatter and the grass round the camera re-sort themselves (scatterLod.ts)
     C.spaceScatter?.traverse((child) => {
       if (!(child instanceof THREE.InstancedMesh)) return;
       const all = (child.userData.instances as unknown[] | undefined)?.length ?? child.count;

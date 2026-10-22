@@ -7,6 +7,7 @@
 import * as THREE from "three";
 import type { FoliageGround, ScatterRule } from "./foliage";
 import { hash } from "./terrain";
+import { scatterDensity } from "./scatterLod";
 import type { GrassFade, ScatterModel } from "./terrainMesh";
 
 // Metres per side of a grass cell.
@@ -65,6 +66,7 @@ export class GrassField {
   readonly group = new THREE.Group();
   private layers: Layer[] = [];
   private last: { x: number; z: number } | undefined;
+  private lastVersion = -1;
   // True once it has been in a scene: after that, leaving one ends it.
   seen = false;
   // Where the camera is, terrain-local x/z: the shader shrinks tufts toward the edge of their reach round it.
@@ -126,8 +128,9 @@ export class GrassField {
   update(x: number, z: number) {
     this.center.value.set(x, z);
     const cellX = Math.floor(x / grassCell), cellZ = Math.floor(z / grassCell);
-    if (this.last && this.last.x === cellX && this.last.z === cellZ) return;
+    if (this.last && this.last.x === cellX && this.last.z === cellZ && this.lastVersion === scatterDensity.version) return;
     this.last = { x: cellX, z: cellZ };
+    this.lastVersion = scatterDensity.version;
     for (const layer of this.layers) {
       const cells = Math.ceil(layer.rule.near! / grassCell) + 1;
       const live = new Set<string>();
@@ -142,13 +145,15 @@ export class GrassField {
       const capacity = layer.meshes[0]?.instanceMatrix.count ?? 0;
       let n = 0;
       for (const cell of layer.cells.values()) {
-        if (n + cell.count > capacity) break;
+        // The frame governor thins the grass by drawing only the first part of each cell (its tufts are in random order).
+        const count = Math.ceil(cell.count * scatterDensity.fraction);
+        if (n + count > capacity) break;
         layer.meshes.forEach((mesh, p) => {
-          (mesh.instanceMatrix.array as Float32Array).set(cell.matrices[p]!, n * 16);
+          (mesh.instanceMatrix.array as Float32Array).set(cell.matrices[p]!.subarray(0, count * 16), n * 16);
           const colours = mesh.instanceColor!.array as Float32Array;
-          for (let i = 0; i < cell.count; i++) colours.fill(cell.tints[i]!, (n + i) * 3, (n + i) * 3 + 3);
+          for (let i = 0; i < count; i++) colours.fill(cell.tints[i]!, (n + i) * 3, (n + i) * 3 + 3);
         });
-        n += cell.count;
+        n += count;
       }
       for (const mesh of layer.meshes) {
         mesh.count = n;

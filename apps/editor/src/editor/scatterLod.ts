@@ -4,6 +4,15 @@
 // as its far version (a few hundred triangles), each in one InstancedMesh per part of the model.
 import * as THREE from "three";
 
+// The frame governor's scatter fraction (frameGovernor.ts): the share of each model's instances, and of the grass, that is drawn. `version` changes
+// with it so everything re-sorts at once.
+export const scatterDensity = { fraction: 1, version: 0 };
+export function setScatterDensity(fraction: number) {
+  if (scatterDensity.fraction === fraction) return;
+  scatterDensity.fraction = fraction;
+  scatterDensity.version++;
+}
+
 // Metres from the camera within which an instance draws as the detailed model.
 export const nearDistance = 70;
 // Beyond this many metres an instance is not drawn at all (the fog has taken it).
@@ -23,6 +32,7 @@ export class DynamicLod {
   private near: THREE.InstancedMesh[] = [];
   private far: THREE.InstancedMesh[] = [];
   private last: { x: number; z: number } | undefined;
+  private lastVersion = -1;
   seen = false;
 
   // `placements` is one 4x4 matrix per instance (placement.elements, 16 floats each), `x`/`z` its ground position in the terrain.
@@ -54,11 +64,13 @@ export class DynamicLod {
   }
 
   update(x: number, z: number, force = false) {
-    if (!force && this.last && Math.hypot(x - this.last.x, z - this.last.z) < resortDistance) return;
+    if (!force && this.last && this.lastVersion === scatterDensity.version && Math.hypot(x - this.last.x, z - this.last.z) < resortDistance) return;
     this.last = { x, z };
+    this.lastVersion = scatterDensity.version;
+    const drawn = Math.ceil(this.xs.length * scatterDensity.fraction);
     const matrix = new THREE.Matrix4(), placement = new THREE.Matrix4(), tint = new THREE.Color();
     let nearCount = 0, farCount = 0;
-    for (let i = 0; i < this.xs.length; i++) {
+    for (let i = 0; i < drawn; i++) {
       const distance = Math.hypot(this.xs[i]! - x, this.zs[i]! - z);
       if (distance > cullDistance) continue;
       const isNear = distance < nearDistance;
