@@ -53,6 +53,7 @@ export class DynamicLod {
         mesh.count = 0;
         mesh.frustumCulled = false; // its instances change with the camera; a fixed bounding sphere would be wrong
         mesh.castShadow = shadow;
+        mesh.userData.ownShadow = true;
         mesh.receiveShadow = true;
         mesh.userData.part = part;
         this.group.add(mesh);

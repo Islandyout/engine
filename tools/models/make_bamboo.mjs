@@ -1,6 +1,6 @@
 // Makes the catalog's bamboo stand (assets/source/kit/nature/bamboo-stand.glb): a clump of tall culms, each a tapering, slightly curving
 // eight-sided pole with node rings every 48 cm, green with a yellowing toward the base, and sprays of narrow leaves along its upper third.
-// Vertex colours only (no images); leaves are double-sided blades, so a stand reads as bamboo from a few metres and costs about 3,500 triangles.
+// Vertex colours only (no images); leaves are double-sided blades, so a stand reads as bamboo from a few metres and costs about 2,300 triangles.
 //
 // Usage: node tools/models/make_bamboo.mjs <out dir>
 import path from "node:path";
@@ -105,7 +105,7 @@ w.json.materials = [
   { name: "culm", pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: 0.55 } },
   { name: "leaves", doubleSided: true, pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: 0.75 } },
 ];
-const near = stand(6, 0.24, 5, 1), far = stand(3, 1.4, 10, 2.2);
+const near = stand(5, 0.3, 6, 1.1), far = stand(3, 1.4, 10, 2.2);
 w.json.meshes = [
   { name: "bamboo-stand", primitives: [prim(near.culm, 0), prim(near.leaf, 1)] },
   { name: "bamboo-stand-far", primitives: [prim(far.culm, 0), prim(far.leaf, 1)] },

@@ -396,6 +396,7 @@ export function buildScatter(instances: ScatterInstance[], models: Map<number, S
         // Far versions cast no shadow: a whole forest's worth of far trees
         // in the shadow pass costs as much again as drawing them.
         instanced.castShadow = castShadow && lod === 0;
+        instanced.userData.ownShadow = true; // the entity's own pass must not turn it back on (sceneObjects.ts)
         instanced.receiveShadow = true;
         list.forEach((instance, i) => {
           rotation.setFromAxisAngle(up, instance.yaw);

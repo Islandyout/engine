@@ -95,6 +95,7 @@ export class GrassField {
         mesh.count = 0;
         mesh.frustumCulled = false; // its tufts move with the camera: a fixed bounding sphere would be wrong
         mesh.castShadow = false;
+        mesh.userData.ownShadow = true;
         mesh.receiveShadow = true;
         layer.meshes.push(mesh);
         layer.parts.push(child.matrixWorld.clone());

@@ -229,13 +229,13 @@ scene.add("World terrain", [0, 0, 0], {
       "399 0.00014 3 8 0.8 collide tilt=0.5 tint=0.2", "401 0.0003 3 9 0.85 tilt=0.7 tint=0.2", "400 0.0003 4 10 0.85 tilt=0.7 tint=0.2",
       "261 0.0007 0.8 1.4 0.85 spacing=2.5 cluster=0.6 clusterSize=35 tint=0.15",
       // Each region its own growth: bamboo groves in the forest, maples (the aspens' gold) in the gorge, pine and boulders on the ridge and the peak, ash and bushes in the marches.
-      "407 0.012 0.8 1.25 0.8 trunk spacing=2.2 cluster=0.75 clusterSize=30 tint=0.15 in=330,-10,150",
-      "257 0.004 0.9 1.4 0.8 trunk spacing=5 cluster=0.5 clusterSize=40 tint=0.12 in=-340,-340,125",
+      "407 0.009 0.8 1.25 0.8 trunk spacing=2.4 cluster=0.75 clusterSize=30 tint=0.15 in=330,-10,150",
+      "257 0.003 0.9 1.4 0.8 trunk spacing=5 cluster=0.5 clusterSize=40 tint=0.12 in=-340,-340,125",
       "403 0.0006 1.5 4 0.6 collide spacing=6 tilt=0.4 tint=0.2 in=-340,-340,125",
-      "259 0.004 0.9 1.4 0.8 trunk spacing=5 cluster=0.6 clusterSize=45 tint=0.12 in=340,-350,135", "260 0.003 0.8 1.2 0.8 trunk spacing=4 in=340,-350,135",
+      "259 0.0028 0.9 1.4 0.8 trunk spacing=5 cluster=0.6 clusterSize=45 tint=0.12 in=340,-350,135", "260 0.002 0.8 1.2 0.8 trunk spacing=4 in=340,-350,135",
       "402 0.0007 1.5 4 0.6 collide spacing=6 tilt=0.4 tint=0.2 in=340,-350,135",
-      "259 0.003 0.9 1.3 0.75 trunk spacing=5 cluster=0.5 in=0,-330,100", "403 0.0005 1.4 3.4 0.55 collide spacing=7 tilt=0.4 in=0,-340,90",
-      "256 0.002 0.9 1.3 0.8 trunk spacing=6 cluster=0.6 in=-330,20,160", "261 0.004 0.9 1.5 0.85 spacing=2.5 cluster=0.6 in=-330,20,160",
+      "259 0.002 0.9 1.3 0.75 trunk spacing=5 cluster=0.5 in=0,-330,100", "403 0.0005 1.4 3.4 0.55 collide spacing=7 tilt=0.4 in=0,-340,90",
+      "256 0.0015 0.9 1.3 0.8 trunk spacing=6 cluster=0.6 in=-330,20,160", "261 0.003 0.9 1.5 0.85 spacing=2.5 cluster=0.6 in=-330,20,160",
       // Grass is grown round the camera (near=M): a few tufts to the square metre where you stand, none where you are not.
       "404 1.0 0.8 1.4 0.9 on=grass tint=0.25 near=30", "404 0.7 1.0 1.7 0.9 on=grass tint=0.3 near=26", "405 0.14 0.9 1.5 0.9 on=grass tint=0.2 near=36", "406 0.35 0.8 1.3 0.9 on=sand,rock tint=0.2 near=28",
       ...exclusions.map((r) => `exclude ${r.map((v) => v.toFixed(0)).join(" ")}`),

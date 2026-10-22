@@ -441,12 +441,14 @@ export function installSceneObjects(C: Ctx): void {
       anchor.add(made);
       C.lightPool.register(made);
     }
-    // Every mesh casts and receives shadows; a Material component overrides
-    // the surface (see applyMaterial).
+    // Every mesh casts and receives shadows (except those that chose for
+    // themselves: scatter, its far versions and the grass, marked
+    // ownShadow); a Material component overrides the surface (see
+    // applyMaterial).
     const materialOverride = get("Material");
     object.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
-      child.castShadow = true;
+      if (!child.userData.ownShadow) child.castShadow = true;
       child.receiveShadow = true;
       if (materialOverride && materialAppliesTo(child, materialOverride)) applyMaterial(child, materialOverride);
     });

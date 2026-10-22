@@ -45,8 +45,9 @@ const { saveFailure } = require("./evidence.cjs");
     const number = (label) => Number((stats.match(new RegExp(label + "\\s+(\\d+)")) || [])[1]);
     const triangles = number("Triangles"), calls = number("Draw calls");
     console.log(`jianghu perf: ${triangles} triangles, ${calls} draw calls`);
-    // A kilometre of realistic trees: their far versions and the grass round the camera are most of it. Before per-instance far versions it was fifteen million.
-    assert.ok(triangles > 0 && triangles < 4000000, `triangles under budget (${triangles})`);
+    // A kilometre of realistic trees: their far versions and the grass round the camera are most of it. Before per-instance far versions it was
+    // fifteen million; before scatter kept its own shadow settings (the entity pass turned every instance's shadow on) four.
+    assert.ok(triangles > 0 && triangles < 3000000, `triangles under budget (${triangles})`);
     assert.ok(calls > 0 && calls < 450, `draw calls under budget (${calls})`);
     assert.deepEqual(errors, [], "no page errors");
     console.log("jianghu_perf: ok");

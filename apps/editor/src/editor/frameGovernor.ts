@@ -84,6 +84,8 @@ export const governorTiers: GovernorTier[] = [
 export const crowdNear = 25;
 // Beyond this many metres from the camera a character is not drawn (play only).
 export const CHARACTER_DRAW_DISTANCE = 70;
+// Characters beyond this many metres cast no shadow (frame.ts).
+export const CHARACTER_SHADOW_DISTANCE = 25;
 
 export interface GovernorOptions {
   // Slowest acceptable average frame (ms): slower drops a tier. 20 ms = 50 fps,
