@@ -51,13 +51,13 @@ const { saveFailure } = require("./evidence.cjs");
     await page.keyboard.down("Shift");
     for (let i = 0; i < 400; i++) {
       const p = await position();
-      if (p && p.z < 60.5) break;
+      if (p && p.z < 60) break;
       await until(10);
     }
     await page.keyboard.up("Shift");
     await page.keyboard.up("w");
     await until(30);
-    assert.match(await text(), /talk to Gatekeeper Jun/, "the gatekeeper can be talked to at the gate");
+    assert.match(await text(), /talk to Gatekeeper Jun/, "the gatekeeper can be talked to at the gate (Player at " + JSON.stringify(await position()) + ")");
     await tap("e");
     assert.match(await text(), /Gatekeeper Jun/, "the conversation opens");
     for (let i = 0; i < 6 && !/A Letter for Master Mei/.test(await text()); i++) await tap("1");

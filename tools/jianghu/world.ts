@@ -59,7 +59,7 @@ export const roadDistance = (x: number, z: number) => {
 // A talker: where they stand and what they wear. What they say is in quests.ts (their `lines`) or `chatter` when they have no quest.
 export type Npc = { name: string; region: string; at: [number, number]; yaw?: number; gear: string; hex?: string; female?: boolean; scale?: number; idle?: string; chatter: string; shop?: "merchant" | "alchemy" | "forge" };
 export const NPCS: Npc[] = [
-  { name: "Gatekeeper Jun", region: "cloudgate", at: [4, 56], yaw: Math.PI, gear: "214:#5a4a3a 216:#3a3228 217:#2a2a2a", chatter: "Keep your blade sheathed inside the wall and nobody will trouble you.", idle: "idle_rail_loop" },
+  { name: "Gatekeeper Jun", region: "cloudgate", at: [2, 57], yaw: Math.PI, gear: "214:#5a4a3a 216:#3a3228 217:#2a2a2a", chatter: "Keep your blade sheathed inside the wall and nobody will trouble you.", idle: "idle_rail_loop" },
   { name: "Master Mei", region: "cloudgate", at: [0, -6], yaw: 0, gear: "214:#e9e2d0 216:#d8d0bc 218:#2f7f9a 217:#2a2a30", hex: "#e2cdb4", female: true, chatter: "Breath first, then the blade.", idle: "idle_fold_arms_loop" },
   { name: "Merchant Lin", region: "cloudgate", at: [14, 10], yaw: Math.PI, gear: "214:#8a5a2a 216:#5a4430 218:#c9a24a 217:#3a2a22", chatter: "Elixirs, pills, arrows. Silver only.", shop: "merchant" },
   { name: "Farmer Dao", region: "willow", at: [-90, 86], yaw: 0.6, gear: "214:#5a7a5a 216:#4a4a3a 217:#3a2a22", chatter: "The wolves come at dusk. The mill is the nearest to them." },
