@@ -58,10 +58,16 @@ export function makeProjectile(shape: number): THREE.Group {
     const wood = new THREE.MeshStandardMaterial({ color: 0x8a6a3c, roughness: 0.8 });
     const steel = new THREE.MeshStandardMaterial({ color: 0xb8bcc4, roughness: 0.35, metalness: 0.7 });
     const feather = new THREE.MeshStandardMaterial({ color: 0xe8e2d0, roughness: 0.9, side: THREE.DoubleSide });
-    add(new THREE.Mesh(geometry("arrow-shaft", () => new THREE.CylinderGeometry(0.012, 0.012, 0.8, 6).rotateX(Math.PI / 2)), wood));
-    add(new THREE.Mesh(geometry("arrow-head", () => new THREE.ConeGeometry(0.03, 0.12, 8).rotateX(Math.PI / 2).translate(0, 0, 0.46)), steel));
+    add(new THREE.Mesh(geometry("arrow-shaft", () => new THREE.CylinderGeometry(0.02, 0.02, 0.8, 6).rotateX(Math.PI / 2)), wood));
+    add(new THREE.Mesh(geometry("arrow-head", () => new THREE.ConeGeometry(0.05, 0.16, 8).rotateX(Math.PI / 2).translate(0, 0, 0.46)), steel));
+    // A faint streak behind it so a fast arrow can be followed.
+    const streak = new THREE.Mesh(geometry("arrow-streak", () => new THREE.ConeGeometry(1, 1, 6, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -0.5)), additive(0xfff2d0, 0.18));
+    streak.scale.set(0.04, 0.04, 2.2);
+    streak.position.z = -0.4;
+    streak.name = "streak";
+    add(streak);
     for (let i = 0; i < 3; i++) {
-      const vane = new THREE.Mesh(geometry("arrow-vane", () => new THREE.PlaneGeometry(0.05, 0.16).translate(0.03, 0, -0.34)), feather);
+      const vane = new THREE.Mesh(geometry("arrow-vane", () => new THREE.PlaneGeometry(0.08, 0.2).translate(0.03, 0, -0.34)), feather);
       vane.rotation.z = (i / 3) * Math.PI * 2;
       add(vane);
     }

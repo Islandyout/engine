@@ -3,10 +3,11 @@
 // body, and the matching archery clip on the upper body (combatView.bowPose).
 import * as THREE from "three";
 import { modelCatalog } from "../../scene/modelCatalog";
+import { makeProjectile } from "../projectileView";
 import type { Ctx } from "./context";
 
-type BowState = "off" | "idle" | "draw" | "hold" | "loose";
-const STATES = new Set<string>(["off", "idle", "draw", "hold", "loose"]);
+type BowState = "off" | "idle" | "ready" | "draw" | "hold" | "loose";
+const STATES = new Set<string>(["off", "idle", "ready", "draw", "hold", "loose"]);
 // The bow model is about 1.4 m tall as authored; a 1.8 m archer holds one about 1.1 m long, gripped at its middle.
 const BOW_LENGTH = 1.1;
 
@@ -40,7 +41,7 @@ export function installBow(C: Ctx): void {
   function setBow(index: number, text: string) {
     const [state = "off", seconds = "1", aim = "0"] = text.trim().split(/\s+/);
     if (!STATES.has(state)) {
-      C.log(`[script] bow: unknown state "${state}" (idle, draw, hold, loose or off)`);
+      C.log(`[script] bow: unknown state "${state}" (idle, ready, draw, hold, loose or off)`);
       return;
     }
     const entry = states.get(index) ?? { state: "off" as BowState, seconds: 1, aim: false, since: 0 };
@@ -54,9 +55,39 @@ export function installBow(C: Ctx): void {
     C.combat.bowPose(index, entry.state, entry.seconds);
   }
 
+  // The nocked arrow: from the drawing hand toward the bow hand while the string is back.
+  let nocked: THREE.Object3D | undefined;
+  const handR = new THREE.Vector3();
+  const handL = new THREE.Vector3();
+  function placeNocked(index: number, show: boolean) {
+    const object = C.objects[index];
+    const right = object?.getObjectByName("hand_r");
+    const left = object?.getObjectByName("hand_l");
+    if (!show || !object || !right || !left) {
+      if (nocked) nocked.visible = false;
+      return;
+    }
+    if (!nocked) {
+      nocked = makeProjectile(6);
+      nocked.name = "nocked arrow";
+      const streak = nocked.getObjectByName("streak");
+      if (streak) streak.visible = false; // an arrow on the string leaves no trail
+      C.scene.add(nocked);
+    }
+    right.getWorldPosition(handR);
+    left.getWorldPosition(handL);
+    const direction = handL.sub(handR).normalize();
+    nocked.visible = true;
+    nocked.position.copy(handR).addScaledVector(direction, 0.35);
+    nocked.lookAt(nocked.position.clone().add(direction));
+  }
+
   // Every frame: a pose the fighter lost (a hit, a weapon change) is put back while the bow is out.
   function updateBow() {
-    for (const [index, entry] of states) if (entry.state !== "off") C.combat.bowPose(index, entry.state, entry.seconds);
+    for (const [index, entry] of states) {
+      if (entry.state !== "off") C.combat.bowPose(index, entry.state, entry.seconds);
+      if (index === C.playerIndex) placeNocked(index, entry.state === "draw" || entry.state === "hold");
+    }
   }
   // The bow sight's draw (0..1) while the Player aims or draws, -1 when it shows nothing.
   function bowSight(): number {

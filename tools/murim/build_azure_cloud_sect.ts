@@ -813,7 +813,7 @@ scene.add("Player", spawn, {
     weights: "Qi Elixir=0.2, Breakthrough Pill=0.2, Jade Dew Pill=0.2, Spirit Herb=0.05, Silver=0.01, Azure Robe=2",
     stats: "Azure Robe: slot=body armor=10\nJade Charm: health=25\nIron Gloves: slot=hands damage=10",
   },
-  Script: { source: lua("lang.lua") + "\n" + lua("player.lua").replace("--@STANCES@", STANCE_TABLE), props: { ranger: PLAYER_BODY === BODY_M ? "383 384 385 386 388" : "393 394 395 396 398", ...(process.env.MURIM_REALM ? { realm: Number(process.env.MURIM_REALM), qi: Number(process.env.MURIM_QI ?? 0), silver: Number(process.env.MURIM_SILVER ?? 0) } : {}) },
+  Script: { source: lua("lang.lua") + "\n" + lua("player.lua").replace("--@STANCES@", STANCE_TABLE), props: { stance: process.env.MURIM_STANCE ?? "none", ranger: PLAYER_BODY === BODY_M ? "383 384 385 386 388" : "393 394 395 396 398", ...(process.env.MURIM_REALM ? { realm: Number(process.env.MURIM_REALM), qi: Number(process.env.MURIM_QI ?? 0), silver: Number(process.env.MURIM_SILVER ?? 0) } : {}) } },
 });
 scene.add("Camera", [spawn[0], spawn[1] + 3, spawn[2] + 6], {
   Camera: { fov: 60, far: 700 },
@@ -911,6 +911,7 @@ widget("Compass", "Compass", { ...style, anchor: "top-center", offsetY: MARGIN_Y
 widget("Target", "Target frame", { ...style, anchor: "top-center", offsetY: MARGIN_Y + 56, width: 420, height: 64, text: "", value: 0 });
 widget("Minimap", "Minimap", { ...style, anchor: "top-right", offsetX: -MARGIN_X, offsetY: MARGIN_Y });
 widget("Waypoints", "Waypoints", style);
+widget("Crosshair", "Crosshair", style); // a drawn bow's sight (it shows nothing otherwise)
 widget("Damage direction", "Damage direction", { ...style, anchor: "center", width: 420, height: 420, text: "" });
 widget("Damage numbers", "Damage numbers", style);
 widget("Boss bar", "Boss bar", style);

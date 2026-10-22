@@ -1,6 +1,8 @@
 -- @prop realm 1
 -- @prop silver 0
 -- @prop qi 0
+-- @prop stance none
+-- @prop ranger none
 -- The cultivator (the scene builder places items.lua in front of this): qi, realms, breakthroughs, stages, the cultivation
 -- and meridian trees, qi arts, stances, afflictions, qinggong, the flying sword and the saved game. Conversations, shops, the
 -- sect's records and the world itself live in their own scripts and talk to this one with messages.
@@ -171,7 +173,7 @@ local HAIRS = { { "Parted", "363:#1c1618" }, { "Long", "361:#1c1618" }, { "Buns"
 local CUTS = { { "Peasant", "" }, { "Ranger", "ranger" } }
 local function dress()
   local spec = ROBES[robe][2]
-  if CUTS[cut][2] == "ranger" and (props.ranger or "") ~= "" then spec = props.ranger end
+  if CUTS[cut][2] == "ranger" and props.ranger ~= "none" then spec = props.ranger end
   world.wear(spec .. " " .. HAIRS[hair][2])
 end
 
@@ -557,6 +559,8 @@ function on_start()
   dress()
   apply_realm(true)
   inventory.select(self.id, 1)
+  -- props.stance starts in a stance (for testing and demos).
+  if props.stance ~= "none" then after(0.8, function() set_stance(props.stance) end) end
   hud.pause_menu(true)   -- Esc opens settings and the key list
   for marker, entity in pairs({ ["Elder Mu"] = "Elder Mu", ["Bandit camp"] = "Bandit Brawler", ["Shrine"] = "Iron Fist Elder" }) do
     local id = world.find(entity)
@@ -969,7 +973,7 @@ function on_tick(dt)
       world.set_velocity(self.id, vx * hv, self.vy or 0, vz * hv)
     end
     -- What the body shows: the bow low, drawn (paced to the draw time), held, or just loosed.
-    local state = bow_loose > 0 and "loose" or bow_t > 0 and (bow_t >= draw_time and "hold" or "draw") or "idle"
+    local state = bow_loose > 0 and "loose" or bow_t > 0 and (bow_t >= draw_time and "hold" or "draw") or aiming and "ready" or "idle"
     local message = string.format("%s %.2f %d", state, draw_time, aiming and 1 or 0)
     if message ~= bow_sent then
       if state == "draw" and not bow_sent:find("^draw") then sound.play("sfx:bow:draw" .. string.format("%.2f", draw_time)) end

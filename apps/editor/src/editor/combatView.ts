@@ -107,7 +107,7 @@ export function loadCombatClips(load: (path: string) => Promise<{ animations: TH
     ];
     // A bow carried low (the first frames of the notching clip) and the draw itself (nock to full draw, without the reach for the quiver).
     const notch = clips.find((clip) => clip.name === "bow_notch");
-    if (notch) clips.push(THREE.AnimationUtils.subclip(notch, "bow_idle", 0, 2, 30), THREE.AnimationUtils.subclip(notch, "bow_draw", 15, 60, 30));
+    if (notch) clips.push(THREE.AnimationUtils.subclip(notch, "bow_idle", 0, 2, 30), THREE.AnimationUtils.subclip(notch, "bow_ready", 27, 29, 30), THREE.AnimationUtils.subclip(notch, "bow_draw", 15, 60, 30));
     return clips;
   });
   library.catch(() => (library = undefined));
@@ -306,8 +306,8 @@ export class CombatView {
   }
 
   // A bow's pose for the Player's bow stance: held low and relaxed (idle), nocked and drawn (draw, paced to `seconds`),
-  // held at full draw (hold), released (loose); "off" puts the weapon guard back.
-  bowPose(index: number, state: "off" | "idle" | "draw" | "hold" | "loose", seconds = 1) {
+  // raised and aimed without a string drawn (ready), held at full draw (hold), released (loose); "off" puts the weapon guard back.
+  bowPose(index: number, state: "off" | "idle" | "ready" | "draw" | "hold" | "loose", seconds = 1) {
     const fighter = this.fighters.get(index);
     if (!fighter) return;
     if (state === "off") {
@@ -315,7 +315,7 @@ export class CombatView {
       this.arm(index, this.armed.get(index) ?? "unarmed", true);
       return;
     }
-    const name = { idle: "bow_idle", draw: "bow_draw", hold: "bow_aim", loose: "bow_shoot" }[state];
+    const name = { idle: "bow_idle", ready: "bow_ready", draw: "bow_draw", hold: "bow_aim", loose: "bow_shoot" }[state];
     const clip = fighter.clips.find((c) => c.name === name);
     if (!clip || !fighter.full.has(name)) return;
     if (fighter.guardClip === name && fighter.guardScale === (state === "draw" ? clip.duration / Math.max(0.2, seconds) : 1)) return;
