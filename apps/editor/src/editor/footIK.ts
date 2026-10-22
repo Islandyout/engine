@@ -45,6 +45,9 @@ function aim(bone: THREE.Object3D, from: THREE.Vector3, to: THREE.Vector3) {
 
 export class FootIK {
   readonly legs: Leg[] = [];
+  // The pose of each leg bone before this solver turned it, and what it wrote: when the bone is still exactly what was written, the
+  // animation has not set it since (a held or paused pose), so the next solve starts from the original and does not pile on.
+  private saved = new Map<THREE.Object3D, { base: THREE.Quaternion; written: THREE.Quaternion }>();
   constructor(readonly root: THREE.Object3D) {
     for (const side of ["l", "r"]) {
       const find = (name: string) => {
@@ -62,6 +65,8 @@ export class FootIK {
   // `groundAt(x, z)`: the terrain's height, or undefined off the terrain. Returns the drop applied to the body (metres, <= 0).
   apply(groundAt: (x: number, z: number) => number | undefined): number {
     if (this.legs.length < 2) return 0;
+    for (const [bone, pose] of this.saved) if (bone.quaternion.equals(pose.written)) bone.quaternion.copy(pose.base);
+    this.saved.clear();
     this.root.updateMatrixWorld(true);
     const rootGround = groundAt(this.root.position.x, this.root.position.z);
     if (rootGround === undefined) return 0;
@@ -81,6 +86,8 @@ export class FootIK {
       leg.thigh.getWorldPosition(scratch.a);
       leg.calf.getWorldPosition(scratch.b);
       leg.foot.getWorldPosition(scratch.c);
+      const bones = [leg.thigh, leg.calf];
+      for (const bone of bones) this.saved.set(bone, { base: bone.quaternion.clone(), written: new THREE.Quaternion() });
       scratch.t.copy(scratch.c);
       scratch.t.y += lift;
       scratch.k.copy(solveKnee(scratch.a, scratch.b, scratch.c, scratch.t));
@@ -89,6 +96,7 @@ export class FootIK {
       leg.calf.getWorldPosition(scratch.b);
       leg.foot.getWorldPosition(scratch.c);
       aim(leg.calf, scratch.c.clone().sub(scratch.b), scratch.t.clone().sub(scratch.b));
+      for (const bone of bones) this.saved.get(bone)!.written.copy(bone.quaternion);
     });
     return drop;
   }
