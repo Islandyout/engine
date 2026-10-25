@@ -1,7 +1,7 @@
 {
-  "name": "Ki Storm: Arena Ascendant",
-  "genre": "Anime-inspired Arena Fighter",
-  "description": "Enter a martial-arts arena, chain punches and kicks, charge your energy and unleash special blasts against two adaptive rivals. Built with the engine's native Melee, Health, Player and AI systems.",
+  "name": "KI STORM: ARENA ASCENDANT",
+  "genre": "Anime-inspired 3D arena fighter",
+  "description": "A high-impact anime martial-arts showdown. Fight two adaptive rivals, build ki through combat, chain strikes into launchers, dodge and parry, then unleash energy blasts and devastating finishers. Includes a full arena, lock-on camera, fighter HUD and a boss-level challenger.",
   "scene": "scene.json",
-  "accent": "#f59e0b"
+  "accent": "#ff6a24"
 }
