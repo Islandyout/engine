@@ -1,0 +1,1942 @@
+{
+  "format": 1,
+  "name": "KI STORM: ARENA ASCENDANT",
+  "entities": [
+    {
+      "name": "Sky and Sun",
+      "components": {
+        "Environment": {
+          "sky": "Procedural",
+          "shadows": true,
+          "sunElevation": 42,
+          "sunAzimuth": 135
+        }
+      }
+    },
+    {
+      "name": "Arena Foundation",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -0.65,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 42,
+            "y": 1.3,
+            "z": 42
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.16,
+            "y": 0.19,
+            "z": 0.24
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        },
+        "RigidBody": {
+          "mass": 70,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    },
+    {
+      "name": "Main Fighting Floor",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.02,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 28,
+            "y": 0.12,
+            "z": 28
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.62,
+            "y": 0.64,
+            "z": 0.65
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        },
+        "RigidBody": {
+          "mass": 70,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    },
+    {
+      "name": "Inner Combat Circle",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.1,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 19,
+            "y": 0.08,
+            "z": 19
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.86,
+            "y": 0.78,
+            "z": 0.6
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        },
+        "RigidBody": {
+          "mass": 70,
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "Inner Ring Core",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.15,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 13,
+            "y": 0.04,
+            "z": 13
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.21,
+            "y": 0.31,
+            "z": 0.38
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "North Ki Stripe",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.17,
+            "z": -8.8
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 17,
+            "y": 0.025,
+            "z": 0.18
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.96,
+            "y": 0.34,
+            "z": 0.13
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "South Ki Stripe",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.17,
+            "z": 8.8
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 17,
+            "y": 0.025,
+            "z": 0.18
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.96,
+            "y": 0.34,
+            "z": 0.13
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "East Ki Stripe",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 8.8,
+            "y": 0.17,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.18,
+            "y": 0.025,
+            "z": 17
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.96,
+            "y": 0.34,
+            "z": 0.13
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "West Ki Stripe",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -8.8,
+            "y": 0.17,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.18,
+            "y": 0.025,
+            "z": 17
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.96,
+            "y": 0.34,
+            "z": 0.13
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Center Mark",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.18,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.42,
+            "y": 0.035,
+            "z": 5.4
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.96,
+            "y": 0.74,
+            "z": 0.24
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "North Boundary",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 1.05,
+            "z": -14.2
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 29,
+            "y": 2.1,
+            "z": 0.65
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.22,
+            "y": 0.26,
+            "z": 0.31
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        },
+        "RigidBody": {
+          "mass": 70,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    },
+    {
+      "name": "South Boundary",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 1.05,
+            "z": 14.2
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 29,
+            "y": 2.1,
+            "z": 0.65
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.22,
+            "y": 0.26,
+            "z": 0.31
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        },
+        "RigidBody": {
+          "mass": 70,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    },
+    {
+      "name": "East Boundary",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 14.2,
+            "y": 1.05,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.1,
+            "z": 29
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.22,
+            "y": 0.26,
+            "z": 0.31
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        },
+        "RigidBody": {
+          "mass": 70,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    },
+    {
+      "name": "West Boundary",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -14.2,
+            "y": 1.05,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.1,
+            "z": 29
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.22,
+            "y": 0.26,
+            "z": 0.31
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        },
+        "RigidBody": {
+          "mass": 70,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    },
+    {
+      "name": "Corner Tower 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -12,
+            "y": 2.3,
+            "z": -12
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.3,
+            "y": 4.6,
+            "z": 1.3
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.28,
+            "y": 0.31,
+            "z": 0.36
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Tower Crown 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -12,
+            "y": 4.75,
+            "z": -12
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.65,
+            "y": 0.35,
+            "z": 1.65
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.98,
+            "y": 0.38,
+            "z": 0.13
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Corner Tower 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 12,
+            "y": 2.3,
+            "z": -12
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.3,
+            "y": 4.6,
+            "z": 1.3
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.28,
+            "y": 0.31,
+            "z": 0.36
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Tower Crown 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 12,
+            "y": 4.75,
+            "z": -12
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.65,
+            "y": 0.35,
+            "z": 1.65
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.98,
+            "y": 0.38,
+            "z": 0.13
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Corner Tower 3",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -12,
+            "y": 2.3,
+            "z": 12
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.3,
+            "y": 4.6,
+            "z": 1.3
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.28,
+            "y": 0.31,
+            "z": 0.36
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Tower Crown 3",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -12,
+            "y": 4.75,
+            "z": 12
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.65,
+            "y": 0.35,
+            "z": 1.65
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.98,
+            "y": 0.38,
+            "z": 0.13
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Corner Tower 4",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 12,
+            "y": 2.3,
+            "z": 12
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.3,
+            "y": 4.6,
+            "z": 1.3
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.28,
+            "y": 0.31,
+            "z": 0.36
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Tower Crown 4",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 12,
+            "y": 4.75,
+            "z": 12
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.65,
+            "y": 0.35,
+            "z": 1.65
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.98,
+            "y": 0.38,
+            "z": 0.13
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Ki Pylon 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -8,
+            "y": 1.8,
+            "z": -8
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.45,
+            "y": 3.6,
+            "z": 0.45
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.18,
+            "y": 0.75,
+            "z": 0.95
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Pylon Light 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -8,
+            "y": 3.72,
+            "z": -8
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.75,
+            "y": 0.18,
+            "z": 0.75
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.78,
+            "z": 0.38
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Ki Pylon 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 8,
+            "y": 1.8,
+            "z": -8
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.45,
+            "y": 3.6,
+            "z": 0.45
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.22,
+            "y": 0.48,
+            "z": 0.95
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Pylon Light 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 8,
+            "y": 3.72,
+            "z": -8
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.75,
+            "y": 0.18,
+            "z": 0.75
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.78,
+            "z": 0.38
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Ki Pylon 3",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -8,
+            "y": 1.8,
+            "z": 8
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.45,
+            "y": 3.6,
+            "z": 0.45
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.18,
+            "y": 0.75,
+            "z": 0.95
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Pylon Light 3",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -8,
+            "y": 3.72,
+            "z": 8
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.75,
+            "y": 0.18,
+            "z": 0.75
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.78,
+            "z": 0.38
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Ki Pylon 4",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 8,
+            "y": 1.8,
+            "z": 8
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.45,
+            "y": 3.6,
+            "z": 0.45
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.22,
+            "y": 0.48,
+            "z": 0.95
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Pylon Light 4",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 8,
+            "y": 3.72,
+            "z": 8
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.75,
+            "y": 0.18,
+            "z": 0.75
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.95,
+            "y": 0.78,
+            "z": 0.38
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "North Stand Tier 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.55,
+            "z": -18.1
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 34,
+            "y": 1.1,
+            "z": 1.6
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.24,
+            "y": 0.28,
+            "z": 0.34
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "South Stand Tier 1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.55,
+            "z": 18.1
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 34,
+            "y": 1.1,
+            "z": 1.6
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.24,
+            "y": 0.28,
+            "z": 0.34
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "North Stand Tier 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 1.2000000000000002,
+            "z": -20
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 34,
+            "y": 1.1,
+            "z": 1.6
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.275,
+            "y": 0.28,
+            "z": 0.34
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "South Stand Tier 2",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 1.2000000000000002,
+            "z": 20
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 34,
+            "y": 1.1,
+            "z": 1.6
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.275,
+            "y": 0.28,
+            "z": 0.34
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "North Stand Tier 3",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 1.85,
+            "z": -21.9
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 34,
+            "y": 1.1,
+            "z": 1.6
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.31,
+            "y": 0.28,
+            "z": 0.34
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "South Stand Tier 3",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 1.85,
+            "z": 21.9
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 34,
+            "y": 1.1,
+            "z": 1.6
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.31,
+            "y": 0.28,
+            "z": 0.34
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "North Banner -15",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -15,
+            "y": 3.4,
+            "z": -19
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.3,
+            "z": 0.12
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.9,
+            "y": 0.25,
+            "z": 0.12
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "South Banner -15",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -15,
+            "y": 3.4,
+            "z": 19
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.3,
+            "z": 0.12
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.12,
+            "y": 0.42,
+            "z": 0.85
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "North Banner -10",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -10,
+            "y": 3.4,
+            "z": -19
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.3,
+            "z": 0.12
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.9,
+            "y": 0.25,
+            "z": 0.12
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "South Banner -10",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -10,
+            "y": 3.4,
+            "z": 19
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.3,
+            "z": 0.12
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.12,
+            "y": 0.42,
+            "z": 0.85
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "North Banner -5",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -5,
+            "y": 3.4,
+            "z": -19
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.3,
+            "z": 0.12
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.9,
+            "y": 0.25,
+            "z": 0.12
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "South Banner -5",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -5,
+            "y": 3.4,
+            "z": 19
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.3,
+            "z": 0.12
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.12,
+            "y": 0.42,
+            "z": 0.85
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "North Banner 0",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 3.4,
+            "z": -19
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.3,
+            "z": 0.12
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.9,
+            "y": 0.25,
+            "z": 0.12
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "South Banner 0",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 3.4,
+            "z": 19
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.3,
+            "z": 0.12
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.12,
+            "y": 0.42,
+            "z": 0.85
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "North Banner 5",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 5,
+            "y": 3.4,
+            "z": -19
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.3,
+            "z": 0.12
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.9,
+            "y": 0.25,
+            "z": 0.12
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "South Banner 5",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 5,
+            "y": 3.4,
+            "z": 19
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.3,
+            "z": 0.12
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.12,
+            "y": 0.42,
+            "z": 0.85
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "North Banner 10",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 10,
+            "y": 3.4,
+            "z": -19
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.3,
+            "z": 0.12
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.9,
+            "y": 0.25,
+            "z": 0.12
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "South Banner 10",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 10,
+            "y": 3.4,
+            "z": 19
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.3,
+            "z": 0.12
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.12,
+            "y": 0.42,
+            "z": 0.85
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "North Banner 15",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 15,
+            "y": 3.4,
+            "z": -19
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.3,
+            "z": 0.12
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.9,
+            "y": 0.25,
+            "z": 0.12
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "South Banner 15",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 15,
+            "y": 3.4,
+            "z": 19
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.65,
+            "y": 2.3,
+            "z": 0.12
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.12,
+            "y": 0.42,
+            "z": 0.85
+          },
+          "roughness": 0.72,
+          "metalness": 0.08
+        }
+      }
+    },
+    {
+      "name": "Player - KAIRO, Stormborn",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0.9,
+            "z": 5.2
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.68,
+            "y": 1.8,
+            "z": 0.68
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 3.141592653589793,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 132,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.18,
+            "y": 0.46,
+            "z": 0.95
+          },
+          "keepTextures": true,
+          "parts": ""
+        },
+        "Player": {},
+        "RigidBody": {
+          "mass": 70,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "CharacterController": {
+          "mode": "ThirdPerson"
+        },
+        "Health": {
+          "current": 250,
+          "maximum": 250
+        },
+        "Melee": {
+          "team": 0,
+          "ai": false,
+          "energy": 68,
+          "guard": 100,
+          "style": "Martial arts"
+        }
+      }
+    },
+    {
+      "name": "Duel Camera",
+      "components": {
+        "Camera": {
+          "fov": 58
+        },
+        "CameraFollow": {
+          "offset": {
+            "x": 0,
+            "y": 2.15,
+            "z": -5.4
+          },
+          "orbit": true,
+          "lookHeight": 1.1
+        }
+      }
+    },
+    {
+      "name": "Rival - RYU, Crimson Comet",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -3.1,
+            "y": 0.9,
+            "z": -3
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.72,
+            "y": 1.9,
+            "z": 0.72
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 3.141592653589793,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 175,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.93,
+            "y": 0.19,
+            "z": 0.12
+          },
+          "keepTextures": true,
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 70,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "CharacterController": {
+          "mode": "ThirdPerson"
+        },
+        "Health": {
+          "current": 180,
+          "maximum": 180
+        },
+        "Melee": {
+          "style": "Martial arts",
+          "team": 1,
+          "ai": true,
+          "aggression": 0.78,
+          "skill": 0.57,
+          "reaction": 0.2,
+          "energy": 55,
+          "guard": 82,
+          "poise": 0,
+          "breakTime": 2
+        }
+      }
+    },
+    {
+      "name": "Boss - ZENITH, Void Emperor",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 3.1,
+            "y": 0.9,
+            "z": -4.2
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.72,
+            "y": 1.9,
+            "z": 0.72
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 3.141592653589793,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 175,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.48,
+            "y": 0.18,
+            "z": 0.72
+          },
+          "keepTextures": true,
+          "parts": ""
+        },
+        "RigidBody": {
+          "mass": 70,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB"
+        },
+        "CharacterController": {
+          "mode": "ThirdPerson"
+        },
+        "Health": {
+          "current": 280,
+          "maximum": 280
+        },
+        "Melee": {
+          "style": "Martial arts",
+          "team": 1,
+          "ai": true,
+          "aggression": 0.92,
+          "skill": 0.88,
+          "reaction": 0.12,
+          "energy": 80,
+          "guard": 110,
+          "poise": 130,
+          "breakTime": 3
+        }
+      }
+    },
+    {
+      "name": "Match Title",
+      "components": {
+        "UI": {
+          "text": "KI STORM  /  ARENA ASCENDANT",
+          "anchor": "top-center",
+          "offsetY": 22,
+          "fontSize": 24,
+          "color": {
+            "x": 1,
+            "y": 0.73,
+            "z": 0.28
+          },
+          "opacity": 0.98
+        }
+      }
+    },
+    {
+      "name": "Combat Controls",
+      "components": {
+        "UI": {
+          "text": "MOVE  WASD  |  PUNCH  J / CLICK  |  HEAVY  K  |  KICK  F  |  KI BLAST  Q  |  DODGE  X  |  BLOCK  R  |  LOCK-ON  T  |  RUN  SHIFT",
+          "anchor": "bottom-center",
+          "offsetY": -18,
+          "fontSize": 13,
+          "color": {
+            "x": 0.94,
+            "y": 0.97,
+            "z": 1
+          },
+          "opacity": 0.95
+        }
+      }
+    },
+    {
+      "name": "Combat Tip",
+      "components": {
+        "UI": {
+          "text": "LAND HITS TO BUILD KI  •  PARRY WITH R  •  Q + W = FLYING STRIKE  •  Q + S = RISING DRAGON  •  S, W, Q = METEOR FINISHER",
+          "anchor": "bottom-center",
+          "offsetY": -42,
+          "fontSize": 11,
+          "color": {
+            "x": 0.95,
+            "y": 0.61,
+            "z": 0.31
+          },
+          "opacity": 0.9
+        }
+      }
+    }
+  ]
+}
