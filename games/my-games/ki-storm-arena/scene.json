@@ -1,0 +1,399 @@
+{
+  "format": 1,
+  "name": "Ki Storm: Arena Ascendant",
+  "entities": [
+    {
+      "name": "Arena Floor",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -0.35,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 34,
+            "y": 0.7,
+            "z": 34
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        }
+      }
+    },
+    {
+      "name": "North Ring Wall",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 1.2,
+            "z": -16
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 34,
+            "y": 2.4,
+            "z": 0.6
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    },
+    {
+      "name": "South Ring Wall",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 1.2,
+            "z": 16
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 34,
+            "y": 2.4,
+            "z": 0.6
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    },
+    {
+      "name": "East Ring Wall",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 16,
+            "y": 1.2,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.6,
+            "y": 2.4,
+            "z": 32
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    },
+    {
+      "name": "West Ring Wall",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -16,
+            "y": 1.2,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.6,
+            "y": 2.4,
+            "z": 32
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    },
+    {
+      "name": "Player - Nova",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -4,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.9,
+            "y": 1.8,
+            "z": 0.9
+          }
+        },
+        "Renderable": {
+          "mesh": 132,
+          "material": 0,
+          "visible": true
+        },
+        "Player": {},
+        "Health": {
+          "current": 150,
+          "maximum": 150
+        },
+        "Melee": {
+          "style": "Martial arts",
+          "team": 0,
+          "ai": false,
+          "energy": 45,
+          "guard": 80
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.45,
+            "y": 0.9,
+            "z": 0.45
+          }
+        },
+        "RigidBody": {
+          "dynamic": false
+        }
+      }
+    },
+    {
+      "name": "Rival - Vex",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 4,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.9,
+            "y": 1.8,
+            "z": 0.9
+          }
+        },
+        "Renderable": {
+          "mesh": 132,
+          "material": 0,
+          "visible": true
+        },
+        "Health": {
+          "current": 150,
+          "maximum": 150
+        },
+        "Melee": {
+          "style": "Martial arts",
+          "team": 1,
+          "ai": true,
+          "aggression": 0.8,
+          "skill": 0.65,
+          "reaction": 0.18,
+          "energy": 55,
+          "guard": 75,
+          "poise": 70,
+          "breakTime": 2.2
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.45,
+            "y": 0.9,
+            "z": 0.45
+          }
+        },
+        "RigidBody": {
+          "dynamic": false
+        },
+        "AIState": {
+          "state": "Chasing"
+        }
+      }
+    },
+    {
+      "name": "Rival - Echo",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": -8
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.9,
+            "y": 1.8,
+            "z": 0.9
+          }
+        },
+        "Renderable": {
+          "mesh": 132,
+          "material": 0,
+          "visible": true
+        },
+        "Health": {
+          "current": 100,
+          "maximum": 100
+        },
+        "Melee": {
+          "style": "Martial arts",
+          "team": 1,
+          "ai": true,
+          "aggression": 0.55,
+          "skill": 0.5,
+          "reaction": 0.3,
+          "energy": 30,
+          "guard": 55
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.45,
+            "y": 0.9,
+            "z": 0.45
+          }
+        },
+        "RigidBody": {
+          "dynamic": false
+        },
+        "AIState": {
+          "state": "Chasing"
+        }
+      }
+    },
+    {
+      "name": "Arena Pillar NW",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -12,
+            "y": 2.5,
+            "z": -12
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.3,
+            "y": 5,
+            "z": 1.3
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    },
+    {
+      "name": "Arena Pillar NE",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 12,
+            "y": 2.5,
+            "z": -12
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.3,
+            "y": 5,
+            "z": 1.3
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    },
+    {
+      "name": "Arena Pillar SW",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -12,
+            "y": 2.5,
+            "z": 12
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.3,
+            "y": 5,
+            "z": 1.3
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    },
+    {
+      "name": "Arena Pillar SE",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 12,
+            "y": 2.5,
+            "z": 12
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 1.3,
+            "y": 5,
+            "z": 1.3
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Collider": {
+          "type": "AABB"
+        }
+      }
+    }
+  ]
+}
