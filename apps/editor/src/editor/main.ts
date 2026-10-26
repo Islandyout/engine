@@ -55,6 +55,7 @@ import { installAudio } from "./app/audio";
 import { installCameras } from "./app/cameras";
 import type { Ctx } from "./app/context";
 import { AnimState, CachedModel, DeathState, ParticleState, TickState, TrailState, UIButtonHit, WidgetHit } from "./app/context";
+import { installEdenAgents } from "./app/edenAgents";
 import { installEffects } from "./app/effects";
 import { installEnvironment } from "./app/environment";
 import { installExplorer } from "./app/explorer";
@@ -225,6 +226,7 @@ async function startEditor() {
   installRuntimeSync(C);
   installLoot(C);
   installSceneObjects(C);
+  installEdenAgents(C);
   installPanels(C);
   installUiActions(C);
   installVehicles(C);

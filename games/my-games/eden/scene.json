@@ -1,0 +1,193 @@
+{
+  "entities": [
+    {
+      "name": "Ground",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Terrain": {
+          "size": 60,
+          "resolution": 65,
+          "height": 0,
+          "seed": 1,
+          "frequency": 1,
+          "octaves": 1,
+          "sculpt": "",
+          "grassColor": {
+            "x": 0.4196078431372549,
+            "y": 0.5607843137254902,
+            "z": 0.3215686274509804
+          },
+          "rockColor": {
+            "x": 0.5411764705882353,
+            "y": 0.5137254901960784,
+            "z": 0.47058823529411764
+          },
+          "sandColor": {
+            "x": 0.8509803921568627,
+            "y": 0.788235294117647,
+            "z": 0.5607843137254902
+          },
+          "snowColor": {
+            "x": 0.9411764705882353,
+            "y": 0.9411764705882353,
+            "z": 0.9411764705882353
+          },
+          "sandHeight": 0.1,
+          "snowHeight": 10,
+          "rockSlope": 0.7,
+          "scatter": "",
+          "paths": ""
+        }
+      }
+    },
+    {
+      "name": "Environment",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -5,
+            "z": 0
+          }
+        },
+        "Environment": {
+          "sky": "Procedural",
+          "skyColor": {
+            "x": 0.4980392156862745,
+            "y": 0.6588235294117647,
+            "z": 0.788235294117647
+          },
+          "horizonColor": {
+            "x": 0.9529411764705882,
+            "y": 0.8901960784313725,
+            "z": 0.7843137254901961
+          },
+          "groundColor": {
+            "x": 0.3215686274509804,
+            "y": 0.3764705882352941,
+            "z": 0.2901960784313726
+          },
+          "sunElevation": 45,
+          "sunAzimuth": 120,
+          "sunIntensity": 3,
+          "sunColor": {
+            "x": 1,
+            "y": 0.9529411764705882,
+            "z": 0.8509803921568627
+          },
+          "ambientIntensity": 1.3,
+          "fog": "None",
+          "fogColor": {
+            "x": 0.063,
+            "y": 0.102,
+            "z": 0.149
+          },
+          "fogNear": 20,
+          "fogFar": 120,
+          "fogDensity": 0.015,
+          "shadows": true,
+          "exposure": 1
+        }
+      }
+    },
+    {
+      "name": "Adam",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -1,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 1.5707963267948966,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 249,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 70,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "Script": {
+          "source": "-- Eden Phase 1a: driven entirely by edenAgents.ts (TS), which polls\n-- eden_entity_state/eden_exchanges/eden_conversations and broadcasts a new\n-- target via editor_ui_event(\"eden_target_adam\", \"x,y,z,action\") whenever\n-- the brain (eden-tick, Supabase) decides something new. This script only\n-- ever walks toward the last target it was given and plays that action's\n-- clip on arrival -- it has no say in WHAT Adam does, only HOW he gets\n-- there. The sandboxed Lua VM has no network access at all by design (see\n-- source/engine/script/script.cpp's open_sandboxed_libs), so the decision\n-- itself can only ever be made outside it.\n\n-- \"Man (casual)\" (catalog id 249) carries its own clips (idle/talk/run/\n-- walk/Wave/Death/HitRecieve) -- already a clothed, fully-animated model,\n-- so there's no outfit to dress (unlike the clip-less UBC base bodies).\n\nlocal target = nil -- {x, y, z, action}\nlocal waypoints = nil\nlocal wpIndex = 1\nlocal arrived = true\nlocal playedAction = nil\nlocal WALK_SPEED = 1.6\n\nlocal function parse_target(value)\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return nil end\n  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4] }\nend\n\nfunction on_ui(name, value)\n  if name ~= \"eden_target_adam\" then return end\n  local t = parse_target(value)\n  if not t then return end\n  target = t\n  waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)\n  wpIndex = 1\n  arrived = false\nend\n\nlocal function play(action)\n  if playedAction ~= action then\n    self.animate = action\n    playedAction = action\n  end\nend\n\nfunction on_tick(dt)\n  if not target then return end\n  if arrived then\n    self.vx, self.vz = 0, 0\n    play(target.action)\n    return\n  end\n  if not waypoints or #waypoints == 0 then\n    -- Unreachable (world.path found nothing, or start == target): stand\n    -- and play the action anyway rather than getting stuck on nothing.\n    arrived = true\n    return\n  end\n  local wp = waypoints[wpIndex]\n  local dx, dz = wp.x - self.x, wp.z - self.z\n  local dist = math.sqrt(dx * dx + dz * dz)\n  if dist < 0.3 then\n    wpIndex = wpIndex + 1\n    if wpIndex > #waypoints then\n      arrived = true\n      self.vx, self.vz = 0, 0\n      play(target.action)\n      return\n    end\n  else\n    self.vx = (dx / dist) * WALK_SPEED\n    self.vz = (dz / dist) * WALK_SPEED\n    play(\"walk\")\n  end\nend\n",
+          "props": {}
+        }
+      }
+    },
+    {
+      "name": "Eve",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 1,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": -1.5707963267948966,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 251,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 60,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "Script": {
+          "source": "-- Eden Phase 1a: see adam.lua's own doc comment -- identical pattern, just\n-- Eve's own event name/outfit. Driven entirely by edenAgents.ts (TS) via\n-- editor_ui_event(\"eden_target_eve\", \"x,y,z,action\"); never decides\n-- anything itself (the sandboxed Lua VM has no network access at all).\n\n-- \"Woman (casual)\" (catalog id 251) carries its own clips (idle/run/sit/\n-- walk/Clapping/Death) -- already a clothed, fully-animated model, so\n-- there's no outfit to dress (unlike the clip-less UBC base bodies).\n\nlocal target = nil -- {x, y, z, action}\nlocal waypoints = nil\nlocal wpIndex = 1\nlocal arrived = true\nlocal playedAction = nil\nlocal WALK_SPEED = 1.6\n\nlocal function parse_target(value)\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return nil end\n  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4] }\nend\n\nfunction on_ui(name, value)\n  if name ~= \"eden_target_eve\" then return end\n  local t = parse_target(value)\n  if not t then return end\n  target = t\n  waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)\n  wpIndex = 1\n  arrived = false\nend\n\nlocal function play(action)\n  if playedAction ~= action then\n    self.animate = action\n    playedAction = action\n  end\nend\n\nfunction on_tick(dt)\n  if not target then return end\n  if arrived then\n    self.vx, self.vz = 0, 0\n    play(target.action)\n    return\n  end\n  if not waypoints or #waypoints == 0 then\n    arrived = true\n    return\n  end\n  local wp = waypoints[wpIndex]\n  local dx, dz = wp.x - self.x, wp.z - self.z\n  local dist = math.sqrt(dx * dx + dz * dz)\n  if dist < 0.3 then\n    wpIndex = wpIndex + 1\n    if wpIndex > #waypoints then\n      arrived = true\n      self.vx, self.vz = 0, 0\n      play(target.action)\n      return\n    end\n  else\n    self.vx = (dx / dist) * WALK_SPEED\n    self.vz = (dz / dist) * WALK_SPEED\n    play(\"walk\")\n  end\nend\n",
+          "props": {}
+        }
+      }
+    }
+  ],
+  "prefabs": {}
+}
