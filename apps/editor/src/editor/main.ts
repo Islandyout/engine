@@ -1963,6 +1963,24 @@ async function startEditor() {
     window.addEventListener("keydown", resumeAudio);
   }
   C.governedMode = doc.mode;
+  // A control surface for the desktop app (apps/desktop) and the AI tools that drive it: the page's own scene document, play and stop, and the
+  // status line. Only there when the window announces itself ("BTAIDesktop" in the user agent), so a web page never offers it.
+  if (navigator.userAgent.includes("BTAIDesktop")) {
+    const status = () => ({ mode: doc.mode, name: doc.name, entities: doc.scene.entityCount, dirty: doc.dirty, status: document.getElementById("status")?.textContent ?? "" });
+    (window as unknown as { btai: unknown }).btai = {
+      status,
+      getScene: () => doc.save(),
+      loadScene: (data: unknown) => {
+        if (doc.mode !== "edit") el("stop").click();
+        C.loadDocument(data);
+        return status();
+      },
+      execute: (command: unknown) => doc.execute(command),
+      play: () => (el<HTMLButtonElement>("play").click(), status()),
+      stop: () => (el<HTMLButtonElement>("stop").click(), status()),
+      log: () => document.getElementById("log")?.textContent ?? "",
+    };
+  }
   // Which entities never move while playing: no script, rig, AI, body or
   // effect of their own (they can still be destroyed or moved by a script;
   // the batcher notices and lets them go).
