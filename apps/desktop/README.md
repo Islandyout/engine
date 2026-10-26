@@ -3,7 +3,15 @@
 The editor and the games in their own window (Electron), served from local files, with the laptop's graphics card doing the drawing.
 An AI (Claude over MCP, or any script) can drive it through a local control port.
 
-## Run
+## Quickest start (no build)
+
+```sh
+git clone https://github.com/Islandyout/engine.git && cd engine/apps/desktop
+npm install
+npm start -- --remote      # runs the published site (needs internet), same app, GPU and control port
+```
+
+## Run from a local build
 
 ```sh
 bash tools/build_editor.sh          # builds build/site (needs emsdk)

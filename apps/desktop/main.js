@@ -42,10 +42,15 @@ const siteRoot = () => {
   return candidates.map((p) => path.resolve(p)).find((p) => fs.existsSync(path.join(p, "index.html")));
 };
 
-const baseUrl = () => `http://127.0.0.1:${site.port}/engine/`;
+// --remote runs the live published site instead of local files (no emsdk build needed); the app, GPU and control port are the same.
+const REMOTE_BASE = "https://islandyout.github.io/engine/";
+const baseUrl = () => (opts.remote ? REMOTE_BASE : `http://127.0.0.1:${site.port}/engine/`);
+const isOurs = (url) => url.startsWith(baseUrl()) || (!opts.remote && url.startsWith(`http://127.0.0.1:${site.port}/`));
+let remoteGames = [];
 const gameUrl = (slug) => `${baseUrl()}${slug}.html`;
 
 function readGames() {
+  if (opts.remote) return remoteGames;
   try {
     return JSON.parse(fs.readFileSync(path.join(site.root, "games.json"), "utf8")).games ?? [];
   } catch {
@@ -140,11 +145,11 @@ function createWindow() {
   win.webContents.on("render-process-gone", (_e, details) => logBuffer.push({ time: Date.now(), level: "error", message: `the page's process ended: ${details.reason}` }));
   // The page may open only what this app serves; anything else goes to the system browser.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:/.test(url) && !url.startsWith(`http://127.0.0.1:${site.port}/`)) void shell.openExternal(url);
+    if (/^https?:/.test(url) && !isOurs(url)) void shell.openExternal(url);
     return { action: "deny" };
   });
   win.webContents.on("will-navigate", (event, url) => {
-    if (!url.startsWith(`http://127.0.0.1:${site.port}/`)) {
+    if (!isOurs(url)) {
       event.preventDefault();
       if (/^https?:/.test(url)) void shell.openExternal(url);
     }
@@ -168,7 +173,7 @@ function loadSpec(spec) {
   }
   if (spec.editor || (!spec.url && !spec.game)) return win.loadURL(baseUrl());
   const url = String(spec.url);
-  if (!url.startsWith(`http://127.0.0.1:${site.port}/`)) throw Object.assign(new Error("only pages of this app can be loaded"), { status: 400 });
+  if (!isOurs(url)) throw Object.assign(new Error("only pages of this app can be loaded"), { status: 400 });
   return win.loadURL(url);
 }
 
@@ -307,12 +312,21 @@ app.on("second-instance", (_e, argv) => {
 if (!app.requestSingleInstanceLock()) app.quit();
 else
   app.whenReady().then(async () => {
-    const root = siteRoot();
-    if (!root) {
+    const root = opts.remote ? undefined : siteRoot();
+    if (!root && !opts.remote) {
       dialog.showErrorBox("No built site", "The engine's built site was not found.\n\nIn a checkout, build it first (tools/build_editor.sh, which needs the Emscripten SDK), or pass --site <folder>.");
       return app.quit();
     }
-    site = await startStaticServer(root);
+    if (opts.remote) {
+      try {
+        const res = await fetch(`${REMOTE_BASE}games.json`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        remoteGames = (await res.json()).games ?? [];
+      } catch (e) {
+        dialog.showErrorBox("Cannot reach the published site", `${REMOTE_BASE}\n\n${e.message}\n\nCheck the internet connection, or build locally (see README).`);
+        return app.quit();
+      }
+    } else site = await startStaticServer(root);
     createWindow();
     buildMenu();
     await startControl();
