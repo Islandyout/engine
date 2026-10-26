@@ -1,0 +1,50 @@
+{
+  "name": "btai-desktop",
+  "productName": "BTAI Engine",
+  "version": "0.1.0",
+  "description": "The BTAI game engine editor and player as a desktop app: the laptop's GPU, local files, and a control port an AI (or a script) can drive.",
+  "main": "main.js",
+  "author": "BTAI",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.mjs",
+    "dist": "electron-builder --linux AppImage deb --publish never",
+    "dist:dir": "electron-builder --linux dir --publish never",
+    "game": "node build_game_app.mjs"
+  },
+  "devDependencies": {
+    "electron": "39.8.8",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "dev.btai.engine",
+    "productName": "BTAI Engine",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "control.js",
+      "staticServer.js",
+      "args.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../../build/site",
+        "to": "site"
+      }
+    ],
+    "linux": {
+      "category": "Game",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "maintainer": "BTAI <noreply@example.com>"
+    }
+  }
+}
