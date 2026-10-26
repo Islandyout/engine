@@ -145,7 +145,9 @@ function createWindow() {
   win.webContents.on("render-process-gone", (_e, details) => logBuffer.push({ time: Date.now(), level: "error", message: `the page's process ended: ${details.reason}` }));
   // The page may open only what this app serves; anything else goes to the system browser.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:/.test(url) && !isOurs(url)) void shell.openExternal(url);
+    // The Games library's Play button opens a game with window.open: here that is this window going to the game.
+    if (isOurs(url)) void win.loadURL(url);
+    else if (/^https?:/.test(url)) void shell.openExternal(url);
     return { action: "deny" };
   });
   win.webContents.on("will-navigate", (event, url) => {
