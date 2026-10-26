@@ -65,7 +65,10 @@ scene.add("Eve", [1, 0, 0], {
 
 const outDir = join(ROOT, "games/my-games/eden");
 mkdirSync(outDir, { recursive: true });
-writeFileSync(join(outDir, "scene.json"), JSON.stringify({ entities: scene.entities, prefabs: scene.prefabs }, null, 2));
+writeFileSync(
+  join(outDir, "scene.json"),
+  JSON.stringify({ format: 1, name: "Eden", entities: scene.entities, prefabs: scene.prefabs }, null, 2),
+);
 writeFileSync(
   join(outDir, "game.json"),
   JSON.stringify(

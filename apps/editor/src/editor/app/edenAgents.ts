@@ -34,7 +34,12 @@ type EntityId = (typeof ENTITIES)[number];
 // "attack"/"blast"/"sit". Tried in order, case-insensitively, first match
 // wins; the two models don't share a clip set (talk/Wave vs sit/Clapping),
 // so this list has to cover both.
-const EDEN_ACTION_CLIPS: [string, string[]][] = [
+//
+// Exported, not registered into C.actionClipSynonyms from here: that Map
+// isn't created until deep inside main.ts's startEditor(), well after every
+// install*(C) call (including this module's) has already run -- these
+// entries get merged into main.ts's own literal instead.
+export const EDEN_ACTION_CLIPS: [string, string[]][] = [
   ["rest", ["sit", "idle"]],
   ["wander", ["walk"]],
   ["observe", ["idle"]],
@@ -88,11 +93,6 @@ export function installEdenAgents(C: Ctx): void {
     return [loc.x, 0, loc.y];
   }
 
-  function clipFor(action: string): string {
-    for (const [name, _candidates] of EDEN_ACTION_CLIPS) if (name === action) return action;
-    return action;
-  }
-
   async function pollOnce() {
     if (!locations) {
       const rows = await restGet<LocationRow[]>("eden_locations?select=id,x,y");
@@ -110,8 +110,9 @@ export function installEdenAgents(C: Ctx): void {
         C.log(`Eden: ${state.entity_id}'s location "${state.current_location}" isn't in eden_locations -- skipped`);
         continue;
       }
-      const value = `${pos[0]},${pos[1]},${pos[2]},${clipFor(state.current_action)}`;
+      const value = `${pos[0]},${pos[1]},${pos[2]},${state.current_action}`;
       C.runtime.ccall("editor_ui_event", null, ["string", "string"], [`eden_target_${state.entity_id}`, value]);
+      C.log(`Eden: ${state.entity_id} -> ${state.current_action} @ ${state.current_location} (${value})`);
     }
 
     // Phase 1a has no Dialogue-widget wiring yet (that's a Creator-UI/
@@ -142,8 +143,4 @@ export function installEdenAgents(C: Ctx): void {
       .catch((error) => C.log(`Eden brain poll failed: ${String(error)}`))
       .finally(() => (polling = false));
   }, 15_000);
-
-  // Extend the shared synonym map once, at install time -- same mechanism
-  // and the same Map instance F48's "attack"/"blast"/"sit" already live on.
-  for (const [action, candidates] of EDEN_ACTION_CLIPS) C.actionClipSynonyms.set(action, candidates);
 }
