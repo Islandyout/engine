@@ -1973,9 +1973,10 @@ async function startEditor() {
       loadScene: (data: unknown) => {
         if (doc.mode !== "edit") el("stop").click();
         C.loadDocument(data);
+        C.rebuild();
         return status();
       },
-      execute: (command: unknown) => doc.execute(command),
+      execute: (command: unknown) => C.execute(command),
       play: () => (el<HTMLButtonElement>("play").click(), status()),
       stop: () => (el<HTMLButtonElement>("stop").click(), status()),
       log: () => document.getElementById("log")?.textContent ?? "",
