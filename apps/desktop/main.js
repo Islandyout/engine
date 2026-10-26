@@ -130,7 +130,7 @@ function createWindow() {
     backgroundColor: "#0e1316",
     title: pkg.productName,
     fullscreen: opts.kiosk,
-    autoHideMenuBar: !opts.kiosk,
+    autoHideMenuBar: false, // always shown (Engine > Editor is how a game is left); a kiosk has no menu at all
     show: false,
     webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, sandbox: true, backgroundThrottling: false },
   });
@@ -187,7 +187,8 @@ function buildMenu() {
       {
         label: "&Engine",
         submenu: [
-          { label: "Editor", accelerator: "CmdOrCtrl+Home", click: () => win?.loadURL(baseUrl()) },
+          { label: "Editor (leave the game)", accelerator: "CmdOrCtrl+Home", click: () => win?.loadURL(baseUrl()) },
+          { label: "Back", accelerator: "Alt+Left", click: () => win?.webContents.navigationHistory.canGoBack() && win.webContents.navigationHistory.goBack() },
           { label: "Games", submenu: games.map((g) => ({ label: g.name, click: () => win?.loadURL(gameUrl(g.slug)) })) },
           { type: "separator" },
           { role: "quit" },

@@ -7,9 +7,41 @@
       "components": {
         "Environment": {
           "sky": "Procedural",
-          "shadows": true,
+          "skyColor": {
+            "x": 0.063,
+            "y": 0.102,
+            "z": 0.149
+          },
+          "horizonColor": {
+            "x": 0.55,
+            "y": 0.7,
+            "z": 0.85
+          },
+          "groundColor": {
+            "x": 0.25,
+            "y": 0.31,
+            "z": 0.21
+          },
           "sunElevation": 42,
-          "sunAzimuth": 135
+          "sunAzimuth": 135,
+          "sunIntensity": 3,
+          "sunColor": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          },
+          "ambientIntensity": 3,
+          "fog": "None",
+          "fogColor": {
+            "x": 0.063,
+            "y": 0.102,
+            "z": 0.149
+          },
+          "fogNear": 20,
+          "fogFar": 120,
+          "fogDensity": 0.015,
+          "shadows": true,
+          "exposure": 1
         }
       }
     },
@@ -41,15 +73,36 @@
             "y": 0.19,
             "z": 0.24
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         },
         "RigidBody": {
           "mass": 70,
+          "inverseMass": 1,
           "dynamic": false
         },
         "Collider": {
-          "type": "AABB"
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
         }
       }
     },
@@ -81,15 +134,36 @@
             "y": 0.64,
             "z": 0.65
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         },
         "RigidBody": {
           "mass": 70,
+          "inverseMass": 1,
           "dynamic": false
         },
         "Collider": {
-          "type": "AABB"
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
         }
       }
     },
@@ -121,11 +195,22 @@
             "y": 0.78,
             "z": 0.6
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         },
         "RigidBody": {
           "mass": 70,
+          "inverseMass": 1,
           "dynamic": false
         }
       }
@@ -158,8 +243,18 @@
             "y": 0.31,
             "z": 0.38
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -191,8 +286,18 @@
             "y": 0.34,
             "z": 0.13
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -224,8 +329,18 @@
             "y": 0.34,
             "z": 0.13
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -257,8 +372,18 @@
             "y": 0.34,
             "z": 0.13
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -290,8 +415,18 @@
             "y": 0.34,
             "z": 0.13
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -323,8 +458,18 @@
             "y": 0.74,
             "z": 0.24
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -356,15 +501,36 @@
             "y": 0.26,
             "z": 0.31
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         },
         "RigidBody": {
           "mass": 70,
+          "inverseMass": 1,
           "dynamic": false
         },
         "Collider": {
-          "type": "AABB"
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
         }
       }
     },
@@ -396,15 +562,36 @@
             "y": 0.26,
             "z": 0.31
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         },
         "RigidBody": {
           "mass": 70,
+          "inverseMass": 1,
           "dynamic": false
         },
         "Collider": {
-          "type": "AABB"
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
         }
       }
     },
@@ -436,15 +623,36 @@
             "y": 0.26,
             "z": 0.31
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         },
         "RigidBody": {
           "mass": 70,
+          "inverseMass": 1,
           "dynamic": false
         },
         "Collider": {
-          "type": "AABB"
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
         }
       }
     },
@@ -476,15 +684,36 @@
             "y": 0.26,
             "z": 0.31
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         },
         "RigidBody": {
           "mass": 70,
+          "inverseMass": 1,
           "dynamic": false
         },
         "Collider": {
-          "type": "AABB"
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
         }
       }
     },
@@ -516,8 +745,18 @@
             "y": 0.31,
             "z": 0.36
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -549,8 +788,18 @@
             "y": 0.38,
             "z": 0.13
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -582,8 +831,18 @@
             "y": 0.31,
             "z": 0.36
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -615,8 +874,18 @@
             "y": 0.38,
             "z": 0.13
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -648,8 +917,18 @@
             "y": 0.31,
             "z": 0.36
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -681,8 +960,18 @@
             "y": 0.38,
             "z": 0.13
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -714,8 +1003,18 @@
             "y": 0.31,
             "z": 0.36
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -747,8 +1046,18 @@
             "y": 0.38,
             "z": 0.13
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -780,8 +1089,18 @@
             "y": 0.75,
             "z": 0.95
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -813,8 +1132,18 @@
             "y": 0.78,
             "z": 0.38
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -846,8 +1175,18 @@
             "y": 0.48,
             "z": 0.95
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -879,8 +1218,18 @@
             "y": 0.78,
             "z": 0.38
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -912,8 +1261,18 @@
             "y": 0.75,
             "z": 0.95
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -945,8 +1304,18 @@
             "y": 0.78,
             "z": 0.38
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -978,8 +1347,18 @@
             "y": 0.48,
             "z": 0.95
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1011,8 +1390,18 @@
             "y": 0.78,
             "z": 0.38
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1044,8 +1433,18 @@
             "y": 0.28,
             "z": 0.34
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1077,8 +1476,18 @@
             "y": 0.28,
             "z": 0.34
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1110,8 +1519,18 @@
             "y": 0.28,
             "z": 0.34
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1143,8 +1562,18 @@
             "y": 0.28,
             "z": 0.34
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1176,8 +1605,18 @@
             "y": 0.28,
             "z": 0.34
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1209,8 +1648,18 @@
             "y": 0.28,
             "z": 0.34
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1242,8 +1691,18 @@
             "y": 0.25,
             "z": 0.12
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1275,8 +1734,18 @@
             "y": 0.42,
             "z": 0.85
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1308,8 +1777,18 @@
             "y": 0.25,
             "z": 0.12
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1341,8 +1820,18 @@
             "y": 0.42,
             "z": 0.85
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1374,8 +1863,18 @@
             "y": 0.25,
             "z": 0.12
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1407,8 +1906,18 @@
             "y": 0.42,
             "z": 0.85
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1440,8 +1949,18 @@
             "y": 0.25,
             "z": 0.12
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1473,8 +1992,18 @@
             "y": 0.42,
             "z": 0.85
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1506,8 +2035,18 @@
             "y": 0.25,
             "z": 0.12
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1539,8 +2078,18 @@
             "y": 0.42,
             "z": 0.85
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1572,8 +2121,18 @@
             "y": 0.25,
             "z": 0.12
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1605,8 +2164,18 @@
             "y": 0.42,
             "z": 0.85
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1638,8 +2207,18 @@
             "y": 0.25,
             "z": 0.12
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1671,8 +2250,18 @@
             "y": 0.42,
             "z": 0.85
           },
+          "metalness": 0.08,
           "roughness": 0.72,
-          "metalness": 0.08
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "keepTextures": true,
+          "texture": "",
+          "parts": ""
         }
       }
     },
@@ -1711,30 +2300,76 @@
             "y": 0.46,
             "z": 0.95
           },
+          "metalness": 0,
+          "roughness": 1,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
           "keepTextures": true,
+          "texture": "",
           "parts": ""
         },
         "Player": {},
         "RigidBody": {
           "mass": 70,
+          "inverseMass": 1,
           "dynamic": true
         },
         "Collider": {
-          "type": "AABB"
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
         },
         "CharacterController": {
-          "mode": "ThirdPerson"
+          "mode": "ThirdPerson",
+          "walkSpeed": 4.5,
+          "sprintSpeed": 7.5,
+          "crouchSpeed": 2.2,
+          "jumpHeight": 1.1,
+          "standHeight": 1.8,
+          "crouchHeight": 1.1,
+          "stepHeight": 0.4,
+          "acceleration": 45,
+          "airControl": 12,
+          "lookSensitivity": 1,
+          "invertY": false,
+          "fov": 75,
+          "headBob": 1
         },
         "Health": {
           "current": 250,
           "maximum": 250
         },
         "Melee": {
+          "style": "Martial arts",
+          "moves": "# Punches (light): jab, cross, hook, uppercut\njab: clip=jab input=light dur=0.55 hit=0.10-0.16 cancel=0.2 dmg=6 reach=0.9 lunge=0.25 stun=0.3 limb=hand_l\ncross: clip=cross input=light after=jab dur=0.62 hit=0.15-0.22 cancel=0.26 dmg=8 reach=1.0 lunge=0.3 stun=0.35 limb=hand_r\nhook: clip=hook input=light after=cross dur=0.72 hit=0.15-0.23 cancel=0.32 dmg=10 reach=1.0 lunge=0.35 knock=2.5 stun=0.4 limb=hand_r\nuppercut: clip=uppercut input=light after=hook dur=0.78 hit=0.18-0.28 cancel=0.45 dmg=13 reach=0.9 lunge=0.3 launch=7.5 knock=1 stun=0.6 stop=0.1 limb=hand_r\n# Kicks: front kick, roundhouse, side kick (alternating legs)\nfront_kick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=10 reach=1.25 height=0.55 lunge=0.4 knock=3.5 stun=0.4 limb=foot_r\nroundhouse: clip=roundhouse_l input=kick after=front_kick|jab|cross dur=0.9 hit=0.38-0.48 cancel=0.6 dmg=14 reach=1.3 height=0.8 lunge=0.35 knock=4.5 stun=0.5 stop=0.09 limb=foot_l\nside_kick: clip=side_kick_r input=kick after=roundhouse|hook dur=0.92 hit=0.30-0.40 cancel=0.62 dmg=16 reach=1.45 height=0.65 lunge=0.35 knock=8 stun=0.7 stop=0.11 knockdown finisher limb=foot_r\n# Heavies\npower_hook: clip=hook input=heavy dur=0.95 hit=0.22-0.32 cancel=0.55 dmg=15 reach=1.05 lunge=0.5 knock=4.5 stun=0.55 stop=0.1 armor limb=hand_r\nlauncher: clip=uppercut input=heavy after=jab|cross dur=0.85 hit=0.2-0.3 cancel=0.5 dmg=11 reach=0.95 lunge=0.35 launch=8.5 stun=0.7 stop=0.1 limb=hand_r\nknee_strike: clip=knee input=heavy after=hook|power_hook dur=0.8 hit=0.36-0.46 cancel=0.6 dmg=14 reach=0.75 lunge=0.6 knock=2 stun=0.7 stop=0.1 limb=calf_r\n# In the air (after a jump, or chasing a launched target)\nair_punch: clip=cross input=light air after=air_punch|air_kick|start dur=0.45 hit=0.10-0.18 cancel=0.2 dmg=6 reach=1.0 launch=3.5 stun=0.4 lunge=0 limb=hand_r\nair_kick: clip=roundhouse_r input=kick air after=air_punch|start dur=0.6 hit=0.25-0.36 cancel=0.4 dmg=9 reach=1.2 launch=3 knock=2 stun=0.5 lunge=0 limb=foot_r\n# Running\ndash_attack: clip=shoulder_dash input=light sprint dur=0.75 hit=0.08-0.35 cancel=0.5 dmg=10 reach=0.9 lunge=2.4 knock=7 stun=0.6 stop=0.08 limb=upperarm_l\n# Dodges (invulnerable while rolling)\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis\nslide: clip=slide input=dodge sprint dur=0.7 hit=0-0 cancel=0.55 dmg=0 lunge=4.2 free iframes=0-0.45 track=0 limb=pelvis\n# Specials (energy, built by landing hits): neutral, forward, back, back-forward\nenergy_blast: clip=energy_throw input=special dur=0.8 hit=0.26-0.3 cancel=0.55 dmg=18 projectile=18 knock=5 stun=0.6 cost=25 cooldown=0.6 lunge=0 limb=hand_r\nflying_strike: clip=dash_strike input=special seq=f dur=1.0 hit=0.15-0.45 cancel=0.75 dmg=20 reach=1.1 lunge=4 knock=6 stun=0.7 stop=0.1 cost=35 armor limb=hand_r\nrising_dragon: clip=rising_strike input=special seq=b dur=0.7 hit=0.1-0.3 cancel=0.55 dmg=18 reach=1.0 launch=10 stun=0.9 stop=0.12 cost=35 iframes=0-0.15 lunge=0.3 limb=hand_r\nmeteor_smash: clip=ground_pound input=special seq=bf dur=1.1 hit=0.3-0.42 cancel=0.9 dmg=35 aoe=3 knock=9 launch=4 stun=1 stop=0.16 cost=70 armor knockdown unblockable finisher lunge=0.2 limb=hand_r\n",
           "team": 0,
           "ai": false,
+          "aggression": 0.5,
+          "skill": 0.5,
+          "reaction": 0.25,
           "energy": 68,
           "guard": 100,
-          "style": "Martial arts"
+          "rightHand": 0,
+          "leftHand": 0,
+          "poise": 0,
+          "breakTime": 2.5,
+          "manaMax": 100,
+          "manaRegen": 8,
+          "range": 0,
+          "shield": false
         }
       }
     },
@@ -1742,16 +2377,24 @@
       "name": "Duel Camera",
       "components": {
         "Camera": {
-          "fov": 58
+          "projection": "Perspective",
+          "fov": 58,
+          "near": 0.1,
+          "far": 2000,
+          "orthoSize": 10,
+          "priority": 0
         },
         "CameraFollow": {
+          "target": "",
           "offset": {
             "x": 0,
             "y": 2.15,
             "z": -5.4
           },
-          "orbit": true,
-          "lookHeight": 1.1
+          "smoothing": 0.15,
+          "lookHeight": 1.1,
+          "collision": true,
+          "orbit": true
         }
       }
     },
@@ -1790,18 +2433,52 @@
             "y": 0.19,
             "z": 0.12
           },
+          "metalness": 0,
+          "roughness": 1,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
           "keepTextures": true,
+          "texture": "",
           "parts": ""
         },
         "RigidBody": {
           "mass": 70,
+          "inverseMass": 1,
           "dynamic": true
         },
         "Collider": {
-          "type": "AABB"
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
         },
         "CharacterController": {
-          "mode": "ThirdPerson"
+          "mode": "ThirdPerson",
+          "walkSpeed": 4.5,
+          "sprintSpeed": 7.5,
+          "crouchSpeed": 2.2,
+          "jumpHeight": 1.1,
+          "standHeight": 1.8,
+          "crouchHeight": 1.1,
+          "stepHeight": 0.4,
+          "acceleration": 45,
+          "airControl": 12,
+          "lookSensitivity": 1,
+          "invertY": false,
+          "fov": 75,
+          "headBob": 1
         },
         "Health": {
           "current": 180,
@@ -1809,6 +2486,7 @@
         },
         "Melee": {
           "style": "Martial arts",
+          "moves": "# Punches (light): jab, cross, hook, uppercut\njab: clip=jab input=light dur=0.55 hit=0.10-0.16 cancel=0.2 dmg=6 reach=0.9 lunge=0.25 stun=0.3 limb=hand_l\ncross: clip=cross input=light after=jab dur=0.62 hit=0.15-0.22 cancel=0.26 dmg=8 reach=1.0 lunge=0.3 stun=0.35 limb=hand_r\nhook: clip=hook input=light after=cross dur=0.72 hit=0.15-0.23 cancel=0.32 dmg=10 reach=1.0 lunge=0.35 knock=2.5 stun=0.4 limb=hand_r\nuppercut: clip=uppercut input=light after=hook dur=0.78 hit=0.18-0.28 cancel=0.45 dmg=13 reach=0.9 lunge=0.3 launch=7.5 knock=1 stun=0.6 stop=0.1 limb=hand_r\n# Kicks: front kick, roundhouse, side kick (alternating legs)\nfront_kick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=10 reach=1.25 height=0.55 lunge=0.4 knock=3.5 stun=0.4 limb=foot_r\nroundhouse: clip=roundhouse_l input=kick after=front_kick|jab|cross dur=0.9 hit=0.38-0.48 cancel=0.6 dmg=14 reach=1.3 height=0.8 lunge=0.35 knock=4.5 stun=0.5 stop=0.09 limb=foot_l\nside_kick: clip=side_kick_r input=kick after=roundhouse|hook dur=0.92 hit=0.30-0.40 cancel=0.62 dmg=16 reach=1.45 height=0.65 lunge=0.35 knock=8 stun=0.7 stop=0.11 knockdown finisher limb=foot_r\n# Heavies\npower_hook: clip=hook input=heavy dur=0.95 hit=0.22-0.32 cancel=0.55 dmg=15 reach=1.05 lunge=0.5 knock=4.5 stun=0.55 stop=0.1 armor limb=hand_r\nlauncher: clip=uppercut input=heavy after=jab|cross dur=0.85 hit=0.2-0.3 cancel=0.5 dmg=11 reach=0.95 lunge=0.35 launch=8.5 stun=0.7 stop=0.1 limb=hand_r\nknee_strike: clip=knee input=heavy after=hook|power_hook dur=0.8 hit=0.36-0.46 cancel=0.6 dmg=14 reach=0.75 lunge=0.6 knock=2 stun=0.7 stop=0.1 limb=calf_r\n# In the air (after a jump, or chasing a launched target)\nair_punch: clip=cross input=light air after=air_punch|air_kick|start dur=0.45 hit=0.10-0.18 cancel=0.2 dmg=6 reach=1.0 launch=3.5 stun=0.4 lunge=0 limb=hand_r\nair_kick: clip=roundhouse_r input=kick air after=air_punch|start dur=0.6 hit=0.25-0.36 cancel=0.4 dmg=9 reach=1.2 launch=3 knock=2 stun=0.5 lunge=0 limb=foot_r\n# Running\ndash_attack: clip=shoulder_dash input=light sprint dur=0.75 hit=0.08-0.35 cancel=0.5 dmg=10 reach=0.9 lunge=2.4 knock=7 stun=0.6 stop=0.08 limb=upperarm_l\n# Dodges (invulnerable while rolling)\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis\nslide: clip=slide input=dodge sprint dur=0.7 hit=0-0 cancel=0.55 dmg=0 lunge=4.2 free iframes=0-0.45 track=0 limb=pelvis\n# Specials (energy, built by landing hits): neutral, forward, back, back-forward\nenergy_blast: clip=energy_throw input=special dur=0.8 hit=0.26-0.3 cancel=0.55 dmg=18 projectile=18 knock=5 stun=0.6 cost=25 cooldown=0.6 lunge=0 limb=hand_r\nflying_strike: clip=dash_strike input=special seq=f dur=1.0 hit=0.15-0.45 cancel=0.75 dmg=20 reach=1.1 lunge=4 knock=6 stun=0.7 stop=0.1 cost=35 armor limb=hand_r\nrising_dragon: clip=rising_strike input=special seq=b dur=0.7 hit=0.1-0.3 cancel=0.55 dmg=18 reach=1.0 launch=10 stun=0.9 stop=0.12 cost=35 iframes=0-0.15 lunge=0.3 limb=hand_r\nmeteor_smash: clip=ground_pound input=special seq=bf dur=1.1 hit=0.3-0.42 cancel=0.9 dmg=35 aoe=3 knock=9 launch=4 stun=1 stop=0.16 cost=70 armor knockdown unblockable finisher lunge=0.2 limb=hand_r\n",
           "team": 1,
           "ai": true,
           "aggression": 0.78,
@@ -1816,8 +2494,14 @@
           "reaction": 0.2,
           "energy": 55,
           "guard": 82,
+          "rightHand": 0,
+          "leftHand": 0,
           "poise": 0,
-          "breakTime": 2
+          "breakTime": 2,
+          "manaMax": 100,
+          "manaRegen": 8,
+          "range": 0,
+          "shield": false
         }
       }
     },
@@ -1856,18 +2540,52 @@
             "y": 0.18,
             "z": 0.72
           },
+          "metalness": 0,
+          "roughness": 1,
+          "emissive": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "emissiveIntensity": 1,
+          "opacity": 1,
           "keepTextures": true,
+          "texture": "",
           "parts": ""
         },
         "RigidBody": {
           "mass": 70,
+          "inverseMass": 1,
           "dynamic": true
         },
         "Collider": {
-          "type": "AABB"
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
         },
         "CharacterController": {
-          "mode": "ThirdPerson"
+          "mode": "ThirdPerson",
+          "walkSpeed": 4.5,
+          "sprintSpeed": 7.5,
+          "crouchSpeed": 2.2,
+          "jumpHeight": 1.1,
+          "standHeight": 1.8,
+          "crouchHeight": 1.1,
+          "stepHeight": 0.4,
+          "acceleration": 45,
+          "airControl": 12,
+          "lookSensitivity": 1,
+          "invertY": false,
+          "fov": 75,
+          "headBob": 1
         },
         "Health": {
           "current": 280,
@@ -1875,6 +2593,7 @@
         },
         "Melee": {
           "style": "Martial arts",
+          "moves": "# Punches (light): jab, cross, hook, uppercut\njab: clip=jab input=light dur=0.55 hit=0.10-0.16 cancel=0.2 dmg=6 reach=0.9 lunge=0.25 stun=0.3 limb=hand_l\ncross: clip=cross input=light after=jab dur=0.62 hit=0.15-0.22 cancel=0.26 dmg=8 reach=1.0 lunge=0.3 stun=0.35 limb=hand_r\nhook: clip=hook input=light after=cross dur=0.72 hit=0.15-0.23 cancel=0.32 dmg=10 reach=1.0 lunge=0.35 knock=2.5 stun=0.4 limb=hand_r\nuppercut: clip=uppercut input=light after=hook dur=0.78 hit=0.18-0.28 cancel=0.45 dmg=13 reach=0.9 lunge=0.3 launch=7.5 knock=1 stun=0.6 stop=0.1 limb=hand_r\n# Kicks: front kick, roundhouse, side kick (alternating legs)\nfront_kick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=10 reach=1.25 height=0.55 lunge=0.4 knock=3.5 stun=0.4 limb=foot_r\nroundhouse: clip=roundhouse_l input=kick after=front_kick|jab|cross dur=0.9 hit=0.38-0.48 cancel=0.6 dmg=14 reach=1.3 height=0.8 lunge=0.35 knock=4.5 stun=0.5 stop=0.09 limb=foot_l\nside_kick: clip=side_kick_r input=kick after=roundhouse|hook dur=0.92 hit=0.30-0.40 cancel=0.62 dmg=16 reach=1.45 height=0.65 lunge=0.35 knock=8 stun=0.7 stop=0.11 knockdown finisher limb=foot_r\n# Heavies\npower_hook: clip=hook input=heavy dur=0.95 hit=0.22-0.32 cancel=0.55 dmg=15 reach=1.05 lunge=0.5 knock=4.5 stun=0.55 stop=0.1 armor limb=hand_r\nlauncher: clip=uppercut input=heavy after=jab|cross dur=0.85 hit=0.2-0.3 cancel=0.5 dmg=11 reach=0.95 lunge=0.35 launch=8.5 stun=0.7 stop=0.1 limb=hand_r\nknee_strike: clip=knee input=heavy after=hook|power_hook dur=0.8 hit=0.36-0.46 cancel=0.6 dmg=14 reach=0.75 lunge=0.6 knock=2 stun=0.7 stop=0.1 limb=calf_r\n# In the air (after a jump, or chasing a launched target)\nair_punch: clip=cross input=light air after=air_punch|air_kick|start dur=0.45 hit=0.10-0.18 cancel=0.2 dmg=6 reach=1.0 launch=3.5 stun=0.4 lunge=0 limb=hand_r\nair_kick: clip=roundhouse_r input=kick air after=air_punch|start dur=0.6 hit=0.25-0.36 cancel=0.4 dmg=9 reach=1.2 launch=3 knock=2 stun=0.5 lunge=0 limb=foot_r\n# Running\ndash_attack: clip=shoulder_dash input=light sprint dur=0.75 hit=0.08-0.35 cancel=0.5 dmg=10 reach=0.9 lunge=2.4 knock=7 stun=0.6 stop=0.08 limb=upperarm_l\n# Dodges (invulnerable while rolling)\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis\nslide: clip=slide input=dodge sprint dur=0.7 hit=0-0 cancel=0.55 dmg=0 lunge=4.2 free iframes=0-0.45 track=0 limb=pelvis\n# Specials (energy, built by landing hits): neutral, forward, back, back-forward\nenergy_blast: clip=energy_throw input=special dur=0.8 hit=0.26-0.3 cancel=0.55 dmg=18 projectile=18 knock=5 stun=0.6 cost=25 cooldown=0.6 lunge=0 limb=hand_r\nflying_strike: clip=dash_strike input=special seq=f dur=1.0 hit=0.15-0.45 cancel=0.75 dmg=20 reach=1.1 lunge=4 knock=6 stun=0.7 stop=0.1 cost=35 armor limb=hand_r\nrising_dragon: clip=rising_strike input=special seq=b dur=0.7 hit=0.1-0.3 cancel=0.55 dmg=18 reach=1.0 launch=10 stun=0.9 stop=0.12 cost=35 iframes=0-0.15 lunge=0.3 limb=hand_r\nmeteor_smash: clip=ground_pound input=special seq=bf dur=1.1 hit=0.3-0.42 cancel=0.9 dmg=35 aoe=3 knock=9 launch=4 stun=1 stop=0.16 cost=70 armor knockdown unblockable finisher lunge=0.2 limb=hand_r\n",
           "team": 1,
           "ai": true,
           "aggression": 0.92,
@@ -1882,8 +2601,14 @@
           "reaction": 0.12,
           "energy": 80,
           "guard": 110,
+          "rightHand": 0,
+          "leftHand": 0,
           "poise": 130,
-          "breakTime": 3
+          "breakTime": 3,
+          "manaMax": 100,
+          "manaRegen": 8,
+          "range": 0,
+          "shield": false
         }
       }
     },
@@ -1891,16 +2616,29 @@
       "name": "Match Title",
       "components": {
         "UI": {
+          "kind": "Text",
           "text": "KI STORM  /  ARENA ASCENDANT",
           "anchor": "top-center",
+          "visibleWhen": "always",
+          "action": "none",
+          "offsetX": 0,
           "offsetY": 22,
+          "width": 0,
+          "height": 0,
           "fontSize": 24,
           "color": {
             "x": 1,
             "y": 0.73,
             "z": 0.28
           },
-          "opacity": 0.98
+          "opacity": 0.98,
+          "image": "",
+          "value": 0,
+          "widget": "Health",
+          "style": "Modern",
+          "source": "",
+          "onClick": "",
+          "toggleKey": ""
         }
       }
     },
@@ -1908,16 +2646,29 @@
       "name": "Combat Controls",
       "components": {
         "UI": {
+          "kind": "Text",
           "text": "MOVE  WASD  |  PUNCH  J / CLICK  |  HEAVY  K  |  KICK  F  |  KI BLAST  Q  |  DODGE  X  |  BLOCK  R  |  LOCK-ON  T  |  RUN  SHIFT",
           "anchor": "bottom-center",
+          "visibleWhen": "always",
+          "action": "none",
+          "offsetX": 0,
           "offsetY": -18,
+          "width": 0,
+          "height": 0,
           "fontSize": 13,
           "color": {
             "x": 0.94,
             "y": 0.97,
             "z": 1
           },
-          "opacity": 0.95
+          "opacity": 0.95,
+          "image": "",
+          "value": 0,
+          "widget": "Health",
+          "style": "Modern",
+          "source": "",
+          "onClick": "",
+          "toggleKey": ""
         }
       }
     },
@@ -1925,16 +2676,29 @@
       "name": "Combat Tip",
       "components": {
         "UI": {
+          "kind": "Text",
           "text": "LAND HITS TO BUILD KI  •  PARRY WITH R  •  Q + W = FLYING STRIKE  •  Q + S = RISING DRAGON  •  S, W, Q = METEOR FINISHER",
           "anchor": "bottom-center",
+          "visibleWhen": "always",
+          "action": "none",
+          "offsetX": 0,
           "offsetY": -42,
+          "width": 0,
+          "height": 0,
           "fontSize": 11,
           "color": {
             "x": 0.95,
             "y": 0.61,
             "z": 0.31
           },
-          "opacity": 0.9
+          "opacity": 0.9,
+          "image": "",
+          "value": 0,
+          "widget": "Health",
+          "style": "Modern",
+          "source": "",
+          "onClick": "",
+          "toggleKey": ""
         }
       }
     }
