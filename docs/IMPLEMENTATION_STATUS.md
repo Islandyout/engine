@@ -124,3 +124,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F117](changelog/F117.md) | Eden: the landmark trees no longer swallow people into the ground |
 | [F118](changelog/F118.md) | Eden: the lake is walked round; the river can be waded |
 | [F119](changelog/F119.md) | Eden: walk the world as a hunter, with spear, bow and hunting |
+| [F120](changelog/F120.md) | Eden: dusk gatherings, shunning, stories; infants, hygiene, diet, remedies |

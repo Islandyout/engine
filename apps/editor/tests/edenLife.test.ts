@@ -79,21 +79,27 @@ test("a death is grieved, remembered and recorded", () => {
 });
 
 test("two partners with a roof and food laid by have a child, who is looked after", () => {
-  const mother = adult("M", "f", 13);
-  const father = adult("F", "m", 14);
-  for (const [p, o] of [[mother, "F"], [father, "M"]] as const) p.relations.set(o, { affinity: 0.95, trust: 0.9, familiarity: 0.9, lastTogether: 0 });
-  assert.equal(bondOf(mother, father), "partner");
-  const w = base([mother, father], [{ id: "shelter-1", kind: "shelter", x: 2, z: 2, radius: 3, stock: 30 }]);
-  w.clock = DAY / 3; // spring
-  run(w, 30 * DAY, 2); // a child is carried three-quarters of a year (12 days) before it is born
-  const child = w.people.find((p) => p.mother === "M");
-  assert.ok(child, "no child");
-  assert.equal(child!.father, "F");
-  assert.ok(child!.age < 1);
-  assert.ok(mother.journal.some((j) => /was born to me/.test(j.text)));
-  // A child does not gather wood, and stays near their mother.
-  run(w, 3 * DAY, 2);
-  assert.ok(Math.hypot(child!.x - mother.x, child!.z - mother.z) < 40);
+  // Birth is a chance (a baby can be born still, a mother can fall ill first), so try a dozen couples: most have a child.
+  let born = 0;
+  for (let k = 0; k < 12; k++) {
+    const mother = adult("M", "f", 13 + 2 * k);
+    const father = adult("F", "m", 14 + 2 * k);
+    for (const [p, o] of [[mother, "F"], [father, "M"]] as const) p.relations.set(o, { affinity: 0.95, trust: 0.9, familiarity: 0.9, lastTogether: 0 });
+    assert.equal(bondOf(mother, father), "partner");
+    const w = base([mother, father], [{ id: "shelter-1", kind: "shelter", x: 2, z: 2, radius: 3, stock: 30 }]);
+    w.clock = DAY / 3; // spring
+    run(w, 30 * DAY, 2); // a child is carried three-quarters of a year (12 days) before it is born
+    const child = w.people.find((p) => p.mother === "M");
+    if (!child) continue;
+    born++;
+    assert.equal(child.father, "F");
+    assert.ok(child.age < 1.5);
+    assert.ok(mother.journal.some((j) => /was born to me/.test(j.text)));
+    // A child does not gather wood, and stays near their mother.
+    run(w, 3 * DAY, 2);
+    assert.ok(Math.hypot(child.x - mother.x, child.z - mother.z) < 40);
+  }
+  assert.ok(born >= 6, `only ${born} of 12 couples had a child`);
 });
 
 test("someone low is comforted by someone who cares, and quarrels can happen between two who are low", () => {

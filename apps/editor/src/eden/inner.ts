@@ -56,6 +56,7 @@ export function importance(text: string): number {
   if (/was born|I was born|I am a father/.test(text)) return 0.9;
   if (/I have learned|I have come to think|I did it|known as the|custom has formed/.test(text)) return 0.8;
   if (/Quarrelled|Lost my temper|grave/.test(text)) return 0.7;
+  if (/ told me: /.test(text)) return 0.35;
   if (/Killed|Built a shelter|gave me food|stayed with me/.test(text)) return 0.6;
   if (/Ran from|got away|Planted|Made a spear|Caught a fish|showed me how|Showed /.test(text)) return 0.4;
   if (/Lit a fire|Gave /.test(text)) return 0.35;

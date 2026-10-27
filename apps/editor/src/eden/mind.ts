@@ -11,7 +11,7 @@ import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach,
 import { fadeNorms, isCustom, NORM_TEXT, reinforce, standing, strengthOf, type NormId } from "./norms";
 import { fade, feel as feelEmotion, importance, moodPush, opinionTags, BELIEF_WORDS, type Belief, type Emotion } from "./inner";
 import { converse } from "./speech";
-import { COMFORT_C, DAY, EDEN_CLIMATE, FISH_BY_SEASON, growthRate, hourOf, isDark, seasonAt, weatherAt, YEAR, type Climate, type Weather } from "./earth";
+import { COMFORT_C, DAY, daylight, EDEN_CLIMATE, FISH_BY_SEASON, growthRate, hourOf, isDark, seasonAt, weatherAt, YEAR, type Climate, type Weather } from "./earth";
 export { DAY, hourOf };
 
 export type NeedName = "hunger" | "thirst" | "energy" | "social" | "joy";
@@ -106,7 +106,7 @@ export interface Memory {
   lastSeen: number; // sim seconds
 }
 
-export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame" | "sew";
+export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame" | "sew" | "wash";
 export interface Intent {
   kind: IntentKind;
   targetId?: string; // a thing's id or another person's id
@@ -161,9 +161,13 @@ export interface Person {
   lastBirth?: number; // world clock a child of theirs was last born (mothers)
   spoken?: string[]; // the last few things they said aloud, so the voice does not repeat them
   promises?: { to: string; due: number }[]; // what they have promised, and by when
+  shunned?: boolean; // the others have lost faith in them and keep away
+  heard?: string[]; // tales they have been told (so they are not told twice)
   pregnant?: { since: number; father: string }; // carrying a child, born after GESTATION
   illness?: { severity: number; since: number }; // sick, 0..1
   wound?: number; // hurt by an animal, 0..1: heals slowly and may turn bad
+  hygiene?: number; // 0 clean .. 1 filthy: dirt invites sickness; a wash at the water sets it right
+  diet?: Record<string, number>; // what they have eaten lately by kind (fruit, grain, stored), fading over a couple of days
   cause?: string; // what is killing them, when it is not plain from their needs (childbirth)
   mother?: string;
   father?: string;
@@ -368,8 +372,10 @@ export function tally(world: World, key: string) {
   t[key] = (t[key] ?? 0) + 1;
 }
 // What they have come to think of someone tilts whether they seek them out.
-function opinionOf(person: Person, other: Person): number {
+function opinionOf(person: Person, other: Person, world?: World): number {
   let v = 0;
+  // Someone the others have lost faith in is shunned: not sought out.
+  if (world && world.people.length >= 3 && standing(world, other) < 0.22) v -= 0.6;
   for (const q of [other]) v += 0.3 * (person.relations.get(q.id)?.trust ?? 0.5) - 0.15;
   for (const b of person.beliefs?.[other.id] ?? []) v += b === "quarrelsome" ? -0.25 : 0.15;
   return v;
@@ -443,7 +449,7 @@ function tickIllness(person: Person, world: World, dt: number) {
   }
   const ill = person.illness;
   if (!ill) {
-    let hazard = (0.025 / DAY) * vul * (1 + 1.5 * person.cold + 2.4 * Math.max(0, needs.hunger - 0.5) + (world.weather?.raining && !sheltered ? 0.5 : 0) + (needs.energy > 0.9 ? 0.5 : 0));
+    let hazard = (0.025 / DAY) * vul * (deficient(person) ? 1.35 : 1) * (1 + 0.6 * clamp01(((person.hygiene ?? 0) - 0.5) / 0.5)) * (1 + 1.5 * person.cold + 2.4 * Math.max(0, needs.hunger - 0.5) + (world.weather?.raining && !sheltered ? 0.5 : 0) + (needs.energy > 0.9 ? 0.5 : 0));
     for (const q of world.people) if (q !== person && q.illness && dist(person.x, person.z, q.x, q.z) < 4) hazard += (0.5 / DAY) * q.illness.severity;
     if (rand(person) < hazard * dt) {
       person.illness = { severity: 0.25 + 0.3 * rand(person), since: now };
@@ -596,6 +602,46 @@ function uphold(world: World, id: NormId, by: Person, amount: number) {
   chronicle(world, `A custom formed: ${NORM_TEXT[id]}.`);
 }
 
+// What they eat, by kind: a diet of one thing wears the body down; fruit, grain and meat or fish together do not.
+function eaten(person: Person, kind: string) {
+  const d = (person.diet ??= {});
+  d[kind] = (d[kind] ?? 0) + 1;
+}
+function deficient(person: Person): boolean {
+  const d = person.diet;
+  if (!d) return false;
+  const total = Object.values(d).reduce((a, v) => a + v, 0);
+  const kinds = Object.values(d).filter((v) => v > 0.3).length;
+  return total >= 4 && kinds < 2;
+}
+
+// An infant is carried and nursed: it stays by its mother, drinks her milk, and does not choose anything; without her it starves.
+function infantStep(person: Person, world: World, dt: number, external: boolean) {
+  const mother = world.people.find((q) => q.id === person.mother);
+  if (!mother) {
+    person.needs.hunger = clamp01(person.needs.hunger + dt / 4000);
+    return;
+  }
+  const d = dist(person.x, person.z, mother.x, mother.z);
+  if (d > 2.5) {
+    if (external) person.intent = { kind: "wander", x: mother.x, z: mother.z, speed: 2.6, remaining: 2, arrived: false };
+    else {
+      const stepLen = Math.min(d - 1.5, 2.6 * dt);
+      person.x += ((mother.x - person.x) / d) * stepLen;
+      person.z += ((mother.z - person.z) / d) * stepLen;
+      person.intent = undefined;
+    }
+  } else {
+    person.intent = { kind: "linger", x: person.x, z: person.z, speed: 0, remaining: 5, arrived: true };
+    if (mother.needs.hunger < 0.85) {
+      person.needs.hunger = clamp01(person.needs.hunger - dt / 250);
+      person.needs.thirst = clamp01(person.needs.thirst - dt / 250); // milk is drink too
+      mother.needs.hunger = clamp01(mother.needs.hunger + dt / 1500);
+      person.needs.social = clamp01(person.needs.social - dt / 400);
+    }
+  }
+}
+
 function note(person: Person, world: World, text: string) {
   person.journal.push({ t: world.clock ?? 0, text, w: importance(text) });
   if (person.journal.length > 400) {
@@ -737,7 +783,7 @@ function options(person: Person, world: World): Option[] {
   lifeOptions(person, world, out);
   // A child does not gather, build or lay food by, and stays close to their mother.
   if (person.age < ADULT_AGE) {
-    const allowed = new Set<IntentKind>(["mourn", "eat", "drink", "rest", "sleep", "look", "play", "talk", "comfort", "linger", "wander", "warm"]);
+    const allowed = new Set<IntentKind>(["wash", "mourn", "eat", "drink", "rest", "sleep", "look", "play", "talk", "comfort", "linger", "wander", "warm"]);
     const kept = out.filter((o) => allowed.has(o.intent.kind));
     out.splice(0, out.length, ...kept);
     const mother = world.people.find((q) => q.id === person.mother);
@@ -756,7 +802,7 @@ function options(person: Person, world: World): Option[] {
     if (other === person) continue;
     if (dist(person.x, person.z, other.x, other.z) > SIGHT * 2) continue;
     // Someone hungry, and food in hand: give it.
-    if (person.carry.food >= 1 && other.needs.hunger > 0.6 && other.carry.food < 1) {
+    if (person.carry.food >= 1 && other.needs.hunger > 0.6 && other.carry.food < 1 && !(other.shunned && !(other.mother === person.id || other.father === person.id || person.mother === other.id))) {
       const rel = person.relations.get(other.id);
       out.push({
         intent: { kind: "share", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 4 },
@@ -776,7 +822,7 @@ function options(person: Person, world: World): Option[] {
     if (wish <= 0) continue;
     out.push({
       intent: { kind: "talk", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 20 + 20 * p.sociability },
-      score: 1.4 * wish - effort(other.x, other.z) + opinionOf(person, other),
+      score: 1.4 * wish - effort(other.x, other.z) + opinionOf(person, other, world),
     });
   }
   let searchOption: Option | undefined;
@@ -976,6 +1022,15 @@ function lifeOptions(person: Person, world: World, out: Option[]) {
       });
     }
   }
+  // Washing at the water, when they have got dirty.
+  if ((person.hygiene ?? 0) > 0.5) {
+    for (const t of world.things) {
+      if (!AFFORDANCES[t.kind]?.water || !person.memory.has(t.id)) continue;
+      const d = dist(person.x, person.z, t.x, t.z);
+      if (d > 60) continue;
+      out.push({ intent: { kind: "wash", targetId: t.id, x: t.x, z: t.z, speed: WALK, remaining: 14 }, score: 0.35 + 0.8 * urge(person.hygiene ?? 0, 0.5) - d / 120 });
+    }
+  }
   // A hide becomes a cloak when it is cold or coming on to be.
   if ((person.carry.hide ?? 0) >= 1 && (person.clothing ?? 0) < 0.7) {
     const cold = world.weather ? (season === 3 ? 1 : season === 2 ? 0.6 : 0.2) : 0.3;
@@ -1065,6 +1120,13 @@ function earthOptions(
   const food = person.carry.food;
 
   for (const f of fires) add("warm", f, 1.6 * urge(cold, 0.22), 60);
+  // Dusk at the fire: once it is the custom, people go to it at day's end to be together.
+  const dusk = (() => {
+    const hr = hourOf(world.clock ?? 0);
+    const set = daylight(world.clock ?? 0).set;
+    return hr > set - 1.5 && hr < set + 1.5;
+  })();
+  if (dusk && strengthOf(world, "gather") > 0.2) for (const f of fires) add("warm", f, 0.4 + 1.0 * strengthOf(world, "gather"), 50);
   // Under the custom, whoever sees the fire low feeds it.
   if (wood >= 1) for (const f of fires) if ((f.fuel ?? 0) < 2 * FIRE_SECONDS_PER_WOOD && strengthOf(world, "tend") > 0) add("fire", f, 0.9 * strengthOf(world, "tend") + 0.2, 12);
   // Something carried is eaten where they stand.
@@ -1131,12 +1193,14 @@ function finish(person: Person, world: World, intent: Intent) {
       if (!t && person.carry.food > 0) {
         person.carry.food -= 1;
         needs.hunger = clamp01(needs.hunger - 0.45);
+        eaten(person, "stored");
         joy(0.05);
         person.say = "That was good.";
         note(person, world, "Ate what I had put by.");
       } else if (t && a.food && (t.stock === undefined || t.stock > 0)) {
         needs.hunger = clamp01(needs.hunger - a.food * (1 + 0.3 * skillOf(person, "forage")));
         if (t.kind !== "shelter") practise(person, "forage", 0.015);
+        eaten(person, t.kind === "crop" ? "grain" : t.kind === "shelter" ? "stored" : "fruit");
         if (t.kind === "crop") practise(person, "farm", 0.02);
         if (t.stock !== undefined) t.stock -= 1;
         joy(0.1);
@@ -1211,6 +1275,18 @@ function finish(person: Person, world: World, intent: Intent) {
       break;
     case "warm":
       person.mood = clampMood(person.mood + 0.05);
+      // Together at the fire at dusk: it is a small custom of its own, and a comfort.
+      if (t && burning(t)) {
+        const hr = hourOf(world.clock ?? 0);
+        const set = daylight(world.clock ?? 0).set;
+        const here = world.people.filter((q) => q !== person && dist(q.x, q.z, t.x, t.z) < 8);
+        if (hr > set - 1.5 && hr < set + 1.5 && here.length) {
+          uphold(world, "gather", person, 0.05);
+          needs.social = clamp01(needs.social - 0.25);
+          joy(0.15);
+          tally(world, "duskGatherings");
+        }
+      }
       break;
     case "plant":
       if (person.carry.seed >= 1) {
@@ -1251,6 +1327,15 @@ function finish(person: Person, world: World, intent: Intent) {
       }
       break;
     }
+    case "wash":
+      if ((person.hygiene ?? 0) > 0.1) {
+        person.hygiene = 0;
+        person.say = "That is better.";
+        joy(0.1);
+        note(person, world, "Washed at the water.");
+        tally(world, "washed");
+      }
+      break;
     case "sew":
       if ((person.carry.hide ?? 0) >= 1) {
         person.carry.hide = (person.carry.hide ?? 0) - 1;
@@ -1332,6 +1417,11 @@ function finish(person: Person, world: World, intent: Intent) {
           const heal = skillOf(person, "heal");
           if (other.illness) other.illness.severity = Math.max(0, other.illness.severity - 0.08 * (0.5 + heal));
           if (other.wound) other.wound = Math.max(0, other.wound - 0.1 * (0.5 + heal));
+          if (other.illness && heal >= 0.45) {
+            other.illness.severity = Math.max(0, other.illness.severity - 0.12);
+            note(person, world, `Gave ${other.name} a remedy of herbs.`);
+            tally(world, "remedies");
+          }
           practise(person, "heal", 0.06);
           tally(world, "nursed");
         }
@@ -1451,6 +1541,12 @@ function finish(person: Person, world: World, intent: Intent) {
           }
         }
         // Gossip: what one thinks of a third person reaches the other, who trusts them a little more or less for it.
+        if (exchange.tale && !(other.heard ?? []).includes(exchange.tale)) {
+          (other.heard ??= []).push(exchange.tale);
+          if (other.heard.length > 60) other.heard.shift();
+          note(other, world, `${person.name} told me: ${exchange.tale}`);
+          tally(world, "storiesTold");
+        }
         if (exchange.topic === "sorry") {
           const mine = relation(person, other.id, world);
           const theirs = relation(other, person.id, world);
@@ -1580,6 +1676,15 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     keepPromises(person, world);
     if (person.clothing) person.clothing = Math.max(0, person.clothing - dt / (24 * DAY));
     person.age += dt / YEAR;
+    person.hygiene = clamp01((person.hygiene ?? 0) + dt / (4 * DAY));
+    for (const k of Object.keys(person.diet ?? {})) {
+      person.diet![k] = person.diet![k]! * Math.pow(0.5, dt / DAY);
+      if (person.diet![k]! < 0.02) delete person.diet![k];
+    }
+    if (person.age < 1) {
+      infantStep(person, world, dt, !!settings.externalMotion);
+      continue;
+    }
 
     // Danger: running from it beats anything else, and being caught in it hurts.
     const f = fear(person, world);
@@ -1838,6 +1943,19 @@ function reflect(person: Person, world: World) {
       tally(world, "beliefs");
     }
   }
+  // The others' faith in them: lost, they are shunned; won back, they are taken in again.
+  if (world.people.length >= 3) {
+    const faith = standing(world, person);
+    if (!person.shunned && faith < 0.22) {
+      person.shunned = true;
+      for (const q of world.people) note(q, world, q === person ? "The others keep away from me now." : `We have lost faith in ${person.name}.`);
+      chronicle(world, `${person.name} was shunned by the others.`);
+      tally(world, "shunned");
+    } else if (person.shunned && faith > 0.35) {
+      person.shunned = false;
+      chronicle(world, `${person.name} was taken back among the others.`);
+    }
+  }
   neglect(person);
   const role = roleOf(person);
   if (role && person.role !== role.role) {
@@ -1963,6 +2081,8 @@ export function actionOf(person: Person): string {
     case "tame":
     case "sew":
       return "forage";
+    case "wash":
+      return "drink_from_river";
     case "rest":
     case "sleep":
     case "warm":

@@ -9,12 +9,13 @@ import { hourOf, phrase, bondOf, type Person, type World } from "./mind";
 import { SEASON_NAMES } from "./earth";
 import { BELIEF_WORDS, type Belief } from "./inner";
 
-export type Topic = "need" | "event" | "weather" | "goal" | "bond" | "creature" | "child" | "thanks" | "sorry" | "gossip" | "plain";
+export type Topic = "need" | "event" | "weather" | "goal" | "bond" | "creature" | "child" | "thanks" | "sorry" | "gossip" | "story" | "plain";
 
 export interface Exchange {
   topic: Topic;
   said: string; // what the speaker says
   reply: string; // what the other answers
+  tale?: string; // a story told: the journal line it is from
   about?: string; // gossip: the person (id) being talked about
   tag?: Belief; // and what is said of them
 }
@@ -41,6 +42,9 @@ function tellEvent(text: string, pick: Pick, other: Person): string | undefined 
   if (/^Ran from/.test(text)) return text.replace(/^Ran from/, "I ran from").replace(/\.$/, ". I was frightened.");
   if (/^Caught a fish/.test(text)) return pick(["I caught a fish at the river. There are plenty if you are patient.", "The river gave me a fish today."]);
   if ((m = text.match(/^Sat by (.+)'s grave\.$/))) return `I sat with ${m[1]} a while. I still miss them.`;
+  if (/^Washed at the water/.test(text)) return "I washed at the river. It is good to be clean.";
+  if ((m = text.match(/^Gave (.+) a remedy of herbs\.$/))) return `I gave ${m[1]} a remedy of herbs. I hope it helps.`;
+  if ((m = text.match(/^Told (.+) about (.+)\.$/))) return `I told ${m[1]} about ${m[2]}.`;
   if ((m = text.match(/^(.+) told me about (.+)\.$/))) return `${m[1]} told me about ${m[2]}. I should go and see.`;
   if (/^Sewed a cloak/.test(text)) return pick(["I sewed myself a cloak from the hide. It is warm.", "There is a use for everything we kill. I have a cloak now."]);
   if ((m = text.match(/^I named the (.+): (.+)\.$/))) return `I have been calling the ${m[1]} ${m[2]}. It seemed to fit.`;
@@ -65,8 +69,8 @@ export function converse(world: World, speaker: Person, other: Person, rnd: () =
   const bond = bondOf(speaker, other);
   const rel = speaker.relations.get(other.id);
   const addr = rnd() < 0.4 ? `${other.name}, ` : "";
-  const candidates: { weight: number; topic: Topic; said: string; reply: string; about?: string; tag?: Belief }[] = [];
-  const add = (weight: number, topic: Topic, said: string, reply: string, about?: string, tag?: Belief) => candidates.push({ weight, topic, said, reply, about, tag });
+  const candidates: { weight: number; topic: Topic; said: string; reply: string; about?: string; tag?: Belief; tale?: string }[] = [];
+  const add = (weight: number, topic: Topic, said: string, reply: string, about?: string, tag?: Belief, tale?: string) => candidates.push({ weight, topic, said, reply, about, tag, tale });
 
   // What they need
   const carrying = other.carry.food >= 1;
@@ -126,6 +130,19 @@ export function converse(world: World, speaker: Person, other: Person, rnd: () =
     break;
   }
 
+  // A story: something that mattered a long time ago, told to someone who has not heard it. Elders tell them most.
+  {
+    const heard = new Set(other.heard ?? []);
+    let best: { text: string; score: number } | undefined;
+    for (const entry of speaker.journal) {
+      if ((entry.w ?? 0.12) < 0.6 || (world.clock ?? 0) - entry.t < 1440 || heard.has(entry.text)) continue;
+      if (/^Talked with| said: /.test(entry.text)) continue;
+      const score = (entry.w ?? 0.12) * (1 + speaker.age / 60);
+      if (!best || score > best.score) best = { text: entry.text, score };
+    }
+    if (best) add(0.5 + 0.8 * Math.min(1, speaker.age / 50) + 0.4 * p.sociability, "story", `Let me tell you about the time: ${best.text.charAt(0).toLowerCase()}${best.text.slice(1)}`, pick(["I will remember that.", "Tell me more.", "I had not heard that."]), undefined, undefined, best.text);
+  }
+
   // What lives nearby
   const creature = world.things.find((t) => (t.kind === "deer" || t.kind === "alpaca") && speaker.memory.has(t.id));
   if (creature) add(0.35, "creature", `I saw ${phrase(creature)} near here. It watched me for a while.`, pick(["They are gentle.", "Perhaps we could find it again."]));
@@ -151,5 +168,5 @@ export function converse(world: World, speaker: Person, other: Person, rnd: () =
       break;
     }
   }
-  return { topic: chosen.topic, said: first(chosen.said), reply: first(chosen.reply), about: chosen.about, tag: chosen.tag };
+  return { topic: chosen.topic, said: first(chosen.said), reply: first(chosen.reply), about: chosen.about, tag: chosen.tag, tale: chosen.tale };
 }
