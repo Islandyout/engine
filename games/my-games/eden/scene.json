@@ -337,7 +337,7 @@
           "bounciness": 0
         },
         "Script": {
-          "source": "-- Eden Phase 1a: driven entirely by edenAgents.ts (TS), which polls\n-- eden_entity_state/eden_exchanges/eden_conversations and broadcasts a new\n-- target via editor_ui_event(\"eden_target_adam\", \"x,y,z,action\") whenever\n-- the brain (eden-tick, Supabase) decides something new. This script only\n-- ever walks toward the last target it was given and plays that action's\n-- clip on arrival -- it has no say in WHAT Adam does, only HOW he gets\n-- there. The sandboxed Lua VM has no network access at all by design (see\n-- source/engine/script/script.cpp's open_sandboxed_libs), so the decision\n-- itself can only ever be made outside it.\n\n-- \"Man (casual)\" (catalog id 249) carries its own clips (idle/talk/run/\n-- walk/Wave/Death/HitRecieve) -- already a clothed, fully-animated model,\n-- so there's no outfit to dress (unlike the clip-less UBC base bodies).\n\nlocal target = nil -- {x, y, z, action}\nlocal waypoints = nil\nlocal wpIndex = 1\nlocal arrived = true\nlocal playedAction = nil\nlocal WALK_SPEED = 1.6\n\nlocal function parse_target(value)\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return nil end\n  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4] }\nend\n\nfunction on_ui(name, value)\n  if name ~= \"eden_target_adam\" then return end\n  local t = parse_target(value)\n  if not t then return end\n  target = t\n  waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)\n  wpIndex = 1\n  arrived = false\nend\n\nlocal function play(action)\n  if playedAction ~= action then\n    self.animate = action\n    playedAction = action\n  end\nend\n\nfunction on_tick(dt)\n  if not target then return end\n  if arrived then\n    self.vx, self.vz = 0, 0\n    play(target.action)\n    return\n  end\n  if not waypoints or #waypoints == 0 then\n    -- Unreachable (world.path found nothing, or start == target): stand\n    -- and play the action anyway rather than getting stuck on nothing.\n    arrived = true\n    return\n  end\n  local wp = waypoints[wpIndex]\n  local dx, dz = wp.x - self.x, wp.z - self.z\n  local dist = math.sqrt(dx * dx + dz * dz)\n  if dist < 0.3 then\n    wpIndex = wpIndex + 1\n    if wpIndex > #waypoints then\n      arrived = true\n      self.vx, self.vz = 0, 0\n      play(target.action)\n      return\n    end\n  else\n    self.vx = (dx / dist) * WALK_SPEED\n    self.vz = (dz / dist) * WALK_SPEED\n    play(\"walk\")\n  end\nend\n",
+          "source": "-- Driven entirely by edenAgents.ts (TS), which runs the person's mind\n-- (src/eden/mind.ts) and broadcasts a new target via\n-- editor_ui_event(\"eden_target_adam\", \"x,y,z,action,speed\") whenever the mind\n-- decides something new. This script only\n-- ever walks toward the last target it was given and plays that action's\n-- clip on arrival -- it has no say in WHAT Adam does, only HOW he gets\n-- there. The sandboxed Lua VM has no network access at all by design (see\n-- source/engine/script/script.cpp's open_sandboxed_libs), so the decision\n-- itself can only ever be made outside it.\n\n-- \"Man (casual)\" (catalog id 249) carries its own clips (idle/talk/run/\n-- walk/Wave/Death/HitRecieve) -- already a clothed, fully-animated model,\n-- so there's no outfit to dress (unlike the clip-less UBC base bodies).\n\nlocal target = nil -- {x, y, z, action}\nlocal waypoints = nil\nlocal wpIndex = 1\nlocal arrived = true\nlocal playedAction = nil\nlocal WALK_SPEED = 1.6\n\nlocal function parse_target(value)\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return nil end\n  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]) }\nend\n\nfunction on_ui(name, value)\n  if name ~= \"eden_target_adam\" then return end\n  local t = parse_target(value)\n  if not t then return end\n  target = t\n  waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)\n  -- No route found (the path grid does not cover open terrain): walk straight at the target and let physics steer round what is in the way.\n  if not waypoints or #waypoints == 0 then waypoints = { { x = t.x, y = t.y, z = t.z } } end\n  wpIndex = 1\n  arrived = false\nend\n\nlocal function play(action)\n  if playedAction ~= action then\n    self.animate = action\n    playedAction = action\n  end\nend\n\nfunction on_tick(dt)\n  if not target then return end\n  if arrived then\n    self.vx, self.vz = 0, 0\n    play(target.action)\n    return\n  end\n  if not waypoints or #waypoints == 0 then\n    -- Unreachable (world.path found nothing, or start == target): stand\n    -- and play the action anyway rather than getting stuck on nothing.\n    arrived = true\n    return\n  end\n  local wp = waypoints[wpIndex]\n  local dx, dz = wp.x - self.x, wp.z - self.z\n  local dist = math.sqrt(dx * dx + dz * dz)\n  if dist < 0.3 then\n    wpIndex = wpIndex + 1\n    if wpIndex > #waypoints then\n      arrived = true\n      self.vx, self.vz = 0, 0\n      play(target.action)\n      return\n    end\n  else\n    self.vx = (dx / dist) * (target.speed or WALK_SPEED)\n    self.vz = (dz / dist) * (target.speed or WALK_SPEED)\n    play((target.speed or WALK_SPEED) > 3 and \"run\" or \"walk\")\n  end\nend\n",
           "props": {}
         }
       }
@@ -383,8 +383,56 @@
           "bounciness": 0
         },
         "Script": {
-          "source": "-- Eden Phase 1a: see adam.lua's own doc comment -- identical pattern, just\n-- Eve's own event name/outfit. Driven entirely by edenAgents.ts (TS) via\n-- editor_ui_event(\"eden_target_eve\", \"x,y,z,action\"); never decides\n-- anything itself (the sandboxed Lua VM has no network access at all).\n\n-- \"Woman (casual)\" (catalog id 251) carries its own clips (idle/run/sit/\n-- walk/Clapping/Death) -- already a clothed, fully-animated model, so\n-- there's no outfit to dress (unlike the clip-less UBC base bodies).\n\nlocal target = nil -- {x, y, z, action}\nlocal waypoints = nil\nlocal wpIndex = 1\nlocal arrived = true\nlocal playedAction = nil\nlocal WALK_SPEED = 1.6\n\nlocal function parse_target(value)\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return nil end\n  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4] }\nend\n\nfunction on_ui(name, value)\n  if name ~= \"eden_target_eve\" then return end\n  local t = parse_target(value)\n  if not t then return end\n  target = t\n  waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)\n  wpIndex = 1\n  arrived = false\nend\n\nlocal function play(action)\n  if playedAction ~= action then\n    self.animate = action\n    playedAction = action\n  end\nend\n\nfunction on_tick(dt)\n  if not target then return end\n  if arrived then\n    self.vx, self.vz = 0, 0\n    play(target.action)\n    return\n  end\n  if not waypoints or #waypoints == 0 then\n    arrived = true\n    return\n  end\n  local wp = waypoints[wpIndex]\n  local dx, dz = wp.x - self.x, wp.z - self.z\n  local dist = math.sqrt(dx * dx + dz * dz)\n  if dist < 0.3 then\n    wpIndex = wpIndex + 1\n    if wpIndex > #waypoints then\n      arrived = true\n      self.vx, self.vz = 0, 0\n      play(target.action)\n      return\n    end\n  else\n    self.vx = (dx / dist) * WALK_SPEED\n    self.vz = (dz / dist) * WALK_SPEED\n    play(\"walk\")\n  end\nend\n",
+          "source": "-- Eden Phase 1a: see adam.lua's own doc comment -- identical pattern, just\n-- Eve's own event name/outfit. Driven entirely by edenAgents.ts (TS) via\n-- editor_ui_event(\"eden_target_eve\", \"x,y,z,action\"); never decides\n-- anything itself (the sandboxed Lua VM has no network access at all).\n\n-- \"Woman (casual)\" (catalog id 251) carries its own clips (idle/run/sit/\n-- walk/Clapping/Death) -- already a clothed, fully-animated model, so\n-- there's no outfit to dress (unlike the clip-less UBC base bodies).\n\nlocal target = nil -- {x, y, z, action}\nlocal waypoints = nil\nlocal wpIndex = 1\nlocal arrived = true\nlocal playedAction = nil\nlocal WALK_SPEED = 1.6\n\nlocal function parse_target(value)\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return nil end\n  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]) }\nend\n\nfunction on_ui(name, value)\n  if name ~= \"eden_target_eve\" then return end\n  local t = parse_target(value)\n  if not t then return end\n  target = t\n  waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)\n  -- No route found (the path grid does not cover open terrain): walk straight at the target and let physics steer round what is in the way.\n  if not waypoints or #waypoints == 0 then waypoints = { { x = t.x, y = t.y, z = t.z } } end\n  wpIndex = 1\n  arrived = false\nend\n\nlocal function play(action)\n  if playedAction ~= action then\n    self.animate = action\n    playedAction = action\n  end\nend\n\nfunction on_tick(dt)\n  if not target then return end\n  if arrived then\n    self.vx, self.vz = 0, 0\n    play(target.action)\n    return\n  end\n  if not waypoints or #waypoints == 0 then\n    arrived = true\n    return\n  end\n  local wp = waypoints[wpIndex]\n  local dx, dz = wp.x - self.x, wp.z - self.z\n  local dist = math.sqrt(dx * dx + dz * dz)\n  if dist < 0.3 then\n    wpIndex = wpIndex + 1\n    if wpIndex > #waypoints then\n      arrived = true\n      self.vx, self.vz = 0, 0\n      play(target.action)\n      return\n    end\n  else\n    self.vx = (dx / dist) * (target.speed or WALK_SPEED)\n    self.vz = (dz / dist) * (target.speed or WALK_SPEED)\n    play((target.speed or WALK_SPEED) > 3 and \"run\" or \"walk\")\n  end\nend\n",
           "props": {}
+        }
+      }
+    },
+    {
+      "name": "Creator",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 50,
+            "z": 0
+          }
+        },
+        "Script": {
+          "source": "-- Eden Phase 3: a logic-only entity (no mesh of its own, see build_eden.ts's\n-- \"Creator\" entity) that fulfils \"let there be...\" requests. It never\n-- decides WHAT to spawn -- the Creator panel (edenAgents.ts) already\n-- resolved a prefab name client-side, fuzzy-matched against Eden's own\n-- named prefabs, before this ever fires. This script exists only because\n-- world.spawn is Lua-only -- nothing TS-side can call it directly.\n\nfunction on_ui(name, value)\n  if name ~= \"eden_create\" then return end\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return end\n  local prefab = parts[1]\n  local x, y, z = tonumber(parts[2]), tonumber(parts[3]), tonumber(parts[4])\n  if not (x and y and z) then return end\n  world.spawn(prefab, x, y, z)\nend\n",
+          "props": {}
+        }
+      }
+    },
+    {
+      "name": "Eden camera",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 8,
+            "z": 10
+          }
+        },
+        "Camera": {
+          "projection": "Perspective",
+          "fov": 55,
+          "near": 0.1,
+          "far": 2000,
+          "orthoSize": 10,
+          "priority": 1
+        },
+        "CameraFollow": {
+          "target": "Adam",
+          "offset": {
+            "x": 0,
+            "y": 4,
+            "z": 9
+          },
+          "smoothing": 0.5,
+          "lookHeight": 1.2,
+          "collision": false,
+          "orbit": true
         }
       }
     }

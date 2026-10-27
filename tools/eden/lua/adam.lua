@@ -1,7 +1,7 @@
--- Eden Phase 1a: driven entirely by edenAgents.ts (TS), which polls
--- eden_entity_state/eden_exchanges/eden_conversations and broadcasts a new
--- target via editor_ui_event("eden_target_adam", "x,y,z,action") whenever
--- the brain (eden-tick, Supabase) decides something new. This script only
+-- Driven entirely by edenAgents.ts (TS), which runs the person's mind
+-- (src/eden/mind.ts) and broadcasts a new target via
+-- editor_ui_event("eden_target_adam", "x,y,z,action,speed") whenever the mind
+-- decides something new. This script only
 -- ever walks toward the last target it was given and plays that action's
 -- clip on arrival -- it has no say in WHAT Adam does, only HOW he gets
 -- there. The sandboxed Lua VM has no network access at all by design (see
@@ -23,7 +23,7 @@ local function parse_target(value)
   local parts = {}
   for p in string.gmatch(value, "[^,]+") do parts[#parts + 1] = p end
   if #parts < 4 then return nil end
-  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4] }
+  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]) }
 end
 
 function on_ui(name, value)
@@ -32,6 +32,8 @@ function on_ui(name, value)
   if not t then return end
   target = t
   waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)
+  -- No route found (the path grid does not cover open terrain): walk straight at the target and let physics steer round what is in the way.
+  if not waypoints or #waypoints == 0 then waypoints = { { x = t.x, y = t.y, z = t.z } } end
   wpIndex = 1
   arrived = false
 end
@@ -68,8 +70,8 @@ function on_tick(dt)
       return
     end
   else
-    self.vx = (dx / dist) * WALK_SPEED
-    self.vz = (dz / dist) * WALK_SPEED
-    play("walk")
+    self.vx = (dx / dist) * (target.speed or WALK_SPEED)
+    self.vz = (dz / dist) * (target.speed or WALK_SPEED)
+    play((target.speed or WALK_SPEED) > 3 and "run" or "walk")
   end
 end

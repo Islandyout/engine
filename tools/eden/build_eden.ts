@@ -17,6 +17,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PLACES } from "../../apps/editor/src/eden/world";
 import { encodeSculpt, fbm, generateHeights, sampleHeight } from "../../apps/editor/src/editor/terrain";
 import * as kitModule from "../lib/scene_kit";
 import type { Components, V3 } from "../lib/scene_kit";
@@ -61,14 +62,7 @@ function riverDistance(x: number, z: number): number {
 // migration applied alongside this). The overlook and hollow get a gentle
 // rise/dip of their own below; the grove and meadow stay flat, told apart by
 // what grows there (scatter) rather than their shape.
-const PLACES = {
-  center: { x: 0, z: 0, name: "the garden center" },
-  river_bend: { x: -4, z: 4, name: "the river bend" },
-  grove: { x: 26, z: -16, name: "the fruit grove" },
-  meadow: { x: -26, z: 18, name: "the meadow" },
-  overlook: { x: 2, z: -30, name: "the overlook" },
-  hollow: { x: -16, z: -8, name: "the resting hollow" },
-};
+
 const OVERLOOK_R = 10, HOLLOW_R = 8, GROVE_R = 13, MEADOW_R = 15;
 
 const n = TERRAIN.resolution;
@@ -180,6 +174,12 @@ scene.add("Eve", [1, ground(1, 0) + 0.1, 0], {
 // own "Director") that fulfils "let there be..." requests -- see
 // tools/eden/lua/creator.lua and edenAgents.ts's Creator panel.
 scene.add("Creator", [0, 50, 0], { Script: { source: lua("creator.lua"), props: {} } });
+
+// The Creator's view: a third-person camera that follows Adam from behind and above. Drag to orbit round him; Eve is usually close by.
+scene.add("Eden camera", [0, 8, 10], {
+  Camera: component("Camera", { fov: 55, priority: 1 }),
+  CameraFollow: component("CameraFollow", { target: "Adam", offset: vec(0, 4, 9), smoothing: 0.5, lookHeight: 1.2, collision: false, orbit: true }),
+});
 
 // Prefabs the Creator can bring into being ("let there be a deer"): Eden's
 // own grove trees and garden animals, nothing from the wider catalog. Spawn

@@ -314,7 +314,12 @@ function finish(person: Person, world: World, intent: Intent) {
 }
 
 // Moves the world's people on by `dt` sim seconds. Nothing here reads the clock or the network: the same inputs give the same lives.
-export function step(world: World, dt: number) {
+export interface StepOptions {
+  // The host moves the bodies (physics and paths) and writes each person's x and z before every step; the mind then only chooses and
+  // judges arrival. Without it the mind walks people in a straight line itself (what the tests do).
+  externalMotion?: boolean;
+}
+export function step(world: World, dt: number, settings: StepOptions = {}) {
   for (const person of world.people) {
     person.clock += dt;
     const { needs, personality: p } = person;
@@ -381,6 +386,8 @@ export function step(world: World, dt: number) {
       const stop = intent.kind === "talk" ? REACH : intent.kind === "flee" || intent.kind === "wander" ? 0.4 : (thingById(world, intent.targetId)?.radius ?? 1) * 0.8;
       if (d <= stop + 0.05) {
         intent.arrived = true;
+      } else if (settings.externalMotion) {
+        continue;
       } else {
         const stepLen = Math.min(d - stop, intent.speed * dt);
         person.x += ((intent.x - person.x) / d) * stepLen;

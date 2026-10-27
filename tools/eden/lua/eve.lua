@@ -18,7 +18,7 @@ local function parse_target(value)
   local parts = {}
   for p in string.gmatch(value, "[^,]+") do parts[#parts + 1] = p end
   if #parts < 4 then return nil end
-  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4] }
+  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]) }
 end
 
 function on_ui(name, value)
@@ -27,6 +27,8 @@ function on_ui(name, value)
   if not t then return end
   target = t
   waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)
+  -- No route found (the path grid does not cover open terrain): walk straight at the target and let physics steer round what is in the way.
+  if not waypoints or #waypoints == 0 then waypoints = { { x = t.x, y = t.y, z = t.z } } end
   wpIndex = 1
   arrived = false
 end
@@ -61,8 +63,8 @@ function on_tick(dt)
       return
     end
   else
-    self.vx = (dx / dist) * WALK_SPEED
-    self.vz = (dz / dist) * WALK_SPEED
-    play("walk")
+    self.vx = (dx / dist) * (target.speed or WALK_SPEED)
+    self.vz = (dz / dist) * (target.speed or WALK_SPEED)
+    play((target.speed or WALK_SPEED) > 3 and "run" or "walk")
   end
 end
