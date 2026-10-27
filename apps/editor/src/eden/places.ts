@@ -14,6 +14,7 @@ export interface EdenPlace {
   z: number;
   radius: number;
   description: string;
+  stand?: { x: number; z: number }; // where people stand to use it when its centre is not the place (a lake's bank)
 }
 
 export const EDEN_PLACES: Record<string, EdenPlace> = {
@@ -22,6 +23,13 @@ export const EDEN_PLACES: Record<string, EdenPlace> = {
   grove: { id: "grove", name: "the fruit grove", kind: "grove", x: 26, z: -16, radius: 13, description: "A cluster of fruit trees, their shade thick and their branches heavy." },
   meadow: { id: "meadow", name: "the meadow", kind: "meadow", x: -26, z: 18, radius: 15, description: "A wide stretch of soft grass, open to the sky." },
   overlook: { id: "overlook", name: "the overlook", kind: "overlook", x: 2, z: -30, radius: 10, description: "A low rise at the garden's edge, with a view over everything below." },
+  // The wider world, past the garden: reached by walking, found by exploring.
+  east_woods: { id: "east_woods", name: "the east woods", kind: "woodland", x: 105, z: -60, radius: 38, description: "Old oak woods where berries ripen and deer shelter." },
+  pinewood: { id: "pinewood", name: "the pinewood", kind: "pinewood", x: 10, z: -135, radius: 42, description: "Dark pines, dry needles underfoot, wood for any fire." },
+  south_meadow: { id: "south_meadow", name: "the southern meadow", kind: "meadow", x: -45, z: 125, radius: 32, description: "Long grass where horses and deer graze." },
+  orchard: { id: "orchard", name: "the old orchard", kind: "orchard", x: -95, z: 70, radius: 14, description: "Fruit trees in rows, left by no one anyone remembers." },
+  highlands: { id: "highlands", name: "the highlands", kind: "peak", x: -130, z: -100, radius: 62, description: "Cold stony hills with a view over the whole valley, and wolves." },
+  lake: { id: "lake", name: "the lake", kind: "lake", x: 150, z: 95, radius: 30, description: "A deep still lake where the river ends.", stand: { x: 114, z: 94 } },
   hollow: { id: "hollow", name: "the resting hollow", kind: "hollow", x: -16, z: -8, radius: 8, description: "A sheltered dip in the ground, quiet and out of the wind." },
 };
 
@@ -43,6 +51,8 @@ export const CREATABLE: [string, string][] = [
   ["Deer", "deer"],
   ["Fox", "fox"],
   ["Alpaca", "alpaca"],
+  ["Wolf", "wolf"],
+  ["Horse", "horse"],
   ["Oak Tree", "tree"],
   ["Pine Tree", "tree"],
   ["Bush", "bush"],

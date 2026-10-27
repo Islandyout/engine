@@ -26,13 +26,15 @@ const TRAITS: Record<string, [keyof Person["personality"], number]> = {
   hungrier: ["appetite", 0.2], patient: ["patience", 0.25], patienter: ["patience", 0.25], hasty: ["patience", -0.25], hastier: ["patience", -0.25],
 };
 
-const placeSpot = (id: string) => (id === "river_bend" ? DRINK_SPOT : (EDEN_PLACES[id] ?? EDEN_PLACES.center!));
+const placeSpot = (id: string) => (id === "river_bend" ? DRINK_SPOT : (EDEN_PLACES[id]?.stand ?? EDEN_PLACES[id] ?? EDEN_PLACES.center!));
 
 function findPlace(text: string): { id: string; x: number; z: number } | undefined {
   const names = Object.values(EDEN_PLACES);
   const q = text.replace(/^the\s+/, "").trim();
   if (!q) return undefined;
-  const hit = fuzzyRank(names, q, (p) => `${p.id.replace("_", " ")} ${p.name}`)[0];
+  // Typos are forgiven within a word, not across words: "moon" is not "south meadow" just because its letters appear in order.
+  const words = names.flatMap((p) => `${p.id.replace("_", " ")} ${p.name}`.split(/\s+/).filter((w) => w !== "the").map((w) => ({ p, w })));
+  const hit = fuzzyRank(words, q, (x) => x.w)[0]?.p ?? names.find((p) => `${p.id.replace("_", " ")} ${p.name}`.includes(q));
   return hit ? { id: hit.id, ...placeSpot(hit.id) } : undefined;
 }
 

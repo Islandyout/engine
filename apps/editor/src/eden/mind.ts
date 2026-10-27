@@ -45,6 +45,14 @@ export interface Affordances {
 export const AFFORDANCES: Record<string, Affordances> = {
   grove: { food: 0.5, wood: true },
   river: { water: true, fish: true },
+  lake: { water: true, fish: true, view: true },
+  // The wider world: woods with ripening berries, an orchard, a pinewood to rest in and burn, high ground to see from.
+  woodland: { food: 0.35, stock: 10, wood: true, rest: true },
+  orchard: { food: 0.6, stock: 8, wood: true },
+  pinewood: { rest: true, wood: true },
+  peak: { view: true, wood: true },
+  wolf: { danger: 0.85, creature: true, mobile: 1.5, predator: true },
+  horse: { creature: true, mobile: 1.1 },
   hollow: { rest: true, wood: true },
   overlook: { view: true, wood: true },
   meadow: { play: true },
@@ -307,7 +315,7 @@ function relation(person: Person, otherId: string, world: World): Relation {
 const burning = (t: Thing) => t.kind === "campfire" && (t.fuel ?? 0) > 0;
 // Seconds a fire burns on one armful of wood (two hours of the real thing, at one sim second to a minute).
 const FIRE_SECONDS_PER_WOOD = 120;
-const PREFAB_OF: Record<string, string> = { campfire: "Campfire", shelter: "Shelter", grave: "Grave", crop: "Crop", deer: "Deer", fox: "Fox" };
+const PREFAB_OF: Record<string, string> = { campfire: "Campfire", shelter: "Shelter", grave: "Grave", crop: "Crop", deer: "Deer", fox: "Fox", wolf: "Wolf", horse: "Horse" };
 export function make(world: World, kind: string, x: number, z: number, extra: Partial<Thing> = {}): Thing {
   world.built = (world.built ?? 0) + 1;
   const thing: Thing = { id: `${kind}-${world.built}`, kind, x, z, radius: 3, prefab: PREFAB_OF[kind], ...extra };
@@ -520,6 +528,15 @@ function options(person: Person, world: World): Option[] {
     intent: { kind: "wander", x: wanderTo.x, z: wanderTo.z, speed: WALK, remaining: 4 + 6 * rand(person) },
     score: night ? 0.02 : (0.14 + 0.3 * p.curiosity) * (1 - 0.7 * pressing),
   });
+  // An expedition: a curious person with nothing pressing sets out for ground they have not seen, a long way off in a wide world.
+  const reachOut = (world.radius ?? 0) > 100 ? 40 + 80 * rand(person) : 0;
+  if (reachOut && !night && p.curiosity > 0.4 && pressing < 0.25 && needs.thirst < 0.4 && needs.hunger < 0.5) {
+    const a3 = rand(person) * Math.PI * 2;
+    const far = inside(world, person.x + Math.cos(a3) * reachOut, person.z + Math.sin(a3) * reachOut);
+    if (dreadAt(far.x, far.z) === 0 && !person.explored.has(`${Math.floor(far.x / 20)},${Math.floor(far.z / 20)}`)) {
+      out.push({ intent: { kind: "wander", x: far.x, z: far.z, speed: WALK, remaining: 3 }, score: 0.12 + 0.3 * (p.curiosity - 0.4) });
+    }
+  }
   out.push({ intent: { kind: "linger", x: person.x, z: person.z, speed: 0, remaining: 8 + 14 * p.patience }, score: (night ? 0.05 : 0.12) + 0.18 * p.patience });
   return out;
 }
@@ -1286,11 +1303,12 @@ function stepAnimals(world: World, dt: number) {
   const deer = things.filter((t) => t.kind === "deer");
   const foxes = things.filter((t) => t.kind === "fox");
   // Deer breed in spring and summer when there are two or more and room; foxes when deer are plentiful and they have eaten.
-  if ((season === 0 || season === 1) && deer.length >= 2 && deer.length < 8 && worldRand(world) < (dt / DAY) * 0.5) {
+  const room = Math.max(1, Math.min(4, (R / 36) ** 2 / 8)); // a wider world holds bigger herds
+  if ((season === 0 || season === 1) && deer.length >= 2 && deer.length < 8 * room && worldRand(world) < (dt / DAY) * 0.5) {
     const parent = deer[Math.floor(worldRand(world) * deer.length)]!;
     make(world, "deer", parent.x + 1, parent.z, { radius: 2, mob: { tx: parent.x, tz: parent.z, wait: 0, fed: now, age: 0, fleeUntil: 0 } });
   }
-  if (foxes.length >= 1 && foxes.length < 2 && deer.length >= 4 && foxes.some((f) => now - (f.mob?.fed ?? 0) < DAY) && worldRand(world) < (dt / DAY) * 0.15) {
+  if (foxes.length >= 1 && foxes.length < 2 * room && deer.length >= 4 && foxes.some((f) => now - (f.mob?.fed ?? 0) < DAY) && worldRand(world) < (dt / DAY) * 0.15) {
     const parent = foxes[0]!;
     make(world, "fox", parent.x + 1, parent.z, { radius: 1, mob: { tx: parent.x, tz: parent.z, wait: 0, fed: now, age: 0, fleeUntil: 0 } });
   }

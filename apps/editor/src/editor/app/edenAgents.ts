@@ -38,13 +38,14 @@ export const EDEN_ACTION_CLIPS: [string, string[]][] = [
 const TICK_MS = 250;
 // Seconds of sim time a single step of the minds covers when the bodies are not keeping up (above 3x).
 const FAST_STEP = 0.75;
+const WORLD_RADIUS = 190;
 const SAVE_KEY = "eden-world-v1";
 const AUTOSAVE_MS = 20_000;
 const DEFAULT_SPEED = 2; // index into SPEEDS: 3x
 
 const PLACE_NAME: Record<string, string> = {};
 for (const place of Object.values(EDEN_PLACES)) PLACE_NAME[place.kind] = place.name;
-const KIND_NAME: Record<string, string> = { ...PLACE_NAME, campfire: "the fire", shelter: "the shelter", tree: "a tree", "fruit tree": "a fruit tree", bush: "a bush", rock: "a rock", grave: "a grave", deer: "a deer", fox: "a fox", alpaca: "an alpaca", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge" };
+const KIND_NAME: Record<string, string> = { ...PLACE_NAME, campfire: "the fire", shelter: "the shelter", tree: "a tree", "fruit tree": "a fruit tree", bush: "a bush", rock: "a rock", grave: "a grave", deer: "a deer", fox: "a fox", alpaca: "an alpaca", wolf: "a wolf", horse: "a horse", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge" };
 
 const VERB: Record<string, string> = { gather: "goes to gather wood at", fire: "makes a fire", build: "starts building a shelter", stash: "goes to put food away at", forage: "goes to gather food at", warm: "goes to warm up at", share: "goes to share food with", comfort: "goes to sit with", plant: "goes to plant a seed", craft: "makes a spear", hunt: "hunts", fish: "goes fishing at", mourn: "goes to sit at", eat: "goes to eat at", drink: "goes to drink at", rest: "goes to rest at", sleep: "goes to sleep at", look: "goes to look at", play: "goes to play at", talk: "goes to talk with", wander: "wanders off", flee: "runs from", linger: "pauses" };
 
@@ -134,8 +135,9 @@ export function installEdenAgents(C: Ctx): void {
     const things: Thing[] = [];
     // The mind's radius is how near counts as "at" a place, not the place's own size (EDEN_PLACES.radius is the terrain feature).
     for (const place of Object.values(EDEN_PLACES)) {
-      const at = place.id === "river_bend" ? DRINK_SPOT : place;
-      things.push({ id: place.id, kind: place.kind, x: at.x, z: at.z, radius: 3 });
+      const at = place.id === "river_bend" ? DRINK_SPOT : (place.stand ?? place);
+      const stock = AFFORDANCES[place.kind]?.stock;
+      things.push({ id: place.id, kind: place.kind, x: at.x, z: at.z, radius: 3, ...(stock !== undefined ? { stock, maxStock: stock } : {}) });
     }
     // The two landmark trees stand where the scene put them; they are there to be looked at and, for the Tree of Life, eaten from.
     for (const landmark of EDEN_LANDMARKS) {
@@ -146,10 +148,28 @@ export function installEdenAgents(C: Ctx): void {
       const at = bodyPosition(p.name) ?? [0, 0, 0];
       return makePerson(p.id, at[0], at[2], 1000 + i * 77, p.personality, { name: p.name, sex: p.sex, age: 20 });
     });
-    // radius: the garden's own edge (the terrain is 80 m across), so a person searching for water does not wander off the map.
-    const created: World = { things, people, radius: 36 };
-    // A small herd of deer in the meadow, so there is something living to watch and, in time, to hunt.
-    for (let i = 0; i < 3; i++) make(created, "deer", EDEN_PLACES.meadow!.x + i * 2, EDEN_PLACES.meadow!.z + (i % 2) * 2, { radius: 2 });
+    // radius: the world's own edge (the terrain is 400 m across), so a person searching for water does not wander off the map.
+    const created: World = { things, people, radius: WORLD_RADIUS };
+    // Berry bushes in the woods and meadows, so there is something to find on the way.
+    for (const id of ["east_woods", "south_meadow", "pinewood", "meadow"]) {
+      const place = EDEN_PLACES[id]!;
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2 + id.length;
+        make(created, "bush", place.x + Math.cos(a) * place.radius * 0.5, place.z + Math.sin(a) * place.radius * 0.5, { radius: 2, stock: 4, maxStock: 4 });
+      }
+    }
+    // Herds of deer in the meadows and woods, so there is something living to watch and, in time, to hunt; horses on the grass; wolves in the hills.
+    const herd = (kind: string, id: string, count: number) => {
+      const place = EDEN_PLACES[id]!;
+      for (let i = 0; i < count; i++) make(created, kind, place.x + i * 2 - count, place.z + (i % 2) * 3, { radius: 2 });
+    };
+    herd("deer", "meadow", 3);
+    herd("deer", "south_meadow", 4);
+    herd("deer", "east_woods", 3);
+    herd("deer", "highlands", 3);
+    herd("horse", "south_meadow", 3);
+    herd("alpaca", "meadow", 2);
+    herd("wolf", "highlands", 2);
     return created;
   }
 

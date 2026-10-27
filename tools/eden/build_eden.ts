@@ -33,20 +33,28 @@ const smoothstep = (t: number) => {
   return c * c * (3 - 2 * c);
 };
 
-const TERRAIN = { size: 80, resolution: 81, height: 3, seed: 7, frequency: 1.1, octaves: 3 };
+const TERRAIN = { size: 400, resolution: 201, height: 3, seed: 7, frequency: 1.1, octaves: 3 };
 const base = generateHeights({ ...TERRAIN, sculpt: "" });
 
 // The river: a gentle bend across the garden, three waypoints -> two
 // segments. Distance-to-nearest-segment, the same technique
 // build_jianghu.ts's own summitAt() uses for its summit road.
 const RIVER: V3[] = [
+  [-198, -72, 0],
+  [-110, -34, 0],
   [-36, -10, 0],
   [-4, 4, 0],
   [34, 16, 0],
+  [90, 40, 0],
+  [132, 78, 0],
 ];
 const RIVER_WIDTH = 5;
 const RIVER_DEPTH = 1.6;
 const RIVER_LEVEL = -0.4;
+// The lake where the river ends, and the highlands it comes down from (places.ts has their names and the bank people stand on).
+const LAKE = EDEN_PLACES.lake!;
+const HIGH = EDEN_PLACES.highlands!;
+const LAKE_DEPTH = 3.2;
 function riverDistance(x: number, z: number): number {
   let best = Infinity;
   for (let i = 0; i + 1 < RIVER.length; i++) {
@@ -86,6 +94,14 @@ for (let row = 0; row < n; row++)
       const bed = e < 1 ? RIVER_LEVEL - RIVER_DEPTH * (1 - e * e) : RIVER_LEVEL + (e - 1) * 1.1;
       h += (bed - h) * (1 - smoothstep((e - 1.1) / 0.5));
     }
+    const hd = Math.hypot(x - HIGH.x, z - HIGH.z);
+    h += 17 * (1 - smoothstep(hd / HIGH.radius)) + 3.5 * fbm(x / 22, z / 22, TERRAIN.seed + 3, 3) * (1 - smoothstep(hd / (HIGH.radius * 1.2)));
+    const ld = Math.hypot(x - LAKE.x, z - LAKE.z);
+    if (ld < LAKE.radius * 1.6) {
+      const e = ld / LAKE.radius;
+      const bed = e < 1 ? RIVER_LEVEL - LAKE_DEPTH * (1 - e * e) : RIVER_LEVEL + (e - 1) * 1.2;
+      h += (bed - h) * (1 - smoothstep((e - 1.15) / 0.35));
+    }
     sculpt[row * n + column] = Math.max(-32000, Math.min(32000, Math.round((h - b) * 100)));
   }
 const heights = generateHeights({ ...TERRAIN, sculpt: encodeSculpt(sculpt) }, sculpt);
@@ -98,15 +114,15 @@ scene.add("Ground", [0, 0, 0], {
     ...TERRAIN,
     sculpt: encodeSculpt(sculpt),
     grassColor: rgb("#6b9152"), rockColor: rgb("#8a8378"), sandColor: rgb("#d9c98f"), snowColor: rgb("#f0f0f0"),
-    sandHeight: RIVER_LEVEL - 0.3, snowHeight: 20, rockSlope: 0.75,
+    sandHeight: RIVER_LEVEL - 0.3, snowHeight: 17, rockSlope: 0.75,
     paths: [
       `dirt 3.5 ${PLACES.center.x} ${PLACES.center.z} ${PLACES.hollow.x} ${PLACES.hollow.z}`,
       `dirt 3.5 ${PLACES.center.x} ${PLACES.center.z} ${PLACES.overlook.x} ${PLACES.overlook.z}`,
       `dirt 3.5 ${PLACES.center.x} ${PLACES.center.z} ${PLACES.river_bend.x} ${PLACES.river_bend.z}`,
       `dirt 3.5 ${PLACES.center.x} ${PLACES.center.z} ${PLACES.grove.x} ${PLACES.grove.z}`,
       `dirt 3.5 ${PLACES.center.x} ${PLACES.center.z} ${PLACES.meadow.x} ${PLACES.meadow.z}`,
-      `sand ${RIVER_WIDTH * 2 + 6} ${RIVER[0]![0]} ${RIVER[0]![1]} ${RIVER[1]![0]} ${RIVER[1]![1]}`,
-      `sand ${RIVER_WIDTH * 2 + 6} ${RIVER[1]![0]} ${RIVER[1]![1]} ${RIVER[2]![0]} ${RIVER[2]![1]}`,
+      ...["east_woods", "pinewood", "south_meadow", "orchard"].map((id) => `dirt 3 ${PLACES.center.x} ${PLACES.center.z} ${PLACES[id]!.x} ${PLACES[id]!.z}`),
+      ...RIVER.slice(0, -1).map((a, i) => `sand ${RIVER_WIDTH * 2 + 6} ${a[0]} ${a[1]} ${RIVER[i + 1]![0]} ${RIVER[i + 1]![1]}`),
     ].join("\n"),
     // Real, gentle plants only: EZ-Tree trees (255-261), photoscanned rocks
     // (399-406). The grove and meadow are told apart purely by what grows
@@ -116,12 +132,25 @@ scene.add("Ground", [0, 0, 0], {
       `255 0.0022 0.9 1.3 0.85 trunk spacing=6 cluster=0.75 clusterSize=55 tint=0.12 in=${PLACES.grove.x},${PLACES.grove.z},${GROVE_R}`,
       `256 0.0016 0.9 1.3 0.85 trunk spacing=6 cluster=0.7 clusterSize=50 in=${PLACES.grove.x},${PLACES.grove.z},${GROVE_R}`,
       `261 0.0012 0.8 1.3 0.85 spacing=2.5 cluster=0.6 clusterSize=30 tint=0.15 in=${PLACES.grove.x},${PLACES.grove.z},${GROVE_R}`,
-      `259 0.0009 0.9 1.3 0.8 trunk spacing=6 cluster=0.6 clusterSize=40`,
+      // The wider world: low-poly woods (the kit's wuxia oaks and pines, a few hundred triangles each) so a whole forest stays light to draw.
+      `328 0.014 0.9 1.5 0.8 trunk spacing=3.5 cluster=0.8 clusterSize=40 tint=0.15 in=${PLACES.pinewood!.x},${PLACES.pinewood!.z},${PLACES.pinewood!.radius}`,
+      `329 0.010 0.9 1.5 0.8 trunk spacing=3.5 cluster=0.7 clusterSize=35 tint=0.15 in=${PLACES.pinewood!.x},${PLACES.pinewood!.z},${PLACES.pinewood!.radius}`,
+      `330 0.012 1 1.6 0.8 trunk spacing=4 cluster=0.7 clusterSize=35 tint=0.15 in=${PLACES.east_woods!.x},${PLACES.east_woods!.z},${PLACES.east_woods!.radius}`,
+      `331 0.009 1 1.6 0.8 trunk spacing=4 cluster=0.6 clusterSize=30 tint=0.2 in=${PLACES.east_woods!.x},${PLACES.east_woods!.z},${PLACES.east_woods!.radius}`,
+      `37 0.012 0.8 1.3 0.8 spacing=2.5 tint=0.2 in=${PLACES.east_woods!.x},${PLACES.east_woods!.z},${PLACES.east_woods!.radius}`,
+      `331 0.004 1 1.5 0.8 trunk spacing=7 tint=0.2 in=${PLACES.south_meadow!.x},${PLACES.south_meadow!.z},${PLACES.south_meadow!.radius}`,
+      `38 0.006 0.8 1.3 0.8 spacing=3 tint=0.2 in=${PLACES.south_meadow!.x},${PLACES.south_meadow!.z},${PLACES.south_meadow!.radius}`,
+      `404 0.4 0.8 1.4 0.9 on=grass tint=0.25 in=${PLACES.south_meadow!.x},${PLACES.south_meadow!.z},${PLACES.south_meadow!.radius}`,
+      `255 0.004 0.9 1.2 0.85 trunk spacing=5 tint=0.1 in=${PLACES.orchard!.x},${PLACES.orchard!.z},${PLACES.orchard!.radius}`,
+      `328 0.007 0.9 1.4 0.7 trunk spacing=4 cluster=0.6 clusterSize=40 tilt=0.3 height=3..13 in=${HIGH.x},${HIGH.z},${HIGH.radius}`,
+      `329 0.005 0.9 1.4 0.7 trunk spacing=4 tilt=0.3 height=6..15 in=${HIGH.x},${HIGH.z},${HIGH.radius}`,
+      `402 0.003 1.2 3 0.7 collide tilt=0.5 tint=0.2 in=${HIGH.x},${HIGH.z},${HIGH.radius}`,
+      `403 0.002 1.2 3 0.7 collide tilt=0.5 tint=0.2 in=${HIGH.x},${HIGH.z},${HIGH.radius}`,
       `404 0.6 0.8 1.4 0.9 on=grass tint=0.25 in=${PLACES.meadow.x},${PLACES.meadow.z},${MEADOW_R}`,
       `405 0.15 0.9 1.5 0.9 on=grass tint=0.2 in=${PLACES.meadow.x},${PLACES.meadow.z},${MEADOW_R}`,
       "404 0.1 0.8 1.3 0.9 on=grass tint=0.2",
       `403 0.0006 1.5 3.8 0.65 collide spacing=6 tilt=0.4 tint=0.2 in=${PLACES.river_bend.x},${PLACES.river_bend.z},16`,
-      "401 0.0002 2.5 6 0.8 collide tilt=0.5 tint=0.2",
+      "401 0.00005 2.5 6 0.8 collide tilt=0.5 tint=0.2",
     ].join("\n"),
   }),
 });
@@ -130,7 +159,7 @@ scene.add("Environment", [0, -5, 0], {
   Environment: component("Environment", {
     sky: "Procedural", skyColor: rgb("#7fa8c9"), horizonColor: rgb("#f3e3c8"), groundColor: rgb("#52604a"),
     sunElevation: 48, sunAzimuth: 128, sunIntensity: 3, sunColor: rgb("#fff3d9"), ambientIntensity: 1.3,
-    fog: "None", shadows: true, exposure: 1,
+    fog: "Exponential", fogColor: rgb("#cddde8"), fogDensity: 0.0032, shadows: true, exposure: 1,
   }),
 });
 
@@ -147,8 +176,13 @@ function waterSegment(name: string, a: V3, b: V3) {
   delete (scene.entities[id]!.components as Components).Collider;
   delete (scene.entities[id]!.components as Components).RigidBody;
 }
-waterSegment("River water (lower)", RIVER[0]!, RIVER[1]!);
-waterSegment("River water (upper)", RIVER[1]!, RIVER[2]!);
+RIVER.slice(0, -1).forEach((a, i) => waterSegment(`River water ${i + 1}`, a, RIVER[i + 1]!));
+{
+  const id = scene.box("Lake water", [LAKE.x, RIVER_LEVEL, LAKE.z], [LAKE.radius * 1.5, 0.1, LAKE.radius * 1.5], "#3f86b8", {},
+    { roughness: 0.05, metalness: 0.1, opacity: 0.8, texture: "builtin:water", emissive: rgb("#2a5f88"), emissiveIntensity: 0.35 });
+  delete (scene.entities[id]!.components as Components).Collider;
+  delete (scene.entities[id]!.components as Components).RigidBody;
+}
 
 // The two landmark trees, as scenery only -- no Fall/mortality mechanic, per
 // the Creator's own call: they exist to be seen and named, nothing more.
@@ -198,6 +232,8 @@ const creaturePrefab = (name: string, catalogFile: string, mass: number) =>
 creaturePrefab("Deer", "deer", 90);
 creaturePrefab("Fox", "fox", 15);
 creaturePrefab("Alpaca", "alpaca", 70);
+creaturePrefab("Wolf", "wolf", 40);
+creaturePrefab("Horse", "horse", 400);
 const stillPrefab = (name: string, catalogFile: string) =>
   scene.prefab(name, { Renderable: { mesh: modelId(catalogFile), material: 0, visible: true }, RigidBody: { dynamic: false }, Collider: { isTrigger: false } });
 stillPrefab("Oak Tree", "eztree-oak");
@@ -244,7 +280,7 @@ writeFileSync(
       name: "Eden",
       genre: "Life simulation",
       description:
-        "Adam and Eve, two independent minds living in a garden: a river, a fruit grove, a meadow, an overlook, a resting hollow, and the two landmark trees. Watch what they choose to do, or say \"let there be...\" and bring something new into the garden.",
+        "Adam and Eve, two independent minds living in a garden at the heart of a wide valley: a river that ends in a lake, woods, a pinewood, an orchard, southern meadows and wolf-haunted highlands. Watch what they choose to do, or say \"let there be...\" and bring something new into the garden.",
       scene: "scene.json",
       accent: "#c9a24a",
     },
