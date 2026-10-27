@@ -7,6 +7,7 @@
 //
 // The host (edenAgents.ts) feeds this the world's things and turns each person's `intent` into movement and an animation.
 
+import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach, valueOf, SKILL_WORDS, type Skill, type Value } from "./identity";
 import { fade, feel as feelEmotion, importance, moodPush, opinionTags, BELIEF_WORDS, type Belief, type Emotion } from "./inner";
 import { converse } from "./speech";
 import { COMFORT_C, DAY, EDEN_CLIMATE, FISH_BY_SEASON, growthRate, hourOf, isDark, seasonAt, weatherAt, YEAR, type Climate, type Weather } from "./earth";
@@ -184,6 +185,11 @@ export interface Person {
   // What they have learned from living, from thinking back over what happened (reflect): each 0..1, and each tilts what they choose.
   lessons?: { prepare: number; careful: number };
   // What they have lived through since they last thought it over, in sim seconds (and frights), and when that was.
+  values?: Record<Value, number>; // what matters to them (identity.ts)
+  talents?: Record<Skill, number>; // how quickly they learn each skill
+  skills?: Record<Skill, number>; // how good they are at each now
+  story?: string; // who they are, in a few lines
+  role?: string; // what they are known for (their best skill, once it is worth naming)
   emotions?: Partial<Record<Emotion, number>>; // what they feel now, each 0..1, fading at its own speed (inner.ts)
   stress?: number; // sim seconds spent very low; held long enough it breaks
   breakAt?: number; // world clock of their last break
@@ -244,8 +250,10 @@ function worldRand(world: World): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
-export function makePerson(id: string, x: number, z: number, seed: number, personality: Partial<Personality> = {}, extra: { name?: string; sex?: "m" | "f"; age?: number } = {}): Person {
-  return {
+export function makePerson(id: string, x: number, z: number, seed: number, personality: Partial<Personality> = {}, extra: { name?: string; sex?: "m" | "f"; age?: number; parents?: [Person, Person] } = {}): Person {
+  const identity = newIdentity(seed, extra.parents);
+  const person: Person = {
+    ...identity,
     name: extra.name ?? id,
     sex: extra.sex ?? "m",
     age: extra.age ?? 20,
@@ -270,6 +278,12 @@ export function makePerson(id: string, x: number, z: number, seed: number, perso
     carry: { wood: 0, food: 0, seed: 0 },
     tools: { spear: false },
   };
+  if (extra.parents) {
+    person.mother = extra.parents.find((q) => q.sex === "f")?.id;
+    person.father = extra.parents.find((q) => q.sex === "m")?.id;
+  }
+  person.story = storyFor(person, extra.parents ? [extra.parents[0].name, extra.parents[1].name] : undefined);
+  return person;
 }
 
 const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
@@ -518,7 +532,7 @@ function options(person: Person, world: World): Option[] {
       const rel = person.relations.get(other.id);
       out.push({
         intent: { kind: "share", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 4 },
-        score: 1.3 * urge(other.needs.hunger, 0.5) * (0.5 + 0.5 * (rel?.affinity ?? 0.2)) + 0.2 * p.sociability,
+        score: 1.3 * urge(other.needs.hunger, 0.5) * (0.5 + 0.5 * (rel?.affinity ?? 0.2)) + 0.2 * p.sociability + (other.mother === person.id || other.father === person.id || person.mother === other.id || person.father === other.id ? 0.35 * valueOf(person, "kin") : 0),
       });
     }
     // Someone low, and someone who cares: stay with them a while.
@@ -607,7 +621,7 @@ function options(person: Person, world: World): Option[] {
     const a3 = rand(person) * Math.PI * 2;
     const far = inside(world, person.x + Math.cos(a3) * reachOut, person.z + Math.sin(a3) * reachOut);
     if (dreadAt(far.x, far.z) === 0 && !person.explored.has(`${Math.floor(far.x / 20)},${Math.floor(far.z / 20)}`)) {
-      out.push({ intent: { kind: "wander", x: far.x, z: far.z, speed: WALK, remaining: 3 }, score: 0.12 + 0.3 * (p.curiosity - 0.4) });
+      out.push({ intent: { kind: "wander", x: far.x, z: far.z, speed: WALK, remaining: 3 }, score: 0.12 + 0.3 * (p.curiosity - 0.4) + 0.25 * (valueOf(person, "freedom") - 0.5) });
     }
   }
   out.push({ intent: { kind: "linger", x: person.x, z: person.z, speed: 0, remaining: 8 + 14 * p.patience }, score: (night ? 0.05 : 0.12) + 0.18 * p.patience });
@@ -730,7 +744,7 @@ function lifeOptions(person: Person, world: World, out: Option[]) {
       if (d > 60) continue;
       out.push({
         intent: { kind: "fish", targetId: t.id, x: t.x, z: t.z, speed: WALK, remaining: 30 },
-        score: 1.55 * urge(needs.hunger, 0.32 - 0.1 * person.personality.appetite) * (0.6 + 0.4 * person.personality.patience) * (0.6 + 0.4 * FISH_BY_SEASON[season]!) - d / 120,
+        score: gift(person, "fish") + 1.55 * urge(needs.hunger, 0.32 - 0.1 * person.personality.appetite) * (0.6 + 0.4 * person.personality.patience) * (0.6 + 0.4 * FISH_BY_SEASON[season]!) - d / 120,
       });
     }
   }
@@ -758,7 +772,7 @@ function skillOptions(person: Person, world: World, out: Option[]) {
     const r = 3 + 4 * rand(person);
     const base = home ?? person;
     const at = inside(world, base.x + Math.cos(a) * r, base.z + Math.sin(a) * r);
-    out.push({ intent: { kind: "plant", x: at.x, z: at.z, speed: WALK, remaining: 20 }, score: season === 0 ? 0.95 : 0.7 });
+    out.push({ intent: { kind: "plant", x: at.x, z: at.z, speed: WALK, remaining: 20 }, score: (season === 0 ? 0.95 : 0.7) + gift(person, "farm") });
   }
   // A spear, made from wood, once there is a home to make it at.
   if (!person.tools.spear && person.carry.wood >= 2 && home) {
@@ -774,7 +788,7 @@ function skillOptions(person: Person, world: World, out: Option[]) {
       if (d > 45) continue;
       out.push({
         intent: { kind: "hunt", targetId: t.id, x: t.x, z: t.z, speed: RUN * 0.7, remaining: 0.3 },
-        score: 1.25 * urge(needs.hunger, 0.35) * (0.5 + 0.5 * person.personality.boldness) - d / 150,
+        score: gift(person, "hunt") + 1.25 * urge(needs.hunger, 0.35) * (0.5 + 0.5 * person.personality.boldness) - d / 150,
       });
     }
   }
@@ -821,7 +835,7 @@ function earthOptions(
   // A roof, built where they like to rest.
   if (!hasShelter && wood >= 8) {
     const site = world.things.find((t) => aff(t).rest && known(t) && t.kind !== "shelter") ?? { x: person.x, z: person.z };
-    out.push({ intent: { kind: "build", x: site.x + 2, z: site.z, speed: WALK, remaining: 150 }, score: 1.3 * Math.max(winterPrep, urge(cold, 0.35)) });
+    out.push({ intent: { kind: "build", x: site.x + 2, z: site.z, speed: WALK, remaining: 150 }, score: (1.3 * Math.max(winterPrep, urge(cold, 0.35))) * (0.8 + 0.4 * valueOf(person, "comfort")) + gift(person, "build") });
   }
   // A larder: carried food goes to the roof, and foraging for it begins as the year turns toward winter.
   for (const sh of shelters) if (food > 0) add("stash", sh, 0.55 + 0.6 * winterPrep, 10);
@@ -877,7 +891,9 @@ function finish(person: Person, world: World, intent: Intent) {
         person.say = "That was good.";
         note(person, world, "Ate what I had put by.");
       } else if (t && a.food && (t.stock === undefined || t.stock > 0)) {
-        needs.hunger = clamp01(needs.hunger - a.food);
+        needs.hunger = clamp01(needs.hunger - a.food * (1 + 0.3 * skillOf(person, "forage")));
+        if (t.kind !== "shelter") practise(person, "forage", 0.015);
+        if (t.kind === "crop") practise(person, "farm", 0.02);
         if (t.stock !== undefined) t.stock -= 1;
         joy(0.1);
         feel(person, t, 0.15); // a good meal makes the place better in memory
@@ -887,7 +903,7 @@ function finish(person: Person, world: World, intent: Intent) {
             if (q === person || q.needs.hunger < 0.6 || dist(q.x, q.z, t.x, t.z) > 25) continue;
             const r = relation(q, person.id, world);
             r.affinity = Math.max(-1, r.affinity - 0.06);
-            feelEmotion(q, "anger", 0.2);
+            feelEmotion(q, "anger", 0.25 * (0.5 + valueOf(q, "fairness")));
             note(q, world, `${person.name} ate the last at ${phrase(t)} while I was hungry.`);
           }
         }
@@ -921,8 +937,9 @@ function finish(person: Person, world: World, intent: Intent) {
       break;
     }
     case "build":
-      if (person.carry.wood >= 8) {
-        person.carry.wood -= 8;
+      if (person.carry.wood >= 8 - Math.round(3 * skillOf(person, "build"))) {
+        person.carry.wood -= 8 - Math.round(3 * skillOf(person, "build"));
+        practise(person, "build", 0.12);
         make(world, "shelter", intent.x, intent.z, { stock: 0 });
         joy(0.3);
         person.say = "There. Somewhere dry to sleep.";
@@ -950,7 +967,8 @@ function finish(person: Person, world: World, intent: Intent) {
     case "plant":
       if (person.carry.seed >= 1) {
         person.carry.seed -= 1;
-        make(world, "crop", intent.x, intent.z, { stock: 0, maxStock: 4, radius: 2 });
+        make(world, "crop", intent.x, intent.z, { stock: 0, maxStock: 3 + Math.round(2 * skillOf(person, "farm")), radius: 2 });
+        practise(person, "farm", 0.1);
         note(person, world, "Planted a seed.");
         tally(world, "planted");
         person.mood = clampMood(person.mood + 0.05);
@@ -969,7 +987,8 @@ function finish(person: Person, world: World, intent: Intent) {
     case "fish": {
       const fish = world.fish ?? 0;
       const activity = FISH_BY_SEASON[world.weather?.season ?? 1]!;
-      if (rand(person) < 0.55 * activity * Math.min(1, fish / 15) * (0.7 + 0.6 * person.personality.patience)) {
+      practise(person, "fish", 0.04);
+      if (rand(person) < 0.55 * activity * Math.min(1, fish / 15) * (0.7 + 0.6 * person.personality.patience) * (1 + 0.7 * skillOf(person, "fish"))) {
         world.fish = Math.max(0, fish - 1);
         person.carry.food = Math.min(8, person.carry.food + 2);
         note(person, world, "Caught a fish.");
@@ -997,7 +1016,8 @@ function finish(person: Person, world: World, intent: Intent) {
     case "hunt": {
       const prey = thingById(world, intent.targetId);
       if (prey && dist(person.x, person.z, prey.x, prey.z) < 3.8) {
-        if (rand(person) < 0.45 + 0.3 * person.personality.boldness) {
+        practise(person, "hunt", 0.05);
+        if (rand(person) < (0.45 + 0.3 * person.personality.boldness) * (1 + 0.6 * skillOf(person, "hunt"))) {
           world.things.splice(world.things.indexOf(prey), 1);
           person.carry.food = Math.min(8, person.carry.food + 4);
           person.carry.seed = Math.min(6, person.carry.seed);
@@ -1121,6 +1141,15 @@ function finish(person: Person, world: World, intent: Intent) {
         note(person, world, `Talked with ${other.name}: "${exchange.said}"`);
         note(other, world, `${person.name} said: "${exchange.said}" I said: "${exchange.reply}"`);
         tally(world, "talks");
+        // Teaching: whoever is better at something shows the other.
+        for (const [teacher, learner] of [[person, other], [other, person]] as const) {
+          const taught = teach(teacher, learner);
+          if (taught) {
+            note(learner, world, `${teacher.name} showed me how to do better at ${SKILL_WORDS[taught.skill].doing}.`);
+            note(teacher, world, `Showed ${learner.name} ${SKILL_WORDS[taught.skill].doing}.`);
+            tally(world, "taught");
+          }
+        }
         // Gossip: what one thinks of a third person reaches the other, who trusts them a little more or less for it.
         if (exchange.topic === "sorry") {
           const mine = relation(person, other.id, world);
@@ -1471,6 +1500,13 @@ function reflect(person: Person, world: World) {
       tally(world, "beliefs");
     }
   }
+  neglect(person);
+  const role = roleOf(person);
+  if (role && person.role !== role.role) {
+    person.role = role.role;
+    note(person, world, `I have become known as the ${role.role}.`);
+    tally(world, "roles");
+  }
   felt.cold *= 0.4;
   felt.hungry *= 0.4;
   felt.scares = 0;
@@ -1518,7 +1554,7 @@ function lifeAndDeath(world: World, dt: number) {
       curiosity: mix(mother.personality.curiosity, father.personality.curiosity),
       appetite: mix(mother.personality.appetite, father.personality.appetite),
       patience: mix(mother.personality.patience, father.personality.patience),
-    }, { name, sex, age: 0 });
+    }, { name, sex, age: 0, parents: [mother, father] });
     child.mother = mother.id;
     child.father = father.id;
     world.people.push(child);

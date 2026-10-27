@@ -280,6 +280,12 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
       meter("cold", p.cold, p.cold > 0.7, bars);
       meter("mood", (p.mood + 1) / 2, p.mood < -0.3, bars);
       mindsView.appendChild(bars);
+      if (p.story) mindsView.appendChild(el("div", undefined, p.story));
+      if (p.role) mindsView.appendChild(el("div", undefined, `Known as the ${p.role}.`));
+      const good = Object.entries(p.skills ?? {}).filter(([, v]) => v > 0.1).sort((x, y) => y[1] - x[1]);
+      if (good.length) mindsView.appendChild(el("div", undefined, `Skills: ${good.map(([k, v]) => `${k} ${Math.round(v * 100)}%`).join(", ")}`));
+      const care = Object.entries(p.values ?? {}).filter(([, v]) => v > 0.65).map(([k]) => k);
+      if (care.length) mindsView.appendChild(el("div", undefined, `Cares about: ${care.join(", ")}`));
       const feelings = Object.entries(p.emotions ?? {}).filter(([, v]) => (v ?? 0) > 0.1).sort((x, y) => (y[1] ?? 0) - (x[1] ?? 0));
       if ((p.grief ?? 0) > 0.1) feelings.unshift(["grief", p.grief ?? 0]);
       if (feelings.length) mindsView.appendChild(el("div", undefined, `Feeling: ${feelings.map(([k, v]) => `${k} ${Math.round((v ?? 0) * 100)}%`).join(", ")}`));

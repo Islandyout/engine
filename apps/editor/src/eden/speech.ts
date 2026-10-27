@@ -41,6 +41,8 @@ function tellEvent(text: string, pick: Pick, other: Person): string | undefined 
   if (/^Ran from/.test(text)) return text.replace(/^Ran from/, "I ran from").replace(/\.$/, ". I was frightened.");
   if (/^Caught a fish/.test(text)) return pick(["I caught a fish at the river. There are plenty if you are patient.", "The river gave me a fish today."]);
   if ((m = text.match(/^Sat by (.+)'s grave\.$/))) return `I sat with ${m[1]} a while. I still miss them.`;
+  if ((m = text.match(/^I have become known as the (.+)\.$/))) return `They are starting to call me the ${m[1]}. I like that.`;
+  if ((m = text.match(/^(.+) showed me how to do better at (.+)\.$/))) return `${m[1]} showed me something about ${m[2]}. It helped.`;
   if ((m = text.match(/^I have learned: (.+)$/))) return `I have learned something: ${m[1]!.charAt(0).toLowerCase()}${m[1]!.slice(1)}`;
   if (/^Put .* by in the shelter/.test(text)) return "I have been putting food by for the winter.";
   if (/^I did it/.test(text)) return text.replace(/^I did it: I wanted to /, "I did what I set out to do: I ").replace(/\.$/, ".");

@@ -53,6 +53,15 @@ export function runCreatorCommand(world: World, input: string, rnd: () => number
   const lower = text.toLowerCase();
   const clock = world.clock ?? DAY / 3; // the same start step() gives a world with no clock yet
 
+  // Who someone is: "Adam's story is ..."
+  const story = text.match(/^(\S+?)(?:'s| is)? story is\s+(.+)$/i);
+  if (story) {
+    const who = findPeople(world, story[1]!);
+    if (!who.length) return say(false, `There is no one called ${story[1]}.`);
+    for (const p of who) p.story = story[2]!.trim();
+    return say(true, `${who.map((p) => p.name).join(" and ")}'s story is written.`);
+  }
+
   // Weather
   if (/^(rain|make it rain|it rains|raining)$/.test(lower)) {
     world.override = { until: clock + DAY / 4, tempOffset: world.override?.tempOffset ?? 0, rain: true };
