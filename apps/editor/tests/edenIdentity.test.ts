@@ -74,3 +74,23 @@ test("the Creator can write a person's story", () => {
   assert.equal(r.ok, true);
   assert.match(a.story!, /lost a brother/);
 });
+
+test("a child who watches a parent fish picks up some of it", () => {
+  const mum = adult("Mum", "f", 21);
+  const kid = makePerson("kid", 1, 8, 22, {}, { name: "Kid", age: 6, parents: [mum, adult("Dad", "m", 23)] });
+  mum.x = 0;
+  mum.z = 8;
+  mum.skills!.fish = 0.5;
+  const w = world([mum, kid]);
+  w.clock = DAY * 16 * 0.375;
+  w.things.splice(0, 1);
+  mum.memory.set("river", { x: 0, z: 10, feeling: 0.2, visits: 1, lastSeen: 0 });
+  mum.needs.hunger = 0.8;
+  for (let t = 0; t < 2 * DAY; t++) {
+    step(w, 1);
+    kid.x = mum.x + 1;
+    kid.z = mum.z;
+    if (t % 400 === 0) mum.needs.hunger = Math.max(mum.needs.hunger, 0.75);
+  }
+  assert.ok(skillOf(kid, "fish") > 0, "the child learned nothing from watching");
+});

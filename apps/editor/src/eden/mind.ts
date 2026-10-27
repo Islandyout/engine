@@ -513,6 +513,16 @@ function shareNames(a: Person, b: Person, world: World) {
   }
 }
 
+// Children learn by watching: whoever is young and close by picks up a little of what an adult is doing.
+function watchedBy(world: World, doer: Person, skill: Skill) {
+  for (const q of world.people) {
+    if (q === doer || q.age >= ADULT_AGE + 8 || dist(q.x, q.z, doer.x, doer.z) > 7) continue;
+    if (skillOf(doer, skill) <= skillOf(q, skill)) continue;
+    practise(q, skill, q.mother === doer.id || q.father === doer.id ? 0.03 : 0.015);
+    tally(world, "watched");
+  }
+}
+
 // A norm gains ground; when it becomes a custom everyone writes it down.
 function uphold(world: World, id: NormId, by: Person, amount: number) {
   if (!reinforce(world, id, by, amount)) return;
@@ -1111,6 +1121,7 @@ function finish(person: Person, world: World, intent: Intent) {
       if (person.carry.wood >= 8 - Math.round(3 * skillOf(person, "build"))) {
         person.carry.wood -= 8 - Math.round(3 * skillOf(person, "build"));
         practise(person, "build", 0.12);
+        watchedBy(world, person, "build");
         make(world, "shelter", intent.x, intent.z, { stock: 0 });
         joy(0.3);
         person.say = "There. Somewhere dry to sleep.";
@@ -1140,6 +1151,7 @@ function finish(person: Person, world: World, intent: Intent) {
         person.carry.seed -= 1;
         make(world, "crop", intent.x, intent.z, { stock: 0, maxStock: 3 + Math.round(2 * skillOf(person, "farm")), radius: 2 });
         practise(person, "farm", 0.1);
+        watchedBy(world, person, "farm");
         note(person, world, "Planted a seed.");
         tally(world, "planted");
         person.mood = clampMood(person.mood + 0.05);
@@ -1159,6 +1171,7 @@ function finish(person: Person, world: World, intent: Intent) {
       const fish = world.fish ?? 0;
       const activity = FISH_BY_SEASON[world.weather?.season ?? 1]!;
       practise(person, "fish", 0.04);
+      watchedBy(world, person, "fish");
       if (rand(person) < 0.55 * activity * Math.min(1, fish / 15) * (0.7 + 0.6 * person.personality.patience) * (1 + 0.7 * skillOf(person, "fish"))) {
         world.fish = Math.max(0, fish - 1);
         person.carry.food = Math.min(8, person.carry.food + 2);
@@ -1216,6 +1229,7 @@ function finish(person: Person, world: World, intent: Intent) {
       const prey = thingById(world, intent.targetId);
       if (prey && dist(person.x, person.z, prey.x, prey.z) < 3.8) {
         practise(person, "hunt", 0.05);
+        watchedBy(world, person, "hunt");
         if (rand(person) < (0.45 + 0.3 * person.personality.boldness) * (1 + 0.6 * skillOf(person, "hunt"))) {
           world.things.splice(world.things.indexOf(prey), 1);
           person.carry.food = Math.min(8, person.carry.food + 4);
