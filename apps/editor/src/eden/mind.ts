@@ -7,6 +7,9 @@
 //
 // The host (edenAgents.ts) feeds this the world's things and turns each person's `intent` into movement and an animation.
 
+import { COMFORT_C, DAY, EDEN_CLIMATE, growthRate, hourOf, seasonAt, weatherAt, type Climate, type Weather } from "./earth";
+export { DAY, hourOf };
+
 export type NeedName = "hunger" | "thirst" | "energy" | "social" | "joy";
 // 0 is satisfied, 1 is urgent. `joy` rises when nothing pleasant has happened for a while.
 export type Needs = Record<NeedName, number>;
@@ -29,17 +32,23 @@ export interface Affordances {
   danger?: number; // 0..1: how much it hurts and frightens when close
   creature?: boolean; // alive and company-like, but not a person
   stock?: number; // how many meals it holds before it is used up (undefined: never runs out)
+  wood?: boolean; // dead wood lies about here to be gathered
+  shelter?: boolean; // a roof: warmth against the cold and dry from the rain
+  warm?: boolean; // a burning fire: warmth to anyone near it
 }
 
 export const AFFORDANCES: Record<string, Affordances> = {
-  grove: { food: 0.5 },
+  grove: { food: 0.5, wood: true },
   river: { water: true },
-  hollow: { rest: true },
-  overlook: { view: true },
+  hollow: { rest: true, wood: true },
+  overlook: { view: true, wood: true },
   meadow: { play: true },
   center: {},
-  tree: { rest: true },
-  "tree of life": { food: 0.7, stock: 3 },
+  tree: { rest: true, wood: true },
+  "tree of life": { food: 0.7, stock: 3, wood: true },
+  // Built by the people: a fire that burns down, and a roof that doubles as a larder.
+  campfire: { warm: true },
+  shelter: { shelter: true, rest: true, food: 0.5 },
   "tree of knowledge": { view: true },
   rock: { rest: true },
   bush: { food: 0.25, stock: 4 },
@@ -58,6 +67,7 @@ export interface Thing {
   stock?: number; // meals left, if it has a stock
   maxStock?: number; // a stock grows back, a meal at a time, up to this
   growth?: number; // seconds toward the next meal growing back (kept by step)
+  fuel?: number; // a fire's seconds of burning left
 }
 
 // What a person remembers of a thing: where it is, and how being near it has felt.
@@ -69,7 +79,7 @@ export interface Memory {
   lastSeen: number; // sim seconds
 }
 
-export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger";
+export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm";
 export interface Intent {
   kind: IntentKind;
   targetId?: string; // a thing's id or another person's id
@@ -97,6 +107,8 @@ export interface Person {
   clock: number; // sim seconds this person has lived
   rngState: number;
   explored: Set<string>; // 20 m cells of the garden they have stood in, so a search goes somewhere new
+  cold: number; // 0 comfortable .. 1 dangerously cold
+  carry: { wood: number; food: number }; // what they are carrying
 }
 
 export interface World {
@@ -106,11 +118,13 @@ export interface World {
   clock?: number;
   // How far from (0, 0) people may go. Wandering and searching are kept inside it, as the garden's own edge would; absent, no limit.
   radius?: number;
+  // The climate the garden has; absent, Eden's own. `weather` is what it is like right now (kept by step).
+  climate?: Climate;
+  weather?: Weather;
+  built?: number; // how many things the people have made (their ids)
 }
 
-// A day in Eden is 24 sim minutes: short enough to watch a whole life, long enough that a person eats about three times in it.
-export const DAY = 1440;
-export const hourOf = (clock: number) => ((clock / DAY) * 24) % 24;
+// A day in Eden is 24 sim minutes (earth.ts): short enough to watch a whole life, long enough that a person eats about three times in it.
 export const isNight = (clock: number) => {
   const h = hourOf(clock);
   return h >= 22 || h < 6;
@@ -152,6 +166,8 @@ export function makePerson(id: string, x: number, z: number, seed: number, perso
     clock: 0,
     rngState: seed | 0,
     explored: new Set(),
+    cold: 0,
+    carry: { wood: 0, food: 0 },
   };
 }
 
@@ -167,6 +183,16 @@ const clampMood = (v: number) => Math.max(-1, Math.min(1, v));
 const aff = (t: Thing): Affordances => AFFORDANCES[t.kind] ?? {};
 // Danger is felt well beyond touching distance.
 const dangerReach = (t: Thing) => t.radius + 6 + 10 * (aff(t).danger ?? 0);
+
+const burning = (t: Thing) => t.kind === "campfire" && (t.fuel ?? 0) > 0;
+// Seconds a fire burns on one armful of wood (two hours of the real thing, at one sim second to a minute).
+const FIRE_SECONDS_PER_WOOD = 120;
+function make(world: World, kind: string, x: number, z: number, extra: Partial<Thing> = {}): Thing {
+  world.built = (world.built ?? 0) + 1;
+  const thing: Thing = { id: `${kind}-${world.built}`, kind, x, z, radius: 3, ...extra };
+  world.things.push(thing);
+  return thing;
+}
 
 function feel(person: Person, thing: Thing, delta: number) {
   const m = person.memory.get(thing.id);
@@ -251,13 +277,16 @@ function options(person: Person, world: World): Option[] {
     if (a.food && (t.stock === undefined || t.stock > 0)) add("eat", t, hungry, 18);
     if (a.water) add("drink", t, thirsty, 8);
     if (a.rest) {
-      add("rest", t, night ? 0 : tired, 35 + 30 * (1 - p.patience));
-      if (night && needs.energy > 0.2) add("sleep", t, 2.2 + needs.energy, 480);
+      // A roof is better to rest under, much better when it is cold or wet.
+      const roof = a.shelter ? 0.5 + 0.9 * person.cold + (world.weather?.raining ? 0.4 : 0) : 0;
+      add("rest", t, night ? 0 : tired > 0 ? tired + roof : 0, 35 + 30 * (1 - p.patience));
+      if (night && needs.energy > 0.2) add("sleep", t, 2.2 + needs.energy + roof, 480);
     }
     if (a.view) add("look", t, bored * (0.6 + 0.8 * p.curiosity), 25 + 30 * p.patience);
     if (a.play) add("play", t, bored * (0.5 + 0.6 * p.curiosity), 30);
     if (a.creature && !a.danger) add("look", t, bored * 0.5 + 0.2 * p.curiosity * urge(needs.social, 0.4), 20);
   }
+  earthOptions(person, world, out, add, known, hungry);
   // With nowhere known to rest they sleep where they stand.
   if (night && needs.energy > 0.2 && !out.some((o) => o.intent.kind === "sleep")) {
     out.push({ intent: { kind: "sleep", x: person.x, z: person.z, speed: 0, remaining: 480 }, score: 2 + needs.energy });
@@ -277,10 +306,12 @@ function options(person: Person, world: World): Option[] {
     });
   }
   let searchOption: Option | undefined;
+  const coldCritical = person.cold > 0.8;
   // Needing something nobody here knows the whereabouts of, they go looking: toward a part of the garden they have not been to.
   const searches: [boolean, number][] = [
     [!world.things.some((t) => aff(t).food && known(t) && (t.stock === undefined || t.stock > 0)), urge(needs.hunger, 0.25)],
     [!world.things.some((t) => aff(t).water && known(t)), urge(needs.thirst, 0.2)],
+    [person.carry.wood < 2 && !world.things.some((t) => (aff(t).wood || burning(t)) && known(t)), urge(person.cold, 0.3)],
   ];
   const searching = Math.max(0, ...searches.filter(([missing]) => missing).map(([, u]) => u));
   if (searching > 0) {
@@ -300,6 +331,17 @@ function options(person: Person, world: World): Option[] {
       searchOption = { intent: { kind: "wander", x: best.x, z: best.z, speed: WALK, remaining: 2 }, score: 0.4 + 1.6 * searching };
       out.push(searchOption);
     }
+  }
+  // Freezing: only warmth, or the wood for it, or a roof.
+  if (coldCritical) {
+    const keep = out.filter((o) => {
+      const kind = o.intent.kind;
+      if (kind === "warm" || kind === "fire" || kind === "gather") return true;
+      const target = thingById(world, o.intent.targetId);
+      return (kind === "sleep" || kind === "rest") && target?.kind === "shelter";
+    });
+    if (keep.length) return keep;
+    if (searchOption) return [searchOption];
   }
   // Starving or parched, nothing else is on the menu: only the remedy, or looking for one. Otherwise they would keep starting a nap or a
   // chat and being pulled out of it again.
@@ -328,6 +370,55 @@ function options(person: Person, world: World): Option[] {
   });
   out.push({ intent: { kind: "linger", x: person.x, z: person.z, speed: 0, remaining: 8 + 14 * p.patience }, score: (night ? 0.05 : 0.12) + 0.18 * p.patience });
   return out;
+}
+
+// Switches for experiments (tools/eden): turning the earth actions off shows how much the seasons would hurt without them.
+export const TUNING = { earthActions: true };
+
+// Keeping warm and getting ready for the winter: a fire, wood, a roof and a larder, each wanted as much as the cold or the coming season
+// asks. `add` puts an option at a thing they know of.
+function earthOptions(
+  person: Person,
+  world: World,
+  out: Option[],
+  add: (kind: IntentKind, t: Thing, want: number, seconds: number) => void,
+  known: (t: Thing) => Memory | undefined,
+  hungry: number,
+) {
+  if (!TUNING.earthActions) return;
+  const { needs } = person;
+  const weather = world.weather;
+  const season = weather?.season ?? 1;
+  const progress = weather?.seasonProgress ?? 0;
+  // How much the winter weighs on them now: little in spring, more through summer, most in autumn, and in winter itself.
+  const winterPrep = season === 2 ? 0.5 + 0.5 * progress : season === 1 ? 0.15 + 0.35 * progress : season === 3 ? 0.8 : 0.05 + 0.1 * progress;
+  const cold = person.cold;
+  const shelters = world.things.filter((t) => t.kind === "shelter" && known(t));
+  const hasShelter = shelters.length > 0;
+  const fires = world.things.filter((t) => burning(t) && known(t));
+  const wood = person.carry.wood;
+  const food = person.carry.food;
+
+  for (const f of fires) add("warm", f, 1.6 * urge(cold, 0.22), 60);
+  // Something carried is eaten where they stand.
+  if (food > 0 && hungry > 0) out.push({ intent: { kind: "eat", x: person.x, z: person.z, speed: 0, remaining: 12 }, score: hungry * 0.95 });
+  // Making a fire where they are, or feeding one that is low.
+  const fireNear = fires.some((f) => dist(person.x, person.z, f.x, f.z) < 10);
+  if (wood >= 2 && !fireNear && cold > 0.15) out.push({ intent: { kind: "fire", x: person.x, z: person.z, speed: 0, remaining: 12 }, score: 1.8 * urge(cold, 0.1) });
+  for (const f of fires) if ((f.fuel ?? 0) < 100 && wood >= 1 && cold > 0.12) add("fire", f, 1.4 * urge(cold, 0.08), 8);
+  // Gathering wood: for the cold now, and ahead of the winter.
+  const woodWant = Math.max(1.5 * urge(cold, 0.2) * (wood < 2 ? 1 : 0.3), (hasShelter ? 0.35 : 0.8) * winterPrep * (wood < 6 ? 1 : 0.15));
+  if (wood < 10) for (const t of world.things) if (aff(t).wood) add("gather", t, woodWant, 25);
+  // A roof, built where they like to rest.
+  if (!hasShelter && wood >= 8) {
+    const site = world.things.find((t) => aff(t).rest && known(t) && t.kind !== "shelter") ?? { x: person.x, z: person.z };
+    out.push({ intent: { kind: "build", x: site.x + 2, z: site.z, speed: WALK, remaining: 150 }, score: 1.3 * Math.max(winterPrep, urge(cold, 0.35)) });
+  }
+  // A larder: carried food goes to the roof, and foraging for it begins as the year turns toward winter.
+  for (const sh of shelters) if (food > 0) add("stash", sh, 0.55 + 0.6 * winterPrep, 10);
+  if ((hasShelter || winterPrep > 0.5) && food < 4 && needs.hunger < 0.55) {
+    for (const t of world.things) if (aff(t).food && !aff(t).shelter && (t.stock === undefined || t.stock > 1)) add("forage", t, (hasShelter ? 1 : 0.5) * 0.9 * winterPrep, 22);
+  }
 }
 
 // Chooses among the options with a lean toward the best but not always the best: the higher their curiosity, the more they try the unexpected.
@@ -360,7 +451,12 @@ function finish(person: Person, world: World, intent: Intent) {
   };
   switch (intent.kind) {
     case "eat":
-      if (t && a.food && (t.stock === undefined || t.stock > 0)) {
+      if (!t && person.carry.food > 0) {
+        person.carry.food -= 1;
+        needs.hunger = clamp01(needs.hunger - 0.45);
+        joy(0.05);
+        person.say = "That was good.";
+      } else if (t && a.food && (t.stock === undefined || t.stock > 0)) {
         needs.hunger = clamp01(needs.hunger - a.food);
         if (t.stock !== undefined) t.stock -= 1;
         joy(0.1);
@@ -376,6 +472,44 @@ function finish(person: Person, world: World, intent: Intent) {
       needs.thirst = clamp01(needs.thirst - 0.6);
       if (t) feel(person, t, 0.08);
       joy(0.05);
+      break;
+    case "gather":
+      person.carry.wood = Math.min(10, person.carry.wood + 3);
+      if (t) feel(person, t, 0.03);
+      break;
+    case "fire": {
+      const wood = Math.min(person.carry.wood, 2);
+      if (wood > 0) {
+        person.carry.wood -= wood;
+        if (t && t.kind === "campfire") t.fuel = (t.fuel ?? 0) + wood * FIRE_SECONDS_PER_WOOD;
+        else make(world, "campfire", person.x, person.z, { fuel: wood * FIRE_SECONDS_PER_WOOD, radius: 2 });
+        person.mood = clampMood(person.mood + 0.1);
+      }
+      break;
+    }
+    case "build":
+      if (person.carry.wood >= 8) {
+        person.carry.wood -= 8;
+        make(world, "shelter", intent.x, intent.z, { stock: 0 });
+        joy(0.3);
+        person.say = "There. Somewhere dry to sleep.";
+      }
+      break;
+    case "stash":
+      if (t && t.kind === "shelter" && person.carry.food > 0) {
+        t.stock = Math.min(40, (t.stock ?? 0) + person.carry.food);
+        person.carry.food = 0;
+      }
+      break;
+    case "forage":
+      if (t && a.food) {
+        const take = t.stock === undefined ? 3 : Math.min(3, Math.max(0, t.stock - 1));
+        if (t.stock !== undefined) t.stock -= take;
+        person.carry.food = Math.min(6, person.carry.food + take);
+      }
+      break;
+    case "warm":
+      person.mood = clampMood(person.mood + 0.05);
       break;
     case "sleep":
       person.mood = clampMood(person.mood + 0.15);
@@ -427,34 +561,57 @@ export interface StepOptions {
 }
 export function step(world: World, dt: number, settings: StepOptions = {}) {
   world.clock = (world.clock ?? DAY / 3) + dt;
-  // Food grows back, a meal at a time.
+  const weather = weatherAt(world.clock, world.climate ?? EDEN_CLIMATE);
+  world.weather = weather;
+  // Food grows back, a meal at a time, quickly in summer and rain and hardly at all in winter.
   for (const t of world.things) {
     if (t.maxStock === undefined || t.stock === undefined || t.stock >= t.maxStock) continue;
-    t.growth = (t.growth ?? 0) + dt;
+    t.growth = (t.growth ?? 0) + dt * growthRate(weather);
     if (t.growth >= REGROW_SECONDS) {
       t.growth = 0;
       t.stock += 1;
     }
   }
+  // Fires burn down and go out.
+  for (let i = world.things.length - 1; i >= 0; i--) {
+    const t = world.things[i]!;
+    if (t.kind !== "campfire") continue;
+    t.fuel = (t.fuel ?? 0) - dt;
+    if (t.fuel <= 0) world.things.splice(i, 1);
+  }
   for (const person of world.people) {
     person.clock += dt;
     const { needs, personality: p } = person;
     const asleep = person.intent?.kind === "sleep" && person.intent.arrived;
+    // Warmth: what the air is, with clothes on, a roof overhead, a fire close by, and the rain if there is no roof.
+    const sheltered = world.things.some((t) => t.kind === "shelter" && dist(person.x, person.z, t.x, t.z) < 3.5);
+    const nearFire = world.things.some((t) => burning(t) && dist(person.x, person.z, t.x, t.z) < 6);
+    const effective = weather.tempC + 5 + (sheltered ? 8 : 0) + (nearFire ? 12 : 0) - (weather.raining && !sheltered ? 4 : 0);
+    const coldTarget = clamp01((COMFORT_C - effective) / 18);
+    person.cold = clamp01(person.cold + (coldTarget - person.cold) * Math.min(1, dt / 180));
+    // Heat dries a person out faster.
+    const heat = 1 + 0.8 * clamp01((effective - 24) / 12);
     // Asleep, the body burns less and rests: hunger and thirst creep, tiredness drains.
     const metabolism = asleep ? 0.4 : 1;
     needs.hunger = clamp01(needs.hunger + metabolism * (dt / FILL_SECONDS.hunger) * (0.7 + 0.6 * p.appetite));
-    needs.thirst = clamp01(needs.thirst + metabolism * (dt / FILL_SECONDS.thirst) * (0.7 + 0.6 * p.appetite));
+    needs.thirst = clamp01(needs.thirst + metabolism * heat * (dt / FILL_SECONDS.thirst) * (0.7 + 0.6 * p.appetite));
     needs.energy = clamp01(needs.energy + (asleep ? -dt / 1100 : dt / FILL_SECONDS.energy));
     needs.social = clamp01(needs.social + (asleep ? 0 : (dt / FILL_SECONDS.social) * (0.5 + p.sociability)));
     needs.joy = clamp01(needs.joy + (asleep ? 0 : dt / FILL_SECONDS.joy));
     // Mood drifts toward how well life is going: content when needs are met, sinking as the worst of them climbs.
-    const mean = (needs.hunger + needs.thirst + needs.energy + needs.social + needs.joy) / 5;
-    const worst = Math.max(needs.hunger, needs.thirst, needs.energy, needs.social);
+    const mean = (needs.hunger + needs.thirst + needs.energy + needs.social + needs.joy + person.cold) / 6;
+    const worst = Math.max(needs.hunger, needs.thirst, needs.energy, needs.social, person.cold);
     const moodTarget = 0.6 - 0.7 * mean - 0.8 * Math.max(0, worst - 0.65);
     person.mood = clampMood(person.mood + (moodTarget - person.mood) * Math.min(1, dt / 90));
     // Starving or parched hurts; being well slowly heals.
-    if (needs.hunger >= 1 || needs.thirst >= 1) person.health = clamp01(person.health - dt / 300);
-    else if (Math.max(needs.hunger, needs.thirst) < 0.7) person.health = clamp01(person.health + dt / 600);
+    // Death comes on at the pace the rule of threes gives, scaled to a sim day: about three days of real thirst, three weeks of real
+    // hunger, and a few hours of real cold (a sim second is a minute).
+    let loss = 0;
+    if (needs.thirst >= 1) loss += dt / (3 * DAY);
+    if (needs.hunger >= 1) loss += dt / (21 * DAY);
+    if (person.cold > 0.7) loss += (dt / 200) * clamp01((person.cold - 0.7) / 0.3);
+    if (loss > 0) person.health = clamp01(person.health - loss);
+    else if (Math.max(needs.hunger, needs.thirst) < 0.7 && person.cold < 0.6) person.health = clamp01(person.health + dt / 600);
 
     notice(person, world);
     person.explored.add(`${Math.floor(person.x / 20)},${Math.floor(person.z / 20)}`);

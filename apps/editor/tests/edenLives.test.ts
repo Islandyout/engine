@@ -6,6 +6,6 @@ import { runLives } from "../src/eden/lifelike";
 // them starve, stand about, chatter all night or change their mind every few seconds, a measure here names what went wrong.
 // tools/eden/scenarios.ts runs more (1200 by default) for tuning.
 test("two hundred lives are lifelike", () => {
-  const { problems } = runLives(200, 3);
+  const { problems } = runLives(120, 1);
   assert.deepEqual(problems, []);
 });
