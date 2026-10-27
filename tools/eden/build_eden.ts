@@ -18,6 +18,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { encodeSculpt, fbm, generateHeights, sampleHeight } from "../../apps/editor/src/editor/terrain";
+import { EDEN_LANDMARKS, EDEN_PLACES } from "../../apps/editor/src/eden/places";
 import * as kitModule from "../lib/scene_kit";
 import type { Components, V3 } from "../lib/scene_kit";
 // scene_kit is CommonJS to tsx beside this ES module, so its exports may sit on `default`.
@@ -57,19 +58,14 @@ function riverDistance(x: number, z: number): number {
   return best;
 }
 
-// Named places, mirrored 1:1 into the eden_locations reseed (see the
-// migration applied alongside this). The overlook and hollow get a gentle
-// rise/dip of their own below; the grove and meadow stay flat, told apart by
-// what grows there (scatter) rather than their shape.
-const PLACES = {
-  center: { x: 0, z: 0, name: "the garden center" },
-  river_bend: { x: -4, z: 4, name: "the river bend" },
-  grove: { x: 26, z: -16, name: "the fruit grove" },
-  meadow: { x: -26, z: 18, name: "the meadow" },
-  overlook: { x: 2, z: -30, name: "the overlook" },
-  hollow: { x: -16, z: -8, name: "the resting hollow" },
-};
-const OVERLOOK_R = 10, HOLLOW_R = 8, GROVE_R = 13, MEADOW_R = 15;
+// Named places: apps/editor/src/eden/places.ts, shared with edenAgents.ts
+// (which builds mind.ts's World.things from the same data) so the scene and
+// the people living in it can never disagree about where things are. The
+// overlook and hollow get a gentle rise/dip of their own below; the grove
+// and meadow stay flat, told apart by what grows there (scatter) rather
+// than their shape.
+const PLACES = EDEN_PLACES;
+const OVERLOOK_R = PLACES.overlook!.radius, HOLLOW_R = PLACES.hollow!.radius, GROVE_R = PLACES.grove!.radius, MEADOW_R = PLACES.meadow!.radius;
 
 const n = TERRAIN.resolution;
 const step = TERRAIN.size / (n - 1);
@@ -156,8 +152,11 @@ waterSegment("River water (upper)", RIVER[1]!, RIVER[2]!);
 
 // The two landmark trees, as scenery only -- no Fall/mortality mechanic, per
 // the Creator's own call: they exist to be seen and named, nothing more.
-scene.model("Tree of Life", modelId("eztree-oak"), [4, ground(4, -3), -3], 0.4, true, 2.1);
-scene.model("Tree of Knowledge", modelId("eztree-ash"), [-5, ground(-5, 3), 3], -0.6, true, 1.9);
+// mind.ts gives them their own real affordance though (life: a meal,
+// knowledge: a view) -- see edenAgents.ts's World.things.
+const [treeOfLife, treeOfKnowledge] = EDEN_LANDMARKS;
+scene.model("Tree of Life", modelId("eztree-oak"), [treeOfLife!.x, ground(treeOfLife!.x, treeOfLife!.z), treeOfLife!.z], 0.4, true, 2.1);
+scene.model("Tree of Knowledge", modelId("eztree-ash"), [treeOfKnowledge!.x, ground(treeOfKnowledge!.x, treeOfKnowledge!.z), treeOfKnowledge!.z], -0.6, true, 1.9);
 
 const ADAM_MODEL = modelId("man-casual");
 const EVE_MODEL = modelId("woman-casual");
@@ -213,7 +212,7 @@ writeFileSync(
       name: "Eden",
       genre: "Life simulation",
       description:
-        "Adam and Eve, two independent minds (Supabase-brained) living in a garden: a river, a fruit grove, a meadow, an overlook, a resting hollow, and the two landmark trees. Speak to them, or say \"let there be...\" and bring something new into the garden.",
+        "Adam and Eve, two independent minds living in a garden: a river, a fruit grove, a meadow, an overlook, a resting hollow, and the two landmark trees. Watch what they choose to do, or say \"let there be...\" and bring something new into the garden.",
       scene: "scene.json",
       accent: "#c9a24a",
     },
@@ -222,4 +221,3 @@ writeFileSync(
   ),
 );
 console.log(`wrote ${outDir}/scene.json and game.json`);
-console.log("locations:", JSON.stringify(PLACES));

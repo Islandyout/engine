@@ -1,43 +1,33 @@
 import { fuzzyRank } from "../fuzzy";
+import { EDEN_LANDMARKS, EDEN_PLACES } from "../../eden/places";
+import { actionOf, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import type { Ctx } from "./context";
 
-// Eden: polls the live Supabase brain (eden-tick, cron'd every 3 minutes)
-// for Adam & Eve's current decisions and drives their Lua scripts
-// (tools/eden/lua/{adam,eve}.lua) accordingly, and gives the Creator a
-// small panel to speak to them and to bring new things into the garden
-// ("let there be..."). This is the one and only place in the codebase that
-// talks to an external API at runtime -- every other `fetch` call anywhere
-// in apps/editor only loads bundled local assets at load time (confirmed
-// before writing this). It has to live here, in the unsandboxed TS host,
-// because the Lua VM has zero network capability by construction
-// (source/engine/script/script.cpp's open_sandboxed_libs opens no io/os/
-// package at all) -- scripts can only ever receive an event name and a
-// string payload, through editor_ui_event, the same broadcast channel UI
-// widgets already use.
-//
-// Plain fetch() against PostgREST, not the supabase-js SDK: this project
-// has exactly one runtime dependency (three) by design, and a handful of
-// REST calls don't earn a new one.
+// Eden: drives Adam & Eve's Lua scripts (tools/eden/lua/{adam,eve}.lua) from
+// mind.ts's local, deterministic simulation -- plain code, no network and no
+// AI model, ticked here every half second -- and gives the Creator a small
+// panel to speak to them and to bring new things into the garden ("let
+// there be..."). mind.ts owns what they want and where they go; this module
+// only ever turns that into editor_ui_event broadcasts, the one channel the
+// sandboxed Lua VM can receive anything through at all (source/engine/
+// script/script.cpp's open_sandboxed_libs opens no io/os/package -- a
+// script could never reach a brain of its own, local or remote).
 
-// "adam and eve" project -- moved here from the original "Nomad" project
-// (douglytjshdaunvooyyn) after that account's own email became
-// unrecoverable mid-Phase-1b; same schema, redeployed fresh.
-const SUPABASE_URL = "https://zqglqioespsqmndcxlbe.supabase.co";
-// Public, RLS-scoped anon key (read-only by policy on every eden_* table
-// except the Creator-write ones -- see the migration). Safe to embed, the
-// same as any Supabase project's anon key is meant to be used directly in a
-// browser.
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpxZ2xxaW9lc3BzcW1uZGN4bGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwNjUwMTMsImV4cCI6MjEwODY0MTAxM30.Mna3jNNSI443eN6qruvipJE3vOqfKEeA60upDOeH508";
+// The only things "let there be..." can bring into the garden -- Eden's own
+// grove trees and garden animals (see build_eden.ts's prefabs), not an
+// arbitrary catalog dump. A request that doesn't fuzzy-match one of these
+// fails loudly with this same list as the reason, per the house rule (no
+// silent fallback) and the Creator's own call on unfulfillable requests.
+const CREATABLE = ["Deer", "Fox", "Alpaca", "Oak Tree", "Pine Tree", "Bush", "Rock"];
+// Each one's mind.ts AFFORDANCES kind, so something the Creator conjures is
+// a real thing to Adam & Eve too -- a new deer is a creature they can
+// actually notice, not just a model that showed up.
+const CREATABLE_KIND: Record<string, string> = {
+  Deer: "deer", Fox: "fox", Alpaca: "alpaca", "Oak Tree": "tree", "Pine Tree": "tree", Bush: "bush", Rock: "rock",
+};
 
-const ENTITIES = ["adam", "eve"] as const;
-type EntityId = (typeof ENTITIES)[number];
-const DISPLAY_NAME: Record<EntityId, string> = { adam: "Adam", eve: "Eve" };
-
-// This action vocabulary doesn't literally name any model's own clips
-// except "idle"/"walk" (which resolve directly, no entry needed) -- these
-// map eden-tick's decision.action onto whatever "Man (casual)"/"Woman
-// (casual)" actually have, exactly the same mechanism F48 built for
+// mind.ts's actionOf() vocabulary, mapped onto whatever "Man (casual)"/
+// "Woman (casual)" actually have, exactly the same mechanism F48 built for
 // "attack"/"blast"/"sit". Tried in order, case-insensitively, first match
 // wins; the two models don't share a clip set (talk/Wave vs sit/Clapping),
 // so this list has to cover both.
@@ -50,65 +40,12 @@ export const EDEN_ACTION_CLIPS: [string, string[]][] = [
   ["rest", ["sit", "idle"]],
   ["wander", ["walk"]],
   ["observe", ["idle"]],
-  ["approach_other", ["walk"]],
+  ["flee", ["run", "walk"]],
   ["talk_to_other", ["talk", "idle"]],
   ["play_together", ["clapping", "wave", "idle"]],
-  ["respond_to_creator", ["talk", "idle"]],
   ["forage", ["clapping", "idle"]],
   ["drink_from_river", ["sit", "idle"]],
 ];
-
-// The only things "let there be..." can bring into the garden -- Eden's own
-// grove trees and garden animals (see build_eden.ts's prefabs), not an
-// arbitrary catalog dump. A request that doesn't fuzzy-match one of these
-// fails loudly with this same list as the reason, per the house rule (no
-// silent fallback) and the Creator's own call on unfulfillable requests.
-const CREATABLE = ["Deer", "Fox", "Alpaca", "Oak Tree", "Pine Tree", "Bush", "Rock"];
-
-interface EntityStateRow {
-  entity_id: EntityId;
-  current_action: string;
-  current_location: string;
-  last_tick_at: string;
-}
-interface LocationRow {
-  id: string;
-  x: number;
-  y: number;
-}
-interface ExchangeRow {
-  speaker_id: EntityId;
-  listener_id: EntityId;
-  content: string;
-  created_at: string;
-}
-interface ConversationRow {
-  entity_id: EntityId;
-  role: "creator" | "agent";
-  content: string;
-  created_at: string;
-}
-
-async function restGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
-  });
-  if (!res.ok) throw new Error(`Eden fetch failed (${res.status}): ${path}`);
-  return res.json() as Promise<T>;
-}
-async function restInsert(path: string, rows: unknown): Promise<void> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    method: "POST",
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      "Content-Type": "application/json",
-      Prefer: "return=minimal",
-    },
-    body: JSON.stringify(rows),
-  });
-  if (!res.ok) throw new Error(`Eden insert failed (${res.status}): ${path} ${await res.text()}`);
-}
 
 // True only for a scene that actually carries Eden's own characters --
 // found by the exact "eden_target_adam" on_ui name adam.lua listens for,
@@ -132,8 +69,8 @@ interface Panel {
 }
 
 // A small floating panel, built with the DOM API (never innerHTML -- user
-// text, the Creator's own and Adam/Eve's generated dialogue alike, only
-// ever goes through textContent, per this repo's own house rule). Mounted
+// text, the Creator's own and Adam/Eve's own "say" lines alike, only ever
+// goes through textContent, per this repo's own house rule). Mounted
 // directly on <body>, a sibling of #app, not inside it: style.css's
 // `.player-mode` rule hides header/nav/.dock/footer *inside* #app so an
 // exported standalone player (build/site/eden.html, where the Creator
@@ -178,7 +115,7 @@ function buildPanel(): Panel {
     const input = document.createElement("input");
     input.type = "text";
     input.placeholder = placeholder;
-    input.maxLength = 300;
+    input.maxLength = 200;
     const button = document.createElement("button");
     button.type = "submit";
     button.textContent = buttonLabel;
@@ -204,112 +141,76 @@ function appendLine(panel: Panel, text: string) {
 
 export function installEdenAgents(C: Ctx): void {
   let panel: Panel | undefined;
-  // Locations are near-static (re-seeded only between phases, never live),
-  // so fetched once rather than every poll.
-  let locations: Map<string, LocationRow> | undefined;
-  const lastTick: Partial<Record<EntityId, string>> = {};
-  let lastExchangeSeen = "";
-  let lastConversationSeen = "";
-  let polling = false;
+  let wasPlaying = false;
+  let inEden = false;
 
-  function worldPosition(locationId: string): [number, number, number] | undefined {
-    const loc = locations?.get(locationId);
-    if (!loc) return undefined;
-    // eden_locations' own (x, y) columns map onto world (x, 0, z) -- the
-    // broadcast y is never actually read: adam.lua/eve.lua only ever move
-    // horizontally (self.vx/vz) and let their own RigidBody's gravity
-    // settle them onto the real terrain height at each new (x, z), flat
-    // ground or the Phase 1b biome's sculpted one alike.
-    return [loc.x, 0, loc.y];
+  // A fresh World and a fresh pair of lives each time Play starts -- see
+  // the "decided afresh" comment below. Seeded from the clock, not a fixed
+  // number: mind.ts's own determinism (same seed, same life) is for
+  // testing it in isolation (edenMind.test.ts), not for making every
+  // playthrough identical here.
+  let world: World | undefined;
+  const lastSay: Partial<Record<string, string>> = {};
+  let lastTick = 0;
+
+  function buildWorld(): World {
+    const things: Thing[] = [
+      ...Object.values(EDEN_PLACES).map((p): Thing => ({ id: p.id, kind: p.kind, x: p.x, z: p.z, radius: p.radius })),
+      ...EDEN_LANDMARKS.map((p): Thing => ({ id: p.id, kind: p.kind, x: p.x, z: p.z, radius: p.radius })),
+    ];
+    const seed = Date.now() | 0;
+    const center = EDEN_PLACES.center!;
+    const adam = makePerson("adam", center.x - 1, center.z, seed, { boldness: 0.6, sociability: 0.45, curiosity: 0.45, appetite: 0.5, patience: 0.7 });
+    const eve = makePerson("eve", center.x + 1, center.z, seed + 1, { boldness: 0.5, sociability: 0.7, curiosity: 0.7, appetite: 0.5, patience: 0.5 });
+    return { things, people: [adam, eve] };
   }
 
-  async function pollOnce() {
-    if (!locations) {
-      const rows = await restGet<LocationRow[]>("eden_locations?select=id,x,y");
-      locations = new Map(rows.map((r) => [r.id, r]));
+  // x,y,z,action -- adam.lua/eve.lua's own parse_target; the broadcast y is
+  // never actually read (they only ever move horizontally and let their own
+  // RigidBody's gravity settle them onto the real terrain height), so it's
+  // always 0 here, same as it always was.
+  function broadcast(person: Person) {
+    const action = actionOf(person);
+    C.runtime.ccall("editor_ui_event", null, ["string", "string"], [`eden_target_${person.id}`, `${person.x},0,${person.z},${action}`]);
+    if (person.say && person.say !== lastSay[person.id] && panel) {
+      appendLine(panel, `${person.id === "adam" ? "Adam" : "Eve"}: ${person.say}`);
     }
-
-    const states = await restGet<EntityStateRow[]>(
-      "eden_entity_state?select=entity_id,current_action,current_location,last_tick_at",
-    );
-    for (const state of states) {
-      if (lastTick[state.entity_id] === state.last_tick_at) continue; // no new decision since last poll
-      lastTick[state.entity_id] = state.last_tick_at;
-      const pos = worldPosition(state.current_location);
-      if (!pos) {
-        C.log(`Eden: ${state.entity_id}'s location "${state.current_location}" isn't in eden_locations -- skipped`);
-        continue;
-      }
-      const value = `${pos[0]},${pos[1]},${pos[2]},${state.current_action}`;
-      C.runtime.ccall("editor_ui_event", null, ["string", "string"], [`eden_target_${state.entity_id}`, value]);
-    }
-
-    const exchanges = await restGet<ExchangeRow[]>(
-      `eden_exchanges?select=speaker_id,listener_id,content,created_at&order=created_at.asc${
-        lastExchangeSeen ? `&created_at=gt.${encodeURIComponent(lastExchangeSeen)}` : "&limit=0"
-      }`,
-    );
-    for (const ex of exchanges) {
-      if (panel) appendLine(panel, `${DISPLAY_NAME[ex.speaker_id]} → ${DISPLAY_NAME[ex.listener_id]}: ${ex.content}`);
-      lastExchangeSeen = ex.created_at;
-    }
-    if (!lastExchangeSeen) {
-      const seed = await restGet<ExchangeRow[]>("eden_exchanges?select=created_at&order=created_at.desc&limit=1");
-      if (seed[0]) lastExchangeSeen = seed[0].created_at;
-    }
-
-    const replies = await restGet<ConversationRow[]>(
-      `eden_conversations?select=entity_id,role,content,created_at&role=eq.agent&order=created_at.asc${
-        lastConversationSeen ? `&created_at=gt.${encodeURIComponent(lastConversationSeen)}` : "&limit=0"
-      }`,
-    );
-    for (const reply of replies) {
-      if (panel) appendLine(panel, `${DISPLAY_NAME[reply.entity_id]}: ${reply.content}`);
-      lastConversationSeen = reply.created_at;
-    }
-    if (!lastConversationSeen) {
-      const seed = await restGet<ConversationRow[]>(
-        "eden_conversations?select=created_at&role=eq.agent&order=created_at.desc&limit=1",
-      );
-      if (seed[0]) lastConversationSeen = seed[0].created_at;
-    }
+    lastSay[person.id] = person.say;
   }
 
-  async function speak(text: string) {
+  // No model generates a reply here -- mind.ts has none, and pretending one
+  // exists would be exactly the silent fallback this repo's own house rule
+  // (fail loudly, no silent fallback) rules out. Speaking is instead a
+  // small, honest, mechanical gift of attention: it lifts mood and eases
+  // the ache for company a little, for both of them.
+  function speak(text: string) {
     const content = text.trim();
-    if (!content) return;
-    if (panel) appendLine(panel, `You: ${content}`);
-    await restInsert(
-      "eden_conversations",
-      ENTITIES.map((entity_id) => ({ entity_id, role: "creator", content })),
-    );
+    if (!content || !panel || !world) return;
+    appendLine(panel, `You: ${content}`);
+    for (const person of world.people) {
+      person.mood = Math.max(-1, Math.min(1, person.mood + 0.15));
+      person.needs.social = Math.max(0, person.needs.social - 0.1);
+    }
   }
 
-  async function create(text: string) {
+  function create(text: string) {
     const query = text.trim();
-    if (!query || !panel) return;
+    if (!query || !panel || !world) return;
     // "a deer", "let there be an oak tree": drop the lead-in and article so the name is what is ranked.
     const wanted = query.replace(/^(let there be\s+)?((a|an|the|some)\s+)?/i, "").trim();
     const [match] = wanted ? fuzzyRank(CREATABLE, wanted, (name) => name) : [];
-    const center = worldPosition("center") ?? [0, 0, 0];
-    const at: [number, number, number] = [center[0] + (Math.random() - 0.5) * 4, center[1], center[2] + (Math.random() - 0.5) * 4];
+    const center = EDEN_PLACES.center!;
+    const x = center.x + (Math.random() - 0.5) * 4;
+    const z = center.z + (Math.random() - 0.5) * 4;
     if (!match) {
       appendLine(panel, `✗ Nothing like "${query}" exists yet. Try: ${CREATABLE.join(", ")}.`);
-      await restInsert("eden_creator_commands", [
-        { raw_text: query, status: "failed", result_description: `No match among: ${CREATABLE.join(", ")}.`, resolved_at: new Date().toISOString() },
-      ]);
       return;
     }
-    C.runtime.ccall("editor_ui_event", null, ["string", "string"], ["eden_create", `${match},${at[0]},${at[1]},${at[2]}`]);
+    C.runtime.ccall("editor_ui_event", null, ["string", "string"], ["eden_create", `${match},${x},0,${z}`]);
+    world.things.push({ id: `created-${Date.now()}`, kind: CREATABLE_KIND[match]!, x, z, radius: 2 });
     appendLine(panel, `✦ A ${match} appears in the garden.`);
-    await restInsert("eden_creator_commands", [
-      { raw_text: query, status: "fulfilled", result_description: `Spawned ${match}.`, resolved_at: new Date().toISOString() },
-    ]);
   }
 
-  // Decided afresh each time Play starts, because the editor can switch scenes between plays: only an Eden scene mounts the panel and polls.
-  let wasPlaying = false;
-  let inEden = false;
   function mountPanel() {
     panel = buildPanel();
     const p = panel;
@@ -317,32 +218,49 @@ export function installEdenAgents(C: Ctx): void {
       e.preventDefault();
       const text = p.speakInput.value;
       p.speakInput.value = "";
-      void speak(text).catch((error) => appendLine(p, `(speaking failed: ${String(error)})`));
+      speak(text);
     });
     p.createForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const text = p.createInput.value;
       p.createInput.value = "";
-      void create(text).catch((error) => appendLine(p, `(creation failed: ${String(error)})`));
+      create(text);
     });
   }
 
+  // Decided afresh each time Play starts, because the editor can switch
+  // scenes between plays: only an Eden scene mounts the panel and ticks the
+  // simulation.
   setInterval(() => {
     if (C.doc.mode !== "play") {
       wasPlaying = false;
+      world = undefined;
       if (panel) panel.root.style.display = "none";
       return;
     }
     if (!wasPlaying) {
       wasPlaying = true;
       inEden = isEdenScene(C);
-      if (inEden && !panel) mountPanel();
-      if (panel) panel.root.style.display = inEden ? "" : "none";
+      if (inEden) {
+        if (!panel) mountPanel();
+        if (panel) panel.root.style.display = "";
+        world = buildWorld();
+        lastTick = performance.now();
+      } else if (panel) {
+        panel.root.style.display = "none";
+      }
     }
-    if (!inEden || polling) return;
-    polling = true;
-    pollOnce()
-      .catch((error) => C.log(`Eden brain poll failed: ${String(error)}`))
-      .finally(() => (polling = false));
-  }, 15_000);
+    if (!inEden || !world) return;
+    const now = performance.now();
+    // Real seconds since the last tick, capped so a stalled/backgrounded
+    // tab doesn't make them leap a day's needs in one step when it wakes.
+    const dt = Math.min(2, (now - lastTick) / 1000);
+    lastTick = now;
+    try {
+      step(world, dt);
+      for (const person of world.people) broadcast(person);
+    } catch (error) {
+      C.log(`Eden tick failed: ${String(error)}`);
+    }
+  }, 500);
 }
