@@ -11,6 +11,7 @@ import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach,
 import { fadeNorms, isCustom, NORM_TEXT, reinforce, standing, strengthOf, type NormId } from "./norms";
 import { fade, feel as feelEmotion, importance, moodPush, opinionTags, BELIEF_WORDS, type Belief, type Emotion } from "./inner";
 import { converse } from "./speech";
+import { joysFor, joyText, type Band, type Doing, type Sky } from "./joys";
 import { COMFORT_C, DAY, daylight, EDEN_CLIMATE, FISH_BY_SEASON, growthRate, hourOf, isDark, seasonAt, weatherAt, YEAR, type Climate, type Weather } from "./earth";
 export { DAY, hourOf };
 
@@ -165,6 +166,7 @@ export interface Person {
   spoken?: string[]; // the last few things they said aloud, so the voice does not repeat them
   promises?: { to: string; due: number }[]; // what they have promised, and by when
   shunned?: boolean; // the others have lost faith in them and keep away
+  joyAt?: number; // world clock of the last small thing they noticed and enjoyed
   heard?: string[]; // tales they have been told (so they are not told twice)
   pregnant?: { since: number; father: string }; // carrying a child, born after GESTATION
   illness?: { severity: number; since: number }; // sick, 0..1
@@ -650,6 +652,31 @@ export function giveMeat(world: World, to: Person): boolean {
   tally(world, "gaveMeat");
   chronicle(world, `The Walker fed ${to.name} with their own hands.`);
   return true;
+}
+
+// The small pleasures of a day. How often a person stops to notice one depends on their nature (the curious and patient notice most), and
+// what they notice depends on the season, hour, sky, company and what they are doing (see joys.ts). Each one lifts them a little and is remembered lightly.
+function noticeSmallJoys(world: World, person: Person, weather: Weather, nearFire: boolean) {
+  const hour = hourOf(world.clock ?? 0);
+  const appreciation = 0.35 + 0.65 * (0.5 * person.personality.curiosity + 0.5 * person.personality.patience);
+  const gap = (12 * 60) / appreciation; // sim seconds between moments, on average
+  if ((world.clock ?? 0) - (person.joyAt ?? -1e9) < gap || rand(person) > 0.1) return;
+  const band: Band = hour < 5 ? "night" : hour < 7.5 ? "dawn" : hour < 11 ? "morning" : hour < 14 ? "noon" : hour < 18 ? "afternoon" : hour < 21 ? "dusk" : "night";
+  const sky: Sky = weather.snowing ? "snow" : weather.raining ? "rain" : weather.fog > 0.45 ? "fog" : weather.windMs > 6 ? "wind" : "clear";
+  const near = world.people.filter((q) => q !== person && dist(q.x, q.z, person.x, person.z) < 8).length;
+  const kind = person.intent?.kind;
+  const doing: Doing = kind === "eat" ? "eat" : kind === "drink" ? "drink" : kind === "sleep" ? "sleep" : kind === "rest" ? "rest" : kind === "talk" ? "talk" : kind === "gather" || kind === "plant" || kind === "craft" || kind === "fish" || kind === "hunt" || kind === "build" || kind === "sew" || kind === "wash" ? "work" : kind === "wander" || kind === "look" ? "walk" : "idle";
+  const warm = nearFire || (sky === "clear" && band !== "night" && person.cold < 0.3);
+  const options = joysFor({ season: weather.season, band, sky, company: near === 0 ? "alone" : near === 1 ? "one" : "group", doing, warm });
+  if (!options.length) return;
+  person.joyAt = world.clock ?? 0;
+  const trigger = options[Math.floor(rand(person) * options.length)]!;
+  const text = joyText(trigger, rand(person), rand(person), rand(person));
+  feelEmotion(person, "joy", 0.05 + 0.1 * appreciation);
+  person.needs.social = clamp01(person.needs.social - (near ? 0.02 : 0));
+  note(person, world, text);
+  tally(world, "smallJoys");
+  tally(world, `joy_${trigger.id}`);
 }
 
 // A norm gains ground; when it becomes a custom everyone writes it down.
@@ -1690,6 +1717,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     // Warmth: what the air is, with clothes on, a roof overhead, a fire close by, and the rain if there is no roof.
     const sheltered = world.things.some((t) => t.kind === "shelter" && dist(person.x, person.z, t.x, t.z) < 3.5);
     const nearFire = world.things.some((t) => burning(t) && dist(person.x, person.z, t.x, t.z) < 6);
+    if (person.age >= 3) noticeSmallJoys(world, person, weather, nearFire);
     const effective = weather.tempC + 5 + 6 * (person.clothing ?? 0) + (sheltered ? 8 : 0) + (nearFire ? 12 : 0) - (weather.raining && !sheltered ? 4 : 0) - (sheltered ? 0 : 0.5 * weather.windMs); // wind takes the warmth away
     const coldTarget = clamp01((COMFORT_C - effective) / 18);
     person.cold = clamp01(person.cold + (coldTarget - person.cold) * Math.min(1, dt / 180));
