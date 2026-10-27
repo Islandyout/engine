@@ -1,4 +1,4 @@
-import { actionOf, applySpokenIntent, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
+import { actionOf, applySpokenIntent, shareKill, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import { moonName, SEASON_NAMES, solarHour } from "../../eden/earth";
 import { runCreatorCommand } from "../../eden/creator";
 import { worldFromJson, worldToJson } from "../../eden/persist";
@@ -47,7 +47,7 @@ const DEFAULT_SPEED = 2; // index into SPEEDS: 3x
 
 const PLACE_NAME: Record<string, string> = {};
 for (const place of Object.values(EDEN_PLACES)) PLACE_NAME[place.kind] = place.name;
-const KIND_NAME: Record<string, string> = { ...PLACE_NAME, campfire: "the fire", shelter: "the shelter", tree: "a tree", "fruit tree": "a fruit tree", bush: "a bush", rock: "a rock", grave: "a grave", deer: "a deer", fox: "a fox", alpaca: "an alpaca", wolf: "a wolf", dog: "a dog", horse: "a horse", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge" };
+const KIND_NAME: Record<string, string> = { ...PLACE_NAME, campfire: "the fire", shelter: "the shelter", tree: "a tree", "fruit tree": "a fruit tree", bush: "a bush", rock: "a rock", grave: "a grave", deer: "a deer", fox: "a fox", alpaca: "an alpaca", wolf: "a wolf", dog: "a dog", stag: "a stag", cow: "a cow", donkey: "a donkey", horse: "a horse", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge" };
 
 const VERB: Record<string, string> = { gather: "goes to gather wood at", fire: "makes a fire", build: "starts building a shelter", stash: "goes to put food away at", forage: "goes to gather food at", warm: "goes to warm up at", share: "goes to share food with", comfort: "goes to sit with", plant: "goes to plant a seed", craft: "makes a spear", hunt: "hunts", tame: "tries to win over", fish: "goes fishing at", mourn: "goes to sit at", eat: "goes to eat at", drink: "goes to drink at", rest: "goes to rest at", sleep: "goes to sleep at", look: "goes to look at", play: "goes to play at", talk: "goes to talk with", wander: "wanders off", flee: "runs from", linger: "pauses" };
 
@@ -139,6 +139,7 @@ export function installEdenAgents(C: Ctx): void {
     world.things.splice(at, 1);
     placedThings.delete(thingId);
     tally(world, "slainByYou");
+    shareKill(world, thing);
     panel?.lifeLog(`You killed ${phrase(thing)}.${AFFORDANCES[thing.kind]?.prey ? " Meat: you feel stronger." : ""}`);
     if (AFFORDANCES[thing.kind]?.prey) ui("eden_player_heal", "35");
   };
@@ -167,6 +168,7 @@ export function installEdenAgents(C: Ctx): void {
     const h = [...p.id].reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) >>> 0, 7);
     const n = 1 + (h % (p.sex === "m" ? MEN : WOMEN)); // the same face and clothes from birth to old age
     if (p.age < 4) return `Child (${p.sex === "m" ? "boy" : "girl"}) ${n}`;
+    if (p.age >= 55) return `Elder (${p.sex === "m" ? "man" : "woman"}) ${n}`;
     return `${p.age < 14 ? "Youth" : "Villager"} (${p.sex === "m" ? (p.age < 14 ? "boy" : "man") : p.age < 14 ? "girl" : "woman"}) ${n}`;
   };
 
@@ -200,7 +202,8 @@ export function installEdenAgents(C: Ctx): void {
     // Herds of deer in the meadows and woods, so there is something living to watch and, in time, to hunt; horses on the grass; wolves in the hills.
     const herd = (kind: string, id: string, count: number) => {
       const place = EDEN_PLACES[id]!;
-      for (let i = 0; i < count; i++) make(created, kind, place.x + i * 2 - count, place.z + (i % 2) * 3, { radius: 2 });
+      const stock = AFFORDANCES[kind]?.stock;
+      for (let i = 0; i < count; i++) make(created, kind, place.x + i * 2 - count, place.z + (i % 2) * 3, { radius: 2, ...(stock !== undefined ? { stock, maxStock: stock } : {}) });
     };
     herd("deer", "meadow", 3);
     herd("deer", "south_meadow", 4);
@@ -210,6 +213,10 @@ export function installEdenAgents(C: Ctx): void {
     herd("alpaca", "meadow", 2);
     herd("wolf", "highlands", 2);
     herd("dog", "east_woods", 2);
+    herd("stag", "highlands", 2);
+    herd("stag", "east_woods", 2);
+    herd("cow", "south_meadow", 3);
+    herd("donkey", "orchard", 2);
     herd("dog", "orchard", 1);
     return created;
   }
@@ -279,6 +286,60 @@ export function installEdenAgents(C: Ctx): void {
       panel?.setSaved("could not save");
       panel?.lifeLog(`Could not save the world: ${String(e)}`);
     }
+  }
+
+  // What if: three places to keep the world as it is, and come back to.
+  const SLOT_KEY = "eden-world-v1-slot-";
+  function slotDays(): (number | undefined)[] {
+    return [1, 2, 3].map((n) => {
+      try {
+        const text = localStorage.getItem(SLOT_KEY + n);
+        return text ? Math.floor(((JSON.parse(text) as { clock?: number }).clock ?? 0) / 1440) + 1 : undefined;
+      } catch {
+        return undefined;
+      }
+    });
+  }
+  function keepSlot(n: number) {
+    if (!world) return;
+    try {
+      localStorage.setItem(SLOT_KEY + n, worldToJson(world));
+      panel?.lifeLog(`Kept this moment as ${n} (day ${Math.floor((world.clock ?? 0) / 1440) + 1}).`);
+      panel?.setSlots(slotDays());
+    } catch (e) {
+      panel?.lifeLog(`Could not keep it: ${String(e)}`);
+    }
+  }
+  function returnSlot(n: number) {
+    let loaded: World;
+    try {
+      const text = localStorage.getItem(SLOT_KEY + n);
+      if (!text) {
+        panel?.lifeLog(`Nothing is kept as ${n}.`);
+        return;
+      }
+      loaded = worldFromJson(text);
+    } catch (e) {
+      panel?.lifeLog(`Could not go back to ${n}: ${String(e)}`);
+      return;
+    }
+    for (const id of [...placedThings]) ui("eden_remove", id);
+    placedThings.clear();
+    for (const id of [...placedPeople.keys()]) ui("eden_remove", id);
+    placedPeople.clear();
+    bodyIndexById.clear();
+    announcedDead.clear();
+    lastMoved.clear();
+    sent.clear();
+    world = loaded;
+    knownPeople.clear();
+    for (const p of world.people) knownPeople.add(p.id);
+    for (const d of world.dead ?? []) announcedDead.add(d.person.id);
+    for (const p of world.people) snap(p);
+    lastRain = -1;
+    lastHour = -1;
+    panel?.lifeLog(`Back to the moment kept as ${n} (day ${Math.floor((world.clock ?? 0) / 1440) + 1}).`);
+    save();
   }
 
   function newWorld() {
@@ -520,6 +581,7 @@ export function installEdenAgents(C: Ctx): void {
           saveVoice(config);
           panel?.voiceStatus(config.enabled ? "Voice on." : "Voice off. Plain speech.");
         },
+        slot: (action, n) => (action === "keep" ? keepSlot(n) : returnSlot(n)),
         walk: (on) => {
           if (!world) return;
           walking = on;
@@ -568,6 +630,7 @@ export function installEdenAgents(C: Ctx): void {
       voice.config,
     );
     panel.setSpeed(speed);
+    panel.setSlots(slotDays());
     window.addEventListener("pagehide", save);
     // For the desktop app's tools and for tests: where each mind says a person is, where their body is, and where the ground is under it.
     if (navigator.userAgent.includes("BTAIDesktop")) {

@@ -60,3 +60,32 @@ test("nobody walks into the lake: they go round it, and are pushed to its bank i
     assert.ok(Math.hypot(walker.x - 50, walker.z) >= 19.9, "walked into the lake");
   }
 });
+
+test("the people notice the Walker, and are fed when game is brought down near them", async () => {
+  const { shareKill, make } = await import("../src/eden/mind");
+  const a = adult("A", "m", 31);
+  const w = world([a]);
+  w.visitor = { x: 4, z: 0 };
+  step(w, 1);
+  assert.ok(a.journal.some((j) => /stranger in a green hood/.test(j.text)));
+  assert.ok(w.chronicle?.some((e) => /the Walker/.test(e.text)));
+  a.needs.hunger = 0.8;
+  const deer = make(w, "stag", 5, 0, { radius: 2 });
+  const before = a.carry.food;
+  shareKill(w, deer);
+  assert.equal(a.carry.food, before + 2);
+  assert.ok(a.journal.some((j) => /left me the meat/.test(j.text)));
+});
+
+test("a cow gives a little to eat each day without being killed", async () => {
+  const { make } = await import("../src/eden/mind");
+  const a = adult("A", "m", 32);
+  const w = world([a]);
+  w.things.splice(0, 1);
+  const cow = make(w, "cow", 6, 0, { radius: 2, stock: 3, maxStock: 3 });
+  a.memory.set(cow.id, { x: 6, z: 0, feeling: 0.3, visits: 1, lastSeen: 0 });
+  a.needs.hunger = 0.8;
+  for (let t = 0; t < 600; t++) step(w, 1);
+  assert.ok(w.things.includes(cow), "the cow was killed");
+  assert.ok((cow.stock ?? 3) < 3 || a.needs.hunger < 0.8, "nobody ate from the cow");
+});

@@ -22,6 +22,7 @@ export interface PanelHandlers {
   voice(config: VoiceConfig): void;
   voiceTest(): void;
   follow(id: string): void; // the camera goes to this person
+  slot(action: "keep" | "return", n: number): void; // keep this moment, or go back to a moment kept
   walk(on: boolean): void; // the Creator walks the world as a hunter, or goes back to watching
 }
 
@@ -30,6 +31,7 @@ export interface EdenPanel {
   setHeader(text: string): void;
   setSpeed(index: number): void;
   setSaved(text: string): void;
+  setSlots(days: (number | undefined)[]): void; // the day each kept moment was from
   lifeStatus(id: string, name: string, text: string): void;
   lifeStatusRemove(id: string): void;
   lifeLog(text: string): void;
@@ -153,6 +155,7 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
   const statusLines = new Map<string, HTMLElement>();
 
   // Minds
+  let slotsRef: HTMLButtonElement[] = [];
   const mindsView = el("div");
   const chronicleView = el("div");
   panes.chronicle!.appendChild(chronicleView);
@@ -217,7 +220,23 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
   });
   voiceButtons.append(voiceSave, voiceTest);
   voiceBox.append(voiceHelp, onLabel, urlInput, modelInput, keyInput, voiceButtons, voiceStatus);
-  panes.creator!.append(help, form, chips, creatorLines, voiceBox);
+  // What if: keep the world as it is now, try something, and go back. Three places to keep.
+  const slotBox = el("div", "eden-bar");
+  slotBox.appendChild(el("span", undefined, "What if:"));
+  const slotButtons: HTMLButtonElement[] = [];
+  for (let n = 1; n <= 3; n++) {
+    const keep = el("button", undefined, `Keep ${n}`);
+    keep.title = "Keep the world as it is now";
+    keep.addEventListener("click", () => handlers.slot("keep", n));
+    const back = el("button", undefined, `Back to ${n}`);
+    back.title = "Go back to the moment kept here (what has happened since is lost)";
+    back.disabled = true;
+    back.addEventListener("click", () => handlers.slot("return", n));
+    slotButtons.push(back);
+    slotBox.append(keep, back);
+  }
+  panes.creator!.append(help, form, chips, slotBox, creatorLines, voiceBox);
+  slotsRef = slotButtons;
 
   document.body.appendChild(root);
   select("life");
@@ -249,6 +268,13 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
     setHeader: (text) => (title.textContent = text),
     setSpeed: (index) => speedButtons.forEach((b, i) => b.classList.toggle("on", i === index)),
     setSaved: (text) => (saved.textContent = text),
+    setSlots(days) {
+      slotsRef.forEach((b, i) => {
+        const day = days[i];
+        b.disabled = day === undefined;
+        b.textContent = day === undefined ? `Back to ${i + 1}` : `Back to ${i + 1} (day ${day})`;
+      });
+    },
     lifeStatus(id, name, text) {
       let line = statusLines.get(id);
       if (!line) {
@@ -273,6 +299,49 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
     tab: () => current,
     renderMinds(world) {
       chronicleView.replaceChildren();
+      // Who is to whom: friends in green, those at odds in red, partners in gold; thicker where there is more trust.
+      if (world.people.length > 1) {
+        const NS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(NS, "svg");
+        svg.setAttribute("viewBox", "-120 -95 240 190");
+        svg.setAttribute("width", "100%");
+        const at = (i: number) => ({ x: 70 * Math.cos((i / world.people.length) * Math.PI * 2 - Math.PI / 2), y: 62 * Math.sin((i / world.people.length) * Math.PI * 2 - Math.PI / 2) });
+        world.people.forEach((a, i) => {
+          world.people.forEach((b, j) => {
+            if (j <= i) return;
+            const ab = a.relations.get(b.id);
+            const ba = b.relations.get(a.id);
+            if (!ab || !ba) return;
+            const mean = (ab.affinity + ba.affinity) / 2;
+            const line = document.createElementNS(NS, "line");
+            line.setAttribute("x1", String(at(i).x));
+            line.setAttribute("y1", String(at(i).y));
+            line.setAttribute("x2", String(at(j).x));
+            line.setAttribute("y2", String(at(j).y));
+            line.setAttribute("stroke", bondOf(a, b) === "partner" ? "#e0b050" : mean > 0.5 ? "#5fe08a" : mean > 0.1 ? "#8fb89a" : mean > -0.2 ? "#777" : "#e06060");
+            line.setAttribute("stroke-width", String(0.6 + 3 * ((ab.trust + ba.trust) / 2)));
+            svg.appendChild(line);
+          });
+        });
+        world.people.forEach((p, i) => {
+          const c = document.createElementNS(NS, "circle");
+          c.setAttribute("cx", String(at(i).x));
+          c.setAttribute("cy", String(at(i).y));
+          c.setAttribute("r", String(p.age < 4 ? 5 : 8));
+          c.setAttribute("fill", p.sex === "f" ? "#c98ab8" : "#7aa6d6");
+          svg.appendChild(c);
+          const t = document.createElementNS(NS, "text");
+          t.setAttribute("x", String(at(i).x));
+          t.setAttribute("y", String(at(i).y + 20));
+          t.setAttribute("text-anchor", "middle");
+          t.setAttribute("font-size", "9");
+          t.setAttribute("fill", "#e8e0cf");
+          t.textContent = p.name;
+          svg.appendChild(t);
+        });
+        chronicleView.appendChild(el("div", "eden-sub", "Who they are to one another"));
+        chronicleView.appendChild(svg);
+      }
       const events = world.chronicle ?? [];
       chronicleView.appendChild(el("div", "eden-sub", events.length ? `What has happened (${events.length})` : "Nothing of note has happened yet."));
       for (const e of [...events].reverse().slice(0, 120)) chronicleView.appendChild(el("div", undefined, `${clockText(e.t)} · ${e.text}`));
@@ -367,6 +436,11 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
         for (const x of places) mindsView.appendChild(el("div", undefined, `${phrase(x.thing)}${world.names?.[x.id] ? ` (${world.names[x.id]!.name})` : ""}: ${x.m.feeling > 0.3 ? "likes" : x.m.feeling < -0.3 ? "dreads" : "no strong feeling"} (${x.m.feeling.toFixed(2)}), been ${x.m.visits}×`));
       }
 
+      const big = p.journal.filter((j) => (j.w ?? 0) >= 0.6 && !/^Talked with| said: | told me: /.test(j.text)).slice(-12);
+      if (big.length) {
+        mindsView.appendChild(el("div", "eden-sub", "The big moments of their life"));
+        for (const j of big) mindsView.appendChild(el("div", undefined, `${clockText(j.t)} · ${j.text}`));
+      }
       mindsView.appendChild(el("div", "eden-sub", "Their journal"));
       const journal = el("div", "eden-journal");
       for (const j of p.journal.slice(-14)) journal.appendChild(el("div", undefined, `${clockText(j.t)} · ${j.text}`));

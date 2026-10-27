@@ -71,6 +71,9 @@ export const AFFORDANCES: Record<string, Affordances> = {
   rock: { rest: true },
   bush: { food: 0.25, stock: 4 },
   deer: { creature: true, mobile: 0.9, prey: true },
+  stag: { creature: true, mobile: 1.0, prey: true }, // a big deer: more meat, harder to bring down
+  cow: { creature: true, mobile: 0.5, food: 0.35, stock: 3 }, // a milk cow: a little to drink and eat from, every day, no killing
+  donkey: { creature: true, mobile: 0.7 },
   alpaca: { creature: true, mobile: 0.6 },
   fox: { danger: 0.6, creature: true, mobile: 1.3, predator: true },
   // Planted by the people: a plot that bears fruit as the seasons allow, a meal at a time.
@@ -594,6 +597,39 @@ export function chronicle(world: World, text: string) {
   if (list.length > 400) list.splice(0, list.length - 400);
 }
 
+// The Creator walking among them (world.visitor, set by the page): the people notice a stranger who came from nowhere, are glad of the company,
+// and are grateful when meat is shared.
+function noticeVisitor(world: World) {
+  const v = world.visitor;
+  if (!v) return;
+  for (const q of world.people) {
+    if (dist(q.x, q.z, v.x, v.z) > 14 || q.heard?.includes("walker")) continue;
+    (q.heard ??= []).push("walker");
+    note(q, world, "A stranger in a green hood came walking out of nowhere. They seem to mean no harm.");
+    feelEmotion(q, "joy", 0.3);
+    q.needs.social = clamp01(q.needs.social - 0.2);
+    q.say = "Hello, stranger.";
+    if (!world.tally?.walkerSeen) chronicle(world, "A stranger in a green hood, the Walker, was seen among the people.");
+    tally(world, "walkerSeen");
+  }
+}
+// A kill near hungry people feeds them; they remember who did it.
+export function shareKill(world: World, killed: Thing) {
+  if (!world.visitor || !aff(killed).prey) return;
+  let fed = 0;
+  for (const q of world.people) {
+    if (dist(q.x, q.z, killed.x, killed.z) > 30 || q.needs.hunger < 0.35) continue;
+    q.carry.food = Math.min(8, q.carry.food + 2);
+    feelEmotion(q, "gratitude", 0.5);
+    note(q, world, "The Walker brought down game near me and left me the meat.");
+    fed++;
+  }
+  if (fed) {
+    chronicle(world, `The Walker brought down ${phrase(killed)} and fed ${fed === 1 ? "one of the people" : `${fed} of the people`}.`);
+    tally(world, "gaveMeat");
+  }
+}
+
 // A norm gains ground; when it becomes a custom everyone writes it down.
 function uphold(world: World, id: NormId, by: Person, amount: number) {
   if (!reinforce(world, id, by, amount)) return;
@@ -672,7 +708,7 @@ function relation(person: Person, otherId: string, world: World): Relation {
 const burning = (t: Thing) => t.kind === "campfire" && (t.fuel ?? 0) > 0;
 // Seconds a fire burns on one armful of wood (two hours of the real thing, at one sim second to a minute).
 const FIRE_SECONDS_PER_WOOD = 120;
-const PREFAB_OF: Record<string, string> = { campfire: "Campfire", shelter: "Shelter", grave: "Grave", crop: "Crop", deer: "Deer", fox: "Fox", wolf: "Wolf", horse: "Horse", dog: "Dog" };
+const PREFAB_OF: Record<string, string> = { campfire: "Campfire", shelter: "Shelter", grave: "Grave", crop: "Crop", deer: "Deer", fox: "Fox", wolf: "Wolf", horse: "Horse", dog: "Dog", stag: "Stag", cow: "Cow", donkey: "Donkey" };
 export function make(world: World, kind: string, x: number, z: number, extra: Partial<Thing> = {}): Thing {
   world.built = (world.built ?? 0) + 1;
   const thing: Thing = { id: `${kind}-${world.built}`, kind, x, z, radius: 3, prefab: PREFAB_OF[kind], ...extra };
@@ -1604,6 +1640,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
   } else if (hand) world.override = undefined;
   world.weather = weather;
   fadeNorms(world, dt);
+  noticeVisitor(world);
   // The river's fish breed in the warm months and keep to the deep in winter; a few come down from upstream, so it is never quite empty.
   const fish = (world.fish ??= 30);
   world.fish = Math.min(40, fish + dt * (0.0002 * fish * (1 - fish / 40) * FISH_BY_SEASON[weather.season]! + 1 / DAY));

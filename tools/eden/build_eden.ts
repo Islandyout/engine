@@ -148,6 +148,12 @@ scene.add("Ground", [0, 0, 0], {
       `38 0.006 0.8 1.3 0.8 spacing=3 tint=0.2 in=${PLACES.south_meadow!.x},${PLACES.south_meadow!.z},${PLACES.south_meadow!.radius}`,
       `404 0.4 0.8 1.4 0.9 on=grass tint=0.25 in=${PLACES.south_meadow!.x},${PLACES.south_meadow!.z},${PLACES.south_meadow!.radius}`,
       `255 0.004 0.9 1.2 0.85 trunk spacing=5 tint=0.1 in=${PLACES.orchard!.x},${PLACES.orchard!.z},${PLACES.orchard!.radius}`,
+      // More kinds of plants: blossom among the orchard trees, aspens along the river, rough grass and bushes on the high ground and in the pines.
+      `332 0.006 0.9 1.3 0.85 trunk spacing=6 tint=0.15 in=${PLACES.orchard!.x},${PLACES.orchard!.z},${PLACES.orchard!.radius}`,
+      `257 0.0012 0.9 1.2 0.85 trunk spacing=8 tint=0.2 in=${PLACES.river_bend!.x},${PLACES.river_bend!.z},60`,
+      `406 0.25 0.8 1.4 0.9 on=grass,rock tint=0.25 in=${HIGH.x},${HIGH.z},${HIGH.radius}`,
+      `38 0.01 0.8 1.3 0.8 spacing=3 tint=0.2 in=${PLACES.pinewood!.x},${PLACES.pinewood!.z},${PLACES.pinewood!.radius}`,
+      `38 0.008 0.8 1.3 0.8 spacing=3 tint=0.2 in=${PLACES.east_woods!.x},${PLACES.east_woods!.z},${PLACES.east_woods!.radius}`,
       `328 0.007 0.9 1.4 0.7 trunk spacing=4 cluster=0.6 clusterSize=40 tilt=0.3 height=3..13 in=${HIGH.x},${HIGH.z},${HIGH.radius}`,
       `329 0.005 0.9 1.4 0.7 trunk spacing=4 tilt=0.3 height=6..15 in=${HIGH.x},${HIGH.z},${HIGH.radius}`,
       `402 0.003 1.2 3 0.7 collide tilt=0.5 tint=0.2 in=${HIGH.x},${HIGH.z},${HIGH.radius}`,
@@ -298,6 +304,9 @@ creaturePrefab("Alpaca", "alpaca", 70, 45);
 creaturePrefab("Wolf", "wolf", 40, 55);
 creaturePrefab("Horse", "horse", 400, 90);
 creaturePrefab("Dog", "shiba-inu", 12, 28);
+creaturePrefab("Stag", "stag", 160, 70);
+creaturePrefab("Cow", "cow", 500, 80);
+creaturePrefab("Donkey", "donkey", 300, 60);
 const stillPrefab = (name: string, catalogFile: string) =>
   scene.prefab(name, { Renderable: { mesh: modelId(catalogFile), material: 0, visible: true }, RigidBody: { dynamic: false }, Collider: { isTrigger: false } });
 stillPrefab("Oak Tree", "eztree-oak");
@@ -329,11 +338,13 @@ MEN.forEach((m, i) => {
   personPrefab(`Villager (man) ${i + 1}`, m);
   personPrefab(`Youth (boy) ${i + 1}`, m, 0.82);
   personPrefab(`Child (boy) ${i + 1}`, m, 0.6);
+  personPrefab(`Elder (man) ${i + 1}`, m, 0.94); // a little shorter with the years
 });
 WOMEN.forEach((m, i) => {
   personPrefab(`Villager (woman) ${i + 1}`, m);
   personPrefab(`Youth (girl) ${i + 1}`, m, 0.82);
   personPrefab(`Child (girl) ${i + 1}`, m, 0.6);
+  personPrefab(`Elder (woman) ${i + 1}`, m, 0.93);
 });
 scene.prefab("Campfire", {
   Particles: component("Particles", { preset: "Fire", rate: 40, lifetime: 0.9, speed: 1.2, size: 0.28, shape: "Cone", coneAngle: 18, gravityScale: -0.15 }),
@@ -342,7 +353,7 @@ scene.prefab("Campfire", {
 
 // Models the people and the creatures use are loaded with the scene, not when they first appear (a spawned body is a grey box until its
 // model arrives): one hidden, far-off entity per model keeps each ready.
-for (const file of ["deer", "fox", "alpaca", "wolf", "horse", "shiba-inu", ...MEN, ...WOMEN, "canvas-tent", "bush-1", "rock-large"]) {
+for (const file of ["blossom-tree", "deer", "fox", "alpaca", "wolf", "horse", "shiba-inu", "stag", "cow", "donkey", ...MEN, ...WOMEN, "canvas-tent", "bush-1", "rock-large"]) {
   scene.add(`Preload ${file}`, [0, -300, 0], { Renderable: { mesh: modelId(file), material: 0, visible: false } });
 }
 

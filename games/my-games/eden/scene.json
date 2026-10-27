@@ -43,7 +43,7 @@
           "sandHeight": -0.7,
           "snowHeight": 17,
           "rockSlope": 0.75,
-          "scatter": "255 0.0022 0.9 1.3 0.85 trunk spacing=6 cluster=0.75 clusterSize=55 tint=0.12 in=26,-16,13\n256 0.0016 0.9 1.3 0.85 trunk spacing=6 cluster=0.7 clusterSize=50 in=26,-16,13\n261 0.0012 0.8 1.3 0.85 spacing=2.5 cluster=0.6 clusterSize=30 tint=0.15 in=26,-16,13\n328 0.007 0.9 1.4 0.8 trunk spacing=5 cluster=0.8 clusterSize=40 tint=0.15 in=10,-135,42\n329 0.005 0.9 1.4 0.8 trunk spacing=5 cluster=0.7 clusterSize=35 tint=0.15 in=10,-135,42\n330 0.006 1 1.5 0.8 trunk spacing=6 cluster=0.7 clusterSize=35 tint=0.15 in=105,-60,38\n331 0.004 1 1.5 0.8 trunk spacing=6 cluster=0.6 clusterSize=30 tint=0.2 in=105,-60,38\n37 0.012 0.8 1.3 0.8 spacing=2.5 tint=0.2 in=105,-60,38\n331 0.004 1 1.5 0.8 trunk spacing=7 tint=0.2 in=-45,125,32\n38 0.006 0.8 1.3 0.8 spacing=3 tint=0.2 in=-45,125,32\n404 0.4 0.8 1.4 0.9 on=grass tint=0.25 in=-45,125,32\n255 0.004 0.9 1.2 0.85 trunk spacing=5 tint=0.1 in=-95,70,14\n328 0.007 0.9 1.4 0.7 trunk spacing=4 cluster=0.6 clusterSize=40 tilt=0.3 height=3..13 in=-130,-100,62\n329 0.005 0.9 1.4 0.7 trunk spacing=4 tilt=0.3 height=6..15 in=-130,-100,62\n402 0.003 1.2 3 0.7 collide tilt=0.5 tint=0.2 in=-130,-100,62\n403 0.002 1.2 3 0.7 collide tilt=0.5 tint=0.2 in=-130,-100,62\n404 0.6 0.8 1.4 0.9 on=grass tint=0.25 in=-26,18,15\n405 0.15 0.9 1.5 0.9 on=grass tint=0.2 in=-26,18,15\n404 0.1 0.8 1.3 0.9 on=grass tint=0.2\n403 0.0006 1.5 3.8 0.65 collide spacing=6 tilt=0.4 tint=0.2 in=-4,4,16\n401 0.00005 2.5 6 0.8 collide tilt=0.5 tint=0.2",
+          "scatter": "255 0.0022 0.9 1.3 0.85 trunk spacing=6 cluster=0.75 clusterSize=55 tint=0.12 in=26,-16,13\n256 0.0016 0.9 1.3 0.85 trunk spacing=6 cluster=0.7 clusterSize=50 in=26,-16,13\n261 0.0012 0.8 1.3 0.85 spacing=2.5 cluster=0.6 clusterSize=30 tint=0.15 in=26,-16,13\n328 0.007 0.9 1.4 0.8 trunk spacing=5 cluster=0.8 clusterSize=40 tint=0.15 in=10,-135,42\n329 0.005 0.9 1.4 0.8 trunk spacing=5 cluster=0.7 clusterSize=35 tint=0.15 in=10,-135,42\n330 0.006 1 1.5 0.8 trunk spacing=6 cluster=0.7 clusterSize=35 tint=0.15 in=105,-60,38\n331 0.004 1 1.5 0.8 trunk spacing=6 cluster=0.6 clusterSize=30 tint=0.2 in=105,-60,38\n37 0.012 0.8 1.3 0.8 spacing=2.5 tint=0.2 in=105,-60,38\n331 0.004 1 1.5 0.8 trunk spacing=7 tint=0.2 in=-45,125,32\n38 0.006 0.8 1.3 0.8 spacing=3 tint=0.2 in=-45,125,32\n404 0.4 0.8 1.4 0.9 on=grass tint=0.25 in=-45,125,32\n255 0.004 0.9 1.2 0.85 trunk spacing=5 tint=0.1 in=-95,70,14\n332 0.006 0.9 1.3 0.85 trunk spacing=6 tint=0.15 in=-95,70,14\n257 0.0012 0.9 1.2 0.85 trunk spacing=8 tint=0.2 in=-4,4,60\n406 0.25 0.8 1.4 0.9 on=grass,rock tint=0.25 in=-130,-100,62\n38 0.01 0.8 1.3 0.8 spacing=3 tint=0.2 in=10,-135,42\n38 0.008 0.8 1.3 0.8 spacing=3 tint=0.2 in=105,-60,38\n328 0.007 0.9 1.4 0.7 trunk spacing=4 cluster=0.6 clusterSize=40 tilt=0.3 height=3..13 in=-130,-100,62\n329 0.005 0.9 1.4 0.7 trunk spacing=4 tilt=0.3 height=6..15 in=-130,-100,62\n402 0.003 1.2 3 0.7 collide tilt=0.5 tint=0.2 in=-130,-100,62\n403 0.002 1.2 3 0.7 collide tilt=0.5 tint=0.2 in=-130,-100,62\n404 0.6 0.8 1.4 0.9 on=grass tint=0.25 in=-26,18,15\n405 0.15 0.9 1.5 0.9 on=grass tint=0.2 in=-26,18,15\n404 0.1 0.8 1.3 0.9 on=grass tint=0.2\n403 0.0006 1.5 3.8 0.65 collide spacing=6 tilt=0.4 tint=0.2 in=-4,4,16\n401 0.00005 2.5 6 0.8 collide tilt=0.5 tint=0.2",
           "paths": "dirt 3.5 0 0 -16 -8\ndirt 3.5 0 0 2 -30\ndirt 3.5 0 0 -4 4\ndirt 3.5 0 0 26 -16\ndirt 3.5 0 0 -26 18\ndirt 3 0 0 105 -60\ndirt 3 0 0 10 -135\ndirt 3 0 0 -45 125\ndirt 3 0 0 -95 70\nsand 16 -198 -72 -110 -34\nsand 16 -110 -34 -36 -10\nsand 16 -36 -10 -4 4\nsand 16 -4 4 34 16\nsand 16 34 16 90 40\nsand 16 90 40 132 78"
         }
       }
@@ -779,6 +779,23 @@
       }
     },
     {
+      "name": "Preload blossom-tree",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 332,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
       "name": "Preload deer",
       "components": {
         "Transform": {
@@ -875,6 +892,57 @@
         },
         "Renderable": {
           "mesh": 243,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload stag",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 135,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload cow",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 236,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload donkey",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 239,
           "material": 0,
           "visible": false
         }
@@ -1374,6 +1442,111 @@
         }
       }
     },
+    "Stag": {
+      "components": {
+        "Renderable": {
+          "mesh": 135,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 160,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "Health": {
+          "current": 70,
+          "maximum": 70
+        },
+        "Script": {
+          "source": "-- A wild animal in the garden. The page tells it which creature it is (\"eden_who\": the id the minds know it by); if you kill it, the page is\n-- told so the people's world loses it too, and you get meat for it.\nlocal who = nil\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then who = value end\nend\n\nfunction on_death(attacker)\n  if who then host.send(\"eden_slain\", who) end\n  world.destroy(self.id)\nend\n",
+          "props": {}
+        }
+      }
+    },
+    "Cow": {
+      "components": {
+        "Renderable": {
+          "mesh": 236,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 500,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "Health": {
+          "current": 80,
+          "maximum": 80
+        },
+        "Script": {
+          "source": "-- A wild animal in the garden. The page tells it which creature it is (\"eden_who\": the id the minds know it by); if you kill it, the page is\n-- told so the people's world loses it too, and you get meat for it.\nlocal who = nil\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then who = value end\nend\n\nfunction on_death(attacker)\n  if who then host.send(\"eden_slain\", who) end\n  world.destroy(self.id)\nend\n",
+          "props": {}
+        }
+      }
+    },
+    "Donkey": {
+      "components": {
+        "Renderable": {
+          "mesh": 239,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 300,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "Health": {
+          "current": 60,
+          "maximum": 60
+        },
+        "Script": {
+          "source": "-- A wild animal in the garden. The page tells it which creature it is (\"eden_who\": the id the minds know it by); if you kill it, the page is\n-- told so the people's world loses it too, and you get meat for it.\nlocal who = nil\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then who = value end\nend\n\nfunction on_death(attacker)\n  if who then host.send(\"eden_slain\", who) end\n  world.destroy(self.id)\nend\n",
+          "props": {}
+        }
+      }
+    },
     "Oak Tree": {
       "components": {
         "Renderable": {
@@ -1650,6 +1823,44 @@
         }
       }
     },
+    "Elder (man) 1": {
+      "components": {
+        "Renderable": {
+          "mesh": 249,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 30,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "Scale": {
+          "value": {
+            "x": 0.94,
+            "y": 0.94,
+            "z": 0.94
+          }
+        },
+        "Script": {
+          "source": "-- A person who was not in the garden at the start: a child born there, or someone the Creator brought in. The same body as adam.lua and\n-- eve.lua, but it learns its own name from creator.lua (\"eden_who\"), then answers \"eden_target_<name>\" and \"eden_snap_<name>\" like they do,\n-- and tells the page which body it is (\"eden_body\") so the page can read where it stands. The sandboxed Lua VM has no network access at all by design (see\n-- source/engine/script/script.cpp's open_sandboxed_libs), so the decision\n-- itself can only ever be made outside it.\n\n-- \"Man (casual)\" (catalog id 249) carries its own clips (idle/talk/run/\n-- walk/Wave/Death/HitRecieve) -- already a clothed, fully-animated model,\n-- so there's no outfit to dress (unlike the clip-less UBC base bodies).\n\nlocal who = nil -- the person this body is, told by creator.lua\nlocal target = nil -- {x, y, z, action}\nlocal waypoints = nil\nlocal wpIndex = 1\nlocal arrived = true\nlocal playedAction = nil\nlocal gesture_left = 0 -- seconds of a gesture (a wave, a flinch) still playing, which walking must not cut short\nlocal WALK_SPEED = 1.6\nlocal dead = false\n\nlocal function parse_target(value)\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return nil end\n  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]), viaX = tonumber(parts[6]), viaZ = tonumber(parts[7]) }\nend\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then\n    who = value\n    host.send(\"eden_body\", who)\n  end\nend\n\nfunction on_ui(name, value)\n  if not who then return end\n  if name == \"eden_gesture_\" .. who then\n    self.animate = value\n    playedAction = value\n    gesture_left = 1.6\n    return\n  end\n  -- Put down where the mind says they are (fast time, a move by the Creator, a loaded world): no walking there.\n  if name == \"eden_snap_\" .. who then\n    local x, y, z = string.match(value, \"^([^,]+),([^,]+),([^,]+)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    if x and y and z then\n      self.x, self.y, self.z = x, y + 0.3, z\n      self.vx, self.vz = 0, 0\n      target, waypoints, arrived = nil, nil, true\n    end\n    return\n  end\n  if name == \"eden_die_\" .. who then\n    dead = true\n    target, waypoints, arrived = nil, nil, true\n    self.vx, self.vz = 0, 0\n    self.animate = \"Death\"\n    return\n  end\n  if dead then return end\n  if name ~= \"eden_target_\" .. who then return end\n  local t = parse_target(value)\n  if not t then return end\n  target = t\n  waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)\n  -- No route found (the path grid does not cover open terrain): walk straight at the target and let physics steer round what is in the way.\n  if not waypoints or #waypoints == 0 then waypoints = { { x = t.x, y = t.y, z = t.z } } end\n  -- A lake is in the way: round its bank first (the page worked out the point).\n  if t.viaX and t.viaZ then waypoints = { { x = t.viaX, y = t.y, z = t.viaZ }, { x = t.x, y = t.y, z = t.z } } end\n  wpIndex = 1\n  arrived = false\nend\n\nlocal function play(action)\n  if gesture_left > 0 then return end\n  if playedAction ~= action then\n    self.animate = action\n    playedAction = action\n  end\nend\n\nfunction on_tick(dt)\n  if gesture_left > 0 then\n    gesture_left = gesture_left - dt\n    if gesture_left <= 0 then playedAction = nil end\n  end\n  if dead or not target then return end\n  if arrived then\n    self.vx, self.vz = 0, 0\n    play(target.action)\n    return\n  end\n  if not waypoints or #waypoints == 0 then\n    -- Unreachable (world.path found nothing, or start == target): stand\n    -- and play the action anyway rather than getting stuck on nothing.\n    arrived = true\n    return\n  end\n  local wp = waypoints[wpIndex]\n  local dx, dz = wp.x - self.x, wp.z - self.z\n  local dist = math.sqrt(dx * dx + dz * dz)\n  if dist < 0.3 then\n    wpIndex = wpIndex + 1\n    if wpIndex > #waypoints then\n      arrived = true\n      self.vx, self.vz = 0, 0\n      play(target.action)\n      return\n    end\n  else\n    self.vx = (dx / dist) * (target.speed or WALK_SPEED)\n    self.vz = (dz / dist) * (target.speed or WALK_SPEED)\n    play((target.speed or WALK_SPEED) > 3 and \"run\" or \"walk\")\n  end\nend\n",
+          "props": {}
+        }
+      }
+    },
     "Villager (man) 2": {
       "components": {
         "Renderable": {
@@ -1749,6 +1960,44 @@
             "x": 0.6,
             "y": 0.6,
             "z": 0.6
+          }
+        },
+        "Script": {
+          "source": "-- A person who was not in the garden at the start: a child born there, or someone the Creator brought in. The same body as adam.lua and\n-- eve.lua, but it learns its own name from creator.lua (\"eden_who\"), then answers \"eden_target_<name>\" and \"eden_snap_<name>\" like they do,\n-- and tells the page which body it is (\"eden_body\") so the page can read where it stands. The sandboxed Lua VM has no network access at all by design (see\n-- source/engine/script/script.cpp's open_sandboxed_libs), so the decision\n-- itself can only ever be made outside it.\n\n-- \"Man (casual)\" (catalog id 249) carries its own clips (idle/talk/run/\n-- walk/Wave/Death/HitRecieve) -- already a clothed, fully-animated model,\n-- so there's no outfit to dress (unlike the clip-less UBC base bodies).\n\nlocal who = nil -- the person this body is, told by creator.lua\nlocal target = nil -- {x, y, z, action}\nlocal waypoints = nil\nlocal wpIndex = 1\nlocal arrived = true\nlocal playedAction = nil\nlocal gesture_left = 0 -- seconds of a gesture (a wave, a flinch) still playing, which walking must not cut short\nlocal WALK_SPEED = 1.6\nlocal dead = false\n\nlocal function parse_target(value)\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return nil end\n  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]), viaX = tonumber(parts[6]), viaZ = tonumber(parts[7]) }\nend\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then\n    who = value\n    host.send(\"eden_body\", who)\n  end\nend\n\nfunction on_ui(name, value)\n  if not who then return end\n  if name == \"eden_gesture_\" .. who then\n    self.animate = value\n    playedAction = value\n    gesture_left = 1.6\n    return\n  end\n  -- Put down where the mind says they are (fast time, a move by the Creator, a loaded world): no walking there.\n  if name == \"eden_snap_\" .. who then\n    local x, y, z = string.match(value, \"^([^,]+),([^,]+),([^,]+)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    if x and y and z then\n      self.x, self.y, self.z = x, y + 0.3, z\n      self.vx, self.vz = 0, 0\n      target, waypoints, arrived = nil, nil, true\n    end\n    return\n  end\n  if name == \"eden_die_\" .. who then\n    dead = true\n    target, waypoints, arrived = nil, nil, true\n    self.vx, self.vz = 0, 0\n    self.animate = \"Death\"\n    return\n  end\n  if dead then return end\n  if name ~= \"eden_target_\" .. who then return end\n  local t = parse_target(value)\n  if not t then return end\n  target = t\n  waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)\n  -- No route found (the path grid does not cover open terrain): walk straight at the target and let physics steer round what is in the way.\n  if not waypoints or #waypoints == 0 then waypoints = { { x = t.x, y = t.y, z = t.z } } end\n  -- A lake is in the way: round its bank first (the page worked out the point).\n  if t.viaX and t.viaZ then waypoints = { { x = t.viaX, y = t.y, z = t.viaZ }, { x = t.x, y = t.y, z = t.z } } end\n  wpIndex = 1\n  arrived = false\nend\n\nlocal function play(action)\n  if gesture_left > 0 then return end\n  if playedAction ~= action then\n    self.animate = action\n    playedAction = action\n  end\nend\n\nfunction on_tick(dt)\n  if gesture_left > 0 then\n    gesture_left = gesture_left - dt\n    if gesture_left <= 0 then playedAction = nil end\n  end\n  if dead or not target then return end\n  if arrived then\n    self.vx, self.vz = 0, 0\n    play(target.action)\n    return\n  end\n  if not waypoints or #waypoints == 0 then\n    -- Unreachable (world.path found nothing, or start == target): stand\n    -- and play the action anyway rather than getting stuck on nothing.\n    arrived = true\n    return\n  end\n  local wp = waypoints[wpIndex]\n  local dx, dz = wp.x - self.x, wp.z - self.z\n  local dist = math.sqrt(dx * dx + dz * dz)\n  if dist < 0.3 then\n    wpIndex = wpIndex + 1\n    if wpIndex > #waypoints then\n      arrived = true\n      self.vx, self.vz = 0, 0\n      play(target.action)\n      return\n    end\n  else\n    self.vx = (dx / dist) * (target.speed or WALK_SPEED)\n    self.vz = (dz / dist) * (target.speed or WALK_SPEED)\n    play((target.speed or WALK_SPEED) > 3 and \"run\" or \"walk\")\n  end\nend\n",
+          "props": {}
+        }
+      }
+    },
+    "Elder (man) 2": {
+      "components": {
+        "Renderable": {
+          "mesh": 246,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 30,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "Scale": {
+          "value": {
+            "x": 0.94,
+            "y": 0.94,
+            "z": 0.94
           }
         },
         "Script": {
@@ -1864,6 +2113,44 @@
         }
       }
     },
+    "Elder (man) 3": {
+      "components": {
+        "Renderable": {
+          "mesh": 248,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 30,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "Scale": {
+          "value": {
+            "x": 0.94,
+            "y": 0.94,
+            "z": 0.94
+          }
+        },
+        "Script": {
+          "source": "-- A person who was not in the garden at the start: a child born there, or someone the Creator brought in. The same body as adam.lua and\n-- eve.lua, but it learns its own name from creator.lua (\"eden_who\"), then answers \"eden_target_<name>\" and \"eden_snap_<name>\" like they do,\n-- and tells the page which body it is (\"eden_body\") so the page can read where it stands. The sandboxed Lua VM has no network access at all by design (see\n-- source/engine/script/script.cpp's open_sandboxed_libs), so the decision\n-- itself can only ever be made outside it.\n\n-- \"Man (casual)\" (catalog id 249) carries its own clips (idle/talk/run/\n-- walk/Wave/Death/HitRecieve) -- already a clothed, fully-animated model,\n-- so there's no outfit to dress (unlike the clip-less UBC base bodies).\n\nlocal who = nil -- the person this body is, told by creator.lua\nlocal target = nil -- {x, y, z, action}\nlocal waypoints = nil\nlocal wpIndex = 1\nlocal arrived = true\nlocal playedAction = nil\nlocal gesture_left = 0 -- seconds of a gesture (a wave, a flinch) still playing, which walking must not cut short\nlocal WALK_SPEED = 1.6\nlocal dead = false\n\nlocal function parse_target(value)\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return nil end\n  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]), viaX = tonumber(parts[6]), viaZ = tonumber(parts[7]) }\nend\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then\n    who = value\n    host.send(\"eden_body\", who)\n  end\nend\n\nfunction on_ui(name, value)\n  if not who then return end\n  if name == \"eden_gesture_\" .. who then\n    self.animate = value\n    playedAction = value\n    gesture_left = 1.6\n    return\n  end\n  -- Put down where the mind says they are (fast time, a move by the Creator, a loaded world): no walking there.\n  if name == \"eden_snap_\" .. who then\n    local x, y, z = string.match(value, \"^([^,]+),([^,]+),([^,]+)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    if x and y and z then\n      self.x, self.y, self.z = x, y + 0.3, z\n      self.vx, self.vz = 0, 0\n      target, waypoints, arrived = nil, nil, true\n    end\n    return\n  end\n  if name == \"eden_die_\" .. who then\n    dead = true\n    target, waypoints, arrived = nil, nil, true\n    self.vx, self.vz = 0, 0\n    self.animate = \"Death\"\n    return\n  end\n  if dead then return end\n  if name ~= \"eden_target_\" .. who then return end\n  local t = parse_target(value)\n  if not t then return end\n  target = t\n  waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)\n  -- No route found (the path grid does not cover open terrain): walk straight at the target and let physics steer round what is in the way.\n  if not waypoints or #waypoints == 0 then waypoints = { { x = t.x, y = t.y, z = t.z } } end\n  -- A lake is in the way: round its bank first (the page worked out the point).\n  if t.viaX and t.viaZ then waypoints = { { x = t.viaX, y = t.y, z = t.viaZ }, { x = t.x, y = t.y, z = t.z } } end\n  wpIndex = 1\n  arrived = false\nend\n\nlocal function play(action)\n  if gesture_left > 0 then return end\n  if playedAction ~= action then\n    self.animate = action\n    playedAction = action\n  end\nend\n\nfunction on_tick(dt)\n  if gesture_left > 0 then\n    gesture_left = gesture_left - dt\n    if gesture_left <= 0 then playedAction = nil end\n  end\n  if dead or not target then return end\n  if arrived then\n    self.vx, self.vz = 0, 0\n    play(target.action)\n    return\n  end\n  if not waypoints or #waypoints == 0 then\n    -- Unreachable (world.path found nothing, or start == target): stand\n    -- and play the action anyway rather than getting stuck on nothing.\n    arrived = true\n    return\n  end\n  local wp = waypoints[wpIndex]\n  local dx, dz = wp.x - self.x, wp.z - self.z\n  local dist = math.sqrt(dx * dx + dz * dz)\n  if dist < 0.3 then\n    wpIndex = wpIndex + 1\n    if wpIndex > #waypoints then\n      arrived = true\n      self.vx, self.vz = 0, 0\n      play(target.action)\n      return\n    end\n  else\n    self.vx = (dx / dist) * (target.speed or WALK_SPEED)\n    self.vz = (dz / dist) * (target.speed or WALK_SPEED)\n    play((target.speed or WALK_SPEED) > 3 and \"run\" or \"walk\")\n  end\nend\n",
+          "props": {}
+        }
+      }
+    },
     "Villager (man) 4": {
       "components": {
         "Renderable": {
@@ -1963,6 +2250,44 @@
             "x": 0.6,
             "y": 0.6,
             "z": 0.6
+          }
+        },
+        "Script": {
+          "source": "-- A person who was not in the garden at the start: a child born there, or someone the Creator brought in. The same body as adam.lua and\n-- eve.lua, but it learns its own name from creator.lua (\"eden_who\"), then answers \"eden_target_<name>\" and \"eden_snap_<name>\" like they do,\n-- and tells the page which body it is (\"eden_body\") so the page can read where it stands. The sandboxed Lua VM has no network access at all by design (see\n-- source/engine/script/script.cpp's open_sandboxed_libs), so the decision\n-- itself can only ever be made outside it.\n\n-- \"Man (casual)\" (catalog id 249) carries its own clips (idle/talk/run/\n-- walk/Wave/Death/HitRecieve) -- already a clothed, fully-animated model,\n-- so there's no outfit to dress (unlike the clip-less UBC base bodies).\n\nlocal who = nil -- the person this body is, told by creator.lua\nlocal target = nil -- {x, y, z, action}\nlocal waypoints = nil\nlocal wpIndex = 1\nlocal arrived = true\nlocal playedAction = nil\nlocal gesture_left = 0 -- seconds of a gesture (a wave, a flinch) still playing, which walking must not cut short\nlocal WALK_SPEED = 1.6\nlocal dead = false\n\nlocal function parse_target(value)\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return nil end\n  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]), viaX = tonumber(parts[6]), viaZ = tonumber(parts[7]) }\nend\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then\n    who = value\n    host.send(\"eden_body\", who)\n  end\nend\n\nfunction on_ui(name, value)\n  if not who then return end\n  if name == \"eden_gesture_\" .. who then\n    self.animate = value\n    playedAction = value\n    gesture_left = 1.6\n    return\n  end\n  -- Put down where the mind says they are (fast time, a move by the Creator, a loaded world): no walking there.\n  if name == \"eden_snap_\" .. who then\n    local x, y, z = string.match(value, \"^([^,]+),([^,]+),([^,]+)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    if x and y and z then\n      self.x, self.y, self.z = x, y + 0.3, z\n      self.vx, self.vz = 0, 0\n      target, waypoints, arrived = nil, nil, true\n    end\n    return\n  end\n  if name == \"eden_die_\" .. who then\n    dead = true\n    target, waypoints, arrived = nil, nil, true\n    self.vx, self.vz = 0, 0\n    self.animate = \"Death\"\n    return\n  end\n  if dead then return end\n  if name ~= \"eden_target_\" .. who then return end\n  local t = parse_target(value)\n  if not t then return end\n  target = t\n  waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)\n  -- No route found (the path grid does not cover open terrain): walk straight at the target and let physics steer round what is in the way.\n  if not waypoints or #waypoints == 0 then waypoints = { { x = t.x, y = t.y, z = t.z } } end\n  -- A lake is in the way: round its bank first (the page worked out the point).\n  if t.viaX and t.viaZ then waypoints = { { x = t.viaX, y = t.y, z = t.viaZ }, { x = t.x, y = t.y, z = t.z } } end\n  wpIndex = 1\n  arrived = false\nend\n\nlocal function play(action)\n  if gesture_left > 0 then return end\n  if playedAction ~= action then\n    self.animate = action\n    playedAction = action\n  end\nend\n\nfunction on_tick(dt)\n  if gesture_left > 0 then\n    gesture_left = gesture_left - dt\n    if gesture_left <= 0 then playedAction = nil end\n  end\n  if dead or not target then return end\n  if arrived then\n    self.vx, self.vz = 0, 0\n    play(target.action)\n    return\n  end\n  if not waypoints or #waypoints == 0 then\n    -- Unreachable (world.path found nothing, or start == target): stand\n    -- and play the action anyway rather than getting stuck on nothing.\n    arrived = true\n    return\n  end\n  local wp = waypoints[wpIndex]\n  local dx, dz = wp.x - self.x, wp.z - self.z\n  local dist = math.sqrt(dx * dx + dz * dz)\n  if dist < 0.3 then\n    wpIndex = wpIndex + 1\n    if wpIndex > #waypoints then\n      arrived = true\n      self.vx, self.vz = 0, 0\n      play(target.action)\n      return\n    end\n  else\n    self.vx = (dx / dist) * (target.speed or WALK_SPEED)\n    self.vz = (dz / dist) * (target.speed or WALK_SPEED)\n    play((target.speed or WALK_SPEED) > 3 and \"run\" or \"walk\")\n  end\nend\n",
+          "props": {}
+        }
+      }
+    },
+    "Elder (man) 4": {
+      "components": {
+        "Renderable": {
+          "mesh": 247,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 30,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "Scale": {
+          "value": {
+            "x": 0.94,
+            "y": 0.94,
+            "z": 0.94
           }
         },
         "Script": {
@@ -2078,6 +2403,44 @@
         }
       }
     },
+    "Elder (man) 5": {
+      "components": {
+        "Renderable": {
+          "mesh": 245,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 30,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "Scale": {
+          "value": {
+            "x": 0.94,
+            "y": 0.94,
+            "z": 0.94
+          }
+        },
+        "Script": {
+          "source": "-- A person who was not in the garden at the start: a child born there, or someone the Creator brought in. The same body as adam.lua and\n-- eve.lua, but it learns its own name from creator.lua (\"eden_who\"), then answers \"eden_target_<name>\" and \"eden_snap_<name>\" like they do,\n-- and tells the page which body it is (\"eden_body\") so the page can read where it stands. The sandboxed Lua VM has no network access at all by design (see\n-- source/engine/script/script.cpp's open_sandboxed_libs), so the decision\n-- itself can only ever be made outside it.\n\n-- \"Man (casual)\" (catalog id 249) carries its own clips (idle/talk/run/\n-- walk/Wave/Death/HitRecieve) -- already a clothed, fully-animated model,\n-- so there's no outfit to dress (unlike the clip-less UBC base bodies).\n\nlocal who = nil -- the person this body is, told by creator.lua\nlocal target = nil -- {x, y, z, action}\nlocal waypoints = nil\nlocal wpIndex = 1\nlocal arrived = true\nlocal playedAction = nil\nlocal gesture_left = 0 -- seconds of a gesture (a wave, a flinch) still playing, which walking must not cut short\nlocal WALK_SPEED = 1.6\nlocal dead = false\n\nlocal function parse_target(value)\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return nil end\n  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]), viaX = tonumber(parts[6]), viaZ = tonumber(parts[7]) }\nend\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then\n    who = value\n    host.send(\"eden_body\", who)\n  end\nend\n\nfunction on_ui(name, value)\n  if not who then return end\n  if name == \"eden_gesture_\" .. who then\n    self.animate = value\n    playedAction = value\n    gesture_left = 1.6\n    return\n  end\n  -- Put down where the mind says they are (fast time, a move by the Creator, a loaded world): no walking there.\n  if name == \"eden_snap_\" .. who then\n    local x, y, z = string.match(value, \"^([^,]+),([^,]+),([^,]+)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    if x and y and z then\n      self.x, self.y, self.z = x, y + 0.3, z\n      self.vx, self.vz = 0, 0\n      target, waypoints, arrived = nil, nil, true\n    end\n    return\n  end\n  if name == \"eden_die_\" .. who then\n    dead = true\n    target, waypoints, arrived = nil, nil, true\n    self.vx, self.vz = 0, 0\n    self.animate = \"Death\"\n    return\n  end\n  if dead then return end\n  if name ~= \"eden_target_\" .. who then return end\n  local t = parse_target(value)\n  if not t then return end\n  target = t\n  waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)\n  -- No route found (the path grid does not cover open terrain): walk straight at the target and let physics steer round what is in the way.\n  if not waypoints or #waypoints == 0 then waypoints = { { x = t.x, y = t.y, z = t.z } } end\n  -- A lake is in the way: round its bank first (the page worked out the point).\n  if t.viaX and t.viaZ then waypoints = { { x = t.viaX, y = t.y, z = t.viaZ }, { x = t.x, y = t.y, z = t.z } } end\n  wpIndex = 1\n  arrived = false\nend\n\nlocal function play(action)\n  if gesture_left > 0 then return end\n  if playedAction ~= action then\n    self.animate = action\n    playedAction = action\n  end\nend\n\nfunction on_tick(dt)\n  if gesture_left > 0 then\n    gesture_left = gesture_left - dt\n    if gesture_left <= 0 then playedAction = nil end\n  end\n  if dead or not target then return end\n  if arrived then\n    self.vx, self.vz = 0, 0\n    play(target.action)\n    return\n  end\n  if not waypoints or #waypoints == 0 then\n    -- Unreachable (world.path found nothing, or start == target): stand\n    -- and play the action anyway rather than getting stuck on nothing.\n    arrived = true\n    return\n  end\n  local wp = waypoints[wpIndex]\n  local dx, dz = wp.x - self.x, wp.z - self.z\n  local dist = math.sqrt(dx * dx + dz * dz)\n  if dist < 0.3 then\n    wpIndex = wpIndex + 1\n    if wpIndex > #waypoints then\n      arrived = true\n      self.vx, self.vz = 0, 0\n      play(target.action)\n      return\n    end\n  else\n    self.vx = (dx / dist) * (target.speed or WALK_SPEED)\n    self.vz = (dz / dist) * (target.speed or WALK_SPEED)\n    play((target.speed or WALK_SPEED) > 3 and \"run\" or \"walk\")\n  end\nend\n",
+          "props": {}
+        }
+      }
+    },
     "Villager (woman) 1": {
       "components": {
         "Renderable": {
@@ -2177,6 +2540,44 @@
             "x": 0.6,
             "y": 0.6,
             "z": 0.6
+          }
+        },
+        "Script": {
+          "source": "-- A person who was not in the garden at the start: a child born there, or someone the Creator brought in. The same body as adam.lua and\n-- eve.lua, but it learns its own name from creator.lua (\"eden_who\"), then answers \"eden_target_<name>\" and \"eden_snap_<name>\" like they do,\n-- and tells the page which body it is (\"eden_body\") so the page can read where it stands. The sandboxed Lua VM has no network access at all by design (see\n-- source/engine/script/script.cpp's open_sandboxed_libs), so the decision\n-- itself can only ever be made outside it.\n\n-- \"Man (casual)\" (catalog id 249) carries its own clips (idle/talk/run/\n-- walk/Wave/Death/HitRecieve) -- already a clothed, fully-animated model,\n-- so there's no outfit to dress (unlike the clip-less UBC base bodies).\n\nlocal who = nil -- the person this body is, told by creator.lua\nlocal target = nil -- {x, y, z, action}\nlocal waypoints = nil\nlocal wpIndex = 1\nlocal arrived = true\nlocal playedAction = nil\nlocal gesture_left = 0 -- seconds of a gesture (a wave, a flinch) still playing, which walking must not cut short\nlocal WALK_SPEED = 1.6\nlocal dead = false\n\nlocal function parse_target(value)\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return nil end\n  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]), viaX = tonumber(parts[6]), viaZ = tonumber(parts[7]) }\nend\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then\n    who = value\n    host.send(\"eden_body\", who)\n  end\nend\n\nfunction on_ui(name, value)\n  if not who then return end\n  if name == \"eden_gesture_\" .. who then\n    self.animate = value\n    playedAction = value\n    gesture_left = 1.6\n    return\n  end\n  -- Put down where the mind says they are (fast time, a move by the Creator, a loaded world): no walking there.\n  if name == \"eden_snap_\" .. who then\n    local x, y, z = string.match(value, \"^([^,]+),([^,]+),([^,]+)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    if x and y and z then\n      self.x, self.y, self.z = x, y + 0.3, z\n      self.vx, self.vz = 0, 0\n      target, waypoints, arrived = nil, nil, true\n    end\n    return\n  end\n  if name == \"eden_die_\" .. who then\n    dead = true\n    target, waypoints, arrived = nil, nil, true\n    self.vx, self.vz = 0, 0\n    self.animate = \"Death\"\n    return\n  end\n  if dead then return end\n  if name ~= \"eden_target_\" .. who then return end\n  local t = parse_target(value)\n  if not t then return end\n  target = t\n  waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)\n  -- No route found (the path grid does not cover open terrain): walk straight at the target and let physics steer round what is in the way.\n  if not waypoints or #waypoints == 0 then waypoints = { { x = t.x, y = t.y, z = t.z } } end\n  -- A lake is in the way: round its bank first (the page worked out the point).\n  if t.viaX and t.viaZ then waypoints = { { x = t.viaX, y = t.y, z = t.viaZ }, { x = t.x, y = t.y, z = t.z } } end\n  wpIndex = 1\n  arrived = false\nend\n\nlocal function play(action)\n  if gesture_left > 0 then return end\n  if playedAction ~= action then\n    self.animate = action\n    playedAction = action\n  end\nend\n\nfunction on_tick(dt)\n  if gesture_left > 0 then\n    gesture_left = gesture_left - dt\n    if gesture_left <= 0 then playedAction = nil end\n  end\n  if dead or not target then return end\n  if arrived then\n    self.vx, self.vz = 0, 0\n    play(target.action)\n    return\n  end\n  if not waypoints or #waypoints == 0 then\n    -- Unreachable (world.path found nothing, or start == target): stand\n    -- and play the action anyway rather than getting stuck on nothing.\n    arrived = true\n    return\n  end\n  local wp = waypoints[wpIndex]\n  local dx, dz = wp.x - self.x, wp.z - self.z\n  local dist = math.sqrt(dx * dx + dz * dz)\n  if dist < 0.3 then\n    wpIndex = wpIndex + 1\n    if wpIndex > #waypoints then\n      arrived = true\n      self.vx, self.vz = 0, 0\n      play(target.action)\n      return\n    end\n  else\n    self.vx = (dx / dist) * (target.speed or WALK_SPEED)\n    self.vz = (dz / dist) * (target.speed or WALK_SPEED)\n    play((target.speed or WALK_SPEED) > 3 and \"run\" or \"walk\")\n  end\nend\n",
+          "props": {}
+        }
+      }
+    },
+    "Elder (woman) 1": {
+      "components": {
+        "Renderable": {
+          "mesh": 251,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 30,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "Scale": {
+          "value": {
+            "x": 0.93,
+            "y": 0.93,
+            "z": 0.93
           }
         },
         "Script": {
@@ -2292,6 +2693,44 @@
         }
       }
     },
+    "Elder (woman) 2": {
+      "components": {
+        "Renderable": {
+          "mesh": 252,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 30,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "Scale": {
+          "value": {
+            "x": 0.93,
+            "y": 0.93,
+            "z": 0.93
+          }
+        },
+        "Script": {
+          "source": "-- A person who was not in the garden at the start: a child born there, or someone the Creator brought in. The same body as adam.lua and\n-- eve.lua, but it learns its own name from creator.lua (\"eden_who\"), then answers \"eden_target_<name>\" and \"eden_snap_<name>\" like they do,\n-- and tells the page which body it is (\"eden_body\") so the page can read where it stands. The sandboxed Lua VM has no network access at all by design (see\n-- source/engine/script/script.cpp's open_sandboxed_libs), so the decision\n-- itself can only ever be made outside it.\n\n-- \"Man (casual)\" (catalog id 249) carries its own clips (idle/talk/run/\n-- walk/Wave/Death/HitRecieve) -- already a clothed, fully-animated model,\n-- so there's no outfit to dress (unlike the clip-less UBC base bodies).\n\nlocal who = nil -- the person this body is, told by creator.lua\nlocal target = nil -- {x, y, z, action}\nlocal waypoints = nil\nlocal wpIndex = 1\nlocal arrived = true\nlocal playedAction = nil\nlocal gesture_left = 0 -- seconds of a gesture (a wave, a flinch) still playing, which walking must not cut short\nlocal WALK_SPEED = 1.6\nlocal dead = false\n\nlocal function parse_target(value)\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return nil end\n  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]), viaX = tonumber(parts[6]), viaZ = tonumber(parts[7]) }\nend\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then\n    who = value\n    host.send(\"eden_body\", who)\n  end\nend\n\nfunction on_ui(name, value)\n  if not who then return end\n  if name == \"eden_gesture_\" .. who then\n    self.animate = value\n    playedAction = value\n    gesture_left = 1.6\n    return\n  end\n  -- Put down where the mind says they are (fast time, a move by the Creator, a loaded world): no walking there.\n  if name == \"eden_snap_\" .. who then\n    local x, y, z = string.match(value, \"^([^,]+),([^,]+),([^,]+)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    if x and y and z then\n      self.x, self.y, self.z = x, y + 0.3, z\n      self.vx, self.vz = 0, 0\n      target, waypoints, arrived = nil, nil, true\n    end\n    return\n  end\n  if name == \"eden_die_\" .. who then\n    dead = true\n    target, waypoints, arrived = nil, nil, true\n    self.vx, self.vz = 0, 0\n    self.animate = \"Death\"\n    return\n  end\n  if dead then return end\n  if name ~= \"eden_target_\" .. who then return end\n  local t = parse_target(value)\n  if not t then return end\n  target = t\n  waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)\n  -- No route found (the path grid does not cover open terrain): walk straight at the target and let physics steer round what is in the way.\n  if not waypoints or #waypoints == 0 then waypoints = { { x = t.x, y = t.y, z = t.z } } end\n  -- A lake is in the way: round its bank first (the page worked out the point).\n  if t.viaX and t.viaZ then waypoints = { { x = t.viaX, y = t.y, z = t.viaZ }, { x = t.x, y = t.y, z = t.z } } end\n  wpIndex = 1\n  arrived = false\nend\n\nlocal function play(action)\n  if gesture_left > 0 then return end\n  if playedAction ~= action then\n    self.animate = action\n    playedAction = action\n  end\nend\n\nfunction on_tick(dt)\n  if gesture_left > 0 then\n    gesture_left = gesture_left - dt\n    if gesture_left <= 0 then playedAction = nil end\n  end\n  if dead or not target then return end\n  if arrived then\n    self.vx, self.vz = 0, 0\n    play(target.action)\n    return\n  end\n  if not waypoints or #waypoints == 0 then\n    -- Unreachable (world.path found nothing, or start == target): stand\n    -- and play the action anyway rather than getting stuck on nothing.\n    arrived = true\n    return\n  end\n  local wp = waypoints[wpIndex]\n  local dx, dz = wp.x - self.x, wp.z - self.z\n  local dist = math.sqrt(dx * dx + dz * dz)\n  if dist < 0.3 then\n    wpIndex = wpIndex + 1\n    if wpIndex > #waypoints then\n      arrived = true\n      self.vx, self.vz = 0, 0\n      play(target.action)\n      return\n    end\n  else\n    self.vx = (dx / dist) * (target.speed or WALK_SPEED)\n    self.vz = (dz / dist) * (target.speed or WALK_SPEED)\n    play((target.speed or WALK_SPEED) > 3 and \"run\" or \"walk\")\n  end\nend\n",
+          "props": {}
+        }
+      }
+    },
     "Villager (woman) 3": {
       "components": {
         "Renderable": {
@@ -2399,6 +2838,44 @@
         }
       }
     },
+    "Elder (woman) 3": {
+      "components": {
+        "Renderable": {
+          "mesh": 253,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 30,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "Scale": {
+          "value": {
+            "x": 0.93,
+            "y": 0.93,
+            "z": 0.93
+          }
+        },
+        "Script": {
+          "source": "-- A person who was not in the garden at the start: a child born there, or someone the Creator brought in. The same body as adam.lua and\n-- eve.lua, but it learns its own name from creator.lua (\"eden_who\"), then answers \"eden_target_<name>\" and \"eden_snap_<name>\" like they do,\n-- and tells the page which body it is (\"eden_body\") so the page can read where it stands. The sandboxed Lua VM has no network access at all by design (see\n-- source/engine/script/script.cpp's open_sandboxed_libs), so the decision\n-- itself can only ever be made outside it.\n\n-- \"Man (casual)\" (catalog id 249) carries its own clips (idle/talk/run/\n-- walk/Wave/Death/HitRecieve) -- already a clothed, fully-animated model,\n-- so there's no outfit to dress (unlike the clip-less UBC base bodies).\n\nlocal who = nil -- the person this body is, told by creator.lua\nlocal target = nil -- {x, y, z, action}\nlocal waypoints = nil\nlocal wpIndex = 1\nlocal arrived = true\nlocal playedAction = nil\nlocal gesture_left = 0 -- seconds of a gesture (a wave, a flinch) still playing, which walking must not cut short\nlocal WALK_SPEED = 1.6\nlocal dead = false\n\nlocal function parse_target(value)\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return nil end\n  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]), viaX = tonumber(parts[6]), viaZ = tonumber(parts[7]) }\nend\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then\n    who = value\n    host.send(\"eden_body\", who)\n  end\nend\n\nfunction on_ui(name, value)\n  if not who then return end\n  if name == \"eden_gesture_\" .. who then\n    self.animate = value\n    playedAction = value\n    gesture_left = 1.6\n    return\n  end\n  -- Put down where the mind says they are (fast time, a move by the Creator, a loaded world): no walking there.\n  if name == \"eden_snap_\" .. who then\n    local x, y, z = string.match(value, \"^([^,]+),([^,]+),([^,]+)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    if x and y and z then\n      self.x, self.y, self.z = x, y + 0.3, z\n      self.vx, self.vz = 0, 0\n      target, waypoints, arrived = nil, nil, true\n    end\n    return\n  end\n  if name == \"eden_die_\" .. who then\n    dead = true\n    target, waypoints, arrived = nil, nil, true\n    self.vx, self.vz = 0, 0\n    self.animate = \"Death\"\n    return\n  end\n  if dead then return end\n  if name ~= \"eden_target_\" .. who then return end\n  local t = parse_target(value)\n  if not t then return end\n  target = t\n  waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)\n  -- No route found (the path grid does not cover open terrain): walk straight at the target and let physics steer round what is in the way.\n  if not waypoints or #waypoints == 0 then waypoints = { { x = t.x, y = t.y, z = t.z } } end\n  -- A lake is in the way: round its bank first (the page worked out the point).\n  if t.viaX and t.viaZ then waypoints = { { x = t.viaX, y = t.y, z = t.viaZ }, { x = t.x, y = t.y, z = t.z } } end\n  wpIndex = 1\n  arrived = false\nend\n\nlocal function play(action)\n  if gesture_left > 0 then return end\n  if playedAction ~= action then\n    self.animate = action\n    playedAction = action\n  end\nend\n\nfunction on_tick(dt)\n  if gesture_left > 0 then\n    gesture_left = gesture_left - dt\n    if gesture_left <= 0 then playedAction = nil end\n  end\n  if dead or not target then return end\n  if arrived then\n    self.vx, self.vz = 0, 0\n    play(target.action)\n    return\n  end\n  if not waypoints or #waypoints == 0 then\n    -- Unreachable (world.path found nothing, or start == target): stand\n    -- and play the action anyway rather than getting stuck on nothing.\n    arrived = true\n    return\n  end\n  local wp = waypoints[wpIndex]\n  local dx, dz = wp.x - self.x, wp.z - self.z\n  local dist = math.sqrt(dx * dx + dz * dz)\n  if dist < 0.3 then\n    wpIndex = wpIndex + 1\n    if wpIndex > #waypoints then\n      arrived = true\n      self.vx, self.vz = 0, 0\n      play(target.action)\n      return\n    end\n  else\n    self.vx = (dx / dist) * (target.speed or WALK_SPEED)\n    self.vz = (dz / dist) * (target.speed or WALK_SPEED)\n    play((target.speed or WALK_SPEED) > 3 and \"run\" or \"walk\")\n  end\nend\n",
+          "props": {}
+        }
+      }
+    },
     "Villager (woman) 4": {
       "components": {
         "Renderable": {
@@ -2498,6 +2975,44 @@
             "x": 0.6,
             "y": 0.6,
             "z": 0.6
+          }
+        },
+        "Script": {
+          "source": "-- A person who was not in the garden at the start: a child born there, or someone the Creator brought in. The same body as adam.lua and\n-- eve.lua, but it learns its own name from creator.lua (\"eden_who\"), then answers \"eden_target_<name>\" and \"eden_snap_<name>\" like they do,\n-- and tells the page which body it is (\"eden_body\") so the page can read where it stands. The sandboxed Lua VM has no network access at all by design (see\n-- source/engine/script/script.cpp's open_sandboxed_libs), so the decision\n-- itself can only ever be made outside it.\n\n-- \"Man (casual)\" (catalog id 249) carries its own clips (idle/talk/run/\n-- walk/Wave/Death/HitRecieve) -- already a clothed, fully-animated model,\n-- so there's no outfit to dress (unlike the clip-less UBC base bodies).\n\nlocal who = nil -- the person this body is, told by creator.lua\nlocal target = nil -- {x, y, z, action}\nlocal waypoints = nil\nlocal wpIndex = 1\nlocal arrived = true\nlocal playedAction = nil\nlocal gesture_left = 0 -- seconds of a gesture (a wave, a flinch) still playing, which walking must not cut short\nlocal WALK_SPEED = 1.6\nlocal dead = false\n\nlocal function parse_target(value)\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return nil end\n  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]), viaX = tonumber(parts[6]), viaZ = tonumber(parts[7]) }\nend\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then\n    who = value\n    host.send(\"eden_body\", who)\n  end\nend\n\nfunction on_ui(name, value)\n  if not who then return end\n  if name == \"eden_gesture_\" .. who then\n    self.animate = value\n    playedAction = value\n    gesture_left = 1.6\n    return\n  end\n  -- Put down where the mind says they are (fast time, a move by the Creator, a loaded world): no walking there.\n  if name == \"eden_snap_\" .. who then\n    local x, y, z = string.match(value, \"^([^,]+),([^,]+),([^,]+)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    if x and y and z then\n      self.x, self.y, self.z = x, y + 0.3, z\n      self.vx, self.vz = 0, 0\n      target, waypoints, arrived = nil, nil, true\n    end\n    return\n  end\n  if name == \"eden_die_\" .. who then\n    dead = true\n    target, waypoints, arrived = nil, nil, true\n    self.vx, self.vz = 0, 0\n    self.animate = \"Death\"\n    return\n  end\n  if dead then return end\n  if name ~= \"eden_target_\" .. who then return end\n  local t = parse_target(value)\n  if not t then return end\n  target = t\n  waypoints = world.path(self.x, self.y, self.z, t.x, t.y, t.z)\n  -- No route found (the path grid does not cover open terrain): walk straight at the target and let physics steer round what is in the way.\n  if not waypoints or #waypoints == 0 then waypoints = { { x = t.x, y = t.y, z = t.z } } end\n  -- A lake is in the way: round its bank first (the page worked out the point).\n  if t.viaX and t.viaZ then waypoints = { { x = t.viaX, y = t.y, z = t.viaZ }, { x = t.x, y = t.y, z = t.z } } end\n  wpIndex = 1\n  arrived = false\nend\n\nlocal function play(action)\n  if gesture_left > 0 then return end\n  if playedAction ~= action then\n    self.animate = action\n    playedAction = action\n  end\nend\n\nfunction on_tick(dt)\n  if gesture_left > 0 then\n    gesture_left = gesture_left - dt\n    if gesture_left <= 0 then playedAction = nil end\n  end\n  if dead or not target then return end\n  if arrived then\n    self.vx, self.vz = 0, 0\n    play(target.action)\n    return\n  end\n  if not waypoints or #waypoints == 0 then\n    -- Unreachable (world.path found nothing, or start == target): stand\n    -- and play the action anyway rather than getting stuck on nothing.\n    arrived = true\n    return\n  end\n  local wp = waypoints[wpIndex]\n  local dx, dz = wp.x - self.x, wp.z - self.z\n  local dist = math.sqrt(dx * dx + dz * dz)\n  if dist < 0.3 then\n    wpIndex = wpIndex + 1\n    if wpIndex > #waypoints then\n      arrived = true\n      self.vx, self.vz = 0, 0\n      play(target.action)\n      return\n    end\n  else\n    self.vx = (dx / dist) * (target.speed or WALK_SPEED)\n    self.vz = (dz / dist) * (target.speed or WALK_SPEED)\n    play((target.speed or WALK_SPEED) > 3 and \"run\" or \"walk\")\n  end\nend\n",
+          "props": {}
+        }
+      }
+    },
+    "Elder (woman) 4": {
+      "components": {
+        "Renderable": {
+          "mesh": 254,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 30,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "Scale": {
+          "value": {
+            "x": 0.93,
+            "y": 0.93,
+            "z": 0.93
           }
         },
         "Script": {
