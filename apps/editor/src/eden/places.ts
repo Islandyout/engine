@@ -46,5 +46,6 @@ export const CREATABLE: [string, string][] = [
   ["Oak Tree", "tree"],
   ["Pine Tree", "tree"],
   ["Bush", "bush"],
+  ["Fruit Tree", "fruit tree"],
   ["Rock", "rock"],
 ];

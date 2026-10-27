@@ -14,13 +14,12 @@ function on_ui(name, value)
     if hours then fx.time_of_day(hours) end
     return
   end
-  -- The people build things: "id,prefab,x,z" puts one on the ground there, "id" takes it away again (a fire gone out).
+  -- The people build things: "id,prefab,x,y,z" puts one there (the host knows the ground's height), "id" takes it away again (a fire gone out).
   if name == "eden_place" then
-    local id, prefab, x, z = string.match(value, "^([^,]+),([^,]+),([^,]+),([^,]+)$")
-    x, z = tonumber(x), tonumber(z)
-    if not (id and prefab and x and z) then return end
-    local _, _, _, hy = world.raycast(x, 60, z, 0, -1, 0, 120)
-    placed[id] = world.spawn(prefab, x, hy or 0, z)
+    local id, prefab, x, y, z = string.match(value, "^([^,]+),([^,]+),([^,]+),([^,]+),([^,]+)$")
+    x, y, z = tonumber(x), tonumber(y), tonumber(z)
+    if not (id and prefab and x and y and z) then return end
+    placed[id] = world.spawn(prefab, x, y, z)
     return
   end
   if name == "eden_remove" then

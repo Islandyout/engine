@@ -329,7 +329,7 @@ else
         dialog.showErrorBox("Cannot reach the published site", `${REMOTE_BASE}\n\n${e.message}\n\nCheck the internet connection, or build locally (see README).`);
         return app.quit();
       }
-    } else site = await startStaticServer(root);
+    } else site = await startStaticServer(root, 47811);
     createWindow();
     buildMenu();
     await startControl();

@@ -204,6 +204,7 @@ stillPrefab("Oak Tree", "eztree-oak");
 stillPrefab("Pine Tree", "eztree-pine");
 stillPrefab("Bush", "bush-1");
 stillPrefab("Rock", "rock-large");
+stillPrefab("Fruit Tree", "eztree-oak");
 // What the people build, placed by creator.lua when the minds make them (edenAgents.ts): a tent they can walk into (no collider), and a
 // fire that burns for as long as it has wood (the mind removes it when it goes out).
 scene.prefab("Shelter", { Renderable: { mesh: modelId("canvas-tent"), material: 0, visible: true } });

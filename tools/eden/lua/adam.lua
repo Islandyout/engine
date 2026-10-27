@@ -27,6 +27,17 @@ local function parse_target(value)
 end
 
 function on_ui(name, value)
+  -- Put down where the mind says they are (fast time, a move by the Creator, a loaded world): no walking there.
+  if name == "eden_snap_adam" then
+    local x, y, z = string.match(value, "^([^,]+),([^,]+),([^,]+)$")
+    x, y, z = tonumber(x), tonumber(y), tonumber(z)
+    if x and y and z then
+      self.x, self.y, self.z = x, y + 0.3, z
+      self.vx, self.vz = 0, 0
+      target, waypoints, arrived = nil, nil, true
+    end
+    return
+  end
   if name ~= "eden_target_adam" then return end
   local t = parse_target(value)
   if not t then return end

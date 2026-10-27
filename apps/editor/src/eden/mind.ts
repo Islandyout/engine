@@ -46,6 +46,7 @@ export const AFFORDANCES: Record<string, Affordances> = {
   center: {},
   tree: { rest: true, wood: true },
   "tree of life": { food: 0.7, stock: 3, wood: true },
+  "fruit tree": { food: 0.5, stock: 6, wood: true },
   // Built by the people: a fire that burns down, and a roof that doubles as a larder.
   campfire: { warm: true },
   shelter: { shelter: true, rest: true, food: 0.5 },
@@ -68,6 +69,7 @@ export interface Thing {
   maxStock?: number; // a stock grows back, a meal at a time, up to this
   growth?: number; // seconds toward the next meal growing back (kept by step)
   fuel?: number; // a fire's seconds of burning left
+  prefab?: string; // the scene prefab that shows it (the host places it); absent for things the scene already has
 }
 
 // What a person remembers of a thing: where it is, and how being near it has felt.
@@ -79,7 +81,7 @@ export interface Memory {
   lastSeen: number; // sim seconds
 }
 
-export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm";
+export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share";
 export interface Intent {
   kind: IntentKind;
   targetId?: string; // a thing's id or another person's id
@@ -93,7 +95,45 @@ export interface Intent {
   age?: number;
 }
 
+// What they remember happening, in order, in their own words: the Creator can read it, and it is what they have to talk about.
+export interface JournalEntry {
+  t: number; // world clock, sim seconds
+  text: string;
+}
+
+// How one person feels about another.
+export interface Relation {
+  affinity: number; // -1 dislike .. 1 fond
+  trust: number; // 0 .. 1
+  familiarity: number; // 0 .. 1, grows with time spent together
+  lastTogether: number; // world clock
+}
+
+// Something a person has set out to do: it tilts what they choose until it is done or given up.
+export type GoalKind = "stockpile" | "shelter" | "befriend" | "explore" | "settle";
+export interface Goal {
+  kind: GoalKind;
+  target?: string; // a person's id or a thing's id
+  progress: number; // 0..1
+  started: number; // world clock
+}
+
+// What they weighed when they last chose, best first, so the Creator can see why.
+export interface Choice {
+  kind: IntentKind;
+  target?: string;
+  score: number;
+  chosen: boolean;
+}
+
 export interface Person {
+  name: string;
+  sex: "m" | "f";
+  age: number; // in Eden years (16 sim days each)
+  journal: JournalEntry[];
+  relations: Map<string, Relation>;
+  goals: Goal[];
+  lastChoice: Choice[];
   id: string;
   x: number;
   z: number;
@@ -122,6 +162,8 @@ export interface World {
   climate?: Climate;
   weather?: Weather;
   built?: number; // how many things the people have made (their ids)
+  // The Creator's hand on the weather: until `until` (world clock) it is warmer or colder by `tempOffset`, and `rain` forces it on or off.
+  override?: { until: number; tempOffset: number; rain?: boolean };
 }
 
 // A day in Eden is 24 sim minutes (earth.ts): short enough to watch a whole life, long enough that a person eats about three times in it.
@@ -151,8 +193,15 @@ function rand(person: Person): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
-export function makePerson(id: string, x: number, z: number, seed: number, personality: Partial<Personality> = {}): Person {
+export function makePerson(id: string, x: number, z: number, seed: number, personality: Partial<Personality> = {}, extra: { name?: string; sex?: "m" | "f"; age?: number } = {}): Person {
   return {
+    name: extra.name ?? id,
+    sex: extra.sex ?? "m",
+    age: extra.age ?? 20,
+    journal: [],
+    relations: new Map(),
+    goals: [],
+    lastChoice: [],
     id,
     x,
     z,
@@ -184,12 +233,32 @@ const aff = (t: Thing): Affordances => AFFORDANCES[t.kind] ?? {};
 // Danger is felt well beyond touching distance.
 const dangerReach = (t: Thing) => t.radius + 6 + 10 * (aff(t).danger ?? 0);
 
+const KIND_PHRASE: Record<string, string> = {
+  grove: "the fruit grove", river: "the river", hollow: "the resting hollow", overlook: "the overlook", meadow: "the meadow", center: "the garden center",
+  tree: "a tree", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge", rock: "a rock", bush: "a bush",
+  deer: "a deer", alpaca: "an alpaca", fox: "a fox", fire: "a wild fire", campfire: "the campfire", shelter: "the shelter",
+};
+export const phrase = (t: Thing | undefined) => (t ? (KIND_PHRASE[t.kind] ?? `a ${t.kind}`) : "somewhere");
+function note(person: Person, world: World, text: string) {
+  person.journal.push({ t: world.clock ?? 0, text });
+  if (person.journal.length > 400) person.journal.splice(0, person.journal.length - 400);
+}
+function relation(person: Person, otherId: string, world: World): Relation {
+  let r = person.relations.get(otherId);
+  if (!r) {
+    r = { affinity: 0.2, trust: 0.3, familiarity: 0, lastTogether: world.clock ?? 0 };
+    person.relations.set(otherId, r);
+  }
+  return r;
+}
+
 const burning = (t: Thing) => t.kind === "campfire" && (t.fuel ?? 0) > 0;
 // Seconds a fire burns on one armful of wood (two hours of the real thing, at one sim second to a minute).
 const FIRE_SECONDS_PER_WOOD = 120;
-function make(world: World, kind: string, x: number, z: number, extra: Partial<Thing> = {}): Thing {
+const PREFAB_OF: Record<string, string> = { campfire: "Campfire", shelter: "Shelter" };
+export function make(world: World, kind: string, x: number, z: number, extra: Partial<Thing> = {}): Thing {
   world.built = (world.built ?? 0) + 1;
-  const thing: Thing = { id: `${kind}-${world.built}`, kind, x, z, radius: 3, ...extra };
+  const thing: Thing = { id: `${kind}-${world.built}`, kind, x, z, radius: 3, prefab: PREFAB_OF[kind], ...extra };
   world.things.push(thing);
   return thing;
 }
@@ -211,6 +280,7 @@ function notice(person: Person, world: World) {
       // A first sight: curiosity makes a new thing pleasant, and a dangerous one is dreaded from the start.
       const danger = aff(t).danger ?? 0;
       person.memory.set(t.id, { x: t.x, z: t.z, feeling: danger ? -danger : 0.1 * person.personality.curiosity, visits: 0, lastSeen: person.clock });
+      if (t.kind !== "center") note(person, world, danger ? `Saw ${phrase(t)}. It frightens me.` : `Came upon ${phrase(t)}.`);
     }
   }
 }
@@ -297,6 +367,14 @@ function options(person: Person, world: World): Option[] {
   for (const other of world.people) {
     if (other === person) continue;
     if (dist(person.x, person.z, other.x, other.z) > SIGHT * 2) continue;
+    // Someone hungry, and food in hand: give it.
+    if (person.carry.food >= 1 && other.needs.hunger > 0.6 && other.carry.food < 1) {
+      const rel = person.relations.get(other.id);
+      out.push({
+        intent: { kind: "share", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 4 },
+        score: 1.3 * urge(other.needs.hunger, 0.5) * (0.5 + 0.5 * (rel?.affinity ?? 0.2)) + 0.2 * p.sociability,
+      });
+    }
     // People do not chatter through the night.
     const wish = night ? 0 : urge(needs.social, 0.32 - 0.1 * p.sociability) * (0.8 + 0.9 * p.sociability);
     if (wish <= 0) continue;
@@ -427,11 +505,21 @@ function choose(person: Person, opts: Option[]): Option {
   const weights = opts.map((o) => Math.exp(o.score / temperature));
   const sum = weights.reduce((a, b) => a + b, 0);
   let r = rand(person) * sum;
+  let picked = opts[opts.length - 1]!;
   for (let i = 0; i < opts.length; i++) {
     r -= weights[i]!;
-    if (r <= 0) return opts[i]!;
+    if (r <= 0) {
+      picked = opts[i]!;
+      break;
+    }
   }
-  return opts[opts.length - 1]!;
+  // What they weighed, best four and the one they took.
+  person.lastChoice = [...opts]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+    .map((o) => ({ kind: o.intent.kind, target: o.intent.targetId, score: o.score, chosen: o === picked }));
+  if (!person.lastChoice.some((c) => c.chosen)) person.lastChoice.push({ kind: picked.intent.kind, target: picked.intent.targetId, score: picked.score, chosen: true });
+  return picked;
 }
 
 function thingById(world: World, id: string | undefined): Thing | undefined {
@@ -456,16 +544,19 @@ function finish(person: Person, world: World, intent: Intent) {
         needs.hunger = clamp01(needs.hunger - 0.45);
         joy(0.05);
         person.say = "That was good.";
+        note(person, world, "Ate what I had put by.");
       } else if (t && a.food && (t.stock === undefined || t.stock > 0)) {
         needs.hunger = clamp01(needs.hunger - a.food);
         if (t.stock !== undefined) t.stock -= 1;
         joy(0.1);
         feel(person, t, 0.15); // a good meal makes the place better in memory
         person.say = t.stock === 0 ? "That was the last of it." : "That was good.";
+        note(person, world, t.stock === 0 ? `Ate the last of ${phrase(t)}.` : `Ate at ${phrase(t)}.`);
       } else {
         // It was gone: the place loses its shine.
         if (t) feel(person, t, -0.2);
         person.say = "There is nothing left here.";
+        note(person, world, `Went to ${phrase(t)} to eat and found nothing.`);
       }
       break;
     case "drink":
@@ -484,6 +575,7 @@ function finish(person: Person, world: World, intent: Intent) {
         if (t && t.kind === "campfire") t.fuel = (t.fuel ?? 0) + wood * FIRE_SECONDS_PER_WOOD;
         else make(world, "campfire", person.x, person.z, { fuel: wood * FIRE_SECONDS_PER_WOOD, radius: 2 });
         person.mood = clampMood(person.mood + 0.1);
+        note(person, world, t && t.kind === "campfire" ? "Fed the fire." : "Lit a fire.");
       }
       break;
     }
@@ -493,11 +585,13 @@ function finish(person: Person, world: World, intent: Intent) {
         make(world, "shelter", intent.x, intent.z, { stock: 0 });
         joy(0.3);
         person.say = "There. Somewhere dry to sleep.";
+        note(person, world, "Built a shelter.");
       }
       break;
     case "stash":
       if (t && t.kind === "shelter" && person.carry.food > 0) {
         t.stock = Math.min(40, (t.stock ?? 0) + person.carry.food);
+        note(person, world, `Put ${person.carry.food} meals by in the shelter.`);
         person.carry.food = 0;
       }
       break;
@@ -511,8 +605,26 @@ function finish(person: Person, world: World, intent: Intent) {
     case "warm":
       person.mood = clampMood(person.mood + 0.05);
       break;
+    case "share": {
+      const other = personById(world, intent.targetId);
+      if (other && person.carry.food >= 1) {
+        person.carry.food -= 1;
+        other.carry.food = Math.min(6, other.carry.food + 1);
+        const mine = relation(person, other.id, world);
+        const theirs = relation(other, person.id, world);
+        mine.affinity = Math.min(1, mine.affinity + 0.08);
+        theirs.affinity = Math.min(1, theirs.affinity + 0.15);
+        theirs.trust = Math.min(1, theirs.trust + 0.1);
+        person.say = `Here, ${other.name}. Eat.`;
+        note(person, world, `Gave ${other.name} some food.`);
+        note(other, world, `${person.name} gave me food when I was hungry.`);
+        other.mood = clampMood(other.mood + 0.15);
+      }
+      break;
+    }
     case "sleep":
       person.mood = clampMood(person.mood + 0.15);
+      note(person, world, "Slept.");
       if (t) feel(person, t, 0.05);
       break;
     case "rest":
@@ -536,6 +648,15 @@ function finish(person: Person, world: World, intent: Intent) {
       if (other) {
         other.needs.social = clamp01(other.needs.social - 0.5);
         other.mood = clampMood(other.mood + 0.1);
+        const mine = relation(person, other.id, world);
+        const theirs = relation(other, person.id, world);
+        for (const [r, who] of [[mine, other], [theirs, person]] as const) {
+          r.familiarity = Math.min(1, r.familiarity + 0.04);
+          r.trust = Math.min(1, r.trust + 0.02);
+          r.affinity = Math.max(-1, Math.min(1, r.affinity + 0.03 + 0.04 * who.personality.sociability));
+          r.lastTogether = world.clock ?? 0;
+        }
+        note(person, world, `Talked with ${other.name}.`);
         // Remember each other kindly.
         const m = person.memory.get(other.id);
         if (m) m.feeling = Math.min(1, m.feeling + 0.1);
@@ -562,6 +683,11 @@ export interface StepOptions {
 export function step(world: World, dt: number, settings: StepOptions = {}) {
   world.clock = (world.clock ?? DAY / 3) + dt;
   const weather = weatherAt(world.clock, world.climate ?? EDEN_CLIMATE);
+  const hand = world.override;
+  if (hand && world.clock < hand.until) {
+    weather.tempC += hand.tempOffset;
+    if (hand.rain !== undefined) weather.raining = hand.rain;
+  } else if (hand) world.override = undefined;
   world.weather = weather;
   // Food grows back, a meal at a time, quickly in summer and rain and hardly at all in winter.
   for (const t of world.things) {
@@ -640,6 +766,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       feel(person, f.from, -0.2);
       person.mood = clampMood(person.mood - 0.3);
       person.say = "Something is wrong. I'm leaving.";
+      note(person, world, `Ran from ${phrase(f.from)}.`);
     }
 
     // A need that has become critical interrupts whatever they were doing unless it is that need's own remedy, and a goal that
@@ -660,7 +787,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     const intent = person.intent;
     if (!intent) continue;
     // Following another person: walk toward where they are now.
-    if (intent.kind === "talk") {
+    if (intent.kind === "talk" || intent.kind === "share") {
       const other = personById(world, intent.targetId);
       if (other) {
         intent.x = other.x;
@@ -670,7 +797,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
 
     if (!intent.arrived) {
       const d = dist(person.x, person.z, intent.x, intent.z);
-      const stop = intent.kind === "talk" ? REACH : intent.kind === "flee" || intent.kind === "wander" ? 0.4 : (thingById(world, intent.targetId)?.radius ?? 1) * 0.8;
+      const stop = intent.kind === "talk" || intent.kind === "share" ? REACH : intent.kind === "flee" || intent.kind === "wander" ? 0.4 : (thingById(world, intent.targetId)?.radius ?? 1) * 0.8;
       if (d <= stop + 0.05) {
         intent.arrived = true;
       } else if (settings.externalMotion) {
@@ -714,6 +841,7 @@ export function actionOf(person: Person): string {
     case "fire":
       return "forage";
     case "talk":
+    case "share":
       return "talk_to_other";
     case "play":
       return "play_together";
