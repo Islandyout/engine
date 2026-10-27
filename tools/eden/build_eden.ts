@@ -258,10 +258,21 @@ const personPrefab = (name: string, model: string, scale?: number) =>
     ...(scale ? { Scale: { value: vec(scale, scale, scale) } } : {}),
     Script: { source: lua("person.lua"), props: {} },
   });
-personPrefab("Villager (man)", "man-casual");
-personPrefab("Villager (woman)", "woman-casual");
-personPrefab("Child (boy)", "man-casual", 0.6);
-personPrefab("Child (girl)", "woman-casual", 0.6);
+// Different faces and clothes for different people: the host picks one by who they are (edenAgents.ts bodyPrefab), and size follows age.
+const MEN = ["man-casual", "man-farmer", "man-worker", "man-hoodie", "man-beach"];
+const WOMEN = ["woman-casual", "woman-dress", "woman-street", "woman-tank-top"];
+MEN.forEach((m, i) => {
+  personPrefab(`Villager (man) ${i + 1}`, m);
+  personPrefab(`Youth (boy) ${i + 1}`, m, 0.82);
+});
+WOMEN.forEach((m, i) => {
+  personPrefab(`Villager (woman) ${i + 1}`, m);
+  personPrefab(`Youth (girl) ${i + 1}`, m, 0.82);
+});
+[0, 1].forEach((i) => {
+  personPrefab(`Child (boy) ${i + 1}`, MEN[i]!, 0.6);
+  personPrefab(`Child (girl) ${i + 1}`, WOMEN[i]!, 0.6);
+});
 scene.prefab("Campfire", {
   Particles: component("Particles", { preset: "Fire", rate: 40, lifetime: 0.9, speed: 1.2, size: 0.28, shape: "Cone", coneAngle: 18, gravityScale: -0.15 }),
   Light: component("Light", { type: "Point", color: vec(1, 0.62, 0.28), intensity: 3, range: 11 }),

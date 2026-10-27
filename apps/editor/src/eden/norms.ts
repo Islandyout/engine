@@ -47,4 +47,4 @@ export function standing(world: World, p: Person): number {
   }
   return count ? sum / count : 0.5;
 }
-export const standingWord = (s: number) => (s > 0.75 ? "respected" : s > 0.5 ? "trusted" : s > 0.3 ? "of no great standing" : "distrusted");
+export const standingWord = (s: number) => (s > 0.75 ? "respected" : s > 0.5 ? "trusted" : s > 0.25 ? "not yet well known" : "distrusted");

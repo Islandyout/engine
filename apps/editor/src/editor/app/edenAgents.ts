@@ -132,7 +132,15 @@ export function installEdenAgents(C: Ctx): void {
     const object = index !== undefined ? C.objects[index] : undefined;
     return object ? [object.position.x, object.position.y, object.position.z] : undefined;
   }
-  const bodyPrefab = (p: Person) => `${p.age < ADULT_AGE ? "Child" : "Villager"} (${p.age < ADULT_AGE ? (p.sex === "m" ? "boy" : "girl") : p.sex === "m" ? "man" : "woman"})`;
+  // Different people look different: the model and clothes are picked by who they are, and size follows age.
+  const MEN = 5;
+  const WOMEN = 4;
+  const bodyPrefab = (p: Person) => {
+    const h = [...p.id].reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) >>> 0, 7);
+    if (p.age < 4) return `Child (${p.sex === "m" ? "boy" : "girl"}) ${1 + (h % 2)}`;
+    const n = 1 + (h % (p.sex === "m" ? MEN : WOMEN));
+    return `${p.age < 14 ? "Youth" : "Villager"} (${p.sex === "m" ? (p.age < 14 ? "boy" : "man") : p.age < 14 ? "girl" : "woman"}) ${n}`;
+  };
 
   function freshWorld(): World {
     const things: Thing[] = [];
