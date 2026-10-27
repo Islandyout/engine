@@ -157,6 +157,8 @@ export interface Choice {
 export interface Person {
   goalCheck?: number; // world clock of the last time they thought about what to set out to do
   lastBirth?: number; // world clock a child of theirs was last born (mothers)
+  spoken?: string[]; // the last few things they said aloud, so the voice does not repeat them
+  promises?: { to: string; due: number }[]; // what they have promised, and by when
   pregnant?: { since: number; father: string }; // carrying a child, born after GESTATION
   illness?: { severity: number; since: number }; // sick, 0..1
   cause?: string; // what is killing them, when it is not plain from their needs (childbirth)
@@ -409,6 +411,52 @@ function tickIllness(person: Person, world: World, dt: number) {
     note(person, world, "Got well again.");
     tally(world, "recoveries");
   }
+}
+
+// What the voice asked the world to do on someone's behalf, checked first: an offer needs food in hand and someone hungry, a warning needs a
+// danger they know of, a promise needs someone to promise it to. Anything that does not hold is simply not done.
+export function applySpokenIntent(world: World, speaker: Person, listener: Person | undefined, intent: "offer" | "warn" | "promise"): boolean {
+  if (!listener || !world.people.includes(speaker) || !world.people.includes(listener)) return false;
+  const now = world.clock ?? 0;
+  if (intent === "offer" && speaker.carry.food >= 1 && listener.needs.hunger > 0.4) {
+    speaker.intent = { kind: "share", targetId: listener.id, x: listener.x, z: listener.z, speed: WALK, remaining: 4, arrived: false };
+    tally(world, "spokenOffers");
+    return true;
+  }
+  if (intent === "warn" && world.things.some((t) => aff(t).danger && speaker.memory.has(t.id))) {
+    feelEmotion(listener, "fear", 0.2);
+    note(listener, world, `${speaker.name} warned me to be careful.`);
+    tally(world, "spokenWarnings");
+    return true;
+  }
+  if (intent === "promise" && listener.needs.hunger > 0.4 && !speaker.promises?.some((x) => x.to === listener.id)) {
+    (speaker.promises ??= []).push({ to: listener.id, due: now + DAY / 4 });
+    note(speaker, world, `I promised ${listener.name} food.`);
+    note(listener, world, `${speaker.name} promised me food.`);
+    tally(world, "promises");
+    return true;
+  }
+  return false;
+}
+
+// A promise kept is remembered kindly; one let lapse costs trust.
+function keepPromises(person: Person, world: World) {
+  if (!person.promises?.length) return;
+  const now = world.clock ?? 0;
+  person.promises = person.promises.filter((pr) => {
+    if (now < pr.due) return true;
+    const other = world.people.find((q) => q.id === pr.to);
+    if (other) {
+      const r = relation(other, person.id, world);
+      r.trust = Math.max(0, r.trust - 0.12);
+      feelEmotion(other, "anger", 0.2);
+      note(other, world, `${person.name} did not keep their word to me.`);
+      note(person, world, `I did not keep my word to ${other.name}.`);
+      feelEmotion(person, "shame", 0.3);
+      tally(world, "brokenPromises");
+    }
+    return false;
+  });
 }
 
 // A norm gains ground; when it becomes a custom everyone writes it down.
@@ -1122,6 +1170,13 @@ function finish(person: Person, world: World, intent: Intent) {
         theirs.gifts = (theirs.gifts ?? 0) + 1;
         feelEmotion(other, "gratitude", 0.5);
         feelEmotion(person, "pride", 0.2);
+        const promised = person.promises?.findIndex((x) => x.to === other.id) ?? -1;
+        if (promised >= 0) {
+          person.promises!.splice(promised, 1);
+          theirs.trust = Math.min(1, theirs.trust + 0.1);
+          note(person, world, `Kept my word to ${other.name}.`);
+          tally(world, "keptPromises");
+        }
         uphold(world, "share", person, 0.07);
         if (isCustom(world, "share")) for (const q of world.people) if (q !== person && q !== other && dist(q.x, q.z, person.x, person.z) < 15) relation(q, person.id, world).trust = Math.min(1, relation(q, person.id, world).trust + 0.03);
         person.say = `Here, ${other.name}. Eat.`;
@@ -1328,6 +1383,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     person.explored.add(`${Math.floor(person.x / 20)},${Math.floor(person.z / 20)}`);
     updateGoals(person, world);
     reflect(person, world);
+    keepPromises(person, world);
     person.age += dt / YEAR;
 
     // Danger: running from it beats anything else, and being caught in it hurts.

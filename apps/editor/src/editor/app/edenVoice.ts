@@ -1,4 +1,5 @@
 import type { Person, World } from "../../eden/mind";
+import { contextOf, parseIntent, type SpokenIntent } from "../../eden/voiceContext";
 
 // An optional free voice for Eden's people. Their plain speech (src/eden/speech.ts) always works with nothing installed; this can reword a
 // line in the person's own manner using any OpenAI-compatible chat endpoint that costs nothing to use:
@@ -57,22 +58,20 @@ export class Voice {
 
   // The plain line, said by this person to that one, in their own words. Resolves to the reworded line, or undefined (with the reason said
   // once) when the voice is off, too busy, slow or unreachable.
-  async reword(speaker: Person, listener: Person | undefined, plain: string, world: World, force = false): Promise<string | undefined> {
+  async reword(speaker: Person, listener: Person | undefined, plain: string, world: World, force = false): Promise<{ text: string; intent?: SpokenIntent } | undefined> {
     if (!this.ready) return undefined;
     const now = performance.now();
     if (!force && now - this.last < MIN_GAP_MS) return undefined;
     this.last = now;
-    const weather = world.weather;
-    const recent = speaker.journal.slice(-3).map((j) => j.text).join(" ");
-    const system = `You write one line of spoken dialogue for ${speaker.name}, a person living in a garden in a simple world. ${personaOf(speaker)} Keep the meaning of the plain line. Say it in first person, in at most 25 words, with no quotation marks, no stage directions and no names of anything that is not in the plain line.`;
-    const user = `${listener ? `${speaker.name} is talking to ${listener.name}. ` : ""}Season: ${weather ? ["spring", "summer", "autumn", "winter"][weather.season] : "unknown"}. Recent: ${recent || "nothing much"}. Plain line: "${plain}"`;
+    const system = `You write one line of spoken dialogue for ${speaker.name}, a person living in a garden in a simple world. Use only what the notes about them say; invent no events, people or places. Keep the meaning of the plain line, in first person, in at most 25 words, with no quotation marks and no stage directions. If, and only if, the plain line is an offer of food, a warning, or a promise, you may end with [offer], [warn] or [promise].`;
+    const user = `Notes about ${speaker.name}:\n${contextOf(speaker, listener, world)}\n\nPlain line: "${plain}"`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       const res = await fetch(this.config.url, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(this.config.key ? { Authorization: `Bearer ${this.config.key}` } : {}) },
-        body: JSON.stringify({ model: this.config.model, temperature: 0.8, max_tokens: 80, messages: [{ role: "system", content: system }, { role: "user", content: user }] }),
+        body: JSON.stringify({ model: this.config.model, temperature: 0.8, max_tokens: 90, messages: [{ role: "system", content: system }, { role: "user", content: user }] }),
         signal: controller.signal,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -80,7 +79,7 @@ export class Voice {
       const text = data.choices?.[0]?.message?.content?.trim().replace(/^["“]|["”]$/g, "").replace(/\s+/g, " ");
       if (!text) throw new Error("it answered with nothing");
       this.warned = false;
-      return text.slice(0, 220);
+      return parseIntent(text.slice(0, 240));
     } catch (e) {
       if (!this.warned) {
         this.warned = true;

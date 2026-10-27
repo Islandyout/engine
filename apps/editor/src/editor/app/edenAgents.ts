@@ -1,4 +1,4 @@
-import { actionOf, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
+import { actionOf, applySpokenIntent, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import { moonName, SEASON_NAMES, solarHour } from "../../eden/earth";
 import { runCreatorCommand } from "../../eden/creator";
 import { worldFromJson, worldToJson } from "../../eden/persist";
@@ -397,8 +397,18 @@ export function installEdenAgents(C: Ctx): void {
           // The free voice may reword it; if it cannot in time, the plain line stands.
           const listener = w.people.find((q) => q !== person && q.say && q.say !== plain && Math.hypot(q.x - person.x, q.z - person.z) < 6);
           const panelRef = panel;
-          void voice.reword(person, listener, plain, w).then((t) => panelRef.lifeLog(`${person.name}: "${t ?? plain}"`));
-        } else panel.lifeLog(`${person.name}: "${plain}"`);
+          void voice.reword(person, listener, plain, w).then((t) => {
+            const said = t?.text ?? plain;
+            (person.spoken ??= []).push(said);
+            if (person.spoken.length > 3) person.spoken.shift();
+            panelRef.lifeLog(`${person.name}: "${said}"`);
+            if (t?.intent && world) applySpokenIntent(world, person, listener, t.intent);
+          });
+        } else {
+          (person.spoken ??= []).push(plain);
+          if (person.spoken.length > 3) person.spoken.shift();
+          panel.lifeLog(`${person.name}: "${plain}"`);
+        }
       }
       const carrying = person.carry.wood || person.carry.food ? ` · carrying ${[person.carry.wood ? `${person.carry.wood} wood` : "", person.carry.food ? `${person.carry.food} food` : ""].filter(Boolean).join(", ")}` : "";
       const need = needWord(person);
@@ -437,7 +447,7 @@ export function installEdenAgents(C: Ctx): void {
           const [a, b] = world.people;
           if (!a) return;
           panel?.voiceStatus("Asking…");
-          void voice.reword(a, b, "I am glad you are here.", world, true).then((t) => panel?.voiceStatus(t ? `It says: "${t}"` : voice.ready ? "No answer (see above)." : "The voice is off."));
+          void voice.reword(a, b, "I am glad you are here.", world, true).then((t) => panel?.voiceStatus(t ? `It says: "${t.text}"` : voice.ready ? "No answer (see above)." : "The voice is off."));
         },
       },
       voice.config,
