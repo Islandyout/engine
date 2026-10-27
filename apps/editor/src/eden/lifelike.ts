@@ -302,6 +302,7 @@ export function live(seed: number, options: LifeOptions = {}): Life {
   };
 }
 
+const maxOf = (lives: Life[], f: (l: Life) => number) => lives.reduce((a, l) => Math.max(a, f(l)), 0);
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
 // The measures over a set of lives, and what is wrong with them, judged against what a person would do. Eden-like climates are held to
@@ -340,7 +341,7 @@ export function analyse(lives: Life[], years: number, seconds = 0) {
     livesDominatedByOneAction: share((l) => l.topShare > 0.6),
     distinctActionsMedian: median((l) => l.distinctActions),
     abandonsPerHourMedian: median((l) => l.abandonsPerHour),
-    abandonsPerHourMax: Math.max(0, ...lives.map((l) => l.abandonsPerHour)),
+    abandonsPerHourMax: maxOf(lives, (l) => l.abandonsPerHour),
     moodAverage: avg((l) => l.mood),
     groupsThatTalked: share((l) => l.people < 2 || l.talks > 0),
     mealsPerDayMedian: perDay((l) => l.meals),
@@ -358,13 +359,13 @@ export function analyse(lives: Life[], years: number, seconds = 0) {
     groupsWithPartners: share((l) => l.partners > 0, lives.filter((l) => l.people > 1)),
     livesWithBirths: share((l) => l.births > 0),
     birthsPerBirthLife: avg((l) => l.births, lives.filter((l) => l.births > 0)),
-    mostPeopleAtEnd: Math.max(0, ...lives.map((l) => l.peopleAtEnd)),
+    mostPeopleAtEnd: maxOf(lives, (l) => l.peopleAtEnd),
     deathsOfOldAge: share((l) => l.deathCause === "old age"),
     livesThatPlanted: share((l) => l.planted > 0),
     livesWithSpears: share((l) => l.spears > 0),
     livesThatHunted: share((l) => l.hunted > 0, lives.filter((l) => l.deerAtStart > 0)),
     herdsGone: share((l) => l.deerAtStart > 0 && l.deerAtEnd === 0, lives.filter((l) => l.deerAtStart > 0)),
-    mostDeer: Math.max(0, ...lives.map((l) => l.deerAtEnd)),
+    mostDeer: maxOf(lives, (l) => l.deerAtEnd),
   };
   const thrashers = [...lives].sort((a, b) => b.abandonsPerHour - a.abandonsPerHour).slice(0, 4).filter((l) => l.abandonsPerHour > 30);
 

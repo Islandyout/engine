@@ -1,5 +1,6 @@
 import { hourOf, phrase, type Person, type World } from "../../eden/mind";
 import { DAY } from "../../eden/earth";
+import type { VoiceConfig } from "./edenVoice";
 
 // Eden's panel: what the Creator sees and touches while the garden runs. Built with the DOM API only (never innerHTML: names, journals and
 // the Creator's own words only ever go through textContent, per this repo's house rule). Mounted directly on <body>, a sibling of #app,
@@ -17,6 +18,8 @@ export interface PanelHandlers {
   save(): void;
   newWorld(): void;
   creator(text: string): void;
+  voice(config: VoiceConfig): void;
+  voiceTest(): void;
 }
 
 export interface EdenPanel {
@@ -25,8 +28,10 @@ export interface EdenPanel {
   setSpeed(index: number): void;
   setSaved(text: string): void;
   lifeStatus(id: string, name: string, text: string): void;
+  lifeStatusRemove(id: string): void;
   lifeLog(text: string): void;
   creatorLog(text: string, ok: boolean): void;
+  voiceStatus(text: string): void;
   tab(): "life" | "minds" | "creator";
   renderMinds(world: World): void;
 }
@@ -50,6 +55,7 @@ const CSS = `
   .eden-saved { margin-left: auto; font-size: 11px; color: #a89d85; align-self: center; }
   .eden-pane { display: none; flex-direction: column; gap: 4px; overflow-y: auto; flex: 1; min-height: 0; }
   .eden-pane.on { display: flex; }
+  .eden-status { flex: none; }
   .eden-status b { color: #c9a24a; font-weight: 600; }
   .eden-log { display: flex; flex-direction: column; gap: 2px; color: #cfc6b2; overflow-y: auto; flex: 1; min-height: 60px; }
   .eden-journal { display: flex; flex-direction: column; gap: 2px; color: #cfc6b2; max-height: 24vh; overflow-y: auto; }
@@ -64,7 +70,7 @@ const CSS = `
   .eden-panel input { flex: 1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 6px; color: inherit; font: inherit; padding: 5px 8px; }
 `;
 
-export function buildEdenPanel(handlers: PanelHandlers): EdenPanel {
+export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfig): EdenPanel {
   const style = el("style");
   style.textContent = CSS;
   document.head.appendChild(style);
@@ -163,7 +169,41 @@ export function buildEdenPanel(handlers: PanelHandlers): EdenPanel {
     chips.appendChild(b);
   }
   const creatorLines = el("div", "eden-log");
-  panes.creator!.append(help, form, chips, creatorLines);
+  // The optional free voice: reword their lines using Ollama on this laptop or a free endpoint. Off until switched on; the plain speech always works.
+  const voiceBox = el("details");
+  voiceBox.appendChild(el("summary", undefined, "Voice (optional, free)"));
+  const voiceHelp = el("div", undefined, "Rewords their lines using a free model: Ollama on this laptop (start it with OLLAMA_ORIGINS=*) or any free OpenAI-compatible service. Off by default; the plain speech always works.");
+  voiceHelp.style.color = "#a89d85";
+  const on = el("input");
+  on.type = "checkbox";
+  on.checked = initialVoice.enabled;
+  const onLabel = el("label");
+  onLabel.append(on, document.createTextNode(" Use the voice"));
+  const urlInput = el("input");
+  urlInput.type = "text";
+  urlInput.value = initialVoice.url;
+  urlInput.placeholder = "Endpoint";
+  const modelInput = el("input");
+  modelInput.type = "text";
+  modelInput.value = initialVoice.model;
+  modelInput.placeholder = "Model";
+  const keyInput = el("input");
+  keyInput.type = "password";
+  keyInput.value = initialVoice.key;
+  keyInput.placeholder = "Key (only if the service needs one; kept in this browser)";
+  const voiceStatus = el("div", undefined, "");
+  const apply = () => handlers.voice({ enabled: on.checked, url: urlInput.value.trim(), model: modelInput.value.trim(), key: keyInput.value.trim() });
+  const voiceButtons = el("div", "eden-bar");
+  const voiceSave = el("button", undefined, "Save");
+  voiceSave.addEventListener("click", apply);
+  const voiceTest = el("button", undefined, "Test");
+  voiceTest.addEventListener("click", () => {
+    apply();
+    handlers.voiceTest();
+  });
+  voiceButtons.append(voiceSave, voiceTest);
+  voiceBox.append(voiceHelp, onLabel, urlInput, modelInput, keyInput, voiceButtons, voiceStatus);
+  panes.creator!.append(help, form, chips, creatorLines, voiceBox);
 
   document.body.appendChild(root);
   select("life");
@@ -205,8 +245,13 @@ export function buildEdenPanel(handlers: PanelHandlers): EdenPanel {
       line.replaceChildren();
       line.append(el("b", undefined, name), document.createTextNode(` ${text}`));
     },
+    lifeStatusRemove(id) {
+      statusLines.get(id)?.remove();
+      statusLines.delete(id);
+    },
     lifeLog: (text) => addLine(log, text),
     creatorLog: (text, ok) => addLine(creatorLines, text, ok ? "eden-ok" : "eden-no", 30),
+    voiceStatus: (text) => (voiceStatus.textContent = text),
     tab: () => current,
     renderMinds(world) {
       mindsView.replaceChildren();

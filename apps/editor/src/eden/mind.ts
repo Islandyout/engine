@@ -7,6 +7,7 @@
 //
 // The host (edenAgents.ts) feeds this the world's things and turns each person's `intent` into movement and an animation.
 
+import { converse } from "./speech";
 import { COMFORT_C, DAY, EDEN_CLIMATE, growthRate, hourOf, seasonAt, weatherAt, YEAR, type Climate, type Weather } from "./earth";
 export { DAY, hourOf };
 
@@ -271,7 +272,7 @@ export function bondOf(a: Person, b: Person): Bond {
   return ab.familiarity > 0.1 ? "acquaintance" : "stranger";
 }
 const CHILD_NAMES = { m: ["Cain", "Abel", "Seth", "Enos", "Enoch", "Jared", "Noah", "Lamech"], f: ["Awan", "Azura", "Naamah", "Adah", "Zillah", "Milcah", "Dinah", "Lilith"] };
-const ADULT_AGE = 4; // Eden years: before this a child depends on the others
+export const ADULT_AGE = 4; // Eden years: before this a child depends on the others
 
 const KIND_PHRASE: Record<string, string> = {
   grove: "the fruit grove", river: "the river", hollow: "the resting hollow", overlook: "the overlook", meadow: "the meadow", center: "the garden center",
@@ -932,7 +933,13 @@ function finish(person: Person, world: World, intent: Intent) {
           r.affinity = Math.max(-1, Math.min(1, r.affinity + 0.03 + 0.04 * who.personality.sociability));
           r.lastTogether = world.clock ?? 0;
         }
-        note(person, world, `Talked with ${other.name}.`);
+        // They say something to each other, about what weighs most with them (speech.ts).
+        const exchange = converse(world, person, other, () => rand(person));
+        person.say = exchange.said;
+        other.say = exchange.reply;
+        note(person, world, `Talked with ${other.name}: "${exchange.said}"`);
+        note(other, world, `${person.name} said: "${exchange.said}" I said: "${exchange.reply}"`);
+        tally(world, "talks");
         // Remember each other kindly.
         const m = person.memory.get(other.id);
         if (m) m.feeling = Math.min(1, m.feeling + 0.1);

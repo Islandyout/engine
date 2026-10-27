@@ -13,6 +13,7 @@ local wpIndex = 1
 local arrived = true
 local playedAction = nil
 local WALK_SPEED = 1.6
+local dead = false
 
 local function parse_target(value)
   local parts = {}
@@ -33,6 +34,14 @@ function on_ui(name, value)
     end
     return
   end
+  if name == "eden_die_eve" then
+    dead = true
+    target, waypoints, arrived = nil, nil, true
+    self.vx, self.vz = 0, 0
+    self.animate = "Death"
+    return
+  end
+  if dead then return end
   if name ~= "eden_target_eve" then return end
   local t = parse_target(value)
   if not t then return end
@@ -52,7 +61,7 @@ local function play(action)
 end
 
 function on_tick(dt)
-  if not target then return end
+  if dead or not target then return end
   if arrived then
     self.vx, self.vz = 0, 0
     play(target.action)

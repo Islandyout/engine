@@ -208,6 +208,22 @@ stillPrefab("Fruit Tree", "eztree-oak");
 // What the people build, placed by creator.lua when the minds make them (edenAgents.ts): a tent they can walk into (no collider), and a
 // fire that burns for as long as it has wood (the mind removes it when it goes out).
 scene.prefab("Shelter", { Renderable: { mesh: modelId("canvas-tent"), material: 0, visible: true } });
+// A planted plot: a low bush that bears fruit, no collider.
+scene.prefab("Crop", { Renderable: { mesh: modelId("bush-1"), material: 0, visible: true } });
+// People who were not here at the start (born in the garden, or brought by the Creator): the same models as Adam and Eve, driven by person.lua,
+// and smaller as children.
+const personPrefab = (name: string, model: string, scale?: number) =>
+  scene.prefab(name, {
+    Renderable: { mesh: modelId(model), material: 0, visible: true },
+    RigidBody: { mass: scale ? 30 : 70, dynamic: true },
+    Collider: {},
+    ...(scale ? { Scale: { value: vec(scale, scale, scale) } } : {}),
+    Script: { source: lua("person.lua"), props: {} },
+  });
+personPrefab("Villager (man)", "man-casual");
+personPrefab("Villager (woman)", "woman-casual");
+personPrefab("Child (boy)", "man-casual", 0.6);
+personPrefab("Child (girl)", "woman-casual", 0.6);
 scene.prefab("Campfire", {
   Particles: component("Particles", { preset: "Fire", rate: 40, lifetime: 0.9, speed: 1.2, size: 0.28, shape: "Cone", coneAngle: 18, gravityScale: -0.15 }),
   Light: component("Light", { type: "Point", color: vec(1, 0.62, 0.28), intensity: 3, range: 11 }),

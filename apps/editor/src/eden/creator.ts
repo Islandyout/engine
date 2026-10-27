@@ -3,7 +3,7 @@
 // fails and says why (never silently nothing). Pure, so it is tested without a scene; the host places what it makes.
 import { fuzzyRank } from "../editor/fuzzy";
 import { DAY, YEAR } from "./earth";
-import { AFFORDANCES, type Person, type Thing, type World } from "./mind";
+import { AFFORDANCES, makePerson, type Person, type Thing, type World } from "./mind";
 import { CREATABLE, DRINK_SPOT, EDEN_PLACES } from "./places";
 
 export interface CreatorResult {
@@ -11,6 +11,8 @@ export interface CreatorResult {
   message: string;
   // What was made, for the host to put in the scene.
   made?: Thing[];
+  // Someone new was made (their body is the host's to put in the scene).
+  people?: Person[];
   // Someone moved: the host moves their body (id, x, z).
   moved?: { id: string; x: number; z: number }[];
 }
@@ -134,6 +136,26 @@ export function runCreatorCommand(world: World, input: string, rnd: () => number
       p.journal.push({ t: clock, text: v === "hurt" ? "Something hurt me, and I do not know what." : v === "heal" || v === "bless" ? "I was made well again." : "The Creator did something for me." });
     }
     return say(true, `${who.map((p) => p.name).join(" and ")}: ${v === "hurt" ? "hurt" : v === "heal" ? "healed" : v === "feed" ? "fed" : v === "quench" ? "quenched" : v === "bless" ? "blessed" : v === "wake" ? "woken" : v === "warm" ? "warmed" : "rested"}.`);
+  }
+
+  // A person: "a woman named Dinah", "new man", "a child called Seth".
+  const person = lower.match(/^(?:a |an |the )?(?:new )?(man|woman|boy|girl|child|person)(?:\s+(?:named|called)\s+([a-z]+))?$/) ?? lower.match(/^new person\s+([a-z]+)$/);
+  if (person) {
+    const kind = person[1] === "person" || person[1] === undefined ? undefined : person[1];
+    const sex: "m" | "f" = kind === "woman" || kind === "girl" ? "f" : kind === "man" || kind === "boy" ? "m" : rnd() < 0.5 ? "m" : "f";
+    const young = kind === "boy" || kind === "girl" || kind === "child";
+    world.built = (world.built ?? 0) + 1;
+    const raw = (person[2] ?? (person[1] && !["man", "woman", "boy", "girl", "child", "person"].includes(person[1]) ? person[1] : "")) || "";
+    const name = raw ? raw[0]!.toUpperCase() + raw.slice(1) : `${young ? "Child" : sex === "m" ? "Man" : "Woman"} ${world.built}`;
+    if (world.people.some((q) => q.name.toLowerCase() === name.toLowerCase())) return say(false, `There is already someone called ${name}.`);
+    if (world.people.length >= (world.maxPeople ?? 12)) return say(false, "The garden is full: there are as many people as it can feed.");
+    const c = EDEN_PLACES.center!;
+    const born = makePerson(`person-${world.built}`, c.x + (rnd() - 0.5) * 4, c.z + (rnd() - 0.5) * 4, Math.floor(rnd() * 1e9),
+      { boldness: rnd(), sociability: rnd(), curiosity: rnd(), appetite: 0.3 + 0.5 * rnd(), patience: rnd() },
+      { name, sex, age: young ? 1 : 22 });
+    born.journal.push({ t: clock, text: "I woke in the garden. I do not know how I came here." });
+    world.people.push(born);
+    return say(true, `${name} appears in the garden${young ? ", a child" : ""}.`, { people: [born] });
   }
 
   // A thing to create, perhaps "by the river"

@@ -1,10 +1,11 @@
-import { actionOf, AFFORDANCES, hourOf, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
+import { actionOf, ADULT_AGE, AFFORDANCES, hourOf, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import { SEASON_NAMES } from "../../eden/earth";
 import { runCreatorCommand } from "../../eden/creator";
 import { worldFromJson, worldToJson } from "../../eden/persist";
 import { DRINK_SPOT, EDEN_LANDMARKS, EDEN_PLACES } from "../../eden/places";
 import { generateHeights, sampleHeight } from "../terrain";
 import { buildEdenPanel, SPEEDS, type EdenPanel } from "./edenUi";
+import { loadVoice, saveVoice, Voice } from "./edenVoice";
 import type { Ctx } from "./context";
 
 // Eden: runs the minds of Adam and Eve (src/eden/mind.ts) on this machine, with no network and no AI model, and drives their Lua scripts
@@ -45,12 +46,13 @@ const PLACE_NAME: Record<string, string> = {};
 for (const place of Object.values(EDEN_PLACES)) PLACE_NAME[place.kind] = place.name;
 const KIND_NAME: Record<string, string> = { ...PLACE_NAME, campfire: "the fire", shelter: "the shelter", tree: "a tree", "fruit tree": "a fruit tree", bush: "a bush", rock: "a rock", deer: "a deer", fox: "a fox", alpaca: "an alpaca", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge" };
 
-const VERB: Record<string, string> = { gather: "goes to gather wood at", fire: "makes a fire", build: "starts building a shelter", stash: "goes to put food away at", forage: "goes to gather food at", warm: "goes to warm up at", share: "goes to share food with", eat: "goes to eat at", drink: "goes to drink at", rest: "goes to rest at", sleep: "goes to sleep at", look: "goes to look at", play: "goes to play at", talk: "goes to talk with", wander: "wanders off", flee: "runs from", linger: "pauses" };
+const VERB: Record<string, string> = { gather: "goes to gather wood at", fire: "makes a fire", build: "starts building a shelter", stash: "goes to put food away at", forage: "goes to gather food at", warm: "goes to warm up at", share: "goes to share food with", comfort: "goes to sit with", plant: "goes to plant a seed", craft: "makes a spear", hunt: "hunts", eat: "goes to eat at", drink: "goes to drink at", rest: "goes to rest at", sleep: "goes to sleep at", look: "goes to look at", play: "goes to play at", talk: "goes to talk with", wander: "wanders off", flee: "runs from", linger: "pauses" };
 
 function describe(person: Person, world: World): string {
   const i = person.intent;
   if (!i) return "";
-  const target = i.kind === "talk" || i.kind === "share" ? world.people.find((p) => p.id === i.targetId)?.name : KIND_NAME[world.things.find((t) => t.id === i.targetId)?.kind ?? ""];
+  if (i.kind === "eat" && !i.targetId) return "eats what they are carrying";
+  const target = i.kind === "talk" || i.kind === "share" || i.kind === "comfort" ? world.people.find((p) => p.id === i.targetId)?.name : KIND_NAME[world.things.find((t) => t.id === i.targetId)?.kind ?? ""];
   return target ? `${VERB[i.kind]} ${target}` : VERB[i.kind]!;
 }
 
@@ -99,6 +101,15 @@ export function installEdenAgents(C: Ctx): void {
   let lastRain = -1;
   let lastSave = 0;
   let lastMinds = 0;
+  // The bodies of people who were not in the scene at the start (children born here, people the Creator brought): the entity index each
+  // reported (person.lua says "eden_body"), and which prefab is standing for them now (a child is replaced by an adult body when they grow up).
+  const bodyIndexById = new Map<string, number>();
+  const placedPeople = new Map<string, string>();
+  const knownPeople = new Set<string>();
+  const announcedDead = new Set<string>();
+  const lastMoved = new Map<string, [number, number]>();
+  C.edenBody = (index, who) => bodyIndexById.set(who, index);
+  const voice = new Voice(loadVoice(), (text) => panel?.voiceStatus(text) ?? C.log(`Eden voice: ${text}`));
 
   const ui = (kind: string, value: string) => C.runtime.ccall("editor_ui_event", null, ["string", "string"], [kind, value]);
   const bodyIndex = (name: string) => C.doc.scene.eachAlive().findIndex((e) => C.doc.scene.resolve(e, "Name")?.value === name);
@@ -107,6 +118,16 @@ export function installEdenAgents(C: Ctx): void {
     const object = index >= 0 ? C.objects[index] : undefined;
     return object ? [object.position.x, object.position.y, object.position.z] : undefined;
   }
+
+  const ORIGINAL = new Map<string, string>(PEOPLE.map((p) => [p.id, p.name]));
+  function positionOf(person: Person): [number, number, number] | undefined {
+    const original = ORIGINAL.get(person.id);
+    if (original) return bodyPosition(original);
+    const index = bodyIndexById.get(person.id);
+    const object = index !== undefined ? C.objects[index] : undefined;
+    return object ? [object.position.x, object.position.y, object.position.z] : undefined;
+  }
+  const bodyPrefab = (p: Person) => `${p.age < ADULT_AGE ? "Child" : "Villager"} (${p.age < ADULT_AGE ? (p.sex === "m" ? "boy" : "girl") : p.sex === "m" ? "man" : "woman"})`;
 
   function freshWorld(): World {
     const things: Thing[] = [];
@@ -125,7 +146,10 @@ export function installEdenAgents(C: Ctx): void {
       return makePerson(p.id, at[0], at[2], 1000 + i * 77, p.personality, { name: p.name, sex: p.sex, age: 20 });
     });
     // radius: the garden's own edge (the terrain is 80 m across), so a person searching for water does not wander off the map.
-    return { things, people, radius: 36 };
+    const created: World = { things, people, radius: 36 };
+    // A small herd of deer in the meadow, so there is something living to watch and, in time, to hunt.
+    for (let i = 0; i < 3; i++) make(created, "deer", EDEN_PLACES.meadow!.x + i * 2, EDEN_PLACES.meadow!.z + (i % 2) * 2, { radius: 2 });
+    return created;
   }
 
   // The terrain's height under (x, z): Lua's ray cast sees only solid objects and a flat ground, not the sculpted terrain, so the host works
@@ -166,6 +190,13 @@ export function installEdenAgents(C: Ctx): void {
     spoken.clear();
     described.clear();
     placedThings.clear();
+    placedPeople.clear();
+    bodyIndexById.clear();
+    knownPeople.clear();
+    announcedDead.clear();
+    lastMoved.clear();
+    for (const p of world.people) knownPeople.add(p.id);
+    for (const d of world.dead ?? []) announcedDead.add(d.person.id);
     lastRain = -1;
     lastHour = -1;
     if (loaded) {
@@ -197,7 +228,14 @@ export function installEdenAgents(C: Ctx): void {
     // Take away what was built, put the people back where they began, and start again.
     for (const id of [...placedThings]) ui("eden_remove", id);
     placedThings.clear();
+    for (const id of [...placedPeople.keys()]) ui("eden_remove", id);
+    placedPeople.clear();
+    bodyIndexById.clear();
+    announcedDead.clear();
+    lastMoved.clear();
     world = freshWorld();
+    knownPeople.clear();
+    for (const p of world.people) knownPeople.add(p.id);
     for (const p of world.people) {
       p.x = 0;
       p.z = 0;
@@ -231,6 +269,42 @@ export function installEdenAgents(C: Ctx): void {
         ui("eden_remove", id);
       }
     }
+    // Creatures that have walked on.
+    for (const thing of w.things) {
+      if (!thing.mob || !placedThings.has(thing.id)) continue;
+      const last = lastMoved.get(thing.id);
+      if (!last || Math.hypot(thing.x - last[0], thing.z - last[1]) > 0.3) {
+        lastMoved.set(thing.id, [thing.x, thing.z]);
+        ui("eden_move", `${thing.id},${thing.x},${groundY(thing.x, thing.z)},${thing.z}`);
+      }
+    }
+    // Bodies for people who were not in the scene at the start; a child's is swapped for an adult's when they grow up.
+    for (const person of w.people) {
+      if (ORIGINAL.has(person.id)) continue;
+      const want = bodyPrefab(person);
+      const have = placedPeople.get(person.id);
+      if (have !== want) {
+        if (have) {
+          ui("eden_remove", person.id);
+          bodyIndexById.delete(person.id);
+        }
+        placedPeople.set(person.id, want);
+        ui("eden_place", `${person.id},${want},${person.x},${groundY(person.x, person.z)},${person.z},${person.id}`);
+        sent.delete(person.id);
+      }
+    }
+    // Those who have died: the body lies down (Adam and Eve's own) or is taken away, and the Creator is told.
+    for (const d of w.dead ?? []) {
+      if (announcedDead.has(d.person.id)) continue;
+      announcedDead.add(d.person.id);
+      panel?.lifeStatusRemove(d.person.id);
+      panel?.lifeLog(`✝ ${d.person.name} died of ${d.cause}, aged ${d.person.age.toFixed(0)}.`);
+      if (ORIGINAL.has(d.person.id)) ui(`eden_die_${d.person.id}`, "");
+      else if (placedPeople.has(d.person.id)) {
+        ui("eden_remove", d.person.id);
+        placedPeople.delete(d.person.id);
+      }
+    }
     if (Math.floor(hour * 4) !== lastHour) {
       lastHour = Math.floor(hour * 4);
       ui("eden_time", String(hour));
@@ -251,7 +325,7 @@ export function installEdenAgents(C: Ctx): void {
       if (!fast) {
         // The bodies are where physics and paths put them; the minds start from there.
         for (const person of w.people) {
-          const at = bodyPosition(person.name);
+          const at = positionOf(person);
           if (at) {
             person.x = at[0];
             person.z = at[2];
@@ -273,6 +347,10 @@ export function installEdenAgents(C: Ctx): void {
     }
 
     for (const person of w.people) {
+      if (!knownPeople.has(person.id)) {
+        knownPeople.add(person.id);
+        panel.lifeLog(`✶ ${person.name} was born${person.mother ? ` to ${w.people.find((q) => q.id === person.mother)?.name ?? "their mother"}` : ""}.`);
+      }
       const intent = person.intent;
       if (intent && !fast && simSeconds > 0) {
         const action = actionOf(person);
@@ -289,8 +367,14 @@ export function installEdenAgents(C: Ctx): void {
         panel.lifeLog(`${person.name} ${text}.`);
       }
       if (person.say && spoken.get(person.id) !== person.say) {
-        spoken.set(person.id, person.say);
-        panel.lifeLog(`${person.name}: "${person.say}"`);
+        const plain = person.say;
+        spoken.set(person.id, plain);
+        if (voice.ready && !fast) {
+          // The free voice may reword it; if it cannot in time, the plain line stands.
+          const listener = w.people.find((q) => q !== person && q.say && q.say !== plain && Math.hypot(q.x - person.x, q.z - person.z) < 6);
+          const panelRef = panel;
+          void voice.reword(person, listener, plain, w).then((t) => panelRef.lifeLog(`${person.name}: "${t ?? plain}"`));
+        } else panel.lifeLog(`${person.name}: "${plain}"`);
       }
       const carrying = person.carry.wood || person.carry.food ? ` · carrying ${[person.carry.wood ? `${person.carry.wood} wood` : "", person.carry.food ? `${person.carry.food} food` : ""].filter(Boolean).join(", ")}` : "";
       const need = needWord(person);
@@ -313,7 +397,27 @@ export function installEdenAgents(C: Ctx): void {
   }
 
   function mountPanel() {
-    panel = buildEdenPanel({ speed: setSpeed, save, newWorld, creator: creatorCommand });
+    panel = buildEdenPanel(
+      {
+        speed: setSpeed,
+        save,
+        newWorld,
+        creator: creatorCommand,
+        voice: (config) => {
+          voice.config = config;
+          saveVoice(config);
+          panel?.voiceStatus(config.enabled ? "Voice on." : "Voice off. Plain speech.");
+        },
+        voiceTest: () => {
+          if (!world) return;
+          const [a, b] = world.people;
+          if (!a) return;
+          panel?.voiceStatus("Asking…");
+          void voice.reword(a, b, "I am glad you are here.", world, true).then((t) => panel?.voiceStatus(t ? `It says: "${t}"` : voice.ready ? "No answer (see above)." : "The voice is off."));
+        },
+      },
+      voice.config,
+    );
     panel.setSpeed(speed);
     window.addEventListener("pagehide", save);
     document.addEventListener("visibilitychange", () => {

@@ -344,6 +344,8 @@ export interface Ctx {
   depthFxPass: DepthFxPass;
   gunPoses: Map<number, { pose: GunPose; gun: string; raised: number; kick: number; oneHanded?: boolean; rest: THREE.Object3D; object: THREE.Object3D; hands: string; holders: THREE.Object3D[]; blades?: THREE.Object3D[]; }>;
   handleHost: (kind: string, text: string) => void;
+  // Eden: a spawned person's body says which person it is (the entity's scene index and their id), so the page can read where it stands.
+  edenBody?: (index: number, who: string) => void;
   harvest: (key: string) => void;
   harvested: Set<number>;
   harvestedSpots: Set<string>;

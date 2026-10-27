@@ -93,3 +93,20 @@ test("the Creator heals, feeds, moves and reshapes people, and the people notice
   assert.ok(w.people[1]!.journal.some((j) => j.text.includes("well done")));
   assert.equal(runCreatorCommand(w, "heal Seth").ok, false);
 });
+
+test("the Creator can bring a new person into the garden", () => {
+  const w = garden();
+  const r = runCreatorCommand(w, "a woman named Dinah", () => 0.5);
+  assert.equal(r.ok, true);
+  assert.equal(w.people.length, 3);
+  const dinah = w.people.find((p) => p.name === "Dinah")!;
+  assert.equal(dinah.sex, "f");
+  assert.ok(dinah.age >= 4);
+  const kid = runCreatorCommand(w, "a boy called Seth", () => 0.5);
+  assert.equal(w.people.find((p) => p.name === "Seth")!.age < 4, true);
+  assert.equal(runCreatorCommand(w, "a woman named Dinah").ok, false);
+  assert.equal(kid.people![0]!.name, "Seth");
+  // They live: a step does not trip over the new people.
+  run(w, 60);
+  assert.ok(w.people.every((p) => Number.isFinite(p.x) && Number.isFinite(p.z)));
+});

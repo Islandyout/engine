@@ -1,0 +1,127 @@
+// What Eden's people say. Plain code, no model: a person looks at their own state (what they need, what has happened to them, the weather and the
+// season, what they have set out to do, who they are with, what lives nearby) and says something about what weighs most, in words that fit how
+// they are (a sociable person is warmer, a bold one plainer, a timid one more careful). The other answers in kind. The same two people in the
+// same moment say the same thing, so it can be tested.
+//
+// An optional free voice (voice.ts: Ollama on this laptop, or any free OpenAI-compatible endpoint) can reword these lines in the host; this file is
+// what always works, with nothing installed and nothing online.
+import { hourOf, phrase, bondOf, type Person, type World } from "./mind";
+import { SEASON_NAMES } from "./earth";
+
+export type Topic = "need" | "event" | "weather" | "goal" | "bond" | "creature" | "child" | "thanks" | "sorry" | "plain";
+
+export interface Exchange {
+  topic: Topic;
+  said: string; // what the speaker says
+  reply: string; // what the other answers
+}
+
+type Pick = <T>(items: readonly T[]) => T;
+
+const first = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// A journal line, said aloud: the natural way to tell someone what has happened.
+function tellEvent(text: string, pick: Pick, other: Person): string | undefined {
+  let m: RegExpMatchArray | null;
+  if ((m = text.match(/^Ate at (.+)\.$/))) return pick([`I ate at ${m[1]} earlier. It was good.`, `Have you eaten? I had a good meal at ${m[1]}.`]);
+  if (/^Built a shelter/.test(text)) return pick(["We have a roof now. Come and see.", "I finished the shelter. It is dry in there."]);
+  if (/^Lit a fire|^Fed the fire/.test(text)) return pick(["The fire is lit. Come and warm yourself.", "I have the fire going. It is warm by it."]);
+  if ((m = text.match(/^Killed (.+)\. Meat for days\.$/))) return `I brought down ${m[1]}. We will eat well.`;
+  if (/^Planted a seed/.test(text)) return pick(["I planted a seed. We will see if it grows.", "Something is going into the ground that I hope will feed us."]);
+  if (/^Made a spear/.test(text)) return "I made a spear. Now we can hunt.";
+  if ((m = text.match(/^Came upon (.+)\.$/))) return pick([`Have you seen ${m[1]}? I came upon it today.`, `I found ${m[1]}. We should go together.`]);
+  if (/gave me food/.test(text)) return `Thank you for the food, ${other.name}. I was starving.`;
+  if (/stayed with me/.test(text)) return `Thank you for staying with me, ${other.name}.`;
+  if (/^Quarrelled with/.test(text)) return undefined;
+  if (/^Ran from/.test(text)) return text.replace(/^Ran from/, "I ran from").replace(/\.$/, ". I was frightened.");
+  if (/^Put .* by in the shelter/.test(text)) return "I have been putting food by for the winter.";
+  if (/^I did it/.test(text)) return text.replace(/^I did it: I wanted to /, "I did what I set out to do: I ").replace(/\.$/, ".");
+  return undefined;
+}
+
+export function converse(world: World, speaker: Person, other: Person, rnd: () => number): Exchange {
+  const pick: Pick = (items) => items[Math.min(items.length - 1, Math.floor(rnd() * items.length))]!;
+  const p = speaker.personality;
+  const warm = p.sociability > 0.6;
+  const blunt = p.boldness > 0.65;
+  const careful = p.boldness < 0.35;
+  const n = speaker.needs;
+  const weather = world.weather;
+  const bond = bondOf(speaker, other);
+  const rel = speaker.relations.get(other.id);
+  const addr = rnd() < 0.4 ? `${other.name}, ` : "";
+  const candidates: { weight: number; topic: Topic; said: string; reply: string }[] = [];
+  const add = (weight: number, topic: Topic, said: string, reply: string) => candidates.push({ weight, topic, said, reply });
+
+  // What they need
+  const carrying = other.carry.food >= 1;
+  if (n.thirst > 0.6) add(1.4 * n.thirst, "need", pick([`${addr}I am parched. I need to get to the river.`, "My mouth is dry. I must drink soon."]), pick(["Go and drink. I will wait.", "The river is not far. Go on."]));
+  if (n.hunger > 0.6) {
+    add(1.5 * n.hunger, "need", pick([`${addr}I am so hungry.`, "My stomach is empty. I could eat anything.", warm ? "I haven't eaten since morning. Do you have anything?" : "I need to eat."]),
+      carrying ? pick([`Here, ${speaker.name}. Take some of mine.`, "I have a little. Eat."]) : pick(["Let's find something together.", "The grove is the best place. I will come with you."]));
+  }
+  if (speaker.cold > 0.45) add(1.5 * speaker.cold, "need", pick([`${addr}I am freezing.`, "It is cold. Is there a fire?", careful ? "I do not like this cold. I think we should light a fire." : "We need a fire."]), pick(["Come close. I will get more wood.", "Stand by me. We will warm up."]));
+  if (n.energy > 0.7) add(1.1 * n.energy, "need", pick([`${addr}I can hardly keep my eyes open.`, "I am so tired. I think I will rest."]), pick(["Then rest. I will keep watch.", "Sleep well."]));
+  if (n.social > 0.7) add(0.9, "need", pick(["It is good to talk. I was feeling alone.", "I am glad you are here. It was quiet."]), pick(["I am glad of you too.", "Then let's stay a while."]));
+
+  // What has happened to them
+  const recent = speaker.journal.slice(-14).reverse();
+  for (const entry of recent) {
+    const said = tellEvent(entry.text, pick, other);
+    if (said) {
+      const age = (world.clock ?? 0) - entry.t;
+      add(Math.max(0.2, 1.1 - age / 2000), "event", said, pick(["That is good to hear.", careful ? "Be careful, though." : "Well done.", p.curiosity > 0.6 ? "Tell me more." : "I am glad."]));
+      break;
+    }
+  }
+
+  // The weather and the season
+  if (weather) {
+    const season = SEASON_NAMES[weather.season];
+    if (weather.raining) add(0.5, "weather", pick(["It is raining again.", "Listen to the rain on the leaves."]), pick(["It will feed the plants.", "Let's stay dry."]));
+    if (weather.season === 2) add(0.9, "weather", pick(["Autumn is here. We should put food by before winter.", `The days are getting shorter. We ought to prepare, ${other.name}.`]), pick(["You are right. I will gather what I can.", "Let's go to the grove together."]));
+    else if (weather.season === 3) add(0.7, "weather", pick(["Winter is hard. Let's keep the fire fed.", "How long will the cold last?"]), pick(["Until spring. We will manage.", "We have food laid by. We will be all right."]));
+    else if (weather.season === 0) add(0.5, "weather", pick(["Spring. Things are growing again.", "I can feel the year turning."]), "It is a good time to plant.");
+    else add(0.4, "weather", pick([`The ${season} sun is warm.`, "It is a fine day."]), pick(["It is.", "A good day to be alive."]));
+    const hour = hourOf(world.clock ?? 0);
+    if (hour >= 20 || hour < 5) add(0.4, "weather", pick(["It is dark. Stay close.", "Look at the stars."]), "I will not go far.");
+  }
+
+  // What they have set out to do
+  for (const g of speaker.goals) {
+    const words: Record<string, string> = { stockpile: "put enough food by for the winter", shelter: "build us a proper shelter", befriend: `know ${world.people.find((q) => q.id === g.target)?.name ?? "everyone"} better`, explore: "see all of this garden", settle: "make a home I love", farm: "grow our own food" };
+    add(0.8, "goal", pick([`I want to ${words[g.kind]}.`, `I have been thinking: I want to ${words[g.kind]}.`]), pick(["I will help.", p.curiosity > 0.6 ? "That is a good idea. How?" : "If you think it is right."]));
+    break;
+  }
+
+  // Each other
+  if (bond === "partner") add(0.9, "bond", pick([`I am glad it is you I share this with, ${other.name}.`, "I do not think I could do this without you."]), pick(["Nor I without you.", "I feel the same."]));
+  else if (bond === "friend") add(0.6, "bond", pick(["It is good to have a friend.", `I enjoy your company, ${other.name}.`]), pick(["And I yours.", "Friends, then."]));
+  else if (bond === "rival") add(0.8, "bond", blunt ? "I still have not forgotten what you did." : "I wish things were easier between us.", "Neither have I.");
+  else if (bond === "stranger" || bond === "acquaintance") add(0.5, "bond", warm ? `I am ${speaker.name}. I would like to know you.` : `We hardly know each other, ${other.name}.`, pick(["Then let's talk.", "I would like that."]));
+  if (rel && rel.affinity < -0.1 && rel.familiarity > 0.3) add(0.7, "sorry", "I am sorry about before. I did not mean it.", "It is forgotten. Let's go on.");
+
+  // What lives nearby
+  const creature = world.things.find((t) => (t.kind === "deer" || t.kind === "alpaca") && speaker.memory.has(t.id));
+  if (creature) add(0.35, "creature", `I saw ${phrase(creature)} near here. It watched me for a while.`, pick(["They are gentle.", "Perhaps we could find it again."]));
+  const child = world.people.find((q) => (q.mother === speaker.id || q.father === speaker.id) && q.age < 4);
+  if (child) add(0.8, "child", pick([`${child.name} is growing fast.`, `${child.name} laughed today. Did you hear?`]), pick(["Every day is different with them.", "We must look after them."]));
+
+  // The thanks that are due
+  const lastGift = speaker.journal.slice(-30).reverse().find((j) => /gave me food|stayed with me/.test(j.text));
+  if (lastGift && (world.clock ?? 0) - lastGift.t < 1500) add(1.0, "thanks", `Thank you, ${other.name}, for what you did for me.`, "It was nothing. You would have done the same.");
+
+  if (!candidates.length) return { topic: "plain", said: first(pick(["Hello.", "It is a quiet day.", "How are you?"])), reply: pick(["Well enough.", "Quiet, yes.", "And you?"]) };
+  const total = candidates.reduce((a, c) => a + c.weight, 0);
+  let r = rnd() * total;
+  let chosen = candidates[candidates.length - 1]!;
+  for (const c of candidates) {
+    r -= c.weight;
+    if (r <= 0) {
+      chosen = c;
+      break;
+    }
+  }
+  return { topic: chosen.topic, said: first(chosen.said), reply: first(chosen.reply) };
+}
+

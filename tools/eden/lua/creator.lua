@@ -16,10 +16,21 @@ function on_ui(name, value)
   end
   -- The people build things: "id,prefab,x,y,z" puts one there (the host knows the ground's height), "id" takes it away again (a fire gone out).
   if name == "eden_place" then
-    local id, prefab, x, y, z = string.match(value, "^([^,]+),([^,]+),([^,]+),([^,]+),([^,]+)$")
+    -- "id,prefab,x,y,z" or "id,prefab,x,y,z,who" (a person's body: it is told its name)
+    local id, prefab, x, y, z, who = string.match(value, "^([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),?(.*)$")
     x, y, z = tonumber(x), tonumber(y), tonumber(z)
     if not (id and prefab and x and y and z) then return end
-    placed[id] = world.spawn(prefab, x, y, z)
+    local e = world.spawn(prefab, x, y, z)
+    placed[id] = e
+    if e and who and who ~= "" then world.send(e, "eden_who", who) end
+    return
+  end
+  -- A creature that has moved: "id,x,y,z".
+  if name == "eden_move" then
+    local id, x, y, z = string.match(value, "^([^,]+),([^,]+),([^,]+),([^,]+)$")
+    x, y, z = tonumber(x), tonumber(y), tonumber(z)
+    local e = id and placed[id]
+    if e and x and y and z then world.set_position(e, x, y, z) end
     return
   end
   if name == "eden_remove" then
