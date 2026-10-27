@@ -705,7 +705,14 @@ export function actionOf(person: Person): string {
       return "drink_from_river";
     case "rest":
     case "sleep":
+    case "warm":
       return "rest";
+    case "gather":
+    case "forage":
+    case "stash":
+    case "build":
+    case "fire":
+      return "forage";
     case "talk":
       return "talk_to_other";
     case "play":

@@ -204,6 +204,13 @@ stillPrefab("Oak Tree", "eztree-oak");
 stillPrefab("Pine Tree", "eztree-pine");
 stillPrefab("Bush", "bush-1");
 stillPrefab("Rock", "rock-large");
+// What the people build, placed by creator.lua when the minds make them (edenAgents.ts): a tent they can walk into (no collider), and a
+// fire that burns for as long as it has wood (the mind removes it when it goes out).
+scene.prefab("Shelter", { Renderable: { mesh: modelId("canvas-tent"), material: 0, visible: true } });
+scene.prefab("Campfire", {
+  Particles: component("Particles", { preset: "Fire", rate: 40, lifetime: 0.9, speed: 1.2, size: 0.28, shape: "Cone", coneAngle: 18, gravityScale: -0.15 }),
+  Light: component("Light", { type: "Point", color: vec(1, 0.62, 0.28), intensity: 3, range: 11 }),
+});
 
 const outDir = join(ROOT, "games/my-games/eden");
 mkdirSync(outDir, { recursive: true });

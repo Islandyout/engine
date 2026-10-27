@@ -1,5 +1,6 @@
 import { fuzzyRank } from "../fuzzy";
 import { actionOf, AFFORDANCES, hourOf, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
+import { SEASON_NAMES } from "../../eden/earth";
 import { CREATABLE, DRINK_SPOT, EDEN_LANDMARKS, EDEN_PLACES } from "../../eden/places";
 import type { Ctx } from "./context";
 
@@ -36,9 +37,9 @@ const TICK_MS = 250;
 
 const PLACE_NAME: Record<string, string> = {};
 for (const place of Object.values(EDEN_PLACES)) PLACE_NAME[place.kind] = place.name;
-const KIND_NAME: Record<string, string> = { ...PLACE_NAME, tree: "a tree", bush: "a bush", rock: "a rock", deer: "a deer", fox: "a fox", alpaca: "an alpaca", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge" };
+const KIND_NAME: Record<string, string> = { ...PLACE_NAME, campfire: "the fire", shelter: "the shelter", tree: "a tree", bush: "a bush", rock: "a rock", deer: "a deer", fox: "a fox", alpaca: "an alpaca", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge" };
 
-const VERB: Record<string, string> = { eat: "goes to eat at", drink: "goes to drink at", rest: "goes to rest at", sleep: "goes to sleep at", look: "goes to look at", play: "goes to play at", talk: "goes to talk with", wander: "wanders off", flee: "runs from", linger: "pauses" };
+const VERB: Record<string, string> = { gather: "goes to gather wood at", fire: "makes a fire", build: "starts building a shelter", stash: "goes to put food away at", forage: "goes to gather food at", warm: "goes to warm up at", eat: "goes to eat at", drink: "goes to drink at", rest: "goes to rest at", sleep: "goes to sleep at", look: "goes to look at", play: "goes to play at", talk: "goes to talk with", wander: "wanders off", flee: "runs from", linger: "pauses" };
 
 function describe(person: Person, thingKind: (id: string) => string | undefined): string {
   const i = person.intent;
@@ -172,6 +173,10 @@ export function installEdenAgents(C: Ctx): void {
   const described = new Map<string, string>();
   let nextCreated = 1;
   let lastHour = -1;
+  // What the people have built that is already in the scene (thing id -> true), so a new fire or roof is put there once and a spent fire taken away.
+  const placedThings = new Set<string>();
+  let lastRain = -1;
+  const PREFAB: Record<string, string> = { campfire: "Campfire", shelter: "Shelter" };
 
   const bodyIndex = (name: string) => C.doc.scene.eachAlive().findIndex((e) => C.doc.scene.resolve(e, "Name")?.value === name);
   function bodyPosition(name: string): [number, number, number] | undefined {
@@ -201,6 +206,8 @@ export function installEdenAgents(C: Ctx): void {
     sent.clear();
     spoken.clear();
     described.clear();
+    placedThings.clear();
+    lastRain = -1;
   }
 
   // No model writes a reply -- there is none, and pretending would be the silent fallback this repo rules out. Speaking is a small, honest
@@ -260,6 +267,29 @@ export function installEdenAgents(C: Ctx): void {
       lastHour = Math.floor(hour * 4);
       C.runtime.ccall("editor_ui_event", null, ["string", "string"], ["eden_time", String(hour)]);
     }
+    // What the people build appears in the scene, and a fire that has gone out is taken away.
+    for (const thing of w.things) {
+      if (PREFAB[thing.kind] && !placedThings.has(thing.id)) {
+        placedThings.add(thing.id);
+        C.runtime.ccall("editor_ui_event", null, ["string", "string"], ["eden_place", `${thing.id},${PREFAB[thing.kind]},${thing.x},${thing.z}`]);
+      }
+    }
+    for (const id of [...placedThings]) {
+      if (!w.things.some((t) => t.id === id)) {
+        placedThings.delete(id);
+        C.runtime.ccall("editor_ui_event", null, ["string", "string"], ["eden_remove", id]);
+      }
+    }
+    // The weather and the season, in the sky and in the panel.
+    const weather = w.weather;
+    if (weather) {
+      const rainNow = weather.raining ? 1 : 0;
+      if (rainNow !== lastRain) {
+        lastRain = rainNow;
+        C.runtime.ccall("editor_ui_event", null, ["string", "string"], ["eden_weather", `${rainNow * 0.7},${rainNow * 0.25}`]);
+      }
+      panel.title.textContent = `Eden · ${SEASON_NAMES[weather.season]} · ${String(Math.floor(hour)).padStart(2, "0")}:${String(Math.floor((hour % 1) * 60)).padStart(2, "0")} · ${Math.round(weather.tempC)}°C${weather.raining ? " · rain" : ""}`;
+    }
     const kindOf = (id: string) => w.things.find((t) => t.id === id)?.kind;
     for (const person of w.people) {
       const entry = PEOPLE.find((p) => p.id === person.id)!;
@@ -282,9 +312,10 @@ export function installEdenAgents(C: Ctx): void {
         spoken.set(person.id, person.say);
         appendLine(panel, `${entry.name}: "${person.say}"`);
       }
+      const carrying = person.carry.wood || person.carry.food ? ` · carrying ${[person.carry.wood ? `${person.carry.wood} wood` : "", person.carry.food ? `${person.carry.food} food` : ""].filter(Boolean).join(", ")}` : "";
       const doing = intent ? (intent.arrived ? "" : "") + describe(person, kindOf) : "";
       const need = needWord(person);
-      setStatus(panel.status[person.id]!, entry.name, `${moodWord(person.mood)}${need ? `, ${need}` : ""}${doing ? ` · ${doing}` : ""}${person.health < 0.9 ? ` · hurt` : ""}`);
+      setStatus(panel.status[person.id]!, entry.name, `${moodWord(person.mood)}${need ? `, ${need}` : ""}${doing ? ` · ${doing}` : ""}${carrying}${person.cold > 0.5 ? " · cold" : ""}${person.health < 0.9 ? ` · hurt` : ""}`);
     }
   }
 
