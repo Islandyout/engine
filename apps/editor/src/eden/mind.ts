@@ -8,7 +8,7 @@
 // The host (edenAgents.ts) feeds this the world's things and turns each person's `intent` into movement and an animation.
 
 import { converse } from "./speech";
-import { COMFORT_C, DAY, EDEN_CLIMATE, growthRate, hourOf, seasonAt, weatherAt, YEAR, type Climate, type Weather } from "./earth";
+import { COMFORT_C, DAY, EDEN_CLIMATE, FISH_BY_SEASON, growthRate, hourOf, isDark, seasonAt, weatherAt, YEAR, type Climate, type Weather } from "./earth";
 export { DAY, hourOf };
 
 export type NeedName = "hunger" | "thirst" | "energy" | "social" | "joy";
@@ -27,6 +27,7 @@ export interface Personality {
 export interface Affordances {
   food?: number; // how much hunger one meal removes
   water?: boolean;
+  fish?: boolean; // fish live here, caught with patience
   rest?: boolean; // somewhere to sit or lie down
   view?: boolean; // somewhere beautiful (raises joy)
   play?: boolean; // open ground to move about on (raises joy a little)
@@ -43,7 +44,7 @@ export interface Affordances {
 
 export const AFFORDANCES: Record<string, Affordances> = {
   grove: { food: 0.5, wood: true },
-  river: { water: true },
+  river: { water: true, fish: true },
   hollow: { rest: true, wood: true },
   overlook: { view: true, wood: true },
   meadow: { play: true },
@@ -63,6 +64,8 @@ export const AFFORDANCES: Record<string, Affordances> = {
   // Planted by the people: a plot that bears fruit as the seasons allow, a meal at a time.
   crop: { food: 0.45, stock: 0, wood: false },
   fire: { danger: 0.9 },
+  // Where someone who died was laid to rest; the people who loved them come and sit here.
+  grave: { rest: false },
 };
 
 export interface Thing {
@@ -75,6 +78,7 @@ export interface Thing {
   maxStock?: number; // a stock grows back, a meal at a time, up to this
   growth?: number; // seconds toward the next meal growing back (kept by step)
   fuel?: number; // a fire's seconds of burning left
+  of?: string; // a grave: whose it is (a person id)
   prefab?: string; // the scene prefab that shows it (the host places it); absent for things the scene already has
   // A creature's own going about: where it is heading, when it last ate, how old it is (in Eden years).
   mob?: { tx: number; tz: number; wait: number; fed: number; age: number; fleeUntil: number };
@@ -89,7 +93,7 @@ export interface Memory {
   lastSeen: number; // sim seconds
 }
 
-export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt";
+export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn";
 export interface Intent {
   kind: IntentKind;
   targetId?: string; // a thing's id or another person's id
@@ -162,6 +166,11 @@ export interface Person {
   cold: number; // 0 comfortable .. 1 dangerously cold
   carry: { wood: number; food: number; seed: number }; // what they are carrying
   tools: { spear: boolean };
+  grief?: number; // 0..1: how heavily a loss weighs; fades over days, eased by sitting at a grave and by company
+  // What they have learned from living, from thinking back over what happened (reflect): each 0..1, and each tilts what they choose.
+  lessons?: { prepare: number; careful: number };
+  // What they have lived through since they last thought it over, in sim seconds (and frights), and when that was.
+  felt?: { hungry: number; cold: number; scares: number; reflected: number };
 }
 
 export interface World {
@@ -176,6 +185,7 @@ export interface World {
   // The climate the garden has; absent, Eden's own. `weather` is what it is like right now (kept by step).
   climate?: Climate;
   weather?: Weather;
+  fish?: number; // how many fish the river holds (kept by step)
   built?: number; // how many things the people have made (their ids)
   maxPeople?: number; // births stop at this many living people (default 12)
   tally?: Record<string, number>; // how often notable things have happened (for the lifelike check and the Creator's curiosity)
@@ -185,10 +195,7 @@ export interface World {
 }
 
 // A day in Eden is 24 sim minutes (earth.ts): short enough to watch a whole life, long enough that a person eats about three times in it.
-export const isNight = (clock: number) => {
-  const h = hourOf(clock);
-  return h >= 22 || h < 6;
-};
+export const isNight = isDark; // the sun's hours change with the season (earth.ts)
 // Seconds for a meal to grow back on a food source.
 const REGROW_SECONDS = 150;
 
@@ -300,7 +307,7 @@ function relation(person: Person, otherId: string, world: World): Relation {
 const burning = (t: Thing) => t.kind === "campfire" && (t.fuel ?? 0) > 0;
 // Seconds a fire burns on one armful of wood (two hours of the real thing, at one sim second to a minute).
 const FIRE_SECONDS_PER_WOOD = 120;
-const PREFAB_OF: Record<string, string> = { campfire: "Campfire", shelter: "Shelter", crop: "Crop", deer: "Deer", fox: "Fox" };
+const PREFAB_OF: Record<string, string> = { campfire: "Campfire", shelter: "Shelter", grave: "Grave", crop: "Crop", deer: "Deer", fox: "Fox" };
 export function make(world: World, kind: string, x: number, z: number, extra: Partial<Thing> = {}): Thing {
   world.built = (world.built ?? 0) + 1;
   const thing: Thing = { id: `${kind}-${world.built}`, kind, x, z, radius: 3, prefab: PREFAB_OF[kind], ...extra };
@@ -370,7 +377,7 @@ function options(person: Person, world: World): Option[] {
     for (const d of world.things) {
       const danger = aff(d).danger;
       if (!danger || !person.memory.has(d.id)) continue;
-      if (dist(x, z, d.x, d.z) < dangerReach(d)) dread = Math.max(dread, danger * (1.5 - p.boldness) * 2);
+      if (dist(x, z, d.x, d.z) < dangerReach(d)) dread = Math.max(dread, danger * (1.5 - p.boldness) * 2 * (1 + 0.5 * (person.lessons?.careful ?? 0)));
     }
     return dread;
   };
@@ -395,7 +402,7 @@ function options(person: Person, world: World): Option[] {
       // A roof is better to rest under, much better when it is cold or wet.
       const roof = a.shelter ? 0.5 + 0.9 * person.cold + (world.weather?.raining ? 0.4 : 0) : 0;
       add("rest", t, night ? 0 : tired > 0 ? tired + roof : 0, 35 + 30 * (1 - p.patience));
-      if (night && needs.energy > 0.2) add("sleep", t, 2.2 + needs.energy + roof, 480);
+      if (night && needs.energy > 0.3) add("sleep", t, 2.2 + needs.energy + roof, 720);
     }
     if (a.view) add("look", t, bored * (0.6 + 0.8 * p.curiosity), 25 + 30 * p.patience);
     if (a.play) add("play", t, bored * (0.5 + 0.6 * p.curiosity), 30);
@@ -404,9 +411,10 @@ function options(person: Person, world: World): Option[] {
   earthOptions(person, world, out, add, known, hungry);
   goalOptions(person, world, out);
   skillOptions(person, world, out);
+  lifeOptions(person, world, out);
   // A child does not gather, build or lay food by, and stays close to their mother.
   if (person.age < ADULT_AGE) {
-    const allowed = new Set<IntentKind>(["eat", "drink", "rest", "sleep", "look", "play", "talk", "comfort", "linger", "wander", "warm"]);
+    const allowed = new Set<IntentKind>(["mourn", "eat", "drink", "rest", "sleep", "look", "play", "talk", "comfort", "linger", "wander", "warm"]);
     const kept = out.filter((o) => allowed.has(o.intent.kind));
     out.splice(0, out.length, ...kept);
     const mother = world.people.find((q) => q.id === person.mother);
@@ -416,7 +424,7 @@ function options(person: Person, world: World): Option[] {
   }
   // With nowhere known to rest they sleep where they stand.
   if (night && needs.energy > 0.2 && !out.some((o) => o.intent.kind === "sleep")) {
-    out.push({ intent: { kind: "sleep", x: person.x, z: person.z, speed: 0, remaining: 480 }, score: 2 + needs.energy });
+    out.push({ intent: { kind: "sleep", x: person.x, z: person.z, speed: 0, remaining: 720 }, score: 2 + needs.energy });
   }
   if (!night && tired > 0 && !out.some((o) => o.intent.kind === "rest")) {
     out.push({ intent: { kind: "rest", x: person.x, z: person.z, speed: 0, remaining: 35 }, score: tired - 0.1 });
@@ -492,7 +500,7 @@ function options(person: Person, world: World): Option[] {
     // The worse of the two decides; if its remedy is not known, looking for it comes before anything else, even a meal.
     const worse: IntentKind = needs.thirst >= needs.hunger ? "drink" : "eat";
     // Hunting is a remedy for hunger too.
-    const remedies = out.filter((o) => o.intent.kind === worse || (worse === "eat" && o.intent.kind === "hunt"));
+    const remedies = out.filter((o) => o.intent.kind === worse || (worse === "eat" && (o.intent.kind === "hunt" || o.intent.kind === "fish")));
     if (remedies.length) return remedies;
     if (searchOption) return [searchOption];
   }
@@ -619,6 +627,33 @@ function goalOptions(person: Person, world: World, out: Option[]) {
 }
 
 // Growing food, making a spear, and hunting.
+// Fishing in the river, and sitting at the grave of someone they loved.
+function lifeOptions(person: Person, world: World, out: Option[]) {
+  const { needs } = person;
+  const season = world.weather?.season ?? 1;
+  const fish = world.fish ?? 0;
+  if (needs.hunger > 0.3 && fish >= 3) {
+    for (const t of world.things) {
+      if (!AFFORDANCES[t.kind]?.fish || !person.memory.has(t.id)) continue;
+      const d = dist(person.x, person.z, t.x, t.z);
+      if (d > 60) continue;
+      out.push({
+        intent: { kind: "fish", targetId: t.id, x: t.x, z: t.z, speed: WALK, remaining: 30 },
+        score: 1.55 * urge(needs.hunger, 0.32 - 0.1 * person.personality.appetite) * (0.6 + 0.4 * person.personality.patience) * (0.6 + 0.4 * FISH_BY_SEASON[season]!) - d / 120,
+      });
+    }
+  }
+  const grief = person.grief ?? 0;
+  if (grief > 0.2) {
+    for (const t of world.things) {
+      if (t.kind !== "grave" || !t.of) continue;
+      const bond = person.relations.get(t.of)?.affinity ?? 0;
+      if (bond < 0.2 || !person.memory.has(t.id)) continue;
+      out.push({ intent: { kind: "mourn", targetId: t.id, x: t.x, z: t.z, speed: WALK, remaining: 40 }, score: 1.1 * grief * bond - dist(person.x, person.z, t.x, t.z) / 120 });
+    }
+  }
+}
+
 function skillOptions(person: Person, world: World, out: Option[]) {
   const { needs } = person;
   const season = world.weather?.season ?? 1;
@@ -673,7 +708,8 @@ function earthOptions(
   const season = weather?.season ?? 1;
   const progress = weather?.seasonProgress ?? 0;
   // How much the winter weighs on them now: little in spring, more through summer, most in autumn, and in winter itself.
-  const winterPrep = season === 2 ? 0.5 + 0.5 * progress : season === 1 ? 0.15 + 0.35 * progress : season === 3 ? 0.8 : 0.05 + 0.1 * progress;
+  const learned = person.lessons?.prepare ?? 0;
+  const winterPrep = Math.min(1, (1 + 0.5 * learned) * (season === 2 ? 0.5 + 0.5 * progress : season === 1 ? 0.15 + 0.35 * progress : season === 3 ? 0.8 : 0.05 + 0.1 * progress));
   const cold = person.cold;
   const shelters = world.things.filter((t) => t.kind === "shelter" && known(t));
   const hasShelter = shelters.length > 0;
@@ -830,6 +866,34 @@ function finish(person: Person, world: World, intent: Intent) {
         joy(0.15);
       }
       break;
+    case "fish": {
+      const fish = world.fish ?? 0;
+      const activity = FISH_BY_SEASON[world.weather?.season ?? 1]!;
+      if (rand(person) < 0.55 * activity * Math.min(1, fish / 15) * (0.7 + 0.6 * person.personality.patience)) {
+        world.fish = Math.max(0, fish - 1);
+        person.carry.food = Math.min(8, person.carry.food + 2);
+        note(person, world, "Caught a fish.");
+        tally(world, "fished");
+        person.say = "A fish. Supper.";
+        joy(0.12);
+      } else {
+        note(person, world, "Waited at the river and caught nothing.");
+        person.mood = clampMood(person.mood - 0.03);
+      }
+      break;
+    }
+    case "mourn": {
+      const grave = t && t.kind === "grave" ? t : undefined;
+      if (grave?.of) {
+        const lost = world.dead?.find((d) => d.person.id === grave.of)?.person.name ?? "them";
+        person.grief = Math.max(0, (person.grief ?? 0) - 0.15);
+        person.needs.joy = clamp01(person.needs.joy - 0.05);
+        person.say = `I miss you, ${lost}.`;
+        note(person, world, `Sat by ${lost}'s grave.`);
+        tally(world, "mourned");
+      }
+      break;
+    }
     case "hunt": {
       const prey = thingById(world, intent.targetId);
       if (prey && dist(person.x, person.z, prey.x, prey.z) < 3.8) {
@@ -972,6 +1036,9 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     if (hand.rain !== undefined) weather.raining = hand.rain;
   } else if (hand) world.override = undefined;
   world.weather = weather;
+  // The river's fish breed in the warm months and keep to the deep in winter; a few come down from upstream, so it is never quite empty.
+  const fish = (world.fish ??= 30);
+  world.fish = Math.min(40, fish + dt * (0.0002 * fish * (1 - fish / 40) * FISH_BY_SEASON[weather.season]! + 1 / DAY));
   // Food grows back, a meal at a time, quickly in summer and rain and hardly at all in winter.
   for (const t of world.things) {
     if (t.maxStock === undefined || t.stock === undefined || t.stock >= t.maxStock) continue;
@@ -1013,6 +1080,13 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     const worst = Math.max(needs.hunger, needs.thirst, needs.energy, needs.social, person.cold);
     const moodTarget = 0.6 - 0.7 * mean - 0.8 * Math.max(0, worst - 0.65);
     person.mood = clampMood(person.mood + (moodTarget - person.mood) * Math.min(1, dt / 90));
+    if (person.grief) {
+      person.mood = Math.min(person.mood, 0.3 - person.grief);
+      person.grief = Math.max(0, person.grief - dt / (4 * DAY) - (person.intent?.kind === "talk" ? dt / (20 * DAY) : 0));
+    }
+    const felt = (person.felt ??= { hungry: 0, cold: 0, scares: 0, reflected: person.clock });
+    if (needs.hunger > 0.8) felt.hungry += dt;
+    if (person.cold > 0.5) felt.cold += dt;
     // Starving or parched hurts; being well slowly heals.
     // Death comes on at the pace the rule of threes gives, scaled to a sim day: about three days of real thirst, three weeks of real
     // hunger, and a few hours of real cold (a sim second is a minute).
@@ -1026,6 +1100,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     notice(person, world);
     person.explored.add(`${Math.floor(person.x / 20)},${Math.floor(person.z / 20)}`);
     updateGoals(person, world);
+    reflect(person, world);
     person.age += dt / YEAR;
 
     // Danger: running from it beats anything else, and being caught in it hurts.
@@ -1053,6 +1128,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       person.mood = clampMood(person.mood - 0.3);
       person.say = "Something is wrong. I'm leaving.";
       note(person, world, `Ran from ${phrase(f.from)}.`);
+      (person.felt ??= { hungry: 0, cold: 0, scares: 0, reflected: person.clock }).scares += 1;
     }
 
     // A need that has become critical interrupts whatever they were doing unless it is that need's own remedy, and a goal that
@@ -1062,7 +1138,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       // The more critical of hunger and thirst, when it is past 0.9, overrides anything that is not its own remedy.
       const critical = needs.hunger >= needs.thirst ? "eat" : "drink";
       const level = Math.max(needs.hunger, needs.thirst);
-      const own = current.kind === critical || (current.kind === "eat" || current.kind === "drink" ? Math.abs(needs.hunger - needs.thirst) < 0.05 : false);
+      const own = current.kind === critical || (critical === "eat" && (current.kind === "fish" || current.kind === "hunt")) || (current.kind === "eat" || current.kind === "drink" ? Math.abs(needs.hunger - needs.thirst) < 0.05 : false);
       if ((level > 0.9 && !own) || (!current.arrived && (current.age = (current.age ?? 0) + dt) > 120)) person.intent = undefined;
     }
 
@@ -1222,6 +1298,27 @@ function stepAnimals(world: World, dt: number) {
 
 // Who dies this step, and who is born. Death comes from the body failing (health gone) or old age; the living grieve in proportion to how
 // they felt. A child is born to two partners with a roof, food laid by, good health and a season that is not winter.
+// Thinking back over what has happened, about twice a day: what hurt teaches something that changes what they do next.
+function reflect(person: Person, world: World) {
+  const felt = person.felt;
+  if (!felt || person.age < ADULT_AGE || person.clock - felt.reflected < DAY / 2) return;
+  felt.reflected = person.clock;
+  const lessons = (person.lessons ??= { prepare: 0, careful: 0 });
+  if ((felt.cold > 120 || felt.hungry > 300) && lessons.prepare < 1) {
+    lessons.prepare = Math.min(1, lessons.prepare + 0.4);
+    note(person, world, felt.cold > 120 ? "I have learned: do not wait for the cold. Wood and a roof, early." : "I have learned: never let the larder run low.");
+    tally(world, "lessons");
+  }
+  if (felt.scares >= 2 && lessons.careful < 1) {
+    lessons.careful = Math.min(1, lessons.careful + 0.4);
+    note(person, world, "I have learned: keep away from where the dangerous things are.");
+    tally(world, "lessons");
+  }
+  felt.cold *= 0.4;
+  felt.hungry *= 0.4;
+  felt.scares = 0;
+}
+
 function lifeAndDeath(world: World, dt: number) {
   const now = world.clock ?? 0;
   const gone: { person: Person; cause: string }[] = [];
@@ -1234,10 +1331,12 @@ function lifeAndDeath(world: World, dt: number) {
     (world.dead ??= []).push({ person, t: now, cause });
     note(person, world, `Died of ${cause}.`);
     person.intent = undefined;
+    make(world, "grave", person.x, person.z, { of: person.id, radius: 2 });
     for (const other of world.people) {
       const r = other.relations.get(person.id);
       const grief = Math.max(0, r?.affinity ?? 0);
       other.mood = clampMood(other.mood - 0.7 * grief);
+      other.grief = clamp01((other.grief ?? 0) + 0.9 * grief);
       note(other, world, `${person.name} died${cause === "old age" ? " of old age" : ` of ${cause}`}.`);
     }
   }
@@ -1287,7 +1386,10 @@ export function actionOf(person: Person): string {
     case "eat":
       return "forage";
     case "drink":
+    case "fish":
       return "drink_from_river";
+    case "mourn":
+      return "rest";
     case "rest":
     case "sleep":
     case "warm":

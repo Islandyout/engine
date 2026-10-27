@@ -77,3 +77,44 @@ export function growthRate(weather: Weather): number {
 
 // The temperature a lightly clothed person feels comfortable at, and how cold the world must be before it matters.
 export const COMFORT_C = 15;
+
+// The sun's hours change with the year, as on earth: long summer days, short winter ones. The longest day is 15 hours and the shortest 9.
+export function daylight(clock: number): { rise: number; set: number; hours: number } {
+  const yearFrac = (clock % YEAR) / YEAR;
+  const hours = 12 + 3 * Math.sin(2 * Math.PI * (yearFrac - 0.125));
+  return { rise: 12 - hours / 2, set: 12 + hours / 2, hours };
+}
+
+// Dark enough to sleep: from an hour after sunset until half an hour before sunrise.
+export function isDark(clock: number): boolean {
+  const { rise, set } = daylight(clock);
+  const h = hourOf(clock);
+  return h >= set + 1 || h < rise - 0.5;
+}
+
+// The moon goes round every MOON_DAYS days (two moons to a season); 0 is new, 0.5 full.
+export const MOON_DAYS = 8;
+export const moonPhase = (clock: number) => ((clock / DAY) / MOON_DAYS) % 1;
+// How much moonlight there is now, 0 (new moon, or day) to 1 (full moon at night).
+export function moonLight(clock: number): number {
+  if (!isDark(clock)) return 0;
+  return 0.5 - 0.5 * Math.cos(2 * Math.PI * moonPhase(clock));
+}
+
+// How active the river's fish are in each season, a multiple of their summer feeding.
+export const FISH_BY_SEASON = [0.9, 1, 0.8, 0.3];
+
+// The hour the sky should show: the sun rises at 6 and sets at 18 on screen whatever the season, so a short winter day is lit as a short day.
+export function solarHour(clock: number): number {
+  const { rise, set } = daylight(clock);
+  const h = hourOf(clock);
+  if (h >= rise && h <= set) return 6 + ((h - rise) / (set - rise)) * 12;
+  const night = 24 - (set - rise);
+  const since = h > set ? h - set : h + 24 - set;
+  return (18 + (since / night) * 12) % 24;
+}
+
+export function moonName(clock: number): string {
+  const p = moonPhase(clock);
+  return p < 0.06 || p > 0.94 ? "new moon" : p < 0.44 ? "waxing moon" : p < 0.56 ? "full moon" : "waning moon";
+}

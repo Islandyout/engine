@@ -108,3 +108,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F101](changelog/F101.md) | Jianghu Road: a one-kilometre open-world murim game from data (world, quests with checks, one tracked waypoint) |
 | [F102](changelog/F102.md) | Desktop app (Electron): local files, GPU report, AI control port with MCP and CLI, standalone game apps |
 | [F103](changelog/F103.md) | Eden: two Supabase-brained characters in a garden, speak to them or add animals and trees |
+| [F104](changelog/F104.md) | Eden: seasonal day length, moon, fishing, grief and graves, lessons learned |

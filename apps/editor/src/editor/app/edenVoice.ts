@@ -2,7 +2,7 @@ import type { Person, World } from "../../eden/mind";
 
 // An optional free voice for Eden's people. Their plain speech (src/eden/speech.ts) always works with nothing installed; this can reword a
 // line in the person's own manner using any OpenAI-compatible chat endpoint that costs nothing to use:
-//   - Ollama running on this laptop (free, private, offline): url http://localhost:11434/v1/chat/completions, model e.g. llama3.2:1b.
+//   - Ollama running on this laptop (free, private, offline): url http://localhost:11434/v1/chat/completions, model e.g. llama3.2:1b (fast), llama3.2:3b or a 4B Qwen/Gemma (better, slower).
 //     Start it with OLLAMA_ORIGINS=* so the page may call it.
 //   - A free tier of a hosted service (a key is needed; it is kept only in this browser).
 // It is off until the Creator turns it on. One line is asked for at most every few seconds (free tiers limit requests), a slow or failing

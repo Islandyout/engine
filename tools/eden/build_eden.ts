@@ -209,6 +209,8 @@ stillPrefab("Fruit Tree", "eztree-oak");
 // fire that burns for as long as it has wood (the mind removes it when it goes out).
 scene.prefab("Shelter", { Renderable: { mesh: modelId("canvas-tent"), material: 0, visible: true } });
 // A planted plot: a low bush that bears fruit, no collider.
+// A grave: a standing stone, half size, where someone who died was laid to rest.
+scene.prefab("Grave", { Renderable: { mesh: modelId("rock-large"), material: 0, visible: true }, Scale: { value: vec(0.5, 0.5, 0.5) } });
 scene.prefab("Crop", { Renderable: { mesh: modelId("bush-1"), material: 0, visible: true } });
 // People who were not here at the start (born in the garden, or brought by the Creator): the same models as Adam and Eve, driven by person.lua,
 // and smaller as children.

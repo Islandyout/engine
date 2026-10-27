@@ -1,5 +1,5 @@
-import { actionOf, ADULT_AGE, AFFORDANCES, hourOf, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
-import { SEASON_NAMES } from "../../eden/earth";
+import { actionOf, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
+import { moonName, SEASON_NAMES, solarHour } from "../../eden/earth";
 import { runCreatorCommand } from "../../eden/creator";
 import { worldFromJson, worldToJson } from "../../eden/persist";
 import { DRINK_SPOT, EDEN_LANDMARKS, EDEN_PLACES } from "../../eden/places";
@@ -44,9 +44,9 @@ const DEFAULT_SPEED = 2; // index into SPEEDS: 3x
 
 const PLACE_NAME: Record<string, string> = {};
 for (const place of Object.values(EDEN_PLACES)) PLACE_NAME[place.kind] = place.name;
-const KIND_NAME: Record<string, string> = { ...PLACE_NAME, campfire: "the fire", shelter: "the shelter", tree: "a tree", "fruit tree": "a fruit tree", bush: "a bush", rock: "a rock", deer: "a deer", fox: "a fox", alpaca: "an alpaca", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge" };
+const KIND_NAME: Record<string, string> = { ...PLACE_NAME, campfire: "the fire", shelter: "the shelter", tree: "a tree", "fruit tree": "a fruit tree", bush: "a bush", rock: "a rock", grave: "a grave", deer: "a deer", fox: "a fox", alpaca: "an alpaca", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge" };
 
-const VERB: Record<string, string> = { gather: "goes to gather wood at", fire: "makes a fire", build: "starts building a shelter", stash: "goes to put food away at", forage: "goes to gather food at", warm: "goes to warm up at", share: "goes to share food with", comfort: "goes to sit with", plant: "goes to plant a seed", craft: "makes a spear", hunt: "hunts", eat: "goes to eat at", drink: "goes to drink at", rest: "goes to rest at", sleep: "goes to sleep at", look: "goes to look at", play: "goes to play at", talk: "goes to talk with", wander: "wanders off", flee: "runs from", linger: "pauses" };
+const VERB: Record<string, string> = { gather: "goes to gather wood at", fire: "makes a fire", build: "starts building a shelter", stash: "goes to put food away at", forage: "goes to gather food at", warm: "goes to warm up at", share: "goes to share food with", comfort: "goes to sit with", plant: "goes to plant a seed", craft: "makes a spear", hunt: "hunts", fish: "goes fishing at", mourn: "goes to sit at", eat: "goes to eat at", drink: "goes to drink at", rest: "goes to rest at", sleep: "goes to sleep at", look: "goes to look at", play: "goes to play at", talk: "goes to talk with", wander: "wanders off", flee: "runs from", linger: "pauses" };
 
 function describe(person: Person, world: World): string {
   const i = person.intent;
@@ -61,6 +61,7 @@ function moodWord(m: number): string {
 }
 function needWord(p: Person): string {
   const n = p.needs;
+  if ((p.grief ?? 0) > 0.4) return "grieving";
   if (n.thirst > 0.75) return "thirsty";
   if (n.hunger > 0.75) return "hungry";
   if (n.energy > 0.75) return "tired";
@@ -307,7 +308,7 @@ export function installEdenAgents(C: Ctx): void {
     }
     if (Math.floor(hour * 4) !== lastHour) {
       lastHour = Math.floor(hour * 4);
-      ui("eden_time", String(hour));
+      ui("eden_time", String(solarHour(w.clock ?? 0)));
     }
     const rainNow = w.weather?.raining ? 1 : 0;
     if (rainNow !== lastRain) {
@@ -343,7 +344,7 @@ export function installEdenAgents(C: Ctx): void {
     sync(w, hour);
     const weather = w.weather;
     if (weather) {
-      panel.setHeader(`Eden · ${SEASON_NAMES[weather.season]} · ${String(Math.floor(hour)).padStart(2, "0")}:${String(Math.floor((hour % 1) * 60)).padStart(2, "0")} · ${Math.round(weather.tempC)}°C${weather.raining ? " · rain" : ""}`);
+      panel.setHeader(`Eden · ${SEASON_NAMES[weather.season]} · ${String(Math.floor(hour)).padStart(2, "0")}:${String(Math.floor((hour % 1) * 60)).padStart(2, "0")} · ${Math.round(weather.tempC)}°C${weather.raining ? " · rain" : ""}${isNight(w.clock ?? 0) ? ` · ${moonName(w.clock ?? 0)}` : ""}`);
     }
 
     for (const person of w.people) {

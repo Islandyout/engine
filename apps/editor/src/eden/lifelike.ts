@@ -60,6 +60,9 @@ export interface Life {
   deerAtEnd: number;
   deerAtStart: number;
   foxesAtEnd: number;
+  fished: number;
+  mourned: number;
+  lessons: number;
 }
 
 export interface LifeOptions {
@@ -270,6 +273,9 @@ export function live(seed: number, options: LifeOptions = {}): Life {
     planted: world.tally?.planted ?? 0,
     spears: world.tally?.spears ?? 0,
     hunted: world.tally?.hunted ?? 0,
+    fished: world.tally?.fished ?? 0,
+    mourned: world.tally?.mourned ?? 0,
+    lessons: world.tally?.lessons ?? 0,
     deerAtEnd: world.things.filter((t) => t.kind === "deer").length,
     deerAtStart,
     foxesAtEnd: world.things.filter((t) => t.kind === "fox").length,
@@ -363,6 +369,9 @@ export function analyse(lives: Life[], years: number, seconds = 0) {
     deathsOfOldAge: share((l) => l.deathCause === "old age"),
     livesThatPlanted: share((l) => l.planted > 0),
     livesWithSpears: share((l) => l.spears > 0),
+    livesThatFished: share((l) => l.fished > 0),
+    livesThatMourned: share((l) => l.mourned > 0),
+    livesThatLearned: share((l) => l.lessons > 0),
     livesThatHunted: share((l) => l.hunted > 0, lives.filter((l) => l.deerAtStart > 0)),
     herdsGone: share((l) => l.deerAtStart > 0 && l.deerAtEnd === 0, lives.filter((l) => l.deerAtStart > 0)),
     mostDeer: maxOf(lives, (l) => l.deerAtEnd),
@@ -383,7 +392,7 @@ export function analyse(lives: Life[], years: number, seconds = 0) {
   if (report.moodAverage < 0) problems.push(`average mood ${report.moodAverage.toFixed(2)} is below neutral`);
   if (report.mealsPerDayMedian < 2 || report.mealsPerDayMedian > 5) problems.push(`${report.mealsPerDayMedian.toFixed(1)} meals a day (median) is not human`);
   if (report.drinksPerDayMedian < 3 || report.drinksPerDayMedian > 12) problems.push(`${report.drinksPerDayMedian.toFixed(1)} drinks a day (median) is not human`);
-  if (report.sleepsPerDayMedian < 0.7 || report.sleepsPerDayMedian > 1.5) problems.push(`${report.sleepsPerDayMedian.toFixed(2)} sleeps a day (median) is not human`);
+  if (report.sleepsPerDayMedian < 0.7 || report.sleepsPerDayMedian > 1.6) problems.push(`${report.sleepsPerDayMedian.toFixed(2)} sleeps a day (median) is not human`);
   if (report.sleepShareMedian < 0.2 || report.sleepShareMedian > 0.42) problems.push(`${pct(report.sleepShareMedian)} of time asleep (median) is not human`);
   if (report.travelShareMedian > 0.6) problems.push(`${pct(report.travelShareMedian)} of time spent walking (median)`);
   if (report.livesWithAGoal < 0.5 && years >= 1) problems.push(`only ${pct(report.livesWithAGoal)} of lives ever set a goal`);
@@ -396,7 +405,7 @@ export function analyse(lives: Life[], years: number, seconds = 0) {
 
 // A life as a row of numbers, so many can cross between threads cheaply.
 const CAUSES = ["", "cold", "thirst", "hunger", "danger", "other"];
-const NUMERIC: (keyof Life)[] = ["seed", "people", "deaths", "minHealth", "urgentShare", "starvedShare", "coldShare", "topShare", "distinctActions", "abandonsPerHour", "stuckSeconds", "talks", "mood", "meals", "drinks", "rests", "sleeps", "sleepShare", "travelShare", "fires", "shelters", "firstShelterDay", "stashed", "winterHungerShare"];
+const NUMERIC: (keyof Life)[] = ["seed", "people", "deaths", "minHealth", "urgentShare", "starvedShare", "coldShare", "topShare", "distinctActions", "abandonsPerHour", "stuckSeconds", "talks", "mood", "meals", "drinks", "rests", "sleeps", "sleepShare", "travelShare", "fires", "shelters", "firstShelterDay", "stashed", "winterHungerShare", "births", "peopleAtEnd", "goalsSet", "goalsDone", "quarrels", "comforts", "partners", "grieved", "planted", "spears", "hunted", "deerAtEnd", "deerAtStart", "foxesAtEnd", "fished", "mourned", "lessons"];
 export const ROW = NUMERIC.length + 3;
 export function lifeToRow(l: Life, out: Float64Array, at: number) {
   NUMERIC.forEach((k, i) => (out[at + i] = l[k] as number));

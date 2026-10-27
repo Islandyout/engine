@@ -34,6 +34,9 @@ function tellEvent(text: string, pick: Pick, other: Person): string | undefined 
   if (/stayed with me/.test(text)) return `Thank you for staying with me, ${other.name}.`;
   if (/^Quarrelled with/.test(text)) return undefined;
   if (/^Ran from/.test(text)) return text.replace(/^Ran from/, "I ran from").replace(/\.$/, ". I was frightened.");
+  if (/^Caught a fish/.test(text)) return pick(["I caught a fish at the river. There are plenty if you are patient.", "The river gave me a fish today."]);
+  if ((m = text.match(/^Sat by (.+)'s grave\.$/))) return `I sat with ${m[1]} a while. I still miss them.`;
+  if ((m = text.match(/^I have learned: (.+)$/))) return `I have learned something: ${m[1]!.charAt(0).toLowerCase()}${m[1]!.slice(1)}`;
   if (/^Put .* by in the shelter/.test(text)) return "I have been putting food by for the winter.";
   if (/^I did it/.test(text)) return text.replace(/^I did it: I wanted to /, "I did what I set out to do: I ").replace(/\.$/, ".");
   return undefined;
@@ -106,6 +109,10 @@ export function converse(world: World, speaker: Person, other: Person, rnd: () =
   if (creature) add(0.35, "creature", `I saw ${phrase(creature)} near here. It watched me for a while.`, pick(["They are gentle.", "Perhaps we could find it again."]));
   const child = world.people.find((q) => (q.mother === speaker.id || q.father === speaker.id) && q.age < 4);
   if (child) add(0.8, "child", pick([`${child.name} is growing fast.`, `${child.name} laughed today. Did you hear?`]), pick(["Every day is different with them.", "We must look after them."]));
+
+  // A loss that still weighs
+  const grief = speaker.grief ?? 0;
+  if (grief > 0.2) add(1.6 * grief, "need", pick([`${addr}I cannot stop thinking about them.`, "It is quiet without them."]), pick(["I know. I am here.", "Take your time. You do not have to be alone."]));
 
   // The thanks that are due
   const lastGift = speaker.journal.slice(-30).reverse().find((j) => /gave me food|stayed with me/.test(j.text));
