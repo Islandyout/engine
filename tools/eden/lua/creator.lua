@@ -6,6 +6,12 @@
 -- world.spawn is Lua-only -- nothing TS-side can call it directly.
 
 function on_ui(name, value)
+  -- The mind's clock: light the scene for the hour (sun, moon, sky and fog).
+  if name == "eden_time" then
+    local hours = tonumber(value)
+    if hours then fx.time_of_day(hours) end
+    return
+  end
   if name ~= "eden_create" then return end
   local parts = {}
   for p in string.gmatch(value, "[^,]+") do parts[#parts + 1] = p end

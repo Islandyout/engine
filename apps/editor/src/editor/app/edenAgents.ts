@@ -1,5 +1,5 @@
 import { fuzzyRank } from "../fuzzy";
-import { actionOf, AFFORDANCES, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
+import { actionOf, AFFORDANCES, hourOf, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import { CREATABLE, DRINK_SPOT, EDEN_LANDMARKS, EDEN_PLACES } from "../../eden/places";
 import type { Ctx } from "./context";
 
@@ -38,7 +38,7 @@ const PLACE_NAME: Record<string, string> = {};
 for (const place of Object.values(EDEN_PLACES)) PLACE_NAME[place.kind] = place.name;
 const KIND_NAME: Record<string, string> = { ...PLACE_NAME, tree: "a tree", bush: "a bush", rock: "a rock", deer: "a deer", fox: "a fox", alpaca: "an alpaca", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge" };
 
-const VERB: Record<string, string> = { eat: "goes to eat at", drink: "goes to drink at", rest: "goes to rest at", look: "goes to look at", play: "goes to play at", talk: "goes to talk with", wander: "wanders off", flee: "runs from", linger: "pauses" };
+const VERB: Record<string, string> = { eat: "goes to eat at", drink: "goes to drink at", rest: "goes to rest at", sleep: "goes to sleep at", look: "goes to look at", play: "goes to play at", talk: "goes to talk with", wander: "wanders off", flee: "runs from", linger: "pauses" };
 
 function describe(person: Person, thingKind: (id: string) => string | undefined): string {
   const i = person.intent;
@@ -62,6 +62,7 @@ function needWord(p: Person): string {
 
 interface Panel {
   root: HTMLElement;
+  title: HTMLElement;
   status: Record<string, HTMLElement>;
   log: HTMLElement;
   speakForm: HTMLFormElement;
@@ -135,7 +136,7 @@ function buildPanel(): Panel {
   const [createForm, createInput] = makeForm("Let there be...", "Create");
 
   document.body.appendChild(root);
-  return { root, status, log, speakForm, speakInput, createForm, createInput };
+  return { root, title, status, log, speakForm, speakInput, createForm, createInput };
 }
 
 function setStatus(line: HTMLElement, name: string, text: string) {
@@ -170,9 +171,7 @@ export function installEdenAgents(C: Ctx): void {
   const spoken = new Map<string, string>();
   const described = new Map<string, string>();
   let nextCreated = 1;
-  // Meals a thing held when it was made, so a used-up bush grows back.
-  const fullStock = new Map<string, number>();
-  let regrow = 0;
+  let lastHour = -1;
 
   const bodyIndex = (name: string) => C.doc.scene.eachAlive().findIndex((e) => C.doc.scene.resolve(e, "Name")?.value === name);
   function bodyPosition(name: string): [number, number, number] | undefined {
@@ -190,14 +189,15 @@ export function installEdenAgents(C: Ctx): void {
     }
     // The two landmark trees stand where the scene put them; they are there to be looked at and, for the Tree of Life, eaten from.
     for (const landmark of EDEN_LANDMARKS) {
-      things.push({ id: landmark.id, kind: landmark.kind, x: landmark.x, z: landmark.z, radius: 3, stock: AFFORDANCES[landmark.kind]?.stock });
+      const stock = AFFORDANCES[landmark.kind]?.stock;
+      things.push({ id: landmark.id, kind: landmark.kind, x: landmark.x, z: landmark.z, radius: 3, stock, maxStock: stock });
     }
-    for (const thing of things) if (thing.stock !== undefined) fullStock.set(thing.id, thing.stock);
     const people = PEOPLE.map((p, i) => {
       const at = bodyPosition(p.name) ?? [0, 0, 0];
       return makePerson(p.id, at[0], at[2], 1000 + i * 77, p.personality);
     });
-    world = { things, people };
+    // radius: the garden's own edge (the terrain is 80 m across), so a person searching for water does not wander off the map.
+    world = { things, people, radius: 36 };
     sent.clear();
     spoken.clear();
     described.clear();
@@ -233,8 +233,7 @@ export function installEdenAgents(C: Ctx): void {
     C.runtime.ccall("editor_ui_event", null, ["string", "string"], ["eden_create", `${prefab},${x},0,${z}`]);
     const id = `created-${nextCreated++}`;
     const stock = AFFORDANCES[kind]?.stock;
-    world.things.push({ id, kind, x, z, radius: 2, stock });
-    if (stock !== undefined) fullStock.set(id, stock);
+    world.things.push({ id, kind, x, z, radius: 2, stock, maxStock: stock });
     appendLine(panel, `✦ ${KIND_NAME[kind] ? KIND_NAME[kind]!.replace(/^a /, "A ") : prefab} appears in the garden.`);
   }
 
@@ -253,16 +252,14 @@ export function installEdenAgents(C: Ctx): void {
     const dt = (TICK_MS / 1000) * TIME_SCALE;
     step(w, dt, { externalMotion: true });
 
-    // Used-up food grows back, one meal at a time.
-    regrow += dt;
-    if (regrow > 90) {
-      regrow = 0;
-      for (const t of w.things) {
-        const full = fullStock.get(t.id);
-        if (full !== undefined && t.stock !== undefined && t.stock < full) t.stock += 1;
-      }
+    // The hour of the day: shown in the panel, and the scene is lit for it (creator.lua calls fx.time_of_day).
+    const hour = hourOf(w.clock ?? 0);
+    const label = hour < 6 || hour >= 22 ? "night" : hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+    panel.title.textContent = `Eden · ${String(Math.floor(hour)).padStart(2, "0")}:${String(Math.floor((hour % 1) * 60)).padStart(2, "0")} ${label}`;
+    if (Math.floor(hour * 4) !== lastHour) {
+      lastHour = Math.floor(hour * 4);
+      C.runtime.ccall("editor_ui_event", null, ["string", "string"], ["eden_time", String(hour)]);
     }
-
     const kindOf = (id: string) => w.things.find((t) => t.id === id)?.kind;
     for (const person of w.people) {
       const entry = PEOPLE.find((p) => p.id === person.id)!;
