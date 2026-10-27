@@ -3,11 +3,12 @@
 //   --game <slug>         open this game (a folder name under games/) instead of the editor
 //   --control-port <n>    the control port (default 47800; the next free one when busy)
 //   --no-control          do not open the control port
+//   --remote              run the live published site instead of local files (no build needed)
 //   --kiosk               a game, full screen, no menu, no control port (what a packaged game uses)
 //   --software            allow software rendering without the warning
 //   --devtools            open the developer tools
 function parseArgs(argv) {
-  const out = { site: undefined, game: undefined, controlPort: 47800, control: true, kiosk: false, software: false, devtools: false, rest: [] };
+  const out = { site: undefined, game: undefined, controlPort: 47800, control: true, kiosk: false, software: false, remote: false, devtools: false, rest: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--site") out.site = argv[++i];
@@ -15,6 +16,7 @@ function parseArgs(argv) {
     else if (a === "--control-port") out.controlPort = Number(argv[++i]);
     else if (a === "--no-control") out.control = false;
     else if (a === "--kiosk") (out.kiosk = true), (out.control = false);
+    else if (a === "--remote") out.remote = true;
     else if (a === "--software") out.software = true;
     else if (a === "--devtools") out.devtools = true;
     else if (a === "--no-sandbox") continue; // Chromium's own switch: it has already read it
