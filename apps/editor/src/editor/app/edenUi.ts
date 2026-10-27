@@ -328,7 +328,7 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
         .slice(0, 6);
       if (places.length) {
         mindsView.appendChild(el("div", "eden-sub", "What they remember of the world"));
-        for (const x of places) mindsView.appendChild(el("div", undefined, `${phrase(x.thing)}: ${x.m.feeling > 0.3 ? "likes" : x.m.feeling < -0.3 ? "dreads" : "no strong feeling"} (${x.m.feeling.toFixed(2)}), been ${x.m.visits}×`));
+        for (const x of places) mindsView.appendChild(el("div", undefined, `${phrase(x.thing)}${world.names?.[x.id] ? ` (${world.names[x.id]!.name})` : ""}: ${x.m.feeling > 0.3 ? "likes" : x.m.feeling < -0.3 ? "dreads" : "no strong feeling"} (${x.m.feeling.toFixed(2)}), been ${x.m.visits}×`));
       }
 
       mindsView.appendChild(el("div", "eden-sub", "Their journal"));

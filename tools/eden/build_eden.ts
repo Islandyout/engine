@@ -264,14 +264,12 @@ const WOMEN = ["woman-casual", "woman-dress", "woman-street", "woman-tank-top"];
 MEN.forEach((m, i) => {
   personPrefab(`Villager (man) ${i + 1}`, m);
   personPrefab(`Youth (boy) ${i + 1}`, m, 0.82);
+  personPrefab(`Child (boy) ${i + 1}`, m, 0.6);
 });
 WOMEN.forEach((m, i) => {
   personPrefab(`Villager (woman) ${i + 1}`, m);
   personPrefab(`Youth (girl) ${i + 1}`, m, 0.82);
-});
-[0, 1].forEach((i) => {
-  personPrefab(`Child (boy) ${i + 1}`, MEN[i]!, 0.6);
-  personPrefab(`Child (girl) ${i + 1}`, WOMEN[i]!, 0.6);
+  personPrefab(`Child (girl) ${i + 1}`, m, 0.6);
 });
 scene.prefab("Campfire", {
   Particles: component("Particles", { preset: "Fire", rate: 40, lifetime: 0.9, speed: 1.2, size: 0.28, shape: "Cone", coneAngle: 18, gravityScale: -0.15 }),

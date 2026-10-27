@@ -137,8 +137,8 @@ export function installEdenAgents(C: Ctx): void {
   const WOMEN = 4;
   const bodyPrefab = (p: Person) => {
     const h = [...p.id].reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) >>> 0, 7);
-    if (p.age < 4) return `Child (${p.sex === "m" ? "boy" : "girl"}) ${1 + (h % 2)}`;
-    const n = 1 + (h % (p.sex === "m" ? MEN : WOMEN));
+    const n = 1 + (h % (p.sex === "m" ? MEN : WOMEN)); // the same face and clothes from birth to old age
+    if (p.age < 4) return `Child (${p.sex === "m" ? "boy" : "girl"}) ${n}`;
     return `${p.age < 14 ? "Youth" : "Villager"} (${p.sex === "m" ? (p.age < 14 ? "boy" : "man") : p.age < 14 ? "girl" : "woman"}) ${n}`;
   };
 

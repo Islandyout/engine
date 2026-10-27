@@ -215,6 +215,7 @@ export interface World {
   // The climate the garden has; absent, Eden's own. `weather` is what it is like right now (kept by step).
   climate?: Climate;
   weather?: Weather;
+  names?: Record<string, { name: string; by: string; known: string[] }>; // what the people call the places, who named each and who knows it
   norms?: Record<string, { strength: number; announced?: boolean }>; // customs forming among the people (norms.ts)
   fish?: number; // how many fish the river holds (kept by step)
   built?: number; // how many things the people have made (their ids)
@@ -457,6 +458,41 @@ function keepPromises(person: Person, world: World) {
     }
     return false;
   });
+}
+
+// The first person to stand somewhere may give it a name, which then spreads by word of mouth.
+const NAMES: Record<string, string[]> = {
+  river: ["Slow Water", "Silver Run", "the Whisper", "Cold Braid"],
+  lake: ["Still Water", "the Mirror", "Deep Blue", "Heron's Rest"],
+  grove: ["Honey Grove", "the Sweet Trees", "Fruitfall"],
+  meadow: ["Soft Grass", "the Green Hall", "Larksong"],
+  peak: ["the Grey Crown", "Wolf Hills", "the Cold Ridge"],
+  woodland: ["Old Oaks", "the Berry Wood", "Deer Wood"],
+  pinewood: ["Dark Pines", "the Needle Wood", "Resin Hollow"],
+  orchard: ["the Forgotten Rows", "Orchard of the Old Ones"],
+  overlook: ["the Lookout", "High Seat", "Windy Brow"],
+  hollow: ["the Cradle", "Quiet Dip", "the Nest"],
+};
+function nameThePlace(person: Person, world: World, t: Thing) {
+  const options = NAMES[t.kind];
+  if (!options || world.names?.[t.id] || person.age < ADULT_AGE) return;
+  if (rand(person) > 0.5 * (0.4 + 0.6 * person.personality.curiosity)) return;
+  const taken = new Set(Object.values(world.names ?? {}).map((n) => n.name));
+  const name = options.filter((n) => !taken.has(n))[Math.floor(rand(person) * options.length)] ?? options[0]!;
+  (world.names ??= {})[t.id] = { name, by: person.id, known: [person.id] };
+  note(person, world, `I named the ${t.kind === "peak" ? "hills" : t.kind}: ${name}.`);
+  tally(world, "named");
+}
+function shareNames(a: Person, b: Person, world: World) {
+  for (const [from, to] of [[a, b], [b, a]] as const) {
+    for (const n of Object.values(world.names ?? {})) {
+      if (!n.known.includes(from.id) || n.known.includes(to.id)) continue;
+      n.known.push(to.id);
+      note(to, world, `${from.name} told me the place is called ${n.name}.`);
+      tally(world, "namesShared");
+      return;
+    }
+  }
 }
 
 // A norm gains ground; when it becomes a custom everyone writes it down.
@@ -1253,6 +1289,7 @@ function finish(person: Person, world: World, intent: Intent) {
         note(person, world, `Talked with ${other.name}: "${exchange.said}"`);
         note(other, world, `${person.name} said: "${exchange.said}" I said: "${exchange.reply}"`);
         tally(world, "talks");
+        shareNames(person, other, world);
         // Teaching: whoever is better at something shows the other.
         for (const [teacher, learner] of [[person, other], [other, person]] as const) {
           const taught = teach(teacher, learner);
@@ -1294,6 +1331,7 @@ function finish(person: Person, world: World, intent: Intent) {
   if (t) {
     const m = person.memory.get(t.id);
     if (m) m.visits += 1;
+    if (m && m.visits === 1) nameThePlace(person, world, t);
   }
   person.intent = undefined;
 }

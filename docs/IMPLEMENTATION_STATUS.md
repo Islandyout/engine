@@ -114,3 +114,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F107](changelog/F107.md) | Eden: illness, pregnancy and the risk of birth |
 | [F108](changelog/F108.md) | Eden: customs that form among people, and standing |
 | [F109](changelog/F109.md) | Eden: the voice is given their memories, moods and customs, and may offer, warn or promise |
+| [F110](changelog/F110.md) | Eden: places get names that spread, and people keep their face as they grow |
