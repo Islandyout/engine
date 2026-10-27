@@ -1,4 +1,4 @@
-import { hourOf, phrase, type Person, type World } from "../../eden/mind";
+import { bondOf, hourOf, phrase, type Person, type World } from "../../eden/mind";
 import { DAY } from "../../eden/earth";
 import { CUSTOM_AT, NORM_TEXT, standing, standingWord, type NormId } from "../../eden/norms";
 import type { VoiceConfig } from "./edenVoice";
@@ -33,7 +33,7 @@ export interface EdenPanel {
   lifeLog(text: string): void;
   creatorLog(text: string, ok: boolean): void;
   voiceStatus(text: string): void;
-  tab(): "life" | "minds" | "creator";
+  tab(): "life" | "minds" | "chronicle" | "creator";
   renderMinds(world: World): void;
 }
 
@@ -116,16 +116,16 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
 
   // Tabs
   const tabs = el("div", "eden-tabs");
-  const panes: Record<string, HTMLElement> = { life: el("div", "eden-pane"), minds: el("div", "eden-pane"), creator: el("div", "eden-pane") };
+  const panes: Record<string, HTMLElement> = { life: el("div", "eden-pane"), minds: el("div", "eden-pane"), chronicle: el("div", "eden-pane"), creator: el("div", "eden-pane") };
   const tabButtons: Record<string, HTMLButtonElement> = {};
-  let current: "life" | "minds" | "creator" = "life";
-  for (const [key, label] of [["life", "Life"], ["minds", "Minds"], ["creator", "Creator"]] as const) {
+  let current: "life" | "minds" | "chronicle" | "creator" = "life";
+  for (const [key, label] of [["life", "Life"], ["minds", "Minds"], ["chronicle", "Chronicle"], ["creator", "Creator"]] as const) {
     const b = el("button", undefined, label);
     b.addEventListener("click", () => select(key));
     tabButtons[key] = b;
     tabs.appendChild(b);
   }
-  function select(key: "life" | "minds" | "creator") {
+  function select(key: "life" | "minds" | "chronicle" | "creator") {
     current = key;
     for (const k of Object.keys(panes)) {
       panes[k]!.classList.toggle("on", k === key);
@@ -143,6 +143,8 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
 
   // Minds
   const mindsView = el("div");
+  const chronicleView = el("div");
+  panes.chronicle!.appendChild(chronicleView);
   panes.minds!.appendChild(mindsView);
   let selected: string | undefined;
 
@@ -255,6 +257,10 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
     voiceStatus: (text) => (voiceStatus.textContent = text),
     tab: () => current,
     renderMinds(world) {
+      chronicleView.replaceChildren();
+      const events = world.chronicle ?? [];
+      chronicleView.appendChild(el("div", "eden-sub", events.length ? `What has happened (${events.length})` : "Nothing of note has happened yet."));
+      for (const e of [...events].reverse().slice(0, 120)) chronicleView.appendChild(el("div", undefined, `${clockText(e.t)} · ${e.text}`));
       mindsView.replaceChildren();
       if (!world.people.length) return;
       if (!selected || !world.people.some((p) => p.id === selected)) selected = world.people[0]!.id;
@@ -281,6 +287,17 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
       meter("cold", p.cold, p.cold > 0.7, bars);
       meter("mood", (p.mood + 1) / 2, p.mood < -0.3, bars);
       mindsView.appendChild(bars);
+      {
+        const everyone = [...world.people, ...(world.dead ?? []).map((d) => d.person)];
+        const nameOf = (id?: string) => everyone.find((q) => q.id === id)?.name;
+        const kin = [
+          nameOf(p.mother) ? `mother ${nameOf(p.mother)}` : "",
+          nameOf(p.father) ? `father ${nameOf(p.father)}` : "",
+          ...everyone.filter((q) => q.mother === p.id || q.father === p.id).map((q) => `child ${q.name}`),
+          ...world.people.filter((q) => q !== p && bondOf(p, q) === "partner").map((q) => `partner ${q.name}`),
+        ].filter(Boolean);
+        if (kin.length) mindsView.appendChild(el("div", undefined, `Family: ${kin.join(", ")}`));
+      }
       if (p.illness) mindsView.appendChild(el("div", undefined, `Ill (${Math.round(p.illness.severity * 100)}%)`));
       if (p.wound) mindsView.appendChild(el("div", undefined, `Wounded (${Math.round(p.wound * 100)}%)`));
       if ((p.clothing ?? 0) > 0.1) mindsView.appendChild(el("div", undefined, `Wearing a cloak (${Math.round((p.clothing ?? 0) * 100)}%)`));

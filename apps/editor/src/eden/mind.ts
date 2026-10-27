@@ -219,6 +219,7 @@ export interface World {
   // The climate the garden has; absent, Eden's own. `weather` is what it is like right now (kept by step).
   climate?: Climate;
   weather?: Weather;
+  chronicle?: { t: number; text: string }[]; // the notable things that have happened to everyone, in order
   names?: Record<string, { name: string; by: string; known: string[] }>; // what the people call the places, who named each and who knows it
   norms?: Record<string, { strength: number; announced?: boolean }>; // customs forming among the people (norms.ts)
   fish?: number; // how many fish the river holds (kept by step)
@@ -374,6 +375,7 @@ function breakDown(person: Person, world: World, dt: number) {
     note(near, world, `${person.name} lost their temper with me.`);
     tally(world, "quarrels");
     tally(world, "outbursts");
+    chronicle(world, `${person.name} lost their temper with ${near.name}.`);
   } else {
     const away = (near ? Math.atan2(person.z - near.z, person.x - near.x) : rand(person) * Math.PI * 2);
     const to = inside(world, person.x + Math.cos(away) * 25, person.z + Math.sin(away) * 25);
@@ -416,6 +418,7 @@ function tickIllness(person: Person, world: World, dt: number) {
       person.illness = { severity: 0.25 + 0.3 * rand(person), since: now };
       note(person, world, "Fell ill.");
       tally(world, "illnesses");
+      if (person.age < 1 || person.age > 55) chronicle(world, `${person.name} fell ill.`);
     }
     return;
   }
@@ -499,6 +502,7 @@ function nameThePlace(person: Person, world: World, t: Thing) {
   const name = options.filter((n) => !taken.has(n))[Math.floor(rand(person) * options.length)] ?? options[0]!;
   (world.names ??= {})[t.id] = { name, by: person.id, known: [person.id] };
   note(person, world, `I named the ${t.kind === "peak" ? "hills" : t.kind}: ${name}.`);
+  chronicle(world, `${person.name} named the ${t.kind === "peak" ? "hills" : t.kind} ${name}.`);
   tally(world, "named");
 }
 function shareNames(a: Person, b: Person, world: World) {
@@ -523,11 +527,19 @@ function watchedBy(world: World, doer: Person, skill: Skill) {
   }
 }
 
+// The world's own record of what mattered: births, deaths, customs, names, and the rest, in order.
+export function chronicle(world: World, text: string) {
+  const list = (world.chronicle ??= []);
+  list.push({ t: world.clock ?? 0, text });
+  if (list.length > 400) list.splice(0, list.length - 400);
+}
+
 // A norm gains ground; when it becomes a custom everyone writes it down.
 function uphold(world: World, id: NormId, by: Person, amount: number) {
   if (!reinforce(world, id, by, amount)) return;
   for (const q of world.people) note(q, world, `A custom has formed among us: ${NORM_TEXT[id]}.`);
   tally(world, "customs");
+  chronicle(world, `A custom formed: ${NORM_TEXT[id]}.`);
 }
 
 function note(person: Person, world: World, text: string) {
@@ -1206,6 +1218,7 @@ function finish(person: Person, world: World, intent: Intent) {
         if (dog.trust >= 3) {
           dog.of = person.id;
           note(person, world, "A dog has chosen me.");
+          chronicle(world, `A dog chose ${person.name}.`);
           feelEmotion(person, "joy", 0.5);
           person.mood = clampMood(person.mood + 0.3);
           tally(world, "tamed");
@@ -1394,6 +1407,7 @@ function finish(person: Person, world: World, intent: Intent) {
           note(person, world, `Made things right with ${other.name}.`);
           note(other, world, `${person.name} made things right with me.`);
           tally(world, "reconciliations");
+          chronicle(world, `${person.name} and ${other.name} made things right.`);
         }
         if (exchange.about && exchange.tag) {
           const r = relation(other, exchange.about, world);
@@ -1772,6 +1786,7 @@ function reflect(person: Person, world: World) {
     person.role = role.role;
     note(person, world, `I have become known as the ${role.role}.`);
     tally(world, "roles");
+    chronicle(world, `${person.name} became known as the ${role.role}.`);
   }
   felt.cold *= 0.4;
   felt.hungry *= 0.4;
@@ -1793,6 +1808,7 @@ function giveBirth(world: World, mother: Person, father: Person) {
     note(mother, world, "The baby was born still.");
     note(father, world, `${mother.name}'s baby was born still.`);
     tally(world, "stillbirths");
+    chronicle(world, `${mother.name}'s baby was born still.`);
   } else {
     mother.lastBirth = now;
     mother.pregnant = undefined;
@@ -1819,6 +1835,7 @@ function giveBirth(world: World, mother: Person, father: Person) {
     }
     note(child, world, "I was born.");
     tally(world, "births");
+    chronicle(world, `${name} was born to ${mother.name} and ${father.name}.`);
     mother.say = `Look, ${father.name}. ${name}.`;
   }
   if (rand(mother) < risk) {
@@ -1838,6 +1855,7 @@ function lifeAndDeath(world: World, dt: number) {
     world.people.splice(world.people.indexOf(person), 1);
     (world.dead ??= []).push({ person, t: now, cause });
     note(person, world, `Died of ${cause}.`);
+    chronicle(world, `${person.name} died of ${cause}, aged ${person.age.toFixed(0)}.`);
     person.intent = undefined;
     make(world, "grave", person.x, person.z, { of: person.id, radius: 2 });
     for (const other of world.people) {
@@ -1867,6 +1885,7 @@ function lifeAndDeath(world: World, dt: number) {
     note(mother, world, `I am carrying ${father.name}'s child.`);
     note(father, world, `${mother.name} is carrying my child.`);
     tally(world, "conceptions");
+    chronicle(world, `${mother.name} is carrying a child.`);
   }
 }
 

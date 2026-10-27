@@ -431,7 +431,7 @@ export function installEdenAgents(C: Ctx): void {
     }
 
     const now = performance.now();
-    if (panel.tab() === "minds" && now - lastMinds > 700) {
+    if ((panel.tab() === "minds" || panel.tab() === "chronicle") && now - lastMinds > 700) {
       lastMinds = now;
       panel.renderMinds(w);
     }
