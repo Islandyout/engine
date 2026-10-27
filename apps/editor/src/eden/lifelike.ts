@@ -63,6 +63,11 @@ export interface Life {
   fished: number;
   mourned: number;
   lessons: number;
+  breaks: number;
+  outbursts: number;
+  beliefs: number;
+  gossip: number;
+  reconciliations: number;
 }
 
 export interface LifeOptions {
@@ -276,6 +281,11 @@ export function live(seed: number, options: LifeOptions = {}): Life {
     fished: world.tally?.fished ?? 0,
     mourned: world.tally?.mourned ?? 0,
     lessons: world.tally?.lessons ?? 0,
+    breaks: world.tally?.breaks ?? 0,
+    outbursts: world.tally?.outbursts ?? 0,
+    beliefs: world.tally?.beliefs ?? 0,
+    gossip: world.tally?.gossip ?? 0,
+    reconciliations: world.tally?.reconciliations ?? 0,
     deerAtEnd: world.things.filter((t) => t.kind === "deer").length,
     deerAtStart,
     foxesAtEnd: world.things.filter((t) => t.kind === "fox").length,
@@ -371,6 +381,11 @@ export function analyse(lives: Life[], years: number, seconds = 0) {
     livesWithSpears: share((l) => l.spears > 0),
     livesThatFished: share((l) => l.fished > 0),
     livesThatMourned: share((l) => l.mourned > 0),
+    groupsWithBreaks: share((l) => l.breaks > 0, lives.filter((l) => l.people > 1)),
+    groupsWithOutbursts: share((l) => l.outbursts > 0, lives.filter((l) => l.people > 1)),
+    groupsWithBeliefs: share((l) => l.beliefs > 0, lives.filter((l) => l.people > 1)),
+    groupsThatMadeUp: share((l) => l.reconciliations > 0, lives.filter((l) => l.people > 1)),
+    groupsThatGossiped: share((l) => l.gossip > 0, lives.filter((l) => l.people > 1)),
     livesThatLearned: share((l) => l.lessons > 0),
     livesThatHunted: share((l) => l.hunted > 0, lives.filter((l) => l.deerAtStart > 0)),
     herdsGone: share((l) => l.deerAtStart > 0 && l.deerAtEnd === 0, lives.filter((l) => l.deerAtStart > 0)),
@@ -405,7 +420,7 @@ export function analyse(lives: Life[], years: number, seconds = 0) {
 
 // A life as a row of numbers, so many can cross between threads cheaply.
 const CAUSES = ["", "cold", "thirst", "hunger", "danger", "other"];
-const NUMERIC: (keyof Life)[] = ["seed", "people", "deaths", "minHealth", "urgentShare", "starvedShare", "coldShare", "topShare", "distinctActions", "abandonsPerHour", "stuckSeconds", "talks", "mood", "meals", "drinks", "rests", "sleeps", "sleepShare", "travelShare", "fires", "shelters", "firstShelterDay", "stashed", "winterHungerShare", "births", "peopleAtEnd", "goalsSet", "goalsDone", "quarrels", "comforts", "partners", "grieved", "planted", "spears", "hunted", "deerAtEnd", "deerAtStart", "foxesAtEnd", "fished", "mourned", "lessons"];
+const NUMERIC: (keyof Life)[] = ["seed", "people", "deaths", "minHealth", "urgentShare", "starvedShare", "coldShare", "topShare", "distinctActions", "abandonsPerHour", "stuckSeconds", "talks", "mood", "meals", "drinks", "rests", "sleeps", "sleepShare", "travelShare", "fires", "shelters", "firstShelterDay", "stashed", "winterHungerShare", "births", "peopleAtEnd", "goalsSet", "goalsDone", "quarrels", "comforts", "partners", "grieved", "planted", "spears", "hunted", "deerAtEnd", "deerAtStart", "foxesAtEnd", "fished", "mourned", "lessons", "breaks", "outbursts", "beliefs", "gossip", "reconciliations"];
 export const ROW = NUMERIC.length + 3;
 export function lifeToRow(l: Life, out: Float64Array, at: number) {
   NUMERIC.forEach((k, i) => (out[at + i] = l[k] as number));

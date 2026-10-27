@@ -280,6 +280,9 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
       meter("cold", p.cold, p.cold > 0.7, bars);
       meter("mood", (p.mood + 1) / 2, p.mood < -0.3, bars);
       mindsView.appendChild(bars);
+      const feelings = Object.entries(p.emotions ?? {}).filter(([, v]) => (v ?? 0) > 0.1).sort((x, y) => (y[1] ?? 0) - (x[1] ?? 0));
+      if ((p.grief ?? 0) > 0.1) feelings.unshift(["grief", p.grief ?? 0]);
+      if (feelings.length) mindsView.appendChild(el("div", undefined, `Feeling: ${feelings.map(([k, v]) => `${k} ${Math.round((v ?? 0) * 100)}%`).join(", ")}`));
       if (p.carry.wood || p.carry.food) mindsView.appendChild(el("div", undefined, `Carrying ${p.carry.wood} wood, ${p.carry.food} food.`));
 
       if (p.goals.length) {
@@ -299,6 +302,14 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
           const other = world.people.find((q) => q.id === id)?.name ?? id;
           mindsView.appendChild(el("div", undefined, `${other}: ${r.affinity > 0.5 ? "fond" : r.affinity > 0.1 ? "friendly" : r.affinity > -0.2 ? "neutral" : "cool"} (${r.affinity.toFixed(2)}), trust ${Math.round(r.trust * 100)}%, familiarity ${Math.round(r.familiarity * 100)}%`));
         }
+      }
+
+      const thoughts = Object.entries(p.beliefs ?? {}).flatMap(([id, tags]) => tags.map((t) => `${world.people.find((q) => q.id === id)?.name ?? id} is ${t === "quarrelsome" ? "quick to anger" : t}`));
+      if (thoughts.length || p.lessons) {
+        mindsView.appendChild(el("div", "eden-sub", "What they have come to believe"));
+        for (const t of thoughts) mindsView.appendChild(el("div", undefined, t));
+        if (p.lessons?.prepare) mindsView.appendChild(el("div", undefined, `Prepare early for winter (${Math.round(p.lessons.prepare * 100)}%)`));
+        if (p.lessons?.careful) mindsView.appendChild(el("div", undefined, `Keep away from danger (${Math.round(p.lessons.careful * 100)}%)`));
       }
 
       const places = [...p.memory.entries()]

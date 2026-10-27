@@ -7,13 +7,16 @@
 // what always works, with nothing installed and nothing online.
 import { hourOf, phrase, bondOf, type Person, type World } from "./mind";
 import { SEASON_NAMES } from "./earth";
+import { BELIEF_WORDS, type Belief } from "./inner";
 
-export type Topic = "need" | "event" | "weather" | "goal" | "bond" | "creature" | "child" | "thanks" | "sorry" | "plain";
+export type Topic = "need" | "event" | "weather" | "goal" | "bond" | "creature" | "child" | "thanks" | "sorry" | "gossip" | "plain";
 
 export interface Exchange {
   topic: Topic;
   said: string; // what the speaker says
   reply: string; // what the other answers
+  about?: string; // gossip: the person (id) being talked about
+  tag?: Belief; // and what is said of them
 }
 
 type Pick = <T>(items: readonly T[]) => T;
@@ -32,7 +35,9 @@ function tellEvent(text: string, pick: Pick, other: Person): string | undefined 
   if ((m = text.match(/^Came upon (.+)\.$/))) return pick([`Have you seen ${m[1]}? I came upon it today.`, `I found ${m[1]}. We should go together.`]);
   if (/gave me food/.test(text)) return `Thank you for the food, ${other.name}. I was starving.`;
   if (/stayed with me/.test(text)) return `Thank you for staying with me, ${other.name}.`;
-  if (/^Quarrelled with/.test(text)) return undefined;
+  if ((m = text.match(/^Lost my temper with (.+)\.$/))) return `I lost my temper with ${m[1]} and I am ashamed of it.`;
+  if (/^Needed to be alone/.test(text)) return "I needed to be alone for a while. It was a hard day.";
+  if (/^Quarrelled with|^Made things right/.test(text)) return undefined;
   if (/^Ran from/.test(text)) return text.replace(/^Ran from/, "I ran from").replace(/\.$/, ". I was frightened.");
   if (/^Caught a fish/.test(text)) return pick(["I caught a fish at the river. There are plenty if you are patient.", "The river gave me a fish today."]);
   if ((m = text.match(/^Sat by (.+)'s grave\.$/))) return `I sat with ${m[1]} a while. I still miss them.`;
@@ -53,8 +58,8 @@ export function converse(world: World, speaker: Person, other: Person, rnd: () =
   const bond = bondOf(speaker, other);
   const rel = speaker.relations.get(other.id);
   const addr = rnd() < 0.4 ? `${other.name}, ` : "";
-  const candidates: { weight: number; topic: Topic; said: string; reply: string }[] = [];
-  const add = (weight: number, topic: Topic, said: string, reply: string) => candidates.push({ weight, topic, said, reply });
+  const candidates: { weight: number; topic: Topic; said: string; reply: string; about?: string; tag?: Belief }[] = [];
+  const add = (weight: number, topic: Topic, said: string, reply: string, about?: string, tag?: Belief) => candidates.push({ weight, topic, said, reply, about, tag });
 
   // What they need
   const carrying = other.carry.food >= 1;
@@ -68,15 +73,15 @@ export function converse(world: World, speaker: Person, other: Person, rnd: () =
   if (n.social > 0.7) add(0.9, "need", pick(["It is good to talk. I was feeling alone.", "I am glad you are here. It was quiet."]), pick(["I am glad of you too.", "Then let's stay a while."]));
 
   // What has happened to them
-  const recent = speaker.journal.slice(-14).reverse();
-  for (const entry of recent) {
+  // The thing worth telling is the one that mattered most and is not too long ago, not just the last thing that happened.
+  let bestEntry: { said: string; score: number } | undefined;
+  for (const entry of speaker.journal.slice(-80)) {
     const said = tellEvent(entry.text, pick, other);
-    if (said) {
-      const age = (world.clock ?? 0) - entry.t;
-      add(Math.max(0.2, 1.1 - age / 2000), "event", said, pick(["That is good to hear.", careful ? "Be careful, though." : "Well done.", p.curiosity > 0.6 ? "Tell me more." : "I am glad."]));
-      break;
-    }
+    if (!said) continue;
+    const score = (entry.w ?? 0.12) * Math.exp(-((world.clock ?? 0) - entry.t) / 2880);
+    if (!bestEntry || score > bestEntry.score) bestEntry = { said, score };
   }
+  if (bestEntry) add(Math.max(0.2, 0.4 + 1.6 * bestEntry.score), "event", bestEntry.said, pick(["That is good to hear.", careful ? "Be careful, though." : "Well done.", p.curiosity > 0.6 ? "Tell me more." : "I am glad."]));
 
   // The weather and the season
   if (weather) {
@@ -102,7 +107,17 @@ export function converse(world: World, speaker: Person, other: Person, rnd: () =
   else if (bond === "friend") add(0.6, "bond", pick(["It is good to have a friend.", `I enjoy your company, ${other.name}.`]), pick(["And I yours.", "Friends, then."]));
   else if (bond === "rival") add(0.8, "bond", blunt ? "I still have not forgotten what you did." : "I wish things were easier between us.", "Neither have I.");
   else if (bond === "stranger" || bond === "acquaintance") add(0.5, "bond", warm ? `I am ${speaker.name}. I would like to know you.` : `We hardly know each other, ${other.name}.`, pick(["Then let's talk.", "I would like that."]));
-  if (rel && rel.affinity < -0.1 && rel.familiarity > 0.3) add(0.7, "sorry", "I am sorry about before. I did not mean it.", "It is forgotten. Let's go on.");
+  if (rel && rel.lastQuarrel !== undefined && (world.clock ?? 0) - rel.lastQuarrel < 3 * 1440) add(1.6, "sorry", pick(["I am sorry about before. I did not mean it.", `I was wrong to say that, ${other.name}.`]), pick(["It is forgotten. Let's go on.", "I was no better. Let it go."]));
+  else if (rel && rel.affinity < -0.1 && rel.familiarity > 0.3) add(0.7, "sorry", "I am sorry about before. I did not mean it.", "It is forgotten. Let's go on.");
+
+  // What they think of someone else
+  for (const [id, tags] of Object.entries(speaker.beliefs ?? {})) {
+    const third = world.people.find((q) => q.id === id && q !== other && q !== speaker);
+    const tag = tags[tags.length - 1];
+    if (!third || !tag) continue;
+    add(0.7, "gossip", tag === "quarrelsome" ? `Be careful with ${third.name}. I have found them ${BELIEF_WORDS[tag]}.` : `${third.name} has been ${BELIEF_WORDS[tag]} to me. I would trust them.`, pick(["I have seen that too.", "I had not thought so. I will watch."]), id, tag);
+    break;
+  }
 
   // What lives nearby
   const creature = world.things.find((t) => (t.kind === "deer" || t.kind === "alpaca") && speaker.memory.has(t.id));
@@ -129,5 +144,5 @@ export function converse(world: World, speaker: Person, other: Person, rnd: () =
       break;
     }
   }
-  return { topic: chosen.topic, said: first(chosen.said), reply: first(chosen.reply) };
+  return { topic: chosen.topic, said: first(chosen.said), reply: first(chosen.reply), about: chosen.about, tag: chosen.tag };
 }

@@ -7,6 +7,7 @@
 //
 // The host (edenAgents.ts) feeds this the world's things and turns each person's `intent` into movement and an animation.
 
+import { fade, feel as feelEmotion, importance, moodPush, opinionTags, BELIEF_WORDS, type Belief, type Emotion } from "./inner";
 import { converse } from "./speech";
 import { COMFORT_C, DAY, EDEN_CLIMATE, FISH_BY_SEASON, growthRate, hourOf, isDark, seasonAt, weatherAt, YEAR, type Climate, type Weather } from "./earth";
 export { DAY, hourOf };
@@ -119,6 +120,7 @@ export interface Intent {
 export interface JournalEntry {
   t: number; // world clock, sim seconds
   text: string;
+  w?: number; // how much it is worth remembering, 0..1 (inner.ts importance)
 }
 
 // How one person feels about another.
@@ -127,6 +129,10 @@ export interface Relation {
   trust: number; // 0 .. 1
   familiarity: number; // 0 .. 1, grows with time spent together
   lastTogether: number; // world clock
+  gifts?: number; // times they gave food
+  comforts?: number; // times they sat with them when low
+  quarrels?: number; // times they have fallen out
+  lastQuarrel?: number; // world clock of the last, until it is made right
 }
 
 // Something a person has set out to do: it tilts what they choose until it is done or given up.
@@ -178,6 +184,10 @@ export interface Person {
   // What they have learned from living, from thinking back over what happened (reflect): each 0..1, and each tilts what they choose.
   lessons?: { prepare: number; careful: number };
   // What they have lived through since they last thought it over, in sim seconds (and frights), and when that was.
+  emotions?: Partial<Record<Emotion, number>>; // what they feel now, each 0..1, fading at its own speed (inner.ts)
+  stress?: number; // sim seconds spent very low; held long enough it breaks
+  breakAt?: number; // world clock of their last break
+  beliefs?: Record<string, Belief[]>; // what they have come to think of each person, from what that person has done
   felt?: { hungry: number; cold: number; scares: number; reflected: number };
 }
 
@@ -299,9 +309,72 @@ export function tally(world: World, key: string) {
   const t = (world.tally ??= {});
   t[key] = (t[key] ?? 0) + 1;
 }
+// What they have come to think of someone tilts whether they seek them out.
+function opinionOf(person: Person, other: Person): number {
+  let v = 0;
+  for (const b of person.beliefs?.[other.id] ?? []) v += b === "quarrelsome" ? -0.25 : 0.15;
+  return v;
+}
+
+// Held very low for long enough, a person breaks: a bold, impatient one lashes out at whoever is near; the rest need to be alone.
+function breakDown(person: Person, world: World, dt: number) {
+  if (person.intent?.kind === "sleep" || person.age < ADULT_AGE) return;
+  const now = world.clock ?? 0;
+  person.stress = person.mood < -0.55 ? (person.stress ?? 0) + dt : Math.max(0, (person.stress ?? 0) - dt);
+  if ((person.stress ?? 0) < 120 || now - (person.breakAt ?? -1e9) < DAY / 2) return;
+  person.stress = 0;
+  person.breakAt = now;
+  tally(world, "breaks");
+  const near = world.people.filter((q) => q !== person && dist(person.x, person.z, q.x, q.z) < 20).sort((a, b) => dist(person.x, person.z, a.x, a.z) - dist(person.x, person.z, b.x, b.z))[0];
+  const p = person.personality;
+  if (near && rand(person) < 0.15 + 0.7 * p.boldness * (1.1 - p.patience)) {
+    const mine = relation(person, near.id, world);
+    const theirs = relation(near, person.id, world);
+    mine.affinity = Math.max(-1, mine.affinity - 0.2);
+    theirs.affinity = Math.max(-1, theirs.affinity - 0.25);
+    mine.trust = Math.max(0, mine.trust - 0.1);
+    theirs.trust = Math.max(0, theirs.trust - 0.15);
+    mine.lastQuarrel = now;
+    theirs.lastQuarrel = now;
+    mine.quarrels = (mine.quarrels ?? 0) + 1;
+    theirs.quarrels = (theirs.quarrels ?? 0) + 1;
+    feelEmotion(near, "anger", 0.5);
+    near.mood = clampMood(near.mood - 0.2);
+    feelEmotion(person, "shame", 0.4);
+    person.mood = clampMood(person.mood + 0.3);
+    person.say = "Enough! I cannot bear it!";
+    note(person, world, `Lost my temper with ${near.name}.`);
+    note(near, world, `${person.name} lost their temper with me.`);
+    tally(world, "quarrels");
+    tally(world, "outbursts");
+  } else {
+    const away = (near ? Math.atan2(person.z - near.z, person.x - near.x) : rand(person) * Math.PI * 2);
+    const to = inside(world, person.x + Math.cos(away) * 25, person.z + Math.sin(away) * 25);
+    person.intent = { kind: "wander", x: to.x, z: to.z, speed: WALK, remaining: 60, arrived: false };
+    person.mood = clampMood(person.mood + 0.2);
+    person.say = "I need to be alone.";
+    note(person, world, "Needed to be alone.");
+    tally(world, "withdrawals");
+  }
+}
+
 function note(person: Person, world: World, text: string) {
-  person.journal.push({ t: world.clock ?? 0, text });
-  if (person.journal.length > 400) person.journal.splice(0, person.journal.length - 400);
+  person.journal.push({ t: world.clock ?? 0, text, w: importance(text) });
+  if (person.journal.length > 400) {
+    // Forget what mattered least and happened longest ago, not simply the oldest.
+    const now = world.clock ?? 0;
+    let worst = 0;
+    let worstScore = Infinity;
+    for (let i = 0; i < person.journal.length - 20; i++) {
+      const j = person.journal[i]!;
+      const score = (j.w ?? 0.12) * Math.exp(-(now - j.t) / (6 * DAY));
+      if (score < worstScore) {
+        worstScore = score;
+        worst = i;
+      }
+    }
+    person.journal.splice(worst, 1);
+  }
 }
 function relation(person: Person, otherId: string, world: World): Relation {
   let r = person.relations.get(otherId);
@@ -461,7 +534,7 @@ function options(person: Person, world: World): Option[] {
     if (wish <= 0) continue;
     out.push({
       intent: { kind: "talk", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 20 + 20 * p.sociability },
-      score: 1.4 * wish - effort(other.x, other.z),
+      score: 1.4 * wish - effort(other.x, other.z) + opinionOf(person, other),
     });
   }
   let searchOption: Option | undefined;
@@ -572,6 +645,7 @@ function updateGoals(person: Person, world: World) {
     g.progress = goalProgress(person, world, g);
     if (g.progress >= 1) {
       tally(world, "goalsDone");
+      feelEmotion(person, "pride", 0.5);
       note(person, world, `I did it: I wanted to ${GOAL_WORDS[g.kind]}${g.target ? ` ${world.people.find((q) => q.id === g.target)?.name ?? ""}` : ""}.`);
       person.mood = clampMood(person.mood + 0.2);
       person.goals.splice(i, 1);
@@ -808,6 +882,15 @@ function finish(person: Person, world: World, intent: Intent) {
         joy(0.1);
         feel(person, t, 0.15); // a good meal makes the place better in memory
         if (t.kind !== "shelter" && t.kind !== "crop" && rand(person) < 0.35) person.carry.seed = Math.min(6, person.carry.seed + 1);
+        if (t.stock === 0) {
+          for (const q of world.people) {
+            if (q === person || q.needs.hunger < 0.6 || dist(q.x, q.z, t.x, t.z) > 25) continue;
+            const r = relation(q, person.id, world);
+            r.affinity = Math.max(-1, r.affinity - 0.06);
+            feelEmotion(q, "anger", 0.2);
+            note(q, world, `${person.name} ate the last at ${phrase(t)} while I was hungry.`);
+          }
+        }
         person.say = t.stock === 0 ? "That was the last of it." : "That was good.";
         note(person, world, t.stock === 0 ? `Ate the last of ${phrase(t)}.` : `Ate at ${phrase(t)}.`);
       } else {
@@ -919,12 +1002,14 @@ function finish(person: Person, world: World, intent: Intent) {
           person.carry.food = Math.min(8, person.carry.food + 4);
           person.carry.seed = Math.min(6, person.carry.seed);
           note(person, world, `Killed ${phrase(prey)}. Meat for days.`);
+          feelEmotion(person, "pride", 0.4);
           tally(world, "hunted");
           person.say = "We will eat well.";
           joy(0.2);
         } else {
           if (prey.mob) prey.mob.fleeUntil = (world.clock ?? 0) + 25;
           note(person, world, `${phrase(prey)} got away from me.`);
+          feelEmotion(person, "shame", 0.15);
           person.mood = clampMood(person.mood - 0.05);
         }
       }
@@ -940,6 +1025,8 @@ function finish(person: Person, world: World, intent: Intent) {
         mine.affinity = Math.min(1, mine.affinity + 0.05);
         theirs.affinity = Math.min(1, theirs.affinity + 0.1);
         theirs.trust = Math.min(1, theirs.trust + 0.08);
+        theirs.comforts = (theirs.comforts ?? 0) + 1;
+        feelEmotion(other, "gratitude", 0.4);
         person.say = `It will be all right, ${other.name}.`;
         note(person, world, `Sat with ${other.name}, who was low.`);
         tally(world, "comforts");
@@ -957,6 +1044,9 @@ function finish(person: Person, world: World, intent: Intent) {
         mine.affinity = Math.min(1, mine.affinity + 0.08);
         theirs.affinity = Math.min(1, theirs.affinity + 0.15);
         theirs.trust = Math.min(1, theirs.trust + 0.1);
+        theirs.gifts = (theirs.gifts ?? 0) + 1;
+        feelEmotion(other, "gratitude", 0.5);
+        feelEmotion(person, "pride", 0.2);
         person.say = `Here, ${other.name}. Eat.`;
         note(person, world, `Gave ${other.name} some food.`);
         note(other, world, `${person.name} gave me food when I was hungry.`);
@@ -989,7 +1079,11 @@ function finish(person: Person, world: World, intent: Intent) {
       joy(0.1);
       const mineBefore = other ? relation(person, other.id, world) : undefined;
       // Two people who are both low, and not fond of each other, may quarrel instead of talk.
-      if (other && mineBefore && person.mood < -0.15 && other.mood < -0.15 && rand(person) < 0.35 * (1 - Math.max(0, mineBefore.affinity))) {
+      const irritable = person.personality.boldness * (1 - person.personality.patience);
+      const fallingOut = other && mineBefore
+        ? (0.025 + 0.06 * irritable + 0.3 * (person.emotions?.anger ?? 0)) * (1.2 - Math.max(-0.2, mineBefore.affinity)) + (person.mood < -0.15 && other.mood < -0.15 ? 0.35 * (1 - Math.max(0, mineBefore.affinity)) : 0)
+        : 0;
+      if (other && mineBefore && rand(person) < fallingOut) {
         const theirs = relation(other, person.id, world);
         mineBefore.affinity = Math.max(-1, mineBefore.affinity - 0.15);
         theirs.affinity = Math.max(-1, theirs.affinity - 0.15);
@@ -997,6 +1091,12 @@ function finish(person: Person, world: World, intent: Intent) {
         theirs.trust = Math.max(0, theirs.trust - 0.1);
         person.mood = clampMood(person.mood - 0.1);
         other.mood = clampMood(other.mood - 0.1);
+        mineBefore.quarrels = (mineBefore.quarrels ?? 0) + 1;
+        mineBefore.lastQuarrel = world.clock ?? 0;
+        theirs.lastQuarrel = world.clock ?? 0;
+        theirs.quarrels = (theirs.quarrels ?? 0) + 1;
+        feelEmotion(person, "anger", 0.4);
+        feelEmotion(other, "anger", 0.4);
         person.say = "Leave me be.";
         note(person, world, `Quarrelled with ${other.name}.`);
         tally(world, "quarrels");
@@ -1021,6 +1121,25 @@ function finish(person: Person, world: World, intent: Intent) {
         note(person, world, `Talked with ${other.name}: "${exchange.said}"`);
         note(other, world, `${person.name} said: "${exchange.said}" I said: "${exchange.reply}"`);
         tally(world, "talks");
+        // Gossip: what one thinks of a third person reaches the other, who trusts them a little more or less for it.
+        if (exchange.topic === "sorry") {
+          const mine = relation(person, other.id, world);
+          const theirs = relation(other, person.id, world);
+          mine.affinity = Math.min(1, mine.affinity + 0.12);
+          theirs.affinity = Math.min(1, theirs.affinity + 0.12);
+          mine.lastQuarrel = undefined;
+          theirs.lastQuarrel = undefined;
+          feelEmotion(other, "gratitude", 0.2);
+          note(person, world, `Made things right with ${other.name}.`);
+          note(other, world, `${person.name} made things right with me.`);
+          tally(world, "reconciliations");
+        }
+        if (exchange.about && exchange.tag) {
+          const r = relation(other, exchange.about, world);
+          if (exchange.tag === "quarrelsome") r.trust = Math.max(0, r.trust - 0.05);
+          else r.trust = Math.min(1, r.trust + 0.05);
+          tally(world, "gossip");
+        }
         // Remember each other kindly.
         const m = person.memory.get(other.id);
         if (m) m.feeling = Math.min(1, m.feeling + 0.1);
@@ -1095,8 +1214,11 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     // Mood drifts toward how well life is going: content when needs are met, sinking as the worst of them climbs.
     const mean = (needs.hunger + needs.thirst + needs.energy + needs.social + needs.joy + person.cold) / 6;
     const worst = Math.max(needs.hunger, needs.thirst, needs.energy, needs.social, person.cold);
-    const moodTarget = 0.6 - 0.7 * mean - 0.8 * Math.max(0, worst - 0.65);
-    person.mood = clampMood(person.mood + (moodTarget - person.mood) * Math.min(1, dt / 90));
+    const moodTarget = Math.max(-1, Math.min(1, 0.6 - 0.7 * mean - 0.8 * Math.max(0, worst - 0.65) + moodPush(person)));
+    // The mood falls faster than it rises, as it does in people.
+    person.mood = clampMood(person.mood + (moodTarget - person.mood) * Math.min(1, dt / (moodTarget < person.mood ? 60 : 120)));
+    fade(person, dt);
+    breakDown(person, world, dt);
     if (person.grief) {
       person.mood = Math.min(person.mood, 0.3 - person.grief);
       person.grief = Math.max(0, person.grief - dt / (4 * DAY) - (person.intent?.kind === "talk" ? dt / (20 * DAY) : 0));
@@ -1145,6 +1267,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       person.mood = clampMood(person.mood - 0.3);
       person.say = "Something is wrong. I'm leaving.";
       note(person, world, `Ran from ${phrase(f.from)}.`);
+      feelEmotion(person, "fear", 0.6);
       (person.felt ??= { hungry: 0, cold: 0, scares: 0, reflected: person.clock }).scares += 1;
     }
 
@@ -1331,6 +1454,22 @@ function reflect(person: Person, world: World) {
     lessons.careful = Math.min(1, lessons.careful + 0.4);
     note(person, world, "I have learned: keep away from where the dangerous things are.");
     tally(world, "lessons");
+  }
+  // What others have done for them, or to them, becomes what they think of those others.
+  const believed = (person.beliefs ??= {});
+  for (const [id, r] of person.relations) {
+    const have = believed[id] ?? [];
+    for (const tag of opinionTags(r)) {
+      if (have.includes(tag)) continue;
+      have.push(tag);
+      believed[id] = have;
+      const other = world.people.find((q) => q.id === id);
+      if (!other) continue;
+      if (tag === "quarrelsome") r.affinity = Math.max(-1, r.affinity - 0.1);
+      else r.trust = Math.min(1, r.trust + 0.1);
+      note(person, world, `I have come to think ${other.name} is ${BELIEF_WORDS[tag]}.`);
+      tally(world, "beliefs");
+    }
   }
   felt.cold *= 0.4;
   felt.hungry *= 0.4;

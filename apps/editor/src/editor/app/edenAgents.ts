@@ -63,6 +63,9 @@ function moodWord(m: number): string {
 function needWord(p: Person): string {
   const n = p.needs;
   if ((p.grief ?? 0) > 0.4) return "grieving";
+  const e = p.emotions;
+  if (e && (e.fear ?? 0) > 0.5) return "frightened";
+  if (e && (e.anger ?? 0) > 0.5) return "angry";
   if (n.thirst > 0.75) return "thirsty";
   if (n.hunger > 0.75) return "hungry";
   if (n.energy > 0.75) return "tired";
