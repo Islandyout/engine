@@ -1887,6 +1887,11 @@ async function startEditor() {
   try {
     if (exportedScene) {
       app.classList.add("player-mode");
+      // The grid-toggle button lives in the header, which .player-mode
+      // correctly hides -- but the grid itself has no such tie to that
+      // chrome, so without this it stays visible with no way to turn it
+      // off in an exported build.
+      grid.visible = false;
       C.loadDocument(JSON.parse(exportedScene));
       // Preload every catalog model this scene references before the first
       // rebuild()/Play below. Without this, Play would start immediately
