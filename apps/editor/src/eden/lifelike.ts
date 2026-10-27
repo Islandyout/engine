@@ -82,6 +82,7 @@ export interface Life {
   tamed: number;
   sewn: number;
   watched: number;
+  tipsShared: number;
 }
 
 export interface LifeOptions {
@@ -314,6 +315,7 @@ export function live(seed: number, options: LifeOptions = {}): Life {
     tamed: world.tally?.tamed ?? 0,
     sewn: world.tally?.sewn ?? 0,
     watched: world.tally?.watched ?? 0,
+    tipsShared: world.tally?.tipsShared ?? 0,
     deerAtEnd: world.things.filter((t) => t.kind === "deer").length,
     deerAtStart,
     foxesAtEnd: world.things.filter((t) => t.kind === "fox").length,
@@ -413,6 +415,7 @@ export function analyse(lives: Life[], years: number, seconds = 0) {
     groupsWithOutbursts: share((l) => l.outbursts > 0, lives.filter((l) => l.people > 1)),
     groupsWithBeliefs: share((l) => l.beliefs > 0, lives.filter((l) => l.people > 1)),
     livesThatSewed: share((l) => l.sewn > 0),
+    groupsThatSharedTips: share((l) => l.tipsShared > 0, lives.filter((l) => l.people > 1)),
     groupsThatNursed: share((l) => l.nursed > 0, lives.filter((l) => l.people > 1)),
     groupsThatNamedPlaces: share((l) => l.named > 0),
     groupsThatSharedNames: share((l) => l.namesShared > 0, lives.filter((l) => l.people > 1)),
@@ -457,7 +460,7 @@ export function analyse(lives: Life[], years: number, seconds = 0) {
 
 // A life as a row of numbers, so many can cross between threads cheaply.
 const CAUSES = ["", "cold", "thirst", "hunger", "danger", "other"];
-const NUMERIC: (keyof Life)[] = ["seed", "people", "deaths", "minHealth", "urgentShare", "starvedShare", "coldShare", "topShare", "distinctActions", "abandonsPerHour", "stuckSeconds", "talks", "mood", "meals", "drinks", "rests", "sleeps", "sleepShare", "travelShare", "fires", "shelters", "firstShelterDay", "stashed", "winterHungerShare", "births", "peopleAtEnd", "goalsSet", "goalsDone", "quarrels", "comforts", "partners", "grieved", "planted", "spears", "hunted", "deerAtEnd", "deerAtStart", "foxesAtEnd", "fished", "mourned", "lessons", "breaks", "outbursts", "beliefs", "gossip", "reconciliations", "roles", "taught", "illnesses", "recoveries", "stillbirths", "conceptions", "customs", "named", "namesShared", "infections", "nursed", "tamed", "sewn", "watched"];
+const NUMERIC: (keyof Life)[] = ["seed", "people", "deaths", "minHealth", "urgentShare", "starvedShare", "coldShare", "topShare", "distinctActions", "abandonsPerHour", "stuckSeconds", "talks", "mood", "meals", "drinks", "rests", "sleeps", "sleepShare", "travelShare", "fires", "shelters", "firstShelterDay", "stashed", "winterHungerShare", "births", "peopleAtEnd", "goalsSet", "goalsDone", "quarrels", "comforts", "partners", "grieved", "planted", "spears", "hunted", "deerAtEnd", "deerAtStart", "foxesAtEnd", "fished", "mourned", "lessons", "breaks", "outbursts", "beliefs", "gossip", "reconciliations", "roles", "taught", "illnesses", "recoveries", "stillbirths", "conceptions", "customs", "named", "namesShared", "infections", "nursed", "tamed", "sewn", "watched", "tipsShared"];
 export const ROW = NUMERIC.length + 3;
 export function lifeToRow(l: Life, out: Float64Array, at: number) {
   NUMERIC.forEach((k, i) => (out[at + i] = l[k] as number));

@@ -119,3 +119,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F112](changelog/F112.md) | Eden: dogs that can be won, follow, steady and guard |
 | [F113](changelog/F113.md) | Eden: hides and cloaks |
 | [F114](changelog/F114.md) | Eden: a chronicle of the world, and family in the Minds tab |
+| [F115](changelog/F115.md) | Eden: people tell each other where things are |

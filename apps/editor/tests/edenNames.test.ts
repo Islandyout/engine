@@ -32,3 +32,22 @@ test("the world keeps a chronicle of what mattered, and it survives saving", asy
   chronicle(w, "The first frost.");
   assert.equal(worldFromJson(worldToJson(w)).chronicle?.at(-1)?.text, "The first frost.");
 });
+
+test("talking passes on what one knows: the listener learns of a place they have never seen", () => {
+  const a = makePerson("A", 0, 0, 7, { sociability: 1 }, { name: "A", sex: "m", age: 25 });
+  const b = makePerson("B", 2, 0, 8, { sociability: 1 }, { name: "B", sex: "f", age: 25 });
+  const far = { id: "woods", kind: "woodland", x: 90, z: 0, radius: 3, stock: 10, maxStock: 10 };
+  const w: World = { things: [{ id: "river", kind: "river", x: 0, z: 10, radius: 3 }, far], people: [a, b], radius: 150 };
+  a.memory.set("woods", { x: 90, z: 0, feeling: 0.6, visits: 3, lastSeen: 0 });
+  assert.equal(b.memory.has("woods"), false);
+  a.needs.social = 0.9;
+  for (let t = 0; t < DAY && !b.memory.has("woods"); t++) {
+    step(w, 1);
+    a.needs.social = Math.max(a.needs.social, 0.8);
+    b.needs.social = Math.max(b.needs.social, 0.8);
+    a.x = Math.min(a.x, 3);
+    b.x = Math.min(b.x, 3);
+  }
+  assert.ok(b.memory.has("woods"), "B never heard of the woods");
+  assert.ok(b.journal.some((j) => /told me about/.test(j.text)));
+});

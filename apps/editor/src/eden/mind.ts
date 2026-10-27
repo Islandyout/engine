@@ -505,6 +505,29 @@ function nameThePlace(person: Person, world: World, t: Thing) {
   chronicle(world, `${person.name} named the ${t.kind === "peak" ? "hills" : t.kind} ${name}.`);
   tally(world, "named");
 }
+// Talking passes on what they know of the world: where there is water or food, a place to shelter, or something to fear. The listener can then
+// plan to go there, though they have never seen it.
+function shareKnowledge(a: Person, b: Person, world: World) {
+  for (const [from, to] of [[a, b], [b, a]] as const) {
+    let best: { t: Thing; value: number } | undefined;
+    for (const [id, m] of from.memory) {
+      if (to.memory.has(id)) continue;
+      const t = thingById(world, id);
+      if (!t) continue;
+      const k = aff(t);
+      const value = k.danger ? 0.9 * (k.danger ?? 0) : k.water ? 0.8 : k.food ? 0.6 + 0.2 * (k.food ?? 0) : k.shelter || k.rest ? 0.4 : k.view ? 0.2 : 0;
+      if (value > (best?.value ?? 0)) best = { t, value: value * (0.5 + 0.5 * Math.abs(m.feeling) + 0.3) };
+    }
+    if (!best) continue;
+    const theirs = from.memory.get(best.t.id)!;
+    to.memory.set(best.t.id, { x: best.t.x, z: best.t.z, feeling: theirs.feeling * 0.5, visits: 0, lastSeen: to.clock });
+    note(to, world, `${from.name} told me about ${phrase(best.t)}.`);
+    note(from, world, `Told ${to.name} about ${phrase(best.t)}.`);
+    tally(world, "tipsShared");
+    return;
+  }
+}
+
 function shareNames(a: Person, b: Person, world: World) {
   for (const [from, to] of [[a, b], [b, a]] as const) {
     for (const n of Object.values(world.names ?? {})) {
@@ -1386,6 +1409,7 @@ function finish(person: Person, world: World, intent: Intent) {
         note(other, world, `${person.name} said: "${exchange.said}" I said: "${exchange.reply}"`);
         tally(world, "talks");
         shareNames(person, other, world);
+        shareKnowledge(person, other, world);
         // Teaching: whoever is better at something shows the other.
         for (const [teacher, learner] of [[person, other], [other, person]] as const) {
           const taught = teach(teacher, learner);
