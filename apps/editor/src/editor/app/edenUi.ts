@@ -283,6 +283,7 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
       mindsView.appendChild(bars);
       if (p.illness) mindsView.appendChild(el("div", undefined, `Ill (${Math.round(p.illness.severity * 100)}%)`));
       if (p.wound) mindsView.appendChild(el("div", undefined, `Wounded (${Math.round(p.wound * 100)}%)`));
+      if ((p.clothing ?? 0) > 0.1) mindsView.appendChild(el("div", undefined, `Wearing a cloak (${Math.round((p.clothing ?? 0) * 100)}%)`));
       if (p.pregnant) mindsView.appendChild(el("div", undefined, "Carrying a child."));
       if (p.story) mindsView.appendChild(el("div", undefined, p.story));
       mindsView.appendChild(el("div", undefined, `Standing among the others: ${standingWord(standing(world, p))}`));

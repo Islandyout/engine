@@ -52,7 +52,7 @@ function readPerson(q: unknown, i: number): Person {
     rngState: num(o.rngState, `person ${i} rngState`),
     needs: { hunger: num(needs.hunger, "hunger"), thirst: num(needs.thirst, "thirst"), energy: num(needs.energy, "energy"), social: num(needs.social, "social"), joy: num(needs.joy, "joy") },
     personality: { boldness: num(personality.boldness, "boldness"), sociability: num(personality.sociability, "sociability"), curiosity: num(personality.curiosity, "curiosity"), appetite: num(personality.appetite, "appetite"), patience: num(personality.patience, "patience") },
-    carry: { wood: num(carry.wood, "carry wood"), food: num(carry.food, "carry food"), seed: carry.seed === undefined ? 0 : num(carry.seed, "carry seed") },
+    carry: { wood: num(carry.wood, "carry wood"), food: num(carry.food, "carry food"), seed: carry.seed === undefined ? 0 : num(carry.seed, "carry seed"), hide: carry.hide === undefined ? undefined : num(carry.hide, "carry hide") },
     tools: { spear: obj(o.tools ?? { spear: false }, "tools").spear === true },
     memory: new Map(arr(o.memory, `person ${i} memory`) as [string, Memory][]),
     explored: new Set(arr(o.explored, `person ${i} explored`) as string[]),

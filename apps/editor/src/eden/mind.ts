@@ -106,7 +106,7 @@ export interface Memory {
   lastSeen: number; // sim seconds
 }
 
-export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame";
+export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame" | "sew";
 export interface Intent {
   kind: IntentKind;
   targetId?: string; // a thing's id or another person's id
@@ -188,7 +188,8 @@ export interface Person {
   rngState: number;
   explored: Set<string>; // 20 m cells of the garden they have stood in, so a search goes somewhere new
   cold: number; // 0 comfortable .. 1 dangerously cold
-  carry: { wood: number; food: number; seed: number }; // what they are carrying
+  carry: { wood: number; food: number; seed: number; hide?: number }; // what they are carrying
+  clothing?: number; // 0 bare .. 1 well wrapped; wears out, kept warm in winter
   tools: { spear: boolean };
   grief?: number; // 0..1: how heavily a loss weighs; fades over days, eased by sitting at a grave and by company
   // What they have learned from living, from thinking back over what happened (reflect): each 0..1, and each tilts what they choose.
@@ -899,6 +900,11 @@ function lifeOptions(person: Person, world: World, out: Option[]) {
       });
     }
   }
+  // A hide becomes a cloak when it is cold or coming on to be.
+  if ((person.carry.hide ?? 0) >= 1 && (person.clothing ?? 0) < 0.7) {
+    const cold = world.weather ? (season === 3 ? 1 : season === 2 ? 0.6 : 0.2) : 0.3;
+    out.push({ intent: { kind: "sew", x: person.x, z: person.z, speed: 0, remaining: 40 }, score: 0.4 + 0.7 * cold + 0.3 * person.cold - 0.4 * (person.clothing ?? 0) });
+  }
   // A stray dog may be won with food and patience.
   if (person.carry.food >= 1 && person.age >= ADULT_AGE) {
     for (const t of world.things) {
@@ -1166,6 +1172,17 @@ function finish(person: Person, world: World, intent: Intent) {
       }
       break;
     }
+    case "sew":
+      if ((person.carry.hide ?? 0) >= 1) {
+        person.carry.hide = (person.carry.hide ?? 0) - 1;
+        person.clothing = Math.min(1, (person.clothing ?? 0) + 0.45);
+        practise(person, "build", 0.03);
+        person.say = "That will keep the wind off.";
+        note(person, world, "Sewed a cloak from a hide.");
+        tally(world, "sewn");
+        joy(0.1);
+      }
+      break;
     case "tame": {
       const dog = thingById(world, intent.targetId);
       if (dog && dog.kind === "dog" && !dog.of && dist(person.x, person.z, dog.x, dog.z) < 3.8 && person.carry.food >= 1) {
@@ -1202,6 +1219,7 @@ function finish(person: Person, world: World, intent: Intent) {
         if (rand(person) < (0.45 + 0.3 * person.personality.boldness) * (1 + 0.6 * skillOf(person, "hunt"))) {
           world.things.splice(world.things.indexOf(prey), 1);
           person.carry.food = Math.min(8, person.carry.food + 4);
+          person.carry.hide = Math.min(4, (person.carry.hide ?? 0) + 1);
           person.carry.seed = Math.min(6, person.carry.seed);
           note(person, world, `Killed ${phrase(prey)}. Meat for days.`);
           feelEmotion(person, "pride", 0.4);
@@ -1434,7 +1452,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     // Warmth: what the air is, with clothes on, a roof overhead, a fire close by, and the rain if there is no roof.
     const sheltered = world.things.some((t) => t.kind === "shelter" && dist(person.x, person.z, t.x, t.z) < 3.5);
     const nearFire = world.things.some((t) => burning(t) && dist(person.x, person.z, t.x, t.z) < 6);
-    const effective = weather.tempC + 5 + (sheltered ? 8 : 0) + (nearFire ? 12 : 0) - (weather.raining && !sheltered ? 4 : 0) - (sheltered ? 0 : 0.5 * weather.windMs); // wind takes the warmth away
+    const effective = weather.tempC + 5 + 6 * (person.clothing ?? 0) + (sheltered ? 8 : 0) + (nearFire ? 12 : 0) - (weather.raining && !sheltered ? 4 : 0) - (sheltered ? 0 : 0.5 * weather.windMs); // wind takes the warmth away
     const coldTarget = clamp01((COMFORT_C - effective) / 18);
     person.cold = clamp01(person.cold + (coldTarget - person.cold) * Math.min(1, dt / 180));
     // Heat dries a person out faster.
@@ -1477,6 +1495,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     updateGoals(person, world);
     reflect(person, world);
     keepPromises(person, world);
+    if (person.clothing) person.clothing = Math.max(0, person.clothing - dt / (24 * DAY));
     person.age += dt / YEAR;
 
     // Danger: running from it beats anything else, and being caught in it hurts.
@@ -1851,6 +1870,7 @@ export function actionOf(person: Person): string {
     case "mourn":
       return "rest";
     case "tame":
+    case "sew":
       return "forage";
     case "rest":
     case "sleep":

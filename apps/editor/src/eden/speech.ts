@@ -41,6 +41,7 @@ function tellEvent(text: string, pick: Pick, other: Person): string | undefined 
   if (/^Ran from/.test(text)) return text.replace(/^Ran from/, "I ran from").replace(/\.$/, ". I was frightened.");
   if (/^Caught a fish/.test(text)) return pick(["I caught a fish at the river. There are plenty if you are patient.", "The river gave me a fish today."]);
   if ((m = text.match(/^Sat by (.+)'s grave\.$/))) return `I sat with ${m[1]} a while. I still miss them.`;
+  if (/^Sewed a cloak/.test(text)) return pick(["I sewed myself a cloak from the hide. It is warm.", "There is a use for everything we kill. I have a cloak now."]);
   if ((m = text.match(/^I named the (.+): (.+)\.$/))) return `I have been calling the ${m[1]} ${m[2]}. It seemed to fit.`;
   if ((m = text.match(/^(.+) told me the place is called (.+)\.$/))) return `${m[1]} says it is called ${m[2]}. I like that.`;
   if ((m = text.match(/^A custom has formed among us: (.+)\.$/))) return `We have a custom now: ${m[1]}.`;

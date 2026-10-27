@@ -45,3 +45,14 @@ test("someone who sits with the sick helps them, and learns to heal", () => {
   assert.ok((w.tally?.nursed ?? 0) >= 1, "nobody nursed");
   assert.ok((nurse.skills?.heal ?? 0) > 0, "the nurse learned nothing");
 });
+
+test("a hunter keeps the hide, sews a cloak from it", () => {
+  const a = adult("A", "m", 5);
+  const w = world([a]);
+  w.clock = 16 * DAY * 0.8; // late autumn into winter
+  a.carry.hide = 2;
+  for (let t = 0; t < DAY; t += 2) step(w, 2);
+  assert.ok((w.tally?.sewn ?? 0) >= 1, "nothing sewn");
+  assert.ok((a.clothing ?? 0) > 0.2);
+  assert.ok(a.journal.some((j) => /Sewed a cloak/.test(j.text)));
+});
