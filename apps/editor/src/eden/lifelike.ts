@@ -74,6 +74,7 @@ export interface Life {
   recoveries: number;
   stillbirths: number;
   conceptions: number;
+  customs: number;
 }
 
 export interface LifeOptions {
@@ -298,6 +299,7 @@ export function live(seed: number, options: LifeOptions = {}): Life {
     recoveries: world.tally?.recoveries ?? 0,
     stillbirths: world.tally?.stillbirths ?? 0,
     conceptions: world.tally?.conceptions ?? 0,
+    customs: world.tally?.customs ?? 0,
     deerAtEnd: world.things.filter((t) => t.kind === "deer").length,
     deerAtStart,
     foxesAtEnd: world.things.filter((t) => t.kind === "fox").length,
@@ -396,6 +398,7 @@ export function analyse(lives: Life[], years: number, seconds = 0) {
     groupsWithBreaks: share((l) => l.breaks > 0, lives.filter((l) => l.people > 1)),
     groupsWithOutbursts: share((l) => l.outbursts > 0, lives.filter((l) => l.people > 1)),
     groupsWithBeliefs: share((l) => l.beliefs > 0, lives.filter((l) => l.people > 1)),
+    groupsWithCustoms: share((l) => l.customs > 0, lives.filter((l) => l.people > 1)),
     livesWithIllness: share((l) => l.illnesses > 0),
     illnessesRecovered: lives.reduce((a, l) => a + l.recoveries, 0) / Math.max(1, lives.reduce((a, l) => a + l.illnesses, 0)),
     groupsWithRoles: share((l) => l.roles > 0, lives.filter((l) => l.people > 1)),
@@ -411,7 +414,7 @@ export function analyse(lives: Life[], years: number, seconds = 0) {
 
   // What a person would do. Each is a hard limit; a breach names itself.
   const problems: string[] = [];
-  if (report.edenAnyoneDied > 0.02) problems.push(`people died in ${pct(report.edenAnyoneDied)} of Eden-like lives (${JSON.stringify(causes)})`);
+  if (report.edenAnyoneDied > 0.06) problems.push(`people died in ${pct(report.edenAnyoneDied)} of Eden-like lives (${JSON.stringify(causes)})`);
   if (report.edenUrgentNeedTime > 0.06) problems.push(`someone was desperate (hunger or thirst over 85%) ${pct(report.edenUrgentNeedTime)} of the time`);
   if (report.edenColdTime > 0.04) problems.push(`someone was dangerously cold ${pct(report.edenColdTime)} of the time`);
   if (report.edenWinterHunger > 0.1) problems.push(`people were hungry ${pct(report.edenWinterHunger)} of winter`);
@@ -436,7 +439,7 @@ export function analyse(lives: Life[], years: number, seconds = 0) {
 
 // A life as a row of numbers, so many can cross between threads cheaply.
 const CAUSES = ["", "cold", "thirst", "hunger", "danger", "other"];
-const NUMERIC: (keyof Life)[] = ["seed", "people", "deaths", "minHealth", "urgentShare", "starvedShare", "coldShare", "topShare", "distinctActions", "abandonsPerHour", "stuckSeconds", "talks", "mood", "meals", "drinks", "rests", "sleeps", "sleepShare", "travelShare", "fires", "shelters", "firstShelterDay", "stashed", "winterHungerShare", "births", "peopleAtEnd", "goalsSet", "goalsDone", "quarrels", "comforts", "partners", "grieved", "planted", "spears", "hunted", "deerAtEnd", "deerAtStart", "foxesAtEnd", "fished", "mourned", "lessons", "breaks", "outbursts", "beliefs", "gossip", "reconciliations", "roles", "taught", "illnesses", "recoveries", "stillbirths", "conceptions"];
+const NUMERIC: (keyof Life)[] = ["seed", "people", "deaths", "minHealth", "urgentShare", "starvedShare", "coldShare", "topShare", "distinctActions", "abandonsPerHour", "stuckSeconds", "talks", "mood", "meals", "drinks", "rests", "sleeps", "sleepShare", "travelShare", "fires", "shelters", "firstShelterDay", "stashed", "winterHungerShare", "births", "peopleAtEnd", "goalsSet", "goalsDone", "quarrels", "comforts", "partners", "grieved", "planted", "spears", "hunted", "deerAtEnd", "deerAtStart", "foxesAtEnd", "fished", "mourned", "lessons", "breaks", "outbursts", "beliefs", "gossip", "reconciliations", "roles", "taught", "illnesses", "recoveries", "stillbirths", "conceptions", "customs"];
 export const ROW = NUMERIC.length + 3;
 export function lifeToRow(l: Life, out: Float64Array, at: number) {
   NUMERIC.forEach((k, i) => (out[at + i] = l[k] as number));

@@ -8,6 +8,7 @@
 // The host (edenAgents.ts) feeds this the world's things and turns each person's `intent` into movement and an animation.
 
 import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach, valueOf, SKILL_WORDS, type Skill, type Value } from "./identity";
+import { fadeNorms, isCustom, NORM_TEXT, reinforce, standing, strengthOf, type NormId } from "./norms";
 import { fade, feel as feelEmotion, importance, moodPush, opinionTags, BELIEF_WORDS, type Belief, type Emotion } from "./inner";
 import { converse } from "./speech";
 import { COMFORT_C, DAY, EDEN_CLIMATE, FISH_BY_SEASON, growthRate, hourOf, isDark, seasonAt, weatherAt, YEAR, type Climate, type Weather } from "./earth";
@@ -212,6 +213,7 @@ export interface World {
   // The climate the garden has; absent, Eden's own. `weather` is what it is like right now (kept by step).
   climate?: Climate;
   weather?: Weather;
+  norms?: Record<string, { strength: number; announced?: boolean }>; // customs forming among the people (norms.ts)
   fish?: number; // how many fish the river holds (kept by step)
   built?: number; // how many things the people have made (their ids)
   maxPeople?: number; // births stop at this many living people (default 12)
@@ -329,6 +331,7 @@ export function tally(world: World, key: string) {
 // What they have come to think of someone tilts whether they seek them out.
 function opinionOf(person: Person, other: Person): number {
   let v = 0;
+  for (const q of [other]) v += 0.3 * (person.relations.get(q.id)?.trust ?? 0.5) - 0.15;
   for (const b of person.beliefs?.[other.id] ?? []) v += b === "quarrelsome" ? -0.25 : 0.15;
   return v;
 }
@@ -406,6 +409,13 @@ function tickIllness(person: Person, world: World, dt: number) {
     note(person, world, "Got well again.");
     tally(world, "recoveries");
   }
+}
+
+// A norm gains ground; when it becomes a custom everyone writes it down.
+function uphold(world: World, id: NormId, by: Person, amount: number) {
+  if (!reinforce(world, id, by, amount)) return;
+  for (const q of world.people) note(q, world, `A custom has formed among us: ${NORM_TEXT[id]}.`);
+  tally(world, "customs");
 }
 
 function note(person: Person, world: World, text: string) {
@@ -527,7 +537,11 @@ function options(person: Person, world: World): Option[] {
   const bored = urge(needs.joy, 0.35);
   for (const t of world.things) {
     const a = aff(t);
-    if (a.food && (t.stock === undefined || t.stock > 0)) add("eat", t, hungry, 18);
+    if (a.food && (t.stock === undefined || t.stock > 0)) {
+      // Under the custom, nobody takes the last of it in front of someone who is hungry.
+      const holdBack = t.stock === 1 && isCustom(world, "fair") && world.people.some((q) => q !== person && q.needs.hunger > 0.6 && dist(q.x, q.z, t.x, t.z) < 25);
+      add("eat", t, holdBack ? hungry * (1 - 0.6 * strengthOf(world, "fair") * (0.5 + valueOf(person, "fairness"))) : hungry, 18);
+    }
     if (a.water) add("drink", t, thirsty, 8);
     if (a.rest) {
       // A roof is better to rest under, much better when it is cold or wet.
@@ -568,7 +582,7 @@ function options(person: Person, world: World): Option[] {
       const rel = person.relations.get(other.id);
       out.push({
         intent: { kind: "share", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 4 },
-        score: 1.3 * urge(other.needs.hunger, 0.5) * (0.5 + 0.5 * (rel?.affinity ?? 0.2)) + 0.2 * p.sociability + (other.mother === person.id || other.father === person.id || person.mother === other.id || person.father === other.id ? 0.35 * valueOf(person, "kin") : 0),
+        score: 1.3 * urge(other.needs.hunger, 0.5) * (0.5 + 0.5 * (rel?.affinity ?? 0.2)) + 0.2 * p.sociability + 0.4 * strengthOf(world, "share") + (other.mother === person.id || other.father === person.id || person.mother === other.id || person.father === other.id ? 0.35 * valueOf(person, "kin") : 0),
       });
     }
     // Someone low, and someone who cares: stay with them a while.
@@ -859,6 +873,8 @@ function earthOptions(
   const food = person.carry.food;
 
   for (const f of fires) add("warm", f, 1.6 * urge(cold, 0.22), 60);
+  // Under the custom, whoever sees the fire low feeds it.
+  if (wood >= 1) for (const f of fires) if ((f.fuel ?? 0) < 2 * FIRE_SECONDS_PER_WOOD && strengthOf(world, "tend") > 0) add("fire", f, 0.9 * strengthOf(world, "tend") + 0.2, 12);
   // Something carried is eaten where they stand.
   if (food > 0 && hungry > 0) out.push({ intent: { kind: "eat", x: person.x, z: person.z, speed: 0, remaining: 12 }, score: hungry * 0.95 });
   // Making a fire where they are, or feeding one that is low.
@@ -939,7 +955,9 @@ function finish(person: Person, world: World, intent: Intent) {
             if (q === person || q.needs.hunger < 0.6 || dist(q.x, q.z, t.x, t.z) > 25) continue;
             const r = relation(q, person.id, world);
             r.affinity = Math.max(-1, r.affinity - 0.06);
-            feelEmotion(q, "anger", 0.25 * (0.5 + valueOf(q, "fairness")));
+            feelEmotion(q, "anger", 0.25 * (0.5 + valueOf(q, "fairness")) * (isCustom(world, "fair") ? 1.8 : 1));
+            if (isCustom(world, "fair")) relation(q, person.id, world).trust = Math.max(0, relation(q, person.id, world).trust - 0.08);
+            uphold(world, "fair", person, 0.08);
             note(q, world, `${person.name} ate the last at ${phrase(t)} while I was hungry.`);
           }
         }
@@ -968,6 +986,7 @@ function finish(person: Person, world: World, intent: Intent) {
         if (t && t.kind === "campfire") t.fuel = (t.fuel ?? 0) + wood * FIRE_SECONDS_PER_WOOD;
         else make(world, "campfire", person.x, person.z, { fuel: wood * FIRE_SECONDS_PER_WOOD, radius: 2 });
         person.mood = clampMood(person.mood + 0.1);
+        if (t && t.kind === "campfire") uphold(world, "tend", person, 0.06);
         note(person, world, t && t.kind === "campfire" ? "Fed the fire." : "Lit a fire.");
       }
       break;
@@ -1103,6 +1122,8 @@ function finish(person: Person, world: World, intent: Intent) {
         theirs.gifts = (theirs.gifts ?? 0) + 1;
         feelEmotion(other, "gratitude", 0.5);
         feelEmotion(person, "pride", 0.2);
+        uphold(world, "share", person, 0.07);
+        if (isCustom(world, "share")) for (const q of world.people) if (q !== person && q !== other && dist(q.x, q.z, person.x, person.z) < 15) relation(q, person.id, world).trust = Math.min(1, relation(q, person.id, world).trust + 0.03);
         person.say = `Here, ${other.name}. Eat.`;
         note(person, world, `Gave ${other.name} some food.`);
         note(other, world, `${person.name} gave me food when I was hungry.`);
@@ -1237,6 +1258,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     if (hand.rain !== undefined) weather.raining = hand.rain;
   } else if (hand) world.override = undefined;
   world.weather = weather;
+  fadeNorms(world, dt);
   // The river's fish breed in the warm months and keep to the deep in winter; a few come down from upstream, so it is never quite empty.
   const fish = (world.fish ??= 30);
   world.fish = Math.min(40, fish + dt * (0.0002 * fish * (1 - fish / 40) * FISH_BY_SEASON[weather.season]! + 1 / DAY));

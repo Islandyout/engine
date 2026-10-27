@@ -1,5 +1,6 @@
 import { hourOf, phrase, type Person, type World } from "../../eden/mind";
 import { DAY } from "../../eden/earth";
+import { CUSTOM_AT, NORM_TEXT, standing, standingWord, type NormId } from "../../eden/norms";
 import type { VoiceConfig } from "./edenVoice";
 
 // Eden's panel: what the Creator sees and touches while the garden runs. Built with the DOM API only (never innerHTML: names, journals and
@@ -281,6 +282,8 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
       meter("mood", (p.mood + 1) / 2, p.mood < -0.3, bars);
       mindsView.appendChild(bars);
       if (p.story) mindsView.appendChild(el("div", undefined, p.story));
+      mindsView.appendChild(el("div", undefined, `Standing among the others: ${standingWord(standing(world, p))}`));
+      for (const [id, n] of Object.entries(world.norms ?? {})) if (n.strength >= CUSTOM_AT) mindsView.appendChild(el("div", undefined, `Custom: ${NORM_TEXT[id as NormId]}`));
       if (p.role) mindsView.appendChild(el("div", undefined, `Known as the ${p.role}.`));
       const good = Object.entries(p.skills ?? {}).filter(([, v]) => v > 0.1).sort((x, y) => y[1] - x[1]);
       if (good.length) mindsView.appendChild(el("div", undefined, `Skills: ${good.map(([k, v]) => `${k} ${Math.round(v * 100)}%`).join(", ")}`));
