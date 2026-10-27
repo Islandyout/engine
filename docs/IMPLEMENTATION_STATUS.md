@@ -109,3 +109,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F102](changelog/F102.md) | Desktop app (Electron): local files, GPU report, AI control port with MCP and CLI, standalone game apps |
 | [F103](changelog/F103.md) | Eden: two Supabase-brained characters in a garden, speak to them or add animals and trees |
 | [F104](changelog/F104.md) | Eden: seasonal day length, moon, fishing, grief and graves, lessons learned |
+| [F105](changelog/F105.md) | Eden: 400 m valley, emotions, breakdowns, quarrels and apologies, opinions and gossip |
