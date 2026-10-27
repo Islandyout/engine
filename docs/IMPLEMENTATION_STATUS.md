@@ -120,3 +120,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F113](changelog/F113.md) | Eden: hides and cloaks |
 | [F114](changelog/F114.md) | Eden: a chronicle of the world, and family in the Minds tab |
 | [F115](changelog/F115.md) | Eden: people tell each other where things are |
+| [F116](changelog/F116.md) | Eden: click a name to watch that person |

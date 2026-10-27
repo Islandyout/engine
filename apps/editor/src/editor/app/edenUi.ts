@@ -21,6 +21,7 @@ export interface PanelHandlers {
   creator(text: string): void;
   voice(config: VoiceConfig): void;
   voiceTest(): void;
+  follow(id: string): void; // the camera goes to this person
 }
 
 export interface EdenPanel {
@@ -246,7 +247,11 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
         statusBox.appendChild(line);
       }
       line.replaceChildren();
-      line.append(el("b", undefined, name), document.createTextNode(` ${text}`));
+      const who = el("b", undefined, name);
+      who.title = "Watch them";
+      who.style.cursor = "pointer";
+      who.addEventListener("click", () => handlers.follow(id));
+      line.append(who, document.createTextNode(` ${text}`));
     },
     lifeStatusRemove(id) {
       statusLines.get(id)?.remove();

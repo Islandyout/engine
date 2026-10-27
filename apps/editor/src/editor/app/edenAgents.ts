@@ -457,6 +457,19 @@ export function installEdenAgents(C: Ctx): void {
           saveVoice(config);
           panel?.voiceStatus(config.enabled ? "Voice on." : "Voice off. Plain speech.");
         },
+        follow: (id) => {
+          // The camera follows whoever is named: Adam and Eve by their own names, anyone else as the scene's "player" body.
+          const person = world?.people.find((q) => q.id === id);
+          if (!person) return;
+          const index = ORIGINAL.has(id) ? bodyIndex(person.name) : (bodyIndexById.get(id) ?? -1);
+          if (index < 0) return;
+          for (const e of C.doc.scene.eachAlive()) {
+            const f = C.doc.scene.resolve(e, "CameraFollow");
+            if (f) f.target = "";
+          }
+          C.playerIndex = index;
+          panel?.lifeLog(`Watching ${person.name}.`);
+        },
         voiceTest: () => {
           if (!world) return;
           const [a, b] = world.people;

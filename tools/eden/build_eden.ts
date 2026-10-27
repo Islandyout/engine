@@ -18,7 +18,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { encodeSculpt, fbm, generateHeights, sampleHeight } from "../../apps/editor/src/editor/terrain";
-import { EDEN_LANDMARKS, EDEN_PLACES } from "../../apps/editor/src/eden/places";
+import { DRINK_SPOT, EDEN_LANDMARKS, EDEN_PLACES } from "../../apps/editor/src/eden/places";
 import * as kitModule from "../lib/scene_kit";
 import type { Components, V3 } from "../lib/scene_kit";
 // scene_kit is CommonJS to tsx beside this ES module, so its exports may sit on `default`.
@@ -106,6 +106,12 @@ for (let row = 0; row < n; row++)
   }
 const heights = generateHeights({ ...TERRAIN, sculpt: encodeSculpt(sculpt) }, sculpt);
 const ground = (x: number, z: number) => sampleHeight(heights, TERRAIN.resolution, TERRAIN.size, x, z);
+
+// Where people stand to use the water must be dry land, above the water's surface: say so loudly at build time if the terrain ever puts it under.
+for (const place of Object.values(PLACES)) {
+  const at = place.stand ?? (place.id === "river_bend" ? DRINK_SPOT : undefined);
+  if (at && ground(at.x, at.z) < RIVER_LEVEL + 0.15) throw new Error(`${place.id}: the bank at ${at.x},${at.z} is ${ground(at.x, at.z).toFixed(2)} m, under the water (${RIVER_LEVEL} m)`);
+}
 
 const scene = new SceneBuilder();
 
