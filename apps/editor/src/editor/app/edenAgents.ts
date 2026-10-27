@@ -204,7 +204,6 @@ function appendLine(panel: Panel, text: string) {
 
 export function installEdenAgents(C: Ctx): void {
   let panel: Panel | undefined;
-  let edenChecked = false;
   // Locations are near-static (re-seeded only between phases, never live),
   // so fetched once rather than every poll.
   let locations: Map<string, LocationRow> | undefined;
@@ -308,27 +307,39 @@ export function installEdenAgents(C: Ctx): void {
     ]);
   }
 
+  // Decided afresh each time Play starts, because the editor can switch scenes between plays: only an Eden scene mounts the panel and polls.
+  let wasPlaying = false;
+  let inEden = false;
+  function mountPanel() {
+    panel = buildPanel();
+    const p = panel;
+    p.speakForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = p.speakInput.value;
+      p.speakInput.value = "";
+      void speak(text).catch((error) => appendLine(p, `(speaking failed: ${String(error)})`));
+    });
+    p.createForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = p.createInput.value;
+      p.createInput.value = "";
+      void create(text).catch((error) => appendLine(p, `(creation failed: ${String(error)})`));
+    });
+  }
+
   setInterval(() => {
-    if (C.doc.mode !== "play" || polling) return;
-    if (!edenChecked) {
-      edenChecked = true;
-      if (isEdenScene(C)) {
-        panel = buildPanel();
-        const p = panel;
-        p.speakForm.addEventListener("submit", (e) => {
-          e.preventDefault();
-          const text = p.speakInput.value;
-          p.speakInput.value = "";
-          void speak(text).catch((error) => appendLine(p, `(speaking failed: ${String(error)})`));
-        });
-        p.createForm.addEventListener("submit", (e) => {
-          e.preventDefault();
-          const text = p.createInput.value;
-          p.createInput.value = "";
-          void create(text).catch((error) => appendLine(p, `(creation failed: ${String(error)})`));
-        });
-      }
+    if (C.doc.mode !== "play") {
+      wasPlaying = false;
+      if (panel) panel.root.style.display = "none";
+      return;
     }
+    if (!wasPlaying) {
+      wasPlaying = true;
+      inEden = isEdenScene(C);
+      if (inEden && !panel) mountPanel();
+      if (panel) panel.root.style.display = inEden ? "" : "none";
+    }
+    if (!inEden || polling) return;
     polling = true;
     pollOnce()
       .catch((error) => C.log(`Eden brain poll failed: ${String(error)}`))
