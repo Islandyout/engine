@@ -116,6 +116,13 @@ export function installEdenAgents(C: Ctx): void {
   const announcedDead = new Set<string>();
   const lastMoved = new Map<string, [number, number]>();
   const rescued = new Map<string, number>();
+  const lastGesture = new Map<string, number>();
+  const woundSeen = new Map<string, number>();
+  const gesture = (id: string, clip: string) => {
+    if (performance.now() - (lastGesture.get(id) ?? -1e9) < 15_000) return;
+    lastGesture.set(id, performance.now());
+    ui(`eden_gesture_${id}`, clip);
+  };
   let walking = false; // the Creator is walking the world as a hunter
   let youBody = -1;
   const bodyObjectOf = (p: Person) => {
@@ -381,7 +388,14 @@ export function installEdenAgents(C: Ctx): void {
   function tick() {
     if (!world || !panel) return;
     const w = world;
-    // The hunter: prey run from them, and a wolf or fox that gets close bites.
+    // The hunter: once its body has said which it is, the camera follows it; prey run from them, and a wolf or fox that gets close bites.
+    if (walking && youBody < 0) {
+      const index = bodyIndexById.get("you");
+      if (index !== undefined) {
+        youBody = index;
+        C.playerIndex = index;
+      }
+    }
     if (walking && youBody >= 0) {
       const you = C.objects[youBody];
       if (you) {
@@ -426,6 +440,13 @@ export function installEdenAgents(C: Ctx): void {
         if (!rescued.has(person.id)) panel.lifeLog(`${person.name} had fallen through the ground and was lifted back.`);
         rescued.set(person.id, performance.now());
         snap(person);
+      }
+      // Small gestures that show how they are: a wave as two start to talk, a flinch when they are hurt.
+      if (!fast && simSeconds > 0) {
+        if (person.intent?.kind === "talk" && person.intent.arrived && described.get(person.id) !== "talking") gesture(person.id, "Wave");
+        const wound = person.wound ?? 0;
+        if (wound > (woundSeen.get(person.id) ?? 0) + 0.1) gesture(person.id, "HitRecieve");
+        woundSeen.set(person.id, wound);
       }
       if (!knownPeople.has(person.id)) {
         knownPeople.add(person.id);
@@ -503,25 +524,22 @@ export function installEdenAgents(C: Ctx): void {
           if (!world) return;
           walking = on;
           if (!on) world.visitor = undefined;
-          const youIndex = C.doc.scene.eachAlive().findIndex((e) => C.doc.scene.resolve(e, "Name")?.value === "You");
-          if (youIndex < 0) {
-            panel?.lifeLog("This scene has no hunter to walk as.");
-            return;
-          }
           for (const e of C.doc.scene.eachAlive()) {
             const f = C.doc.scene.resolve(e, "CameraFollow");
             if (f) f.target = on ? "" : "Adam";
           }
           if (on) {
+            // The hunter is brought into the world beside whoever is first among the people; once it says which body it is, the camera follows it.
             const beside = world.people[0];
             const x = (beside?.x ?? 0) + 3;
-            const z = (beside?.z ?? 0) + 2;
-            C.playerIndex = youIndex;
-            youBody = youIndex;
-            ui("eden_player_on", `${x},${groundY(x, z)},${z}`);
+            const z = (beside?.z ?? 2) + 2;
+            ui("eden_place", `you,Hunter,${x},${groundY(x, z) + 1},${z},you`);
+            for (const wait of [1200, 3000, 7000]) setTimeout(() => walking && !bodyIndexById.has("you") && ui("eden_tell", "you"), wait);
             panel?.lifeLog("You walk the world as a hunter. W A S D move, J strikes, K sweeps, F kicks, X rolls, G looses an arrow.");
           } else {
-            ui("eden_player_off", "");
+            ui("eden_remove", "you");
+            bodyIndexById.delete("you");
+            youBody = -1;
             C.playerIndex = -1;
             panel?.lifeLog("You watch from above again.");
           }
@@ -554,7 +572,7 @@ export function installEdenAgents(C: Ctx): void {
     // For the desktop app's tools and for tests: where each mind says a person is, where their body is, and where the ground is under it.
     if (navigator.userAgent.includes("BTAIDesktop")) {
       (window as unknown as { edenYou: unknown }).edenYou = () => {
-        const index = C.doc.scene.eachAlive().findIndex((e) => C.doc.scene.resolve(e, "Name")?.value === "You");
+        const index = bodyIndexById.get("you") ?? -1;
         const o = index >= 0 ? C.objects[index] : undefined;
         return o ? { at: [o.position.x, o.position.y, o.position.z], playerIndex: C.playerIndex, index } : undefined;
       };
@@ -572,6 +590,7 @@ export function installEdenAgents(C: Ctx): void {
           const sc = o.scale;
           return box ? [{ name: C.doc.scene.resolve(e, "Name")?.value, at: [o.position.x, o.position.y, o.position.z].map((v) => Math.round(v * 10) / 10), size: [sc.x, sc.y, sc.z].map((v) => Math.round(v * 10) / 10) }] : [];
         });
+      (window as unknown as { edenGesture: unknown }).edenGesture = (id: string, clip: string) => ui(`eden_gesture_${id}`, clip);
       (window as unknown as { edenPut: unknown }).edenPut = (id: string, x: number, z: number) => {
         const person = world?.people.find((q) => q.id === id);
         if (!person) return false;

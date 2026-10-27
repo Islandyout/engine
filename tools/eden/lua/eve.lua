@@ -12,6 +12,7 @@ local waypoints = nil
 local wpIndex = 1
 local arrived = true
 local playedAction = nil
+local gesture_left = 0 -- seconds of a gesture (a wave, a flinch) still playing, which walking must not cut short
 local WALK_SPEED = 1.6
 local dead = false
 
@@ -23,6 +24,12 @@ local function parse_target(value)
 end
 
 function on_ui(name, value)
+  if name == "eden_gesture_eve" then
+    self.animate = value
+    playedAction = value
+    gesture_left = 1.6
+    return
+  end
   -- Put down where the mind says they are (fast time, a move by the Creator, a loaded world): no walking there.
   if name == "eden_snap_eve" then
     local x, y, z = string.match(value, "^([^,]+),([^,]+),([^,]+)$")
@@ -56,6 +63,7 @@ function on_ui(name, value)
 end
 
 local function play(action)
+  if gesture_left > 0 then return end
   if playedAction ~= action then
     self.animate = action
     playedAction = action
@@ -63,6 +71,10 @@ local function play(action)
 end
 
 function on_tick(dt)
+  if gesture_left > 0 then
+    gesture_left = gesture_left - dt
+    if gesture_left <= 0 then playedAction = nil end
+  end
   if dead or not target then return end
   if arrived then
     self.vx, self.vz = 0, 0

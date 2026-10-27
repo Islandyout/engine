@@ -125,3 +125,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F118](changelog/F118.md) | Eden: the lake is walked round; the river can be waded |
 | [F119](changelog/F119.md) | Eden: walk the world as a hunter, with spear, bow and hunting |
 | [F120](changelog/F120.md) | Eden: dusk gatherings, shunning, stories; infants, hygiene, diet, remedies |
+| [F121](changelog/F121.md) | Eden: gestures; the hunter is brought in only when you walk |

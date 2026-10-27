@@ -220,8 +220,8 @@ scene.add("Eve", [1, ground(1, 0) + 0.1, 0], {
   Script: { source: lua("eve.lua"), props: {} },
 });
 
-// You: a hunter. The Creator watches from above until they choose to walk the world (the panel's button); this body waits parked far below
-// the world until then (tools/eden/lua/hunter.lua). The same base body and kit ranger outfit as the murim game's player, a spear in the
+// You: a hunter. The Creator watches from above until they choose to walk the world (the panel's button), which brings this body into the
+// world beside whoever they were watching (tools/eden/lua/hunter.lua); watching again takes it away. The same base body and kit ranger outfit as the murim game's player, a spear in the
 // right hand, the keyboard on a third-person controller.
 const BODY_M = 359;
 const SPEAR_MODEL = 208;
@@ -236,7 +236,7 @@ const SPEAR_MOVES = [
   ROLL,
 ].join("\n") + "\n";
 
-scene.add("You", [0, -200, 0], {
+scene.prefab("Hunter", {
   Scale: { value: vec(0.6, 1.8, 0.6) },
   Renderable: { mesh: BODY_M, material: 0, visible: true },
   Player: {},
