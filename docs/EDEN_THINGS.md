@@ -42,7 +42,7 @@ exist and a lost keepsake can be grieved. The Creator console already places any
 
 ## 5. Order of work
 
-1. Home comforts (bed, blanket, hearth, rain barrel): they plug into sleep, warmth, illness recovery. 
+1. Home comforts (bed, blanket, hearth, rain barrel): they plug into sleep, warmth, illness recovery.
 2. Cooking (pot, spit, oven): meat and grain become meals that taste and are shared (hooks into diet and customs).
 3. Keepsakes and gifts (carvings, beads): hooks into `gift`, grief and stories.
 4. Play objects (ball, flute, swing): children play, music at dusk gatherings.
