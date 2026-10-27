@@ -156,6 +156,9 @@ export interface Choice {
 export interface Person {
   goalCheck?: number; // world clock of the last time they thought about what to set out to do
   lastBirth?: number; // world clock a child of theirs was last born (mothers)
+  pregnant?: { since: number; father: string }; // carrying a child, born after GESTATION
+  illness?: { severity: number; since: number }; // sick, 0..1
+  cause?: string; // what is killing them, when it is not plain from their needs (childbirth)
   mother?: string;
   father?: string;
   name: string;
@@ -372,6 +375,39 @@ function breakDown(person: Person, world: World, dt: number) {
   }
 }
 
+// Sickness, as it is for people: it comes more easily to the very young and the old, to the cold, hungry and worn out, and from those who are
+// already ill; rest, warmth and food bring most through; some do not.
+const vulnerability = (age: number) => (age < 1 ? 3 : age < 4 ? 1.8 : age > 55 ? Math.min(2.5, 1 + (age - 55) / 20) : 1);
+function tickIllness(person: Person, world: World, dt: number) {
+  const now = world.clock ?? 0;
+  const { needs } = person;
+  const vul = vulnerability(person.age);
+  const sheltered = world.things.some((t) => t.kind === "shelter" && dist(person.x, person.z, t.x, t.z) < 4);
+  const resting = person.intent?.kind === "sleep" || person.intent?.kind === "rest";
+  const ill = person.illness;
+  if (!ill) {
+    let hazard = (0.025 / DAY) * vul * (1 + 1.5 * person.cold + 2.4 * Math.max(0, needs.hunger - 0.5) + (world.weather?.raining && !sheltered ? 0.5 : 0) + (needs.energy > 0.9 ? 0.5 : 0));
+    for (const q of world.people) if (q !== person && q.illness && dist(person.x, person.z, q.x, q.z) < 4) hazard += (0.5 / DAY) * q.illness.severity;
+    if (rand(person) < hazard * dt) {
+      person.illness = { severity: 0.25 + 0.3 * rand(person), since: now };
+      note(person, world, "Fell ill.");
+      tally(world, "illnesses");
+    }
+    return;
+  }
+  const worse = person.cold > 0.6 || needs.hunger > 0.8 || needs.thirst > 0.8;
+  const mending = (1 / (4 * DAY)) * (resting ? 2 : 1) * (sheltered || person.cold < 0.2 ? 1.5 : 1) * (needs.hunger < 0.6 ? 1 : 0.4) * person.health / vul;
+  ill.severity = clamp01(ill.severity + dt * ((worse ? 1 / (3 * DAY) : 0) - mending + 0.1 / DAY));
+  person.health = clamp01(person.health - (dt / (6 * DAY)) * ill.severity * vul * (ill.severity > 0.5 ? 1 : 0.3));
+  needs.energy = clamp01(needs.energy + (dt / FILL_SECONDS.energy) * ill.severity);
+  person.mood = Math.min(person.mood, 0.2 - 0.9 * ill.severity);
+  if (ill.severity <= 0.02) {
+    person.illness = undefined;
+    note(person, world, "Got well again.");
+    tally(world, "recoveries");
+  }
+}
+
 function note(person: Person, world: World, text: string) {
   person.journal.push({ t: world.clock ?? 0, text, w: importance(text) });
   if (person.journal.length > 400) {
@@ -536,7 +572,7 @@ function options(person: Person, world: World): Option[] {
       });
     }
     // Someone low, and someone who cares: stay with them a while.
-    if (other.mood < -0.3 && (person.relations.get(other.id)?.affinity ?? 0) > 0.2 && !isNight(world.clock ?? 0)) {
+    if ((other.mood < -0.3 || (other.illness?.severity ?? 0) > 0.3) && (person.relations.get(other.id)?.affinity ?? 0) > 0.2 && !isNight(world.clock ?? 0)) {
       const rel = person.relations.get(other.id)!;
       out.push({
         intent: { kind: "comfort", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 12 },
@@ -1235,7 +1271,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     const heat = 1 + 0.8 * clamp01((effective - 24) / 12);
     // Asleep, the body burns less and rests: hunger and thirst creep, tiredness drains.
     const metabolism = asleep ? 0.4 : 1;
-    needs.hunger = clamp01(needs.hunger + metabolism * (dt / FILL_SECONDS.hunger) * (0.7 + 0.6 * p.appetite));
+    needs.hunger = clamp01(needs.hunger + metabolism * (dt / FILL_SECONDS.hunger) * (0.7 + 0.6 * p.appetite) * (person.pregnant ? 1.25 : 1));
     needs.thirst = clamp01(needs.thirst + metabolism * heat * (dt / FILL_SECONDS.thirst) * (0.7 + 0.6 * p.appetite));
     needs.energy = clamp01(needs.energy + (asleep ? -dt / 1100 : dt / FILL_SECONDS.energy));
     needs.social = clamp01(needs.social + (asleep ? 0 : (dt / FILL_SECONDS.social) * (0.5 + p.sociability)));
@@ -1263,7 +1299,8 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     if (needs.hunger >= 1) loss += dt / (21 * DAY);
     if (person.cold > 0.7) loss += (dt / 200) * clamp01((person.cold - 0.7) / 0.3);
     if (loss > 0) person.health = clamp01(person.health - loss);
-    else if (Math.max(needs.hunger, needs.thirst) < 0.7 && person.cold < 0.6) person.health = clamp01(person.health + dt / 600);
+    else if (Math.max(needs.hunger, needs.thirst) < 0.7 && person.cold < 0.6 && !person.illness) person.health = clamp01(person.health + dt / 600);
+    tickIllness(person, world, dt);
 
     notice(person, world);
     person.explored.add(`${Math.floor(person.x / 20)},${Math.floor(person.z / 20)}`);
@@ -1512,37 +1549,24 @@ function reflect(person: Person, world: World) {
   felt.scares = 0;
 }
 
-function lifeAndDeath(world: World, dt: number) {
+// A child is born to a mother after nine months of carrying it, with real risk to both.
+const GESTATION = 0.75 * YEAR;
+function giveBirth(world: World, mother: Person, father: Person) {
   const now = world.clock ?? 0;
-  const gone: { person: Person; cause: string }[] = [];
-  for (const p of world.people) {
-    if (p.health <= 0.02) gone.push({ person: p, cause: p.cold > 0.85 ? "the cold" : p.needs.thirst >= 1 ? "thirst" : p.needs.hunger >= 1 ? "hunger" : "wounds" });
-    else if (p.age > 55 && rand(p) < (dt / DAY) * 0.25 * Math.min(1.5, ((p.age - 55) / 25) ** 2)) gone.push({ person: p, cause: "old age" });
-  }
-  for (const { person, cause } of gone) {
-    world.people.splice(world.people.indexOf(person), 1);
-    (world.dead ??= []).push({ person, t: now, cause });
-    note(person, world, `Died of ${cause}.`);
-    person.intent = undefined;
-    make(world, "grave", person.x, person.z, { of: person.id, radius: 2 });
-    for (const other of world.people) {
-      const r = other.relations.get(person.id);
-      const grief = Math.max(0, r?.affinity ?? 0);
-      other.mood = clampMood(other.mood - 0.7 * grief);
-      other.grief = clamp01((other.grief ?? 0) + 0.9 * grief);
-      note(other, world, `${person.name} died${cause === "old age" ? " of old age" : ` of ${cause}`}.`);
-    }
-  }
-  const shelter = world.things.filter((t) => t.kind === "shelter");
-  const larder = shelter.reduce((a, t) => a + (t.stock ?? 0), 0);
-  const season = world.weather?.season ?? 1;
-  if (!shelter.length || larder < 6 || season === 3 || world.people.length >= (world.maxPeople ?? 6)) return;
-  for (const mother of world.people) {
-    if (mother.sex !== "f" || mother.age < ADULT_AGE + 12 || mother.age > 40 || now - (mother.lastBirth ?? -1e9) < YEAR) continue;
-    if (mother.health < 0.7 || mother.needs.hunger > 0.7 || mother.mood < 0) continue;
-    const father = world.people.find((q) => q.sex === "m" && q.age >= ADULT_AGE + 12 && bondOf(mother, q) === "partner");
-    if (!father || rand(mother) > (dt / DAY) * 0.25) continue;
+  // Childbirth can kill: the more so when the mother is weak or hungry, and the baby may not live.
+  const risk = 0.012 * (1 + (mother.needs.hunger > 0.6 ? 1 : 0) + (mother.health < 0.7 ? 1.5 : 0) + (mother.age > 35 ? 1 : 0));
+  if (rand(mother) < 0.03 + 0.5 * risk) {
     mother.lastBirth = now;
+    mother.pregnant = undefined;
+    mother.mood = clampMood(mother.mood - 0.6);
+    mother.grief = clamp01((mother.grief ?? 0) + 0.5);
+    father.grief = clamp01((father.grief ?? 0) + 0.7);
+    note(mother, world, "The baby was born still.");
+    note(father, world, `${mother.name}'s baby was born still.`);
+    tally(world, "stillbirths");
+  } else {
+    mother.lastBirth = now;
+    mother.pregnant = undefined;
     const sex: "m" | "f" = rand(mother) < 0.5 ? "m" : "f";
     const taken = new Set([...world.people, ...(world.dead ?? []).map((d) => d.person)].map((q) => q.name));
     const name = CHILD_NAMES[sex].find((n) => !taken.has(n)) ?? `${sex === "m" ? "Boy" : "Girl"} ${(world.built ?? 0) + 1}`;
@@ -1567,6 +1591,53 @@ function lifeAndDeath(world: World, dt: number) {
     note(child, world, "I was born.");
     tally(world, "births");
     mother.say = `Look, ${father.name}. ${name}.`;
+  }
+  if (rand(mother) < risk) {
+    mother.health = Math.min(mother.health, 0.02);
+    mother.cause = "childbirth";
+  }
+}
+
+function lifeAndDeath(world: World, dt: number) {
+  const now = world.clock ?? 0;
+  const gone: { person: Person; cause: string }[] = [];
+  for (const p of world.people) {
+    if (p.health <= 0.02) gone.push({ person: p, cause: p.cause ?? (p.illness && p.illness.severity > 0.4 ? "illness" : p.cold > 0.85 ? "the cold" : p.needs.thirst >= 1 ? "thirst" : p.needs.hunger >= 1 ? "hunger" : "wounds") });
+    else if (p.age > 55 && rand(p) < (dt / DAY) * 0.25 * Math.min(1.5, ((p.age - 55) / 25) ** 2)) gone.push({ person: p, cause: "old age" });
+  }
+  for (const { person, cause } of gone) {
+    world.people.splice(world.people.indexOf(person), 1);
+    (world.dead ??= []).push({ person, t: now, cause });
+    note(person, world, `Died of ${cause}.`);
+    person.intent = undefined;
+    make(world, "grave", person.x, person.z, { of: person.id, radius: 2 });
+    for (const other of world.people) {
+      const r = other.relations.get(person.id);
+      const grief = Math.max(0, r?.affinity ?? 0);
+      other.mood = clampMood(other.mood - 0.7 * grief);
+      other.grief = clamp01((other.grief ?? 0) + 0.9 * grief);
+      note(other, world, `${person.name} died${cause === "old age" ? " of old age" : ` of ${cause}`}.`);
+    }
+  }
+  for (const mother of world.people) {
+    if (!mother.pregnant || now - mother.pregnant.since < GESTATION) continue;
+    const father = world.people.find((q) => q.id === mother.pregnant!.father) ?? world.dead?.find((d) => d.person.id === mother.pregnant!.father)?.person;
+    if (father) giveBirth(world, mother, father);
+    else mother.pregnant = undefined;
+  }
+  const shelter = world.things.filter((t) => t.kind === "shelter");
+  const larder = shelter.reduce((a, t) => a + (t.stock ?? 0), 0);
+  const season = world.weather?.season ?? 1;
+  if (!shelter.length || larder < 6 || season === 3 || world.people.length >= (world.maxPeople ?? 6)) return;
+  for (const mother of world.people) {
+    if (mother.sex !== "f" || mother.age < ADULT_AGE + 12 || mother.age > 40 || now - (mother.lastBirth ?? -1e9) < YEAR) continue;
+    if (mother.pregnant || mother.illness || mother.health < 0.7 || mother.needs.hunger > 0.7 || mother.mood < 0) continue;
+    const father = world.people.find((q) => q.sex === "m" && q.age >= ADULT_AGE + 12 && bondOf(mother, q) === "partner");
+    if (!father || rand(mother) > (dt / DAY) * 0.25) continue;
+    mother.pregnant = { since: now, father: father.id };
+    note(mother, world, `I am carrying ${father.name}'s child.`);
+    note(father, world, `${mother.name} is carrying my child.`);
+    tally(world, "conceptions");
   }
 }
 

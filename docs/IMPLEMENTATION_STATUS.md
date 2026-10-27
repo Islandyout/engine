@@ -111,3 +111,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F104](changelog/F104.md) | Eden: seasonal day length, moon, fishing, grief and graves, lessons learned |
 | [F105](changelog/F105.md) | Eden: 400 m valley, emotions, breakdowns, quarrels and apologies, opinions and gossip |
 | [F106](changelog/F106.md) | Eden: values, talents, life stories, skills that grow, roles and teaching |
+| [F107](changelog/F107.md) | Eden: illness, pregnancy and the risk of birth |

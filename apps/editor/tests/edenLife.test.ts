@@ -79,13 +79,13 @@ test("a death is grieved, remembered and recorded", () => {
 });
 
 test("two partners with a roof and food laid by have a child, who is looked after", () => {
-  const mother = adult("M", "f", 11);
-  const father = adult("F", "m", 12);
+  const mother = adult("M", "f", 13);
+  const father = adult("F", "m", 14);
   for (const [p, o] of [[mother, "F"], [father, "M"]] as const) p.relations.set(o, { affinity: 0.95, trust: 0.9, familiarity: 0.9, lastTogether: 0 });
   assert.equal(bondOf(mother, father), "partner");
   const w = base([mother, father], [{ id: "shelter-1", kind: "shelter", x: 2, z: 2, radius: 3, stock: 30 }]);
   w.clock = DAY / 3; // spring
-  run(w, 8 * DAY, 2);
+  run(w, 30 * DAY, 2); // a child is carried three-quarters of a year (12 days) before it is born
   const child = w.people.find((p) => p.mother === "M");
   assert.ok(child, "no child");
   assert.equal(child!.father, "F");
