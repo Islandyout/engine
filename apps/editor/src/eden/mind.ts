@@ -1500,7 +1500,7 @@ function lifeAndDeath(world: World, dt: number) {
   const shelter = world.things.filter((t) => t.kind === "shelter");
   const larder = shelter.reduce((a, t) => a + (t.stock ?? 0), 0);
   const season = world.weather?.season ?? 1;
-  if (!shelter.length || larder < 6 || season === 3 || world.people.length >= (world.maxPeople ?? 12)) return;
+  if (!shelter.length || larder < 6 || season === 3 || world.people.length >= (world.maxPeople ?? 6)) return;
   for (const mother of world.people) {
     if (mother.sex !== "f" || mother.age < ADULT_AGE + 12 || mother.age > 40 || now - (mother.lastBirth ?? -1e9) < YEAR) continue;
     if (mother.health < 0.7 || mother.needs.hunger > 0.7 || mother.mood < 0) continue;

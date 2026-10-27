@@ -150,7 +150,7 @@ export function runCreatorCommand(world: World, input: string, rnd: () => number
     const raw = (person[2] ?? (person[1] && !["man", "woman", "boy", "girl", "child", "person"].includes(person[1]) ? person[1] : "")) || "";
     const name = raw ? raw[0]!.toUpperCase() + raw.slice(1) : `${young ? "Child" : sex === "m" ? "Man" : "Woman"} ${world.built}`;
     if (world.people.some((q) => q.name.toLowerCase() === name.toLowerCase())) return say(false, `There is already someone called ${name}.`);
-    if (world.people.length >= (world.maxPeople ?? 12)) return say(false, "The garden is full: there are as many people as it can feed.");
+    if (world.people.length >= (world.maxPeople ?? 6)) return say(false, "The garden is full: there are as many people as it can feed.");
     const c = EDEN_PLACES.center!;
     const born = makePerson(`person-${world.built}`, c.x + (rnd() - 0.5) * 4, c.z + (rnd() - 0.5) * 4, Math.floor(rnd() * 1e9),
       { boldness: rnd(), sociability: rnd(), curiosity: rnd(), appetite: 0.3 + 0.5 * rnd(), patience: rnd() },
