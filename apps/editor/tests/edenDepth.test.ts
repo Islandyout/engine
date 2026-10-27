@@ -84,3 +84,25 @@ test("fish, grief, lessons and graves survive saving", () => {
   assert.deepEqual(back.people[0]!.lessons, { prepare: 0.4, careful: 0 });
   assert.equal(back.things.find((t) => t.kind === "grave")?.of, "Z");
 });
+
+test("wind, mist and rain amount vary with the season and the hour", async () => {
+  const { weatherAt, EDEN_CLIMATE } = await import("../src/eden/earth");
+  let winterWind = 0;
+  let summerWind = 0;
+  let maxFog = 0;
+  let drizzle = 0;
+  let downpour = 0;
+  for (let i = 0; i < 400; i++) {
+    const w = weatherAt(YEAR * 0.875 + i * 300, EDEN_CLIMATE);
+    const s = weatherAt(YEAR * 0.375 + i * 300, EDEN_CLIMATE);
+    winterWind += w.windMs;
+    summerWind += s.windMs;
+    maxFog = Math.max(maxFog, w.fog, s.fog);
+    if (w.raining && w.rainAmount < 0.4) drizzle++;
+    if (w.raining && w.rainAmount > 0.7) downpour++;
+    assert.ok(w.windMs >= 0 && w.windMs < 20 && w.fog >= 0 && w.fog <= 1);
+  }
+  assert.ok(winterWind > summerWind, "winter should be windier");
+  assert.ok(maxFog > 0.3, "there should be mist at times");
+  assert.ok(drizzle > 0 && downpour > 0, "rain should come in different strengths");
+});

@@ -29,6 +29,11 @@ export interface Weather {
   raining: boolean;
   season: Season;
   seasonProgress: number; // 0 at the start of the season, 1 at its end
+  windMs: number; // wind speed, metres a second
+  windDir: number; // the direction it blows toward, radians
+  rainAmount: number; // 0 (dry) .. 1 (downpour); a drizzle or a deluge when it rains
+  fog: number; // 0 clear .. 1 thick: morning mist after rain, low cloud in the cold months
+  snowing: boolean; // precipitation, but cold enough to fall as snow
   dayOfYear: number;
 }
 
@@ -66,7 +71,19 @@ export function weatherAt(clock: number, climate: Climate): Weather {
   const spell = Math.floor(clock / (DAY / 8));
   const wet = Math.max(0, Math.min(0.9, climate.rainy * RAIN_BY_SEASON[season]!));
   const raining = (hash(spell, climate.seed + 101) + 1) / 2 < wet * 0.55;
-  return { tempC: seasonal + daily + drift - (raining ? 3 : 0), raining, season, seasonProgress: progress, dayOfYear };
+  const tempC = seasonal + daily + drift - (raining ? 3 : 0);
+  // Wind changes over hours, is stronger in autumn and winter, and rises before and during rain.
+  const gust = Math.floor(clock / (DAY / 6));
+  const gustMix = (clock - gust * (DAY / 6)) / (DAY / 6);
+  const windBase = [3.5, 2.5, 4.5, 5][season]!;
+  const windMs = Math.max(0, windBase * (0.5 + 0.5 * ((hash(gust, climate.seed + 7) + 1) / 2) * (1 - gustMix) + 0.5 * ((hash(gust + 1, climate.seed + 7) + 1) / 2) * gustMix) + (raining ? 2 : 0));
+  const windDir = Math.PI * (hash(Math.floor(clock / (2 * DAY)), climate.seed + 13) + 1);
+  const rainAmount = raining ? 0.25 + 0.75 * ((hash(spell, climate.seed + 211) + 1) / 2) : 0;
+  // Mist hangs about dawn after a wet night; the cold months bring low cloud.
+  const wetNight = (hash(Math.floor((clock - DAY / 4) / (DAY / 8)), climate.seed + 101) + 1) / 2 < wet * 0.55;
+  const dawn = Math.max(0, 1 - Math.abs(hour - 6.5) / 2.5);
+  const fog = Math.min(1, (raining ? 0.25 : 0) + (wetNight ? 0.5 * dawn : 0.15 * dawn) + (season === 3 ? 0.15 : season === 2 ? 0.08 : 0));
+  return { tempC, raining, season, seasonProgress: progress, dayOfYear, windMs, windDir, rainAmount, fog, snowing: raining && tempC < 1 };
 }
 
 // How fast plants grow back in each season, and more after rain: a multiple of the base regrowth.

@@ -161,6 +161,7 @@ export interface Person {
   promises?: { to: string; due: number }[]; // what they have promised, and by when
   pregnant?: { since: number; father: string }; // carrying a child, born after GESTATION
   illness?: { severity: number; since: number }; // sick, 0..1
+  wound?: number; // hurt by an animal, 0..1: heals slowly and may turn bad
   cause?: string; // what is killing them, when it is not plain from their needs (childbirth)
   mother?: string;
   father?: string;
@@ -390,6 +391,20 @@ function tickIllness(person: Person, world: World, dt: number) {
   const vul = vulnerability(person.age);
   const sheltered = world.things.some((t) => t.kind === "shelter" && dist(person.x, person.z, t.x, t.z) < 4);
   const resting = person.intent?.kind === "sleep" || person.intent?.kind === "rest";
+  // A wound mends slowly with rest and care, drains a little strength, and can turn bad.
+  if (person.wound) {
+    person.wound = Math.max(0, person.wound - (dt / (5 * DAY)) * (resting ? 2 : 1) * (needs.hunger < 0.6 ? 1 : 0.4));
+    person.health = clamp01(person.health - (dt / (12 * DAY)) * person.wound);
+    if (!person.illness && rand(person) < (person.wound * 0.35 * (needs.hunger > 0.7 || person.cold > 0.5 ? 1.5 : 1) * dt) / DAY) {
+      person.illness = { severity: 0.4 + 0.3 * person.wound, since: now };
+      note(person, world, "My wound turned bad.");
+      tally(world, "infections");
+    }
+    if (person.wound < 0.02) {
+      person.wound = undefined;
+      note(person, world, "My wound has healed.");
+    }
+  }
   const ill = person.illness;
   if (!ill) {
     let hazard = (0.025 / DAY) * vul * (1 + 1.5 * person.cold + 2.4 * Math.max(0, needs.hunger - 0.5) + (world.weather?.raining && !sheltered ? 0.5 : 0) + (needs.energy > 0.9 ? 0.5 : 0));
@@ -670,7 +685,7 @@ function options(person: Person, world: World): Option[] {
       });
     }
     // Someone low, and someone who cares: stay with them a while.
-    if ((other.mood < -0.3 || (other.illness?.severity ?? 0) > 0.3) && (person.relations.get(other.id)?.affinity ?? 0) > 0.2 && !isNight(world.clock ?? 0)) {
+    if ((other.mood < -0.3 || (other.illness?.severity ?? 0) > 0.3 || (other.wound ?? 0) > 0.3) && (person.relations.get(other.id)?.affinity ?? 0) > 0.2 && !isNight(world.clock ?? 0)) {
       const rel = person.relations.get(other.id)!;
       out.push({
         intent: { kind: "comfort", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 12 },
@@ -1185,6 +1200,14 @@ function finish(person: Person, world: World, intent: Intent) {
         theirs.affinity = Math.min(1, theirs.affinity + 0.1);
         theirs.trust = Math.min(1, theirs.trust + 0.08);
         theirs.comforts = (theirs.comforts ?? 0) + 1;
+        // Sitting with the sick or hurt is nursing: it helps them, and the nurse learns.
+        if (other.illness || other.wound) {
+          const heal = skillOf(person, "heal");
+          if (other.illness) other.illness.severity = Math.max(0, other.illness.severity - 0.08 * (0.5 + heal));
+          if (other.wound) other.wound = Math.max(0, other.wound - 0.1 * (0.5 + heal));
+          practise(person, "heal", 0.06);
+          tally(world, "nursed");
+        }
         feelEmotion(other, "gratitude", 0.4);
         person.say = `It will be all right, ${other.name}.`;
         note(person, world, `Sat with ${other.name}, who was low.`);
@@ -1348,7 +1371,11 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
   const hand = world.override;
   if (hand && world.clock < hand.until) {
     weather.tempC += hand.tempOffset;
-    if (hand.rain !== undefined) weather.raining = hand.rain;
+    if (hand.rain !== undefined) {
+      weather.raining = hand.rain;
+      weather.rainAmount = hand.rain ? Math.max(weather.rainAmount, 0.6) : 0;
+      weather.snowing = hand.rain && weather.tempC < 1;
+    }
   } else if (hand) world.override = undefined;
   world.weather = weather;
   fadeNorms(world, dt);
@@ -1379,7 +1406,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     // Warmth: what the air is, with clothes on, a roof overhead, a fire close by, and the rain if there is no roof.
     const sheltered = world.things.some((t) => t.kind === "shelter" && dist(person.x, person.z, t.x, t.z) < 3.5);
     const nearFire = world.things.some((t) => burning(t) && dist(person.x, person.z, t.x, t.z) < 6);
-    const effective = weather.tempC + 5 + (sheltered ? 8 : 0) + (nearFire ? 12 : 0) - (weather.raining && !sheltered ? 4 : 0);
+    const effective = weather.tempC + 5 + (sheltered ? 8 : 0) + (nearFire ? 12 : 0) - (weather.raining && !sheltered ? 4 : 0) - (sheltered ? 0 : 0.5 * weather.windMs); // wind takes the warmth away
     const coldTarget = clamp01((COMFORT_C - effective) / 18);
     person.cold = clamp01(person.cold + (coldTarget - person.cold) * Math.min(1, dt / 180));
     // Heat dries a person out faster.
@@ -1433,6 +1460,8 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
         person.health = clamp01(person.health - danger * dt * 0.05);
         feel(person, f.from, -0.05 * dt);
         hurt = true;
+        if (!person.wound) note(person, world, `Was hurt by ${phrase(f.from)}.`);
+        person.wound = Math.max(person.wound ?? 0, 0.3 + 0.5 * danger);
       }
     }
     // Pain sends anyone running, however bold.

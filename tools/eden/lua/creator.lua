@@ -41,8 +41,8 @@ function on_ui(name, value)
   end
   -- The weather: "rain,fog" (0-1) for the sky and the sound of it.
   if name == "eden_weather" then
-    local rain, fog = string.match(value, "^([^,]+),([^,]+)$")
-    if rain then fx.weather(tonumber(rain) or 0, tonumber(fog) or 0, 1.5, 0.5) end
+    local rain, fog, wx, wz = string.match(value, "^([^,]+),([^,]+),([^,]+),([^,]+)$")
+    if rain then fx.weather(tonumber(rain) or 0, tonumber(fog) or 0, tonumber(wx) or 1.5, tonumber(wz) or 0.5) end
     return
   end
   if name ~= "eden_create" then return end

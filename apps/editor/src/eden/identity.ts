@@ -3,7 +3,7 @@
 // use, fade with neglect and pass from one person to another, so that who does what in a family comes out of who is good at it.
 import type { Person } from "./mind";
 
-export const SKILLS = ["forage", "fish", "hunt", "farm", "build"] as const;
+export const SKILLS = ["forage", "fish", "hunt", "farm", "build", "heal"] as const;
 export type Skill = (typeof SKILLS)[number];
 export const SKILL_WORDS: Record<Skill, { doing: string; role: string }> = {
   forage: { doing: "gathering food", role: "gatherer" },
@@ -11,6 +11,7 @@ export const SKILL_WORDS: Record<Skill, { doing: string; role: string }> = {
   hunt: { doing: "hunting", role: "hunter" },
   farm: { doing: "farming", role: "farmer" },
   build: { doing: "building", role: "builder" },
+  heal: { doing: "tending the sick", role: "healer" },
 };
 
 export const VALUES = ["kin", "fairness", "freedom", "tradition", "comfort"] as const;
@@ -58,7 +59,7 @@ export const valueOf = (p: Person, v: Value) => p.values?.[v] ?? 0.5;
 
 // Doing a thing makes them better at it, quickly at first and a gifted learner faster; neglect lets it fade a little.
 export function practise(p: Person, s: Skill, amount = 0.03) {
-  const skills = (p.skills ??= { forage: 0, fish: 0, hunt: 0, farm: 0, build: 0 });
+  const skills = (p.skills ??= { forage: 0, fish: 0, hunt: 0, farm: 0, build: 0, heal: 0 });
   skills[s] = Math.min(1, skills[s] + amount * (p.talents?.[s] ?? 1) * (1 - skills[s] * 0.8));
 }
 export function neglect(p: Person) {

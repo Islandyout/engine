@@ -341,10 +341,15 @@ export function installEdenAgents(C: Ctx): void {
       lastHour = Math.floor(hour * 4);
       ui("eden_time", String(solarHour(w.clock ?? 0)));
     }
-    const rainNow = w.weather?.raining ? 1 : 0;
-    if (rainNow !== lastRain) {
-      lastRain = rainNow;
-      ui("eden_weather", `${rainNow * 0.7},${rainNow * 0.25}`);
+    // The sky follows the weather: how hard it rains (or the flurries of snow), the mist, and the wind that moves the trees.
+    const wx = w.weather;
+    const rain = wx?.raining ? (wx.snowing ? 0.2 : wx.rainAmount) : 0;
+    const fog = wx?.fog ?? 0;
+    const wind = wx?.windMs ?? 0;
+    const key = Math.round(rain * 10) * 10000 + Math.round(fog * 10) * 100 + Math.round(wind);
+    if (key !== lastRain) {
+      lastRain = key;
+      ui("eden_weather", `${(rain * 0.9).toFixed(2)},${(0.1 + fog * 0.6).toFixed(2)},${(Math.cos(wx?.windDir ?? 0) * wind).toFixed(1)},${(Math.sin(wx?.windDir ?? 0) * wind).toFixed(1)}`);
     }
   }
 
@@ -375,7 +380,7 @@ export function installEdenAgents(C: Ctx): void {
     sync(w, hour);
     const weather = w.weather;
     if (weather) {
-      panel.setHeader(`Eden · ${SEASON_NAMES[weather.season]} · ${String(Math.floor(hour)).padStart(2, "0")}:${String(Math.floor((hour % 1) * 60)).padStart(2, "0")} · ${Math.round(weather.tempC)}°C${weather.raining ? " · rain" : ""}${isNight(w.clock ?? 0) ? ` · ${moonName(w.clock ?? 0)}` : ""}`);
+      panel.setHeader(`Eden · ${SEASON_NAMES[weather.season]} · ${String(Math.floor(hour)).padStart(2, "0")}:${String(Math.floor((hour % 1) * 60)).padStart(2, "0")} · ${Math.round(weather.tempC)}°C${weather.raining ? (weather.snowing ? " · snow" : weather.rainAmount > 0.7 ? " · heavy rain" : weather.rainAmount < 0.4 ? " · drizzle" : " · rain") : weather.fog > 0.45 ? " · mist" : ""}${weather.windMs > 7 ? " · windy" : ""}${isNight(w.clock ?? 0) ? ` · ${moonName(w.clock ?? 0)}` : ""}`);
     }
 
     for (const person of w.people) {

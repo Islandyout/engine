@@ -281,6 +281,9 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
       meter("cold", p.cold, p.cold > 0.7, bars);
       meter("mood", (p.mood + 1) / 2, p.mood < -0.3, bars);
       mindsView.appendChild(bars);
+      if (p.illness) mindsView.appendChild(el("div", undefined, `Ill (${Math.round(p.illness.severity * 100)}%)`));
+      if (p.wound) mindsView.appendChild(el("div", undefined, `Wounded (${Math.round(p.wound * 100)}%)`));
+      if (p.pregnant) mindsView.appendChild(el("div", undefined, "Carrying a child."));
       if (p.story) mindsView.appendChild(el("div", undefined, p.story));
       mindsView.appendChild(el("div", undefined, `Standing among the others: ${standingWord(standing(world, p))}`));
       for (const [id, n] of Object.entries(world.norms ?? {})) if (n.strength >= CUSTOM_AT) mindsView.appendChild(el("div", undefined, `Custom: ${NORM_TEXT[id as NormId]}`));
