@@ -1,6 +1,6 @@
 import { fuzzyRank } from "../fuzzy";
 import { actionOf, AFFORDANCES, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
-import { CREATABLE, DRINK_SPOT, PLACES, PLACE_KINDS } from "../../eden/world";
+import { CREATABLE, DRINK_SPOT, EDEN_LANDMARKS, EDEN_PLACES } from "../../eden/places";
 import type { Ctx } from "./context";
 
 // Eden: runs the minds of Adam and Eve (src/eden/mind.ts) on this machine, with no network and no AI model, and drives their Lua scripts
@@ -35,7 +35,7 @@ const TIME_SCALE = 3;
 const TICK_MS = 250;
 
 const PLACE_NAME: Record<string, string> = {};
-for (const [key, place] of Object.entries(PLACES)) PLACE_NAME[PLACE_KINDS[key as keyof typeof PLACES]] = place.name;
+for (const place of Object.values(EDEN_PLACES)) PLACE_NAME[place.kind] = place.name;
 const KIND_NAME: Record<string, string> = { ...PLACE_NAME, tree: "a tree", bush: "a bush", rock: "a rock", deer: "a deer", fox: "a fox", alpaca: "an alpaca", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge" };
 
 const VERB: Record<string, string> = { eat: "goes to eat at", drink: "goes to drink at", rest: "goes to rest at", look: "goes to look at", play: "goes to play at", talk: "goes to talk with", wander: "wanders off", flee: "runs from", linger: "pauses" };
@@ -64,6 +64,8 @@ interface Panel {
   root: HTMLElement;
   status: Record<string, HTMLElement>;
   log: HTMLElement;
+  speakForm: HTMLFormElement;
+  speakInput: HTMLInputElement;
   createForm: HTMLFormElement;
   createInput: HTMLInputElement;
 }
@@ -115,20 +117,25 @@ function buildPanel(): Panel {
   log.className = "eden-log";
   root.appendChild(log);
 
-  const form = document.createElement("form");
-  const input = document.createElement("input");
-  input.type = "text";
-  input.placeholder = "Let there be...";
-  input.maxLength = 120;
-  const button = document.createElement("button");
-  button.type = "submit";
-  button.textContent = "Create";
-  form.appendChild(input);
-  form.appendChild(button);
-  root.appendChild(form);
+  function makeForm(placeholder: string, buttonLabel: string): [HTMLFormElement, HTMLInputElement] {
+    const form = document.createElement("form");
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = placeholder;
+    input.maxLength = 120;
+    const button = document.createElement("button");
+    button.type = "submit";
+    button.textContent = buttonLabel;
+    form.appendChild(input);
+    form.appendChild(button);
+    root.appendChild(form);
+    return [form, input];
+  }
+  const [speakForm, speakInput] = makeForm("Speak to them...", "Speak");
+  const [createForm, createInput] = makeForm("Let there be...", "Create");
 
   document.body.appendChild(root);
-  return { root, status, log, createForm: form, createInput: input };
+  return { root, status, log, speakForm, speakInput, createForm, createInput };
 }
 
 function setStatus(line: HTMLElement, name: string, text: string) {
@@ -176,14 +183,14 @@ export function installEdenAgents(C: Ctx): void {
 
   function startWorld() {
     const things: Thing[] = [];
-    for (const [key, place] of Object.entries(PLACES)) {
-      const at = key === "river_bend" ? DRINK_SPOT : place;
-      things.push({ id: key, kind: PLACE_KINDS[key as keyof typeof PLACES], x: at.x, z: at.z, radius: 3 });
+    // The mind's radius is how near counts as "at" a place, not the place's own size (EDEN_PLACES.radius is the terrain feature).
+    for (const place of Object.values(EDEN_PLACES)) {
+      const at = place.id === "river_bend" ? DRINK_SPOT : place;
+      things.push({ id: place.id, kind: place.kind, x: at.x, z: at.z, radius: 3 });
     }
     // The two landmark trees stand where the scene put them; they are there to be looked at and, for the Tree of Life, eaten from.
-    for (const [name, kind] of [["Tree of Life", "tree of life"], ["Tree of Knowledge", "tree of knowledge"]] as const) {
-      const at = bodyPosition(name);
-      if (at) things.push({ id: kind, kind, x: at[0], z: at[2], radius: 3, stock: AFFORDANCES[kind]?.stock });
+    for (const landmark of EDEN_LANDMARKS) {
+      things.push({ id: landmark.id, kind: landmark.kind, x: landmark.x, z: landmark.z, radius: 3, stock: AFFORDANCES[landmark.kind]?.stock });
     }
     for (const thing of things) if (thing.stock !== undefined) fullStock.set(thing.id, thing.stock);
     const people = PEOPLE.map((p, i) => {
@@ -194,6 +201,18 @@ export function installEdenAgents(C: Ctx): void {
     sent.clear();
     spoken.clear();
     described.clear();
+  }
+
+  // No model writes a reply -- there is none, and pretending would be the silent fallback this repo rules out. Speaking is a small, honest
+  // kindness instead: it lifts both people's mood and eases their wish for company a little.
+  function speak(text: string) {
+    const content = text.trim();
+    if (!content || !panel || !world) return;
+    appendLine(panel, `You: ${content}`);
+    for (const person of world.people) {
+      person.mood = Math.max(-1, Math.min(1, person.mood + 0.15));
+      person.needs.social = Math.max(0, person.needs.social - 0.1);
+    }
   }
 
   function create(text: string) {
@@ -208,7 +227,7 @@ export function installEdenAgents(C: Ctx): void {
     }
     const [prefab, kind] = match;
     // Near the garden's center, where the people usually are, with a little scatter.
-    const centre = PLACES.center;
+    const centre = EDEN_PLACES.center!;
     const x = centre.x + (Math.random() - 0.5) * 12;
     const z = centre.z + (Math.random() - 0.5) * 12;
     C.runtime.ccall("editor_ui_event", null, ["string", "string"], ["eden_create", `${prefab},${x},0,${z}`]);
@@ -278,6 +297,12 @@ export function installEdenAgents(C: Ctx): void {
   function mountPanel() {
     panel = buildPanel();
     const p = panel;
+    p.speakForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = p.speakInput.value;
+      p.speakInput.value = "";
+      speak(text);
+    });
     p.createForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const text = p.createInput.value;
