@@ -102,7 +102,7 @@ test("a long life: needs stay met, health holds, and they do more than one thing
 test("different personalities live differently", () => {
   const bold = makePerson("a", 0, 0, 4, { boldness: 1 });
   const timid = makePerson("b", 0, 0, 4, { boldness: 0 });
-  const fox: Thing = { id: "fox", kind: "fox", x: 9, z: 0, radius: 1 };
+  const fox: Thing = { id: "fox", kind: "fox", x: 6, z: 0, radius: 1 }; // close enough that a timid person runs however the fox wanders in a step
   const world: World = { things: [fox], people: [bold, timid] };
   step(world, 0.5);
   assert.notEqual(bold.intent?.kind, "flee");

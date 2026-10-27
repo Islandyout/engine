@@ -4,7 +4,7 @@
 //
 // A life: 1 to 4 people with random personalities in a garden of random layout, food that runs out and grows back by the seasons, a climate
 // (mild like Eden's or anything from cool to warm), and perhaps a fox or a fire. It runs for `years` of 16 sim days.
-import { AFFORDANCES, makePerson, step, type Person, type Thing, type World } from "./mind";
+import { AFFORDANCES, bondOf, makePerson, step, type Person, type Thing, type World } from "./mind";
 import { DAY, YEAR, YEAR_DAYS, type Climate } from "./earth";
 
 export function rng(seed: number) {
@@ -46,6 +46,20 @@ export interface Life {
   firstShelterDay: number; // sim day the first roof went up, or -1
   stashed: number; // meals put away in a larder
   winterHungerShare: number; // share of winter with hunger over 0.85
+  births: number;
+  peopleAtEnd: number;
+  goalsSet: number;
+  goalsDone: number;
+  quarrels: number;
+  comforts: number;
+  partners: number; // pairs who ended as partners
+  grieved: number; // deaths that someone wrote down as a loss
+  planted: number;
+  spears: number;
+  hunted: number;
+  deerAtEnd: number;
+  deerAtStart: number;
+  foxesAtEnd: number;
 }
 
 export interface LifeOptions {
@@ -74,7 +88,11 @@ function makeWorld(r: () => number, options: LifeOptions): { world: World; hasDa
   if (r() < 0.6) add("meadow", "meadow", r() * 6.28);
   if (r() < 0.5) add("life", "tree of life", r() * 6.28, 3, 3);
   if (r() < 0.5) add("tree", "tree", r() * 6.28, 2);
-  if (r() < 0.4) add("deer", "deer", r() * 6.28, 2);
+  if (r() < 0.4) {
+    // A small herd, so there is something to breed and to hunt.
+    const herd = r() * 6.28;
+    for (let i = 0; i < 3; i++) add(`deer${i}`, "deer", herd + i * 0.15, 2);
+  }
   let hasDanger = false;
   const dangerRoll = r();
   if (dangerRoll < 0.3) {
@@ -88,13 +106,14 @@ function makeWorld(r: () => number, options: LifeOptions): { world: World; hasDa
   const people: Person[] = [];
   for (let i = 0; i < n; i++) {
     people.push(
-      makePerson(`p${i}`, (r() - 0.5) * 6, (r() - 0.5) * 6, Math.floor(r() * 1e9), {
-        boldness: r(),
-        sociability: r(),
-        curiosity: r(),
-        appetite: r(),
-        patience: r(),
-      }),
+      makePerson(
+        `p${i}`,
+        (r() - 0.5) * 6,
+        (r() - 0.5) * 6,
+        Math.floor(r() * 1e9),
+        { boldness: r(), sociability: r(), curiosity: r(), appetite: r(), patience: r() },
+        { name: `P${i}`, sex: r() < 0.5 ? "m" : "f", age: 18 + Math.floor(r() * 14) },
+      ),
     );
   }
   const climate: Climate = options.climate ?? {
@@ -128,6 +147,9 @@ export function live(seed: number, options: LifeOptions = {}): Life {
   }
   const steps = Math.floor(((options.days !== undefined ? options.days * DAY : years * YEAR)) / DT);
   const hours = (steps * DT) / 3600;
+  const initialPeople = world.people.length;
+  const deerAtStart = world.things.filter((t) => t.kind === "deer").length;
+  let births = 0;
   const shares: Record<string, number> = {};
   let urgent = 0;
   let starved = 0;
@@ -159,7 +181,9 @@ export function live(seed: number, options: LifeOptions = {}): Life {
 
   for (let i = 0; i < steps; i++) {
     const t = i * DT;
+    const before = world.people.length + (world.dead?.length ?? 0);
     step(world, DT);
+    births += Math.max(0, world.people.length + (world.dead?.length ?? 0) - before);
     let anyUrgent = false;
     let anyStarved = false;
     let anyCold = false;
@@ -225,11 +249,32 @@ export function live(seed: number, options: LifeOptions = {}): Life {
   const actionShares: Record<string, number> = {};
   for (const [k, v] of Object.entries(shares)) actionShares[k] = v / total;
   const top = Math.max(...Object.entries(actionShares).filter(([k]) => k !== "none").map(([, v]) => v), 0);
+  const everyone = [...world.people, ...(world.dead ?? []).map((d) => d.person)];
+  const lines = everyone.flatMap((p) => p.journal.map((j) => j.text));
+  const count = (re: RegExp) => lines.filter((t) => re.test(t)).length;
+  const deadCause = world.dead?.[0]?.cause;
+  if (deadCause) deathCause = deadCause === "the cold" ? "cold" : deadCause === "old age" ? "old age" : deadCause === "wounds" ? "danger" : deadCause;
+  let partners = 0;
+  for (let i = 0; i < world.people.length; i++) for (let j = i + 1; j < world.people.length; j++) if (bondOf(world.people[i]!, world.people[j]!) === "partner") partners++;
   return {
     seed,
-    people: world.people.length,
+    people: initialPeople,
+    births,
+    peopleAtEnd: world.people.length,
+    goalsSet: world.tally?.goalsSet ?? 0,
+    goalsDone: world.tally?.goalsDone ?? 0,
+    quarrels: world.tally?.quarrels ?? 0,
+    comforts: world.tally?.comforts ?? 0,
+    partners,
+    grieved: world.dead?.length ? count(/ died( of |\.)/) : 0,
+    planted: world.tally?.planted ?? 0,
+    spears: world.tally?.spears ?? 0,
+    hunted: world.tally?.hunted ?? 0,
+    deerAtEnd: world.things.filter((t) => t.kind === "deer").length,
+    deerAtStart,
+    foxesAtEnd: world.things.filter((t) => t.kind === "fox").length,
     eden,
-    deaths: world.people.filter((p) => p.health <= 0.05).length,
+    deaths: world.dead?.length ?? 0,
     deathCause,
     minHealth,
     urgentShare: urgent / steps,
@@ -238,7 +283,7 @@ export function live(seed: number, options: LifeOptions = {}): Life {
     actionShares,
     topShare: top,
     distinctActions: Object.keys(actionShares).filter((k) => k !== "none" && k !== "travel").length,
-    abandonsPerHour: abandons / world.people.length / hours,
+    abandonsPerHour: abandons / initialPeople / hours,
     stuckSeconds: stuck,
     talks,
     mood: moodSum / samples,
@@ -305,6 +350,21 @@ export function analyse(lives: Life[], years: number, seconds = 0) {
     travelShareMedian: median((l) => l.travelShare),
     firstRoofDayMedian: median((l) => l.firstShelterDay, lives.filter((l) => l.firstShelterDay >= 0)),
     livesWithDanger: dangerLives.length,
+    // What they made of their lives together
+    livesWithAGoal: share((l) => l.goalsSet > 0),
+    goalsDoneShare: lives.reduce((a, l) => a + l.goalsDone, 0) / Math.max(1, lives.reduce((a, l) => a + l.goalsSet, 0)),
+    groupsThatQuarrelled: share((l) => l.quarrels > 0, lives.filter((l) => l.people > 1)),
+    groupsThatComforted: share((l) => l.comforts > 0, lives.filter((l) => l.people > 1)),
+    groupsWithPartners: share((l) => l.partners > 0, lives.filter((l) => l.people > 1)),
+    livesWithBirths: share((l) => l.births > 0),
+    birthsPerBirthLife: avg((l) => l.births, lives.filter((l) => l.births > 0)),
+    mostPeopleAtEnd: Math.max(0, ...lives.map((l) => l.peopleAtEnd)),
+    deathsOfOldAge: share((l) => l.deathCause === "old age"),
+    livesThatPlanted: share((l) => l.planted > 0),
+    livesWithSpears: share((l) => l.spears > 0),
+    livesThatHunted: share((l) => l.hunted > 0, lives.filter((l) => l.deerAtStart > 0)),
+    herdsGone: share((l) => l.deerAtStart > 0 && l.deerAtEnd === 0, lives.filter((l) => l.deerAtStart > 0)),
+    mostDeer: Math.max(0, ...lives.map((l) => l.deerAtEnd)),
   };
   const thrashers = [...lives].sort((a, b) => b.abandonsPerHour - a.abandonsPerHour).slice(0, 4).filter((l) => l.abandonsPerHour > 30);
 
@@ -325,6 +385,10 @@ export function analyse(lives: Life[], years: number, seconds = 0) {
   if (report.sleepsPerDayMedian < 0.7 || report.sleepsPerDayMedian > 1.5) problems.push(`${report.sleepsPerDayMedian.toFixed(2)} sleeps a day (median) is not human`);
   if (report.sleepShareMedian < 0.2 || report.sleepShareMedian > 0.42) problems.push(`${pct(report.sleepShareMedian)} of time asleep (median) is not human`);
   if (report.travelShareMedian > 0.6) problems.push(`${pct(report.travelShareMedian)} of time spent walking (median)`);
+  if (report.livesWithAGoal < 0.5 && years >= 1) problems.push(`only ${pct(report.livesWithAGoal)} of lives ever set a goal`);
+  if (report.mostDeer > 14) problems.push(`a herd of ${report.mostDeer}: the deer did not stop breeding`);
+  if (report.herdsGone > 0.35) problems.push(`${pct(report.herdsGone)} of herds died out`);
+  if (report.mostPeopleAtEnd > 12) problems.push(`a population of ${report.mostPeopleAtEnd}: births did not stop`);
   if (report.edenRoofBuilt < 0.8 && years >= 1) problems.push(`only ${pct(report.edenRoofBuilt)} of Eden-like lives built a roof in a year`);
   return { report, problems, thrashers };
 }

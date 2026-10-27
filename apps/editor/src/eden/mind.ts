@@ -7,7 +7,7 @@
 //
 // The host (edenAgents.ts) feeds this the world's things and turns each person's `intent` into movement and an animation.
 
-import { COMFORT_C, DAY, EDEN_CLIMATE, growthRate, hourOf, seasonAt, weatherAt, type Climate, type Weather } from "./earth";
+import { COMFORT_C, DAY, EDEN_CLIMATE, growthRate, hourOf, seasonAt, weatherAt, YEAR, type Climate, type Weather } from "./earth";
 export { DAY, hourOf };
 
 export type NeedName = "hunger" | "thirst" | "energy" | "social" | "joy";
@@ -33,6 +33,9 @@ export interface Affordances {
   creature?: boolean; // alive and company-like, but not a person
   stock?: number; // how many meals it holds before it is used up (undefined: never runs out)
   wood?: boolean; // dead wood lies about here to be gathered
+  mobile?: number; // walks about on its own, at this speed (m/s)
+  prey?: boolean; // hunted by foxes and by people with a spear
+  predator?: boolean; // hunts prey
   shelter?: boolean; // a roof: warmth against the cold and dry from the rain
   warm?: boolean; // a burning fire: warmth to anyone near it
 }
@@ -53,9 +56,11 @@ export const AFFORDANCES: Record<string, Affordances> = {
   "tree of knowledge": { view: true },
   rock: { rest: true },
   bush: { food: 0.25, stock: 4 },
-  deer: { creature: true },
-  alpaca: { creature: true },
-  fox: { danger: 0.6, creature: true },
+  deer: { creature: true, mobile: 0.9, prey: true },
+  alpaca: { creature: true, mobile: 0.6 },
+  fox: { danger: 0.6, creature: true, mobile: 1.3, predator: true },
+  // Planted by the people: a plot that bears fruit as the seasons allow, a meal at a time.
+  crop: { food: 0.45, stock: 0, wood: false },
   fire: { danger: 0.9 },
 };
 
@@ -70,6 +75,8 @@ export interface Thing {
   growth?: number; // seconds toward the next meal growing back (kept by step)
   fuel?: number; // a fire's seconds of burning left
   prefab?: string; // the scene prefab that shows it (the host places it); absent for things the scene already has
+  // A creature's own going about: where it is heading, when it last ate, how old it is (in Eden years).
+  mob?: { tx: number; tz: number; wait: number; fed: number; age: number; fleeUntil: number };
 }
 
 // What a person remembers of a thing: where it is, and how being near it has felt.
@@ -81,7 +88,7 @@ export interface Memory {
   lastSeen: number; // sim seconds
 }
 
-export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share";
+export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt";
 export interface Intent {
   kind: IntentKind;
   targetId?: string; // a thing's id or another person's id
@@ -110,7 +117,7 @@ export interface Relation {
 }
 
 // Something a person has set out to do: it tilts what they choose until it is done or given up.
-export type GoalKind = "stockpile" | "shelter" | "befriend" | "explore" | "settle";
+export type GoalKind = "stockpile" | "shelter" | "befriend" | "explore" | "settle" | "farm";
 export interface Goal {
   kind: GoalKind;
   target?: string; // a person's id or a thing's id
@@ -127,6 +134,10 @@ export interface Choice {
 }
 
 export interface Person {
+  goalCheck?: number; // world clock of the last time they thought about what to set out to do
+  lastBirth?: number; // world clock a child of theirs was last born (mothers)
+  mother?: string;
+  father?: string;
   name: string;
   sex: "m" | "f";
   age: number; // in Eden years (16 sim days each)
@@ -148,12 +159,15 @@ export interface Person {
   rngState: number;
   explored: Set<string>; // 20 m cells of the garden they have stood in, so a search goes somewhere new
   cold: number; // 0 comfortable .. 1 dangerously cold
-  carry: { wood: number; food: number }; // what they are carrying
+  carry: { wood: number; food: number; seed: number }; // what they are carrying
+  tools: { spear: boolean };
 }
 
 export interface World {
   things: Thing[];
   people: Person[];
+  // Those who have died, with how: their journals and who they were stay, and the living remember them.
+  dead?: { person: Person; t: number; cause: string }[];
   // Sim seconds into the day cycle: a day is DAY seconds, and people sleep at night. Starts a few hours after dawn when absent.
   clock?: number;
   // How far from (0, 0) people may go. Wandering and searching are kept inside it, as the garden's own edge would; absent, no limit.
@@ -162,6 +176,9 @@ export interface World {
   climate?: Climate;
   weather?: Weather;
   built?: number; // how many things the people have made (their ids)
+  maxPeople?: number; // births stop at this many living people (default 12)
+  tally?: Record<string, number>; // how often notable things have happened (for the lifelike check and the Creator's curiosity)
+  rng?: number; // the world's own random stream (animals), kept so a saved world carries on the same
   // The Creator's hand on the weather: until `until` (world clock) it is warmer or colder by `tempOffset`, and `rain` forces it on or off.
   override?: { until: number; tempOffset: number; rain?: boolean };
 }
@@ -193,6 +210,14 @@ function rand(person: Person): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
+function worldRand(world: World): number {
+  world.rng = ((world.rng ?? 12345) + 0x6d2b79f5) | 0;
+  let t = world.rng;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
 export function makePerson(id: string, x: number, z: number, seed: number, personality: Partial<Personality> = {}, extra: { name?: string; sex?: "m" | "f"; age?: number } = {}): Person {
   return {
     name: extra.name ?? id,
@@ -216,7 +241,8 @@ export function makePerson(id: string, x: number, z: number, seed: number, perso
     rngState: seed | 0,
     explored: new Set(),
     cold: 0,
-    carry: { wood: 0, food: 0 },
+    carry: { wood: 0, food: 0, seed: 0 },
+    tools: { spear: false },
   };
 }
 
@@ -233,12 +259,30 @@ const aff = (t: Thing): Affordances => AFFORDANCES[t.kind] ?? {};
 // Danger is felt well beyond touching distance.
 const dangerReach = (t: Thing) => t.radius + 6 + 10 * (aff(t).danger ?? 0);
 
+export type Bond = "stranger" | "acquaintance" | "friend" | "partner" | "rival";
+export function bondOf(a: Person, b: Person): Bond {
+  const ab = a.relations.get(b.id);
+  const ba = b.relations.get(a.id);
+  if (!ab || !ba) return "stranger";
+  if (ab.affinity < -0.3 && ba.affinity < -0.3) return "rival";
+  const strong = (r: Relation) => r.affinity > 0.8 && r.trust > 0.65 && r.familiarity > 0.55;
+  if (strong(ab) && strong(ba) && a.sex !== b.sex) return "partner";
+  if (ab.affinity > 0.5 && ba.affinity > 0.5) return "friend";
+  return ab.familiarity > 0.1 ? "acquaintance" : "stranger";
+}
+const CHILD_NAMES = { m: ["Cain", "Abel", "Seth", "Enos", "Enoch", "Jared", "Noah", "Lamech"], f: ["Awan", "Azura", "Naamah", "Adah", "Zillah", "Milcah", "Dinah", "Lilith"] };
+const ADULT_AGE = 4; // Eden years: before this a child depends on the others
+
 const KIND_PHRASE: Record<string, string> = {
   grove: "the fruit grove", river: "the river", hollow: "the resting hollow", overlook: "the overlook", meadow: "the meadow", center: "the garden center",
   tree: "a tree", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge", rock: "a rock", bush: "a bush",
   deer: "a deer", alpaca: "an alpaca", fox: "a fox", fire: "a wild fire", campfire: "the campfire", shelter: "the shelter",
 };
 export const phrase = (t: Thing | undefined) => (t ? (KIND_PHRASE[t.kind] ?? `a ${t.kind}`) : "somewhere");
+export function tally(world: World, key: string) {
+  const t = (world.tally ??= {});
+  t[key] = (t[key] ?? 0) + 1;
+}
 function note(person: Person, world: World, text: string) {
   person.journal.push({ t: world.clock ?? 0, text });
   if (person.journal.length > 400) person.journal.splice(0, person.journal.length - 400);
@@ -255,7 +299,7 @@ function relation(person: Person, otherId: string, world: World): Relation {
 const burning = (t: Thing) => t.kind === "campfire" && (t.fuel ?? 0) > 0;
 // Seconds a fire burns on one armful of wood (two hours of the real thing, at one sim second to a minute).
 const FIRE_SECONDS_PER_WOOD = 120;
-const PREFAB_OF: Record<string, string> = { campfire: "Campfire", shelter: "Shelter" };
+const PREFAB_OF: Record<string, string> = { campfire: "Campfire", shelter: "Shelter", crop: "Crop", deer: "Deer", fox: "Fox" };
 export function make(world: World, kind: string, x: number, z: number, extra: Partial<Thing> = {}): Thing {
   world.built = (world.built ?? 0) + 1;
   const thing: Thing = { id: `${kind}-${world.built}`, kind, x, z, radius: 3, prefab: PREFAB_OF[kind], ...extra };
@@ -357,6 +401,18 @@ function options(person: Person, world: World): Option[] {
     if (a.creature && !a.danger) add("look", t, bored * 0.5 + 0.2 * p.curiosity * urge(needs.social, 0.4), 20);
   }
   earthOptions(person, world, out, add, known, hungry);
+  goalOptions(person, world, out);
+  skillOptions(person, world, out);
+  // A child does not gather, build or lay food by, and stays close to their mother.
+  if (person.age < ADULT_AGE) {
+    const allowed = new Set<IntentKind>(["eat", "drink", "rest", "sleep", "look", "play", "talk", "comfort", "linger", "wander", "warm"]);
+    const kept = out.filter((o) => allowed.has(o.intent.kind));
+    out.splice(0, out.length, ...kept);
+    const mother = world.people.find((q) => q.id === person.mother);
+    if (mother && dist(person.x, person.z, mother.x, mother.z) > 10) {
+      out.push({ intent: { kind: "wander", x: mother.x, z: mother.z, speed: WALK, remaining: 6 }, score: 1.2 });
+    }
+  }
   // With nowhere known to rest they sleep where they stand.
   if (night && needs.energy > 0.2 && !out.some((o) => o.intent.kind === "sleep")) {
     out.push({ intent: { kind: "sleep", x: person.x, z: person.z, speed: 0, remaining: 480 }, score: 2 + needs.energy });
@@ -373,6 +429,14 @@ function options(person: Person, world: World): Option[] {
       out.push({
         intent: { kind: "share", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 4 },
         score: 1.3 * urge(other.needs.hunger, 0.5) * (0.5 + 0.5 * (rel?.affinity ?? 0.2)) + 0.2 * p.sociability,
+      });
+    }
+    // Someone low, and someone who cares: stay with them a while.
+    if (other.mood < -0.3 && (person.relations.get(other.id)?.affinity ?? 0) > 0.2 && !isNight(world.clock ?? 0)) {
+      const rel = person.relations.get(other.id)!;
+      out.push({
+        intent: { kind: "comfort", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 12 },
+        score: 1.1 * (-other.mood) * (0.4 + 0.6 * rel.affinity) + 0.15 * p.sociability,
       });
     }
     // People do not chatter through the night.
@@ -426,7 +490,8 @@ function options(person: Person, world: World): Option[] {
   if (Math.max(needs.hunger, needs.thirst) > 0.85) {
     // The worse of the two decides; if its remedy is not known, looking for it comes before anything else, even a meal.
     const worse: IntentKind = needs.thirst >= needs.hunger ? "drink" : "eat";
-    const remedies = out.filter((o) => o.intent.kind === worse);
+    // Hunting is a remedy for hunger too.
+    const remedies = out.filter((o) => o.intent.kind === worse || (worse === "eat" && o.intent.kind === "hunt"));
     if (remedies.length) return remedies;
     if (searchOption) return [searchOption];
   }
@@ -448,6 +513,144 @@ function options(person: Person, world: World): Option[] {
   });
   out.push({ intent: { kind: "linger", x: person.x, z: person.z, speed: 0, remaining: 8 + 14 * p.patience }, score: (night ? 0.05 : 0.12) + 0.18 * p.patience });
   return out;
+}
+
+// What a person has set out to do. Every couple of minutes a person with fewer than two goals may take one up, drawn by what they are like and
+// what the year is asking; it tilts what they choose until it is done or they give it up.
+function goalProgress(person: Person, world: World, goal: Goal): number {
+  switch (goal.kind) {
+    case "stockpile":
+      return Math.min(1, world.things.filter((t) => t.kind === "shelter").reduce((a, t) => a + (t.stock ?? 0), 0) / 14);
+    case "shelter":
+      return world.things.some((t) => t.kind === "shelter") ? 1 : 0;
+    case "befriend": {
+      const r = goal.target ? person.relations.get(goal.target) : undefined;
+      return r ? Math.max(0, Math.min(1, r.affinity / 0.8)) : 0;
+    }
+    case "explore": {
+      const cells = Math.max(6, Math.round(Math.PI * ((world.radius ?? 40) / 20) ** 2));
+      return Math.min(1, person.explored.size / cells);
+    }
+    case "farm":
+      return Math.min(1, world.things.filter((t) => t.kind === "crop").length / Math.max(2, world.people.filter((q) => q.age >= ADULT_AGE).length * 2));
+    case "settle":
+      return world.things.some((t) => t.kind === "shelter" && person.memory.has(t.id) && (person.memory.get(t.id)?.feeling ?? 0) > 0.4) ? 1 : 0;
+  }
+}
+const GOAL_WORDS: Record<GoalKind, string> = { stockpile: "put food by for the winter", shelter: "build a shelter", befriend: "get to know", explore: "see all of the garden", settle: "make a home I love", farm: "grow my own food" };
+
+function updateGoals(person: Person, world: World) {
+  const now = world.clock ?? 0;
+  for (let i = person.goals.length - 1; i >= 0; i--) {
+    const g = person.goals[i]!;
+    g.progress = goalProgress(person, world, g);
+    if (g.progress >= 1) {
+      tally(world, "goalsDone");
+      note(person, world, `I did it: I wanted to ${GOAL_WORDS[g.kind]}${g.target ? ` ${world.people.find((q) => q.id === g.target)?.name ?? ""}` : ""}.`);
+      person.mood = clampMood(person.mood + 0.2);
+      person.goals.splice(i, 1);
+    } else if (now - g.started > 3 * DAY && g.progress < 0.1) {
+      note(person, world, `I gave up wanting to ${GOAL_WORDS[g.kind]}.`);
+      person.goals.splice(i, 1);
+    } else if (g.kind === "befriend" && !world.people.some((q) => q.id === g.target)) person.goals.splice(i, 1);
+  }
+  if (person.goals.length >= 2 || now - (person.goalCheck ?? -1e9) < 120 || person.age < ADULT_AGE) return;
+  person.goalCheck = now;
+  const season = world.weather?.season ?? 1;
+  const winterAhead = season === 1 || season === 2 ? 1 : season === 0 ? 0.3 : 0.1;
+  const has = (k: GoalKind) => person.goals.some((g) => g.kind === k);
+  const p = person.personality;
+  const candidates: { goal: Goal; weight: number }[] = [];
+  const make = (kind: GoalKind, target?: string): Goal => ({ kind, target, progress: 0, started: now });
+  if (!has("shelter") && !world.things.some((t) => t.kind === "shelter")) candidates.push({ goal: make("shelter"), weight: 0.4 + 0.6 * winterAhead });
+  if (!has("stockpile") && world.things.some((t) => t.kind === "shelter") && goalProgress(person, world, make("stockpile")) < 0.8) candidates.push({ goal: make("stockpile"), weight: 0.9 * winterAhead });
+  if (!has("explore") && goalProgress(person, world, make("explore")) < 0.8) candidates.push({ goal: make("explore"), weight: 0.2 + 0.7 * p.curiosity });
+  if (!has("befriend")) {
+    for (const other of world.people) {
+      if (other === person) continue;
+      const r = person.relations.get(other.id);
+      if ((r?.affinity ?? 0.2) < 0.7) candidates.push({ goal: make("befriend", other.id), weight: 0.1 + 0.6 * p.sociability });
+    }
+  }
+  if (!has("farm") && (season === 0 || season === 1) && goalProgress(person, world, make("farm")) < 0.8) candidates.push({ goal: make("farm"), weight: 0.3 + 0.5 * p.patience });
+  if (!has("settle") && world.things.some((t) => t.kind === "shelter")) candidates.push({ goal: make("settle"), weight: 0.15 + 0.3 * p.patience });
+  if (!candidates.length) return;
+  const total = candidates.reduce((a, c) => a + c.weight, 0);
+  // Not always: a person with no pressing idea simply gets on with the day.
+  if (rand(person) > Math.min(0.9, total)) return;
+  let r = rand(person) * total;
+  for (const c of candidates) {
+    r -= c.weight;
+    if (r <= 0) {
+      person.goals.push(c.goal);
+      tally(world, "goalsSet");
+      note(person, world, `I want to ${GOAL_WORDS[c.goal.kind]}${c.goal.target ? ` ${world.people.find((q) => q.id === c.goal.target)?.name ?? ""}` : ""}.`);
+      return;
+    }
+  }
+}
+
+// Goals tilt the choice toward what serves them.
+function goalOptions(person: Person, world: World, out: Option[]) {
+  const pressing = Math.max(person.needs.hunger, person.needs.thirst, person.needs.energy);
+  for (const g of person.goals) {
+    for (const o of out) {
+      const k = o.intent.kind;
+      if (g.kind === "stockpile" && (k === "forage" || k === "stash")) o.score += 0.45;
+      else if (g.kind === "shelter" && (k === "gather" || k === "build")) o.score += 0.55;
+      else if (g.kind === "befriend" && (k === "talk" || k === "share" || k === "comfort") && o.intent.targetId === g.target) o.score += 0.5;
+      else if (g.kind === "farm" && k === "plant") o.score += 0.5;
+      else if (g.kind === "settle" && (k === "rest" || k === "sleep") && thingById(world, o.intent.targetId)?.kind === "shelter") o.score += 0.3;
+    }
+    if (g.kind === "explore") {
+      // Somewhere they have not stood: a leg in a direction they have not gone.
+      for (let tries = 0; tries < 8; tries++) {
+        const a = rand(person) * Math.PI * 2;
+        const far = 16 + 14 * rand(person);
+        const at = inside(world, person.x + Math.cos(a) * far, person.z + Math.sin(a) * far);
+        if (!person.explored.has(`${Math.floor(at.x / 20)},${Math.floor(at.z / 20)}`)) {
+          out.push({ intent: { kind: "wander", x: at.x, z: at.z, speed: WALK, remaining: 3 }, score: (0.45 + 0.2 * person.personality.curiosity) * (1 - 0.8 * pressing) });
+          break;
+        }
+      }
+    }
+  }
+}
+
+// Growing food, making a spear, and hunting.
+function skillOptions(person: Person, world: World, out: Option[]) {
+  const { needs } = person;
+  const season = world.weather?.season ?? 1;
+  const shelters = world.things.filter((t) => t.kind === "shelter" && person.memory.has(t.id));
+  const home = shelters[0] ?? world.things.find((t) => aff(t).rest && person.memory.has(t.id));
+  const adults = world.people.filter((q) => q.age >= ADULT_AGE).length;
+  // A seed goes in the ground in spring or summer, near home.
+  const crops = world.things.filter((t) => t.kind === "crop").length;
+  if (person.carry.seed >= 1 && (season === 0 || season === 1) && crops < Math.max(2, adults * 2)) {
+    const a = rand(person) * Math.PI * 2;
+    const r = 3 + 4 * rand(person);
+    const base = home ?? person;
+    const at = inside(world, base.x + Math.cos(a) * r, base.z + Math.sin(a) * r);
+    out.push({ intent: { kind: "plant", x: at.x, z: at.z, speed: WALK, remaining: 20 }, score: season === 0 ? 0.95 : 0.7 });
+  }
+  // A spear, made from wood, once there is a home to make it at.
+  if (!person.tools.spear && person.carry.wood >= 2 && home) {
+    out.push({ intent: { kind: "craft", x: home.x, z: home.z, speed: WALK, remaining: 40 }, score: 0.45 + 0.4 * urge(needs.hunger, 0.3) });
+  }
+  // Hunting: with a spear, when hungry, a deer they know of.
+  // A hunter leaves the last breeding pair alone unless they are starving.
+  const herd = world.things.filter((t) => aff(t).prey).length;
+  if (person.tools.spear && needs.hunger > 0.4 && (herd > 2 || needs.hunger > 0.8)) {
+    for (const t of world.things) {
+      if (!aff(t).prey || !person.memory.has(t.id)) continue;
+      const d = dist(person.x, person.z, t.x, t.z);
+      if (d > 45) continue;
+      out.push({
+        intent: { kind: "hunt", targetId: t.id, x: t.x, z: t.z, speed: RUN * 0.7, remaining: 0.3 },
+        score: 1.25 * urge(needs.hunger, 0.35) * (0.5 + 0.5 * person.personality.boldness) - d / 150,
+      });
+    }
+  }
 }
 
 // Switches for experiments (tools/eden): turning the earth actions off shows how much the seasons would hurt without them.
@@ -550,6 +753,7 @@ function finish(person: Person, world: World, intent: Intent) {
         if (t.stock !== undefined) t.stock -= 1;
         joy(0.1);
         feel(person, t, 0.15); // a good meal makes the place better in memory
+        if (t.kind !== "shelter" && t.kind !== "crop" && rand(person) < 0.35) person.carry.seed = Math.min(6, person.carry.seed + 1);
         person.say = t.stock === 0 ? "That was the last of it." : "That was good.";
         note(person, world, t.stock === 0 ? `Ate the last of ${phrase(t)}.` : `Ate at ${phrase(t)}.`);
       } else {
@@ -600,11 +804,67 @@ function finish(person: Person, world: World, intent: Intent) {
         const take = t.stock === undefined ? 3 : Math.min(3, Math.max(0, t.stock - 1));
         if (t.stock !== undefined) t.stock -= take;
         person.carry.food = Math.min(6, person.carry.food + take);
+        if (take > 0 && t.kind !== "crop" && rand(person) < 0.6) person.carry.seed = Math.min(6, person.carry.seed + 1);
       }
       break;
     case "warm":
       person.mood = clampMood(person.mood + 0.05);
       break;
+    case "plant":
+      if (person.carry.seed >= 1) {
+        person.carry.seed -= 1;
+        make(world, "crop", intent.x, intent.z, { stock: 0, maxStock: 4, radius: 2 });
+        note(person, world, "Planted a seed.");
+        tally(world, "planted");
+        person.mood = clampMood(person.mood + 0.05);
+      }
+      break;
+    case "craft":
+      if (person.carry.wood >= 2) {
+        person.carry.wood -= 2;
+        person.tools.spear = true;
+        note(person, world, "Made a spear.");
+        tally(world, "spears");
+        person.say = "A spear. Now I can hunt.";
+        joy(0.15);
+      }
+      break;
+    case "hunt": {
+      const prey = thingById(world, intent.targetId);
+      if (prey && dist(person.x, person.z, prey.x, prey.z) < 3.8) {
+        if (rand(person) < 0.45 + 0.3 * person.personality.boldness) {
+          world.things.splice(world.things.indexOf(prey), 1);
+          person.carry.food = Math.min(8, person.carry.food + 4);
+          person.carry.seed = Math.min(6, person.carry.seed);
+          note(person, world, `Killed ${phrase(prey)}. Meat for days.`);
+          tally(world, "hunted");
+          person.say = "We will eat well.";
+          joy(0.2);
+        } else {
+          if (prey.mob) prey.mob.fleeUntil = (world.clock ?? 0) + 25;
+          note(person, world, `${phrase(prey)} got away from me.`);
+          person.mood = clampMood(person.mood - 0.05);
+        }
+      }
+      break;
+    }
+    case "comfort": {
+      const other = personById(world, intent.targetId);
+      if (other) {
+        other.mood = clampMood(other.mood + 0.3);
+        other.needs.social = clamp01(other.needs.social - 0.25);
+        const mine = relation(person, other.id, world);
+        const theirs = relation(other, person.id, world);
+        mine.affinity = Math.min(1, mine.affinity + 0.05);
+        theirs.affinity = Math.min(1, theirs.affinity + 0.1);
+        theirs.trust = Math.min(1, theirs.trust + 0.08);
+        person.say = `It will be all right, ${other.name}.`;
+        note(person, world, `Sat with ${other.name}, who was low.`);
+        tally(world, "comforts");
+        note(other, world, `${person.name} stayed with me when I was low.`);
+      }
+      break;
+    }
     case "share": {
       const other = personById(world, intent.targetId);
       if (other && person.carry.food >= 1) {
@@ -645,6 +905,22 @@ function finish(person: Person, world: World, intent: Intent) {
       const other = personById(world, intent.targetId);
       needs.social = clamp01(needs.social - 0.6);
       joy(0.1);
+      const mineBefore = other ? relation(person, other.id, world) : undefined;
+      // Two people who are both low, and not fond of each other, may quarrel instead of talk.
+      if (other && mineBefore && person.mood < -0.15 && other.mood < -0.15 && rand(person) < 0.35 * (1 - Math.max(0, mineBefore.affinity))) {
+        const theirs = relation(other, person.id, world);
+        mineBefore.affinity = Math.max(-1, mineBefore.affinity - 0.15);
+        theirs.affinity = Math.max(-1, theirs.affinity - 0.15);
+        mineBefore.trust = Math.max(0, mineBefore.trust - 0.1);
+        theirs.trust = Math.max(0, theirs.trust - 0.1);
+        person.mood = clampMood(person.mood - 0.1);
+        other.mood = clampMood(other.mood - 0.1);
+        person.say = "Leave me be.";
+        note(person, world, `Quarrelled with ${other.name}.`);
+        tally(world, "quarrels");
+        note(other, world, `Quarrelled with ${person.name}.`);
+        break;
+      }
       if (other) {
         other.needs.social = clamp01(other.needs.social - 0.5);
         other.mood = clampMood(other.mood + 0.1);
@@ -705,6 +981,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     t.fuel = (t.fuel ?? 0) - dt;
     if (t.fuel <= 0) world.things.splice(i, 1);
   }
+  stepAnimals(world, dt);
   for (const person of world.people) {
     person.clock += dt;
     const { needs, personality: p } = person;
@@ -741,6 +1018,8 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
 
     notice(person, world);
     person.explored.add(`${Math.floor(person.x / 20)},${Math.floor(person.z / 20)}`);
+    updateGoals(person, world);
+    person.age += dt / YEAR;
 
     // Danger: running from it beats anything else, and being caught in it hurts.
     const f = fear(person, world);
@@ -787,7 +1066,16 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     const intent = person.intent;
     if (!intent) continue;
     // Following another person: walk toward where they are now.
-    if (intent.kind === "talk" || intent.kind === "share") {
+    if (intent.kind === "hunt") {
+      const prey = thingById(world, intent.targetId);
+      if (!prey) person.intent = undefined;
+      else {
+        intent.x = prey.x;
+        intent.z = prey.z;
+      }
+    }
+    if (!person.intent) continue;
+    if (intent.kind === "talk" || intent.kind === "share" || intent.kind === "comfort") {
       const other = personById(world, intent.targetId);
       if (other) {
         intent.x = other.x;
@@ -797,7 +1085,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
 
     if (!intent.arrived) {
       const d = dist(person.x, person.z, intent.x, intent.z);
-      const stop = intent.kind === "talk" || intent.kind === "share" ? REACH : intent.kind === "flee" || intent.kind === "wander" ? 0.4 : (thingById(world, intent.targetId)?.radius ?? 1) * 0.8;
+      const stop = intent.kind === "talk" || intent.kind === "share" || intent.kind === "comfort" ? REACH : intent.kind === "hunt" ? 3 : intent.kind === "flee" || intent.kind === "wander" ? 0.4 : (thingById(world, intent.targetId)?.radius ?? 1) * 0.8;
       if (d <= stop + 0.05) {
         intent.arrived = true;
       } else if (settings.externalMotion) {
@@ -806,7 +1094,9 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
         const stepLen = Math.min(d - stop, intent.speed * dt);
         person.x += ((intent.x - person.x) / d) * stepLen;
         person.z += ((intent.z - person.z) / d) * stepLen;
-        continue;
+        // Arrived by this step's move (not only at the start of the next: a deer that has stepped off by then would never be reached).
+        if (dist(person.x, person.z, intent.x, intent.z) > stop + 0.05) continue;
+        intent.arrived = true;
       }
     }
     // Asleep until morning, or until rested.
@@ -817,6 +1107,167 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     // There: spend the time, then take the result.
     intent.remaining -= dt;
     if (intent.remaining <= 0) finish(person, world, intent);
+  }
+  lifeAndDeath(world, dt);
+}
+
+// The creatures of the garden live their own lives: deer graze about and run from people and foxes; foxes hunt deer and starve without
+// them; both breed when there is room and food. This is what a hunter hunts and what a fox does to the herd.
+function stepAnimals(world: World, dt: number) {
+  const now = world.clock ?? 0;
+  const R = world.radius ?? 40;
+  const season = world.weather?.season ?? 1;
+  const things = world.things;
+  for (const t of [...things]) {
+    const a = aff(t);
+    if (!a.mobile) continue;
+    const m = (t.mob ??= { tx: t.x, tz: t.z, wait: 0, fed: now, age: 2, fleeUntil: 0 });
+    m.age += dt / YEAR;
+    let speed = a.mobile;
+    let busy = false;
+    if (a.prey) {
+      let threat: { x: number; z: number } | undefined;
+      let best = 7;
+      for (const p of world.people) {
+        const d = dist(t.x, t.z, p.x, p.z);
+        if (d < best) {
+          best = d;
+          threat = p;
+        }
+      }
+      for (const f of things) {
+        if (!aff(f).predator) continue;
+        const d = dist(t.x, t.z, f.x, f.z);
+        if (d < best) {
+          best = d;
+          threat = f;
+        }
+      }
+      if (threat || now < m.fleeUntil) {
+        if (threat) {
+          const away = Math.atan2(t.z - threat.z, t.x - threat.x);
+          const to = inside(world, t.x + Math.cos(away) * 14, t.z + Math.sin(away) * 14);
+          m.tx = to.x;
+          m.tz = to.z;
+        }
+        speed = 2.3;
+        busy = true;
+      }
+    } else if (a.predator) {
+      if (now - m.fed > 4 * DAY) {
+        things.splice(things.indexOf(t), 1);
+        continue;
+      }
+      if (now - m.fed > DAY) {
+        let prey: Thing | undefined;
+        let best = 28;
+        for (const q of things) {
+          if (!aff(q).prey) continue;
+          const d = dist(t.x, t.z, q.x, q.z);
+          if (d < best) {
+            best = d;
+            prey = q;
+          }
+        }
+        if (prey) {
+          m.tx = prey.x;
+          m.tz = prey.z;
+          speed = 2.6;
+          busy = true;
+          if (best < 1.3 && worldRand(world) < 0.5) {
+            things.splice(things.indexOf(prey), 1);
+            m.fed = now;
+          }
+        }
+      }
+    }
+    if (!busy) {
+      m.wait -= dt;
+      if (m.wait <= 0 || dist(t.x, t.z, m.tx, m.tz) < 0.5) {
+        const a2 = worldRand(world) * Math.PI * 2;
+        const to = inside(world, t.x + Math.cos(a2) * (3 + 6 * worldRand(world)), t.z + Math.sin(a2) * (3 + 6 * worldRand(world)));
+        m.tx = to.x;
+        m.tz = to.z;
+        m.wait = 8 + 14 * worldRand(world);
+      }
+    }
+    const d = dist(t.x, t.z, m.tx, m.tz);
+    if (d > 0.05) {
+      const stepLen = Math.min(d, speed * dt);
+      t.x += ((m.tx - t.x) / d) * stepLen;
+      t.z += ((m.tz - t.z) / d) * stepLen;
+    }
+    // Old deer die.
+    if (a.prey && m.age > 10 && worldRand(world) < (dt / DAY) * 0.05) things.splice(things.indexOf(t), 1);
+  }
+  const deer = things.filter((t) => t.kind === "deer");
+  const foxes = things.filter((t) => t.kind === "fox");
+  // Deer breed in spring and summer when there are two or more and room; foxes when deer are plentiful and they have eaten.
+  if ((season === 0 || season === 1) && deer.length >= 2 && deer.length < 8 && worldRand(world) < (dt / DAY) * 0.5) {
+    const parent = deer[Math.floor(worldRand(world) * deer.length)]!;
+    make(world, "deer", parent.x + 1, parent.z, { radius: 2, mob: { tx: parent.x, tz: parent.z, wait: 0, fed: now, age: 0, fleeUntil: 0 } });
+  }
+  if (foxes.length >= 1 && foxes.length < 2 && deer.length >= 4 && foxes.some((f) => now - (f.mob?.fed ?? 0) < DAY) && worldRand(world) < (dt / DAY) * 0.15) {
+    const parent = foxes[0]!;
+    make(world, "fox", parent.x + 1, parent.z, { radius: 1, mob: { tx: parent.x, tz: parent.z, wait: 0, fed: now, age: 0, fleeUntil: 0 } });
+  }
+}
+
+// Who dies this step, and who is born. Death comes from the body failing (health gone) or old age; the living grieve in proportion to how
+// they felt. A child is born to two partners with a roof, food laid by, good health and a season that is not winter.
+function lifeAndDeath(world: World, dt: number) {
+  const now = world.clock ?? 0;
+  const gone: { person: Person; cause: string }[] = [];
+  for (const p of world.people) {
+    if (p.health <= 0.02) gone.push({ person: p, cause: p.cold > 0.85 ? "the cold" : p.needs.thirst >= 1 ? "thirst" : p.needs.hunger >= 1 ? "hunger" : "wounds" });
+    else if (p.age > 55 && rand(p) < (dt / DAY) * 0.25 * Math.min(1.5, ((p.age - 55) / 25) ** 2)) gone.push({ person: p, cause: "old age" });
+  }
+  for (const { person, cause } of gone) {
+    world.people.splice(world.people.indexOf(person), 1);
+    (world.dead ??= []).push({ person, t: now, cause });
+    note(person, world, `Died of ${cause}.`);
+    person.intent = undefined;
+    for (const other of world.people) {
+      const r = other.relations.get(person.id);
+      const grief = Math.max(0, r?.affinity ?? 0);
+      other.mood = clampMood(other.mood - 0.7 * grief);
+      note(other, world, `${person.name} died${cause === "old age" ? " of old age" : ` of ${cause}`}.`);
+    }
+  }
+  const shelter = world.things.filter((t) => t.kind === "shelter");
+  const larder = shelter.reduce((a, t) => a + (t.stock ?? 0), 0);
+  const season = world.weather?.season ?? 1;
+  if (!shelter.length || larder < 6 || season === 3 || world.people.length >= (world.maxPeople ?? 12)) return;
+  for (const mother of world.people) {
+    if (mother.sex !== "f" || mother.age < ADULT_AGE + 12 || mother.age > 40 || now - (mother.lastBirth ?? -1e9) < YEAR) continue;
+    if (mother.health < 0.7 || mother.needs.hunger > 0.7 || mother.mood < 0) continue;
+    const father = world.people.find((q) => q.sex === "m" && q.age >= ADULT_AGE + 12 && bondOf(mother, q) === "partner");
+    if (!father || rand(mother) > (dt / DAY) * 0.25) continue;
+    mother.lastBirth = now;
+    const sex: "m" | "f" = rand(mother) < 0.5 ? "m" : "f";
+    const taken = new Set([...world.people, ...(world.dead ?? []).map((d) => d.person)].map((q) => q.name));
+    const name = CHILD_NAMES[sex].find((n) => !taken.has(n)) ?? `${sex === "m" ? "Boy" : "Girl"} ${(world.built ?? 0) + 1}`;
+    world.built = (world.built ?? 0) + 1;
+    const mix = (a: number, b: number) => clamp01((a + b) / 2 + (rand(mother) - 0.5) * 0.3);
+    const child = makePerson(`person-${world.built}`, mother.x + 1, mother.z, Math.floor(rand(mother) * 1e9), {
+      boldness: mix(mother.personality.boldness, father.personality.boldness),
+      sociability: mix(mother.personality.sociability, father.personality.sociability),
+      curiosity: mix(mother.personality.curiosity, father.personality.curiosity),
+      appetite: mix(mother.personality.appetite, father.personality.appetite),
+      patience: mix(mother.personality.patience, father.personality.patience),
+    }, { name, sex, age: 0 });
+    child.mother = mother.id;
+    child.father = father.id;
+    world.people.push(child);
+    for (const parent of [mother, father]) {
+      relation(child, parent.id, world).affinity = 0.9;
+      relation(parent, child.id, world).affinity = 0.95;
+      parent.mood = clampMood(parent.mood + 0.5);
+      note(parent, world, parent === mother ? `${name} was born to me.` : `${name} was born. I am a father.`);
+    }
+    note(child, world, "I was born.");
+    tally(world, "births");
+    mother.say = `Look, ${father.name}. ${name}.`;
   }
 }
 
