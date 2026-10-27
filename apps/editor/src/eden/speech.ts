@@ -124,4 +124,3 @@ export function converse(world: World, speaker: Person, other: Person, rnd: () =
   }
   return { topic: chosen.topic, said: first(chosen.said), reply: first(chosen.reply) };
 }
-
