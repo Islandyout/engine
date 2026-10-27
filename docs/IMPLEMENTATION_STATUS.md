@@ -117,3 +117,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F110](changelog/F110.md) | Eden: places get names that spread, and people keep their face as they grow |
 | [F111](changelog/F111.md) | Eden: wind, mist, drizzle and snow; wounds and nursing |
 | [F112](changelog/F112.md) | Eden: dogs that can be won, follow, steady and guard |
+| [F113](changelog/F113.md) | Eden: hides and cloaks |
