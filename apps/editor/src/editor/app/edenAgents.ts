@@ -1,4 +1,4 @@
-import { actionOf, applySpokenIntent, routeAround, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
+import { actionOf, applySpokenIntent, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import { moonName, SEASON_NAMES, solarHour } from "../../eden/earth";
 import { runCreatorCommand } from "../../eden/creator";
 import { worldFromJson, worldToJson } from "../../eden/persist";
@@ -116,11 +116,25 @@ export function installEdenAgents(C: Ctx): void {
   const announcedDead = new Set<string>();
   const lastMoved = new Map<string, [number, number]>();
   const rescued = new Map<string, number>();
+  let walking = false; // the Creator is walking the world as a hunter
+  let youBody = -1;
   const bodyObjectOf = (p: Person) => {
     const index = ORIGINAL.has(p.id) ? bodyIndex(p.name) : (bodyIndexById.get(p.id) ?? -1);
     return index >= 0 ? C.objects[index] : undefined;
   };
   C.edenBody = (index, who) => bodyIndexById.set(who, index);
+  // The hunter killed a creature: the people's world loses it too, and the hunter eats a little.
+  C.edenSlain = (thingId) => {
+    if (!world) return;
+    const at = world.things.findIndex((t) => t.id === thingId);
+    if (at < 0) return;
+    const thing = world.things[at]!;
+    world.things.splice(at, 1);
+    placedThings.delete(thingId);
+    tally(world, "slainByYou");
+    panel?.lifeLog(`You killed ${phrase(thing)}.${AFFORDANCES[thing.kind]?.prey ? " Meat: you feel stronger." : ""}`);
+    if (AFFORDANCES[thing.kind]?.prey) ui("eden_player_heal", "35");
+  };
   const voice = new Voice(loadVoice(), (text) => panel?.voiceStatus(text) ?? C.log(`Eden voice: ${text}`));
 
   const ui = (kind: string, value: string) => C.runtime.ccall("editor_ui_event", null, ["string", "string"], [kind, value]);
@@ -301,7 +315,9 @@ export function installEdenAgents(C: Ctx): void {
     for (const thing of w.things) {
       if (thing.prefab && !placedThings.has(thing.id)) {
         placedThings.add(thing.id);
-        ui("eden_place", `${thing.id},${thing.prefab},${thing.x},${groundY(thing.x, thing.z)},${thing.z}`);
+        ui("eden_place", `${thing.id},${thing.prefab},${thing.x},${groundY(thing.x, thing.z)},${thing.z},${thing.id}`);
+        // A body whose script had not started yet misses its first "who are you"; tell it again.
+        for (const wait of [1500, 5000]) setTimeout(() => ui("eden_tell", thing.id), wait);
       }
     }
     for (const id of [...placedThings]) {
@@ -365,6 +381,17 @@ export function installEdenAgents(C: Ctx): void {
   function tick() {
     if (!world || !panel) return;
     const w = world;
+    // The hunter: prey run from them, and a wolf or fox that gets close bites.
+    if (walking && youBody >= 0) {
+      const you = C.objects[youBody];
+      if (you) {
+        w.visitor = { x: you.position.x, z: you.position.z };
+        for (const t of w.things) {
+          const danger = AFFORDANCES[t.kind]?.danger;
+          if (danger && Math.hypot(t.x - you.position.x, t.z - you.position.z) < 2.6) ui("eden_player_hurt", String(Math.round(9 * danger)));
+        }
+      }
+    }
     const simSeconds = (TICK_MS / 1000) * SPEEDS[speed]!;
     const fast = SPEEDS[speed]! > 3;
     if (simSeconds > 0) {
@@ -472,6 +499,33 @@ export function installEdenAgents(C: Ctx): void {
           saveVoice(config);
           panel?.voiceStatus(config.enabled ? "Voice on." : "Voice off. Plain speech.");
         },
+        walk: (on) => {
+          if (!world) return;
+          walking = on;
+          if (!on) world.visitor = undefined;
+          const youIndex = C.doc.scene.eachAlive().findIndex((e) => C.doc.scene.resolve(e, "Name")?.value === "You");
+          if (youIndex < 0) {
+            panel?.lifeLog("This scene has no hunter to walk as.");
+            return;
+          }
+          for (const e of C.doc.scene.eachAlive()) {
+            const f = C.doc.scene.resolve(e, "CameraFollow");
+            if (f) f.target = on ? "" : "Adam";
+          }
+          if (on) {
+            const beside = world.people[0];
+            const x = (beside?.x ?? 0) + 3;
+            const z = (beside?.z ?? 0) + 2;
+            C.playerIndex = youIndex;
+            youBody = youIndex;
+            ui("eden_player_on", `${x},${groundY(x, z)},${z}`);
+            panel?.lifeLog("You walk the world as a hunter. W A S D move, J strikes, K sweeps, F kicks, X rolls, G looses an arrow.");
+          } else {
+            ui("eden_player_off", "");
+            C.playerIndex = -1;
+            panel?.lifeLog("You watch from above again.");
+          }
+        },
         follow: (id) => {
           // The camera follows whoever is named: Adam and Eve by their own names, anyone else as the scene's "player" body.
           const person = world?.people.find((q) => q.id === id);
@@ -499,6 +553,25 @@ export function installEdenAgents(C: Ctx): void {
     window.addEventListener("pagehide", save);
     // For the desktop app's tools and for tests: where each mind says a person is, where their body is, and where the ground is under it.
     if (navigator.userAgent.includes("BTAIDesktop")) {
+      (window as unknown as { edenYou: unknown }).edenYou = () => {
+        const index = C.doc.scene.eachAlive().findIndex((e) => C.doc.scene.resolve(e, "Name")?.value === "You");
+        const o = index >= 0 ? C.objects[index] : undefined;
+        return o ? { at: [o.position.x, o.position.y, o.position.z], playerIndex: C.playerIndex, index } : undefined;
+      };
+      (window as unknown as { edenThings: unknown }).edenThings = () => (world?.things ?? []).filter((t) => t.prefab).map((t) => ({ id: t.id, kind: t.kind, x: t.x, z: t.z }));
+      (window as unknown as { edenYouAt: unknown }).edenYouAt = (x: number, z: number) => ui("eden_player_on", `${x},${groundY(x, z)},${z}`);
+      (window as unknown as { edenBoxes: unknown }).edenBoxes = () =>
+        C.doc.scene.eachAlive().flatMap((e, i) => {
+          const o = C.objects[i];
+          if (!o || !o.visible) return [];
+          let box = false;
+          o.traverse((n) => {
+            const g = (n as unknown as { geometry?: { type?: string } }).geometry;
+            if (g?.type === "BoxGeometry") box = true;
+          });
+          const sc = o.scale;
+          return box ? [{ name: C.doc.scene.resolve(e, "Name")?.value, at: [o.position.x, o.position.y, o.position.z].map((v) => Math.round(v * 10) / 10), size: [sc.x, sc.y, sc.z].map((v) => Math.round(v * 10) / 10) }] : [];
+        });
       (window as unknown as { edenPut: unknown }).edenPut = (id: string, x: number, z: number) => {
         const person = world?.people.find((q) => q.id === id);
         if (!person) return false;

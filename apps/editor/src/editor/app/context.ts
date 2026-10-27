@@ -346,6 +346,7 @@ export interface Ctx {
   handleHost: (kind: string, text: string) => void;
   // Eden: a spawned person's body says which person it is (the entity's scene index and their id), so the page can read where it stands.
   edenBody?: (index: number, who: string) => void;
+  edenSlain?: (thingId: string) => void; // the player killed this creature (Eden)
   harvest: (key: string) => void;
   harvested: Set<number>;
   harvestedSpots: Set<string>;

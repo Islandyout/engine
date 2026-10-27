@@ -22,6 +22,7 @@ export interface PanelHandlers {
   voice(config: VoiceConfig): void;
   voiceTest(): void;
   follow(id: string): void; // the camera goes to this person
+  walk(on: boolean): void; // the Creator walks the world as a hunter, or goes back to watching
 }
 
 export interface EdenPanel {
@@ -111,8 +112,17 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
       }, 4100);
     }
   });
+  let walking = false;
+  const walkButton = el("button", undefined, "Walk the world");
+  walkButton.title = "Be a hunter in the world: W A S D move, Shift runs, J strikes, K sweeps, F kicks, X rolls, G looses an arrow";
+  walkButton.addEventListener("click", () => {
+    walking = !walking;
+    walkButton.textContent = walking ? "Watch from above" : "Walk the world";
+    walkButton.classList.toggle("on", walking);
+    handlers.walk(walking);
+  });
   const saved = el("span", "eden-saved");
-  bar.append(saveButton, newButton, saved);
+  bar.append(saveButton, newButton, walkButton, saved);
   root.appendChild(bar);
 
   // Tabs

@@ -219,6 +219,7 @@ export interface World {
   // The climate the garden has; absent, Eden's own. `weather` is what it is like right now (kept by step).
   climate?: Climate;
   weather?: Weather;
+  visitor?: { x: number; z: number }; // the Creator walking the world as a hunter (set by the page): prey run from them
   noGo?: { x: number; z: number; r: number }[]; // deep water and the like: nobody walks into it
   chronicle?: { t: number; text: string }[]; // the notable things that have happened to everyone, in order
   names?: Record<string, { name: string; by: string; known: string[] }>; // what the people call the places, who named each and who knows it
@@ -1713,6 +1714,7 @@ function stepAnimals(world: World, dt: number) {
           threat = p;
         }
       }
+      if (world.visitor && dist(t.x, t.z, world.visitor.x, world.visitor.z) < best) threat = world.visitor;
       for (const f of things) {
         if (!aff(f).predator) continue;
         const d = dist(t.x, t.z, f.x, f.z);

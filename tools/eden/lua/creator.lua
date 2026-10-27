@@ -25,6 +25,12 @@ function on_ui(name, value)
     if e and who and who ~= "" then world.send(e, "eden_who", who) end
     return
   end
+  -- Tell a body who it is again (a script that had not started when the first message came never heard it): "id".
+  if name == "eden_tell" then
+    local e = placed[value]
+    if e then world.send(e, "eden_who", value) end
+    return
+  end
   -- A creature that has moved: "id,x,y,z".
   if name == "eden_move" then
     local id, x, y, z = string.match(value, "^([^,]+),([^,]+),([^,]+),([^,]+)$")

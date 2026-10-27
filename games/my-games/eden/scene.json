@@ -549,6 +549,18 @@
             "z": -3
           }
         },
+        "Scale": {
+          "value": {
+            "x": 1.8,
+            "y": 3,
+            "z": 1.8
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
         "RigidBody": {
           "mass": 1,
           "inverseMass": 1,
@@ -557,9 +569,9 @@
         "Collider": {
           "type": "AABB",
           "halfExtents": {
-            "x": 0.9,
-            "y": 1.5,
-            "z": 0.9
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
           },
           "radius": 0.5,
           "isTrigger": false,
@@ -579,6 +591,18 @@
             "z": 3
           }
         },
+        "Scale": {
+          "value": {
+            "x": 1.8,
+            "y": 3,
+            "z": 1.8
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": false
+        },
         "RigidBody": {
           "mass": 1,
           "inverseMass": 1,
@@ -587,9 +611,9 @@
         "Collider": {
           "type": "AABB",
           "halfExtents": {
-            "x": 0.9,
-            "y": 1.5,
-            "z": 0.9
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
           },
           "radius": 0.5,
           "isTrigger": false,
@@ -692,6 +716,107 @@
       }
     },
     {
+      "name": "You",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -200,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 0.6,
+            "y": 1.8,
+            "z": 0.6
+          }
+        },
+        "Renderable": {
+          "mesh": 359,
+          "material": 0,
+          "visible": true
+        },
+        "Player": {},
+        "RigidBody": {
+          "mass": 70,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        },
+        "CharacterController": {
+          "mode": "ThirdPerson",
+          "walkSpeed": 3.6,
+          "sprintSpeed": 7,
+          "crouchSpeed": 2.2,
+          "jumpHeight": 1.1,
+          "standHeight": 1.8,
+          "crouchHeight": 1.1,
+          "stepHeight": 0.5,
+          "acceleration": 30,
+          "airControl": 6,
+          "lookSensitivity": 1,
+          "invertY": false,
+          "fov": 75,
+          "headBob": 1
+        },
+        "Health": {
+          "current": 120,
+          "maximum": 120
+        },
+        "Melee": {
+          "style": "Custom",
+          "moves": "thrust: clip=sword_light_a input=light dur=0.7 hit=0.2-0.28 cancel=0.38 dmg=10 reach=2.3 radius=0.5 lunge=1.2 stun=0.4 limb=hand_r\nthrust_b: clip=sword_light_b input=light after=thrust dur=0.7 hit=0.2-0.28 cancel=0.38 dmg=12 reach=2.4 radius=0.5 lunge=1.2 stun=0.4 limb=hand_r\nskewer: clip=sword_light_c input=light after=thrust_b dur=1.0 hit=0.3-0.4 cancel=0.55 dmg=18 reach=2.6 radius=0.6 lunge=2 knock=5 stun=0.6 stop=0.1 limb=hand_r\nsweep: clip=sword_heavy_a input=heavy dur=1.2 hit=0.35-0.45 cancel=0.7 dmg=16 reach=2.2 radius=1.4 knock=5 stun=0.7 armor limb=hand_r\ncharge: clip=dash_strike input=light sprint dur=1.0 hit=0.15-0.45 cancel=0.75 dmg=18 reach=2.2 lunge=4.5 knock=7 stun=0.7 stop=0.1 limb=hand_r\nvault_kick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=8 reach=1.3 height=0.55 knock=5 stun=0.5 limb=foot_r\nroll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis\n",
+          "team": 0,
+          "ai": false,
+          "aggression": 0.5,
+          "skill": 0.5,
+          "reaction": 0.25,
+          "energy": 40,
+          "guard": 60,
+          "rightHand": 208,
+          "leftHand": 0,
+          "poise": 0,
+          "breakTime": 2.5,
+          "manaMax": 100,
+          "manaRegen": 8,
+          "range": 0,
+          "shield": false
+        },
+        "Script": {
+          "source": "-- You, in the garden: a hunter. The Creator watches from above until they choose to walk the world (the page sends \"eden_player_on\"),\n-- then this body is put down beside whoever they were watching and the keyboard moves it: W A S D, Shift to run, Space to jump,\n-- J or the left mouse button for the spear, K for a sweep, F to kick, X to roll, R to guard, G to loose an arrow.\n-- Until then it is parked far below the world, out of sight and out of the way.\n\nlocal PARK = { 0, -200, 0 }\nlocal HUNTER = \"383 384 385 386 388 363:#2a2018\" -- the kit's ranger outfit (hood, body, arms, legs, boots) and short hair\nlocal ARROW_SPEED, ARROW_DAMAGE, ARROW_DROP, ARROW_GAP = 46, 26, 0.3, 0.9\nlocal active, shot_cd, hurt_cd = false, 0, 0\n\nfunction on_start()\n  world.wear(HUNTER)\n  world.set_position(self.id, PARK[1], PARK[2], PARK[3])\nend\n\nlocal function park()\n  world.set_position(self.id, PARK[1], PARK[2], PARK[3])\n  world.set_velocity(self.id, 0, 0, 0)\nend\n\nfunction on_ui(name, value)\n  if name == \"eden_player_on\" then\n    local x, y, z = string.match(value, \"^([^,]+),([^,]+),([^,]+)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    if not (x and y and z) then return end\n    active = true\n    world.set_position(self.id, x, y + 0.6, z)\n    world.set_velocity(self.id, 0, 0, 0)\n    hud.announce(\"You walk the world. W A S D move, J strikes, G looses an arrow.\")\n  elseif name == \"eden_player_off\" then\n    active = false\n    park()\n  elseif name == \"eden_player_hurt\" then\n    local amount = tonumber(value) or 0\n    if active and amount > 0 and hurt_cd <= 0 then\n      world.damage(self.id, amount)\n      hurt_cd = 0.8\n      camera.shake(0.2, 0.2)\n    end\n  elseif name == \"eden_player_heal\" then\n    local amount = tonumber(value) or 0\n    if active and amount > 0 then world.heal(self.id, amount) end\n  end\nend\n\nfunction on_tick(dt)\n  hurt_cd = math.max(0, hurt_cd - dt)\n  shot_cd = math.max(0, shot_cd - dt)\n  if not active then\n    park()\n    return\n  end\n  if input.action_pressed(\"bow\") and shot_cd <= 0 then\n    local fx, fz, fy = camera.forward()\n    local len = math.sqrt(fx * fx + fy * fy + fz * fz)\n    if len > 0.01 and melee.shoot(fx / len, fy / len, fz / len, ARROW_SPEED, ARROW_DAMAGE, ARROW_DROP) then\n      shot_cd = ARROW_GAP\n      sound.play(\"sfx:bow:loose1.00\")\n    end\n  end\nend\n\n-- Beaten: back on your feet at the garden, a little the worse.\nfunction on_death()\n  hud.announce(\"You are beaten. You wake in the garden.\")\n  active = false\n  melee.revive()\n  world.set_position(self.id, 0, 4, 0)\n  active = true\nend\n",
+          "props": {}
+        }
+      }
+    },
+    {
+      "name": "Input",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -40,
+            "z": 0
+          }
+        },
+        "InputActions": {
+          "bindings": "move_x: d, -a, right, -left, pad_lx\nmove_y: w, -s, up, -down, -pad_ly\nlook_x: mouse_dx*0.05, pad_rx\nlook_y: mouse_dy*0.05, pad_ry\njump: space, pad_a\nsprint: shift, pad_lb\nlight: j, mouse_left, pad_x\nheavy: k, pad_y\nkick: f, pad_b\ndodge: x, alt, pad_ls\nblock: r, pad_lt\nbow: g, pad_rt"
+        }
+      }
+    },
+    {
       "name": "Creator",
       "components": {
         "Transform": {
@@ -702,7 +827,7 @@
           }
         },
         "Script": {
-          "source": "-- Eden Phase 3: a logic-only entity (no mesh of its own, see build_eden.ts's\n-- \"Creator\" entity) that fulfils \"let there be...\" requests. It never\n-- decides WHAT to spawn -- the Creator panel (edenAgents.ts) already\n-- resolved a prefab name client-side, fuzzy-matched against Eden's own\n-- named prefabs, before this ever fires. This script exists only because\n-- world.spawn is Lua-only -- nothing TS-side can call it directly.\n\nlocal placed = {} -- id -> entity, for what the people have built\n\nfunction on_ui(name, value)\n  -- The mind's clock: light the scene for the hour (sun, moon, sky and fog).\n  if name == \"eden_time\" then\n    local hours = tonumber(value)\n    if hours then fx.time_of_day(hours) end\n    return\n  end\n  -- The people build things: \"id,prefab,x,y,z\" puts one there (the host knows the ground's height), \"id\" takes it away again (a fire gone out).\n  if name == \"eden_place\" then\n    -- \"id,prefab,x,y,z\" or \"id,prefab,x,y,z,who\" (a person's body: it is told its name)\n    local id, prefab, x, y, z, who = string.match(value, \"^([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),?(.*)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    if not (id and prefab and x and y and z) then return end\n    local e = world.spawn(prefab, x, y, z)\n    placed[id] = e\n    if e and who and who ~= \"\" then world.send(e, \"eden_who\", who) end\n    return\n  end\n  -- A creature that has moved: \"id,x,y,z\".\n  if name == \"eden_move\" then\n    local id, x, y, z = string.match(value, \"^([^,]+),([^,]+),([^,]+),([^,]+)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    local e = id and placed[id]\n    if e and x and y and z then world.set_position(e, x, y, z) end\n    return\n  end\n  if name == \"eden_remove\" then\n    local e = placed[value]\n    if e then world.destroy(e) end\n    placed[value] = nil\n    return\n  end\n  -- The weather: \"rain,fog\" (0-1) for the sky and the sound of it.\n  if name == \"eden_weather\" then\n    local rain, fog, wx, wz = string.match(value, \"^([^,]+),([^,]+),([^,]+),([^,]+)$\")\n    if rain then fx.weather(tonumber(rain) or 0, tonumber(fog) or 0, tonumber(wx) or 1.5, tonumber(wz) or 0.5) end\n    return\n  end\n  if name ~= \"eden_create\" then return end\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return end\n  local prefab = parts[1]\n  local x, y, z = tonumber(parts[2]), tonumber(parts[3]), tonumber(parts[4])\n  if not (x and y and z) then return end\n  world.spawn(prefab, x, y, z)\nend\n",
+          "source": "-- Eden Phase 3: a logic-only entity (no mesh of its own, see build_eden.ts's\n-- \"Creator\" entity) that fulfils \"let there be...\" requests. It never\n-- decides WHAT to spawn -- the Creator panel (edenAgents.ts) already\n-- resolved a prefab name client-side, fuzzy-matched against Eden's own\n-- named prefabs, before this ever fires. This script exists only because\n-- world.spawn is Lua-only -- nothing TS-side can call it directly.\n\nlocal placed = {} -- id -> entity, for what the people have built\n\nfunction on_ui(name, value)\n  -- The mind's clock: light the scene for the hour (sun, moon, sky and fog).\n  if name == \"eden_time\" then\n    local hours = tonumber(value)\n    if hours then fx.time_of_day(hours) end\n    return\n  end\n  -- The people build things: \"id,prefab,x,y,z\" puts one there (the host knows the ground's height), \"id\" takes it away again (a fire gone out).\n  if name == \"eden_place\" then\n    -- \"id,prefab,x,y,z\" or \"id,prefab,x,y,z,who\" (a person's body: it is told its name)\n    local id, prefab, x, y, z, who = string.match(value, \"^([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),?(.*)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    if not (id and prefab and x and y and z) then return end\n    local e = world.spawn(prefab, x, y, z)\n    placed[id] = e\n    if e and who and who ~= \"\" then world.send(e, \"eden_who\", who) end\n    return\n  end\n  -- Tell a body who it is again (a script that had not started when the first message came never heard it): \"id\".\n  if name == \"eden_tell\" then\n    local e = placed[value]\n    if e then world.send(e, \"eden_who\", value) end\n    return\n  end\n  -- A creature that has moved: \"id,x,y,z\".\n  if name == \"eden_move\" then\n    local id, x, y, z = string.match(value, \"^([^,]+),([^,]+),([^,]+),([^,]+)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    local e = id and placed[id]\n    if e and x and y and z then world.set_position(e, x, y, z) end\n    return\n  end\n  if name == \"eden_remove\" then\n    local e = placed[value]\n    if e then world.destroy(e) end\n    placed[value] = nil\n    return\n  end\n  -- The weather: \"rain,fog\" (0-1) for the sky and the sound of it.\n  if name == \"eden_weather\" then\n    local rain, fog, wx, wz = string.match(value, \"^([^,]+),([^,]+),([^,]+),([^,]+)$\")\n    if rain then fx.weather(tonumber(rain) or 0, tonumber(fog) or 0, tonumber(wx) or 1.5, tonumber(wz) or 0.5) end\n    return\n  end\n  if name ~= \"eden_create\" then return end\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return end\n  local prefab = parts[1]\n  local x, y, z = tonumber(parts[2]), tonumber(parts[3]), tonumber(parts[4])\n  if not (x and y and z) then return end\n  world.spawn(prefab, x, y, z)\nend\n",
           "props": {}
         }
       }
@@ -738,6 +863,312 @@
           "orbit": true
         }
       }
+    },
+    {
+      "name": "Preload deer",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 238,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload fox",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 240,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload alpaca",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 136,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload wolf",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 133,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload horse",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 241,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload shiba-inu",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 243,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload man-casual",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 249,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload man-farmer",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 246,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload man-worker",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 248,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload man-hoodie",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 247,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload man-beach",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 245,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload woman-casual",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 251,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload woman-dress",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 252,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload woman-street",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 253,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload woman-tank-top",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 254,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload canvas-tent",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 334,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload bush-1",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 37,
+          "material": 0,
+          "visible": false
+        }
+      }
+    },
+    {
+      "name": "Preload rock-large",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": -300,
+            "z": 0
+          }
+        },
+        "Renderable": {
+          "mesh": 42,
+          "material": 0,
+          "visible": false
+        }
+      }
     }
   ],
   "prefabs": {
@@ -765,6 +1196,14 @@
           "layer": 0,
           "mask": 4294967295,
           "bounciness": 0
+        },
+        "Health": {
+          "current": 35,
+          "maximum": 35
+        },
+        "Script": {
+          "source": "-- A wild animal in the garden. The page tells it which creature it is (\"eden_who\": the id the minds know it by); if you kill it, the page is\n-- told so the people's world loses it too, and you get meat for it.\nlocal who = nil\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then who = value end\nend\n\nfunction on_death(attacker)\n  if who then host.send(\"eden_slain\", who) end\n  world.destroy(self.id)\nend\n",
+          "props": {}
         }
       }
     },
@@ -792,6 +1231,14 @@
           "layer": 0,
           "mask": 4294967295,
           "bounciness": 0
+        },
+        "Health": {
+          "current": 20,
+          "maximum": 20
+        },
+        "Script": {
+          "source": "-- A wild animal in the garden. The page tells it which creature it is (\"eden_who\": the id the minds know it by); if you kill it, the page is\n-- told so the people's world loses it too, and you get meat for it.\nlocal who = nil\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then who = value end\nend\n\nfunction on_death(attacker)\n  if who then host.send(\"eden_slain\", who) end\n  world.destroy(self.id)\nend\n",
+          "props": {}
         }
       }
     },
@@ -819,6 +1266,14 @@
           "layer": 0,
           "mask": 4294967295,
           "bounciness": 0
+        },
+        "Health": {
+          "current": 45,
+          "maximum": 45
+        },
+        "Script": {
+          "source": "-- A wild animal in the garden. The page tells it which creature it is (\"eden_who\": the id the minds know it by); if you kill it, the page is\n-- told so the people's world loses it too, and you get meat for it.\nlocal who = nil\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then who = value end\nend\n\nfunction on_death(attacker)\n  if who then host.send(\"eden_slain\", who) end\n  world.destroy(self.id)\nend\n",
+          "props": {}
         }
       }
     },
@@ -846,6 +1301,14 @@
           "layer": 0,
           "mask": 4294967295,
           "bounciness": 0
+        },
+        "Health": {
+          "current": 55,
+          "maximum": 55
+        },
+        "Script": {
+          "source": "-- A wild animal in the garden. The page tells it which creature it is (\"eden_who\": the id the minds know it by); if you kill it, the page is\n-- told so the people's world loses it too, and you get meat for it.\nlocal who = nil\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then who = value end\nend\n\nfunction on_death(attacker)\n  if who then host.send(\"eden_slain\", who) end\n  world.destroy(self.id)\nend\n",
+          "props": {}
         }
       }
     },
@@ -873,6 +1336,14 @@
           "layer": 0,
           "mask": 4294967295,
           "bounciness": 0
+        },
+        "Health": {
+          "current": 90,
+          "maximum": 90
+        },
+        "Script": {
+          "source": "-- A wild animal in the garden. The page tells it which creature it is (\"eden_who\": the id the minds know it by); if you kill it, the page is\n-- told so the people's world loses it too, and you get meat for it.\nlocal who = nil\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then who = value end\nend\n\nfunction on_death(attacker)\n  if who then host.send(\"eden_slain\", who) end\n  world.destroy(self.id)\nend\n",
+          "props": {}
         }
       }
     },
@@ -900,6 +1371,14 @@
           "layer": 0,
           "mask": 4294967295,
           "bounciness": 0
+        },
+        "Health": {
+          "current": 28,
+          "maximum": 28
+        },
+        "Script": {
+          "source": "-- A wild animal in the garden. The page tells it which creature it is (\"eden_who\": the id the minds know it by); if you kill it, the page is\n-- told so the people's world loses it too, and you get meat for it.\nlocal who = nil\n\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then who = value end\nend\n\nfunction on_death(attacker)\n  if who then host.send(\"eden_slain\", who) end\n  world.destroy(self.id)\nend\n",
+          "props": {}
         }
       }
     },

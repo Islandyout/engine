@@ -200,7 +200,7 @@ scene.model("Tree of Knowledge", modelId("eztree-ash"), [treeOfKnowledge!.x, gro
 // The two great trees are not solid as a whole (the box round a 30 m tree would cover the middle of the garden and shove anyone standing in it
 // under the ground); only the trunk is, a small post at its foot.
 for (const tree of [treeOfLife!, treeOfKnowledge!]) {
-  scene.add(`${tree.name} trunk`, [tree.x, ground(tree.x, tree.z) + 1.5, tree.z], { RigidBody: { dynamic: false }, Collider: { type: "AABB", halfExtents: vec(0.9, 1.5, 0.9) } });
+  scene.add(`${tree.name} trunk`, [tree.x, ground(tree.x, tree.z) + 1.5, tree.z], { Scale: { value: vec(1.8, 3, 1.8) }, Renderable: { mesh: 0, material: 0, visible: false }, RigidBody: { dynamic: false }, Collider: { type: "AABB" } });
 }
 
 const ADAM_MODEL = modelId("man-casual");
@@ -218,6 +218,52 @@ scene.add("Eve", [1, ground(1, 0) + 0.1, 0], {
   RigidBody: { mass: 60, dynamic: true },
   Collider: {},
   Script: { source: lua("eve.lua"), props: {} },
+});
+
+// You: a hunter. The Creator watches from above until they choose to walk the world (the panel's button); this body waits parked far below
+// the world until then (tools/eden/lua/hunter.lua). The same base body and kit ranger outfit as the murim game's player, a spear in the
+// right hand, the keyboard on a third-person controller.
+const BODY_M = 359;
+const SPEAR_MODEL = 208;
+const ROLL = "roll: clip=roll input=dodge dur=0.6 hit=0-0 cancel=0.45 dmg=0 lunge=3.2 free iframes=0.03-0.38 track=0 limb=pelvis";
+const SPEAR_MOVES = [
+  "thrust: clip=sword_light_a input=light dur=0.7 hit=0.2-0.28 cancel=0.38 dmg=10 reach=2.3 radius=0.5 lunge=1.2 stun=0.4 limb=hand_r",
+  "thrust_b: clip=sword_light_b input=light after=thrust dur=0.7 hit=0.2-0.28 cancel=0.38 dmg=12 reach=2.4 radius=0.5 lunge=1.2 stun=0.4 limb=hand_r",
+  "skewer: clip=sword_light_c input=light after=thrust_b dur=1.0 hit=0.3-0.4 cancel=0.55 dmg=18 reach=2.6 radius=0.6 lunge=2 knock=5 stun=0.6 stop=0.1 limb=hand_r",
+  "sweep: clip=sword_heavy_a input=heavy dur=1.2 hit=0.35-0.45 cancel=0.7 dmg=16 reach=2.2 radius=1.4 knock=5 stun=0.7 armor limb=hand_r",
+  "charge: clip=dash_strike input=light sprint dur=1.0 hit=0.15-0.45 cancel=0.75 dmg=18 reach=2.2 lunge=4.5 knock=7 stun=0.7 stop=0.1 limb=hand_r",
+  "vault_kick: clip=front_kick_r input=kick dur=0.8 hit=0.33-0.44 cancel=0.5 dmg=8 reach=1.3 height=0.55 knock=5 stun=0.5 limb=foot_r",
+  ROLL,
+].join("\n") + "\n";
+
+scene.add("You", [0, -200, 0], {
+  Scale: { value: vec(0.6, 1.8, 0.6) },
+  Renderable: { mesh: BODY_M, material: 0, visible: true },
+  Player: {},
+  RigidBody: { mass: 70, dynamic: true },
+  Collider: {},
+  CharacterController: { mode: "ThirdPerson", walkSpeed: 3.6, sprintSpeed: 7, jumpHeight: 1.1, acceleration: 30, airControl: 6, stepHeight: 0.5 },
+  Health: { current: 120, maximum: 120 },
+  Melee: { team: 0, ai: false, energy: 40, style: "Custom", moves: SPEAR_MOVES, rightHand: SPEAR_MODEL },
+  Script: { source: lua("hunter.lua"), props: {} },
+});
+scene.add("Input", [0, -40, 0], {
+  InputActions: {
+    bindings: [
+      "move_x: d, -a, right, -left, pad_lx",
+      "move_y: w, -s, up, -down, -pad_ly",
+      "look_x: mouse_dx*0.05, pad_rx",
+      "look_y: mouse_dy*0.05, pad_ry",
+      "jump: space, pad_a",
+      "sprint: shift, pad_lb",
+      "light: j, mouse_left, pad_x",
+      "heavy: k, pad_y",
+      "kick: f, pad_b",
+      "dodge: x, alt, pad_ls",
+      "block: r, pad_lt",
+      "bow: g, pad_rt",
+    ].join("\n"),
+  },
 });
 
 // A logic-only entity (no mesh, same pattern as tools/racing/build_high_heat.ts's
@@ -238,14 +284,20 @@ scene.add("Eden camera", [0, 8, 10], {
 // confirmed in build_azure_cloud_sect.ts's own prefabs, which drop Rotation
 // for the same reason). No Scale override: every catalog model here already
 // renders at its intended size with none, same as Adam/Eve above.
-const creaturePrefab = (name: string, catalogFile: string, mass: number) =>
-  scene.prefab(name, { Renderable: { mesh: modelId(catalogFile), material: 0, visible: true }, RigidBody: { mass, dynamic: true }, Collider: {} });
-creaturePrefab("Deer", "deer", 90);
-creaturePrefab("Fox", "fox", 15);
-creaturePrefab("Alpaca", "alpaca", 70);
-creaturePrefab("Wolf", "wolf", 40);
-creaturePrefab("Horse", "horse", 400);
-creaturePrefab("Dog", "shiba-inu", 12);
+const creaturePrefab = (name: string, catalogFile: string, mass: number, health: number) =>
+  scene.prefab(name, {
+    Renderable: { mesh: modelId(catalogFile), material: 0, visible: true },
+    RigidBody: { mass, dynamic: true },
+    Collider: {},
+    Health: { current: health, maximum: health },
+    Script: { source: lua("creature.lua"), props: {} },
+  });
+creaturePrefab("Deer", "deer", 90, 35);
+creaturePrefab("Fox", "fox", 15, 20);
+creaturePrefab("Alpaca", "alpaca", 70, 45);
+creaturePrefab("Wolf", "wolf", 40, 55);
+creaturePrefab("Horse", "horse", 400, 90);
+creaturePrefab("Dog", "shiba-inu", 12, 28);
 const stillPrefab = (name: string, catalogFile: string) =>
   scene.prefab(name, { Renderable: { mesh: modelId(catalogFile), material: 0, visible: true }, RigidBody: { dynamic: false }, Collider: { isTrigger: false } });
 stillPrefab("Oak Tree", "eztree-oak");
@@ -287,6 +339,12 @@ scene.prefab("Campfire", {
   Particles: component("Particles", { preset: "Fire", rate: 40, lifetime: 0.9, speed: 1.2, size: 0.28, shape: "Cone", coneAngle: 18, gravityScale: -0.15 }),
   Light: component("Light", { type: "Point", color: vec(1, 0.62, 0.28), intensity: 3, range: 11 }),
 });
+
+// Models the people and the creatures use are loaded with the scene, not when they first appear (a spawned body is a grey box until its
+// model arrives): one hidden, far-off entity per model keeps each ready.
+for (const file of ["deer", "fox", "alpaca", "wolf", "horse", "shiba-inu", ...MEN, ...WOMEN, "canvas-tent", "bush-1", "rock-large"]) {
+  scene.add(`Preload ${file}`, [0, -300, 0], { Renderable: { mesh: modelId(file), material: 0, visible: false } });
+}
 
 const outDir = join(ROOT, "games/my-games/eden");
 mkdirSync(outDir, { recursive: true });
