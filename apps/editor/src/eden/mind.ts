@@ -219,6 +219,7 @@ export interface World {
   // The climate the garden has; absent, Eden's own. `weather` is what it is like right now (kept by step).
   climate?: Climate;
   weather?: Weather;
+  noGo?: { x: number; z: number; r: number }[]; // deep water and the like: nobody walks into it
   chronicle?: { t: number; text: string }[]; // the notable things that have happened to everyone, in order
   names?: Record<string, { name: string; by: string; known: string[] }>; // what the people call the places, who named each and who knows it
   norms?: Record<string, { strength: number; announced?: boolean }>; // customs forming among the people (norms.ts)
@@ -300,6 +301,35 @@ export function makePerson(id: string, x: number, z: number, seed: number, perso
 }
 
 const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+// A point pushed out of any place nobody can walk into (a lake), to its edge.
+export function keepOut(world: World, p: { x: number; z: number }) {
+  for (const c of world.noGo ?? []) {
+    const d = Math.hypot(p.x - c.x, p.z - c.z);
+    if (d < c.r) {
+      const k = d < 1e-6 ? 1 : c.r / d;
+      p.x = d < 1e-6 ? c.x + c.r : c.x + (p.x - c.x) * k;
+      p.z = d < 1e-6 ? c.z : c.z + (p.z - c.z) * k;
+    }
+  }
+}
+// A point to walk to first so that the straight way from A to B does not go through deep water: round the near side of it, or nothing if the way is clear.
+export function routeAround(world: World, ax: number, az: number, bx: number, bz: number): { x: number; z: number } | undefined {
+  for (const c of world.noGo ?? []) {
+    const dx = bx - ax;
+    const dz = bz - az;
+    const len2 = dx * dx + dz * dz;
+    if (len2 < 1) continue;
+    const t = Math.max(0, Math.min(1, ((c.x - ax) * dx + (c.z - az) * dz) / len2));
+    const cx = ax + dx * t;
+    const cz = az + dz * t;
+    const away = Math.hypot(cx - c.x, cz - c.z);
+    if (away >= c.r + 0.5 || Math.hypot(ax - c.x, az - c.z) < c.r - 0.5 || Math.hypot(bx - c.x, bz - c.z) < c.r - 0.5) continue;
+    const side = away < 1e-6 ? { x: -dz / Math.sqrt(len2), z: dx / Math.sqrt(len2) } : { x: (cx - c.x) / away, z: (cz - c.z) / away };
+    return { x: c.x + side.x * (c.r + 4), z: c.z + side.z * (c.r + 4) };
+  }
+  return undefined;
+}
+
 // A point pulled back inside the garden's edge when it lies outside.
 function inside(world: World, x: number, z: number): { x: number; z: number } {
   const r = world.radius;
@@ -1630,6 +1660,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
         const stepLen = Math.min(d - stop, intent.speed * dt);
         person.x += ((intent.x - person.x) / d) * stepLen;
         person.z += ((intent.z - person.z) / d) * stepLen;
+        keepOut(world, person);
         // Arrived by this step's move (not only at the start of the next: a deer that has stepped off by then would never be reached).
         if (dist(person.x, person.z, intent.x, intent.z) > stop + 0.05) continue;
         intent.arrived = true;
@@ -1752,6 +1783,7 @@ function stepAnimals(world: World, dt: number) {
       const stepLen = Math.min(d, speed * dt);
       t.x += ((m.tx - t.x) / d) * stepLen;
       t.z += ((m.tz - t.z) / d) * stepLen;
+      keepOut(world, t);
     }
     // Old deer die.
     if (a.prey && m.age > 10 && worldRand(world) < (dt / DAY) * 0.05) things.splice(things.indexOf(t), 1);

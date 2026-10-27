@@ -1,4 +1,4 @@
-import { actionOf, applySpokenIntent, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
+import { actionOf, applySpokenIntent, routeAround, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import { moonName, SEASON_NAMES, solarHour } from "../../eden/earth";
 import { runCreatorCommand } from "../../eden/creator";
 import { worldFromJson, worldToJson } from "../../eden/persist";
@@ -39,6 +39,8 @@ const TICK_MS = 250;
 // Seconds of sim time a single step of the minds covers when the bodies are not keeping up (above 3x).
 const FAST_STEP = 0.75;
 const WORLD_RADIUS = 190;
+// The lake is too deep to walk into (its water reaches about 22 m from its centre; people keep to its bank).
+const LAKE_NOGO = [{ x: EDEN_PLACES.lake!.x, z: EDEN_PLACES.lake!.z, r: 26 }];
 const SAVE_KEY = "eden-world-v1";
 const AUTOSAVE_MS = 20_000;
 const DEFAULT_SPEED = 2; // index into SPEEDS: 3x
@@ -165,7 +167,7 @@ export function installEdenAgents(C: Ctx): void {
       return makePerson(p.id, at[0], at[2], 1000 + i * 77, p.personality, { name: p.name, sex: p.sex, age: 20 });
     });
     // radius: the world's own edge (the terrain is 400 m across), so a person searching for water does not wander off the map.
-    const created: World = { things, people, radius: WORLD_RADIUS };
+    const created: World = { things, people, radius: WORLD_RADIUS, noGo: LAKE_NOGO };
     // Berry bushes in the woods and meadows, so there is something to find on the way.
     for (const id of ["east_woods", "south_meadow", "pinewood", "meadow"]) {
       const place = EDEN_PLACES[id]!;
@@ -409,7 +411,8 @@ export function installEdenAgents(C: Ctx): void {
         if (sent.get(person.id) !== key) {
           sent.set(person.id, key);
           // Where the body should walk, and how fast; it stays at the spot, and plays the action, once there.
-          ui(`eden_target_${person.id}`, `${intent.x},0,${intent.z},${action},${intent.speed}`);
+          const via = routeAround(w, person.x, person.z, intent.x, intent.z);
+          ui(`eden_target_${person.id}`, `${intent.x},0,${intent.z},${action},${intent.speed}${via ? `,${via.x.toFixed(1)},${via.z.toFixed(1)}` : ""}`);
         }
       }
       const text = describe(person, w);

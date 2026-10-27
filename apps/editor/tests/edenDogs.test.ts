@@ -39,3 +39,24 @@ test("a fox keeps away from a dog that has someone", () => {
   }
   assert.ok(Math.hypot(fox.x - dog.x, fox.z - dog.z) > 12, "the fox stayed by the dog");
 });
+
+test("nobody walks into the lake: they go round it, and are pushed to its bank if they are put in it", async () => {
+  const { keepOut, routeAround } = await import("../src/eden/mind");
+  const w = world([adult("A", "m", 5)]);
+  w.noGo = [{ x: 50, z: 0, r: 20 }];
+  const p = { x: 55, z: 2 };
+  keepOut(w, p);
+  assert.ok(Math.hypot(p.x - 50, p.z) >= 19.99, "still in the water");
+  const via = routeAround(w, 0, 0, 100, 0);
+  assert.ok(via && Math.hypot(via.x - 50, via.z) > 20, "no way round was found");
+  assert.equal(routeAround(w, 0, 0, 0, 100), undefined, "a clear way should need no detour");
+  // Someone sent straight across on the mind's own motion ends up on the far bank, not in the water.
+  const walker = adult("W", "m", 6, 0, 0);
+  const w2 = world([walker]);
+  w2.noGo = [{ x: 50, z: 0, r: 20 }];
+  walker.intent = { kind: "wander", x: 100, z: 0, speed: 1.6, remaining: 5, arrived: false };
+  for (let t = 0; t < 60 && !walker.intent?.arrived; t++) {
+    step(w2, 1);
+    assert.ok(Math.hypot(walker.x - 50, walker.z) >= 19.9, "walked into the lake");
+  }
+});

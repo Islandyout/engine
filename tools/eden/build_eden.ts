@@ -49,7 +49,7 @@ const RIVER: V3[] = [
   [132, 78, 0],
 ];
 const RIVER_WIDTH = 5;
-const RIVER_DEPTH = 1.6;
+const RIVER_DEPTH = 0.8; // shallow enough to wade
 const RIVER_LEVEL = -0.4;
 // The lake where the river ends, and the highlands it comes down from (places.ts has their names and the bank people stand on).
 const LAKE = EDEN_PLACES.lake!;
