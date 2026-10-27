@@ -289,7 +289,9 @@ export function installEdenAgents(C: Ctx): void {
   async function create(text: string) {
     const query = text.trim();
     if (!query || !panel) return;
-    const [match] = fuzzyRank(CREATABLE, query, (name) => name);
+    // "a deer", "let there be an oak tree": drop the lead-in and article so the name is what is ranked.
+    const wanted = query.replace(/^(let there be\s+)?((a|an|the|some)\s+)?/i, "").trim();
+    const [match] = wanted ? fuzzyRank(CREATABLE, wanted, (name) => name) : [];
     const center = worldPosition("center") ?? [0, 0, 0];
     const at: [number, number, number] = [center[0] + (Math.random() - 0.5) * 4, center[1], center[2] + (Math.random() - 0.5) * 4];
     if (!match) {
