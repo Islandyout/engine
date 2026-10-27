@@ -234,6 +234,7 @@ creaturePrefab("Fox", "fox", 15);
 creaturePrefab("Alpaca", "alpaca", 70);
 creaturePrefab("Wolf", "wolf", 40);
 creaturePrefab("Horse", "horse", 400);
+creaturePrefab("Dog", "shiba-inu", 12);
 const stillPrefab = (name: string, catalogFile: string) =>
   scene.prefab(name, { Renderable: { mesh: modelId(catalogFile), material: 0, visible: true }, RigidBody: { dynamic: false }, Collider: { isTrigger: false } });
 stillPrefab("Oak Tree", "eztree-oak");

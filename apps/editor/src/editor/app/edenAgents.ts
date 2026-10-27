@@ -45,9 +45,9 @@ const DEFAULT_SPEED = 2; // index into SPEEDS: 3x
 
 const PLACE_NAME: Record<string, string> = {};
 for (const place of Object.values(EDEN_PLACES)) PLACE_NAME[place.kind] = place.name;
-const KIND_NAME: Record<string, string> = { ...PLACE_NAME, campfire: "the fire", shelter: "the shelter", tree: "a tree", "fruit tree": "a fruit tree", bush: "a bush", rock: "a rock", grave: "a grave", deer: "a deer", fox: "a fox", alpaca: "an alpaca", wolf: "a wolf", horse: "a horse", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge" };
+const KIND_NAME: Record<string, string> = { ...PLACE_NAME, campfire: "the fire", shelter: "the shelter", tree: "a tree", "fruit tree": "a fruit tree", bush: "a bush", rock: "a rock", grave: "a grave", deer: "a deer", fox: "a fox", alpaca: "an alpaca", wolf: "a wolf", dog: "a dog", horse: "a horse", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge" };
 
-const VERB: Record<string, string> = { gather: "goes to gather wood at", fire: "makes a fire", build: "starts building a shelter", stash: "goes to put food away at", forage: "goes to gather food at", warm: "goes to warm up at", share: "goes to share food with", comfort: "goes to sit with", plant: "goes to plant a seed", craft: "makes a spear", hunt: "hunts", fish: "goes fishing at", mourn: "goes to sit at", eat: "goes to eat at", drink: "goes to drink at", rest: "goes to rest at", sleep: "goes to sleep at", look: "goes to look at", play: "goes to play at", talk: "goes to talk with", wander: "wanders off", flee: "runs from", linger: "pauses" };
+const VERB: Record<string, string> = { gather: "goes to gather wood at", fire: "makes a fire", build: "starts building a shelter", stash: "goes to put food away at", forage: "goes to gather food at", warm: "goes to warm up at", share: "goes to share food with", comfort: "goes to sit with", plant: "goes to plant a seed", craft: "makes a spear", hunt: "hunts", tame: "tries to win over", fish: "goes fishing at", mourn: "goes to sit at", eat: "goes to eat at", drink: "goes to drink at", rest: "goes to rest at", sleep: "goes to sleep at", look: "goes to look at", play: "goes to play at", talk: "goes to talk with", wander: "wanders off", flee: "runs from", linger: "pauses" };
 
 function describe(person: Person, world: World): string {
   const i = person.intent;
@@ -181,6 +181,8 @@ export function installEdenAgents(C: Ctx): void {
     herd("horse", "south_meadow", 3);
     herd("alpaca", "meadow", 2);
     herd("wolf", "highlands", 2);
+    herd("dog", "east_woods", 2);
+    herd("dog", "orchard", 1);
     return created;
   }
 

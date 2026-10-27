@@ -116,3 +116,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F109](changelog/F109.md) | Eden: the voice is given their memories, moods and customs, and may offer, warn or promise |
 | [F110](changelog/F110.md) | Eden: places get names that spread, and people keep their face as they grow |
 | [F111](changelog/F111.md) | Eden: wind, mist, drizzle and snow; wounds and nursing |
+| [F112](changelog/F112.md) | Eden: dogs that can be won, follow, steady and guard |

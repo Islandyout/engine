@@ -53,6 +53,7 @@ export const CREATABLE: [string, string][] = [
   ["Alpaca", "alpaca"],
   ["Wolf", "wolf"],
   ["Horse", "horse"],
+  ["Dog", "dog"],
   ["Oak Tree", "tree"],
   ["Pine Tree", "tree"],
   ["Bush", "bush"],

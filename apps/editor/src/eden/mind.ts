@@ -54,6 +54,7 @@ export const AFFORDANCES: Record<string, Affordances> = {
   orchard: { food: 0.6, stock: 8, wood: true },
   pinewood: { rest: true, wood: true },
   peak: { view: true, wood: true },
+  dog: { creature: true, mobile: 1.4 },
   wolf: { danger: 0.85, creature: true, mobile: 1.5, predator: true },
   horse: { creature: true, mobile: 1.1 },
   hollow: { rest: true, wood: true },
@@ -89,7 +90,8 @@ export interface Thing {
   maxStock?: number; // a stock grows back, a meal at a time, up to this
   growth?: number; // seconds toward the next meal growing back (kept by step)
   fuel?: number; // a fire's seconds of burning left
-  of?: string; // a grave: whose it is (a person id)
+  of?: string; // a grave: whose it is (a person id); a dog: whose it is
+  trust?: number; // a dog: how many times it has been fed by someone, toward choosing them
   prefab?: string; // the scene prefab that shows it (the host places it); absent for things the scene already has
   // A creature's own going about: where it is heading, when it last ate, how old it is (in Eden years).
   mob?: { tx: number; tz: number; wait: number; fed: number; age: number; fleeUntil: number };
@@ -104,7 +106,7 @@ export interface Memory {
   lastSeen: number; // sim seconds
 }
 
-export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn";
+export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame";
 export interface Intent {
   kind: IntentKind;
   targetId?: string; // a thing's id or another person's id
@@ -547,7 +549,7 @@ function relation(person: Person, otherId: string, world: World): Relation {
 const burning = (t: Thing) => t.kind === "campfire" && (t.fuel ?? 0) > 0;
 // Seconds a fire burns on one armful of wood (two hours of the real thing, at one sim second to a minute).
 const FIRE_SECONDS_PER_WOOD = 120;
-const PREFAB_OF: Record<string, string> = { campfire: "Campfire", shelter: "Shelter", grave: "Grave", crop: "Crop", deer: "Deer", fox: "Fox", wolf: "Wolf", horse: "Horse" };
+const PREFAB_OF: Record<string, string> = { campfire: "Campfire", shelter: "Shelter", grave: "Grave", crop: "Crop", deer: "Deer", fox: "Fox", wolf: "Wolf", horse: "Horse", dog: "Dog" };
 export function make(world: World, kind: string, x: number, z: number, extra: Partial<Thing> = {}): Thing {
   world.built = (world.built ?? 0) + 1;
   const thing: Thing = { id: `${kind}-${world.built}`, kind, x, z, radius: 3, prefab: PREFAB_OF[kind], ...extra };
@@ -897,6 +899,15 @@ function lifeOptions(person: Person, world: World, out: Option[]) {
       });
     }
   }
+  // A stray dog may be won with food and patience.
+  if (person.carry.food >= 1 && person.age >= ADULT_AGE) {
+    for (const t of world.things) {
+      if (t.kind !== "dog" || t.of || !person.memory.has(t.id)) continue;
+      const d = dist(person.x, person.z, t.x, t.z);
+      if (d > 40) continue;
+      out.push({ intent: { kind: "tame", targetId: t.id, x: t.x, z: t.z, speed: WALK, remaining: 0.3 }, score: 0.5 + 0.3 * person.personality.sociability - d / 100 - (world.things.some((q) => q.kind === "dog" && q.of === person.id) ? 0.4 : 0) });
+    }
+  }
   const grief = person.grief ?? 0;
   if (grief > 0.2) {
     for (const t of world.things) {
@@ -1152,6 +1163,23 @@ function finish(person: Person, world: World, intent: Intent) {
       } else {
         note(person, world, "Waited at the river and caught nothing.");
         person.mood = clampMood(person.mood - 0.03);
+      }
+      break;
+    }
+    case "tame": {
+      const dog = thingById(world, intent.targetId);
+      if (dog && dog.kind === "dog" && !dog.of && dist(person.x, person.z, dog.x, dog.z) < 3.8 && person.carry.food >= 1) {
+        person.carry.food -= 1;
+        dog.trust = (dog.trust ?? 0) + 1;
+        person.say = "Here, boy. It is all right.";
+        joy(0.1);
+        if (dog.trust >= 3) {
+          dog.of = person.id;
+          note(person, world, "A dog has chosen me.");
+          feelEmotion(person, "joy", 0.5);
+          person.mood = clampMood(person.mood + 0.3);
+          tally(world, "tamed");
+        } else note(person, world, "Fed a stray dog. It let me near.");
       }
       break;
     }
@@ -1467,7 +1495,10 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     // Pain sends anyone running, however bold.
     // Desperation makes anyone braver: a person dying of thirst will go to a river a fox is near, just warily.
     const desperate = Math.max(urge(needs.thirst, 0.5), urge(needs.hunger, 0.6));
-    const scared = hurt || f.level > 0.25 + 0.3 * p.boldness + 0.7 * desperate;
+    // A dog at their side steadies them, and is company.
+    const dogNear = world.things.some((q) => q.kind === "dog" && q.of === person.id && dist(q.x, q.z, person.x, person.z) < 8);
+    if (dogNear) needs.social = clamp01(needs.social - dt / 1800);
+    const scared = hurt || f.level > 0.25 + 0.3 * p.boldness + 0.7 * desperate + (dogNear ? 0.25 : 0);
     if (scared && f.from && person.intent?.kind !== "flee") {
       // Away from the danger, far enough to be out of its reach.
       const away = Math.atan2(person.z - f.from.z, person.x - f.from.x);
@@ -1500,7 +1531,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     const intent = person.intent;
     if (!intent) continue;
     // Following another person: walk toward where they are now.
-    if (intent.kind === "hunt") {
+    if (intent.kind === "hunt" || intent.kind === "tame") {
       const prey = thingById(world, intent.targetId);
       if (!prey) person.intent = undefined;
       else {
@@ -1519,7 +1550,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
 
     if (!intent.arrived) {
       const d = dist(person.x, person.z, intent.x, intent.z);
-      const stop = intent.kind === "talk" || intent.kind === "share" || intent.kind === "comfort" ? REACH : intent.kind === "hunt" ? 3 : intent.kind === "flee" || intent.kind === "wander" ? 0.4 : (thingById(world, intent.targetId)?.radius ?? 1) * 0.8;
+      const stop = intent.kind === "talk" || intent.kind === "share" || intent.kind === "comfort" ? REACH : intent.kind === "hunt" || intent.kind === "tame" ? 3 : intent.kind === "flee" || intent.kind === "wander" ? 0.4 : (thingById(world, intent.targetId)?.radius ?? 1) * 0.8;
       if (d <= stop + 0.05) {
         intent.arrived = true;
       } else if (settings.externalMotion) {
@@ -1559,6 +1590,17 @@ function stepAnimals(world: World, dt: number) {
     m.age += dt / YEAR;
     let speed = a.mobile;
     let busy = false;
+    if (t.kind === "dog" && t.of) {
+      // A dog that has chosen someone stays with them, and goes where they go.
+      const owner = world.people.find((q) => q.id === t.of);
+      if (!owner) t.of = undefined;
+      else if (dist(t.x, t.z, owner.x, owner.z) > 5) {
+        m.tx = owner.x + (worldRand(world) - 0.5) * 3;
+        m.tz = owner.z + (worldRand(world) - 0.5) * 3;
+        speed = 2.4;
+        busy = true;
+      }
+    }
     if (a.prey) {
       let threat: { x: number; z: number } | undefined;
       let best = 7;
@@ -1588,11 +1630,20 @@ function stepAnimals(world: World, dt: number) {
         busy = true;
       }
     } else if (a.predator) {
-      if (now - m.fed > 4 * DAY) {
+      // A dog with someone near drives a fox or wolf off.
+      const guard = things.find((q) => q.kind === "dog" && q.of && dist(q.x, q.z, t.x, t.z) < 12);
+      if (guard) {
+        const away = Math.atan2(t.z - guard.z, t.x - guard.x);
+        const to = inside(world, t.x + Math.cos(away) * 14, t.z + Math.sin(away) * 14);
+        m.tx = to.x;
+        m.tz = to.z;
+        speed = 2.6;
+        busy = true;
+      } else if (now - m.fed > 4 * DAY) {
         things.splice(things.indexOf(t), 1);
         continue;
       }
-      if (now - m.fed > DAY) {
+      if (!guard && now - m.fed > DAY) {
         let prey: Thing | undefined;
         let best = 28;
         for (const q of things) {
@@ -1799,6 +1850,8 @@ export function actionOf(person: Person): string {
       return "drink_from_river";
     case "mourn":
       return "rest";
+    case "tame":
+      return "forage";
     case "rest":
     case "sleep":
     case "warm":
