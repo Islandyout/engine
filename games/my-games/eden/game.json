@@ -1,7 +1,7 @@
 {
   "name": "Eden",
   "genre": "Life simulation",
-  "description": "Adam and Eve, two independent minds (Supabase-brained, see the Eden plan) living in a still-unformed world. Phase 1a: a bare plain, just the two of them -- watch, don't play.",
+  "description": "Adam and Eve, two independent minds (Supabase-brained) living in a garden: a river, a fruit grove, a meadow, an overlook, a resting hollow, and the two landmark trees. Speak to them, or say \"let there be...\" and bring something new into the garden.",
   "scene": "scene.json",
   "accent": "#c9a24a"
 }

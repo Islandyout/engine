@@ -13,16 +13,16 @@
           }
         },
         "Terrain": {
-          "size": 60,
-          "resolution": 65,
-          "height": 0,
-          "seed": 1,
-          "frequency": 1,
-          "octaves": 1,
-          "sculpt": "",
+          "size": 80,
+          "resolution": 81,
+          "height": 3,
+          "seed": 7,
+          "frequency": 1.1,
+          "octaves": 3,
+          "sculpt": "+P/6//3///8BAAMABgAIAAoADAANAA8AEAARABEAEQAQAA8ADQAMAAoACAAGAAUAAwABAP///v/8//r/+f/3//b/9f/z//L/8//7/wYAEQAbACEAIwAgABkADgABAPX/6//o/+f/5f/k/+P/4f/g/9//3//e/93/3f/d/97/3v/f/+H/4v/k/+b/6P/q/+z/7v/x//P/9f/4//r//P/+/wAA+P/6//3///8BAAQABgAIAAoADAAOAA8AEQARABIAEQARABAADgAMAAsACQAHAAYABAACAAEA///+//z/+//5//j/9//2//r/CAAaAC0APwBNAFYAWABVAEsAPAApABQAAADw/+n/6P/n/+X/5P/j/+L/4f/g/+D/4P/g/+D/4f/i/+P/5P/m/+j/6v/s/+7/8P/y//T/9//5//v//f///wAA+f/7//3///8CAAQABwAJAAsADQAPABAAEQASABIAEgASABAADwANAAwACgAJAAcABQAEAAIAAQD///7//f/7//r/+f///xEAKgBFAF8AdQCGAJAAkwCPAIQAcgBbAD8AIwAIAPP/6//p/+j/5//m/+X/5P/j/+P/4v/i/+P/4//k/+X/5v/o/+r/7P/t/+//8v/0//b/+P/6//z//v8AAAEA+f/7//3/AAACAAUABwAJAAwADgAPABEAEgATABMAEwATABEAEAAPAA0ADAAKAAkABwAGAAQAAwACAAAA///+//3/AQAVADMAVAB2AJMAqwC8AMYAyQDFALoAqACPAHAATQApAAkA8//t/+v/6v/p/+j/5//m/+b/5f/l/+X/5v/n/+j/6f/q/+z/7v/v//H/8//1//f/+f/7//3///8BAAIA+f/7//7/AAADAAUACAAKAAwADgAQABIAEwAUABQAFAAUABMAEQAQAA4ADQALAAoACQAHAAYABQAEAAMAAgABAAEAEwAyAFgAgACkAMMA2QDoAO8A8QDuAOYA1gC/AJ8AeABPACYABQDy/+//7f/s/+v/6v/p/+n/6P/o/+j/6f/p/+r/6//t/+7/8P/y//P/9f/3//n/+//9//7/AAACAAMA+v/8//7/AQADAAYACAALAA0ADwARABMAFAAVABUAFQAVABQAEgARABAADgANAAwACwAJAAgABwAGAAUABAADAA0AKQBRAH0AqADNAOkA+QABAQMBAwECAf8A9wDkAMgAoQB0AEUAHAD9//L/8f/v/+7/7f/s/+z/6//r/+v/7P/s/+3/7v/v//H/8v/0//X/9//5//v//P/+/wAAAQADAAQA+v/8////AQAEAAcACQAMAA4AEAASABQAFQAWABcAFwAWABUAFAATABEAEAAPAA4ADQAMAAsACgAJAAgABwAIABsAQABuAJ8AywDtAAEBBwEHAQcBBwEGAQUBBAH9AOcAwwCWAGMAMwAMAPf/9P/z//L/8f/w/+//7//u/+7/7//v//D/8f/y//P/9P/2//f/+f/7//z//v///wEAAgAEAAUA+//9/wAAAgAFAAcACgANAA8AEQATABUAFwAYABgAGAAYABcAFQAUABMAEgARABAADwAOAA0ADAALAAsACgAPACoAVQCIALoA5QABAQsBCwELAQsBCwEKAQkBCAEHAfwA3gCxAH0ASQAcAP//+P/3//X/9P/z//P/8v/y//L/8v/y//P/9P/0//b/9//4//n/+//8//7///8BAAIABAAFAAYA+//+/wAAAwAGAAgACwAOABAAEwAVABYAGAAZABoAGgAZABgAFwAWABUAFAATABIAEQAQABAADwAOAA4ADQAXADcAZwCcAM8A9wANAQ8BDwEPAQ8BDwEOAQ0BDAELAQgB8ADGAJIAWwApAAcA/P/6//n/+P/3//b/9f/1//X/9f/1//b/9v/3//j/+f/6//z//f/+/wAAAQACAAQABQAGAAcA/P///wEABAAHAAoADAAPABIAFAAWABgAGQAbABsAGwAbABoAGQAYABcAFgAVABQAEwATABIAEgARABEAEQAdAEEAcwCqAN0AAwETARMBEwETARMBEwESAREBEAEPAQ4B/ADUAKAAZwA0AA4A///+//3/+//6//n/+f/4//j/+P/4//j/+f/6//v/+//8//7///8AAAEAAgAEAAUABgAHAAgA/f8AAAIABQAIAAsADgAQABMAFQAYABoAGwAcAB0AHQAdABwAGwAaABkAGAAXABcAFgAVABUAFQAUABQAFAAiAEcAegCxAOQACQEXARcBFwEXARcBFwEWARUBFAETARIBAgHcAKcAbgA6ABMAAwACAAAA///+//3//P/7//v/+//7//v//P/8//3//v///wAAAQACAAMABAAFAAYABwAIAAkA/v8BAAQABgAJAAwADwASABUAFwAZABsAHQAeAB8AHwAfAB4AHQAcABsAGgAaABkAGQAYABgAGAAXABcAFwAkAEgAegCxAOQACwEbARsBGwEbARsBGwEaARkBGAEXARYBBAHcAKgAbwA7ABYABwAFAAQAAwABAAAA//////7//v/+//7//v//////AAABAAEAAgADAAQABQAGAAcACAAJAAkAAAACAAUACAALAA4AEQATABYAGQAbAB0AHwAgACEAIQAhACAAHwAeAB0AHQAcABwAGwAbABsAGwAbABsAGwAkAEYAdQCrAN4ABwEdAR8BIAEgAR8BHwEeAR4BHQEbARgBAAHWAKEAagA5ABYACwAJAAcABgAFAAQAAwACAAEAAQABAAEAAQABAAEAAgADAAMABAAFAAUABgAHAAgACQAJAAoAAQAEAAYACQAMAA8AEgAVABgAGwAdAB8AIQAiACMAIwAjACIAIQAgACAAHwAfAB4AHgAeAB4AHgAeAB4AHgAkAD8AawCeANEA/AAZASQBJAEkASMBIwEiASIBIAEfARQB9gDJAJUAYAAzABUADgAMAAsACQAIAAcABgAFAAQAAwADAAMAAwADAAMABAAEAAUABQAGAAcABwAIAAkACQAKAAsAAwAFAAgACwAOABEAFAAXABoAHQAfACEAIwAkACUAJgAmACUAJAAjACIAIgAhACEAIQAhACEAIQAhACEAIQAjADcAXQCMAL0A6gAMASEBKAEoAScBJwEmASUBJAEdAQcB4wC1AIIAUgAqABUAEgAQAA4ADAALAAoACAAHAAcABgAGAAUABQAFAAUABgAGAAYABwAHAAgACAAJAAkACgALAAsABQAHAAoADQAQABMAFgAZABwAHwAhACMAJQAnACgAKAAoACcAJgAmACUAJQAkACQAJAAkACQAJAAkACUAJQAlAC8ATQB1AKMAzwD0ABABIQEpASsBKwEqAScBHgEMAe8AyACaAGwAQQAiABcAFQATABEADwAOAAwACwAKAAkACAAIAAcABwAHAAcABwAHAAcACAAIAAkACQAKAAoACwALAAsABwAJAAwADwASABUAGAAcAB4AIQAkACYAKAApACoAKwArACoAKQAoACgAJwAnACcAJwAnACcAJwAoACgAKAApACsAPQBdAIUArQDTAPIACAEXAR4BIAEdARUBBQHtAM0ApgB8AFMAMgAeABoAGAAWABQAEgAQAA8ADQAMAAsACgAKAAkACQAIAAgACAAIAAgACQAJAAkACgAKAAoACwALAAwACQAMAA4AEQAVABgAGwAeACEAJAAmACgAKgAsAC0ALQAtAC0ALAArACsAKgAqACoAKgAqACoAKwArACsALAAsACwAMgBHAGYAiQCrAMkA4QDyAPwA/wD7APAA3QDEAKUAgQBdAD0AJgAfAB0AGwAZABcAFQATABEADwAOAA0ADAALAAsACgAKAAkACQAJAAkACQAKAAoACgAKAAsACwALAAwACwAOABEAFAAXABoAHQAgACMAJgApACsALQAuAC8AMAAwAC8ALwAuAC0ALQAtAC0ALQAtAC0ALgAuAC4ALwAvADAAMAA4AEsAZQCBAJsAsgDCAMwAzwDLAMAArgCWAHsAXQBCAC0AJAAiAB8AHQAbABkAFwAVABMAEgAQAA8ADgANAAwACwALAAoACgAKAAoACgAKAAoACgAKAAsACwALAAsADQAQABMAFgAZABwAHwAiACUAKAAqAC0ALwAwADEAMgAyADEAMQAwADAALwAvAC8ALwAwADAAMAAxADEAMgAyADMAMwA0ADkASABcAHAAggCQAJgAmwCXAI0AfgBrAFUAQAAwACkAJwAkACIAIAAeABsAGQAXABUAFAASABEADwAOAA0ADQAMAAwACwALAAsACgAKAAoACgAKAAoACgALAAsADwASABQAFwAaAB4AIQAkACcAKQAsAC4AMAAyADMANAA0ADMAMgAyADEAMQAxADEAMQAyADIAMgAzADMANAA1ADUANgA2ADcAOQBBAE0AWQBjAGkAawBoAGEAVQBIADsAMQAuACsAKQAnACUAIwAgAB4AHAAaABgAFgAUABMAEQAQAA8ADgANAA0ADAAMAAsACwAKAAoACgAKAAoACgAKAAoAEQATABYAGQAcAB8AIgAlACgAKwAtAC8AMQAzADQANQA1ADQAMwAzADMAMwAzADMAMwAzADQANAA1ADYANgA3ADgAOAA5ADkAOgA6ADwAQABFAEgASQBHAEIAPQA3ADQAMgAwAC4ALAAqACcAJQAjACEAHgAcABoAGAAWABUAEwASABEAEAAPAA4ADQAMAAwACwALAAoACgAJAAkACQAJAAkAEgAUABcAGgAdACAAIwAmACkALAAuADAAMgA0ADUANQA1ADUA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IwAmACkALAAvADIANAA2ADcAOAA5ADkAOAA3ADYANQA0ADIAMAAuACwAKgAnACUAIwAiACAAHgAdABwAHAAbABsAGwAaABkAGAAXABYAFAASABAADgAMAAoABwAEAAIA///8//n/9//0//H/7v/q/+P/2P/L/73/r/+i/5j/k/+Q/5H/lv+f/6//yP/e/+b/BAAGAAkADAAQABMAFwAaAB4AIQAkACgAKwAuADAAMwA1ADYANwA4ADgAOAA3ADYANQAzADEAMAAuACsAKQAnACUAIwAhAB8AHgAdABwAGwAbABsAGgAaABkAGAAXABUAEwASABAADQALAAkABgAEAAEA/v/7//n/9v/z//D/7f/q/+j/5v/k/+D/2f/Q/8X/uv+x/7D/tv/D/9P/4P/l/+b/AQADAAYACgANABAAFAAYABsAHwAiACYAKQAsAC8AMQAzADUANgA3ADcANwA2ADUANAAzADEALwAtACsAKQAnACUAIwAhAB8AHgAdABwAGwAbABsAGgAaABkAGAAXABUAEwASABAADQALAAkABgAEAAEA/v/7//j/9v/z//D/7f/q/+j/5v/k/+P/4v/i/+D/3P/Y/9j/2v/f/+P/5P/l/+b//v8AAAMABwAKAA4AEQAVABkAHAAgACMAJwAqAC0ALwAxADMANQA1ADYANgA1ADQAMwAyADEALwAtACsAKQAnACUAIwAhACAAHgAdABwAHAAcABwAGwAbABoAGQAXABYAFAASABAADgAMAAkABwAEAAIA///8//n/9v/z//D/7f/r/+j/5v/l/+T/4//i/+L/4v/i/+L/4//j/+T/5P/l/+b/+//9/wAABAAHAAsADgASABYAGQAdACEAJAAnACoALQAvADEAMgAzADQANAA0ADMAMgAxADAALgAtACsAKQAnACYAJAAiACEAIAAeAB4AHQAdAB0AHAAcABsAGgAZABcAFQAUABIADwANAAsACAAGAAMAAAD9//r/9//0//L/7//s/+n/6P/m/+X/5P/j/+P/4//j/+P/4//k/+T/5f/l/+b/+P/6//3/AAAEAAcACwAPABMAFgAaAB0AIQAkACcAKgAsAC4AMAAxADIAMgAyADIAMQAwAC8ALgAsACsAKQAoACYAJQAjACIAIQAgAB8AHwAfAB8AHgAeAB0AHAAaABkAFwAVABMAEQAPAA0ACgAHAAUAAgD///z/+f/2//P/8P/u/+v/6f/o/+b/5f/l/+T/5P/k/+T/5P/k/+X/5f/m/+b/9f/3//r//f8BAAQACAALAA8AEwAWABoAHQAhACQAJgApACsALQAuAC8AMAAwADAALwAvAC4ALQAsACsAKgApACcAJgAlACQAIwAiACEAIQAhACEAIAAgAB8AHgAdABsAGQAYABYAFAARAA8ADAAKAAcABAACAP///P/5//b/8//w/+7/7P/q/+j/5//m/+b/5f/l/+X/5f/m/+b/5v/n/+f/8v/0//f/+v/9/wEABAAIAAwADwATABYAGgAdACAAIwAlACcAKQArACwALQAtAC4ALgAtAC0ALQAsACsAKgApACgAJwAnACYAJQAkACQAJAAkACMAIwAiACIAIQAfAB4AHAAaABgAFgAUABIADwANAAoABwAEAAIA///8//n/9v/z//D/7v/t/+v/6v/p/+j/5//n/+f/5//n/+f/5//o/+j/7//x//T/9//6//7/AQAEAAgACwAPABIAFgAZABwAHwAhACQAJgAnACkAKgArACsALAAsACwALAAsACsAKwAqACoAKQApACgAKAAnACcAJwAnACYAJgAlACUAJAAiACEAHwAeABwAGgAXABUAEwAQAA0ACwAIAAUAAgD///z/+f/2//T/8v/w/+7/7f/r/+v/6v/p/+n/6f/o/+j/6P/p/+n/7P/v//H/9P/3//r//f8BAAQABwALAA4AEQAVABgAGgAdACAAIgAkACUAJwAoACkAKgAqACsAKwArACsAKwArACsAKwArACoAKgAqACoAKgAqACoAKQApACgAJwAmACQAIwAhAB8AHQAbABkAFgAUABEADgALAAkABgADAAAA/f/6//f/9f/z//H/8P/u/+3/7P/s/+v/6//q/+r/6v/q/+r/6v/s/+7/8f/0//f/+v/9/wAAAwAHAAoADQAQABMAFgAZABsAHgAgACIAIwAlACYAJwAoACkAKgArACsALAAsAC0ALQAtAC0ALQAtAC0ALQAtAC0ALQAsACsAKgApACgAJgAlACMAIQAfABwAGgAXABUAEgAPAA0ACgAHAAQAAQD+//v/+f/3//X/8//y//D/7//u/+3/7f/s/+z/6//r/+v/5//p/+v/7v/x//P/9v/5//z///8CAAYACQAMAA8AEgAUABcAGQAcAB4AIAAiACQAJQAnACgAKQArACwALQAtAC4ALwAvADAAMAAxADEAMQAxADEAMAAwAC8ALgAtACwAKgApACcAJQAjACAAHgAcABkAFgAUABEADgALAAgABQACAP///f/7//j/9//1//P/8v/x//D/7//u/+3/7f/s/+z/5f/n/+n/6//t//D/8//1//j/+//+/wEABAAHAAoADQAQABIAFQAXABoAHAAfACEAIwAlACcAKQAqACwALQAvADAAMQAyADMAMwA0ADQANQA1ADUANAA0ADMAMgAxADAALgAtACsAKQAnACUAIgAgAB0AGwAYABUAEgAPAAwACQAGAAQAAQD///z/+v/4//f/9f/0//L/8f/w/+//7v/u/+3/4//k/+b/6P/q/+3/7//y//T/9//6//3/AAADAAUACAALAA4AEQATABYAGQAbAB4AIQAjACUAKAAqACwALgAwADIAMwA0ADYANwA3ADgAOAA5ADgAOAA4ADcANgA1ADQAMgAxAC8ALQArACkAJwAkACIAHwAcABoAFwAUABEADgALAAgABQADAAAA/v/8//r/+P/2//X/8//y//H/8P/v/+7/4P/i/+T/5f/n/+r/7P/u//H/8//2//n/+//+/wEABAAHAAkADAAPABIAFQAYABsAHgAhACQAJwAqACwALwAxADMANQA3ADkAOgA7ADwAPAA8ADwAPAA7ADsAOgA5ADgANgA1ADMAMQAvAC0AKwAoACYAIwAhAB4AGwAYABUAEgAPAAwACQAHAAQAAgD///3/+//5//j/9v/0//P/8v/x//D/3v/g/+H/4//l/+f/6f/r/+3/7//y//T/9//6//3///8CAAUACAALAA4AEgAVABgAHAAfACMAJgApACwALwAyADUANwA6ADsAPQA+AD8AQABAAEAAQAA/AD8APgA9ADwAOgA5ADcANQAzADEALwAtACoAKAAlACIAIAAdABoAFwAUABEADgALAAgABgADAAEA/v/8//r/+P/2//X/8//y//H/3f/e/9//4P/i/+T/5v/n/+r/7P/u//D/8//2//j/+//+/wEABAAHAAsADgASABYAGgAeACEAJQApAC0AMAAzADcAOQA8AD4AQABCAEMARABEAEQARABDAEIAQgBBAD8APgA9ADsAOQA3ADUAMwAxAC8ALAApACcAJAAhAB4AGwAYABUAEgAPAAwACQAGAAQAAQD///3/+//4//f/9f/z//L/2//c/93/3v/g/+H/4//k/+b/6P/q/+3/7//y//T/9//6//3/AAADAAcACwAPABMAGAAcACAAJQApAC0AMQA1ADgAOwA+AEEAQwBFAEYARwBHAEcARwBHAEYARQBEAEMAQgBAAD8APQA7ADkANwA1ADMAMAAuACsAKAAlACIAHwAcABkAFgATABAADQAKAAcABAACAP///f/6//j/9v/1//P/2f/a/9v/3P/d/9//4P/i/+P/5f/n/+n/6//u//D/8//2//n//P8AAAQACAAMABEAFgAaAB8AJAAoAC0AMQA2ADoAPQBBAEQARgBIAEoASgBLAEsASgBKAEkASQBIAEcARQBEAEIAQQA/AD0AOwA5ADYANAAxAC8ALAApACYAIwAgAB0AGgAWABMAEAANAAoABwAEAAEA///8//r/+P/2//T/2P/Z/9n/2v/b/9z/3v/f/+D/4v/k/+b/6P/q/+3/8P/y//b/+f/9/wEABQAKAA8AFAAZAB4AIwAoAC0AMgA3ADsAPwBDAEYASQBLAEwATgBOAE4ATgBNAE0ATABLAEoASQBHAEYARABCAEAAPgA8ADoANwA1ADIAMAAtACoAJwAjACAAHQAaABYAEwAQAA0ACQAGAAQAAQD+//z/+f/3//X/",
           "grassColor": {
             "x": 0.4196078431372549,
-            "y": 0.5607843137254902,
+            "y": 0.5686274509803921,
             "z": 0.3215686274509804
           },
           "rockColor": {
@@ -40,11 +40,11 @@
             "y": 0.9411764705882353,
             "z": 0.9411764705882353
           },
-          "sandHeight": 0.1,
-          "snowHeight": 10,
-          "rockSlope": 0.7,
-          "scatter": "",
-          "paths": ""
+          "sandHeight": -0.7,
+          "snowHeight": 20,
+          "rockSlope": 0.75,
+          "scatter": "255 0.0022 0.9 1.3 0.85 trunk spacing=6 cluster=0.75 clusterSize=55 tint=0.12 in=26,-16,13\n256 0.0016 0.9 1.3 0.85 trunk spacing=6 cluster=0.7 clusterSize=50 in=26,-16,13\n261 0.0012 0.8 1.3 0.85 spacing=2.5 cluster=0.6 clusterSize=30 tint=0.15 in=26,-16,13\n259 0.0009 0.9 1.3 0.8 trunk spacing=6 cluster=0.6 clusterSize=40\n404 0.6 0.8 1.4 0.9 on=grass tint=0.25 in=-26,18,15\n405 0.15 0.9 1.5 0.9 on=grass tint=0.2 in=-26,18,15\n404 0.1 0.8 1.3 0.9 on=grass tint=0.2\n403 0.0006 1.5 3.8 0.65 collide spacing=6 tilt=0.4 tint=0.2 in=-4,4,16\n401 0.0002 2.5 6 0.8 collide tilt=0.5 tint=0.2",
+          "paths": "dirt 3.5 0 0 -16 -8\ndirt 3.5 0 0 2 -30\ndirt 3.5 0 0 -4 4\ndirt 3.5 0 0 26 -16\ndirt 3.5 0 0 -26 18\nsand 16 -36 -10 -4 4\nsand 16 -4 4 34 16"
         }
       }
     },
@@ -75,8 +75,8 @@
             "y": 0.3764705882352941,
             "z": 0.2901960784313726
           },
-          "sunElevation": 45,
-          "sunAzimuth": 120,
+          "sunElevation": 48,
+          "sunAzimuth": 128,
           "sunIntensity": 3,
           "sunColor": {
             "x": 1,
@@ -99,12 +99,210 @@
       }
     },
     {
+      "name": "River water (lower)",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -20,
+            "y": -0.4,
+            "z": -3
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 9.5,
+            "y": 0.1,
+            "z": 39.92849839314596
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.24705882352941178,
+            "y": 0.5254901960784314,
+            "z": 0.7215686274509804
+          },
+          "metalness": 0.1,
+          "roughness": 0.05,
+          "emissive": {
+            "x": 0.16470588235294117,
+            "y": 0.37254901960784315,
+            "z": 0.5333333333333333
+          },
+          "emissiveIntensity": 0.35,
+          "opacity": 0.8,
+          "keepTextures": false,
+          "texture": "builtin:water",
+          "parts": ""
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 1.1583858851975093,
+            "z": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "River water (upper)",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 15,
+            "y": -0.4,
+            "z": 10
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 9.5,
+            "y": 0.1,
+            "z": 44.84971769034255
+          }
+        },
+        "Renderable": {
+          "mesh": 0,
+          "material": 0,
+          "visible": true
+        },
+        "Material": {
+          "color": {
+            "x": 0.24705882352941178,
+            "y": 0.5254901960784314,
+            "z": 0.7215686274509804
+          },
+          "metalness": 0.1,
+          "roughness": 0.05,
+          "emissive": {
+            "x": 0.16470588235294117,
+            "y": 0.37254901960784315,
+            "z": 0.5333333333333333
+          },
+          "emissiveIntensity": 0.35,
+          "opacity": 0.8,
+          "keepTextures": false,
+          "texture": "builtin:water",
+          "parts": ""
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 1.2649174553900444,
+            "z": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "Tree of Life",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 3.473145554272962,
+            "y": 16.403110373020173,
+            "z": -2.2430022159497285
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0.4,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 37.160865211486815,
+            "y": 41.21458833217621,
+            "z": 44.28738813400269
+          }
+        },
+        "Renderable": {
+          "mesh": 255,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "Tree of Knowledge",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -7.041856604261589,
+            "y": 14.283210551738737,
+            "z": 5.676843893150779
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": -0.6,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 38.01030111312866,
+            "y": 41.68497407436371,
+            "z": 37.26759901046753
+          }
+        },
+        "Renderable": {
+          "mesh": 256,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
       "name": "Adam",
       "components": {
         "Transform": {
           "position": {
             "x": -1,
-            "y": 0,
+            "y": -0.4786155462265015,
             "z": 0
           }
         },
@@ -150,7 +348,7 @@
         "Transform": {
           "position": {
             "x": 1,
-            "y": 0,
+            "y": -0.22586139440536498,
             "z": 0
           }
         },
@@ -191,5 +389,195 @@
       }
     }
   ],
-  "prefabs": {}
+  "prefabs": {
+    "Deer": {
+      "components": {
+        "Renderable": {
+          "mesh": 238,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 90,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    "Fox": {
+      "components": {
+        "Renderable": {
+          "mesh": 240,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 15,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    "Alpaca": {
+      "components": {
+        "Renderable": {
+          "mesh": 136,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 70,
+          "inverseMass": 1,
+          "dynamic": true
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    "Oak Tree": {
+      "components": {
+        "Renderable": {
+          "mesh": 255,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    "Pine Tree": {
+      "components": {
+        "Renderable": {
+          "mesh": 259,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    "Bush": {
+      "components": {
+        "Renderable": {
+          "mesh": 37,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    "Rock": {
+      "components": {
+        "Renderable": {
+          "mesh": 42,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    }
+  }
 }

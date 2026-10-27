@@ -12,7 +12,7 @@
     "city": "tsx ../../tools/city/build_city_template.ts",
     "murim": "tsx ../../tools/murim/build_azure_cloud_sect.ts",
     "jianghu": "tsx ../../tools/jianghu/build_jianghu.ts",
-    "eden": "tsx ../../tools/eden/build_plain.ts"
+    "eden": "tsx ../../tools/eden/build_eden.ts"
   },
   "dependencies": {
     "three": "0.169.0"
