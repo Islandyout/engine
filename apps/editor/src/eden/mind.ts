@@ -630,6 +630,28 @@ export function shareKill(world: World, killed: Thing) {
   }
 }
 
+// The Walker hands carried meat to someone: it feeds them, they remember the kindness, and word of it spreads to the others who are near.
+export function giveMeat(world: World, to: Person): boolean {
+  if (to.needs.hunger < 0.2) {
+    to.say = "Thank you, but I am not hungry. Keep it for someone who is.";
+    return false;
+  }
+  to.carry.food = Math.min(8, to.carry.food + 2);
+  to.needs.hunger = clamp01(to.needs.hunger - 0.3);
+  eaten(to, "meat");
+  feelEmotion(to, "gratitude", 0.7);
+  note(to, world, "The Walker put meat in my hands when I was hungry.");
+  to.say = "Bless you, Walker.";
+  for (const q of world.people) {
+    if (q === to || dist(q.x, q.z, to.x, to.z) > 20) continue;
+    note(q, world, `I saw the Walker feed ${to.name}.`);
+    feelEmotion(q, "joy", 0.2);
+  }
+  tally(world, "gaveMeat");
+  chronicle(world, `The Walker fed ${to.name} with their own hands.`);
+  return true;
+}
+
 // A norm gains ground; when it becomes a custom everyone writes it down.
 function uphold(world: World, id: NormId, by: Person, amount: number) {
   if (!reinforce(world, id, by, amount)) return;

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DAY, makePerson, step, type Person, type World } from "../src/eden/mind";
+import { DAY, giveMeat, makePerson, step, type Person, type World } from "../src/eden/mind";
 
 const adult = (id: string, sex: "m" | "f", seed: number, x = 0, z = 0) => makePerson(id, x, z, seed, {}, { name: id, sex, age: 25 });
 const world = (people: Person[]): World => ({
@@ -55,4 +55,17 @@ test("a hunter keeps the hide, sews a cloak from it", () => {
   assert.ok((w.tally?.sewn ?? 0) >= 1, "nothing sewn");
   assert.ok((a.clothing ?? 0) > 0.2);
   assert.ok(a.journal.some((j) => /Sewed a cloak/.test(j.text)));
+});
+
+test("the Walker's gift of meat feeds a hungry person and is declined by a full one", () => {
+  const hungry = adult("H", "f", 5);
+  const full = adult("F", "m", 6);
+  const w = world([hungry, full]);
+  hungry.needs.hunger = 0.8;
+  full.needs.hunger = 0.05;
+  assert.equal(giveMeat(w, hungry), true);
+  assert.ok(hungry.needs.hunger < 0.6);
+  assert.ok([...hungry.journal ?? []].length >= 0);
+  assert.equal(giveMeat(w, full), false);
+  assert.ok(full.say);
 });

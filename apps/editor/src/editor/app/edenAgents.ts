@@ -1,4 +1,4 @@
-import { actionOf, applySpokenIntent, shareKill, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
+import { actionOf, applySpokenIntent, giveMeat, shareKill, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import { moonName, SEASON_NAMES, solarHour } from "../../eden/earth";
 import { runCreatorCommand } from "../../eden/creator";
 import { worldFromJson, worldToJson } from "../../eden/persist";
@@ -125,6 +125,7 @@ export function installEdenAgents(C: Ctx): void {
   };
   let walking = false; // the Creator is walking the world as a hunter
   let youBody = -1;
+  let carriedMeat = 0; // game the hunter has kept to give away (H hands it to the nearest person)
   const bodyObjectOf = (p: Person) => {
     const index = ORIGINAL.has(p.id) ? bodyIndex(p.name) : (bodyIndexById.get(p.id) ?? -1);
     return index >= 0 ? C.objects[index] : undefined;
@@ -141,7 +142,11 @@ export function installEdenAgents(C: Ctx): void {
     tally(world, "slainByYou");
     shareKill(world, thing);
     panel?.lifeLog(`You killed ${phrase(thing)}.${AFFORDANCES[thing.kind]?.prey ? " Meat: you feel stronger." : ""}`);
-    if (AFFORDANCES[thing.kind]?.prey) ui("eden_player_heal", "35");
+    if (AFFORDANCES[thing.kind]?.prey) {
+      ui("eden_player_heal", "35");
+      carriedMeat++;
+      panel?.lifeLog(`You keep the meat (${carriedMeat}). Press H beside someone to hand it over.`);
+    }
   };
   const voice = new Voice(loadVoice(), (text) => panel?.voiceStatus(text) ?? C.log(`Eden voice: ${text}`));
 
@@ -597,7 +602,7 @@ export function installEdenAgents(C: Ctx): void {
             const z = (beside?.z ?? 2) + 2;
             ui("eden_place", `you,Hunter,${x},${groundY(x, z) + 1},${z},you`);
             for (const wait of [1200, 3000, 7000]) setTimeout(() => walking && !bodyIndexById.has("you") && ui("eden_tell", "you"), wait);
-            panel?.lifeLog("You walk the world as a hunter. W A S D move, J strikes, K sweeps, F kicks, X rolls, G looses an arrow.");
+            panel?.lifeLog("You walk the world as a hunter. W A S D move, J strikes, K sweeps, F kicks, X rolls, G looses an arrow, H hands meat to someone beside you.");
           } else {
             ui("eden_remove", "you");
             bodyIndexById.delete("you");
@@ -631,6 +636,23 @@ export function installEdenAgents(C: Ctx): void {
     );
     panel.setSpeed(speed);
     panel.setSlots(slotDays());
+    window.addEventListener("keydown", (e) => {
+      if (e.code !== "KeyH" || !walking || !world || youBody < 0) return;
+      const you = C.objects[youBody];
+      if (!you) return;
+      if (carriedMeat <= 0) return panel?.lifeLog("You carry no meat.");
+      let near: Person | undefined;
+      let best = 4;
+      for (const q of world.people) {
+        const d = Math.hypot(q.x - you.position.x, q.z - you.position.z);
+        if (d < best) ((best = d), (near = q));
+      }
+      if (!near) return panel?.lifeLog("No one is near enough.");
+      if (giveMeat(world, near)) {
+        carriedMeat--;
+        panel?.lifeLog(`You gave meat to ${near.name}.`);
+      } else panel?.lifeLog(`${near.name} is not hungry.`);
+    });
     window.addEventListener("pagehide", save);
     // For the desktop app's tools and for tests: where each mind says a person is, where their body is, and where the ground is under it.
     if (navigator.userAgent.includes("BTAIDesktop")) {

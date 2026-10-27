@@ -127,3 +127,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F120](changelog/F120.md) | Eden: dusk gatherings, shunning, stories; infants, hygiene, diet, remedies |
 | [F121](changelog/F121.md) | Eden: gestures; the hunter is brought in only when you walk |
 | [F122](changelog/F122.md) | Eden: what-if slots, bonds graph, life stories; stags, cows, donkeys and more plants; the people notice you |
+| [F123](changelog/F123.md) | Eden: carry meat and hand it to someone |
