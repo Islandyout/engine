@@ -19,13 +19,16 @@ import type { Ctx } from "./context";
 // has exactly one runtime dependency (three) by design, and a handful of
 // REST calls don't earn a new one.
 
-const SUPABASE_URL = "https://douglytjshdaunvooyyn.supabase.co";
+// "adam and eve" project -- moved here from the original "Nomad" project
+// (douglytjshdaunvooyyn) after that account's own email became
+// unrecoverable mid-Phase-1b; same schema, redeployed fresh.
+const SUPABASE_URL = "https://zqglqioespsqmndcxlbe.supabase.co";
 // Public, RLS-scoped anon key (read-only by policy on every eden_* table
 // except the Creator-write ones -- see the migration). Safe to embed, the
 // same as any Supabase project's anon key is meant to be used directly in a
 // browser.
 const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvdWdseXRqc2hkYXVudm9veXluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxOTgzMTYsImV4cCI6MjEwMjc3NDMxNn0.b5_t_rWkS5N6N_7-OxNAC6iJkk5h11bBrKn_969OCjc";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpxZ2xxaW9lc3BzcW1uZGN4bGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwNjUwMTMsImV4cCI6MjEwODY0MTAxM30.Mna3jNNSI443eN6qruvipJE3vOqfKEeA60upDOeH508";
 
 const ENTITIES = ["adam", "eve"] as const;
 type EntityId = (typeof ENTITIES)[number];
