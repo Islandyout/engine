@@ -195,8 +195,13 @@ RIVER.slice(0, -1).forEach((a, i) => waterSegment(`River water ${i + 1}`, a, RIV
 // mind.ts gives them their own real affordance though (life: a meal,
 // knowledge: a view) -- see edenAgents.ts's World.things.
 const [treeOfLife, treeOfKnowledge] = EDEN_LANDMARKS;
-scene.model("Tree of Life", modelId("eztree-oak"), [treeOfLife!.x, ground(treeOfLife!.x, treeOfLife!.z), treeOfLife!.z], 0.4, true, 2.1);
-scene.model("Tree of Knowledge", modelId("eztree-ash"), [treeOfKnowledge!.x, ground(treeOfKnowledge!.x, treeOfKnowledge!.z), treeOfKnowledge!.z], -0.6, true, 1.9);
+scene.model("Tree of Life", modelId("eztree-oak"), [treeOfLife!.x, ground(treeOfLife!.x, treeOfLife!.z), treeOfLife!.z], 0.4, false, 2.1);
+scene.model("Tree of Knowledge", modelId("eztree-ash"), [treeOfKnowledge!.x, ground(treeOfKnowledge!.x, treeOfKnowledge!.z), treeOfKnowledge!.z], -0.6, false, 1.9);
+// The two great trees are not solid as a whole (the box round a 30 m tree would cover the middle of the garden and shove anyone standing in it
+// under the ground); only the trunk is, a small post at its foot.
+for (const tree of [treeOfLife!, treeOfKnowledge!]) {
+  scene.add(`${tree.name} trunk`, [tree.x, ground(tree.x, tree.z) + 1.5, tree.z], { RigidBody: { dynamic: false }, Collider: { type: "AABB", halfExtents: vec(0.9, 1.5, 0.9) } });
+}
 
 const ADAM_MODEL = modelId("man-casual");
 const EVE_MODEL = modelId("woman-casual");

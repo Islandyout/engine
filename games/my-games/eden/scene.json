@@ -483,7 +483,7 @@
             "z": 0.5
           },
           "radius": 0.5,
-          "isTrigger": false,
+          "isTrigger": true,
           "layer": 0,
           "mask": 4294967295,
           "bounciness": 0
@@ -530,6 +530,66 @@
             "x": 0.5,
             "y": 0.5,
             "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "the Tree of Life trunk",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 4,
+            "y": 3.854311227798462,
+            "z": -3
+          }
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.9,
+            "y": 1.5,
+            "z": 0.9
+          },
+          "radius": 0.5,
+          "isTrigger": false,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
+      "name": "the Tree of Knowledge trunk",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": -5,
+            "y": -0.420073002576828,
+            "z": 3
+          }
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.9,
+            "y": 1.5,
+            "z": 0.9
           },
           "radius": 0.5,
           "isTrigger": false,

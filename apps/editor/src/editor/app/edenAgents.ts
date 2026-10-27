@@ -113,6 +113,11 @@ export function installEdenAgents(C: Ctx): void {
   const knownPeople = new Set<string>();
   const announcedDead = new Set<string>();
   const lastMoved = new Map<string, [number, number]>();
+  const rescued = new Map<string, number>();
+  const bodyObjectOf = (p: Person) => {
+    const index = ORIGINAL.has(p.id) ? bodyIndex(p.name) : (bodyIndexById.get(p.id) ?? -1);
+    return index >= 0 ? C.objects[index] : undefined;
+  };
   C.edenBody = (index, who) => bodyIndexById.set(who, index);
   const voice = new Voice(loadVoice(), (text) => panel?.voiceStatus(text) ?? C.log(`Eden voice: ${text}`));
 
@@ -386,6 +391,13 @@ export function installEdenAgents(C: Ctx): void {
     }
 
     for (const person of w.people) {
+      // A body that has gone through the ground (or fallen from a cliff edge) is put back on it, and the Creator is told once.
+      const body = bodyObjectOf(person);
+      if (body && body.position.y < groundY(body.position.x, body.position.z) - 1.5 && performance.now() - (rescued.get(person.id) ?? -1e9) > 1500) {
+        if (!rescued.has(person.id)) panel.lifeLog(`${person.name} had fallen through the ground and was lifted back.`);
+        rescued.set(person.id, performance.now());
+        snap(person);
+      }
       if (!knownPeople.has(person.id)) {
         knownPeople.add(person.id);
         panel.lifeLog(`✶ ${person.name} was born${person.mother ? ` to ${w.people.find((q) => q.id === person.mother)?.name ?? "their mother"}` : ""}.`);
@@ -482,6 +494,24 @@ export function installEdenAgents(C: Ctx): void {
     );
     panel.setSpeed(speed);
     window.addEventListener("pagehide", save);
+    // For the desktop app's tools and for tests: where each mind says a person is, where their body is, and where the ground is under it.
+    if (navigator.userAgent.includes("BTAIDesktop")) {
+      (window as unknown as { edenPut: unknown }).edenPut = (id: string, x: number, z: number) => {
+        const person = world?.people.find((q) => q.id === id);
+        if (!person) return false;
+        person.x = x;
+        person.z = z;
+        person.intent = undefined;
+        snap(person);
+        return true;
+      };
+      (window as unknown as { edenDebug: unknown }).edenDebug = () =>
+        (world?.people ?? []).map((p) => {
+          const index = ORIGINAL.has(p.id) ? bodyIndex(p.name) : (bodyIndexById.get(p.id) ?? -1);
+          const o = index >= 0 ? C.objects[index] : undefined;
+          return { name: p.name, mind: [p.x, p.z], body: o ? [o.position.x, o.position.y, o.position.z] : undefined, ground: o ? groundY(o.position.x, o.position.z) : groundY(p.x, p.z) };
+        });
+    }
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") save();
     });
