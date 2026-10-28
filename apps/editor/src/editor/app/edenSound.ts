@@ -136,7 +136,46 @@ export class EdenSound {
     // The crackle: a fresh random level every moment.
     this.fire?.gain.linearRampToValueAtTime(fireLevel * (0.3 + Math.random() * 1.2), at);
     this.fireTimer += 1;
+    this.music(state);
     if (state.wolfNear && state.dark && context.currentTime - this.lastHowl > 40 && Math.random() < 0.25) this.howl();
+  }
+
+  /** A slow tune that follows the season: a few soft plucked notes from a pentatonic scale over a held chord, sparser at night and in rain. */
+  private nextNote = 0;
+  private music(state: SoundState) {
+    const context = this.context;
+    if (!context || !this.master || context.currentTime < this.nextNote) return;
+    const bright = [[0, 2, 4, 7, 9], [0, 2, 4, 7, 9], [0, 3, 5, 7, 10], [0, 3, 5, 7, 10]][Math.max(0, Math.min(3, state.season))]!;
+    const root = [261.6, 293.7, 220, 196][Math.max(0, Math.min(3, state.season))]!;
+    const t = context.currentTime + 0.05;
+    const gap = (state.dark ? 9 : 5) + (state.raining ? 4 : 0) + Math.random() * 6;
+    this.nextNote = t + gap;
+    const pitch = (degree: number, octave: number) => root * Math.pow(2, (bright[degree % bright.length]! + 12 * octave) / 12);
+    const note = (freq: number, at: number, len: number, level: number, type: OscillatorType) => {
+      const osc = context.createOscillator();
+      osc.type = type;
+      osc.frequency.value = freq;
+      const env = context.createGain();
+      env.gain.setValueAtTime(0, at);
+      env.gain.linearRampToValueAtTime(level, at + (type === "sine" ? 1.2 : 0.02));
+      env.gain.exponentialRampToValueAtTime(0.0001, at + len);
+      osc.connect(env).connect(this.master!);
+      osc.start(at);
+      osc.stop(at + len + 0.1);
+    };
+    // The held chord under it, now and then.
+    if (Math.random() < 0.5) {
+      const base = Math.floor(Math.random() * 3);
+      note(pitch(base, -1), t, gap + 2, 0.012, "sine");
+      note(pitch(base + 2, -1), t, gap + 2, 0.009, "sine");
+    }
+    // Two to four notes of the tune, wandering up and down by steps.
+    let degree = Math.floor(Math.random() * 5);
+    const count = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < count; i++) {
+      degree = Math.max(0, Math.min(9, degree + (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 2))));
+      note(pitch(degree % 5, Math.floor(degree / 5)), t + i * (0.7 + Math.random() * 0.5), 2.4, state.raining ? 0.012 : 0.022, "triangle");
+    }
   }
 
   /** Someone speaks: a few soft syllables, pitched for who they are, quieter the farther they are. */

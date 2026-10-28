@@ -3,6 +3,7 @@ import { findPoseBones } from "../poses";
 import { creatureMotion, gazeOf, lookOf, newMemory, personMotion, walkStyle, type MotionMemory, type PoseName } from "../../eden/motion";
 import { createTalk, type Talk } from "./edenTalk";
 import { EdenSound } from "./edenSound";
+import { EdenWildlife } from "./edenWildlife";
 import { createScreens, type Screens } from "./edenScreens";
 import { hearWalker, nearbyPeople, noteFirstWord } from "../../eden/chat";
 import { actionOf, applySpokenIntent, creatureHurt, giveMeat, giveToPerson, shareKill, walkerSlew, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
@@ -64,6 +65,8 @@ const TICK_MS = 250;
 // Seconds of sim time a single step of the minds covers when the bodies are not keeping up (above 3x).
 const FAST_STEP = 0.75;
 const WORLD_RADIUS = 190;
+// Where the river and lake surface sits (build_eden.ts RIVER_LEVEL).
+const WATER_LEVEL = -0.4;
 // The lake is too deep to walk into (its water reaches about 22 m from its centre; people keep to its bank).
 const LAKE_NOGO = [{ x: EDEN_PLACES.lake!.x, z: EDEN_PLACES.lake!.z, r: 26 }];
 const SAVE_KEY = "eden-world-v1";
@@ -153,6 +156,8 @@ export function installEdenAgents(C: Ctx): void {
   const talkHistory = new Map<string, { role: string; content: string }[]>(); // the last turns of each conversation with the Walker
   const sound = new EdenSound(() => inEden && C.doc.mode === "play");
   let soundAt = 0;
+  let snowCover = 0; // 0 bare .. 1 white: builds while it snows, melts when it is mild
+  let wildlife: EdenWildlife | undefined; // birds and leaping fish: scenery, made the first time a world is played
   let screens: Screens | undefined; // map, journal and pack (M, L, I), made the first time you walk
   const notes: string[] = []; // what the Walker has done, kept with the save
   let talk: Talk | undefined; // the box for talking with people (E), made the first time you walk
@@ -596,6 +601,25 @@ export function installEdenAgents(C: Ctx): void {
       const season = w.weather?.season ?? 1;
       const raining = !!w.weather?.raining;
       sound.update({ dark, season, raining, listener: at, waterDistance: nearest((t) => !!AFFORDANCES[t.kind]?.water), fireDistance: nearest((t) => t.kind === "campfire" && (t.fuel ?? 0) > 0), wolfNear: w.things.some((t) => t.kind === "wolf" && Math.hypot(t.x - at.x, t.z - at.z) < 70) });
+      let water: { x: number; z: number; y: number } | undefined;
+      let waterGap = 45;
+      for (const t of w.things) {
+        if (!AFFORDANCES[t.kind]?.water) continue;
+        const gap = Math.hypot(t.x - at.x, t.z - at.z) - t.radius;
+        if (gap < waterGap) (waterGap = gap), (water = { x: t.x, z: t.z, y: WATER_LEVEL });
+      }
+      // Snow settles on the ground while it falls and goes when the air warms: the terrain is lightened toward white (more by day, so it does not glow at night).
+      const wxNow = w.weather;
+      snowCover = Math.max(0, Math.min(1, snowCover + (wxNow?.snowing ? 0.02 : (wxNow?.tempC ?? 10) > 2 ? -0.004 * Math.min(6, (wxNow?.tempC ?? 10) - 1) : 0)));
+      const snowGlow = snowCover * (dark ? 0.12 : 0.34);
+      for (const { mesh } of C.terrainMeshes.values()) {
+        const material = mesh.material;
+        if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+        material.emissive.setRGB(0.88, 0.94, 1);
+        material.emissiveIntensity = snowGlow;
+      }
+      wildlife ??= new EdenWildlife(C.scene);
+      wildlife.update({ x: at.x, z: at.z, ground: groundY(at.x, at.z), hour: solarHour(w.clock ?? 0), rain: w.weather?.rainAmount ?? 0, season: w.weather?.season ?? 1, water });
       const folk = w.people.filter((q) => Math.hypot(q.x - at.x, q.z - at.z) < 25).length;
       ui("eden_ambient", `${at.x.toFixed(1)},${at.z.toFixed(1)},${groundY(at.x, at.z).toFixed(2)},${solarHour(w.clock ?? 0).toFixed(2)},${(w.weather?.tempC ?? 15).toFixed(1)},${(w.weather?.rainAmount ?? 0).toFixed(2)},${w.weather?.snowing ? 1 : 0}`);
       ui("eden_sounds", `${dark || raining ? 0 : [0.55, 0.4, 0.22, 0.08][season]},${Math.min(0.5, folk / 7)}`);
@@ -1014,6 +1038,12 @@ export function installEdenAgents(C: Ctx): void {
   setInterval(() => {
     if (C.doc.mode !== "play") {
       if (wasPlaying && inEden) save();
+      wildlife?.dispose();
+      wildlife = undefined;
+      if (snowCover > 0) {
+        snowCover = 0;
+        for (const { mesh } of C.terrainMeshes.values()) if (mesh.material instanceof THREE.MeshStandardMaterial) mesh.material.emissiveIntensity = 0;
+      }
       wasPlaying = false;
       if (panel) panel.root.style.display = "none";
       return;

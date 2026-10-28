@@ -495,6 +495,30 @@ export const aff = (t: Thing): Affordances => AFFORDANCES[t.kind] ?? {};
 // Danger is felt well beyond touching distance.
 const dangerReach = (t: Thing) => t.radius + 6 + 10 * (aff(t).danger ?? 0);
 
+/** What someone leaves goes to a grown child (the eldest), else a partner, else whoever loved them most: what they carried, and the keepsake they were carving. */
+function inherit(world: World, dead: Person) {
+  const living = world.people.filter((q) => q.id !== dead.id);
+  const children = living.filter((q) => (q.mother === dead.id || q.father === dead.id) && q.age >= ADULT_AGE).sort((a, b) => b.age - a.age);
+  const partner = living.find((q) => bondOf(dead, q) === "partner");
+  const loved = living.filter((q) => (q.relations.get(dead.id)?.affinity ?? 0) > 0.4).sort((a, b) => (b.relations.get(dead.id)?.affinity ?? 0) - (a.relations.get(dead.id)?.affinity ?? 0));
+  const heir = children[0] ?? partner ?? loved[0];
+  const c = dead.carry;
+  const left = (c.wood ?? 0) + (c.food ?? 0) + (c.seed ?? 0) + (c.hide ?? 0);
+  if (!heir || (left <= 0 && !dead.keepsake)) return;
+  heir.carry.wood += c.wood ?? 0;
+  heir.carry.food += c.food ?? 0;
+  heir.carry.seed += c.seed ?? 0;
+  if (c.hide) heir.carry.hide = (heir.carry.hide ?? 0) + c.hide;
+  dead.carry = { wood: 0, food: 0, seed: 0 };
+  if (dead.keepsake) {
+    (heir.keepsakes ??= []).push({ from: dead.id, item: dead.keepsake.item });
+    dead.keepsake = undefined;
+  }
+  note(heir, world, `${dead.name}'s things came to me.`);
+  chronicle(world, `${dead.name}'s belongings passed to ${heir.name}.`);
+  tally(world, "inherited");
+}
+
 export type Bond = "stranger" | "acquaintance" | "friend" | "partner" | "rival";
 export function bondOf(a: Person, b: Person): Bond {
   const ab = a.relations.get(b.id);
@@ -2845,6 +2869,7 @@ function lifeAndDeath(world: World, dt: number) {
     chronicle(world, `${person.name} died of ${cause}, aged ${person.age.toFixed(0)}.`);
     person.intent = undefined;
     make(world, "grave", person.x, person.z, { of: person.id, radius: 2 });
+    inherit(world, person);
     for (const other of world.people) {
       const r = other.relations.get(person.id);
       const grief = Math.max(0, r?.affinity ?? 0);

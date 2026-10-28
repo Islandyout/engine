@@ -149,3 +149,19 @@ test("an afraid person asks the Walker for protection from a wolf, and is reliev
   assert.ok((a.walkerTrust ?? 0) > 0.5);
   assert.ok(w.chronicle?.some((c) => /killed/.test(c.text)));
 });
+
+test("what someone leaves goes to their grown child, else a partner, and is written down", () => {
+  const parent = adult("Mara", 5);
+  const child = makePerson("Kit", 1, 1, 9, {}, { name: "Kit", sex: "m", age: 25, parents: [parent, adult("Joe", 6)] });
+  const other = adult("Zed", 7);
+  parent.carry.wood = 5;
+  parent.carry.food = 2;
+  const w = base([parent, child, other]);
+  parent.health = 0;
+  step(w, 2);
+  assert.ok(!w.people.includes(parent), "the parent died");
+  assert.equal(child.carry.wood, 5);
+  assert.equal(child.carry.food, 2);
+  assert.equal(other.carry.wood, 0, "not given to a stranger");
+  assert.ok(w.chronicle?.some((c) => c.text.includes("belongings passed to Kit")));
+});
