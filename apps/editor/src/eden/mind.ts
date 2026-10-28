@@ -206,6 +206,8 @@ export interface Person {
   keepsakes?: { from: string; item: string }[]; // what others have given them
   stranger?: { since: number; verdict?: "joined" | "left" }; // came from outside; the others decide whether to take them in
   followUntil?: number; // world clock until which they walk with the Walker (asked to, in conversation)
+  walkerFacts?: { name?: string; from?: string; role?: string; likes?: string[]; mood?: string; asked?: string[] }; // what the Walker has told them about themselves
+  pendingQ?: "name" | "from" | "how" | "why"; // a question they asked the Walker, waiting for the answer
   errand?: Errand; // something the Walker asked them to fetch
   carrying?: string; // what they are bringing (water has no weight in the pack: "water")
   asks?: { item: AskItem; at: number }; // something they have asked the Walker for
@@ -2795,7 +2797,10 @@ function giveBirth(world: World, mother: Person, father: Person) {
     mother.pregnant = undefined;
     const sex: "m" | "f" = rand(mother) < 0.5 ? "m" : "f";
     const taken = new Set([...world.people, ...(world.dead ?? []).map((d) => d.person)].map((q) => q.name));
-    const name = CHILD_NAMES[sex].find((n) => !taken.has(n)) ?? `${sex === "m" ? "Boy" : "Girl"} ${(world.built ?? 0) + 1}`;
+    // A child may be named for a grandparent who has died, so the name goes on.
+    const namesake = (world.dead ?? []).find((d) => d.person.sex === sex && [mother.mother, mother.father, father.mother, father.father].includes(d.person.id))?.person;
+    const named = namesake && rand(mother) < 0.55 ? namesake.name : undefined;
+    const name = named ?? CHILD_NAMES[sex].find((n) => !taken.has(n)) ?? `${sex === "m" ? "Boy" : "Girl"} ${(world.built ?? 0) + 1}`;
     world.built = (world.built ?? 0) + 1;
     const mix = (a: number, b: number) => clamp01((a + b) / 2 + (rand(mother) - 0.5) * 0.3);
     const child = makePerson(`person-${world.built}`, mother.x + 1, mother.z, Math.floor(rand(mother) * 1e9), {
@@ -2816,7 +2821,8 @@ function giveBirth(world: World, mother: Person, father: Person) {
     }
     note(child, world, "I was born.");
     tally(world, "births");
-    chronicle(world, `${name} was born to ${mother.name} and ${father.name}.`);
+    chronicle(world, `${name} was born to ${mother.name} and ${father.name}${named ? `, and named for ${named}, who is gone` : ""}.`);
+    if (named) for (const q of world.people) if (q !== child && dist(q.x, q.z, mother.x, mother.z) < 40) note(q, world, `${mother.name} named the baby ${named}, for the one we lost.`);
     mother.say = `Look, ${father.name}. ${name}.`;
   }
   if (rand(mother) < risk) {

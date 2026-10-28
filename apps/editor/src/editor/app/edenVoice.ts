@@ -90,4 +90,35 @@ export class Voice {
       clearTimeout(timer);
     }
   }
+
+  /** An open conversation with the Walker: what they said, in the light of who this person is and what they remember, with the last few turns. */
+  async chat(speaker: Person, history: { role: "user" | "assistant"; content: string }[], said: string, world: World): Promise<string | undefined> {
+    if (!this.ready) return undefined;
+    const system = `You speak as ${speaker.name}, a person living in a simple world of gardens, woods, a river and a lake, with no machines and no writing. A stranger called the Walker is talking with you. Answer in the first person, in at most 30 words, with no quotation marks and no stage directions. Use only what the notes say; invent no events, people or places, and if you do not know, say so in your own way. Never mention being an AI.`;
+    const facts = speaker.walkerFacts;
+    const known = facts ? `The Walker has told you: ${[facts.name && `their name is ${facts.name}`, facts.from && `they come from ${facts.from}`, facts.likes?.length && `they like ${facts.likes.join(" and ")}`].filter(Boolean).join("; ") || "nothing about themselves"}.` : "";
+    const messages = [{ role: "system", content: `${system}\n\nNotes about ${speaker.name}:\n${contextOf(speaker, undefined, world)}\n${known}` }, ...history.slice(-8), { role: "user", content: said }];
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS * 2);
+    try {
+      const res = await fetch(this.config.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(this.config.key ? { Authorization: `Bearer ${this.config.key}` } : {}) },
+        body: JSON.stringify({ model: this.config.model, temperature: 0.8, max_tokens: 110, messages }),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      const text = data.choices?.[0]?.message?.content?.trim().replace(/^["“]|["”]$/g, "").replace(/\s+/g, " ");
+      return text ? text.slice(0, 280) : undefined;
+    } catch (e) {
+      if (!this.warned) {
+        this.warned = true;
+        this.report(`The voice could not be reached (${controller.signal.aborted ? "too slow" : String(e)}). Using plain speech.`);
+      }
+      return undefined;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
 }

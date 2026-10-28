@@ -55,7 +55,22 @@ function on_ui(name, value)
   -- The weather: "rain,fog" (0-1) for the sky and the sound of it.
   if name == "eden_weather" then
     local rain, fog, wx, wz = string.match(value, "^([^,]+),([^,]+),([^,]+),([^,]+)$")
-    if rain then fx.weather(tonumber(rain) or 0, tonumber(fog) or 0, tonumber(wx) or 1.5, tonumber(wz) or 0.5) end
+    if rain then
+      fx.weather(tonumber(rain) or 0, tonumber(fog) or 0, tonumber(wx) or 1.5, tonumber(wz) or 0.5)
+      -- The sound of it: wind by its strength, rain by how hard.
+      local wind = math.sqrt((tonumber(wx) or 0) ^ 2 + (tonumber(wz) or 0) ^ 2)
+      audio.ambience("wind", math.min(1, wind / 9))
+      audio.ambience("rain", math.min(1, (tonumber(rain) or 0) * 1.1))
+    end
+    return
+  end
+  -- Birds by day (more in spring), the murmur of people near: "wildlife,settlement" levels 0..1.
+  if name == "eden_sounds" then
+    local wild, settle = string.match(value, "^([^,]+),([^,]+)$")
+    if wild then
+      audio.ambience("wildlife", tonumber(wild) or 0)
+      audio.ambience("settlement", tonumber(settle) or 0)
+    end
     return
   end
   if name ~= "eden_create" then return end

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { findPoseBones } from "../poses";
 import { creatureMotion, gazeOf, lookOf, newMemory, personMotion, walkStyle, type MotionMemory, type PoseName } from "../../eden/motion";
 import { createTalk, type Talk } from "./edenTalk";
+import { EdenSound } from "./edenSound";
 import { hearWalker, nearbyPeople, noteFirstWord } from "../../eden/chat";
 import { actionOf, applySpokenIntent, creatureHurt, giveMeat, giveToPerson, shareKill, walkerSlew, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import { moonName, SEASON_NAMES, solarHour } from "../../eden/earth";
@@ -148,6 +149,9 @@ export function installEdenAgents(C: Ctx): void {
   };
   let walking = false; // the Creator is walking the world as a hunter
   let youBody = -1;
+  const talkHistory = new Map<string, { role: string; content: string }[]>(); // the last turns of each conversation with the Walker
+  const sound = new EdenSound();
+  let soundAt = 0;
   let talk: Talk | undefined; // the box for talking with people (E), made the first time you walk
   const paceOf = new Map<string, number>(); // how fast each person's walk clip plays (a limp is slower)
   const motionMem = new Map<string, MotionMemory>(); // what each person's body was last doing (motion.ts)
@@ -200,10 +204,24 @@ export function installEdenAgents(C: Ctx): void {
       ui("eden_player_heal", "20");
       panel.lifeLog(`${person.name} gave you some food.`);
     }
+    const history = (talkHistory.get(id) ?? []) as { role: "user" | "assistant"; content: string }[];
+    talkHistory.set(id, history);
+    const remember = (said: string) => {
+      history.push({ role: "user", content: text }, { role: "assistant", content: said });
+      if (history.length > 12) history.splice(0, history.length - 12);
+    };
     if (voice.ready) {
       talk?.thinking(person.name);
-      void voice.reword(person, undefined, answer.reply, w, true).then((t) => show(t?.text ?? answer.reply));
-    } else show(answer.reply);
+      // Words the rules did not understand go to the voice as a real conversation; what they did understand it only puts in their own words.
+      const reply = answer.fallback ? voice.chat(person, history, text, w).then((r) => r ?? answer.reply) : voice.reword(person, undefined, answer.reply, w, true).then((t) => t?.text ?? answer.reply);
+      void reply.then((said) => {
+        remember(said);
+        show(said);
+      });
+    } else {
+      remember(answer.reply);
+      show(answer.reply);
+    }
   }
   const voice = new Voice(loadVoice(), (text) => panel?.voiceStatus(text) ?? C.log(`Eden voice: ${text}`));
 
@@ -559,6 +577,20 @@ export function installEdenAgents(C: Ctx): void {
         talk?.reply(who.name, ev.text);
       }
     }
+    // Sound, about once a second: the engine's own wind, rain and birds by the weather and the hour, and ours (crickets, water, fire, voices).
+    if (performance.now() - soundAt > 1000) {
+      soundAt = performance.now();
+      const you = walking && youBody >= 0 ? C.objects[youBody] : undefined;
+      const at = you ? { x: you.position.x, z: you.position.z } : { x: w.people[0]?.x ?? 0, z: w.people[0]?.z ?? 0 };
+      const nearest = (test: (t: Thing) => boolean) => w.things.reduce((best, t) => (test(t) ? Math.min(best, Math.hypot(t.x - at.x, t.z - at.z) - t.radius) : best), Infinity);
+      const dark = isNight(w.clock ?? 0);
+      const season = w.weather?.season ?? 1;
+      const raining = !!w.weather?.raining;
+      sound.update({ dark, season, raining, listener: at, waterDistance: nearest((t) => !!AFFORDANCES[t.kind]?.water), fireDistance: nearest((t) => t.kind === "campfire" && (t.fuel ?? 0) > 0), wolfNear: w.things.some((t) => t.kind === "wolf" && Math.hypot(t.x - at.x, t.z - at.z) < 70) });
+      const folk = w.people.filter((q) => Math.hypot(q.x - at.x, q.z - at.z) < 25).length;
+      ui("eden_ambient", `${at.x.toFixed(1)},${at.z.toFixed(1)},${groundY(at.x, at.z).toFixed(2)},${solarHour(w.clock ?? 0).toFixed(2)},${(w.weather?.tempC ?? 15).toFixed(1)},${(w.weather?.rainAmount ?? 0).toFixed(2)},${w.weather?.snowing ? 1 : 0}`);
+      ui("eden_sounds", `${dark || raining ? 0 : [0.55, 0.4, 0.22, 0.08][season]},${Math.min(0.5, folk / 7)}`);
+    }
     if (!walking) talk?.hint(undefined);
     if (walking && youBody >= 0) {
       const you = C.objects[youBody];
@@ -682,6 +714,7 @@ export function installEdenAgents(C: Ctx): void {
       if (person.say && spoken.get(person.id) !== person.say) {
         const plain = person.say;
         spoken.set(person.id, plain);
+        sound.speak(walking && youBody >= 0 && C.objects[youBody] ? { x: C.objects[youBody]!.position.x, z: C.objects[youBody]!.position.z } : { x: w.people[0]?.x ?? 0, z: w.people[0]?.z ?? 0 }, person, person.sex, person.age, plain);
         if (voice.ready && !fast) {
           // The free voice may reword it; if it cannot in time, the plain line stands.
           const listener = w.people.find((q) => q !== person && q.say && q.say !== plain && Math.hypot(q.x - person.x, q.z - person.z) < 6);
@@ -791,6 +824,10 @@ export function installEdenAgents(C: Ctx): void {
       if (!near.length) return panel?.lifeLog("No one is near enough to talk to.");
       C.releasePointer?.();
       talk.open(near.map((q) => ({ id: q.id, name: q.name, note: `${moodWord(q.mood)}${needWord(q) ? `, ${needWord(q)}` : ""}` })));
+    }, true);
+    window.addEventListener("keydown", (e) => {
+      if (e.code !== "KeyN" || e.repeat || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      panel?.lifeLog(sound.toggle() ? "Sound on." : "Sound off. (N turns it back on)");
     }, true);
     // Q gathers what is here: water from the river or lake, wood where it lies, fruit from the grove.
     window.addEventListener("keydown", (e) => {

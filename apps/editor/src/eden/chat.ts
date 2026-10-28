@@ -54,9 +54,10 @@ export interface Answer {
   reply: string;
   gaveFood?: boolean; // they handed the Walker some food (the page heals the Walker)
   errand?: AskItem; // they have gone to fetch it
+  fallback?: boolean; // the words were not understood, so what came back is only what is on their mind (the voice may do better)
 }
 
-export function hearWalker(world: World, person: Person, said: string, rnd: () => number): Answer {
+export function answerWalker(world: World, person: Person, said: string, rnd: () => number): Answer {
   let gaveFood = false;
   let errand: AskItem | undefined;
   const text = said.toLowerCase().trim();
@@ -97,7 +98,8 @@ export function hearWalker(world: World, person: Person, said: string, rnd: () =
     remember("and exchanged greetings");
     const h = hourOf(world.clock ?? 0);
     const when = h < 11 ? "Good morning" : h < 17 ? "Good day" : "Good evening";
-    return keep(trust > 0.3 ? pick([`${when}, Walker. It is good to see you again.`, "Walker! I was hoping you would come by."]) : pick([`${when}, stranger.`, "Hello. We do not see many new faces.", warm ? "Hello! Come, sit with us." : "Hello."]));
+    const you = person.walkerFacts?.name ?? "Walker";
+    return keep(trust > 0.3 ? pick([`${when}, ${you}. It is good to see you again.`, `${you}! I was hoping you would come by.`]) : pick([`${when}, stranger.`, "Hello. We do not see many new faces.", warm ? "Hello! Come, sit with us." : "Hello."]));
   }
   if (/\b(your name|who are you|what are you called)/.test(text)) return keep(`I am ${person.name}.${person.role ? ` They call me the ${person.role}.` : ""}${person.story ? ` ${person.story}` : ""}`);
   if (/\b(how are you|how do you feel|are you (ok|well|alright)|feeling)/.test(text)) {
@@ -179,12 +181,94 @@ export function hearWalker(world: World, person: Person, said: string, rnd: () =
     return keep(pick(["That is kind of you to say.", "I do what I can."]));
   }
   // Anything else: they say what is on their mind.
-  const ex = converse(world, person, makePerson("walker", person.x, person.z, 1, {}, { name: "Walker" }), rnd);
-  return keep(ex.said);
+  const ex = converse(world, person, makePerson("walker", person.x, person.z, 1, {}, { name: person.walkerFacts?.name ?? "Walker" }), rnd);
+  const last = keep(ex.said);
+  return { ...last, fallback: true };
 }
 
 /** A line for the chronicle the first time someone speaks to a person. */
 export function noteFirstWord(world: World, person: Person) {
   if ((person.walkerTrust ?? 0) > 0.05) return;
   chronicle(world, `The Walker spoke with ${person.name}.`);
+}
+
+// ---- Remembering what the Walker says, and asking back ----
+
+const clean = (t: string) => t.replace(/[.!?,;]+$/g, "").trim();
+const NAME_WORDS = /^(a|an|the|not|just|very|so|too|here|fine|well|good|tired|hungry|cold|ok|okay|yes|no|nothing|sure)$/i;
+
+/** What the Walker says about themselves is taken in; what they were asked is answered; and now and then they are asked something in turn. */
+export function hearWalker(world: World, person: Person, said: string, rnd: () => number): Answer {
+  const text = said.trim();
+  const lower = text.toLowerCase();
+  const facts = (person.walkerFacts ??= {});
+  let acknowledged: string | undefined;
+  // An answer to what they asked.
+  // (What is asked or commanded is not an answer to their question, and they let the question drop.)
+  const notAnAnswer = /\?|^(where|what|who|how|why|can|could|do|does|bring|fetch|get|follow|stay|tell|give|go|come|hello|hi|hey|thanks|thank|bye)\b/i.test(text) && !/^(i'm|i am)\b/i.test(text);
+  const selfStatement = /(my name is|call me|i am called|i come from|i came from|i am from|i (really )?(like|love|enjoy|adore))/i.test(text);
+  if (person.pendingQ && (notAnAnswer || (selfStatement && person.pendingQ !== "name" && person.pendingQ !== "from"))) person.pendingQ = undefined;
+  if (person.pendingQ) {
+    const q = person.pendingQ;
+    person.pendingQ = undefined;
+    if (q === "name") {
+      const m = /(?:my name is|i am|i'm|call me|name's|it's|it is)\s+([A-Za-z][A-Za-z'-]{1,20})/i.exec(text) ?? /^([A-Za-z][A-Za-z'-]{1,20})[.!]?$/.exec(text);
+      if (m && !NAME_WORDS.test(m[1]!)) {
+        facts.name = m[1]!.charAt(0).toUpperCase() + m[1]!.slice(1);
+        acknowledged = `Well met, ${facts.name}. I will remember it.`;
+      }
+    } else if (q === "from") {
+      facts.from = clean(text.replace(/^(i (come|came|am) from|from)\s+/i, ""));
+      acknowledged = `${facts.from.charAt(0).toUpperCase()}${facts.from.slice(1)}. I have not been there. It must be a long way.`;
+    } else if (q === "how") {
+      facts.mood = clean(text);
+      acknowledged = /tired|weary|exhaust/.test(lower) ? "Then rest a while. There is room by the fire." : /hungry|starv/.test(lower) ? "Then you should eat. Take what you need from the grove." : /cold|freez/.test(lower) ? "Come to the fire, then." : /(good|well|fine|great|happy)/.test(lower) ? "I am glad to hear it." : "I hope the day mends it.";
+    } else if (q === "why") {
+      facts.role = clean(text);
+      acknowledged = "I see. Then we are glad you walk here.";
+    }
+  }
+  // Something they say about themselves, unasked.
+  if (!acknowledged) {
+    let m: RegExpExecArray | null;
+    if ((m = /(?:my name is|call me|i am called|name's)\s+([A-Za-z][A-Za-z'-]{1,20})/i.exec(text)) && !NAME_WORDS.test(m[1]!)) {
+      facts.name = m[1]!.charAt(0).toUpperCase() + m[1]!.slice(1);
+      acknowledged = `Well met, ${facts.name}.`;
+    } else if ((m = /i (?:come|came|am) from\s+(.+)/i.exec(text))) {
+      facts.from = clean(m[1]!);
+      acknowledged = `${facts.from.charAt(0).toUpperCase()}${facts.from.slice(1)}? I have never heard of it. Tell me about it some time.`;
+    } else if ((m = /i (?:really )?(like|love|enjoy|adore)\s+(.+)/i.exec(text))) {
+      (facts.likes ??= []).push(clean(m[2]!));
+      if (facts.likes.length > 6) facts.likes.shift();
+      acknowledged = `You ${m[1]!.toLowerCase()} ${clean(m[2]!)}? ${person.personality.curiosity > 0.5 ? "I would like to see that." : "I can understand that."}`;
+    } else if (/\b(do you remember|what did i (?:say|tell)|who am i|what is my name|what's my name|do you know me)\b/.test(lower)) {
+      const bits: string[] = [];
+      if (facts.name) bits.push(`you are called ${facts.name}`);
+      if (facts.from) bits.push(`you come from ${facts.from}`);
+      if (facts.likes?.length) bits.push(`you like ${facts.likes.join(" and ")}`);
+      if (facts.role) bits.push(`you said: ${facts.role}`);
+      acknowledged = bits.length ? `I remember: ${bits.join("; ")}.` : (person.walkerTrust ?? 0) > 0.2 ? "You are the Walker. We have talked, but you have not told me much about yourself." : "I know only that you are the Walker.";
+    }
+  }
+  const answer = acknowledged ? { reply: acknowledged } as Answer : answerWalker(world, person, said, rnd);
+  if (acknowledged) {
+    // The same bookkeeping as any talk: company, a little trust, kept in the journal.
+    person.needs.social = Math.max(0, person.needs.social - 0.1);
+    person.walkerTrust = Math.min(1, (person.walkerTrust ?? 0) + 0.04);
+    person.journal.push({ t: world.clock ?? 0, text: `The Walker told me about themselves: "${clean(text).slice(0, 80)}".`, w: 0.25 });
+    if (person.intent?.kind !== "flee" && person.intent?.kind !== "sleep") person.intent = { kind: "linger", x: person.x, z: person.z, speed: 0, remaining: 25, arrived: true };
+  }
+  // Now and then they ask something back: who they are talking to, where from, how they are.
+  const asked = (facts.asked ??= []);
+  const turns = asked.length;
+  if (!person.pendingQ && !answer.errand && turns < 6 && rnd() < 0.35 + 0.3 * person.personality.curiosity + 0.2 * person.personality.sociability) {
+    const next = !facts.name && !asked.includes("name") ? "name" : !facts.from && !asked.includes("from") && (person.walkerTrust ?? 0) > 0.1 ? "from" : !asked.includes("how") ? "how" : !asked.includes("why") && (person.walkerTrust ?? 0) > 0.2 ? "why" : undefined;
+    if (next) {
+      asked.push(next);
+      person.pendingQ = next;
+      const question = next === "name" ? "What shall I call you?" : next === "from" ? "Where do you come from, Walker?" : next === "how" ? `And you${facts.name ? `, ${facts.name}` : ""}, how are you today?` : "What brings you walking alone out here?";
+      answer.reply = `${answer.reply} ${question}`;
+    }
+  }
+  return answer;
 }

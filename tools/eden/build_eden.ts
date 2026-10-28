@@ -277,6 +277,10 @@ scene.add("Input", [0, -40, 0], {
 // own "Director") that fulfils "let there be..." requests -- see
 // tools/eden/lua/creator.lua and edenAgents.ts's Creator panel.
 scene.add("Creator", [0, 50, 0], { Script: { source: lua("creator.lua"), props: {} } });
+// Snow falling, fireflies and butterflies: emitters the page moves to wherever you are looking and switches by the weather and the hour.
+scene.add("Snowfall", [0, 30, 0], { Particles: component("Particles", { preset: "Sparkle", color: vec(1, 1, 1), endColor: vec(0.9, 0.95, 1), rate: 260, lifetime: 7, speed: 0.15, size: 0.13, endSize: 1, gravityScale: 0.3, shape: "Box", shapeSize: 26, space: "World" }), Script: { source: lua("ambient.lua"), props: { kind: "snow" } } });
+scene.add("Fireflies", [0, 3, 0], { Particles: component("Particles", { preset: "Sparkle", color: vec(0.85, 1, 0.35), endColor: vec(0.6, 0.9, 0.2), rate: 9, lifetime: 3.5, speed: 0.25, size: 0.1, endSize: 0.3, gravityScale: 0, shape: "Box", shapeSize: 12, space: "World" }), Script: { source: lua("ambient.lua"), props: { kind: "fireflies" } } });
+scene.add("Butterflies", [0, 3, 0], { Particles: component("Particles", { preset: "Confetti", color: vec(1, 0.8, 0.3), endColor: vec(0.9, 0.5, 0.7), rate: 3, lifetime: 7, speed: 0.6, size: 0.12, endSize: 1, gravityScale: 0, shape: "Box", shapeSize: 12, space: "World" }), Script: { source: lua("ambient.lua"), props: { kind: "butterflies" } } });
 
 // Things that are simply there: a stone bridge over the river near the garden's heart, a pier into the lake, a board in the middle where
 // word is left. Not solid (the river is shallow enough to wade, and nobody is stopped by a rail).

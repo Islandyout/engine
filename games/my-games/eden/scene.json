@@ -745,8 +745,134 @@
           }
         },
         "Script": {
-          "source": "-- Eden Phase 3: a logic-only entity (no mesh of its own, see build_eden.ts's\n-- \"Creator\" entity) that fulfils \"let there be...\" requests. It never\n-- decides WHAT to spawn -- the Creator panel (edenAgents.ts) already\n-- resolved a prefab name client-side, fuzzy-matched against Eden's own\n-- named prefabs, before this ever fires. This script exists only because\n-- world.spawn is Lua-only -- nothing TS-side can call it directly.\n\nlocal placed = {} -- id -> entity, for what the people have built\n\nfunction on_ui(name, value)\n  -- The mind's clock: light the scene for the hour (sun, moon, sky and fog).\n  if name == \"eden_time\" then\n    local hours = tonumber(value)\n    if hours then fx.time_of_day(hours) end\n    return\n  end\n  -- The people build things: \"id,prefab,x,y,z\" puts one there (the host knows the ground's height), \"id\" takes it away again (a fire gone out).\n  if name == \"eden_place\" then\n    -- \"id,prefab,x,y,z\" or \"id,prefab,x,y,z,who\" (a person's body: it is told its name)\n    local id, prefab, x, y, z, who = string.match(value, \"^([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),?(.*)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    if not (id and prefab and x and y and z) then return end\n    local e = world.spawn(prefab, x, y, z)\n    placed[id] = e\n    if e and who and who ~= \"\" then world.send(e, \"eden_who\", who) end\n    return\n  end\n  -- Tell a body who it is again (a script that had not started when the first message came never heard it): \"id\".\n  if name == \"eden_tell\" then\n    local e = placed[value]\n    if e then world.send(e, \"eden_who\", value) end\n    return\n  end\n  -- What a creature's body should be doing: \"id|clip@pace\" (graze, walk, run, a watchful idle...).\n  if name == \"eden_clip\" then\n    local id, clip = string.match(value, \"^([^|]+)|(.+)$\")\n    local e = id and placed[id]\n    if e and clip then world.send(e, \"eden_clip\", clip) end\n    return\n  end\n  -- A creature that has moved: \"id,x,y,z\".\n  if name == \"eden_move\" then\n    local id, x, y, z = string.match(value, \"^([^,]+),([^,]+),([^,]+),([^,]+)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    local e = id and placed[id]\n    if e and x and y and z then world.set_position(e, x, y, z) end\n    return\n  end\n  if name == \"eden_remove\" then\n    local e = placed[value]\n    if e then world.destroy(e) end\n    placed[value] = nil\n    return\n  end\n  -- The weather: \"rain,fog\" (0-1) for the sky and the sound of it.\n  if name == \"eden_weather\" then\n    local rain, fog, wx, wz = string.match(value, \"^([^,]+),([^,]+),([^,]+),([^,]+)$\")\n    if rain then fx.weather(tonumber(rain) or 0, tonumber(fog) or 0, tonumber(wx) or 1.5, tonumber(wz) or 0.5) end\n    return\n  end\n  if name ~= \"eden_create\" then return end\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return end\n  local prefab = parts[1]\n  local x, y, z = tonumber(parts[2]), tonumber(parts[3]), tonumber(parts[4])\n  if not (x and y and z) then return end\n  world.spawn(prefab, x, y, z)\nend\n",
+          "source": "-- Eden Phase 3: a logic-only entity (no mesh of its own, see build_eden.ts's\n-- \"Creator\" entity) that fulfils \"let there be...\" requests. It never\n-- decides WHAT to spawn -- the Creator panel (edenAgents.ts) already\n-- resolved a prefab name client-side, fuzzy-matched against Eden's own\n-- named prefabs, before this ever fires. This script exists only because\n-- world.spawn is Lua-only -- nothing TS-side can call it directly.\n\nlocal placed = {} -- id -> entity, for what the people have built\n\nfunction on_ui(name, value)\n  -- The mind's clock: light the scene for the hour (sun, moon, sky and fog).\n  if name == \"eden_time\" then\n    local hours = tonumber(value)\n    if hours then fx.time_of_day(hours) end\n    return\n  end\n  -- The people build things: \"id,prefab,x,y,z\" puts one there (the host knows the ground's height), \"id\" takes it away again (a fire gone out).\n  if name == \"eden_place\" then\n    -- \"id,prefab,x,y,z\" or \"id,prefab,x,y,z,who\" (a person's body: it is told its name)\n    local id, prefab, x, y, z, who = string.match(value, \"^([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),?(.*)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    if not (id and prefab and x and y and z) then return end\n    local e = world.spawn(prefab, x, y, z)\n    placed[id] = e\n    if e and who and who ~= \"\" then world.send(e, \"eden_who\", who) end\n    return\n  end\n  -- Tell a body who it is again (a script that had not started when the first message came never heard it): \"id\".\n  if name == \"eden_tell\" then\n    local e = placed[value]\n    if e then world.send(e, \"eden_who\", value) end\n    return\n  end\n  -- What a creature's body should be doing: \"id|clip@pace\" (graze, walk, run, a watchful idle...).\n  if name == \"eden_clip\" then\n    local id, clip = string.match(value, \"^([^|]+)|(.+)$\")\n    local e = id and placed[id]\n    if e and clip then world.send(e, \"eden_clip\", clip) end\n    return\n  end\n  -- A creature that has moved: \"id,x,y,z\".\n  if name == \"eden_move\" then\n    local id, x, y, z = string.match(value, \"^([^,]+),([^,]+),([^,]+),([^,]+)$\")\n    x, y, z = tonumber(x), tonumber(y), tonumber(z)\n    local e = id and placed[id]\n    if e and x and y and z then world.set_position(e, x, y, z) end\n    return\n  end\n  if name == \"eden_remove\" then\n    local e = placed[value]\n    if e then world.destroy(e) end\n    placed[value] = nil\n    return\n  end\n  -- The weather: \"rain,fog\" (0-1) for the sky and the sound of it.\n  if name == \"eden_weather\" then\n    local rain, fog, wx, wz = string.match(value, \"^([^,]+),([^,]+),([^,]+),([^,]+)$\")\n    if rain then\n      fx.weather(tonumber(rain) or 0, tonumber(fog) or 0, tonumber(wx) or 1.5, tonumber(wz) or 0.5)\n      -- The sound of it: wind by its strength, rain by how hard.\n      local wind = math.sqrt((tonumber(wx) or 0) ^ 2 + (tonumber(wz) or 0) ^ 2)\n      audio.ambience(\"wind\", math.min(1, wind / 9))\n      audio.ambience(\"rain\", math.min(1, (tonumber(rain) or 0) * 1.1))\n    end\n    return\n  end\n  -- Birds by day (more in spring), the murmur of people near: \"wildlife,settlement\" levels 0..1.\n  if name == \"eden_sounds\" then\n    local wild, settle = string.match(value, \"^([^,]+),([^,]+)$\")\n    if wild then\n      audio.ambience(\"wildlife\", tonumber(wild) or 0)\n      audio.ambience(\"settlement\", tonumber(settle) or 0)\n    end\n    return\n  end\n  if name ~= \"eden_create\" then return end\n  local parts = {}\n  for p in string.gmatch(value, \"[^,]+\") do parts[#parts + 1] = p end\n  if #parts < 4 then return end\n  local prefab = parts[1]\n  local x, y, z = tonumber(parts[2]), tonumber(parts[3]), tonumber(parts[4])\n  if not (x and y and z) then return end\n  world.spawn(prefab, x, y, z)\nend\n",
           "props": {}
+        }
+      }
+    },
+    {
+      "name": "Snowfall",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 30,
+            "z": 0
+          }
+        },
+        "Particles": {
+          "preset": "Sparkle",
+          "color": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          },
+          "rate": 260,
+          "lifetime": 7,
+          "speed": 0.15,
+          "size": 0.13,
+          "endColor": {
+            "x": 0.9,
+            "y": 0.95,
+            "z": 1
+          },
+          "endSize": 1,
+          "gravityScale": 0.3,
+          "shape": "Box",
+          "shapeSize": 26,
+          "coneAngle": 25,
+          "space": "World",
+          "burst": 0
+        },
+        "Script": {
+          "source": "-- @prop kind none\n-- Small things in the air that follow wherever you are looking: snow falling, fireflies in the warm dark, butterflies by day. The page says\n-- where, what hour it is and how it is outside (\"eden_ambient\": \"x,z,groundY,hour,tempC,rain,snowing\"), and each one decides if it shows.\nfunction on_ui(name, value)\n  if name ~= \"eden_ambient\" then return end\n  local x, z, ground, hour, temp, rain, snowing = string.match(value, \"^([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+)$\")\n  x, z, ground, hour, temp, rain, snowing = tonumber(x), tonumber(z), tonumber(ground), tonumber(hour), tonumber(temp), tonumber(rain), tonumber(snowing)\n  if not (x and z and ground and hour) then return end\n  local on = false\n  if props.kind == \"snow\" then\n    world.set_position(self.id, x, ground + 12, z)\n    on = snowing == 1\n  elseif props.kind == \"fireflies\" then\n    world.set_position(self.id, x, ground + 1.4, z)\n    on = (hour >= 20 or hour < 5.5) and temp > 8 and rain < 0.1\n  elseif props.kind == \"butterflies\" then\n    world.set_position(self.id, x, ground + 1.2, z)\n    on = hour >= 8 and hour < 18 and temp > 12 and rain < 0.1\n  end\n  particles.set_emitting(on)\nend\n",
+          "props": {
+            "kind": "snow"
+          }
+        }
+      }
+    },
+    {
+      "name": "Fireflies",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 3,
+            "z": 0
+          }
+        },
+        "Particles": {
+          "preset": "Sparkle",
+          "color": {
+            "x": 0.85,
+            "y": 1,
+            "z": 0.35
+          },
+          "rate": 9,
+          "lifetime": 3.5,
+          "speed": 0.25,
+          "size": 0.1,
+          "endColor": {
+            "x": 0.6,
+            "y": 0.9,
+            "z": 0.2
+          },
+          "endSize": 0.3,
+          "gravityScale": 0,
+          "shape": "Box",
+          "shapeSize": 12,
+          "coneAngle": 25,
+          "space": "World",
+          "burst": 0
+        },
+        "Script": {
+          "source": "-- @prop kind none\n-- Small things in the air that follow wherever you are looking: snow falling, fireflies in the warm dark, butterflies by day. The page says\n-- where, what hour it is and how it is outside (\"eden_ambient\": \"x,z,groundY,hour,tempC,rain,snowing\"), and each one decides if it shows.\nfunction on_ui(name, value)\n  if name ~= \"eden_ambient\" then return end\n  local x, z, ground, hour, temp, rain, snowing = string.match(value, \"^([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+)$\")\n  x, z, ground, hour, temp, rain, snowing = tonumber(x), tonumber(z), tonumber(ground), tonumber(hour), tonumber(temp), tonumber(rain), tonumber(snowing)\n  if not (x and z and ground and hour) then return end\n  local on = false\n  if props.kind == \"snow\" then\n    world.set_position(self.id, x, ground + 12, z)\n    on = snowing == 1\n  elseif props.kind == \"fireflies\" then\n    world.set_position(self.id, x, ground + 1.4, z)\n    on = (hour >= 20 or hour < 5.5) and temp > 8 and rain < 0.1\n  elseif props.kind == \"butterflies\" then\n    world.set_position(self.id, x, ground + 1.2, z)\n    on = hour >= 8 and hour < 18 and temp > 12 and rain < 0.1\n  end\n  particles.set_emitting(on)\nend\n",
+          "props": {
+            "kind": "fireflies"
+          }
+        }
+      }
+    },
+    {
+      "name": "Butterflies",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 0,
+            "y": 3,
+            "z": 0
+          }
+        },
+        "Particles": {
+          "preset": "Confetti",
+          "color": {
+            "x": 1,
+            "y": 0.8,
+            "z": 0.3
+          },
+          "rate": 3,
+          "lifetime": 7,
+          "speed": 0.6,
+          "size": 0.12,
+          "endColor": {
+            "x": 0.9,
+            "y": 0.5,
+            "z": 0.7
+          },
+          "endSize": 1,
+          "gravityScale": 0,
+          "shape": "Box",
+          "shapeSize": 12,
+          "coneAngle": 25,
+          "space": "World",
+          "burst": 0
+        },
+        "Script": {
+          "source": "-- @prop kind none\n-- Small things in the air that follow wherever you are looking: snow falling, fireflies in the warm dark, butterflies by day. The page says\n-- where, what hour it is and how it is outside (\"eden_ambient\": \"x,z,groundY,hour,tempC,rain,snowing\"), and each one decides if it shows.\nfunction on_ui(name, value)\n  if name ~= \"eden_ambient\" then return end\n  local x, z, ground, hour, temp, rain, snowing = string.match(value, \"^([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+)$\")\n  x, z, ground, hour, temp, rain, snowing = tonumber(x), tonumber(z), tonumber(ground), tonumber(hour), tonumber(temp), tonumber(rain), tonumber(snowing)\n  if not (x and z and ground and hour) then return end\n  local on = false\n  if props.kind == \"snow\" then\n    world.set_position(self.id, x, ground + 12, z)\n    on = snowing == 1\n  elseif props.kind == \"fireflies\" then\n    world.set_position(self.id, x, ground + 1.4, z)\n    on = (hour >= 20 or hour < 5.5) and temp > 8 and rain < 0.1\n  elseif props.kind == \"butterflies\" then\n    world.set_position(self.id, x, ground + 1.2, z)\n    on = hour >= 8 and hour < 18 and temp > 12 and rain < 0.1\n  end\n  particles.set_emitting(on)\nend\n",
+          "props": {
+            "kind": "butterflies"
+          }
         }
       }
     },

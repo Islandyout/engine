@@ -118,3 +118,28 @@ test("a thirsty person near you asks for water, and what you give eases it and i
   w.people[1]!.needs.thirst = 0.05;
   assert.equal(giveToPerson(w, w.people[1]!, "water"), false);
 });
+
+test("they take in what the Walker tells them about themselves, remember it, and ask in turn", () => {
+  const w = world();
+  const a = w.people[0]!;
+  a.personality.curiosity = 1;
+  a.personality.sociability = 1;
+  const first = hearWalker(w, a, "My name is Rowan", () => 0.1).reply;
+  assert.match(first, /Rowan/);
+  assert.equal(a.walkerFacts?.name, "Rowan");
+  hearWalker(w, a, "I come from the far north", () => 0.1);
+  hearWalker(w, a, "I like old stories", () => 0.1);
+  const recall = hearWalker(w, a, "Do you remember me?", () => 0.9).reply;
+  assert.match(recall, /Rowan/);
+  assert.match(recall, /north/);
+  assert.match(recall, /old stories/);
+  // They ask who they are talking to, and the answer is taken as the answer.
+  const b = w.people[1]!;
+  b.personality.curiosity = 1;
+  b.personality.sociability = 1;
+  const reply = hearWalker(w, b, "Hello", () => 0.1).reply;
+  assert.match(reply, /What shall I call you\\?/);
+  assert.equal(b.pendingQ, "name");
+  assert.match(hearWalker(w, b, "Mara", () => 0.9).reply, /Mara/);
+  assert.equal(b.walkerFacts?.name, "Mara");
+});
