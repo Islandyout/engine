@@ -1,3 +1,5 @@
+import * as THREE from "three";
+import { findPoseBones, type PoseName } from "../poses";
 import { actionOf, applySpokenIntent, giveMeat, shareKill, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import { moonName, SEASON_NAMES, solarHour } from "../../eden/earth";
 import { runCreatorCommand } from "../../eden/creator";
@@ -34,6 +36,10 @@ export const EDEN_ACTION_CLIPS: [string, string[]][] = [
   ["forage", ["clapping", "idle"]],
   ["drink_from_river", ["sit", "idle"]],
 ];
+
+// What each thing a person does at its place looks like with the whole body (poses.ts).
+const POSE_OF: Partial<Record<string, PoseName>> = { eat: "eat", drink: "drink", wash: "drink", fish: "fish", forage: "forage", gather: "forage", stash: "forage", plant: "forage", tame: "forage", build: "work", craft: "work", sew: "work", fire: "work", rest: "sit", sleep: "sleep", mourn: "mourn", warm: "warm", linger: undefined };
+const forcedPose = new Set<number>(); // bodies a debug call has posed by hand
 
 const TICK_MS = 250;
 // Seconds of sim time a single step of the minds covers when the bodies are not keeping up (above 3x).
@@ -519,6 +525,15 @@ export function installEdenAgents(C: Ctx): void {
         panel.lifeLog(`✶ ${person.name} was born${person.mother ? ` to ${w.people.find((q) => q.id === person.mother)?.name ?? "their mother"}` : ""}.`);
       }
       const intent = person.intent;
+      {
+        const at = ORIGINAL.has(person.id) ? bodyIndex(person.name) : (bodyIndexById.get(person.id) ?? -1);
+        const pose = intent?.arrived && !fast ? POSE_OF[intent.kind] : undefined;
+        if (at >= 0 && !forcedPose.has(at)) {
+          C.edenPoses ??= new Map();
+          if (pose) C.edenPoses.set(at, pose);
+          else C.edenPoses.delete(at);
+        }
+      }
       if (intent && !fast && simSeconds > 0) {
         const action = actionOf(person);
         const key = `${intent.kind}|${intent.targetId ?? ""}|${intent.arrived}|${Math.round(intent.x)}|${Math.round(intent.z)}`;
@@ -685,11 +700,29 @@ export function installEdenAgents(C: Ctx): void {
         snap(person);
         return true;
       };
+      (window as unknown as { edenPose: unknown }).edenPose = (name: string, pose: PoseName | "", yaw?: number) => {
+        const at = bodyIndex(name);
+        if (at < 0) return false;
+        C.edenPoses ??= new Map();
+        C.edenPoseHeld ??= new Set();
+        if (yaw !== undefined && C.objects[at]) C.objects[at]!.rotation.y = yaw;
+        if (pose) (forcedPose.add(at), C.edenPoseHeld.add(at), C.edenPoses.set(at, pose));
+        else (forcedPose.delete(at), C.edenPoseHeld.delete(at), C.edenPoses.delete(at));
+        return true;
+      };
+      (window as unknown as { edenBones: unknown }).edenBones = (name: string) => {
+        const o = C.objects[bodyIndex(name)];
+        if (!o) return undefined;
+        const out: Record<string, string> = {};
+        const bones = findPoseBones(o);
+        for (const [k, b] of Object.entries(bones)) if (b && typeof b === "object") out[k] = `${b.name}: ${o.worldToLocal(b.getWorldPosition(new THREE.Vector3())).toArray().map((n) => n.toFixed(2)).join(",")} parent=${b.parent?.name}`;
+        return out;
+      };
       (window as unknown as { edenDebug: unknown }).edenDebug = () =>
         (world?.people ?? []).map((p) => {
           const index = ORIGINAL.has(p.id) ? bodyIndex(p.name) : (bodyIndexById.get(p.id) ?? -1);
           const o = index >= 0 ? C.objects[index] : undefined;
-          return { name: p.name, mind: [p.x, p.z], body: o ? [o.position.x, o.position.y, o.position.z] : undefined, ground: o ? groundY(o.position.x, o.position.z) : groundY(p.x, p.z) };
+          return { name: p.name, mind: [p.x, p.z], body: o ? [o.position.x, o.position.y, o.position.z] : undefined, ground: o ? groundY(o.position.x, o.position.z) : groundY(p.x, p.z), clip: index >= 0 ? C.animStates[index]?.current : undefined, yaw: o ? o.rotation.y : undefined };
         });
     }
     document.addEventListener("visibilitychange", () => {

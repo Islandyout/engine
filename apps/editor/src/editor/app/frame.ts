@@ -13,6 +13,7 @@ import { EntityField } from "../bridgeFields";
 import { applyStickLook } from "../fpsView";
 import { CHARACTER_DRAW_DISTANCE, CHARACTER_SHADOW_DISTANCE, crowdNear } from "../frameGovernor";
 import { applyGesture, findGestureBones, gestureFor } from "../gestures";
+import { applyPose, findPoseBones, poseActive, type PoseBones } from "../poses";
 import { updateHeldWeapons } from "../heldWeapons";
 import {
 	isTouchDevice
@@ -24,6 +25,7 @@ import { updateDynamicLods } from "../scatterLod";
 import { updateScatterLod } from "../terrainMesh";
 import type { Ctx } from "./context";
 import { AnimState } from "./context";
+const poseBones = new WeakMap<object, PoseBones>();
 
 export function installFrame(C: Ctx): void {
   // Resting activities. A Routine stop may name one ("6 120 40
@@ -360,6 +362,13 @@ export function installFrame(C: Ctx): void {
         if (!bones) C.gestureBones.set(state, (bones = findGestureBones(object)));
         applyGesture(bones, kind, now / 1000, i);
       }
+      // Eden: a person's whole-body pose (sitting, kneeling to drink, reaching, eating, lying down) over the idle clip.
+      if (C.edenPoses && object && C.doc.mode === "play" && object.position.distanceToSquared(eye) < 60 * 60) {
+        let pb = poseBones.get(state);
+        if (!pb) poseBones.set(state, (pb = findPoseBones(object)));
+        const want = (state.current && /walk|run|death/i.test(state.current) && !C.edenPoseHeld?.has(i)) ? undefined : C.edenPoses.get(i);
+        applyPose(state, object, pb, want, now / 1000, i);
+      }
     });
     C.clothSway.update(dt, now / 1000, (anchor) => anchor.visible && anchor.position.distanceToSquared(eye) < 40 * 40);
     if (C.doc.mode === "play") {
@@ -378,6 +387,7 @@ export function installFrame(C: Ctx): void {
           // The body's drop is undone first when nothing else has moved it since (a still character is not re-synced each frame).
           const last = feetDrop.get(object);
           if (last && object.position.y === last.written) object.position.y = last.base;
+          if (poseActive(state)) return; // sitting, kneeling or lying: the feet are not on the ground the way they are standing
           const base = object.position.y;
           const ground = C.groundAt(object.position.x, object.position.z);
           // Only a character standing on the terrain (not one flying, or inside a room far above it).

@@ -129,3 +129,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F122](changelog/F122.md) | Eden: what-if slots, bonds graph, life stories; stags, cows, donkeys and more plants; the people notice you |
 | [F123](changelog/F123.md) | Eden: carry meat and hand it to someone |
 | [F124](changelog/F124.md) | Eden: the small joys of a day (millions of distinct moments) and the plan for objects |
+| [F125](changelog/F125.md) | Eden: whole-body poses (sit, eat, drink, reach, work, sleep) so people move like people |

@@ -346,6 +346,8 @@ export interface Ctx {
   handleHost: (kind: string, text: string) => void;
   // Eden: a spawned person's body says which person it is (the entity's scene index and their id), so the page can read where it stands.
   edenBody?: (index: number, who: string) => void;
+  edenPoses?: Map<number, import("../poses").PoseName>; // what each Eden body is doing with its whole body, by object index (poses.ts)
+  edenPoseHeld?: Set<number>; // bodies a debug call keeps posed even while the clip says walk
   edenSlain?: (thingId: string) => void; // the player killed this creature (Eden)
   harvest: (key: string) => void;
   harvested: Set<number>;
