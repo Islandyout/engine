@@ -4,7 +4,7 @@
 // not a snap, with a small motion of its own (chewing, reaching, breathing) on each character's own beat.
 import * as THREE from "three";
 
-export type PoseName = "sit" | "eat" | "drink" | "forage" | "work" | "sleep" | "mourn" | "warm" | "fish";
+export type PoseName = "sit" | "eat" | "drink" | "forage" | "work" | "sleep" | "mourn" | "warm" | "fish" | "talk" | "wave";
 export type PoseBone = "body" | "hips" | "abdomen" | "torso" | "chest" | "neck" | "head" | "armL" | "armR" | "foreL" | "foreR" | "thighL" | "thighR" | "shinL" | "shinR" | "footL" | "footR" | "toeL" | "toeR";
 type V = [number, number, number];
 export type PoseBones = Partial<Record<PoseBone, THREE.Bone>> & { facing?: 1 | -1 }; // facing: which way along z the figure looks (the villagers' models look toward -z, the hunter bodies' toward +z)
@@ -69,6 +69,15 @@ export function poseAt(name: PoseName, t: number, seed: number): Pose {
       return { drop: 0.5, rot: { thighL: [-1.45, 0, 0], thighR: [-1.45, 0, 0], shinL: [1.5, 0, 0], shinR: [1.5, 0, 0], abdomen: [0.3, 0, 0], torso: [0.25, 0, 0], head: [0.55 + 0.03 * slow, 0, 0], armL: [-0.7, 0, 0.1], armR: [-0.7, 0, -0.1], foreL: [-1.5, 0, 0], foreR: [-1.5, 0, 0] } };
     case "warm":
       return { drop: 0.05, rot: { armL: [-1.2, 0, 0.15], armR: [-1.2, 0, -0.15], foreL: [-0.4 + 0.05 * slow, 0, 0], foreR: [-0.4 - 0.05 * slow, 0, 0], head: [0.05, 0, 0] } };
+    case "talk": {
+      // Now and then a hand comes up to make a point, and the head moves with the words.
+      const point = Math.max(0, Math.sin(t * 1.3 + s)) ** 2;
+      return { drop: 0, rot: { head: [0.05 * Math.sin(t * 2.1 + s), 0.15 * Math.sin(t * 0.8 + s), 0.04 * Math.sin(t * 1.7 + s)], armR: [-0.6 - 0.5 * point, 0, -0.2], foreR: [-0.9 - 0.4 * point, 0, 0], armL: [-0.15, 0, 0], abdomen: [0.02 * slow, 0, 0] } };
+    }
+    case "wave": {
+      const wag = Math.sin(t * 9 + s);
+      return { drop: 0, rot: { armR: [-1.5, 0, -1.1], foreR: [-0.7 - 0.35 * wag, 0, 0], head: [0, 0.1, 0.06] } };
+    }
     case "sleep":
       return { drop: 0.9, lie: Math.PI / 2, rot: { armL: [-0.2, 0, 0.2], armR: [-0.2, 0, -0.2], abdomen: [0.02 * slow, 0, 0], head: [0, 0.2, 0] } };
   }

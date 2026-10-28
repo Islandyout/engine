@@ -119,6 +119,7 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
   walkButton.title = "Be a hunter in the world: W A S D move, Shift runs, J strikes, K sweeps, F kicks, X rolls, G looses an arrow";
   walkButton.addEventListener("click", () => {
     walking = !walking;
+    walkButton.blur(); // so the keys go to the game, not to this button
     walkButton.textContent = walking ? "Watch from above" : "Walk the world";
     walkButton.classList.toggle("on", walking);
     handlers.walk(walking);

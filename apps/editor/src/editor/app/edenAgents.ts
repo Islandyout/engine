@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { findPoseBones, type PoseName } from "../poses";
+import { createTalk, type Talk } from "./edenTalk";
+import { hearWalker, nearbyPeople, noteFirstWord } from "../../eden/chat";
 import { actionOf, applySpokenIntent, giveMeat, shareKill, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import { moonName, SEASON_NAMES, solarHour } from "../../eden/earth";
 import { runCreatorCommand } from "../../eden/creator";
@@ -29,6 +31,7 @@ const PEOPLE = [
 export const EDEN_ACTION_CLIPS: [string, string[]][] = [
   ["rest", ["idle"]],
   ["wander", ["walk"]],
+  ["carry_walk", ["ual_walk_carry_loop", "walk"]],
   ["flee", ["run", "walk"]],
   ["observe", ["idle"]],
   ["talk_to_other", ["talk", "idle"]],
@@ -47,10 +50,10 @@ export const EDEN_ACTION_CLIPS: [string, string[]][] = [
   ["Death", ["Death", "death"]],
 ];
 // The actions that go on until the person does something else, not once.
-export const EDEN_LOOPING_ACTIONS = new Set(["eat", "drink", "harvest", "plant", "chop", "wash"]);
+export const EDEN_LOOPING_ACTIONS = new Set(["eat", "drink", "harvest", "plant", "chop", "wash", "carry_walk"]);
 
 // What each thing a person does at its place looks like with the whole body (poses.ts).
-const POSE_OF: Partial<Record<string, PoseName>> = { fish: "fish", craft: "work", sew: "work", fire: "work", rest: "sit", sleep: "sleep", mourn: "mourn", warm: "warm" };
+const POSE_OF: Partial<Record<string, PoseName>> = { fish: "fish", craft: "work", sew: "work", fire: "work", rest: "sit", sleep: "sleep", mourn: "mourn", warm: "warm", talk: "talk", share: "talk" };
 const forcedPose = new Set<number>(); // bodies a debug call has posed by hand
 
 const TICK_MS = 250;
@@ -143,6 +146,8 @@ export function installEdenAgents(C: Ctx): void {
   };
   let walking = false; // the Creator is walking the world as a hunter
   let youBody = -1;
+  let talk: Talk | undefined; // the box for talking with people (E), made the first time you walk
+  const holdPose = new Map<string, { pose: PoseName; until: number }>(); // a pose someone keeps for a moment (a wave, talking), over what they are doing
   let carriedMeat = 0; // game the hunter has kept to give away (H hands it to the nearest person)
   const bodyObjectOf = (p: Person) => {
     const index = ORIGINAL.has(p.id) ? bodyIndex(p.name) : (bodyIndexById.get(p.id) ?? -1);
@@ -167,6 +172,28 @@ export function installEdenAgents(C: Ctx): void {
       panel?.lifeLog(`You keep the meat (${carriedMeat}). Press H beside someone to hand it over.`);
     }
   };
+  // Typed words to someone beside you: they answer from who they are (eden/chat.ts), and the free voice may put it in their own words.
+  function sayToPerson(id: string, text: string) {
+    const w = world;
+    const person = w?.people.find((q) => q.id === id);
+    if (!w || !person || !panel) return;
+    noteFirstWord(w, person);
+    const answer = hearWalker(w, person, text, Math.random);
+    holdPose.set(id, { pose: /^(hi|hello|hey|greetings|good )/i.test(text.trim()) ? "wave" : "talk", until: performance.now() + 7000 });
+    panel.lifeLog(`You to ${person.name}: "${text}"`);
+    const show = (said: string) => {
+      talk?.reply(person.name, said);
+      panel?.lifeLog(`${person.name}: "${said}"`);
+    };
+    if (answer.gaveFood) {
+      ui("eden_player_heal", "20");
+      panel.lifeLog(`${person.name} gave you some food.`);
+    }
+    if (voice.ready) {
+      talk?.thinking(person.name);
+      void voice.reword(person, undefined, answer.reply, w, true).then((t) => show(t?.text ?? answer.reply));
+    } else show(answer.reply);
+  }
   const voice = new Voice(loadVoice(), (text) => panel?.voiceStatus(text) ?? C.log(`Eden voice: ${text}`));
 
   const ui = (kind: string, value: string) => C.runtime.ccall("editor_ui_event", null, ["string", "string"], [kind, value]);
@@ -481,10 +508,13 @@ export function installEdenAgents(C: Ctx): void {
         C.playerIndex = index;
       }
     }
+    if (!walking) talk?.hint(undefined);
     if (walking && youBody >= 0) {
       const you = C.objects[youBody];
       if (you) {
         w.visitor = { x: you.position.x, z: you.position.z };
+        const near = nearbyPeople(w, you.position.x, you.position.z);
+        talk?.hint(near.length === 0 ? undefined : near.length === 1 ? `talk to ${near[0]!.name}` : `talk (${near.length} people near)`);
         for (const t of w.things) {
           const danger = AFFORDANCES[t.kind]?.danger;
           if (danger && Math.hypot(t.x - you.position.x, t.z - you.position.z) < 2.6) ui("eden_player_hurt", String(Math.round(9 * danger)));
@@ -540,7 +570,9 @@ export function installEdenAgents(C: Ctx): void {
       const intent = person.intent;
       {
         const at = ORIGINAL.has(person.id) ? bodyIndex(person.name) : (bodyIndexById.get(person.id) ?? -1);
-        const pose = intent?.arrived && !fast ? POSE_OF[intent.kind] : undefined;
+        const held = holdPose.get(person.id);
+        if (held && held.until < performance.now()) holdPose.delete(person.id);
+        const pose = held && held.until >= performance.now() ? held.pose : intent?.arrived && !fast ? POSE_OF[intent.kind] : undefined;
         if (at >= 0 && !forcedPose.has(at)) {
           C.edenPoses ??= new Map();
           if (pose) C.edenPoses.set(at, pose);
@@ -549,12 +581,13 @@ export function installEdenAgents(C: Ctx): void {
       }
       if (intent && !fast && simSeconds > 0) {
         const action = actionOf(person);
-        const key = `${intent.kind}|${intent.targetId ?? ""}|${intent.arrived}|${Math.round(intent.x)}|${Math.round(intent.z)}`;
+        const loaded = person.carry.wood + person.carry.food >= 1 ? 1 : 0;
+        const key = `${intent.kind}|${intent.targetId ?? ""}|${intent.arrived}|${Math.round(intent.x)}|${Math.round(intent.z)}|${loaded}`;
         if (sent.get(person.id) !== key) {
           sent.set(person.id, key);
           // Where the body should walk, and how fast; it stays at the spot, and plays the action, once there.
           const via = routeAround(w, person.x, person.z, intent.x, intent.z);
-          ui(`eden_target_${person.id}`, `${intent.x},0,${intent.z},${action},${intent.speed}${via ? `,${via.x.toFixed(1)},${via.z.toFixed(1)}` : ""}`);
+          ui(`eden_target_${person.id}`, `${intent.x},0,${intent.z},${action},${intent.speed},${via ? via.x.toFixed(1) : "-"},${via ? via.z.toFixed(1) : "-"},${loaded}`);
         }
       }
       const text = describe(person, w);
@@ -618,7 +651,8 @@ export function installEdenAgents(C: Ctx): void {
         walk: (on) => {
           if (!world) return;
           walking = on;
-          if (!on) world.visitor = undefined;
+          if (!on) (world.visitor = undefined), talk?.close();
+          if (on) talk ??= createTalk({ say: sayToPerson, close: () => undefined });
           for (const e of C.doc.scene.eachAlive()) {
             const f = C.doc.scene.resolve(e, "CameraFollow");
             if (f) f.target = on ? "" : "Adam";
@@ -630,7 +664,7 @@ export function installEdenAgents(C: Ctx): void {
             const z = (beside?.z ?? 2) + 2;
             ui("eden_place", `you,Hunter,${x},${groundY(x, z) + 1},${z},you`);
             for (const wait of [1200, 3000, 7000]) setTimeout(() => walking && !bodyIndexById.has("you") && ui("eden_tell", "you"), wait);
-            panel?.lifeLog("You walk the world as a hunter. W A S D move, J strikes, K sweeps, F kicks, X rolls, G looses an arrow, H hands meat to someone beside you.");
+            panel?.lifeLog("You walk the world as a hunter. W A S D move, J strikes, K sweeps, F kicks, X rolls, G looses an arrow, H hands meat to someone beside you, E talks to them.");
           } else {
             ui("eden_remove", "you");
             bodyIndexById.delete("you");
@@ -665,6 +699,16 @@ export function installEdenAgents(C: Ctx): void {
     panel.setSpeed(speed);
     panel.setSlots(slotDays());
     window.addEventListener("keydown", (e) => {
+      if (e.code !== "KeyE" || e.repeat || !walking || !world || youBody < 0 || !talk || talk.isOpen()) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const you = C.objects[youBody];
+      if (!you) return;
+      const near = nearbyPeople(world, you.position.x, you.position.z);
+      if (!near.length) return panel?.lifeLog("No one is near enough to talk to.");
+      C.releasePointer?.();
+      talk.open(near.map((q) => ({ id: q.id, name: q.name, note: `${moodWord(q.mood)}${needWord(q) ? `, ${needWord(q)}` : ""}` })));
+    }, true);
+    window.addEventListener("keydown", (e) => {
       if (e.code !== "KeyH" || !walking || !world || youBody < 0) return;
       const you = C.objects[youBody];
       if (!you) return;
@@ -680,7 +724,7 @@ export function installEdenAgents(C: Ctx): void {
         carriedMeat--;
         panel?.lifeLog(`You gave meat to ${near.name}.`);
       } else panel?.lifeLog(`${near.name} is not hungry.`);
-    });
+    }, true);
     window.addEventListener("pagehide", save);
     // For the desktop app's tools and for tests: where each mind says a person is, where their body is, and where the ground is under it.
     if (navigator.userAgent.includes("BTAIDesktop")) {

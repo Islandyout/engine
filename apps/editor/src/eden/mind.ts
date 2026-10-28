@@ -165,6 +165,7 @@ export interface Person {
   lastBirth?: number; // world clock a child of theirs was last born (mothers)
   spoken?: string[]; // the last few things they said aloud, so the voice does not repeat them
   promises?: { to: string; due: number }[]; // what they have promised, and by when
+  walkerTrust?: number; // 0..1: how well they have come to know the Walker, from talking with them
   shunned?: boolean; // the others have lost faith in them and keep away
   joyAt?: number; // world clock of the last small thing they noticed and enjoyed
   heard?: string[]; // tales they have been told (so they are not told twice)
@@ -348,7 +349,7 @@ function inside(world: World, x: number, z: number): { x: number; z: number } {
 }
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const clampMood = (v: number) => Math.max(-1, Math.min(1, v));
-const aff = (t: Thing): Affordances => AFFORDANCES[t.kind] ?? {};
+export const aff = (t: Thing): Affordances => AFFORDANCES[t.kind] ?? {};
 // Danger is felt well beyond touching distance.
 const dangerReach = (t: Thing) => t.radius + 6 + 10 * (aff(t).danger ?? 0);
 

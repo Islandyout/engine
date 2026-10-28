@@ -26,7 +26,7 @@ local function parse_target(value)
   local parts = {}
   for p in string.gmatch(value, "[^,]+") do parts[#parts + 1] = p end
   if #parts < 4 then return nil end
-  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]), viaX = tonumber(parts[6]), viaZ = tonumber(parts[7]) }
+  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]), viaX = tonumber(parts[6]), viaZ = tonumber(parts[7]), carrying = parts[8] == "1" }
 end
 
 function on_ui(name, value)
@@ -107,7 +107,7 @@ function on_tick(dt)
   else
     self.vx = (dx / dist) * (target.speed or WALK_SPEED)
     self.vz = (dz / dist) * (target.speed or WALK_SPEED)
-    play((target.speed or WALK_SPEED) > 3 and "run" or "walk")
+    play((target.speed or WALK_SPEED) > 3 and "run" or (target.carrying and "carry_walk" or "walk"))
   end
 end
 
