@@ -3,7 +3,7 @@ import { findPoseBones } from "../poses";
 import { creatureMotion, gazeOf, lookOf, newMemory, personMotion, walkStyle, type MotionMemory, type PoseName } from "../../eden/motion";
 import { createTalk, type Talk } from "./edenTalk";
 import { hearWalker, nearbyPeople, noteFirstWord } from "../../eden/chat";
-import { actionOf, applySpokenIntent, giveMeat, giveToPerson, shareKill, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
+import { actionOf, applySpokenIntent, creatureHurt, giveMeat, giveToPerson, shareKill, walkerSlew, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import { moonName, SEASON_NAMES, solarHour } from "../../eden/earth";
 import { runCreatorCommand } from "../../eden/creator";
 import { worldFromJson, worldToJson } from "../../eden/persist";
@@ -70,15 +70,15 @@ const DEFAULT_SPEED = 2; // index into SPEEDS: 3x
 
 const PLACE_NAME: Record<string, string> = {};
 for (const place of Object.values(EDEN_PLACES)) PLACE_NAME[place.kind] = place.name;
-const KIND_NAME: Record<string, string> = { ...PLACE_NAME, campfire: "the fire", shelter: "the shelter", tree: "a tree", "fruit tree": "a fruit tree", bush: "a bush", rock: "a rock", grave: "a grave", deer: "a deer", fox: "a fox", alpaca: "an alpaca", wolf: "a wolf", dog: "a dog", stag: "a stag", cow: "a cow", donkey: "a donkey", horse: "a horse", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge" };
+const KIND_NAME: Record<string, string> = { ...PLACE_NAME, campfire: "the fire", shelter: "the shelter", tree: "a tree", "fruit tree": "a fruit tree", bush: "a bush", rock: "a rock", grave: "a grave", deer: "a deer", fox: "a fox", alpaca: "an alpaca", wolf: "a wolf", dog: "a dog", stag: "a stag", cow: "a cow", donkey: "a donkey", horse: "a horse", barrel: "the barrel", table: "the table", lantern: "the lantern", chest: "the chest", shelf: "the shelf", shrine: "the shrine", "tree of life": "the Tree of Life", "tree of knowledge": "the Tree of Knowledge" };
 
-const VERB: Record<string, string> = { gather: "goes to gather wood at", fire: "makes a fire", build: "starts building a shelter", stash: "goes to put food away at", forage: "goes to gather food at", warm: "goes to warm up at", share: "goes to share food with", comfort: "goes to sit with", plant: "goes to plant a seed", craft: "makes a spear", hunt: "hunts", tame: "tries to win over", fish: "goes fishing at", mourn: "goes to sit at", eat: "goes to eat at", drink: "goes to drink at", rest: "goes to rest at", sleep: "goes to sleep at", look: "goes to look at", play: "goes to play at", talk: "goes to talk with", wander: "wanders off", flee: "runs from", linger: "pauses" };
+const VERB: Record<string, string> = { gather: "goes to gather wood at", fire: "makes a fire", build: "starts building a shelter", stash: "goes to put food away at", forage: "goes to gather food at", warm: "goes to warm up at", share: "goes to share food with", comfort: "goes to sit with", plant: "goes to plant a seed", craft: "makes a spear", hunt: "hunts", tame: "tries to win over", fish: "goes fishing at", mourn: "goes to sit at", eat: "goes to eat at", drink: "goes to drink at", rest: "goes to rest at", sleep: "goes to sleep at", look: "goes to look at", play: "goes to play at", talk: "goes to talk with", wander: "wanders off", flee: "runs from", linger: "pauses", furnish: "makes something for the home near", improve: "raises the roof into a proper hut at", carve: "carves a keepsake for", gift: "gives a keepsake to", trade: "trades with", pray: "prays at", teach: "teaches", steal: "takes food from", fetch: "fetches something for the Walker from" };
 
 function describe(person: Person, world: World): string {
   const i = person.intent;
   if (!i) return "";
   if (i.kind === "eat" && !i.targetId) return "eats what they are carrying";
-  const target = i.kind === "talk" || i.kind === "share" || i.kind === "comfort" ? world.people.find((p) => p.id === i.targetId)?.name : KIND_NAME[world.things.find((t) => t.id === i.targetId)?.kind ?? ""];
+  const target = ["talk", "share", "comfort", "gift", "trade", "teach", "steal", "carve"].includes(i.kind) ? world.people.find((p) => p.id === i.targetId)?.name : KIND_NAME[world.things.find((t) => t.id === i.targetId)?.kind ?? ""];
   return target ? `${VERB[i.kind]} ${target}` : VERB[i.kind]!;
 }
 
@@ -151,6 +151,7 @@ export function installEdenAgents(C: Ctx): void {
   let talk: Talk | undefined; // the box for talking with people (E), made the first time you walk
   const paceOf = new Map<string, number>(); // how fast each person's walk clip plays (a limp is slower)
   const motionMem = new Map<string, MotionMemory>(); // what each person's body was last doing (motion.ts)
+  const placedPrefab = new Map<string, string>(); // which body each placed thing has (a young one's, until it grows up)
   const clipSent = new Map<string, string>(); // the clip each creature was last told to play
   const holdPose = new Map<string, { pose: PoseName; until: number }>(); // a pose someone keeps for a moment (a wave, talking), over what they are doing
   const pack = { meat: 0, water: 0, wood: 0, fruit: 0 }; // what you carry to give away: Q gathers it where it is, H hands it to whoever needs it
@@ -162,6 +163,9 @@ export function installEdenAgents(C: Ctx): void {
   C.actionLoops = EDEN_LOOPING_ACTIONS;
   C.edenBody = (index, who) => bodyIndexById.set(who, index);
   // The hunter killed a creature: the people's world loses it too, and the hunter eats a little.
+  C.edenHurt = (thingId) => {
+    if (world) creatureHurt(world, thingId);
+  };
   C.edenSlain = (thingId) => {
     if (!world) return;
     const at = world.things.findIndex((t) => t.id === thingId);
@@ -170,6 +174,7 @@ export function installEdenAgents(C: Ctx): void {
     world.things.splice(at, 1);
     placedThings.delete(thingId);
     tally(world, "slainByYou");
+    walkerSlew(world, thing);
     shareKill(world, thing);
     panel?.lifeLog(`You killed ${phrase(thing)}.${AFFORDANCES[thing.kind]?.prey ? " Meat: you feel stronger." : ""}`);
     if (AFFORDANCES[thing.kind]?.prey) {
@@ -312,6 +317,8 @@ export function installEdenAgents(C: Ctx): void {
       }
     }
     world = loaded ?? freshWorld();
+    world.strangers = true;
+    if (world.walker) Object.assign(pack, world.walker.pack);
     sent.clear();
     spoken.clear();
     described.clear();
@@ -336,6 +343,7 @@ export function installEdenAgents(C: Ctx): void {
   function save() {
     if (!world) return;
     try {
+      world.walker = { pack: { ...pack } };
       localStorage.setItem(SAVE_KEY, worldToJson(world));
       lastSave = performance.now();
       panel?.setSaved("saved");
@@ -360,6 +368,7 @@ export function installEdenAgents(C: Ctx): void {
   function keepSlot(n: number) {
     if (!world) return;
     try {
+      world.walker = { pack: { ...pack } };
       localStorage.setItem(SLOT_KEY + n, worldToJson(world));
       panel?.lifeLog(`Kept this moment as ${n} (day ${Math.floor((world.clock ?? 0) / 1440) + 1}).`);
       panel?.setSlots(slotDays());
@@ -389,6 +398,8 @@ export function installEdenAgents(C: Ctx): void {
     lastMoved.clear();
     sent.clear();
     world = loaded;
+    world.strangers = true;
+    if (world.walker) Object.assign(pack, world.walker.pack);
     knownPeople.clear();
     for (const p of world.people) knownPeople.add(p.id);
     for (const d of world.dead ?? []) announcedDead.add(d.person.id);
@@ -414,6 +425,7 @@ export function installEdenAgents(C: Ctx): void {
     announcedDead.clear();
     lastMoved.clear();
     world = freshWorld();
+    world.strangers = true;
     knownPeople.clear();
     for (const p of world.people) knownPeople.add(p.id);
     for (const p of world.people) {
@@ -438,8 +450,16 @@ export function installEdenAgents(C: Ctx): void {
   // What the people make and the Creator makes goes into the scene; the sky and the rain follow the clock and the weather.
   function sync(w: World, hour: number) {
     for (const thing of w.things) {
+      // A young one that has grown up is swapped for an adult's body.
+      if (thing.prefab && placedThings.has(thing.id) && placedPrefab.get(thing.id) && placedPrefab.get(thing.id) !== thing.prefab) {
+        ui("eden_remove", thing.id);
+        placedThings.delete(thing.id);
+        lastMoved.delete(thing.id);
+        clipSent.delete(thing.id);
+      }
       if (thing.prefab && !placedThings.has(thing.id)) {
         placedThings.add(thing.id);
+        placedPrefab.set(thing.id, thing.prefab);
         ui("eden_place", `${thing.id},${thing.prefab},${thing.x},${groundY(thing.x, thing.z)},${thing.z},${thing.id}`);
         // A body whose script had not started yet misses its first "who are you"; tell it again.
         for (const wait of [1500, 5000]) setTimeout(() => ui("eden_tell", thing.id), wait);
@@ -552,7 +572,7 @@ export function installEdenAgents(C: Ctx): void {
         hintParts.push(`Q gathers${packText() ? ` · you carry ${packText()}` : ""}`);
         talk?.hint(hintParts.filter(Boolean).join(" · "));
         for (const t of w.things) {
-          const danger = AFFORDANCES[t.kind]?.danger;
+          const danger = AFFORDANCES[t.kind]?.danger ?? (t.mob?.state === "attack" ? 0.5 : undefined);
           if (danger && Math.hypot(t.x - you.position.x, t.z - you.position.z) < 2.6) ui("eden_player_hurt", String(Math.round(9 * danger)));
         }
       }
@@ -814,7 +834,7 @@ export function installEdenAgents(C: Ctx): void {
       if (!near) return panel?.lifeLog("No one is near enough.");
       // What they asked for first, then what they need most.
       const wants: ("water" | "meat" | "fruit" | "wood")[] = [];
-      if (near.asks) wants.push(near.asks.item === "food" ? "meat" : near.asks.item, ...(near.asks.item === "food" ? (["fruit"] as const) : []));
+      if (near.asks && near.asks.item !== "protect") wants.push(near.asks.item === "food" ? "meat" : near.asks.item, ...(near.asks.item === "food" ? (["fruit"] as const) : []));
       if (near.needs.thirst > 0.5) wants.push("water");
       if (near.needs.hunger > 0.4) wants.push("meat", "fruit");
       if (near.cold > 0.5 && near.carry.wood < 1) wants.push("wood");
@@ -882,7 +902,7 @@ export function installEdenAgents(C: Ctx): void {
         for (const wait of [1500, 5000]) setTimeout(() => ui("eden_tell", id), wait);
         return id;
       };
-      (window as unknown as { edenMake: unknown }).edenMake = (kind: string, x: number, z: number) => (world ? make(world, kind, x, z, { radius: 1 }).id : undefined);
+      (window as unknown as { edenMake: unknown }).edenMake = (kind: string, x: number, z: number, extra?: Record<string, unknown>) => (world ? make(world, kind, x, z, { radius: 1, ...extra }).id : undefined);
       (window as unknown as { edenMind: unknown }).edenMind = (id: string, patch: Record<string, unknown>) => {
         const person = world?.people.find((q) => q.id === id);
         if (!person) return false;

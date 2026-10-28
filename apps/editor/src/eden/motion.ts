@@ -15,7 +15,7 @@ export const WALK_POSES: readonly PoseName[] = ["limp", "trudge", "stride", "bol
 // What each thing a person does looks like with the whole body, over the clip for it (poses.ts).
 export const POSE_OF: Partial<Record<string, PoseName>> = {
   fish: "fish", craft: "work", sew: "work", fire: "work", rest: "sit", sleep: "sleep", mourn: "mourn", warm: "warm", talk: "talk", share: "talk",
-  comfort: "mourn", look: "scan", play: "laugh", linger: "scan", wander: "scan",
+  comfort: "mourn", look: "scan", play: "laugh", linger: "scan", wander: "scan", furnish: "work", improve: "work", carve: "work", pray: "pray", gift: "talk", trade: "talk", teach: "talk", steal: "alert",
 };
 
 // Per person, what the caller remembers between looks (so a pose can end with a stretch, and a yawn can come round on its own beat).
@@ -167,6 +167,8 @@ interface Species {
   low: string; // head down: resting, sniffing, drinking
   eat: string;
   attack?: string;
+  kick?: string;
+  hit?: string; // flinching from a blow
   clips: readonly string[];
 }
 
@@ -178,9 +180,9 @@ const SPECIES: Record<string, Species> = {
   donkey: { walk: 1.1, run: 3.0, graze: "graze", vigil: "idle", low: "Idle_Headlow", eat: "graze", clips: UNGULATE },
   fox: { walk: 1.0, run: 3.0, graze: "graze", vigil: "idle", low: "graze", eat: "graze", clips: ["Death", "graze", "idle", "run", "walk"] },
   dog: { walk: 1.1, run: 3.0, graze: "graze", vigil: "idle", low: "graze", eat: "graze", clips: ["Death", "graze", "idle", "run", "walk"] },
-  wolf: { walk: 1.3, run: 3.4, graze: "Idle_2_HeadLow", vigil: "Idle_2", variety: "Idle_2", low: "Idle_2_HeadLow", eat: "Eating", attack: "Attack", clips: ["Attack", "Death", "Eating", "Gallop_Jump", "Idle_2", "Idle_2_HeadLow", "Idle_HitReact1", "Idle_HitReact2", "Jump_ToIdle", "idle", "run", "walk"] },
-  stag: { walk: 1.3, run: 3.4, graze: "Eating", vigil: "Idle_2", variety: "Idle_2", low: "Idle_Headlow", eat: "Eating", attack: "Attack_Headbutt", clips: ["Attack_Headbutt", "Attack_Kick", "Death", "Eating", "Gallop_Jump", "Idle_2", "Idle_Headlow", "Idle_HitReact1", "Idle_HitReact2", "Jump_toIdle", "idle", "run", "walk"] },
-  alpaca: { walk: 1.0, run: 2.8, graze: "Eating", vigil: "Idle_2", variety: "Idle_2", low: "Idle_Headlow", eat: "Eating", attack: "Attack_Headbutt", clips: ["Attack_Headbutt", "Attack_Kick", "Death", "Eating", "Gallop_Jump", "Idle_2", "Idle_Headlow", "Idle_HitReact1", "Idle_HitReact2", "Jump_toIdle", "idle", "run", "walk"] },
+  wolf: { walk: 1.3, run: 3.4, graze: "Idle_2_HeadLow", vigil: "Idle_2", variety: "Idle_2", low: "Idle_2_HeadLow", eat: "Eating", attack: "Attack", hit: "Idle_HitReact1", clips: ["Attack", "Death", "Eating", "Gallop_Jump", "Idle_2", "Idle_2_HeadLow", "Idle_HitReact1", "Idle_HitReact2", "Jump_ToIdle", "idle", "run", "walk"] },
+  stag: { walk: 1.3, run: 3.4, graze: "Eating", vigil: "Idle_2", variety: "Idle_2", low: "Idle_Headlow", eat: "Eating", attack: "Attack_Headbutt", kick: "Attack_Kick", hit: "Idle_HitReact1", clips: ["Attack_Headbutt", "Attack_Kick", "Death", "Eating", "Gallop_Jump", "Idle_2", "Idle_Headlow", "Idle_HitReact1", "Idle_HitReact2", "Jump_toIdle", "idle", "run", "walk"] },
+  alpaca: { walk: 1.0, run: 2.8, graze: "Eating", vigil: "Idle_2", variety: "Idle_2", low: "Idle_Headlow", eat: "Eating", attack: "Attack_Headbutt", kick: "Attack_Kick", hit: "Idle_HitReact2", clips: ["Attack_Headbutt", "Attack_Kick", "Death", "Eating", "Gallop_Jump", "Idle_2", "Idle_Headlow", "Idle_HitReact1", "Idle_HitReact2", "Jump_toIdle", "idle", "run", "walk"] },
 };
 export const speciesOf = (kind: string) => SPECIES[kind];
 
@@ -202,7 +204,8 @@ export function creatureMotion(t: Thing, clock: number): CreatureMotion | undefi
   const gait = (why: string): CreatureMotion => {
     const running = v > sp.walk * 1.5 || state === "flee" || state === "hunt";
     const ref = running ? sp.run : sp.walk;
-    return { clip: running ? "run" : "walk", scale: Math.max(0.5, Math.min(1.5, v / ref)), why: `${why} (${running ? "run" : "walk"})` };
+    const young = (m?.age ?? 3) < 0.9 ? 1.3 : 1; // short legs, quick steps
+    return { clip: running ? "run" : "walk", scale: Math.max(0.5, Math.min(1.7, (v / ref) * young)), why: `${why} (${running ? "run" : "walk"})` };
   };
   switch (state) {
     case "flee":
@@ -215,7 +218,12 @@ export function creatureMotion(t: Thing, clock: number): CreatureMotion | undefi
     case "drink":
       return { clip: sp.low, scale: 1, why: "drinking" };
     case "attack":
-      return { clip: sp.attack ?? "run", scale: 1, why: "pouncing" };
+      // Butting, then kicking, on its own beat; a wolf pounces.
+      return { clip: sp.kick && beat(clock, 3, 1.5, seed) ? sp.kick : (sp.attack ?? "run"), scale: 1, why: "fighting" };
+    case "startle":
+      return { clip: sp.vigil, scale: 1, why: "startled, head up" };
+    case "hit":
+      return { clip: sp.hit ?? "idle", scale: 1, why: "flinching from a blow" };
     case "eat":
       return { clip: sp.eat, scale: 1, why: "eating a kill" };
     case "rest":

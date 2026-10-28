@@ -113,6 +113,7 @@ export function installInput(C: Ctx): void {
         C.setOutfit(C.runtime._editor_command_entity(i), C.parseOutfit(b));
       else if (kind === "host" && a === "eden_body") C.edenBody?.(C.runtime._editor_command_entity(i), b);
       else if (kind === "host" && a === "eden_slain") C.edenSlain?.(b);
+      else if (kind === "host" && a === "eden_hurt") C.edenHurt?.(b);
       else if (kind === "host") C.handleHost(a, b);
       else if (kind === "particles_burst" || kind === "particles_emitting") {
         const state = C.particleStates[C.runtime._editor_command_entity(i)];

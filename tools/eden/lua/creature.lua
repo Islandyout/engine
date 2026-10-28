@@ -11,6 +11,11 @@ function on_message(name, value)
   if name == "eden_clip" and type(value) == "string" then self.animate = value end
 end
 
+-- Hit: the page tells the mind, which makes it flinch, frightens the herd, and makes a stag or an alpaca turn on whoever did it.
+function on_damaged(amount, attacker)
+  if who then host.send("eden_hurt", who) end
+end
+
 function on_death(attacker)
   if who then host.send("eden_slain", who) end
   world.destroy(self.id)

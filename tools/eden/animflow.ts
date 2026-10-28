@@ -53,6 +53,9 @@ function report() {
   if (process.env.ANIMFLOW_POSES) show("pose.", "WHAT BODIES SHOW when they have arrived (intent.pose)");
   show("laugh.", "laughter");
   show("errand.", "errands and requests");
+  show("herd.", "herds");
+  show("home.", "home and society");
+  show("young.", "young animals");
   show("talk.", "talking");
   console.log(`pose changes per person look: ${(((sum["pose.changes"] ?? 0) / Math.max(1, people)) * 100).toFixed(2)} per 100`);
   show("feel.", "FEELINGS seen (stationary)");

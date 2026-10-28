@@ -278,6 +278,20 @@ scene.add("Input", [0, -40, 0], {
 // tools/eden/lua/creator.lua and edenAgents.ts's Creator panel.
 scene.add("Creator", [0, 50, 0], { Script: { source: lua("creator.lua"), props: {} } });
 
+// Things that are simply there: a stone bridge over the river near the garden's heart, a pier into the lake, a board in the middle where
+// word is left. Not solid (the river is shallow enough to wade, and nobody is stopped by a rail).
+{
+  const [ax, az] = RIVER[2]!, [bx, bz] = RIVER[3]!;
+  const mx = (ax + bx) / 2, mz = (az + bz) / 2;
+  const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz);
+  const px = -dz / len, pz = dx / len; // across the river
+  const bridgeYaw = Math.atan2(-pz, px);
+  const deck = Math.max(ground(mx + px * 7, mz + pz * 7), ground(mx - px * 7, mz - pz * 7));
+  scene.model("Stone bridge", modelId("arched-stone-bridge"), [mx, deck + 0.35, mz], bridgeYaw, false, 1.55);
+  scene.model("Lake pier", modelId("lake-pier"), [LAKE.stand!.x + 4, RIVER_LEVEL + 1.35, LAKE.stand!.z], Math.PI / 2, false, 1);
+  scene.model("Notice board", modelId("notice-board"), [7, ground(7, -7), -7], -0.6, false, 0.7);
+}
+
 // The Creator's view: a third-person camera that follows Adam from behind and above. Drag to orbit round him; Eve is usually close by.
 scene.add("Eden camera", [0, 8, 10], {
   Camera: component("Camera", { fov: 55, priority: 1 }),
@@ -291,9 +305,10 @@ scene.add("Eden camera", [0, 8, 10], {
 // confirmed in build_azure_cloud_sect.ts's own prefabs, which drop Rotation
 // for the same reason). No Scale override: every catalog model here already
 // renders at its intended size with none, same as Adam/Eve above.
-const creaturePrefab = (name: string, catalogFile: string, mass: number, health: number) =>
+const creaturePrefab = (name: string, catalogFile: string, mass: number, health: number, scale?: number) =>
   scene.prefab(name, {
     Renderable: { mesh: modelId(catalogFile), material: 0, visible: true },
+    ...(scale ? { Scale: { value: vec(scale, scale, scale) } } : {}),
     RigidBody: { mass, dynamic: true },
     Collider: {},
     Health: { current: health, maximum: health },
@@ -308,6 +323,13 @@ creaturePrefab("Dog", "shiba-inu", 12, 28);
 creaturePrefab("Stag", "stag", 160, 70);
 creaturePrefab("Cow", "cow", 500, 80);
 creaturePrefab("Donkey", "donkey", 300, 60);
+// The young: smaller (the host swaps a young one's body for an adult's as it grows up).
+creaturePrefab("Fawn", "deer", 30, 15, 0.55);
+creaturePrefab("Foal", "horse", 120, 40, 0.6);
+creaturePrefab("Calf", "cow", 150, 35, 0.55);
+creaturePrefab("Young Stag", "stag", 60, 30, 0.6);
+creaturePrefab("Cria", "alpaca", 25, 20, 0.6);
+creaturePrefab("Young Donkey", "donkey", 100, 28, 0.6);
 const stillPrefab = (name: string, catalogFile: string) =>
   scene.prefab(name, { Renderable: { mesh: modelId(catalogFile), material: 0, visible: true }, RigidBody: { dynamic: false }, Collider: { isTrigger: false } });
 stillPrefab("Oak Tree", "eztree-oak");
@@ -318,6 +340,16 @@ stillPrefab("Fruit Tree", "eztree-oak");
 // What the people build, placed by creator.lua when the minds make them (edenAgents.ts): a tent they can walk into (no collider), and a
 // fire that burns for as long as it has wood (the mind removes it when it goes out).
 scene.prefab("Shelter", { Renderable: { mesh: modelId("canvas-tent"), material: 0, visible: true } });
+// A shelter raised into a proper thatched hut (the page swaps the model), and what the people make for a home.
+const prop = (name: string, file: string, scale: number, extra: Record<string, unknown> = {}) =>
+  scene.prefab(name, { Renderable: { mesh: modelId(file), material: 0, visible: true }, Scale: { value: vec(scale, scale, scale) }, ...extra });
+prop("Hut", "thatched-hut", 0.8);
+prop("Barrel", "barrel-large", 0.5);
+prop("Table", "tea-table", 1);
+prop("Lantern", "stone-lantern", 0.45, { Light: component("Light", { type: "Point", color: vec(1, 0.75, 0.4), intensity: 1.6, range: 9 }) });
+prop("Chest", "chest", 1);
+prop("Shelf", "bookshelf", 0.7);
+prop("Shrine", "roadside-shrine", 0.6);
 // A planted plot: a low bush that bears fruit, no collider.
 // A grave: a standing stone, half size, where someone who died was laid to rest.
 scene.prefab("Grave", { Renderable: { mesh: modelId("rock-large"), material: 0, visible: true }, Scale: { value: vec(0.5, 0.5, 0.5) } });
@@ -369,7 +401,7 @@ scene.prefab("Campfire", {
 
 // Models the people and the creatures use are loaded with the scene, not when they first appear (a spawned body is a grey box until its
 // model arrives): one hidden, far-off entity per model keeps each ready.
-for (const file of ["blossom-tree", "deer", "fox", "alpaca", "wolf", "horse", "shiba-inu", "stag", "cow", "donkey", MEN, WOMEN, "canvas-tent", "bush-1", "rock-large"]) {
+for (const file of ["blossom-tree", "deer", "fox", "alpaca", "wolf", "horse", "shiba-inu", "stag", "cow", "donkey", MEN, WOMEN, "canvas-tent", "thatched-hut", "barrel-large", "tea-table", "stone-lantern", "chest", "bookshelf", "roadside-shrine", "bush-1", "rock-large"]) {
   scene.add(`Preload ${file}`, [0, -300, 0], { Renderable: { mesh: modelId(file), material: 0, visible: false } });
 }
 

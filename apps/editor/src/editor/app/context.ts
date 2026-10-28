@@ -350,6 +350,7 @@ export interface Ctx {
   actionLoops?: ReadonlySet<string>; // action names a script requests that play on repeat (Eden's work)
   edenBodies?: Map<number, { look: import("../../eden/motion").Look; gaze?: { x: number; z: number } }>; // what shows on each Eden body and what it is looking at
   edenPoseHeld?: Set<number>; // bodies a debug call keeps posed even while the clip says walk
+  edenHurt?: (thingId: string) => void; // a creature was hit (Eden)
   edenSlain?: (thingId: string) => void; // the player killed this creature (Eden)
   harvest: (key: string) => void;
   harvested: Set<number>;

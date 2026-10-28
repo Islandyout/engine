@@ -44,6 +44,8 @@ export interface Affordances {
   predator?: boolean; // hunts prey
   shelter?: boolean; // a roof: warmth against the cold and dry from the rain
   warm?: boolean; // a burning fire: warmth to anyone near it
+  comfort?: number; // a made thing that makes a place pleasant: those resting, eating or talking near it feel better
+  holy?: boolean; // a place to pray
 }
 
 export const AFFORDANCES: Record<string, Affordances> = {
@@ -69,6 +71,13 @@ export const AFFORDANCES: Record<string, Affordances> = {
   campfire: { warm: true },
   shelter: { shelter: true, rest: true, food: 0.5 },
   "tree of knowledge": { view: true },
+  // Made by the people for their home: a barrel that collects rain, a table, a lantern, a chest, a shelf, a shrine.
+  barrel: { water: true, stock: 4, comfort: 0.04 },
+  table: { rest: true, comfort: 0.12 },
+  lantern: { comfort: 0.08 },
+  chest: { comfort: 0.03 },
+  shelf: { comfort: 0.04 },
+  shrine: { rest: true, comfort: 0.1, holy: true },
   rock: { rest: true },
   bush: { food: 0.25, stock: 4 },
   deer: { creature: true, mobile: 0.9, prey: true },
@@ -95,14 +104,35 @@ export interface Thing {
   growth?: number; // seconds toward the next meal growing back (kept by step)
   fuel?: number; // a fire's seconds of burning left
   of?: string; // a grave: whose it is (a person id); a dog: whose it is
+  level?: number; // a shelter: 1 a roof of hides, 2 a proper thatched hut (the page swaps the model)
   trust?: number; // a dog: how many times it has been fed by someone, toward choosing them
   prefab?: string; // the scene prefab that shows it (the host places it); absent for things the scene already has
   // A creature's own going about: where it is heading, when it last ate, how old it is (in Eden years).
-  mob?: { tx: number; tz: number; wait: number; fed: number; age: number; fleeUntil: number; state?: MobState; speed?: number; idle?: MobState; eatUntil?: number; attackUntil?: number; here?: boolean };
+  mob?: { tx: number; tz: number; wait: number; fed: number; age: number; fleeUntil: number; state?: MobState; speed?: number; idle?: MobState; eatUntil?: number; attackUntil?: number; here?: boolean; startleUntil?: number; hurtUntil?: number; angryUntil?: number };
+}
+
+// The intents that are done to or with another person: walk up to them, and follow them if they move.
+const SOCIAL = new Set<IntentKind>(["talk", "share", "comfort", "gift", "trade", "teach", "steal"]);
+const HERD = new Set(["deer", "stag", "horse", "cow", "donkey", "alpaca"]);
+const FIGHTERS = new Set(["stag", "alpaca", "wolf"]);
+/** A creature was hit (by the Walker): it flinches, the herd takes fright, and one that fights back turns on them. */
+export function creatureHurt(world: World, id: string) {
+  const t = world.things.find((q) => q.id === id);
+  if (!t?.mob) return;
+  const now = world.clock ?? 0;
+  t.mob.hurtUntil = now + 1.1;
+  t.mob.fleeUntil = now + 8;
+  if (FIGHTERS.has(t.kind)) t.mob.angryUntil = now + 10;
+  for (const q of world.things) {
+    if (q === t || q.kind !== t.kind || !q.mob || dist(q.x, q.z, t.x, t.z) > 18) continue;
+    q.mob.fleeUntil = Math.max(q.mob.fleeUntil, now + 5);
+    q.mob.startleUntil = now + 0.6;
+  }
+  tally(world, "creaturesHurt");
 }
 
 // What a creature is doing right now, which is what its body shows (motion.ts picks the clip and the gait from it).
-export type MobState = "stand" | "graze" | "vigil" | "rest" | "drink" | "walk" | "flee" | "hunt" | "eat" | "follow" | "attack";
+export type MobState = "stand" | "graze" | "vigil" | "rest" | "drink" | "walk" | "flee" | "hunt" | "eat" | "follow" | "attack" | "startle" | "hit";
 
 // What a person remembers of a thing: where it is, and how being near it has felt.
 export interface Memory {
@@ -113,7 +143,7 @@ export interface Memory {
   lastSeen: number; // sim seconds
 }
 
-export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame" | "sew" | "wash" | "fetch";
+export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame" | "sew" | "wash" | "fetch" | "furnish" | "improve" | "carve" | "gift" | "trade" | "pray" | "teach" | "steal";
 export interface Intent {
   kind: IntentKind;
   targetId?: string; // a thing's id or another person's id
@@ -171,6 +201,10 @@ export interface Person {
   spoken?: string[]; // the last few things they said aloud, so the voice does not repeat them
   promises?: { to: string; due: number }[]; // what they have promised, and by when
   laughUntil?: number; // world clock until which they are laughing (a joke was told)
+  thefts?: number;
+  keepsake?: { to: string; item: string }; // something they have carved for someone, not yet given
+  keepsakes?: { from: string; item: string }[]; // what others have given them
+  stranger?: { since: number; verdict?: "joined" | "left" }; // came from outside; the others decide whether to take them in
   followUntil?: number; // world clock until which they walk with the Walker (asked to, in conversation)
   errand?: Errand; // something the Walker asked them to fetch
   carrying?: string; // what they are bringing (water has no weight in the pack: "water")
@@ -252,10 +286,89 @@ export interface World {
   // The Creator's hand on the weather: until `until` (world clock) it is warmer or colder by `tempOffset`, and `rain` forces it on or off.
   override?: { until: number; tempOffset: number; rain?: boolean };
   walkerEvents?: WalkerEvent[];
+  walker?: { pack: { meat: number; water: number; wood: number; fruit: number }; notes?: string[] }; // the Creator's own character: what they carry (kept with the save)
+  strangers?: boolean; // people from outside may arrive now and then (the page turns this on)
+}
+
+// ---- Strangers: now and then people from outside come to the edge of the land, and the others decide whether to take them in ----
+
+function strangersStep(world: World, dt: number) {
+  if (!world.strangers) return;
+  const now = world.clock ?? 0;
+  const residents = world.people.filter((q) => !q.stranger);
+  const present = world.people.filter((q) => q.stranger && !q.stranger.verdict);
+  const season = world.weather?.season ?? 1;
+  const R = world.radius ?? 40;
+  // An arrival: rarely, with room, not in the dead of winter.
+  if (!present.length && residents.length >= 2 && world.people.length < (world.maxPeople ?? 12) && season !== 3 && worldRand(world) < dt / (18 * DAY)) {
+    const a = worldRand(world) * Math.PI * 2;
+    const n = 1 + Math.floor(worldRand(world) * 2.4);
+    for (let i = 0; i < n; i++) {
+      const sex: "m" | "f" = worldRand(world) < 0.5 ? "m" : "f";
+      const id = `stranger-${(world.built = (world.built ?? 0) + 1)}`;
+      const names = CHILD_NAMES[sex];
+      const p = makePerson(id, Math.cos(a) * R * 0.95 + i, Math.sin(a) * R * 0.95, Math.floor(worldRand(world) * 1e9), { boldness: worldRand(world), sociability: 0.3 + 0.6 * worldRand(world), curiosity: worldRand(world), appetite: worldRand(world), patience: worldRand(world) }, { name: names[Math.floor(worldRand(world) * names.length)]!, sex, age: 20 + Math.floor(worldRand(world) * 20) });
+      p.needs.hunger = 0.6;
+      p.needs.thirst = 0.5;
+      p.stranger = { since: now };
+      world.people.push(p);
+      tally(world, "strangersArrived");
+    }
+    chronicle(world, "Strangers came to the edge of the land.");
+    return;
+  }
+  for (const st of present) {
+    // They walk toward the people, and wait to be seen.
+    const near = residents.map((q) => ({ q, d: dist(q.x, q.z, st.x, st.z) })).sort((a, b) => a.d - b.d)[0];
+    if (!near) continue;
+    if (!st.intent || st.intent.kind === "wander") st.intent = { kind: "wander", x: near.q.x, z: near.q.z, speed: 1.4, remaining: 2, arrived: false };
+    if (near.d > 9) continue;
+    st.stranger!.verdict ??= undefined;
+    // Seen: each of the people near makes up their mind; the people decide together by what most of them feel.
+    const judges = residents.filter((q) => dist(q.x, q.z, st.x, st.z) < 30);
+    if (!judges.length) continue;
+    let welcome = 0;
+    const larder = residents.reduce((a, q) => a + q.carry.food, 0) + world.things.filter((t) => t.kind === "shelter").reduce((a, t) => a + (t.stock ?? 0), 0);
+    for (const q of judges) welcome += 0.15 + 0.6 * q.personality.sociability - 0.3 * q.personality.boldness + 0.35 * strengthOf(world, "share") + (larder / Math.max(1, residents.length) > 1.5 ? 0.15 : -0.15) + 0.2 * valueOf(q, "kin") - 0.15 * valueOf(q, "tradition");
+    welcome /= judges.length;
+    if (welcome > 0.45) {
+      st.stranger!.verdict = "joined";
+      for (const q of judges) {
+        const r = relation(q, st.id, world);
+        r.familiarity = 0.25;
+        r.affinity = 0.3;
+        r.trust = 0.35;
+        const back = relation(st, q.id, world);
+        back.familiarity = 0.25;
+        back.affinity = 0.35;
+        back.trust = 0.4;
+        note(q, world, `${st.name} came from far away and we took them in.`);
+        feelEmotion(q, "joy", 0.2);
+      }
+      note(st, world, "I came a long way, hungry. They gave me a place by their fire.");
+      st.stranger = undefined;
+      st.carry.food = Math.max(st.carry.food, 1);
+      chronicle(world, `${st.name} came from far away and was taken in.`);
+      tally(world, "strangersJoined");
+    } else {
+      st.stranger!.verdict = "left";
+      for (const q of judges) note(q, world, `We turned ${st.name} away. We cannot feed another.`);
+      note(st, world, "They would not have us. I will try elsewhere.");
+      chronicle(world, `${st.name} was turned away.`);
+      tally(world, "strangersTurnedAway");
+    }
+  }
+  // Those turned away walk off the edge of the land and are gone.
+  for (const st of [...world.people]) {
+    if (st.stranger?.verdict !== "left") continue;
+    const a = Math.atan2(st.z, st.x);
+    st.intent = { kind: "wander", x: Math.cos(a) * R * 1.05, z: Math.sin(a) * R * 1.05, speed: 1.6, remaining: 2, arrived: false };
+    if (Math.hypot(st.x, st.z) > R * 1.0) world.people.splice(world.people.indexOf(st), 1);
+  }
 }
 
 // Errands and requests between the Walker and the people (see askFor, giveToPerson, errandStep).
-export type AskItem = "water" | "food" | "wood";
+export type AskItem = "water" | "food" | "wood" | "protect";
 export interface Errand {
   kind: AskItem;
   stage: "go" | "back";
@@ -710,11 +823,12 @@ function noticeSmallJoys(world: World, person: Person, weather: Weather, nearFir
 // ---- Errands: "bring me water" ----
 
 const SOURCE_OF: Record<AskItem, (t: Thing) => boolean> = {
+  protect: () => false,
   water: (t) => !!aff(t).water,
   food: (t) => (aff(t).food ?? 0) > 0 && !aff(t).fish && (t.stock === undefined || t.stock > 0),
   wood: (t) => !!aff(t).wood,
 };
-const ITEM_WORD: Record<AskItem, string> = { water: "water", food: "food", wood: "wood" };
+const ITEM_WORD: Record<AskItem, string> = { water: "water", food: "food", wood: "wood", protect: "protection" };
 
 /** The nearest place they know of to get it, or undefined: they cannot fetch what they have never seen. */
 export function knownSource(world: World, person: Person, kind: AskItem): Thing | undefined {
@@ -815,6 +929,7 @@ function errandStep(person: Person, world: World, dt: number) {
 // ---- Requests: people ask the Walker for what they need ----
 
 const ASK_LINES: Record<AskItem, string[]> = {
+  protect: ["Walker, there is something prowling near us. Could you drive it off?", "Walker, we are afraid. A beast has been watching us. Will you help?"],
   water: ["Walker, could you bring me some water? I cannot go on much longer.", "Walker, I am parched. Is there any water you could spare?"],
   food: ["Walker, have you any food to spare? I am so hungry.", "Walker, could you share a little meat or fruit? I have nothing."],
   wood: ["Walker, I am freezing. Could you bring me some wood for a fire?", "Walker, the cold is getting into me. A little wood, if you can."],
@@ -829,7 +944,8 @@ function askStep(person: Person, world: World) {
   if (dist(person.x, person.z, v.x, v.z) > 9) return;
   if ((person.walkerTrust ?? 0) < 0.05 && person.personality.sociability < 0.45) return; // too shy to ask a stranger
   const n = person.needs;
-  const item: AskItem | undefined = n.thirst > 0.65 ? "water" : n.hunger > 0.65 && person.carry.food < 1 ? "food" : person.cold > 0.6 && person.carry.wood < 1 ? "wood" : undefined;
+  const lurking = world.things.some((t) => aff(t).predator && aff(t).danger && dist(t.x, t.z, person.x, person.z) < 35 && person.memory.has(t.id));
+  const item: AskItem | undefined = lurking && (person.emotions?.fear ?? 0) > 0.2 && person.personality.boldness < 0.85 ? "protect" : n.thirst > 0.65 ? "water" : n.hunger > 0.65 && person.carry.food < 1 ? "food" : person.cold > 0.6 && person.carry.wood < 1 ? "wood" : undefined;
   if (!item) return;
   person.asks = { item, at: now };
   (person as { askedAt?: number }).askedAt = now;
@@ -865,6 +981,26 @@ export function giveToPerson(world: World, person: Person, item: AskItem): boole
   tally(world, "walkerGifts");
   chronicle(world, `The Walker gave ${person.name} ${ITEM_WORD[item]}.`);
   return true;
+}
+
+/** The Walker brought down a beast that was a danger: those who had asked for protection, and anyone near, are relieved and grateful. */
+export function walkerSlew(world: World, killed: Thing) {
+  if (!aff(killed).predator) return;
+  let relieved = 0;
+  for (const q of world.people) {
+    if (dist(q.x, q.z, killed.x, killed.z) > 60) continue;
+    const asked = q.asks?.item === "protect";
+    if (q.emotions) q.emotions.fear = 0;
+    feelEmotion(q, "gratitude", asked ? 0.9 : 0.4);
+    q.walkerTrust = Math.min(1, (q.walkerTrust ?? 0) + (asked ? 0.25 : 0.08));
+    note(q, world, asked ? `The Walker drove off the ${killed.kind} that threatened us, as I asked.` : `The Walker killed the ${killed.kind} near us.`);
+    if (asked) q.asks = undefined;
+    relieved++;
+  }
+  if (relieved) {
+    chronicle(world, `The Walker killed ${phrase(killed)} that had been stalking the people.`);
+    tally(world, "predatorsSlain");
+  }
 }
 
 // A norm gains ground; when it becomes a custom everyone writes it down.
@@ -945,10 +1081,13 @@ function relation(person: Person, otherId: string, world: World): Relation {
 const burning = (t: Thing) => t.kind === "campfire" && (t.fuel ?? 0) > 0;
 // Seconds a fire burns on one armful of wood (two hours of the real thing, at one sim second to a minute).
 const FIRE_SECONDS_PER_WOOD = 120;
-const PREFAB_OF: Record<string, string> = { alpaca: "Alpaca", campfire: "Campfire", shelter: "Shelter", grave: "Grave", crop: "Crop", deer: "Deer", fox: "Fox", wolf: "Wolf", horse: "Horse", dog: "Dog", stag: "Stag", cow: "Cow", donkey: "Donkey" };
+export const YOUNG_PREFAB: Record<string, string> = { deer: "Fawn", horse: "Foal", cow: "Calf", stag: "Young Stag", alpaca: "Cria", donkey: "Young Donkey" };
+export const MATURE_AGE = 0.9; // Eden years: before this a creature is small and quick
+const PREFAB_OF: Record<string, string> = { barrel: "Barrel", table: "Table", lantern: "Lantern", chest: "Chest", shelf: "Shelf", shrine: "Shrine", alpaca: "Alpaca", campfire: "Campfire", shelter: "Shelter", grave: "Grave", crop: "Crop", deer: "Deer", fox: "Fox", wolf: "Wolf", horse: "Horse", dog: "Dog", stag: "Stag", cow: "Cow", donkey: "Donkey" };
 export function make(world: World, kind: string, x: number, z: number, extra: Partial<Thing> = {}): Thing {
   world.built = (world.built ?? 0) + 1;
   const thing: Thing = { id: `${kind}-${world.built}`, kind, x, z, radius: 3, prefab: PREFAB_OF[kind], ...extra };
+  if (thing.mob && thing.mob.age < MATURE_AGE && YOUNG_PREFAB[kind]) thing.prefab = YOUNG_PREFAB[kind];
   world.things.push(thing);
   return thing;
 }
@@ -1039,7 +1178,7 @@ function options(person: Person, world: World): Option[] {
       const holdBack = t.stock === 1 && isCustom(world, "fair") && world.people.some((q) => q !== person && q.needs.hunger > 0.6 && dist(q.x, q.z, t.x, t.z) < 25);
       add("eat", t, holdBack ? hungry * (1 - 0.6 * strengthOf(world, "fair") * (0.5 + valueOf(person, "fairness"))) : hungry, 18);
     }
-    if (a.water) add("drink", t, thirsty, 8);
+    if (a.water && (t.stock === undefined || t.stock > 0)) add("drink", t, thirsty, 8);
     if (a.rest) {
       // A roof is better to rest under, much better when it is cold or wet.
       const roof = a.shelter ? 0.5 + 0.9 * person.cold + (world.weather?.raining ? 0.4 : 0) : 0;
@@ -1092,6 +1231,24 @@ function options(person: Person, world: World): Option[] {
         score: 1.1 * (-other.mood) * (0.4 + 0.6 * rel.affinity) + 0.15 * p.sociability,
       });
     }
+    // A keepsake carved for this person.
+    if (person.keepsake?.to === other.id) out.push({ intent: { kind: "gift", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 5 }, score: 1.1 + 0.3 * p.sociability });
+    // A swap that suits them both: spare food for wood, or wood for food.
+    if (other.age >= ADULT_AGE && person.age >= ADULT_AGE && !other.shunned && !(other.intent?.kind === "sleep" && other.intent.arrived)) {
+      const iNeedWood = person.carry.wood < 2 && (person.cold > 0.25 || winterNear(world)) && person.carry.food >= 3;
+      const iNeedFood = person.carry.food < 1 && needs.hunger > 0.4 && person.carry.wood >= 4;
+      if ((iNeedWood && other.carry.wood >= 4 && other.carry.food < 3) || (iNeedFood && other.carry.food >= 3 && other.carry.wood < 4))
+        out.push({ intent: { kind: "trade", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 4 }, score: 1.0 + 0.5 * relation(person, other.id, world).trust + 0.2 * p.sociability });
+    }
+    // Showing a child how it is done.
+    if (person.age >= ADULT_AGE && other.age < 14 && other.age >= 2 && !isNight(world.clock ?? 0)) {
+      const kin = other.mother === person.id || other.father === person.id;
+      const best = Math.max(...(["forage", "fish", "hunt", "farm", "build", "heal"] as const).map((sk) => skillOf(person, sk) - skillOf(other, sk)));
+      if (best > 0.2) out.push({ intent: { kind: "teach", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 25 }, score: 0.35 + 0.4 * p.sociability + (kin ? 0.4 * valueOf(person, "kin") : 0) + 0.3 * valueOf(person, "tradition") });
+    }
+    // Taking food that is not theirs, when starving, with nothing to eat, from someone they do not love, and bold enough.
+    if (needs.hunger > 0.85 && person.carry.food < 1 && other.carry.food >= 2 && other.age >= ADULT_AGE && (person.relations.get(other.id)?.affinity ?? 0) < 0.5 && p.boldness > 0.45 && !world.things.some((t) => aff(t).food && !aff(t).fish && known(t) && (t.stock === undefined || t.stock > 0)))
+      out.push({ intent: { kind: "steal", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 1 }, score: 0.6 + 2.4 * urge(needs.hunger, 0.85) * (0.4 + p.boldness) });
     // People do not chatter through the night.
     const wish = night ? 0 : urge(needs.social, 0.32 - 0.1 * p.sociability) * (0.8 + 0.9 * p.sociability);
     if (wish <= 0) continue;
@@ -1144,7 +1301,7 @@ function options(person: Person, world: World): Option[] {
     // The worse of the two decides; if its remedy is not known, looking for it comes before anything else, even a meal.
     const worse: IntentKind = needs.thirst >= needs.hunger ? "drink" : "eat";
     // Hunting is a remedy for hunger too.
-    const remedies = out.filter((o) => o.intent.kind === worse || (worse === "eat" && (o.intent.kind === "hunt" || o.intent.kind === "fish")));
+    const remedies = out.filter((o) => o.intent.kind === worse || (worse === "eat" && (o.intent.kind === "hunt" || o.intent.kind === "fish" || o.intent.kind === "steal")));
     if (remedies.length) return remedies;
     if (searchOption) return [searchOption];
   }
@@ -1282,6 +1439,29 @@ function goalOptions(person: Person, world: World, out: Option[]) {
 
 // Growing food, making a spear, and hunting.
 // Fishing in the river, and sitting at the grave of someone they loved.
+// Things made for a home, in the order a household wants them, and what each costs in wood.
+const FURNITURE = ["barrel", "table", "lantern", "chest", "shelf"] as const;
+const FURNITURE_WOOD: Record<string, number> = { barrel: 3, table: 3, lantern: 2, chest: 3, shelf: 3, shrine: 4 };
+const p0 = (person: Person) => person.personality;
+const winterNear = (world: World) => (world.weather?.season ?? 1) >= 2;
+function furnitureNear(world: World, sh: Thing): Thing[] {
+  return world.things.filter((t) => (FURNITURE as readonly string[]).includes(t.kind) && dist(t.x, t.z, sh.x, sh.z) < 9);
+}
+/** What a household would make next, or nothing if it has enough; a shrine first for someone devout where there is none. */
+function nextFurniture(world: World, sh: Thing, person: Person): string | undefined {
+  if (valueOf(person, "tradition") > 0.7 && !world.things.some((t) => t.kind === "shrine")) return "shrine";
+  const have = furnitureNear(world, sh);
+  if (have.length >= 2 + Math.floor(world.people.length / 2)) return undefined;
+  const kinds = new Set(have.map((t) => t.kind));
+  return FURNITURE.find((k) => !kinds.has(k));
+}
+/** A free place round a shelter, spread out so the things do not stand on each other. */
+function furnitureSpot(world: World, sh: Thing): { x: number; z: number } {
+  const n = furnitureNear(world, sh).length;
+  const a = n * 1.9 + 0.7;
+  return { x: sh.x + Math.cos(a) * (4 + (n % 2)), z: sh.z + Math.sin(a) * (4 + (n % 2)) };
+}
+
 function lifeOptions(person: Person, world: World, out: Option[]) {
   const { needs } = person;
   const season = world.weather?.season ?? 1;
@@ -1318,6 +1498,40 @@ function lifeOptions(person: Person, world: World, out: Option[]) {
       const d = dist(person.x, person.z, t.x, t.z);
       if (d > 40) continue;
       out.push({ intent: { kind: "tame", targetId: t.id, x: t.x, z: t.z, speed: WALK, remaining: 0.3 }, score: 0.5 + 0.3 * person.personality.sociability - d / 100 - (world.things.some((q) => q.kind === "dog" && q.of === person.id) ? 0.4 : 0) });
+    }
+  }
+  // Making a home of it: a table, a barrel for rain, a lantern, a chest, a shelf; a roof raised into a hut; a shrine for those who keep faith.
+  if (person.age >= ADULT_AGE && needs.hunger < 0.6 && needs.thirst < 0.6 && person.cold < 0.5 && !isNight(world.clock ?? 0)) {
+    for (const sh of world.things) {
+      if (sh.kind !== "shelter" || !person.memory.has(sh.id)) continue;
+      const d = dist(person.x, person.z, sh.x, sh.z);
+      if (d > 70) continue;
+      const wood = person.carry.wood;
+      const next = nextFurniture(world, sh, person);
+      if (next && wood >= FURNITURE_WOOD[next]!) {
+        const at = furnitureSpot(world, sh);
+        out.push({ intent: { kind: "furnish", targetId: sh.id, x: at.x, z: at.z, speed: WALK, remaining: 30 }, score: 0.3 + 0.5 * valueOf(person, "comfort") + (next === "shrine" ? 0.5 * valueOf(person, "tradition") : 0) + gift(person, "build") - d / 150 });
+      }
+      if ((sh.level ?? 1) < 2 && wood >= 4) out.push({ intent: { kind: "improve", targetId: sh.id, x: sh.x + 2, z: sh.z, speed: WALK, remaining: 50 }, score: 0.3 + 0.4 * valueOf(person, "comfort") + gift(person, "build") - d / 150 });
+    }
+  }
+  // Carving something for someone they care for.
+  if (person.age >= ADULT_AGE && person.carry.wood >= 1 && !person.keepsake && needs.hunger < 0.6 && !isNight(world.clock ?? 0)) {
+    const dear = world.people.filter((q) => q !== person && (person.relations.get(q.id)?.affinity ?? 0) > 0.5 && dist(person.x, person.z, q.x, q.z) < 60 && !(q.keepsakes ?? []).some((k) => k.from === person.id)).sort((a, b) => (person.relations.get(b.id)?.affinity ?? 0) - (person.relations.get(a.id)?.affinity ?? 0))[0];
+    if (dear) out.push({ intent: { kind: "carve", targetId: dear.id, x: person.x, z: person.z, speed: 0, remaining: 40 }, score: 0.25 + 0.4 * p0(person).sociability + 0.3 * valueOf(person, "kin") + gift(person, "build") });
+  }
+  // Prayer at a holy place, a grave or the Tree of Life, morning and evening, by those who keep to the old ways or are grieving.
+  {
+    const hour = hourOf(world.clock ?? 0);
+    const holyHour = (hour > 5.5 && hour < 8.5) || (hour > 17 && hour < 20);
+    const faith = valueOf(person, "tradition");
+    if (person.age >= ADULT_AGE && needs.hunger < 0.6 && needs.thirst < 0.6 && (faith > 0.6 || (person.grief ?? 0) > 0.3)) {
+      for (const t of world.things) {
+        if (!(aff(t).holy || t.kind === "tree of life" || (t.kind === "grave" && t.of && (person.relations.get(t.of)?.affinity ?? 0) > 0.3)) || !person.memory.has(t.id)) continue;
+        const d = dist(person.x, person.z, t.x, t.z);
+        if (d > 80) continue;
+        out.push({ intent: { kind: "pray", targetId: t.id, x: t.x, z: t.z, speed: WALK, remaining: 30 }, score: 0.15 + 0.5 * Math.max(0, faith - 0.5) + (holyHour ? 0.35 : 0) + 0.5 * (person.grief ?? 0) - d / 200 });
+      }
     }
   }
   const grief = person.grief ?? 0;
@@ -1503,6 +1717,7 @@ function finish(person: Person, world: World, intent: Intent) {
       break;
     case "drink":
       needs.thirst = clamp01(needs.thirst - 0.6);
+      if (t && t.kind === "barrel" && t.stock !== undefined) t.stock = Math.max(0, t.stock - 1);
       if (t) feel(person, t, 0.08);
       joy(0.05);
       break;
@@ -1737,6 +1952,162 @@ function finish(person: Person, world: World, intent: Intent) {
       }
       break;
     }
+    case "furnish": {
+      const sh = thingById(world, intent.targetId);
+      const kind = sh ? nextFurniture(world, sh, person) : undefined;
+      const cost = kind ? FURNITURE_WOOD[kind]! : 99;
+      if (sh && kind && person.carry.wood >= cost) {
+        person.carry.wood -= cost;
+        practise(person, "build", 0.05);
+        const af = AFFORDANCES[kind]!;
+        make(world, kind, intent.x, intent.z, { radius: 2, ...(af.stock !== undefined ? { stock: af.stock, maxStock: af.stock } : {}) });
+        joy(0.15);
+        person.say = kind === "shrine" ? "A place to be quiet in." : `There. ${kind === "table" ? "A table to eat at" : kind === "barrel" ? "The rain will fill it" : kind === "lantern" ? "A light for the evenings" : "That will do nicely"}.`;
+        note(person, world, `Made ${kind === "shrine" ? "a shrine" : `a ${kind}`} for our home.`);
+        if (kind === "shrine") chronicle(world, `${person.name} built a shrine.`);
+        tally(world, "furnished");
+        tally(world, `made_${kind}`);
+      }
+      break;
+    }
+    case "improve": {
+      const sh = thingById(world, intent.targetId);
+      if (sh && (sh.level ?? 1) < 2 && person.carry.wood >= 4) {
+        person.carry.wood -= 4;
+        sh.level = 2;
+        sh.prefab = "Hut";
+        practise(person, "build", 0.08);
+        joy(0.25);
+        person.say = "Now it is a proper house.";
+        note(person, world, "Raised our roof into a proper thatched hut.");
+        chronicle(world, `${person.name} raised the shelter into a hut.`);
+        tally(world, "huts");
+      }
+      break;
+    }
+    case "carve": {
+      const other = personById(world, intent.targetId);
+      if (other && person.carry.wood >= 1) {
+        person.carry.wood -= 1;
+        const items = ["a carved bird", "a wooden flute", "a little carved horse", "a string of wooden beads", "a carved bowl", "a small wooden doll"];
+        const item = items[Math.floor(rand(person) * items.length)]!;
+        person.keepsake = { to: other.id, item };
+        practise(person, "build", 0.03);
+        joy(0.1);
+        note(person, world, `Carved ${item} for ${other.name}.`);
+        tally(world, "carved");
+      }
+      break;
+    }
+    case "gift": {
+      const other = personById(world, intent.targetId);
+      const k = person.keepsake;
+      if (other && k && k.to === other.id) {
+        person.keepsake = undefined;
+        (other.keepsakes ??= []).push({ from: person.id, item: k.item });
+        const mine = relation(person, other.id, world);
+        const theirs = relation(other, person.id, world);
+        mine.affinity = Math.min(1, mine.affinity + 0.08);
+        theirs.affinity = Math.min(1, theirs.affinity + 0.18);
+        theirs.trust = Math.min(1, theirs.trust + 0.1);
+        theirs.gifts = (theirs.gifts ?? 0) + 1;
+        feelEmotion(other, "gratitude", 0.6);
+        feelEmotion(other, "joy", 0.3);
+        feelEmotion(person, "pride", 0.3);
+        person.say = `I made this for you, ${other.name}.`;
+        other.say = "It is lovely. I will keep it always.";
+        note(person, world, `Gave ${other.name} ${k.item} I had carved.`);
+        note(other, world, `${person.name} gave me ${k.item}, carved by their own hands.`);
+        tally(world, "keepsakesGiven");
+        if ((world.tally?.keepsakesGiven ?? 0) === 1) chronicle(world, `${person.name} gave ${other.name} ${k.item} of their own making.`);
+      }
+      break;
+    }
+    case "trade": {
+      const other = personById(world, intent.targetId);
+      if (other) {
+        if (person.carry.food >= 3 && other.carry.wood >= 4) {
+          person.carry.food -= 2;
+          other.carry.food = Math.min(6, other.carry.food + 2);
+          other.carry.wood -= 3;
+          person.carry.wood += 3;
+        } else if (person.carry.wood >= 4 && other.carry.food >= 3) {
+          person.carry.wood -= 3;
+          other.carry.wood += 3;
+          other.carry.food -= 2;
+          person.carry.food = Math.min(6, person.carry.food + 2);
+        } else break;
+        for (const [a, b] of [[person, other], [other, person]] as const) {
+          const r = relation(a, b.id, world);
+          r.trust = Math.min(1, r.trust + 0.05);
+          r.affinity = Math.min(1, r.affinity + 0.03);
+          note(a, world, `Swapped food for wood with ${b.name}. A fair trade.`);
+        }
+        person.say = "A fair swap.";
+        tally(world, "trades");
+      }
+      break;
+    }
+    case "teach": {
+      const child = personById(world, intent.targetId);
+      if (child) {
+        const taught = teach(person, child);
+        if (taught) {
+          note(child, world, `${person.name} showed me how to do better at ${SKILL_WORDS[taught.skill].doing}.`);
+          note(person, world, `Taught ${child.name} ${SKILL_WORDS[taught.skill].doing}.`);
+          tally(world, "lessons");
+          person.say = `Watch my hands, ${child.name}. Now you.`;
+        }
+        const r = relation(child, person.id, world);
+        r.affinity = Math.min(1, r.affinity + 0.04);
+        r.trust = Math.min(1, r.trust + 0.03);
+        joy(0.1);
+      }
+      break;
+    }
+    case "pray": {
+      joy(0.2);
+      person.grief = Math.max(0, (person.grief ?? 0) - 0.04);
+      person.mood = clampMood(person.mood + 0.1);
+      const companions = world.people.filter((q) => q !== person && q.intent?.kind === "pray" && q.intent.arrived && dist(q.x, q.z, person.x, person.z) < 10);
+      note(person, world, companions.length ? `Prayed with ${companions.map((q) => q.name).join(" and ")}${t ? ` at ${phrase(t)}` : ""}. It is easier together.` : `Prayed${t ? ` at ${phrase(t)}` : ""}. I felt calmer.`);
+      for (const q of companions) {
+        relation(person, q.id, world).affinity = Math.min(1, relation(person, q.id, world).affinity + 0.03);
+        relation(q, person.id, world).affinity = Math.min(1, relation(q, person.id, world).affinity + 0.03);
+      }
+      if (companions.length) {
+        tally(world, "ritesTogether");
+        if ((world.tally?.ritesTogether ?? 0) === 1) chronicle(world, `${person.name} and ${companions[0]!.name} prayed together${t ? ` at ${phrase(t)}` : ""}; the first rite of the people.`);
+      }
+      tally(world, "prayers");
+      break;
+    }
+    case "steal": {
+      const victim = personById(world, intent.targetId);
+      if (victim && victim.carry.food >= 1) {
+        victim.carry.food -= 1;
+        person.carry.food = Math.min(6, person.carry.food + 1);
+        const theirs = relation(victim, person.id, world);
+        theirs.affinity = Math.max(-1, theirs.affinity - 0.3);
+        theirs.trust = Math.max(0, theirs.trust - 0.4);
+        theirs.lastQuarrel = world.clock ?? 0;
+        feelEmotion(victim, "anger", 0.6);
+        feelEmotion(person, "shame", 0.5);
+        person.thefts = (person.thefts ?? 0) + 1;
+        note(person, world, `Took food from ${victim.name} because I was starving. I am ashamed.`);
+        note(victim, world, `${person.name} took food from me.`);
+        // Those who hear of it trust the thief a little less: the loss of faith that ends in being shunned.
+        for (const q of world.people) {
+          if (q === person || q === victim || dist(q.x, q.z, victim.x, victim.z) > 30) continue;
+          const r = relation(q, person.id, world);
+          r.trust = Math.max(0, r.trust - 0.12);
+          note(q, world, `${person.name} took food from ${victim.name}.`);
+        }
+        chronicle(world, `${person.name} took food from ${victim.name}.`);
+        tally(world, "thefts");
+      }
+      break;
+    }
     case "sleep":
       person.mood = clampMood(person.mood + 0.15);
       note(person, world, "Slept.");
@@ -1917,15 +2288,26 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     if (t.fuel <= 0) world.things.splice(i, 1);
   }
   stepAnimals(world, dt);
+  strangersStep(world, dt);
   for (const person of world.people) {
     person.clock += dt;
     const { needs, personality: p } = person;
     const asleep = person.intent?.kind === "sleep" && person.intent.arrived;
     // Warmth: what the air is, with clothes on, a roof overhead, a fire close by, and the rain if there is no roof.
-    const sheltered = world.things.some((t) => t.kind === "shelter" && dist(person.x, person.z, t.x, t.z) < 3.5);
+    const shelterAt = world.things.find((t) => t.kind === "shelter" && dist(person.x, person.z, t.x, t.z) < 3.5);
+    const sheltered = !!shelterAt;
     const nearFire = world.things.some((t) => burning(t) && dist(person.x, person.z, t.x, t.z) < 6);
     if (person.age >= 3) noticeSmallJoys(world, person, weather, nearFire);
-    const effective = weather.tempC + 5 + 6 * (person.clothing ?? 0) + (sheltered ? 8 : 0) + (nearFire ? 12 : 0) - (weather.raining && !sheltered ? 4 : 0) - (sheltered ? 0 : 0.5 * weather.windMs); // wind takes the warmth away
+    // A home that has been made pleasant: a table, a lantern, a shrine near where they rest, eat or talk lifts the mood a little.
+    if (person.intent?.arrived && (["rest", "sleep", "eat", "talk", "linger", "mourn", "pray"] as IntentKind[]).includes(person.intent.kind)) {
+      let c = 0;
+      for (const t of world.things) {
+        const k = aff(t).comfort;
+        if (k && dist(person.x, person.z, t.x, t.z) < 4.5) c += k;
+      }
+      if (c > 0) person.mood = clampMood(person.mood + (Math.min(0.3, c) * dt) / 240);
+    }
+    const effective = weather.tempC + 5 + 6 * (person.clothing ?? 0) + (sheltered ? 8 + 4 * ((shelterAt?.level ?? 1) - 1) : 0) + (nearFire ? 12 : 0) - (weather.raining && !sheltered ? 4 : 0) - (sheltered ? 0 : 0.5 * weather.windMs); // wind takes the warmth away
     const coldTarget = clamp01((COMFORT_C - effective) / 18);
     person.cold = clamp01(person.cold + (coldTarget - person.cold) * Math.min(1, dt / 180));
     // Heat dries a person out faster.
@@ -2055,7 +2437,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       }
     }
     if (!person.intent) continue;
-    if (intent.kind === "talk" || intent.kind === "share" || intent.kind === "comfort") {
+    if (SOCIAL.has(intent.kind)) {
       const other = personById(world, intent.targetId);
       if (other) {
         intent.x = other.x;
@@ -2065,7 +2447,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
 
     if (!intent.arrived) {
       const d = dist(person.x, person.z, intent.x, intent.z);
-      const stop = intent.kind === "talk" || intent.kind === "share" || intent.kind === "comfort" ? REACH : intent.kind === "hunt" || intent.kind === "tame" ? 3 : intent.kind === "flee" || intent.kind === "wander" ? 0.4 : (thingById(world, intent.targetId)?.radius ?? 1) * 0.8;
+      const stop = SOCIAL.has(intent.kind) ? REACH : intent.kind === "hunt" || intent.kind === "tame" ? 3 : intent.kind === "flee" || intent.kind === "wander" ? 0.4 : (thingById(world, intent.targetId)?.radius ?? 1) * 0.8;
       if (d <= stop + 0.05) {
         intent.arrived = true;
       } else if (settings.externalMotion) {
@@ -2119,6 +2501,14 @@ function stepAnimals(world: World, dt: number) {
     if (!a.mobile) continue;
     const m = (t.mob ??= { tx: t.x, tz: t.z, wait: 0, fed: now, age: 2, fleeUntil: 0 });
     m.age += dt / YEAR;
+    // Grown up: the young one's small body is swapped for an adult's (the page sees the prefab change).
+    if (t.prefab && YOUNG_PREFAB[t.kind] === t.prefab && m.age >= MATURE_AGE) t.prefab = PREFAB_OF[t.kind];
+    // A blow: it flinches where it stands.
+    if (m.hurtUntil !== undefined && now < m.hurtUntil) {
+      m.state = "hit";
+      m.speed = 0;
+      continue;
+    }
     // Eating a kill: it stands over it and does nothing else for a while.
     if (m.eatUntil !== undefined && now < m.eatUntil) {
       m.state = m.attackUntil !== undefined && now < m.attackUntil ? "attack" : "eat";
@@ -2159,9 +2549,22 @@ function stepAnimals(world: World, dt: number) {
           threat = f;
         }
       }
-      if (threat || now < m.fleeUntil) {
+      if (threat && m.state !== "flee" && m.state !== "startle" && now >= m.fleeUntil) m.startleUntil = now + 0.9; // it freezes, head up, before it runs
+      if (now < (m.startleUntil ?? 0)) {
+        state = "startle";
+        busy = true;
+        speed = 0;
+        m.tx = t.x;
+        m.tz = t.z;
+      } else if (threat || now < m.fleeUntil) {
         if (threat) {
           m.fleeUntil = now + 5; // it keeps running a few seconds after the danger is out of sight
+          // The herd takes the alarm from it.
+          for (const q of things) {
+            if (q === t || q.kind !== t.kind || !q.mob || dist(q.x, q.z, t.x, t.z) > 16 || now < q.mob.fleeUntil) continue;
+            q.mob.fleeUntil = now + 4;
+            q.mob.startleUntil = now + 0.5 + 0.6 * worldRand(world);
+          }
           const away = Math.atan2(t.z - threat.z, t.x - threat.x);
           const to = inside(world, t.x + Math.cos(away) * 14, t.z + Math.sin(away) * 14);
           m.tx = to.x;
@@ -2212,6 +2615,24 @@ function stepAnimals(world: World, dt: number) {
         }
       }
     }
+    // A creature that fights back (a stag, an alpaca, a wolf), hit: it turns on whoever did it, and butts or kicks when close.
+    if ((m.angryUntil ?? 0) > now && world.visitor && FIGHTERS.has(t.kind)) {
+      const d = dist(t.x, t.z, world.visitor.x, world.visitor.z);
+      if (d > 2.4) {
+        m.tx = world.visitor.x;
+        m.tz = world.visitor.z;
+        speed = 2.4;
+        state = "hunt";
+      } else {
+        state = "attack";
+        speed = 0;
+        m.tx = t.x;
+        m.tz = t.z;
+      }
+      busy = true;
+    }
+    // Age slows them.
+    if (m.age > 9) speed *= 0.75;
     if (!busy) {
       const arrivedHere = dist(t.x, t.z, m.tx, m.tz) < 0.5;
       // The pause starts when it gets there, not when it set out, and is long at night.
@@ -2234,7 +2655,15 @@ function stepAnimals(world: World, dt: number) {
         } else {
           const a2 = worldRand(world) * Math.PI * 2;
           const hop = isDark(now) ? 1.5 + 2 * worldRand(world) : 3 + 6 * worldRand(world);
-          const to = inside(world, t.x + Math.cos(a2) * hop, t.z + Math.sin(a2) * hop);
+          // A herd animal stays with the others: more often than not it goes where they are.
+          const mates = HERD.has(t.kind) ? things.filter((q) => q !== t && q.kind === t.kind && dist(q.x, q.z, t.x, t.z) < 45) : [];
+          let hx = t.x;
+          let hz = t.z;
+          if (mates.length && worldRand(world) < 0.65) {
+            hx = mates.reduce((v, q) => v + q.x, 0) / mates.length;
+            hz = mates.reduce((v, q) => v + q.z, 0) / mates.length;
+          }
+          const to = inside(world, hx + Math.cos(a2) * hop, hz + Math.sin(a2) * hop);
           m.tx = to.x;
           m.tz = to.z;
           const roll = worldRand(world);
@@ -2256,7 +2685,20 @@ function stepAnimals(world: World, dt: number) {
     m.speed = moved > 0.01 ? speed : 0;
     m.state = state && moved > 0.01 ? state : moved > 0.01 ? "walk" : state ?? m.idle ?? "stand";
     // Old deer die.
-    if (a.prey && m.age > 10 && worldRand(world) < (dt / DAY) * 0.05) things.splice(things.indexOf(t), 1);
+    if (m.age > (a.prey ? 10 : 16) && !(t.kind === "dog" && t.of) && worldRand(world) < (dt / DAY) * 0.05) things.splice(things.indexOf(t), 1);
+  }
+  // The herds of horses, cattle, alpacas, stags and donkeys have young too, in spring and summer, when there are two together and room.
+  if (season === 0 || season === 1) {
+    for (const kind of ["horse", "cow", "alpaca", "stag", "donkey"]) {
+      const herd = things.filter((t) => t.kind === kind && t.mob);
+      if (herd.length < 2 || herd.length >= 6 * Math.max(1, Math.min(4, (R / 36) ** 2 / 8)) || worldRand(world) >= (dt / DAY) * 0.25) continue;
+      const a1 = herd[Math.floor(worldRand(world) * herd.length)]!;
+      const pair = herd.find((q) => q !== a1 && dist(q.x, q.z, a1.x, a1.z) < 20 && (q.mob?.age ?? 0) > 2);
+      if (!pair || (a1.mob?.age ?? 0) < 2) continue;
+      const stock = AFFORDANCES[kind]?.stock;
+      make(world, kind, a1.x + 1, a1.z, { radius: 2, ...(stock !== undefined ? { stock, maxStock: stock } : {}), mob: { tx: a1.x, tz: a1.z, wait: 0, fed: now, age: 0, fleeUntil: 0 } });
+      tally(world, "youngBorn");
+    }
   }
   const deer = things.filter((t) => t.kind === "deer");
   const foxes = things.filter((t) => t.kind === "fox");
@@ -2442,6 +2884,18 @@ export function actionOf(person: Person): string {
       return "fish";
     case "wash":
       return "wash";
+    case "furnish":
+    case "improve":
+    case "carve":
+      return "craft";
+    case "pray":
+      return "rest";
+    case "gift":
+    case "trade":
+    case "teach":
+      return "talk_to_other";
+    case "steal":
+      return "observe";
     case "fetch":
       return person.errand?.kind === "water" ? "drink" : person.errand?.kind === "wood" ? "chop" : "harvest";
     case "plant":

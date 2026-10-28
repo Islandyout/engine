@@ -1,7 +1,7 @@
 // One thread of the animation-flow check: runs situations and returns counts. See animflow.ts.
 import { parentPort, workerData } from "node:worker_threads";
 import { DAY, YEAR, EDEN_CLIMATE } from "../../apps/editor/src/eden/earth";
-import { aff, giveToPerson, makePerson, startErrand, step, type Person, type Thing, type World } from "../../apps/editor/src/eden/mind";
+import { aff, creatureHurt, giveToPerson, makePerson, startErrand, step, type Person, type Thing, type World } from "../../apps/editor/src/eden/mind";
 import { creatureMotion, newMemory, personMotion, speciesOf, type MotionMemory } from "../../apps/editor/src/eden/motion";
 import { rng } from "../../apps/editor/src/eden/lifelike";
 
@@ -48,9 +48,15 @@ function situation(seed: number): { world: World; hours: number } {
     if (r() < 0.2) p.carry.wood = 2;
     people.push(p);
   }
+  // Half have a roof and wood to spare, so there is a home to make something of, a faith to keep and goods to swap.
+  if (r() < 0.5) {
+    put("home", "shelter", { stock: 6 }, 0.4);
+    for (const p of people) p.carry.wood = 2 + Math.floor(r() * 8);
+    if (r() < 0.3) put("shr", "shrine");
+  }
   const climate = { meanC: 6 + 14 * r(), seasonalAmpC: 4 + 8 * r(), dailyAmpC: 3 + 4 * r(), rainy: 0.1 + 0.5 * r(), seed: Math.floor(r() * 1e6) };
   const clock = Math.floor(r() * 16) * DAY + r() * DAY;
-  return { world: { things, people, radius: spread * 1.8, climate: climate ?? EDEN_CLIMATE, clock }, hours: 1 };
+  return { world: { things, people, radius: spread * 1.8, climate: climate ?? EDEN_CLIMATE, clock, strangers: r() < 0.5 }, hours: 1 };
 }
 
 function run(seed: number, c: Counts) {
@@ -81,6 +87,11 @@ function run(seed: number, c: Counts) {
         const who = world.people.find((q) => q.id === ev.who);
         if (ev.kind === "asked" && who && rr() < 0.6 && giveToPerson(world, who, ev.item)) add(c, "errand.ask_answered");
       }
+      if (s % 400 === 77) {
+        const hurtable = world.things.filter((t) => t.mob && aff(t).creature);
+        const t = hurtable[Math.floor(rr() * hurtable.length)];
+        if (t) (creatureHurt(world, t.id), add(c, `creature.hurt.${t.kind}`));
+      }
       for (const q of world.people) if (q.errand && (world.clock ?? 0) > q.errand.until + 60) add(c, "gap.errand_stuck");
     }
     if (s % 2) continue;
@@ -96,6 +107,7 @@ function run(seed: number, c: Counts) {
       const kind = p.intent?.kind ?? "none";
       const arrived = !!p.intent?.arrived;
       add(c, `intent.${kind}.${arrived ? "at" : "going"}`);
+      if (arrived && ["furnish", "improve", "carve", "gift", "trade", "pray", "teach", "steal"].includes(kind)) add(c, `home.${kind}.${mo.pose ?? "NONE"}`);
       if (arrived) {
         add(c, `pose.${kind}.${mo.pose ?? "NONE"}`);
         if (!mo.pose && mo.action === "observe") add(c, "gap.arrived_idle." + kind);
@@ -107,14 +119,14 @@ function run(seed: number, c: Counts) {
         const strong = (em.fear ?? 0) > 0.4 ? "fear" : (em.anger ?? 0) > 0.4 ? "anger" : (p.grief ?? 0) > 0.2 || (em.shame ?? 0) > 0.4 || p.mood < -0.35 ? "low" : p.illness ? "ill" : p.cold > 0.5 ? "cold" : undefined;
         if (strong) {
           add(c, `feel.${strong}.samples`);
-          if (!mo.pose || !["alert", "tense", "slump", "hug", "mourn", "sleep", "laugh", "stretch", "sit", "talk", "work", "warm", "fish", "yawn", "belly"].includes(mo.pose)) (add(c, `gap.unseen_feeling.${strong}`), add(c, `unseen.${strong}.${kind}.${mo.pose ?? "NONE"}`));
+          if (!mo.pose || !["alert", "tense", "slump", "hug", "mourn", "sleep", "laugh", "stretch", "sit", "talk", "work", "warm", "fish", "yawn", "belly", "hurt", "pray"].includes(mo.pose)) (add(c, `gap.unseen_feeling.${strong}`), add(c, `unseen.${strong}.${kind}.${mo.pose ?? "NONE"}`));
         }
       }
       // Pose changes: too fast, or a jump no one would make.
       if (was && was.pose !== mo.pose) {
         add(c, "pose.changes");
         add(c, `trans.${was.pose ?? "none"}>${mo.pose ?? "none"}`);
-        const brief = new Set(["yawn", "belly", "laugh", "stretch", "wave", "scan", "proud", "slump", "hug", "alert", "tense", "talk"]);
+        const brief = new Set(["yawn", "belly", "laugh", "stretch", "wave", "scan", "proud", "slump", "hug", "alert", "tense", "talk", "hurt"]);
         if (clock - was.at < 6 && was.pose && mo.pose && !brief.has(was.pose) && !brief.has(mo.pose)) (add(c, "gap.flicker.pose"), add(c, `flick.pose.${was.pose}>${mo.pose}`));
         if (was.pose === "sleep" && mo.pose && !["stretch", "sit", "slump", "alert", "yawn"].includes(mo.pose)) add(c, `gap.sleep_jump.${mo.pose}`);
       }
@@ -149,11 +161,19 @@ function run(seed: number, c: Counts) {
         continue;
       }
       add(c, `creature.${t.kind}.${t.mob?.state ?? "none"}.${mo.clip}`);
+      if (["deer", "horse", "cow", "alpaca", "stag", "donkey"].includes(t.kind)) {
+        const mates = world.things.filter((q) => q !== t && q.kind === t.kind);
+        if (mates.length) {
+          const near = Math.min(...mates.map((q) => Math.hypot(q.x - t.x, q.z - t.z)));
+          add(c, near < 12 ? "herd.together" : near < 30 ? "herd.apart" : "herd.scattered");
+        }
+      }
+      if ((t.mob?.age ?? 3) < 0.9) add(c, `young.${t.kind}.${mo.clip}`);
       if (!sp.clips.includes(mo.clip)) add(c, `gap.creature_missing_clip.${t.kind}.${mo.clip}`);
       const v = t.mob?.speed ?? 0;
       if (v > 0.2 && mo.clip !== "walk" && mo.clip !== "run") add(c, `gap.creature_moving_but_${mo.clip}`);
       if (v < 0.05 && (mo.clip === "walk" || mo.clip === "run")) add(c, "gap.creature_sliding_in_place");
-      if (mo.scale <= 0.5 || mo.scale >= 1.5) (add(c, "gap.creature_pace_clamped"), add(c, `clamp.${t.kind}.${t.mob?.state}.${mo.clip}.${v.toFixed(1)}`));
+      if (mo.scale <= 0.5 || mo.scale >= 1.7) (add(c, "gap.creature_pace_clamped"), add(c, `clamp.${t.kind}.${t.mob?.state}.${mo.clip}.${v.toFixed(1)}`));
       const lc = lastClip.get(t.id);
       if (lc && lc.clip !== mo.clip) {
         // A bounce: A, then B, then A again, within twelve seconds.
