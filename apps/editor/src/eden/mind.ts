@@ -98,8 +98,11 @@ export interface Thing {
   trust?: number; // a dog: how many times it has been fed by someone, toward choosing them
   prefab?: string; // the scene prefab that shows it (the host places it); absent for things the scene already has
   // A creature's own going about: where it is heading, when it last ate, how old it is (in Eden years).
-  mob?: { tx: number; tz: number; wait: number; fed: number; age: number; fleeUntil: number };
+  mob?: { tx: number; tz: number; wait: number; fed: number; age: number; fleeUntil: number; state?: MobState; speed?: number; idle?: MobState; eatUntil?: number; attackUntil?: number; here?: boolean };
 }
+
+// What a creature is doing right now, which is what its body shows (motion.ts picks the clip and the gait from it).
+export type MobState = "stand" | "graze" | "vigil" | "rest" | "drink" | "walk" | "flee" | "hunt" | "eat" | "follow" | "attack";
 
 // What a person remembers of a thing: where it is, and how being near it has felt.
 export interface Memory {
@@ -122,6 +125,8 @@ export interface Intent {
   arrived: boolean;
   // Sim seconds spent trying to get there; a goal that takes too long is given up, so nobody is stuck forever.
   age?: number;
+  // What they were walking to do before they stopped to listen to someone (taken up again after).
+  resume?: Intent;
 }
 
 // What they remember happening, in order, in their own words: the Creator can read it, and it is what they have to talk about.
@@ -165,6 +170,7 @@ export interface Person {
   lastBirth?: number; // world clock a child of theirs was last born (mothers)
   spoken?: string[]; // the last few things they said aloud, so the voice does not repeat them
   promises?: { to: string; due: number }[]; // what they have promised, and by when
+  laughUntil?: number; // world clock until which they are laughing (a joke was told)
   followUntil?: number; // world clock until which they walk with the Walker (asked to, in conversation)
   walkerTrust?: number; // 0..1: how well they have come to know the Walker, from talking with them
   shunned?: boolean; // the others have lost faith in them and keep away
@@ -759,7 +765,7 @@ function relation(person: Person, otherId: string, world: World): Relation {
 const burning = (t: Thing) => t.kind === "campfire" && (t.fuel ?? 0) > 0;
 // Seconds a fire burns on one armful of wood (two hours of the real thing, at one sim second to a minute).
 const FIRE_SECONDS_PER_WOOD = 120;
-const PREFAB_OF: Record<string, string> = { campfire: "Campfire", shelter: "Shelter", grave: "Grave", crop: "Crop", deer: "Deer", fox: "Fox", wolf: "Wolf", horse: "Horse", dog: "Dog", stag: "Stag", cow: "Cow", donkey: "Donkey" };
+const PREFAB_OF: Record<string, string> = { alpaca: "Alpaca", campfire: "Campfire", shelter: "Shelter", grave: "Grave", crop: "Crop", deer: "Deer", fox: "Fox", wolf: "Wolf", horse: "Horse", dog: "Dog", stag: "Stag", cow: "Cow", donkey: "Donkey" };
 export function make(world: World, kind: string, x: number, z: number, extra: Partial<Thing> = {}): Thing {
   world.built = (world.built ?? 0) + 1;
   const thing: Thing = { id: `${kind}-${world.built}`, kind, x, z, radius: 3, prefab: PREFAB_OF[kind], ...extra };
@@ -888,6 +894,8 @@ function options(person: Person, world: World): Option[] {
   for (const other of world.people) {
     if (other === person) continue;
     if (dist(person.x, person.z, other.x, other.z) > SIGHT * 2) continue;
+    // Nobody wakes a sleeper to chat.
+    if (other.intent?.kind === "sleep" && other.intent.arrived) continue;
     // Someone hungry, and food in hand: give it.
     if (person.carry.food >= 1 && other.needs.hunger > 0.6 && other.carry.food < 1 && !(other.shunned && !(other.mother === person.id || other.father === person.id || person.mother === other.id))) {
       const rel = person.relations.get(other.id);
@@ -1217,7 +1225,7 @@ function earthOptions(
   // Under the custom, whoever sees the fire low feeds it.
   if (wood >= 1) for (const f of fires) if ((f.fuel ?? 0) < 2 * FIRE_SECONDS_PER_WOOD && strengthOf(world, "tend") > 0) add("fire", f, 0.9 * strengthOf(world, "tend") + 0.2, 12);
   // Something carried is eaten where they stand.
-  if (food > 0 && hungry > 0) out.push({ intent: { kind: "eat", x: person.x, z: person.z, speed: 0, remaining: 12 }, score: hungry * 0.95 });
+  if (food > 0 && hungry > 0) out.push({ intent: { kind: "eat", x: person.x, z: person.z, speed: 0, remaining: 12 }, score: hungry * 0.95 + (needs.hunger > 0.9 ? 2.5 : 0) }); // starving with food in hand, nothing comes first
   // Making a fire where they are, or feeding one that is low.
   const fireNear = fires.some((f) => dist(person.x, person.z, f.x, f.z) < 10);
   if (wood >= 2 && !fireNear && cold > 0.15) out.push({ intent: { kind: "fire", x: person.x, z: person.z, speed: 0, remaining: 12 }, score: 1.8 * urge(cold, 0.1) });
@@ -1634,6 +1642,23 @@ function finish(person: Person, world: World, intent: Intent) {
           note(other, world, `${person.name} told me: ${exchange.tale}`);
           tally(world, "storiesTold");
         }
+        if (exchange.topic === "joke") {
+          // They laugh together: it lifts both, and is remembered as a good moment.
+          for (const who of [person, other]) {
+            // Someone grieving, angry or afraid does not laugh at it, however kindly it was meant.
+            if ((who.grief ?? 0) > 0.2 || (who.emotions?.anger ?? 0) > 0.4 || (who.emotions?.fear ?? 0) > 0.4) continue;
+            who.laughUntil = (world.clock ?? 0) + 4;
+            feelEmotion(who, "joy", 0.3);
+            who.needs.social = clamp01(who.needs.social - 0.1);
+          }
+          const mine = relation(person, other.id, world);
+          const theirs = relation(other, person.id, world);
+          mine.affinity = Math.min(1, mine.affinity + 0.03);
+          theirs.affinity = Math.min(1, theirs.affinity + 0.03);
+          note(person, world, `Laughed with ${other.name}.`);
+          note(other, world, `${person.name} made me laugh.`);
+          tally(world, "laughs");
+        }
         if (exchange.topic === "sorry") {
           const mine = relation(person, other.id, world);
           const theirs = relation(other, person.id, world);
@@ -1878,9 +1903,24 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       finish(person, world, intent);
       continue;
     }
+    // Someone has come to talk to them: they stop what they were walking to do, and listen.
+    if (intent.kind === "talk") {
+      const heard = personById(world, intent.targetId);
+      // They fell asleep while someone was on their way: the talker lets them be.
+      if (heard?.intent?.kind === "sleep" && heard.intent.arrived) {
+        person.intent = undefined;
+        continue;
+      }
+      const was = heard?.intent;
+      if (heard && was && !was.arrived && was.kind !== "flee" && was.kind !== "talk" && was.kind !== "sleep" && heard.needs.hunger < 0.9 && heard.needs.thirst < 0.9)
+        heard.intent = { kind: "linger", x: heard.x, z: heard.z, speed: 0, remaining: Math.max(3, intent.remaining), arrived: true, resume: was };
+    }
     // There: spend the time, then take the result.
     intent.remaining -= dt;
-    if (intent.remaining <= 0) finish(person, world, intent);
+    if (intent.remaining <= 0) {
+      if (intent.resume) person.intent = { ...intent.resume, arrived: false };
+      else finish(person, world, intent);
+    }
   }
   lifeAndDeath(world, dt);
 }
@@ -1897,6 +1937,13 @@ function stepAnimals(world: World, dt: number) {
     if (!a.mobile) continue;
     const m = (t.mob ??= { tx: t.x, tz: t.z, wait: 0, fed: now, age: 2, fleeUntil: 0 });
     m.age += dt / YEAR;
+    // Eating a kill: it stands over it and does nothing else for a while.
+    if (m.eatUntil !== undefined && now < m.eatUntil) {
+      m.state = m.attackUntil !== undefined && now < m.attackUntil ? "attack" : "eat";
+      m.speed = 0;
+      continue;
+    }
+    let state: MobState | undefined;
     let speed = a.mobile;
     let busy = false;
     if (t.kind === "dog" && t.of) {
@@ -1908,6 +1955,7 @@ function stepAnimals(world: World, dt: number) {
         m.tz = owner.z + (worldRand(world) - 0.5) * 3;
         speed = 2.4;
         busy = true;
+        state = "follow";
       }
     }
     if (a.prey) {
@@ -1931,6 +1979,7 @@ function stepAnimals(world: World, dt: number) {
       }
       if (threat || now < m.fleeUntil) {
         if (threat) {
+          m.fleeUntil = now + 5; // it keeps running a few seconds after the danger is out of sight
           const away = Math.atan2(t.z - threat.z, t.x - threat.x);
           const to = inside(world, t.x + Math.cos(away) * 14, t.z + Math.sin(away) * 14);
           m.tx = to.x;
@@ -1938,6 +1987,7 @@ function stepAnimals(world: World, dt: number) {
         }
         speed = 2.3;
         busy = true;
+        state = "flee";
       }
     } else if (a.predator) {
       // A dog with someone near drives a fox or wolf off.
@@ -1949,6 +1999,7 @@ function stepAnimals(world: World, dt: number) {
         m.tz = to.z;
         speed = 2.6;
         busy = true;
+        state = "flee";
       } else if (now - m.fed > 4 * DAY) {
         things.splice(things.indexOf(t), 1);
         continue;
@@ -1969,30 +2020,59 @@ function stepAnimals(world: World, dt: number) {
           m.tz = prey.z;
           speed = 2.6;
           busy = true;
+          state = "hunt";
           if (best < 1.3 && worldRand(world) < 0.5) {
             things.splice(things.indexOf(prey), 1);
             m.fed = now;
+            m.attackUntil = now + 1.5;
+            m.eatUntil = now + 11;
           }
         }
       }
     }
     if (!busy) {
-      m.wait -= dt;
-      if (m.wait <= 0 || dist(t.x, t.z, m.tx, m.tz) < 0.5) {
-        const a2 = worldRand(world) * Math.PI * 2;
-        const to = inside(world, t.x + Math.cos(a2) * (3 + 6 * worldRand(world)), t.z + Math.sin(a2) * (3 + 6 * worldRand(world)));
-        m.tx = to.x;
-        m.tz = to.z;
-        m.wait = 8 + 14 * worldRand(world);
+      const arrivedHere = dist(t.x, t.z, m.tx, m.tz) < 0.5;
+      // The pause starts when it gets there, not when it set out, and is long at night.
+      if (arrivedHere && !m.here) {
+        m.here = true;
+        m.wait = (isDark(now) ? 40 + 80 * worldRand(world) : 8 + 22 * worldRand(world)) * (m.idle === "graze" ? 1.4 : 1);
+      }
+      if (m.here) m.wait -= dt;
+      if (m.here && m.wait <= 0) {
+        m.here = false;
+        // Time to go somewhere else: now and then to water, otherwise a short way on. What it does once there depends on what it is.
+        const grazer = a.prey || t.kind === "horse" || t.kind === "cow" || t.kind === "donkey" || t.kind === "alpaca";
+        const waterThing = grazer ? things.find((q) => aff(q).water) : undefined;
+        if (waterThing && worldRand(world) < 0.12) {
+          const a3 = worldRand(world) * Math.PI * 2;
+          const to = inside(world, waterThing.x + Math.cos(a3) * 3, waterThing.z + Math.sin(a3) * 3);
+          m.tx = to.x;
+          m.tz = to.z;
+          m.idle = "drink";
+        } else {
+          const a2 = worldRand(world) * Math.PI * 2;
+          const hop = isDark(now) ? 1.5 + 2 * worldRand(world) : 3 + 6 * worldRand(world);
+          const to = inside(world, t.x + Math.cos(a2) * hop, t.z + Math.sin(a2) * hop);
+          m.tx = to.x;
+          m.tz = to.z;
+          const roll = worldRand(world);
+          m.idle = isDark(now) ? "rest" : grazer ? (roll < 0.6 ? "graze" : roll < 0.85 ? "stand" : "vigil") : roll < 0.5 ? "stand" : roll < 0.8 ? "vigil" : "rest";
+        }
       }
     }
     const d = dist(t.x, t.z, m.tx, m.tz);
+    let moved = 0;
     if (d > 0.05) {
       const stepLen = Math.min(d, speed * dt);
+      const bx = t.x;
+      const bz = t.z;
       t.x += ((m.tx - t.x) / d) * stepLen;
       t.z += ((m.tz - t.z) / d) * stepLen;
       keepOut(world, t);
+      moved = dist(bx, bz, t.x, t.z);
     }
+    m.speed = moved > 0.01 ? speed : 0;
+    m.state = state && moved > 0.01 ? state : moved > 0.01 ? "walk" : state ?? m.idle ?? "stand";
     // Old deer die.
     if (a.prey && m.age > 10 && worldRand(world) < (dt / DAY) * 0.05) things.splice(things.indexOf(t), 1);
   }

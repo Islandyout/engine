@@ -31,6 +31,13 @@ function on_ui(name, value)
     if e then world.send(e, "eden_who", value) end
     return
   end
+  -- What a creature's body should be doing: "id|clip@pace" (graze, walk, run, a watchful idle...).
+  if name == "eden_clip" then
+    local id, clip = string.match(value, "^([^|]+)|(.+)$")
+    local e = id and placed[id]
+    if e and clip then world.send(e, "eden_clip", clip) end
+    return
+  end
   -- A creature that has moved: "id,x,y,z".
   if name == "eden_move" then
     local id, x, y, z = string.match(value, "^([^,]+),([^,]+),([^,]+),([^,]+)$")

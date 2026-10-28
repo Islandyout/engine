@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { findPoseBones, type PoseName } from "../poses";
+import { findPoseBones } from "../poses";
+import { creatureMotion, newMemory, personMotion, type MotionMemory, type PoseName } from "../../eden/motion";
 import { createTalk, type Talk } from "./edenTalk";
 import { hearWalker, nearbyPeople, noteFirstWord } from "../../eden/chat";
 import { actionOf, applySpokenIntent, giveMeat, shareKill, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
@@ -53,7 +54,6 @@ export const EDEN_ACTION_CLIPS: [string, string[]][] = [
 export const EDEN_LOOPING_ACTIONS = new Set(["eat", "drink", "harvest", "plant", "chop", "wash", "carry_walk"]);
 
 // What each thing a person does at its place looks like with the whole body (poses.ts).
-const POSE_OF: Partial<Record<string, PoseName>> = { fish: "fish", craft: "work", sew: "work", fire: "work", rest: "sit", sleep: "sleep", mourn: "mourn", warm: "warm", talk: "talk", share: "talk" };
 const forcedPose = new Set<number>(); // bodies a debug call has posed by hand
 
 const TICK_MS = 250;
@@ -147,6 +147,8 @@ export function installEdenAgents(C: Ctx): void {
   let walking = false; // the Creator is walking the world as a hunter
   let youBody = -1;
   let talk: Talk | undefined; // the box for talking with people (E), made the first time you walk
+  const motionMem = new Map<string, MotionMemory>(); // what each person's body was last doing (motion.ts)
+  const clipSent = new Map<string, string>(); // the clip each creature was last told to play
   const holdPose = new Map<string, { pose: PoseName; until: number }>(); // a pose someone keeps for a moment (a wave, talking), over what they are doing
   let carriedMeat = 0; // game the hunter has kept to give away (H hands it to the nearest person)
   const bodyObjectOf = (p: Person) => {
@@ -453,6 +455,15 @@ export function installEdenAgents(C: Ctx): void {
         lastMoved.set(thing.id, [thing.x, thing.z]);
         ui("eden_move", `${thing.id},${thing.x},${groundY(thing.x, thing.z)},${thing.z}`);
       }
+      // Its clip and pace, from what it is doing and how fast (motion.ts): grazing, watching, a walk matched to its feet, a run.
+      const cm = SPEEDS[speed]! <= 3 ? creatureMotion(thing, w.clock ?? 0) : undefined;
+      if (cm) {
+        const key = `${cm.clip}@${cm.scale.toFixed(1)}`;
+        if (clipSent.get(thing.id) !== key) {
+          clipSent.set(thing.id, key);
+          ui("eden_clip", `${thing.id}|${key}`);
+        }
+      }
     }
     // Bodies for people who were not in the scene at the start; a child's is swapped for an adult's when they grow up.
     for (const person of w.people) {
@@ -572,7 +583,10 @@ export function installEdenAgents(C: Ctx): void {
         const at = ORIGINAL.has(person.id) ? bodyIndex(person.name) : (bodyIndexById.get(person.id) ?? -1);
         const held = holdPose.get(person.id);
         if (held && held.until < performance.now()) holdPose.delete(person.id);
-        const pose = held && held.until >= performance.now() ? held.pose : intent?.arrived && !fast ? POSE_OF[intent.kind] : undefined;
+        const mem = motionMem.get(person.id) ?? newMemory();
+        motionMem.set(person.id, mem);
+        const mo = personMotion(person, w, mem, held && held.until >= performance.now() ? held.pose : undefined);
+        const pose = fast ? undefined : mo.pose;
         // Someone being talked to turns to face you.
         if (at >= 0 && held && walking && youBody >= 0 && C.objects[at] && C.objects[youBody]) {
           const me = C.objects[at]!;
@@ -774,6 +788,12 @@ export function installEdenAgents(C: Ctx): void {
         else (forcedPose.delete(at), C.edenPoseHeld.delete(at), C.edenPoses.delete(at));
         return true;
       };
+      (window as unknown as { edenCreatures: unknown }).edenCreatures = () =>
+        (world?.things ?? []).filter((t) => t.mob).map((t) => {
+          const i = bodyIndexById.get(t.id) ?? -1;
+          const a = i >= 0 ? C.animStates[i] : undefined;
+          return { id: t.id, kind: t.kind, state: t.mob?.state, speed: +(t.mob?.speed ?? 0).toFixed(2), told: clipSent.get(t.id), playing: a?.current, scale: a?.current ? +(a.actions.get(a.current)?.timeScale ?? 1).toFixed(2) : undefined };
+        });
       (window as unknown as { edenBones: unknown }).edenBones = (name: string) => {
         const o = C.objects[bodyIndex(name)];
         if (!o) return undefined;

@@ -4,7 +4,8 @@
 // not a snap, with a small motion of its own (chewing, reaching, breathing) on each character's own beat.
 import * as THREE from "three";
 
-export type PoseName = "sit" | "eat" | "drink" | "forage" | "work" | "sleep" | "mourn" | "warm" | "fish" | "talk" | "wave";
+import type { PoseName } from "../eden/motion";
+export type { PoseName };
 export type PoseBone = "body" | "hips" | "abdomen" | "torso" | "chest" | "neck" | "head" | "armL" | "armR" | "foreL" | "foreR" | "thighL" | "thighR" | "shinL" | "shinR" | "footL" | "footR" | "toeL" | "toeR";
 type V = [number, number, number];
 export type PoseBones = Partial<Record<PoseBone, THREE.Bone>> & { facing?: 1 | -1 }; // facing: which way along z the figure looks (the villagers' models look toward -z, the hunter bodies' toward +z)
@@ -78,6 +79,35 @@ export function poseAt(name: PoseName, t: number, seed: number): Pose {
       const wag = Math.sin(t * 9 + s);
       return { drop: 0, rot: { armR: [-0.3, 0, -1.4], foreR: [-0.2, 0, -1.3 + 0.35 * wag], head: [0, 0.1, 0.06] } };
     }
+    // Body language: what a feeling or a need does to a person standing or sitting about.
+    case "slump":
+      return { drop: 0.02, rot: { abdomen: [0.2 + 0.02 * slow, 0, 0], torso: [0.2, 0, 0], head: [0.3, 0.05 * Math.sin(t * 0.3 + s), 0], armL: [-0.08, 0, 0.05], armR: [-0.08, 0, -0.05] } };
+    case "tense": {
+      const jaw = Math.sin(t * 5 + s);
+      return { drop: 0.02, rot: { chest: [-0.08, 0, 0], head: [0.12 + 0.01 * jaw, 0, 0], armL: [-0.3, 0, 0.2], armR: [-0.3, 0, -0.2], foreL: [-1.1, 0, 0], foreR: [-1.1, 0, 0] } };
+    }
+    case "alert":
+      return { drop: 0.07, rot: { thighL: [-0.3, 0, 0], thighR: [-0.3, 0, 0], shinL: [0.4, 0, 0], shinR: [0.4, 0, 0], abdomen: [0.06, 0, 0], head: [-0.05, 0.55 * Math.sin(t * 0.9 + s), 0], armL: [-0.5, 0, 0.1], armR: [-0.5, 0, -0.1], foreL: [-1.5, 0, 0], foreR: [-1.5, 0, 0] } };
+    case "hug": {
+      const shiver = 0.015 * Math.sin(t * 22 + s);
+      return { drop: 0.03, rot: { abdomen: [0.1 + shiver, 0, 0], torso: [0.08, 0, shiver], head: [0.12, 0, 0], armL: [-0.7, 0, -0.55], armR: [-0.7, 0, 0.55], foreL: [-2.1, 0, 0], foreR: [-2.1, 0, 0] } };
+    }
+    case "laugh": {
+      const ha = Math.sin(t * 13 + s);
+      return { drop: 0.03, rot: { abdomen: [0.06 + 0.05 * ha, 0, 0], torso: [-0.04, 0, 0], head: [-0.28 + 0.06 * ha, 0, 0], armR: [-0.6, 0, -0.1], foreR: [-1.4, 0, 0], armL: [-0.25, 0, 0.15] } };
+    }
+    case "yawn":
+      return { drop: 0, rot: { chest: [-0.1, 0, 0], head: [-0.3, 0, 0], armR: [-1.1, 0, 0.3], foreR: [-2.5, 0, 0], armL: [-0.15, 0, 0.1] } };
+    case "belly":
+      return { drop: 0.02, rot: { abdomen: [0.1, 0, 0], head: [0.1, 0, 0], armR: [-0.35, 0, 0.3], foreR: [-1.1, 0, 0], armL: [-0.15, 0, 0.1] } };
+    case "proud":
+      return { drop: 0, rot: { abdomen: [-0.04, 0, 0], chest: [-0.1, 0, 0], head: [-0.08, 0.1 * Math.sin(t * 0.4 + s), 0], armL: [-0.1, 0, 0.18], armR: [-0.1, 0, -0.18] } };
+    case "stretch": {
+      const up = 0.5 + 0.5 * Math.sin(t * 1.6 + s);
+      return { drop: 0, rot: { abdomen: [-0.15 * up, 0, 0], torso: [-0.1 * up, 0, 0], head: [-0.2 * up, 0, 0], armL: [-1.6 - 1.0 * up, 0, 0.3], armR: [-1.6 - 1.0 * up, 0, -0.3], foreL: [-0.2, 0, 0], foreR: [-0.2, 0, 0] } };
+    }
+    case "scan":
+      return { drop: 0, rot: { head: [0.02, 0.6 * Math.sin(t * 0.7 + s), 0], abdomen: [0, 0.12 * Math.sin(t * 0.7 + s), 0], armL: [-0.03, 0, 0.04 * slow], armR: [-0.03, 0, -0.04 * slow] } };
     case "sleep":
       return { drop: 0.9, lie: Math.PI / 2, rot: { armL: [-0.2, 0, 0.2], armR: [-0.2, 0, -0.2], abdomen: [0.02 * slow, 0, 0], head: [0, 0.2, 0] } };
   }

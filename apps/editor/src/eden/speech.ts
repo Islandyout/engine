@@ -9,7 +9,7 @@ import { hourOf, phrase, bondOf, type Person, type World } from "./mind";
 import { SEASON_NAMES } from "./earth";
 import { BELIEF_WORDS, type Belief } from "./inner";
 
-export type Topic = "need" | "event" | "weather" | "goal" | "bond" | "creature" | "child" | "thanks" | "sorry" | "gossip" | "story" | "plain";
+export type Topic = "need" | "event" | "weather" | "goal" | "bond" | "creature" | "child" | "thanks" | "sorry" | "gossip" | "story" | "joke" | "plain";
 
 export interface Exchange {
   topic: Topic;
@@ -141,6 +141,18 @@ export function converse(world: World, speaker: Person, other: Person, rnd: () =
       if (!best || score > best.score) best = { text: entry.text, score };
     }
     if (best) add(0.5 + 0.8 * Math.min(1, speaker.age / 50) + 0.4 * p.sociability, "story", `Let me tell you about the time: ${best.text.charAt(0).toLowerCase()}${best.text.slice(1)}`, pick(["I will remember that.", "Tell me more.", "I had not heard that."]), undefined, undefined, best.text);
+  }
+
+  // Something to make the other laugh: a friendly person in a good mood, to someone who is not an enemy, about what is around them.
+  if (speaker.mood > 0.05 && bond !== "rival" && n.hunger < 0.8 && n.thirst < 0.8 && speaker.cold < 0.5 && (speaker.grief ?? 0) < 0.2) {
+    const funny: string[] = [];
+    const seen = world.things.find((t) => (t.kind === "deer" || t.kind === "fox" || t.kind === "alpaca" || t.kind === "dog" || t.kind === "horse") && speaker.memory.has(t.id));
+    if (seen) funny.push(`That ${seen.kind} looked at me as if I owed it something.`, `I think the ${seen.kind} is following me. I have not decided if I am flattered.`);
+    if (weather?.raining) funny.push("I told the rain I had no need of a wash. It did not listen.");
+    if (n.hunger > 0.4) funny.push("I looked at a stone just now and thought: soup.");
+    if (speaker.age > 40) funny.push("When I was young I could outrun a deer. Or so I tell everyone.");
+    funny.push("I tried to be quiet this morning. The whole forest complained.", "I walked into a tree. In my defence, it moved.", `${other.name}, you have a face that makes the day lighter.`);
+    add(0.5 + 0.9 * p.sociability + (bond === "friend" || bond === "partner" ? 0.5 : 0), "joke", pick(funny), pick(["Ha! That is true.", "You always make me laugh.", "I needed that.", "Stop, my sides hurt."]));
   }
 
   // What lives nearby
