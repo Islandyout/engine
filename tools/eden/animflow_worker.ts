@@ -1,7 +1,7 @@
 // One thread of the animation-flow check: runs situations and returns counts. See animflow.ts.
 import { parentPort, workerData } from "node:worker_threads";
 import { DAY, YEAR, EDEN_CLIMATE } from "../../apps/editor/src/eden/earth";
-import { aff, makePerson, step, type Person, type Thing, type World } from "../../apps/editor/src/eden/mind";
+import { aff, giveToPerson, makePerson, startErrand, step, type Person, type Thing, type World } from "../../apps/editor/src/eden/mind";
 import { creatureMotion, newMemory, personMotion, speciesOf, type MotionMemory } from "../../apps/editor/src/eden/motion";
 import { rng } from "../../apps/editor/src/eden/lifelike";
 
@@ -57,12 +57,32 @@ function run(seed: number, c: Counts) {
   const { world } = situation(seed);
   const DT = 2;
   const steps = Math.floor((DAY * 0.7) / DT);
+  const rr = rng(seed + 5);
+  // A third of the situations have the Walker standing about, who asks for errands and answers requests.
+  const walker = rr() < 0.33 ? { x: (rr() - 0.5) * 20, z: (rr() - 0.5) * 20 } : undefined;
+  if (walker) world.visitor = walker;
   const mem = new Map<string, MotionMemory>();
   const lastClip = new Map<string, { clip: string; at: number; before?: string; beforeAt: number }>();
   const lastPose = new Map<string, { pose: string | undefined; at: number }>();
   const holdSince = new Map<string, { pose: string | undefined; at: number; flagged?: boolean }>();
   for (let s = 0; s < steps; s++) {
     step(world, DT);
+    if (walker) {
+      if (s % 150 === 20) {
+        const who = world.people[Math.floor(rr() * world.people.length)];
+        if (!who) continue;
+        who.walkerTrust = Math.max(who.walkerTrust ?? 0, rr() * 0.3);
+        const kind = (["water", "food", "wood"] as const)[Math.floor(rr() * 3)]!;
+        const res = startErrand(world, who, kind);
+        add(c, res.ok ? "errand.started" : "errand.refused");
+      }
+      for (const ev of world.walkerEvents?.splice(0) ?? []) {
+        add(c, `errand.event.${ev.kind}.${ev.item}`);
+        const who = world.people.find((q) => q.id === ev.who);
+        if (ev.kind === "asked" && who && rr() < 0.6 && giveToPerson(world, who, ev.item)) add(c, "errand.ask_answered");
+      }
+      for (const q of world.people) if (q.errand && (world.clock ?? 0) > q.errand.until + 60) add(c, "gap.errand_stuck");
+    }
     if (s % 2) continue;
     const clock = world.clock ?? 0;
     const poses = new Map<string, string | undefined>();

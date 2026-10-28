@@ -72,7 +72,7 @@ export function createTalk(handlers: TalkHandlers): Talk {
   const send = el("button", undefined, "Say");
   row.append(input, send);
   const chips = el("div", "chips");
-  for (const [label, text] of [["Hello", "Hello!"], ["How are you?", "How are you?"], ["Where is water?", "Where can I find water?"], ["Where is food?", "Where can I find food?"], ["Need help?", "Can I help you?"], ["Follow me", "Follow me"], ["Stay here", "Stay here"], ["Any news?", "Any news?"]] as const) {
+  for (const [label, text] of [["Hello", "Hello!"], ["How are you?", "How are you?"], ["Where is water?", "Where can I find water?"], ["Bring me water", "Could you bring me some water?"], ["Where is food?", "Where can I find food?"], ["Need help?", "Can I help you?"], ["Follow me", "Follow me"], ["Stay here", "Stay here"], ["Any news?", "Any news?"]] as const) {
     const b = el("button", undefined, label);
     b.addEventListener("click", () => {
       input.value = text;

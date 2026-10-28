@@ -1,7 +1,7 @@
 // Talking with the Walker, in the player's own typed words. The people answer from who they are and what they know: how they feel, where
 // they have seen water or food or shelter, what they think of the others, what has happened to them. Nothing here is invented beyond
 // that; the free voice (edenVoice.ts) may reword the answer, but this is what they mean. Pure, so the same words in the same world get the same answer.
-import { bondOf, makePerson, aff, phrase, tally, chronicle, type Person, type Thing, type World } from "./mind";
+import { bondOf, makePerson, aff, phrase, startErrand, tally, chronicle, type AskItem, type Person, type Thing, type World } from "./mind";
 import { converse } from "./speech";
 import { hourOf } from "./earth";
 import { BELIEF_WORDS, feel as feelEmotion } from "./inner";
@@ -53,10 +53,12 @@ const nameIn = (world: World, text: string, except: Person) => world.people.find
 export interface Answer {
   reply: string;
   gaveFood?: boolean; // they handed the Walker some food (the page heals the Walker)
+  errand?: AskItem; // they have gone to fetch it
 }
 
 export function hearWalker(world: World, person: Person, said: string, rnd: () => number): Answer {
   let gaveFood = false;
+  let errand: AskItem | undefined;
   const text = said.toLowerCase().trim();
   const pick = <T,>(items: readonly T[]) => items[Math.min(items.length - 1, Math.floor(rnd() * items.length))]!;
   const warm = person.personality.sociability > 0.6;
@@ -69,7 +71,7 @@ export function hearWalker(world: World, person: Person, said: string, rnd: () =
   const keep = (reply: string): Answer => {
     (person.spoken ??= []).push(reply);
     if (person.spoken.length > 3) person.spoken.shift();
-    return { reply, ...(gaveFood ? { gaveFood } : {}) };
+    return { reply, ...(gaveFood ? { gaveFood } : {}), ...(errand ? { errand } : {}) };
   };
   // They stay and listen for a little while rather than walking off in the middle of it.
   if (person.intent?.kind !== "flee" && person.intent?.kind !== "sleep") person.intent = { kind: "linger", x: person.x, z: person.z, speed: 0, remaining: 25, arrived: true };
@@ -101,6 +103,19 @@ export function hearWalker(world: World, person: Person, said: string, rnd: () =
   if (/\b(how are you|how do you feel|are you (ok|well|alright)|feeling)/.test(text)) {
     remember("about how they were");
     return keep(`I am ${feelingsOf(person)}.${person.needs.hunger > 0.6 ? " Do you have any food?" : person.needs.social > 0.6 ? " It is good to have someone to talk to." : ""}`);
+  }
+  // "Bring me water": an errand, if they are willing and know where to get it.
+  {
+    const m = /\b(bring|fetch|get|go and get|go get|carry)\b[^.?!]*\b(water|drink|food|fruit|berries|something to eat|wood|firewood|sticks)\b/.exec(text);
+    if (m) {
+      const word = m[2]!;
+      const kind: AskItem = /water|drink/.test(word) ? "water" : /wood|sticks/.test(word) ? "wood" : "food";
+      const started = startErrand(world, person, kind);
+      remember(`and asked them to bring ${kind}`);
+      if (!started.ok) return keep(started.why ?? "I cannot just now.");
+      errand = kind;
+      return keep(pick(["Of course. Wait here, I will not be long.", "I will fetch it. Stay where you are.", "Give me a moment. I know where to go."]));
+    }
   }
   if (/\b(food|bread|meat|eat|spare|hungry)\b/.test(text) && /\b(have|give|share|spare|can i)\b/.test(text) && !/\bwhere\b/.test(text)) {
     remember("about food");
@@ -146,6 +161,7 @@ export function hearWalker(world: World, person: Person, said: string, rnd: () =
   }
   if (/\b(help|can i do|need anything|what do you need)\b/.test(text)) {
     remember("about what they needed");
+    if (person.asks) return keep(`I asked you for ${person.asks.item}. If you can bring it, I would be grateful.`);
     if (person.needs.hunger > 0.6) return keep("Food. I am hungry. Anything you can bring down or find would be kind.");
     if (person.needs.thirst > 0.6) return keep("Water. I have not drunk in a long time.");
     if (person.cold > 0.45) return keep("Wood for the fire. I am cold.");

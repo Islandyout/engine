@@ -70,3 +70,51 @@ test("they come along when asked if they trust you or are warm, keep near, and s
   hearWalker(w, b, "stay here", rnd);
   assert.equal(b.followUntil, undefined);
 });
+
+test("'bring me water': they go to the river they know, come back and put it in your hands", async () => {
+  const { step } = await import("../src/eden/mind");
+  const w = world();
+  const a = w.people[0]!;
+  a.needs.thirst = 0.1;
+  w.visitor = { x: 0, z: 0 };
+  const r = hearWalker(w, a, "Could you bring me some water?", rnd);
+  assert.equal(r.errand, "water");
+  assert.equal(a.errand?.stage, "go");
+  let delivered = false;
+  for (let i = 0; i < 120 && !delivered; i++) {
+    step(w, 2);
+    delivered = !!w.walkerEvents?.some((e) => e.kind === "delivered" && e.item === "water");
+  }
+  assert.ok(delivered, "the water never came");
+  assert.equal(a.errand, undefined);
+  assert.ok(a.journal.some((j) => /brought the Walker water/.test(j.text)));
+});
+
+test("they will not fetch what they have never seen, or run errands for a stranger who is shy, or when starving", () => {
+  const w = world();
+  const a = w.people[0]!;
+  assert.match(hearWalker(w, a, "bring me some wood", rnd).reply, /do not know where/);
+  const b = makePerson("S", 1, 1, 9, { sociability: 0.1 }, { name: "Shy", sex: "m", age: 30 });
+  b.memory.set("river", { x: 40, z: -5, feeling: 0.5, visits: 1, last: 0 } as never);
+  w.people.push(b);
+  assert.match(hearWalker(w, b, "fetch me water", rnd).reply, /know you well enough/);
+  a.needs.hunger = 0.95;
+  assert.match(hearWalker(w, a, "bring me water", rnd).reply, /hunger|eat/);
+});
+
+test("a thirsty person near you asks for water, and what you give eases it and is remembered", async () => {
+  const { step, giveToPerson } = await import("../src/eden/mind");
+  const w = world();
+  const a = w.people[0]!;
+  a.walkerTrust = 0.3;
+  a.needs.thirst = 0.8;
+  w.visitor = { x: 3, z: 0 };
+  step(w, 2);
+  assert.equal(a.asks?.item, "water");
+  assert.ok(w.walkerEvents?.some((e) => e.kind === "asked"));
+  assert.equal(giveToPerson(w, a, "water"), true);
+  assert.ok(a.needs.thirst < 0.5);
+  assert.equal(a.asks, undefined);
+  w.people[1]!.needs.thirst = 0.05;
+  assert.equal(giveToPerson(w, w.people[1]!, "water"), false);
+});

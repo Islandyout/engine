@@ -3,7 +3,7 @@ import { findPoseBones } from "../poses";
 import { creatureMotion, newMemory, personMotion, type MotionMemory, type PoseName } from "../../eden/motion";
 import { createTalk, type Talk } from "./edenTalk";
 import { hearWalker, nearbyPeople, noteFirstWord } from "../../eden/chat";
-import { actionOf, applySpokenIntent, giveMeat, shareKill, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
+import { actionOf, applySpokenIntent, giveMeat, giveToPerson, shareKill, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import { moonName, SEASON_NAMES, solarHour } from "../../eden/earth";
 import { runCreatorCommand } from "../../eden/creator";
 import { worldFromJson, worldToJson } from "../../eden/persist";
@@ -150,7 +150,8 @@ export function installEdenAgents(C: Ctx): void {
   const motionMem = new Map<string, MotionMemory>(); // what each person's body was last doing (motion.ts)
   const clipSent = new Map<string, string>(); // the clip each creature was last told to play
   const holdPose = new Map<string, { pose: PoseName; until: number }>(); // a pose someone keeps for a moment (a wave, talking), over what they are doing
-  let carriedMeat = 0; // game the hunter has kept to give away (H hands it to the nearest person)
+  const pack = { meat: 0, water: 0, wood: 0, fruit: 0 }; // what you carry to give away: Q gathers it where it is, H hands it to whoever needs it
+  const packText = () => Object.entries(pack).filter(([, n]) => n > 0).map(([k, n]) => `${k} ${n}`).join(", ");
   const bodyObjectOf = (p: Person) => {
     const index = ORIGINAL.has(p.id) ? bodyIndex(p.name) : (bodyIndexById.get(p.id) ?? -1);
     return index >= 0 ? C.objects[index] : undefined;
@@ -170,8 +171,8 @@ export function installEdenAgents(C: Ctx): void {
     panel?.lifeLog(`You killed ${phrase(thing)}.${AFFORDANCES[thing.kind]?.prey ? " Meat: you feel stronger." : ""}`);
     if (AFFORDANCES[thing.kind]?.prey) {
       ui("eden_player_heal", "35");
-      carriedMeat++;
-      panel?.lifeLog(`You keep the meat (${carriedMeat}). Press H beside someone to hand it over.`);
+      pack.meat++;
+      panel?.lifeLog(`You keep the meat (${pack.meat}). Press H beside someone to hand it over.`);
     }
   };
   // Typed words to someone beside you: they answer from who they are (eden/chat.ts), and the free voice may put it in their own words.
@@ -519,13 +520,34 @@ export function installEdenAgents(C: Ctx): void {
         C.playerIndex = index;
       }
     }
+    // What the people have said and done for you since the last look: requests, errands brought, errands that failed.
+    for (const ev of w.walkerEvents?.splice(0) ?? []) {
+      const who = w.people.find((q) => q.id === ev.who);
+      if (!who) continue;
+      holdPose.set(who.id, { pose: "talk", until: performance.now() + 4000 });
+      if (ev.kind === "asked") panel.lifeLog(`${who.name}: "${ev.text}" (find ${ev.item === "food" ? "meat or fruit" : ev.item} with Q or a kill, then H beside them)`);
+      else if (ev.kind === "delivered") {
+        panel.lifeLog(`${who.name} brought you ${ev.item}. "${ev.text}"`);
+        if (ev.item === "wood") pack.wood += 1;
+        else ui("eden_player_heal", ev.item === "water" ? "8" : "15");
+        talk?.reply(who.name, ev.text);
+      } else {
+        panel.lifeLog(`${who.name}: "${ev.text}"`);
+        talk?.reply(who.name, ev.text);
+      }
+    }
     if (!walking) talk?.hint(undefined);
     if (walking && youBody >= 0) {
       const you = C.objects[youBody];
       if (you) {
         w.visitor = { x: you.position.x, z: you.position.z };
         const near = nearbyPeople(w, you.position.x, you.position.z);
-        talk?.hint(near.length === 0 ? undefined : near.length === 1 ? `talk to ${near[0]!.name}` : `talk (${near.length} people near)`);
+        const asking = near.filter((q) => q.asks);
+        const hintParts = [near.length === 0 ? "" : near.length === 1 ? `talk to ${near[0]!.name}` : `talk (${near.length} people near)`];
+        if (asking.length) hintParts.push(`${asking.map((q) => `${q.name} asks for ${q.asks!.item}`).join(", ")} · H gives`);
+        else if (near.length && packText()) hintParts.push("H gives");
+        hintParts.push(`Q gathers${packText() ? ` · you carry ${packText()}` : ""}`);
+        talk?.hint(hintParts.filter(Boolean).join(" · "));
         for (const t of w.things) {
           const danger = AFFORDANCES[t.kind]?.danger;
           if (danger && Math.hypot(t.x - you.position.x, t.z - you.position.z) < 2.6) ui("eden_player_hurt", String(Math.round(9 * danger)));
@@ -602,7 +624,7 @@ export function installEdenAgents(C: Ctx): void {
       }
       if (intent && !fast && simSeconds > 0) {
         const action = actionOf(person);
-        const loaded = person.carry.wood + person.carry.food >= 1 ? 1 : 0;
+        const loaded = person.carry.wood + person.carry.food >= 1 || person.carrying ? 1 : 0;
         const key = `${intent.kind}|${intent.targetId ?? ""}|${intent.arrived}|${Math.round(intent.x)}|${Math.round(intent.z)}|${loaded}`;
         if (sent.get(person.id) !== key) {
           sent.set(person.id, key);
@@ -685,7 +707,7 @@ export function installEdenAgents(C: Ctx): void {
             const z = (beside?.z ?? 2) + 2;
             ui("eden_place", `you,Hunter,${x},${groundY(x, z) + 1},${z},you`);
             for (const wait of [1200, 3000, 7000]) setTimeout(() => walking && !bodyIndexById.has("you") && ui("eden_tell", "you"), wait);
-            panel?.lifeLog("You walk the world as a hunter. W A S D move, J strikes, K sweeps, F kicks, X rolls, G looses an arrow, H hands meat to someone beside you, E talks to them.");
+            panel?.lifeLog("You walk the world as a hunter. W A S D move, J strikes, K sweeps, F kicks, X rolls, G looses an arrow. E talks to someone beside you (try \"bring me water\"), Q gathers water, wood or fruit, H hands them what they need.");
           } else {
             ui("eden_remove", "you");
             bodyIndexById.delete("you");
@@ -729,11 +751,39 @@ export function installEdenAgents(C: Ctx): void {
       C.releasePointer?.();
       talk.open(near.map((q) => ({ id: q.id, name: q.name, note: `${moodWord(q.mood)}${needWord(q) ? `, ${needWord(q)}` : ""}` })));
     }, true);
+    // Q gathers what is here: water from the river or lake, wood where it lies, fruit from the grove.
     window.addEventListener("keydown", (e) => {
-      if (e.code !== "KeyH" || !walking || !world || youBody < 0) return;
+      if (e.code !== "KeyQ" || e.repeat || !walking || !world || youBody < 0) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const you = C.objects[youBody];
       if (!you) return;
-      if (carriedMeat <= 0) return panel?.lifeLog("You carry no meat.");
+      let best: { t: Thing; d: number } | undefined;
+      for (const t of world.things) {
+        const a = AFFORDANCES[t.kind];
+        if (!a || !(a.water || a.wood || ((a.food ?? 0) > 0 && !a.fish && (t.stock === undefined || t.stock > 0)))) continue;
+        const d = Math.hypot(t.x - you.position.x, t.z - you.position.z) - t.radius;
+        if (d < 4.5 && (!best || d < best.d)) best = { t, d };
+      }
+      if (!best) return panel?.lifeLog("Nothing here to gather. Water, wood and fruit are gathered at the river or lake, where wood lies, and at the grove.");
+      const a = AFFORDANCES[best.t.kind]!;
+      if (a.water) {
+        pack.water = 3;
+        panel?.lifeLog("You fill your waterskin.");
+      } else if (a.wood) {
+        pack.wood += 2;
+        panel?.lifeLog(`You gather wood (${pack.wood}).`);
+      } else {
+        if (best.t.stock !== undefined) best.t.stock -= 1;
+        pack.fruit += 1;
+        panel?.lifeLog(`You pick fruit (${pack.fruit}).`);
+      }
+    }, true);
+    // H hands over what the nearest person needs most (or what they asked you for).
+    window.addEventListener("keydown", (e) => {
+      if (e.code !== "KeyH" || e.repeat || !walking || !world || youBody < 0) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const you = C.objects[youBody];
+      if (!you) return;
       let near: Person | undefined;
       let best = 4;
       for (const q of world.people) {
@@ -741,10 +791,21 @@ export function installEdenAgents(C: Ctx): void {
         if (d < best) ((best = d), (near = q));
       }
       if (!near) return panel?.lifeLog("No one is near enough.");
-      if (giveMeat(world, near)) {
-        carriedMeat--;
-        panel?.lifeLog(`You gave meat to ${near.name}.`);
-      } else panel?.lifeLog(`${near.name} is not hungry.`);
+      // What they asked for first, then what they need most.
+      const wants: ("water" | "meat" | "fruit" | "wood")[] = [];
+      if (near.asks) wants.push(near.asks.item === "food" ? "meat" : near.asks.item, ...(near.asks.item === "food" ? (["fruit"] as const) : []));
+      if (near.needs.thirst > 0.5) wants.push("water");
+      if (near.needs.hunger > 0.4) wants.push("meat", "fruit");
+      if (near.cold > 0.5 && near.carry.wood < 1) wants.push("wood");
+      for (const item of wants) {
+        if (pack[item] <= 0) continue;
+        const ok = item === "meat" ? giveMeat(world, near) : giveToPerson(world, near, item === "fruit" ? "food" : item);
+        if (!ok) continue;
+        pack[item]--;
+        panel?.lifeLog(`You gave ${item} to ${near.name}.`);
+        return;
+      }
+      panel?.lifeLog(wants.length ? `You have nothing ${near.name} needs (you carry ${packText() || "nothing"}).` : `${near.name} needs nothing you can give.`);
     }, true);
     window.addEventListener("pagehide", save);
     // For the desktop app's tools and for tests: where each mind says a person is, where their body is, and where the ground is under it.

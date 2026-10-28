@@ -113,7 +113,7 @@ export interface Memory {
   lastSeen: number; // sim seconds
 }
 
-export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame" | "sew" | "wash";
+export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame" | "sew" | "wash" | "fetch";
 export interface Intent {
   kind: IntentKind;
   targetId?: string; // a thing's id or another person's id
@@ -172,6 +172,9 @@ export interface Person {
   promises?: { to: string; due: number }[]; // what they have promised, and by when
   laughUntil?: number; // world clock until which they are laughing (a joke was told)
   followUntil?: number; // world clock until which they walk with the Walker (asked to, in conversation)
+  errand?: Errand; // something the Walker asked them to fetch
+  carrying?: string; // what they are bringing (water has no weight in the pack: "water")
+  asks?: { item: AskItem; at: number }; // something they have asked the Walker for
   walkerTrust?: number; // 0..1: how well they have come to know the Walker, from talking with them
   shunned?: boolean; // the others have lost faith in them and keep away
   joyAt?: number; // world clock of the last small thing they noticed and enjoyed
@@ -248,6 +251,23 @@ export interface World {
   rng?: number; // the world's own random stream (animals), kept so a saved world carries on the same
   // The Creator's hand on the weather: until `until` (world clock) it is warmer or colder by `tempOffset`, and `rain` forces it on or off.
   override?: { until: number; tempOffset: number; rain?: boolean };
+  walkerEvents?: WalkerEvent[];
+}
+
+// Errands and requests between the Walker and the people (see askFor, giveToPerson, errandStep).
+export type AskItem = "water" | "food" | "wood";
+export interface Errand {
+  kind: AskItem;
+  stage: "go" | "back";
+  sourceId?: string; // where they are fetching it from
+  until: number; // world clock after which they give up
+}
+// What happened between the Walker and the people, for the page to show and to act on (it empties the list as it reads).
+export interface WalkerEvent {
+  kind: "delivered" | "failed" | "asked";
+  who: string;
+  item: AskItem;
+  text: string;
 }
 
 // A day in Eden is 24 sim minutes (earth.ts): short enough to watch a whole life, long enough that a person eats about three times in it.
@@ -685,6 +705,166 @@ function noticeSmallJoys(world: World, person: Person, weather: Weather, nearFir
   note(person, world, text);
   tally(world, "smallJoys");
   tally(world, `joy_${trigger.id}`);
+}
+
+// ---- Errands: "bring me water" ----
+
+const SOURCE_OF: Record<AskItem, (t: Thing) => boolean> = {
+  water: (t) => !!aff(t).water,
+  food: (t) => (aff(t).food ?? 0) > 0 && !aff(t).fish && (t.stock === undefined || t.stock > 0),
+  wood: (t) => !!aff(t).wood,
+};
+const ITEM_WORD: Record<AskItem, string> = { water: "water", food: "food", wood: "wood" };
+
+/** The nearest place they know of to get it, or undefined: they cannot fetch what they have never seen. */
+export function knownSource(world: World, person: Person, kind: AskItem): Thing | undefined {
+  let best: Thing | undefined;
+  let bestD = Infinity;
+  for (const t of world.things) {
+    if (!SOURCE_OF[kind](t) || !person.memory.has(t.id)) continue;
+    const d = dist(person.x, person.z, t.x, t.z);
+    if (d < bestD) (best = t), (bestD = d);
+  }
+  return best;
+}
+
+/** Whether they will do it, and why not. */
+export function willingToFetch(person: Person, world: World): { ok: boolean; why?: string } {
+  const n = person.needs;
+  if (person.errand) return { ok: false, why: "I am already on an errand for you." };
+  if (n.thirst > 0.8) return { ok: false, why: "I am too thirsty myself to go anywhere but the water." };
+  if (n.hunger > 0.85) return { ok: false, why: "I am faint with hunger. I must eat first." };
+  if (n.energy > 0.9) return { ok: false, why: "I can hardly stand. I must rest." };
+  if (person.age < 6) return { ok: false, why: "I am too small to carry that." };
+  if (person.intent?.kind === "sleep" && person.intent.arrived) return { ok: false, why: "..." };
+  if ((person.walkerTrust ?? 0) > 0.12 || person.personality.sociability > 0.55) return { ok: true };
+  void world;
+  return { ok: false, why: "I do not know you well enough to run errands for you." };
+}
+
+export function startErrand(world: World, person: Person, kind: AskItem): { ok: boolean; why?: string } {
+  const will = willingToFetch(person, world);
+  if (!will.ok) return will;
+  const source = person.carry.food >= 1 && kind === "food" ? undefined : knownSource(world, person, kind);
+  if (!source && !(kind === "food" && person.carry.food >= 1) && !(kind === "wood" && person.carry.wood >= 1)) return { ok: false, why: `I do not know where to find ${ITEM_WORD[kind]}.` };
+  person.errand = { kind, stage: source ? "go" : "back", sourceId: source?.id, until: (world.clock ?? 0) + 900 };
+  if (!source) person.carrying = kind;
+  tally(world, "errands");
+  return { ok: true };
+}
+
+function endErrand(person: Person, world: World, failed: string | undefined) {
+  const e = person.errand;
+  if (!e) return;
+  person.errand = undefined;
+  person.carrying = undefined;
+  if (person.intent?.kind === "fetch" || person.intent?.kind === "wander") person.intent = undefined;
+  if (failed) {
+    person.say = failed;
+    (world.walkerEvents ??= []).push({ kind: "failed", who: person.id, item: e.kind, text: failed });
+    tally(world, "errandsFailed");
+  }
+}
+
+// One step of an errand: go to the source, take what is there, bring it back to the Walker, put it in their hands.
+function errandStep(person: Person, world: World, dt: number) {
+  const e = person.errand;
+  if (!e) return;
+  const now = world.clock ?? 0;
+  const v = world.visitor;
+  const n = person.needs;
+  if (!v) return endErrand(person, world, undefined);
+  if (now > e.until) return endErrand(person, world, "I could not find you. I am sorry.");
+  if (n.thirst > 0.9 || n.hunger > 0.92 || n.energy > 0.95 || (person.intent?.kind === "flee")) return endErrand(person, world, "I must see to myself first. Forgive me.");
+  if (e.stage === "go") {
+    const source = e.sourceId ? thingById(world, e.sourceId) : undefined;
+    if (!source) return endErrand(person, world, "It has gone. I could not get it.");
+    const cur = person.intent;
+    if (!cur || cur.kind !== "fetch") person.intent = { kind: "fetch", targetId: source.id, x: source.x, z: source.z, speed: WALK, remaining: 4, arrived: false };
+    else if (cur.arrived && cur.remaining <= dt + 0.01) {
+      // They have the water in their hands or the fruit in the basket.
+      if (e.kind === "food" && source.stock !== undefined) source.stock = Math.max(0, source.stock - 1);
+      if (e.kind === "wood") person.carry.wood += 1;
+      person.carrying = e.kind === "wood" ? undefined : e.kind;
+      e.stage = "back";
+      person.intent = undefined;
+    }
+    return;
+  }
+  // Back to the Walker.
+  const d = dist(person.x, person.z, v.x, v.z);
+  if (d <= 2.6) {
+    if (e.kind === "wood") person.carry.wood = Math.max(0, person.carry.wood - 1);
+    if (e.kind === "food" && person.carry.food >= 1 && !person.carrying) person.carry.food -= 1;
+    const text = e.kind === "water" ? "Here, Walker. Cool water from the river." : e.kind === "food" ? "Here, Walker. Eat." : "Here, Walker. Wood for your fire.";
+    (world.walkerEvents ??= []).push({ kind: "delivered", who: person.id, item: e.kind, text });
+    person.say = text;
+    feelEmotion(person, "pride", 0.3);
+    person.walkerTrust = Math.min(1, (person.walkerTrust ?? 0) + 0.06);
+    person.journal.push({ t: now, text: `I brought the Walker ${ITEM_WORD[e.kind]}.`, w: 0.3 });
+    tally(world, "errandsDone");
+    chronicle(world, `${person.name} brought the Walker ${ITEM_WORD[e.kind]}.`);
+    person.errand = undefined;
+    person.carrying = undefined;
+    person.intent = undefined;
+    return;
+  }
+  person.intent = { kind: "wander", x: v.x, z: v.z, speed: d > 12 ? RUN * 0.6 : 2.3, remaining: 2, arrived: false };
+}
+
+// ---- Requests: people ask the Walker for what they need ----
+
+const ASK_LINES: Record<AskItem, string[]> = {
+  water: ["Walker, could you bring me some water? I cannot go on much longer.", "Walker, I am parched. Is there any water you could spare?"],
+  food: ["Walker, have you any food to spare? I am so hungry.", "Walker, could you share a little meat or fruit? I have nothing."],
+  wood: ["Walker, I am freezing. Could you bring me some wood for a fire?", "Walker, the cold is getting into me. A little wood, if you can."],
+};
+
+function askStep(person: Person, world: World) {
+  const v = world.visitor;
+  const now = world.clock ?? 0;
+  if (person.asks && now - person.asks.at > 420) person.asks = undefined; // not answered: they go without, and ask no more for a while
+  if (!v || person.asks || person.errand || person.age < 4) return;
+  if (now - ((person as { askedAt?: number }).askedAt ?? -1e9) < 600) return;
+  if (dist(person.x, person.z, v.x, v.z) > 9) return;
+  if ((person.walkerTrust ?? 0) < 0.05 && person.personality.sociability < 0.45) return; // too shy to ask a stranger
+  const n = person.needs;
+  const item: AskItem | undefined = n.thirst > 0.65 ? "water" : n.hunger > 0.65 && person.carry.food < 1 ? "food" : person.cold > 0.6 && person.carry.wood < 1 ? "wood" : undefined;
+  if (!item) return;
+  person.asks = { item, at: now };
+  (person as { askedAt?: number }).askedAt = now;
+  const lines = ASK_LINES[item];
+  const text = lines[Math.floor(rand(person) * lines.length)]!;
+  person.say = text;
+  (world.walkerEvents ??= []).push({ kind: "asked", who: person.id, item, text });
+  tally(world, "asksOfWalker");
+}
+
+/** The Walker puts something in their hands: it eases the need, and they remember who did it. Returns false if they have no use for it. */
+export function giveToPerson(world: World, person: Person, item: AskItem): boolean {
+  const n = person.needs;
+  if (item === "water" && n.thirst < 0.15) return false;
+  if (item === "food" && n.hunger < 0.2) return false;
+  if (item === "wood" && person.cold < 0.2 && person.carry.wood >= 2) return false;
+  const asked = person.asks?.item === item;
+  if (item === "water") n.thirst = clamp01(n.thirst - 0.55);
+  else if (item === "food") {
+    n.hunger = clamp01(n.hunger - 0.4);
+    eaten(person, "fruit");
+  } else person.carry.wood += 2;
+  feelEmotion(person, "gratitude", asked ? 0.7 : 0.5);
+  person.walkerTrust = Math.min(1, (person.walkerTrust ?? 0) + (asked ? 0.1 : 0.05));
+  note(person, world, `The Walker gave me ${ITEM_WORD[item]}${asked ? " when I asked" : ""}.`);
+  person.say = item === "water" ? "Thank you, Walker. That is the best thing I have drunk." : item === "food" ? "Bless you, Walker." : "Thank you. Now I can make a fire.";
+  person.asks = undefined;
+  for (const q of world.people) {
+    if (q === person || dist(q.x, q.z, person.x, person.z) > 20) continue;
+    note(q, world, `I saw the Walker help ${person.name}.`);
+    feelEmotion(q, "joy", 0.15);
+  }
+  tally(world, "walkerGifts");
+  chronicle(world, `The Walker gave ${person.name} ${ITEM_WORD[item]}.`);
+  return true;
 }
 
 // A norm gains ground; when it becomes a custom everyone writes it down.
@@ -1845,6 +2025,8 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       if ((level > 0.9 && !own) || (!current.arrived && (current.age = (current.age ?? 0) + dt) > 120)) person.intent = undefined;
     }
 
+    errandStep(person, world, dt);
+    askStep(person, world);
     // Walking with the Walker, when asked: they keep near, until a real need or danger calls them away.
     if ((person.followUntil ?? 0) > (world.clock ?? 0) && world.visitor && person.intent?.kind !== "flee") {
       if (needs.hunger > 0.8 || needs.thirst > 0.8 || needs.energy > 0.92 || person.cold > 0.7) {
@@ -2260,6 +2442,8 @@ export function actionOf(person: Person): string {
       return "fish";
     case "wash":
       return "wash";
+    case "fetch":
+      return person.errand?.kind === "water" ? "drink" : person.errand?.kind === "wood" ? "chop" : "harvest";
     case "plant":
       return "plant";
     case "gather":
