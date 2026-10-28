@@ -76,7 +76,7 @@ export function poseAt(name: PoseName, t: number, seed: number): Pose {
     }
     case "wave": {
       const wag = Math.sin(t * 9 + s);
-      return { drop: 0, rot: { armR: [-1.5, 0, -1.1], foreR: [-0.7 - 0.35 * wag, 0, 0], head: [0, 0.1, 0.06] } };
+      return { drop: 0, rot: { armR: [-0.3, 0, -1.4], foreR: [-0.2, 0, -1.3 + 0.35 * wag], head: [0, 0.1, 0.06] } };
     }
     case "sleep":
       return { drop: 0.9, lie: Math.PI / 2, rot: { armL: [-0.2, 0, 0.2], armR: [-0.2, 0, -0.2], abdomen: [0.02 * slow, 0, 0], head: [0, 0.2, 0] } };

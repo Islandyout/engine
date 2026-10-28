@@ -132,3 +132,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F125](changelog/F125.md) | Eden: whole-body poses (sit, eat, drink, reach, work, sleep) so people move like people |
 | [F126](changelog/F126.md) | Eden: the people are the hunter bodies (shared clip library, dressed from the kit) |
 | [F127](changelog/F127.md) | Eden: press E to talk to anyone (typed, with a list for groups); carry-walk and talking motions |
+| [F128](changelog/F128.md) | Eden: ask people to follow you or stay; quick phrases; they face you; a real wave |

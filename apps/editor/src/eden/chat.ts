@@ -78,6 +78,19 @@ export function hearWalker(world: World, person: Person, said: string, rnd: () =
     if (person.journal.length > 400) person.journal.shift();
   };
 
+  if (/\b(follow me|come with me|come along|walk with me|come on)\b/.test(text)) {
+    remember("and they went along with me");
+    if (trust > 0.15 || warm) {
+      person.followUntil = (world.clock ?? 0) + 600;
+      tally(world, "followedWalker");
+      return keep(pick(["All right. I will come with you.", "Lead on, Walker.", "I will walk with you a while."]));
+    }
+    return keep(pick(["I would rather stay here for now. I do not know you well enough yet.", "Not yet. Come and talk to me again."]));
+  }
+  if (/\b(stay|wait here|stop following|go home|go back|you can go)\b/.test(text)) {
+    person.followUntil = undefined;
+    return keep(pick(["I will wait here.", "As you say. I will go about my day."]));
+  }
   if (/^(hi|hello|hey|greetings|good (morning|day|evening)|well met)\b/.test(text)) {
     remember("and exchanged greetings");
     const h = hourOf(world.clock ?? 0);

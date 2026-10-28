@@ -573,6 +573,13 @@ export function installEdenAgents(C: Ctx): void {
         const held = holdPose.get(person.id);
         if (held && held.until < performance.now()) holdPose.delete(person.id);
         const pose = held && held.until >= performance.now() ? held.pose : intent?.arrived && !fast ? POSE_OF[intent.kind] : undefined;
+        // Someone being talked to turns to face you.
+        if (at >= 0 && held && walking && youBody >= 0 && C.objects[at] && C.objects[youBody]) {
+          const me = C.objects[at]!;
+          const you = C.objects[youBody]!;
+          const want = Math.atan2(you.position.x - me.position.x, you.position.z - me.position.z);
+          me.rotation.y += Math.max(-0.35, Math.min(0.35, Math.atan2(Math.sin(want - me.rotation.y), Math.cos(want - me.rotation.y))));
+        }
         if (at >= 0 && !forcedPose.has(at)) {
           C.edenPoses ??= new Map();
           if (pose) C.edenPoses.set(at, pose);

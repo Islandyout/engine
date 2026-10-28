@@ -165,6 +165,7 @@ export interface Person {
   lastBirth?: number; // world clock a child of theirs was last born (mothers)
   spoken?: string[]; // the last few things they said aloud, so the voice does not repeat them
   promises?: { to: string; due: number }[]; // what they have promised, and by when
+  followUntil?: number; // world clock until which they walk with the Walker (asked to, in conversation)
   walkerTrust?: number; // 0..1: how well they have come to know the Walker, from talking with them
   shunned?: boolean; // the others have lost faith in them and keep away
   joyAt?: number; // world clock of the last small thing they noticed and enjoyed
@@ -1818,6 +1819,18 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       const own = current.kind === critical || (critical === "eat" && (current.kind === "fish" || current.kind === "hunt")) || (current.kind === "eat" || current.kind === "drink" ? Math.abs(needs.hunger - needs.thirst) < 0.05 : false);
       if ((level > 0.9 && !own) || (!current.arrived && (current.age = (current.age ?? 0) + dt) > 120)) person.intent = undefined;
     }
+
+    // Walking with the Walker, when asked: they keep near, until a real need or danger calls them away.
+    if ((person.followUntil ?? 0) > (world.clock ?? 0) && world.visitor && person.intent?.kind !== "flee") {
+      if (needs.hunger > 0.8 || needs.thirst > 0.8 || needs.energy > 0.92 || person.cold > 0.7) {
+        person.followUntil = undefined;
+        person.say = needs.thirst > 0.8 ? "I must drink. Go on without me." : needs.hunger > 0.8 ? "I must eat. Go on without me." : "I must rest. Go on without me.";
+      } else {
+        const v = world.visitor;
+        const far = dist(person.x, person.z, v.x, v.z);
+        person.intent = far > 3.5 ? { kind: "wander", x: v.x, z: v.z, speed: far > 12 ? RUN * 0.7 : 2.2, remaining: 2, arrived: false } : { kind: "linger", x: person.x, z: person.z, speed: 0, remaining: 3, arrived: true };
+      }
+    } else if (person.followUntil !== undefined && (person.followUntil <= (world.clock ?? 0) || !world.visitor)) person.followUntil = undefined;
 
     if (!person.intent) {
       const picked = choose(person, options(person, world));

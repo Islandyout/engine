@@ -35,6 +35,8 @@ const CSS = `
   .eden-talk button:hover, .eden-talk button:focus-visible { background: rgba(255,255,255,0.22); outline: none; }
   .eden-talk .row { display: flex; gap: 6px; }
   .eden-talk input { flex: 1; min-width: 0; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18); border-radius: 6px; color: inherit; font: inherit; padding: 5px 8px; }
+  .eden-talk .chips { display: flex; gap: 4px; flex-wrap: wrap; }
+  .eden-talk .chips button { padding: 2px 8px; font-size: 12px; background: rgba(201,162,74,0.22); }
   .eden-talk .tools { display: flex; gap: 6px; justify-content: flex-end; }
   .eden-talk-hint { position: fixed; left: 50%; bottom: 70px; transform: translateX(-50%); z-index: 55; display: none; padding: 4px 12px; border-radius: 14px;
     background: rgba(18, 16, 14, 0.8); color: #ece4d2; font: 13px system-ui, sans-serif; pointer-events: none; }
@@ -69,11 +71,21 @@ export function createTalk(handlers: TalkHandlers): Talk {
   input.setAttribute("aria-label", "What you say");
   const send = el("button", undefined, "Say");
   row.append(input, send);
+  const chips = el("div", "chips");
+  for (const [label, text] of [["Hello", "Hello!"], ["How are you?", "How are you?"], ["Where is water?", "Where can I find water?"], ["Where is food?", "Where can I find food?"], ["Need help?", "Can I help you?"], ["Follow me", "Follow me"], ["Stay here", "Stay here"], ["Any news?", "Any news?"]] as const) {
+    const b = el("button", undefined, label);
+    b.addEventListener("click", () => {
+      input.value = text;
+      submit();
+      input.focus();
+    });
+    chips.append(b);
+  }
   const tools = el("div", "tools");
   const back = el("button", undefined, "Someone else");
   const leave = el("button", undefined, "Leave");
   tools.append(back, leave);
-  root.append(title, choices, log, row, tools);
+  root.append(title, choices, log, chips, row, tools);
 
   const hintBox = el("div", "eden-talk-hint");
   document.body.append(root, hintBox);
@@ -97,6 +109,7 @@ export function createTalk(handlers: TalkHandlers): Talk {
     choices.style.display = "none";
     log.style.display = "";
     row.style.display = "";
+    chips.style.display = "";
     back.style.display = list.length > 1 ? "" : "none";
     log.replaceChildren();
     line("wait", c.note);
@@ -115,6 +128,7 @@ export function createTalk(handlers: TalkHandlers): Talk {
     choices.style.display = "";
     log.style.display = "none";
     row.style.display = "none";
+    chips.style.display = "none";
     back.style.display = "none";
     (choices.firstElementChild as HTMLElement | null)?.focus();
   };

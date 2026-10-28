@@ -52,3 +52,21 @@ test("they say what they think of another person, and anything else draws what i
   assert.match(hearWalker(w, a, "what do you think of Seth?", rnd).reply, /Seth/);
   assert.ok(hearWalker(w, a, "blah blah", rnd).reply.length > 3);
 });
+
+test("they come along when asked if they trust you or are warm, keep near, and stop when a need calls them", async () => {
+  const { step } = await import("../src/eden/mind");
+  const w = world();
+  const a = w.people[0]!;
+  assert.match(hearWalker(w, a, "follow me", rnd).reply, /come|Lead|walk/i);
+  assert.ok((a.followUntil ?? 0) > 0);
+  w.visitor = { x: 30, z: 0 };
+  for (let i = 0; i < 40; i++) step(w, 2);
+  assert.ok(Math.hypot(a.x - 30, a.z) < 12, "they did not come toward the Walker");
+  a.needs.hunger = 0.95;
+  step(w, 2);
+  assert.equal(a.followUntil, undefined);
+  const b = w.people[1]!;
+  b.followUntil = 99999;
+  hearWalker(w, b, "stay here", rnd);
+  assert.equal(b.followUntil, undefined);
+});
