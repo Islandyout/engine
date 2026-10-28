@@ -90,7 +90,8 @@ function run(seed: number, c: Counts) {
       const m = mem.get(p.id) ?? newMemory();
       mem.set(p.id, m);
       const was = lastPose.get(p.id);
-      const mo = personMotion(p, world, m);
+      const mo0 = personMotion(p, world, m);
+      const mo = mo0.asleep ? { ...mo0, pose: "sleep" as never } : mo0;
       add(c, "person.samples");
       const kind = p.intent?.kind ?? "none";
       const arrived = !!p.intent?.arrived;

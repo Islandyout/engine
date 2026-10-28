@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { findPoseBones } from "../poses";
-import { creatureMotion, newMemory, personMotion, type MotionMemory, type PoseName } from "../../eden/motion";
+import { creatureMotion, gazeOf, lookOf, newMemory, personMotion, walkStyle, type MotionMemory, type PoseName } from "../../eden/motion";
 import { createTalk, type Talk } from "./edenTalk";
 import { hearWalker, nearbyPeople, noteFirstWord } from "../../eden/chat";
 import { actionOf, applySpokenIntent, giveMeat, giveToPerson, shareKill, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
@@ -45,6 +45,8 @@ export const EDEN_ACTION_CLIPS: [string, string[]][] = [
   ["chop", ["ual_tree_chopping_loop", "clapping", "idle"]],
   ["wash", ["ual_farm_watering", "sit", "idle"]],
   ["craft", ["idle"]],
+  ["lie_down", ["ual_lay_to_idle", "idle"]],
+  ["get_up", ["ual_lay_to_idle", "idle"]],
   ["fish", ["idle"]],
   ["Wave", ["Wave", "ual_yes", "idle"]],
   ["HitRecieve", ["HitRecieve", "hit_chest", "idle"]],
@@ -147,6 +149,7 @@ export function installEdenAgents(C: Ctx): void {
   let walking = false; // the Creator is walking the world as a hunter
   let youBody = -1;
   let talk: Talk | undefined; // the box for talking with people (E), made the first time you walk
+  const paceOf = new Map<string, number>(); // how fast each person's walk clip plays (a limp is slower)
   const motionMem = new Map<string, MotionMemory>(); // what each person's body was last doing (motion.ts)
   const clipSent = new Map<string, string>(); // the clip each creature was last told to play
   const holdPose = new Map<string, { pose: PoseName; until: number }>(); // a pose someone keeps for a moment (a wave, talking), over what they are doing
@@ -608,29 +611,47 @@ export function installEdenAgents(C: Ctx): void {
         const mem = motionMem.get(person.id) ?? newMemory();
         motionMem.set(person.id, mem);
         const mo = personMotion(person, w, mem, held && held.until >= performance.now() ? held.pose : undefined);
-        const pose = fast ? undefined : mo.pose;
-        // Someone being talked to turns to face you.
-        if (at >= 0 && held && walking && youBody >= 0 && C.objects[at] && C.objects[youBody]) {
-          const me = C.objects[at]!;
-          const you = C.objects[youBody]!;
-          const want = Math.atan2(you.position.x - me.position.x, you.position.z - me.position.z);
+        const walkingNow = !!intent && !intent.arrived;
+        const style = walkStyle(person, w);
+        const pose = fast ? undefined : walkingNow ? style.pose : mo.pose;
+        const gaze = fast ? undefined : gazeOf(person, w);
+        const faceTo = (x: number, z: number) => {
+          const me = at >= 0 ? C.objects[at] : undefined;
+          if (!me) return;
+          const want = Math.atan2(x - me.position.x, z - me.position.z);
           me.rotation.y += Math.max(-0.35, Math.min(0.35, Math.atan2(Math.sin(want - me.rotation.y), Math.cos(want - me.rotation.y))));
+        };
+        // Someone being talked to turns to face you; two people talking turn to face each other.
+        if (at >= 0 && held && walking && youBody >= 0 && C.objects[youBody]) faceTo(C.objects[youBody]!.position.x, C.objects[youBody]!.position.z);
+        else if (at >= 0 && gaze && !walkingNow && (gaze.why === "the person they are talking with" || gaze.why === "the Walker")) {
+          const other = w.people.find((q) => q.x === gaze.x && q.z === gaze.z);
+          const ob = other ? (ORIGINAL.has(other.id) ? bodyIndex(other.name) : (bodyIndexById.get(other.id) ?? -1)) : -1;
+          if (ob >= 0 && C.objects[ob]) faceTo(C.objects[ob]!.position.x, C.objects[ob]!.position.z);
+          else faceTo(gaze.x, gaze.z);
         }
         if (at >= 0 && !forcedPose.has(at)) {
           C.edenPoses ??= new Map();
           if (pose) C.edenPoses.set(at, pose);
           else C.edenPoses.delete(at);
         }
+        if (at >= 0) {
+          C.edenBodies ??= new Map();
+          const gazeAt = gaze ? { x: gaze.x, z: gaze.z } : undefined;
+          // A person's own spot is where the mind has them; the body is nearly there, which is near enough to look at.
+          C.edenBodies.set(at, { look: lookOf(person, w), gaze: gazeAt });
+        }
+        paceOf.set(person.id, style.pace);
       }
       if (intent && !fast && simSeconds > 0) {
         const action = actionOf(person);
         const loaded = person.carry.wood + person.carry.food >= 1 || person.carrying ? 1 : 0;
-        const key = `${intent.kind}|${intent.targetId ?? ""}|${intent.arrived}|${Math.round(intent.x)}|${Math.round(intent.z)}|${loaded}`;
+        const pace = paceOf.get(person.id) ?? 1;
+        const key = `${intent.kind}|${intent.targetId ?? ""}|${intent.arrived}|${Math.round(intent.x)}|${Math.round(intent.z)}|${loaded}|${pace}`;
         if (sent.get(person.id) !== key) {
           sent.set(person.id, key);
           // Where the body should walk, and how fast; it stays at the spot, and plays the action, once there.
           const via = routeAround(w, person.x, person.z, intent.x, intent.z);
-          ui(`eden_target_${person.id}`, `${intent.x},0,${intent.z},${action},${intent.speed},${via ? via.x.toFixed(1) : "-"},${via ? via.z.toFixed(1) : "-"},${loaded}`);
+          ui(`eden_target_${person.id}`, `${intent.x},0,${intent.z},${action},${intent.speed},${via ? via.x.toFixed(1) : "-"},${via ? via.z.toFixed(1) : "-"},${loaded},${pace}`);
         }
       }
       const text = describe(person, w);
@@ -855,6 +876,19 @@ export function installEdenAgents(C: Ctx): void {
           const a = i >= 0 ? C.animStates[i] : undefined;
           return { id: t.id, kind: t.kind, state: t.mob?.state, speed: +(t.mob?.speed ?? 0).toFixed(2), told: clipSent.get(t.id), playing: a?.current, scale: a?.current ? +(a.actions.get(a.current)?.timeScale ?? 1).toFixed(2) : undefined };
         });
+      (window as unknown as { edenSpawn: unknown }).edenSpawn = (prefab: string, x: number, z: number) => {
+        const id = `dbg-${prefab}`;
+        ui("eden_place", `${id},${prefab},${x},${groundY(x, z) + 1},${z},${id}`);
+        for (const wait of [1500, 5000]) setTimeout(() => ui("eden_tell", id), wait);
+        return id;
+      };
+      (window as unknown as { edenMake: unknown }).edenMake = (kind: string, x: number, z: number) => (world ? make(world, kind, x, z, { radius: 1 }).id : undefined);
+      (window as unknown as { edenMind: unknown }).edenMind = (id: string, patch: Record<string, unknown>) => {
+        const person = world?.people.find((q) => q.id === id);
+        if (!person) return false;
+        Object.assign(person, patch);
+        return true;
+      };
       (window as unknown as { edenBones: unknown }).edenBones = (name: string) => {
         const o = C.objects[bodyIndex(name)];
         if (!o) return undefined;

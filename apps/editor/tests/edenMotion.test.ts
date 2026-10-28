@@ -59,7 +59,7 @@ test("waking up is a stretch, and being spoken to is listening", () => {
   const w = world([a, b]);
   const mem = newMemory();
   a.intent = { kind: "sleep", x: 0, z: 0, speed: 0, remaining: 100, arrived: true };
-  assert.equal(personMotion(a, w, mem).pose, "sleep");
+  assert.equal(personMotion(a, w, mem).asleep, true);
   a.intent = { kind: "gather", x: 0, z: 0, speed: 0, remaining: 100, arrived: true };
   assert.equal(personMotion(a, w, mem).pose, "stretch");
   w.clock = (w.clock ?? 0) + 10;

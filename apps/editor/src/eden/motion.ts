@@ -5,7 +5,10 @@ import { actionOf, aff, type MobState, type Person, type Thing, type World } fro
 
 export type PoseName =
   | "sit" | "eat" | "drink" | "forage" | "work" | "sleep" | "mourn" | "warm" | "fish" | "talk" | "wave"
-  | "slump" | "tense" | "alert" | "hug" | "laugh" | "yawn" | "belly" | "proud" | "stretch" | "scan";
+  | "slump" | "tense" | "alert" | "hug" | "laugh" | "yawn" | "belly" | "proud" | "stretch" | "scan" | "hurt" | "pray"
+  // while walking (spine and head only; the arms and legs are the walk clip's):
+  | "limp" | "trudge" | "stride" | "bold" | "furtive";
+export const WALK_POSES: readonly PoseName[] = ["limp", "trudge", "stride", "bold", "furtive"];
 
 // ---- people ----
 
@@ -18,6 +21,7 @@ export const POSE_OF: Partial<Record<string, PoseName>> = {
 // Per person, what the caller remembers between looks (so a pose can end with a stretch, and a yawn can come round on its own beat).
 export interface MotionMemory {
   pose?: PoseName;
+  asleep?: boolean; // lying down (the lie-down clip does it, so there is no pose for it)
   since: number;
   stretchUntil: number;
   changes: number; // how many times the pose has changed, a flicker count for the harness
@@ -30,6 +34,7 @@ const beat = (clock: number, period: number, on: number, seed: number) => ((cloc
 export interface PersonMotion {
   action: string; // the clip request (resolved against the model's clips in edenAgents.EDEN_ACTION_CLIPS)
   pose?: PoseName;
+  asleep: boolean;
   why: string; // for the harness: what in the mind this follows
 }
 
@@ -41,6 +46,7 @@ export function expressionOf(p: Person, world: World, was?: PoseName): { pose: P
   if (feel(p, "fear") > 0.4) return { pose: "alert", why: "afraid" };
   if (feel(p, "anger") > 0.4) return { pose: "tense", why: "angry" };
   if ((p.grief ?? 0) > 0.2 || feel(p, "shame") > 0.4 || p.mood < -0.35) return { pose: "slump", why: "grieving, ashamed or low" };
+  if ((p.wound ?? 0) > 0.3) return { pose: "hurt", why: "wounded" };
   if (p.illness) return { pose: "slump", why: "ill" };
   if (p.cold > (was === "hug" ? 0.4 : 0.5)) return { pose: "hug", why: "cold" };
   if (p.needs.energy > 0.75 && beat(clock, 40, 3, seed)) return { pose: "yawn", why: "tired" };
@@ -66,12 +72,12 @@ export function personMotion(p: Person, world: World, mem: MotionMemory, held?: 
   }
   if (held) (pose = held), (why = "asked for");
   const walking = !!intent && !intent.arrived;
-  const asleep = pose === "sleep";
+  const asleep = intent?.kind === "sleep" && intent.arrived;
   if (!walking) {
     // Someone has come to talk to them: they turn their attention and answer, even while doing something else.
     if (!asleep && p.intent?.kind !== "talk" && world.people.some((q) => q !== p && q.intent?.kind === "talk" && q.intent.arrived && q.intent.targetId === p.id)) (pose = "talk"), (why = "being talked to");
     // Getting up from sleep: a stretch before anything else.
-    if (mem.pose === "sleep" && !asleep) mem.stretchUntil = clock + 4;
+    if (mem.asleep && !asleep) mem.stretchUntil = clock + 5;
     if (clock < mem.stretchUntil && !asleep) (pose = "stretch"), (why = "just woke");
     else if (!asleep && (p.laughUntil ?? 0) > clock && (p.grief ?? 0) <= 0.2 && feel(p, "anger") <= 0.4 && feel(p, "fear") <= 0.4) (pose = "laugh"), (why = "laughing");
     else if (!pose || pose === "scan") {
@@ -83,12 +89,71 @@ export function personMotion(p: Person, world: World, mem: MotionMemory, held?: 
       if (show && ["alert", "tense", "slump"].includes(show.pose)) (pose = show.pose), (why = `${why}, but ${show.why}`);
     }
   }
+  mem.asleep = asleep;
   if (pose !== mem.pose) {
     mem.pose = pose;
     mem.since = clock;
     mem.changes += 1;
   }
-  return { action, pose, why };
+  return { action, pose, asleep, why };
+}
+
+// ---- how a body walks, looks and looks at things ----
+
+export interface WalkStyle {
+  pose?: PoseName; // posture over the walk clip (spine and head only)
+  pace: number; // how fast the walk clip plays (the legs' cadence; the ground speed is the mind's)
+  why: string;
+}
+
+/** How someone walks: hurt, they limp; low, they trudge; angry, they stride; afraid, they hurry looking about; proud, they walk tall; tired, slowly. */
+export function walkStyle(p: Person, world: World): WalkStyle {
+  const em = p.emotions ?? {};
+  void world;
+  if ((p.wound ?? 0) > 0.25) return { pose: "limp", pace: 0.75, why: "hurt" };
+  if ((em.fear ?? 0) > 0.4) return { pose: "furtive", pace: 1.15, why: "afraid" };
+  if ((em.anger ?? 0) > 0.4) return { pose: "stride", pace: 1.1, why: "angry" };
+  if ((p.grief ?? 0) > 0.2 || (em.shame ?? 0) > 0.4 || p.mood < -0.35) return { pose: "trudge", pace: 0.85, why: "low" };
+  if (p.illness || p.needs.energy > 0.8) return { pose: "trudge", pace: 0.85, why: p.illness ? "ill" : "tired" };
+  if ((em.pride ?? 0) > 0.4 || (em.joy ?? 0) > 0.55 || p.mood > 0.6) return { pose: "bold", pace: 1.05, why: "happy" };
+  return { pace: 1, why: "easy" };
+}
+
+export interface Look {
+  pregnant: number; // 0..1 how far along (the belly)
+  dirt: number; // 0 clean .. 1 filthy
+  pallor: number; // 0..1 ill, hurt or very cold: drained of colour
+  wet: number; // 0..1 rained on, outside
+  fist: number; // 0 loose hands .. 1 clenched
+}
+
+/** What shows on the body itself, apart from what it is doing. */
+export function lookOf(p: Person, world: World): Look {
+  const em = p.emotions ?? {};
+  const w = world.weather;
+  const sheltered = world.things.some((t) => t.kind === "shelter" && Math.hypot(p.x - t.x, p.z - t.z) < 3.5);
+  const gest = p.pregnant ? Math.max(0, Math.min(1, ((world.clock ?? 0) - p.pregnant.since) / (0.75 * 16 * 1440))) : 0;
+  return {
+    pregnant: gest,
+    dirt: Math.max(0, Math.min(1, ((p.hygiene ?? 0) - 0.15) / 0.85)),
+    pallor: Math.max(p.illness?.severity ?? 0, p.wound ?? 0, Math.max(0, p.cold - 0.5)),
+    wet: w?.raining && !sheltered ? 1 : 0,
+    fist: (em.anger ?? 0) > 0.4 ? 1 : p.cold > 0.5 ? 0.8 : (em.fear ?? 0) > 0.4 ? 0.6 : 0,
+  };
+}
+
+/** Where they are looking, if anywhere in particular: at who is speaking to them, who they speak to, a danger, the Walker nearby. */
+export function gazeOf(p: Person, world: World): { x: number; z: number; why: string } | undefined {
+  const intent = p.intent;
+  const other = intent && (intent.kind === "talk" || intent.kind === "share" || intent.kind === "comfort") && intent.arrived ? world.people.find((q) => q.id === intent.targetId) : world.people.find((q) => q !== p && q.intent?.kind === "talk" && q.intent.arrived && q.intent.targetId === p.id);
+  if (other) return { x: other.x, z: other.z, why: "the person they are talking with" };
+  if ((p.emotions?.fear ?? 0) > 0.4) {
+    const danger = world.things.filter((t) => aff(t).danger).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
+    if (danger && Math.hypot(danger.x - p.x, danger.z - p.z) < 40) return { x: danger.x, z: danger.z, why: "what frightens them" };
+  }
+  const v = world.visitor;
+  if (v && Math.hypot(v.x - p.x, v.z - p.z) < 12 && (p.walkerTrust !== undefined || p.heard?.includes("walker"))) return { x: v.x, z: v.z, why: "the Walker" };
+  return undefined;
 }
 
 // ---- creatures ----

@@ -40,7 +40,7 @@ export function installScriptHost(C: Ctx): void {
     let hair = false;
     for (const part of spec) {
       if (pieces[part.id]) for (const id of pieces[part.id]!) out.push({ id, tint: part.tint });
-      else if (part.id >= 379) out.push(part);
+      else if (part.id >= 367) out.push(part); // the base bodies' own pieces (eyebrows, outfits, peasant, ranger)
       else if (part.id === 356) (hair = true), out.push({ id: sex === "male" ? 363 : 362, tint: part.tint });
       else if (part.id === 357) (hair = true), out.push({ id: 361, tint: part.tint });
       else if (part.id === 358) out.push(part);

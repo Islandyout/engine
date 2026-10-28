@@ -21,7 +21,7 @@ local function parse_target(value)
   local parts = {}
   for p in string.gmatch(value, "[^,]+") do parts[#parts + 1] = p end
   if #parts < 4 then return nil end
-  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]), viaX = tonumber(parts[6]), viaZ = tonumber(parts[7]), carrying = parts[8] == "1" }
+  return { x = tonumber(parts[1]), y = tonumber(parts[2]), z = tonumber(parts[3]), action = parts[4], speed = tonumber(parts[5]), viaX = tonumber(parts[6]), viaZ = tonumber(parts[7]), carrying = parts[8] == "1", pace = tonumber(parts[9]) }
 end
 
 function on_ui(name, value)
@@ -66,7 +66,15 @@ end
 local function play(action)
   if gesture_left > 0 then return end
   if playedAction ~= action then
-    self.animate = action
+    if playedAction == "lie_down" then
+      -- Getting up from lying: the clip, before anything else.
+      self.animate = "get_up"
+      playedAction = nil
+      gesture_left = 1.6
+      return
+    end
+    -- Lying down is the get-up clip played backwards and held.
+    self.animate = action == "lie_down" and "lie_down@-1" or action
     playedAction = action
   end
 end
@@ -100,7 +108,7 @@ function on_tick(dt)
   else
     self.vx = (dx / dist) * (target.speed or WALK_SPEED)
     self.vz = (dz / dist) * (target.speed or WALK_SPEED)
-    play((target.speed or WALK_SPEED) > 3 and "run" or (target.carrying and "carry_walk" or "walk"))
+    play((target.speed or WALK_SPEED) > 3 and "run" or (target.carrying and "carry_walk" or ((target.pace and math.abs(target.pace - 1) > 0.04) and ("walk@" .. string.format("%.2f", target.pace)) or "walk")))
   end
 end
 

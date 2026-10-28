@@ -4,7 +4,7 @@
 // not a snap, with a small motion of its own (chewing, reaching, breathing) on each character's own beat.
 import * as THREE from "three";
 
-import type { PoseName } from "../eden/motion";
+import type { Look, PoseName } from "../eden/motion";
 export type { PoseName };
 export type PoseBone = "body" | "hips" | "abdomen" | "torso" | "chest" | "neck" | "head" | "armL" | "armR" | "foreL" | "foreR" | "thighL" | "thighR" | "shinL" | "shinR" | "footL" | "footR" | "toeL" | "toeR";
 type V = [number, number, number];
@@ -108,13 +108,28 @@ export function poseAt(name: PoseName, t: number, seed: number): Pose {
     }
     case "scan":
       return { drop: 0, rot: { head: [0.02, 0.6 * Math.sin(t * 0.7 + s), 0], abdomen: [0, 0.12 * Math.sin(t * 0.7 + s), 0], armL: [-0.03, 0, 0.04 * slow], armR: [-0.03, 0, -0.04 * slow] } };
+    case "hurt":
+      return { drop: 0.03, rot: { abdomen: [0.28, 0, 0], torso: [0.15, 0, 0], head: [0.2, 0, 0], thighL: [-0.12, 0, 0], thighR: [-0.12, 0, 0], shinL: [0.16, 0, 0], shinR: [0.16, 0, 0], armR: [-0.4, 0, 0.35], foreR: [-1.2, 0, 0], armL: [-0.1, 0, 0.1] } };
+    case "pray":
+      return { drop: 0.55, rot: { thighL: [-1.7, 0, 0], thighR: [-1.7, 0, 0], shinL: [2.2, 0, 0], shinR: [2.2, 0, 0], abdomen: [0.12 + 0.02 * slow, 0, 0], head: [0.5, 0, 0], armL: [-0.9, 0, -0.35], armR: [-0.9, 0, 0.35], foreL: [-1.9, 0, 0], foreR: [-1.9, 0, 0] } };
+    // Posture over the walk (the spine and head; the walk clip owns the arms and legs).
+    case "limp":
+      return { drop: 0, rot: { hips: [0, 0, 0.1], abdomen: [0.12, 0, -0.1], torso: [0.08, 0, -0.05], head: [0.12, 0, 0.05] } };
+    case "trudge":
+      return { drop: 0, rot: { abdomen: [0.22, 0, 0], torso: [0.15, 0, 0], head: [0.3, 0, 0] } };
+    case "stride":
+      return { drop: 0, rot: { chest: [-0.08, 0, 0], abdomen: [0.04, 0, 0], head: [0.14, 0, 0] } };
+    case "bold":
+      return { drop: 0, rot: { abdomen: [-0.04, 0, 0], chest: [-0.1, 0, 0], head: [-0.1, 0, 0] } };
+    case "furtive":
+      return { drop: 0, rot: { abdomen: [0.14, 0, 0], head: [0.04, 0.5 * Math.sin(t * 1.8 + s), 0] } };
     case "sleep":
       return { drop: 0.9, lie: Math.PI / 2, rot: { armL: [-0.2, 0, 0.2], armR: [-0.2, 0, -0.2], abdomen: [0.02 * slow, 0, 0], head: [0, 0.2, 0] } };
   }
 }
 
 // Eased in and out: each figure's pose weight moves toward 1 while it holds and back to 0 when it ends (about half a second each way).
-const weights = new WeakMap<object, { w: number; pose?: PoseName; last?: number }>();
+const weights = new WeakMap<object, { w: number; pose?: PoseName; last?: number; gaze?: number; mats?: string }>();
 // A clip only rewrites the bones it has tracks for, so a bone it leaves alone would keep last frame's pose and be turned a little further every
 // frame. Each posed bone remembers what it was before and what we set it to; if it still holds what we set, the clip did not touch it, so go back.
 const memory = new WeakMap<THREE.Bone, { p: THREE.Vector3; q: THREE.Quaternion; ap: THREE.Vector3; aq: THREE.Quaternion }>();
@@ -182,7 +197,15 @@ function carry(foot: THREE.Bone, shin: THREE.Bone): () => void {
 }
 
 /** Call every frame right after the mixer, for each figure within sight. `want` is the pose they should be in, if any. */
-export function applyPose(key: object, root: THREE.Object3D, bones: PoseBones, want: PoseName | undefined, t: number, seed: number): void {
+export interface BodyExtras {
+  look?: Look; // what shows on the body: a belly, dirt, pallor, rain, fists
+  gaze?: { x: number; z: number }; // a point in the world the head turns toward
+  walking?: boolean; // the walk clip owns the arms and legs: only the spine and head take a posture
+}
+
+const SPINE_AND_HEAD: readonly PoseBone[] = ["hips", "abdomen", "torso", "chest", "neck", "head"];
+
+export function applyPose(key: object, root: THREE.Object3D, bones: PoseBones, want: PoseName | undefined, t: number, seed: number, extra?: BodyExtras): void {
   const state = weights.get(key) ?? { w: 0 };
   weights.set(key, state);
   const moving = (Object.keys(NAMES) as PoseBone[]).map((name) => bones[name]).filter((b): b is THREE.Bone => !!b);
@@ -195,45 +218,127 @@ export function applyPose(key: object, root: THREE.Object3D, bones: PoseBones, w
   }
   const target = want && want === state.pose ? 1 : 0;
   state.w += Math.sign(target - state.w) * Math.min(Math.abs(target - state.w), dt * 2);
-  if (state.w <= 0.001 || !state.pose) return;
-  const facing = bones.facing ?? -1;
-  const pose = poseAt(state.pose, t, seed);
-  const e = state.w * state.w * (3 - 2 * state.w);
-  const before = new Map(moving.map((b) => [b, { p: b.position.clone(), q: b.quaternion.clone() }]));
-  root.updateWorldMatrix(true, true);
-  // The shoes hang from control bones that are not children of the legs, so they stay where they were unless carried along with each shin.
-  const feet = ([[bones.footL, bones.shinL], [bones.footR, bones.shinR], [bones.toeL, bones.shinL], [bones.toeR, bones.shinR]] as const)
-    .filter((pair): pair is readonly [THREE.Bone, THREE.Bone] => !!pair[0] && !!pair[1])
-    .map(([foot, shin]) => carry(foot, shin));
-  // The whole figure moves with the body bone (the legs hang from it as well as the hips); without one, the hips stand in.
-  const body = bones.body ?? bones.hips;
-  const hips = bones.hips ?? body;
-  if (body?.parent && hips) {
-    // How high the hips are above the feet (the figure's origin is near the hips, not at the ground).
-    const feetY = [bones.footL, bones.footR].filter((b): b is THREE.Bone => !!b).map((b) => root.worldToLocal(b.getWorldPosition(vA)).y);
-    const hipsY = root.worldToLocal(hips.getWorldPosition(vA)).y;
-    const height = Math.max(0.3, hipsY - (feetY.length ? Math.min(...feetY) : hipsY - 0.9));
-    if (pose.lie) turnInFigure(body, root, [-pose.lie * e, 0, 0], facing);
+  const posing = state.w > 0.001 && !!state.pose;
+  // Where the head is turned to, eased toward the point looked at (or back to straight).
+  let wantYaw = 0;
+  if (extra?.gaze && bones.head) {
     root.updateWorldMatrix(true, true);
-    // Down by a fraction of the hips' height, or, lying, until the hips are a hand's breadth off the ground.
-    const nowY = root.worldToLocal(hips.getWorldPosition(vA)).y;
-    const down = pose.lie ? Math.max(0, nowY - (hipsY - height * (1 - 0.12) * e)) : height * pose.drop * e;
-    const at = root.worldToLocal(body.getWorldPosition(vB));
-    at.y -= down;
-    body.position.copy(body.parent.worldToLocal(root.localToWorld(at)));
-    body.updateMatrix();
+    const local = root.worldToLocal(new THREE.Vector3(extra.gaze.x, 0, extra.gaze.z));
+    const hp = root.worldToLocal(bones.head.getWorldPosition(vB));
+    const f = bones.facing ?? -1;
+    const yaw = Math.atan2(f * (local.x - hp.x), f * (local.z - hp.z));
+    wantYaw = Math.abs(yaw) > Math.PI / 2 + 0.7 ? 0 : Math.max(-0.95, Math.min(0.95, yaw)); // behind them: they do not wring their neck
   }
-  for (const name of ORDER) {
-    const bone = bones[name];
-    if (!bone || name === "body") continue;
-    const r = pose.rot[name] ?? [0, 0, 0];
-    turnInFigure(bone, root, [r[0] * e, r[1] * e, r[2] * e], facing);
+  state.gaze = (state.gaze ?? 0) + (wantYaw - (state.gaze ?? 0)) * Math.min(1, dt * 4);
+  const gazing = Math.abs(state.gaze) > 0.01;
+  if (posing || gazing) {
+    const facing = bones.facing ?? -1;
+    const before = new Map(moving.map((b) => [b, { p: b.position.clone(), q: b.quaternion.clone() }]));
+    root.updateWorldMatrix(true, true);
+    if (posing) {
+      const partial = !!extra?.walking;
+      const pose = poseAt(state.pose!, t, seed);
+      const e = state.w * state.w * (3 - 2 * state.w);
+      // The shoes hang from control bones that are not children of the legs, so they stay where they were unless carried along with each shin.
+      const feet = partial ? [] : ([[bones.footL, bones.shinL], [bones.footR, bones.shinR], [bones.toeL, bones.shinL], [bones.toeR, bones.shinR]] as const)
+        .filter((pair): pair is readonly [THREE.Bone, THREE.Bone] => !!pair[0] && !!pair[1])
+        .map(([foot, shin]) => carry(foot, shin));
+      // The whole figure moves with the body bone (the legs hang from it as well as the hips); without one, the hips stand in.
+      const body = bones.body ?? bones.hips;
+      const hips = bones.hips ?? body;
+      if (!partial && body?.parent && hips) {
+        // How high the hips are above the feet (the figure's origin is near the hips, not at the ground).
+        const feetY = [bones.footL, bones.footR].filter((b): b is THREE.Bone => !!b).map((b) => root.worldToLocal(b.getWorldPosition(vA)).y);
+        const hipsY = root.worldToLocal(hips.getWorldPosition(vA)).y;
+        const height = Math.max(0.3, hipsY - (feetY.length ? Math.min(...feetY) : hipsY - 0.9));
+        if (pose.lie) turnInFigure(body, root, [-pose.lie * e, 0, 0], facing);
+        root.updateWorldMatrix(true, true);
+        // Down by a fraction of the hips' height, or, lying, until the hips are a hand's breadth off the ground.
+        const nowY = root.worldToLocal(hips.getWorldPosition(vA)).y;
+        const down = pose.lie ? Math.max(0, nowY - (hipsY - height * (1 - 0.12) * e)) : height * pose.drop * e;
+        const at = root.worldToLocal(body.getWorldPosition(vB));
+        at.y -= down;
+        body.position.copy(body.parent.worldToLocal(root.localToWorld(at)));
+        body.updateMatrix();
+      }
+      for (const name of ORDER) {
+        const bone = bones[name];
+        if (!bone || name === "body") continue;
+        if (partial && !SPINE_AND_HEAD.includes(name)) continue;
+        const r = pose.rot[name] ?? [0, 0, 0];
+        turnInFigure(bone, root, [r[0] * e, r[1] * e, r[2] * e], facing);
+      }
+      for (const place of feet) place();
+    }
+    // The head (and a little of the neck) turns to what they are looking at, within what a neck can do.
+    if (gazing && bones.head) {
+      if (bones.neck) turnInFigure(bones.neck, root, [0, state.gaze! * 0.35, 0], facing);
+      turnInFigure(bones.head, root, [0, state.gaze! * 0.65, 0], facing);
+    }
+    for (const bone of moving) remember(bone, before.get(bone)!);
   }
-  for (const place of feet) place();
-  for (const bone of moving) remember(bone, before.get(bone)!);
+  if (extra?.look) applyLook(root, bones, extra.look, key);
 }
 
 /** True while a figure is in, or easing in or out of, a pose. */
 export function poseActive(key: object): boolean {
   return (weights.get(key)?.w ?? 0) > 0.001;
+}
+// ---- the body itself: a belly, dirt, pallor, rain, fists ----
+
+const FINGER = /^(index|middle|ring|pinky|thumb)_0?([1-3])_([lr])$/i;
+const fingerCache = new WeakMap<THREE.Object3D, { bone: THREE.Bone; joint: number; thumb: boolean; rest: THREE.Quaternion }[]>();
+const curlQ = new THREE.Quaternion();
+const AXIS = new THREE.Vector3(0, 0, 1); // the local axis the hunter bodies' fingers bend about (found by looking, see poses notes)
+
+function fingersOf(root: THREE.Object3D) {
+  let list = fingerCache.get(root);
+  if (!list) {
+    list = [];
+    root.traverse((node) => {
+      const m = node instanceof THREE.Bone ? FINGER.exec(node.name) : null;
+      if (m) list!.push({ bone: node as THREE.Bone, joint: Number(m[2]), thumb: /^thumb/i.test(m[1]!), rest: (node as THREE.Bone).quaternion.clone() });
+    });
+    fingerCache.set(root, list);
+  }
+  return list;
+}
+
+const DIRT = new THREE.Color(0.55, 0.45, 0.34);
+const PALE = new THREE.Color(0.86, 0.92, 0.96);
+const WET = new THREE.Color(0.8, 0.82, 0.86);
+const tmpColor = new THREE.Color();
+
+function applyLook(root: THREE.Object3D, bones: PoseBones, look: Look, key: object) {
+  // A belly: the abdomen deepens front to back as the months go.
+  if (bones.abdomen) bones.abdomen.scale.set(1 + 0.22 * look.pregnant, 1, 1 + 0.7 * look.pregnant);
+  // Hands: loose, or clenched.
+  const curl = 0.25 + 1.0 * look.fist;
+  for (const f of fingersOf(root)) {
+    const angle = (f.thumb ? 0.5 : 1) * curl * (f.joint === 1 ? 0.7 : 1);
+    f.bone.quaternion.copy(f.rest).multiply(curlQ.setFromAxisAngle(AXIS, angle));
+  }
+  // Colour: dirt, drained colour and rain, on the body and what it wears (each wearer has their own copy of the materials).
+  const state = weights.get(key);
+  const sig = `${Math.round(look.dirt * 8)}|${Math.round(look.pallor * 8)}|${look.wet}`;
+  if (state && state.mats === sig) return;
+  if (state) state.mats = sig;
+  root.traverse((node) => {
+    const mesh = node as THREE.Mesh;
+    if (!mesh.isMesh || /^eye/i.test(mesh.name)) return;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    const own = (mesh.userData.edenMats ??= mats.map((m) => ({ mat: (m as THREE.MeshStandardMaterial).clone(), base: ((m as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1)).clone() })));
+    if (!mesh.userData.edenCloned) {
+      mesh.material = Array.isArray(mesh.material) ? own.map((o: { mat: THREE.Material }) => o.mat) : own[0].mat;
+      mesh.userData.edenCloned = true;
+    }
+    for (const o of own as { mat: THREE.MeshStandardMaterial; base: THREE.Color }[]) {
+      if (!o.mat.color) continue;
+      tmpColor.copy(o.base);
+      tmpColor.multiply(new THREE.Color(1, 1, 1).lerp(DIRT, 0.7 * look.dirt));
+      tmpColor.multiply(new THREE.Color(1, 1, 1).lerp(PALE, 0.8 * look.pallor));
+      if (look.wet) tmpColor.multiply(WET);
+      o.mat.color.copy(tmpColor);
+    }
+  });
 }

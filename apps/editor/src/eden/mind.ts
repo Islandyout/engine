@@ -2457,9 +2457,9 @@ export function actionOf(person: Person): string {
     case "stash":
     case "tame":
       return "harvest";
+    case "sleep":
     case "mourn":
     case "rest":
-    case "sleep":
     case "warm":
       return "rest";
     case "talk":
