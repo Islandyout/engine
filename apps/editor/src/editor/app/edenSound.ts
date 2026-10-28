@@ -35,15 +35,19 @@ export class EdenSound {
   private lastHowl = 0;
   private fireTimer = 0;
 
-  constructor() {
+  // `inWorld` says whether an Eden world is being played: the sound never starts (or opens an audio context) in any other scene.
+  constructor(private inWorld: () => boolean) {
     try {
       this.enabled = localStorage.getItem(KEY) !== "off";
     } catch {
       /* private window: sound stays on */
     }
-    const start = () => this.start();
-    window.addEventListener("pointerdown", start, { once: true });
-    window.addEventListener("keydown", start, { once: true });
+    const start = () => {
+      if (this.context || !this.inWorld()) return;
+      this.start();
+    };
+    window.addEventListener("pointerdown", start);
+    window.addEventListener("keydown", start);
   }
 
   get on() {

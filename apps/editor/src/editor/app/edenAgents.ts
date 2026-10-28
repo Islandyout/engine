@@ -151,7 +151,7 @@ export function installEdenAgents(C: Ctx): void {
   let walking = false; // the Creator is walking the world as a hunter
   let youBody = -1;
   const talkHistory = new Map<string, { role: string; content: string }[]>(); // the last turns of each conversation with the Walker
-  const sound = new EdenSound();
+  const sound = new EdenSound(() => inEden && C.doc.mode === "play");
   let soundAt = 0;
   let screens: Screens | undefined; // map, journal and pack (M, L, I), made the first time you walk
   const notes: string[] = []; // what the Walker has done, kept with the save
