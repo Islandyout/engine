@@ -7,12 +7,15 @@ import * as THREE from "three";
 export type PoseName = "sit" | "eat" | "drink" | "forage" | "work" | "sleep" | "mourn" | "warm" | "fish";
 export type PoseBone = "body" | "hips" | "abdomen" | "torso" | "chest" | "neck" | "head" | "armL" | "armR" | "foreL" | "foreR" | "thighL" | "thighR" | "shinL" | "shinR" | "footL" | "footR" | "toeL" | "toeR";
 type V = [number, number, number];
-export type PoseBones = Partial<Record<PoseBone, THREE.Bone>> & { hipsHome?: number };
+export type PoseBones = Partial<Record<PoseBone, THREE.Bone>> & { facing?: 1 | -1 }; // facing: which way along z the figure looks (the villagers' models look toward -z, the hunter bodies' toward +z)
 
+// Two skeletons: the clothed villagers' (Hips, Abdomen, UpperArm.L...) and the hunter bodies' (pelvis, spine_01, upperarm_l...).
 const NAMES: Record<PoseBone, RegExp> = {
-  body: /^body$/i, hips: /^hips$/i, abdomen: /^abdomen$/i, torso: /^torso$/i, chest: /^chest$/i, neck: /^neck$/i, head: /^head$/i,
-  armL: /^upperarm\.?l$/i, armR: /^upperarm\.?r$/i, foreL: /^lowerarm\.?l$/i, foreR: /^lowerarm\.?r$/i,
-  toeL: /^pt\.?l$/i, toeR: /^pt\.?r$/i, footL: /^foot\.?l$/i, footR: /^foot\.?r$/i, thighL: /^upperleg\.?l$/i, thighR: /^upperleg\.?r$/i, shinL: /^lowerleg\.?l$/i, shinR: /^lowerleg\.?r$/i,
+  body: /^body$|^pelvis$/i, hips: /^hips$|^pelvis$/i, abdomen: /^abdomen$|^spine_01$/i, torso: /^torso$|^spine_02$/i, chest: /^chest$|^spine_03$/i,
+  neck: /^neck$|^neck_01$/i, head: /^head$/i,
+  armL: /^upperarm[._]?l$/i, armR: /^upperarm[._]?r$/i, foreL: /^lowerarm[._]?l$/i, foreR: /^lowerarm[._]?r$/i,
+  toeL: /^pt[._]?l$|^ball_l$/i, toeR: /^pt[._]?r$|^ball_r$/i, footL: /^foot[._]?l$/i, footR: /^foot[._]?r$/i,
+  thighL: /^upperleg[._]?l$|^thigh_l$/i, thighR: /^upperleg[._]?r$|^thigh_r$/i, shinL: /^lowerleg[._]?l$|^calf_l$/i, shinR: /^lowerleg[._]?r$|^calf_r$/i,
 };
 
 export function findPoseBones(root: THREE.Object3D): PoseBones {
@@ -21,6 +24,14 @@ export function findPoseBones(root: THREE.Object3D): PoseBones {
     if (!(node instanceof THREE.Bone)) return;
     for (const key of Object.keys(NAMES) as PoseBone[]) if (!bones[key] && NAMES[key].test(node.name)) bones[key] = node;
   });
+  // The hunter bodies have a ball-of-foot bone, which sits in front of the ankle.
+  bones.facing = -1;
+  if (bones.toeL && bones.footL && /^ball/i.test(bones.toeL.name)) {
+    root.updateWorldMatrix(true, true);
+    const toe = root.worldToLocal(bones.toeL.getWorldPosition(new THREE.Vector3()));
+    const foot = root.worldToLocal(bones.footL.getWorldPosition(new THREE.Vector3()));
+    bones.facing = toe.z > foot.z ? 1 : -1;
+  }
   return bones;
 }
 
@@ -91,13 +102,13 @@ const vB = new THREE.Vector3();
 
 // The bones' own axes depend on how the model was exported, so the rotations here are made about the figure's own axes instead:
 // x is across the body (positive tips the top of a limb forward, as written in the poses), y is up, z is front to back. Applied from the hips down.
-function turnInFigure(bone: THREE.Bone, root: THREE.Object3D, r: V) {
+function turnInFigure(bone: THREE.Bone, root: THREE.Object3D, r: V, facing: 1 | -1) {
   const parent = bone.parent;
   if (!parent) return;
   bone.updateWorldMatrix(true, false);
   root.getWorldQuaternion(qA);
   bone.getWorldQuaternion(qB);
-  eu.set(-r[0], r[1], r[2], "XYZ"); // these models face -z, so a forward tip is a negative turn about x
+  eu.set(facing * r[0], r[1], r[2], "XYZ"); // a model that faces -z tips forward with a negative turn about x
   qC.setFromEuler(eu);
   // world = root * (R * (root^-1 * bone))
   qB.premultiply(qA.clone().invert()).premultiply(qC).premultiply(qA);
@@ -146,6 +157,7 @@ export function applyPose(key: object, root: THREE.Object3D, bones: PoseBones, w
   const target = want && want === state.pose ? 1 : 0;
   state.w += Math.sign(target - state.w) * Math.min(Math.abs(target - state.w), dt * 2);
   if (state.w <= 0.001 || !state.pose) return;
+  const facing = bones.facing ?? -1;
   const pose = poseAt(state.pose, t, seed);
   const e = state.w * state.w * (3 - 2 * state.w);
   const before = new Map(moving.map((b) => [b, { p: b.position.clone(), q: b.quaternion.clone() }]));
@@ -162,7 +174,7 @@ export function applyPose(key: object, root: THREE.Object3D, bones: PoseBones, w
     const feetY = [bones.footL, bones.footR].filter((b): b is THREE.Bone => !!b).map((b) => root.worldToLocal(b.getWorldPosition(vA)).y);
     const hipsY = root.worldToLocal(hips.getWorldPosition(vA)).y;
     const height = Math.max(0.3, hipsY - (feetY.length ? Math.min(...feetY) : hipsY - 0.9));
-    if (pose.lie) turnInFigure(body, root, [-pose.lie * e, 0, 0]);
+    if (pose.lie) turnInFigure(body, root, [-pose.lie * e, 0, 0], facing);
     root.updateWorldMatrix(true, true);
     // Down by a fraction of the hips' height, or, lying, until the hips are a hand's breadth off the ground.
     const nowY = root.worldToLocal(hips.getWorldPosition(vA)).y;
@@ -176,7 +188,7 @@ export function applyPose(key: object, root: THREE.Object3D, bones: PoseBones, w
     const bone = bones[name];
     if (!bone || name === "body") continue;
     const r = pose.rot[name] ?? [0, 0, 0];
-    turnInFigure(bone, root, [r[0] * e, r[1] * e, r[2] * e]);
+    turnInFigure(bone, root, [r[0] * e, r[1] * e, r[2] * e], facing);
   }
   for (const place of feet) place();
   for (const bone of moving) remember(bone, before.get(bone)!);

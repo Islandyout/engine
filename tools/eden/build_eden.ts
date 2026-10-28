@@ -209,21 +209,22 @@ for (const tree of [treeOfLife!, treeOfKnowledge!]) {
   scene.add(`${tree.name} trunk`, [tree.x, ground(tree.x, tree.z) + 1.5, tree.z], { Scale: { value: vec(1.8, 3, 1.8) }, Renderable: { mesh: 0, material: 0, visible: false }, RigidBody: { dynamic: false }, Collider: { type: "AABB" } });
 }
 
-const ADAM_MODEL = modelId("man-casual");
-const EVE_MODEL = modelId("woman-casual");
+// The people are the hunter bodies (the same rig as the player's), which carry the shared clip library: eating, harvesting, planting, chopping and more.
+const ADAM_MODEL = modelId("ubc-male");
+const EVE_MODEL = modelId("ubc-female");
 scene.add("Adam", [-1, ground(-1, 0) + 0.1, 0], {
   Rotation: { euler: vec(0, Math.PI / 2, 0) },
   Renderable: { mesh: ADAM_MODEL, material: 0, visible: true },
   RigidBody: { mass: 70, dynamic: true },
   Collider: {},
-  Script: { source: lua("adam.lua"), props: {} },
+  Script: { source: lua("adam.lua"), props: { gear: "379:#8a7a5a 380 381 382 363:#3a2a1a 366:#3a2a1a" } },
 });
 scene.add("Eve", [1, ground(1, 0) + 0.1, 0], {
   Rotation: { euler: vec(0, -Math.PI / 2, 0) },
   Renderable: { mesh: EVE_MODEL, material: 0, visible: true },
   RigidBody: { mass: 60, dynamic: true },
   Collider: {},
-  Script: { source: lua("eve.lua"), props: {} },
+  Script: { source: lua("eve.lua"), props: { gear: "389:#6a8a5a 390 391 392 361:#4a2c1a" } },
 });
 
 // You: a hunter. The Creator watches from above until they choose to walk the world (the panel's button), which brings this body into the
@@ -323,28 +324,43 @@ scene.prefab("Grave", { Renderable: { mesh: modelId("rock-large"), material: 0, 
 scene.prefab("Crop", { Renderable: { mesh: modelId("bush-1"), material: 0, visible: true } });
 // People who were not here at the start (born in the garden, or brought by the Creator): the same models as Adam and Eve, driven by person.lua,
 // and smaller as children.
-const personPrefab = (name: string, model: string, scale?: number) =>
+const personPrefab = (name: string, model: string, gear: string, scale?: number) =>
   scene.prefab(name, {
     Renderable: { mesh: modelId(model), material: 0, visible: true },
     RigidBody: { mass: scale ? 30 : 70, dynamic: true },
     Collider: {},
     ...(scale ? { Scale: { value: vec(scale, scale, scale) } } : {}),
-    Script: { source: lua("person.lua"), props: {} },
+    Script: { source: lua("person.lua"), props: { gear } },
   });
 // Different faces and clothes for different people: the host picks one by who they are (edenAgents.ts bodyPrefab), and size follows age.
-const MEN = ["man-casual", "man-farmer", "man-worker", "man-hoodie", "man-beach"];
-const WOMEN = ["woman-casual", "woman-dress", "woman-street", "woman-tank-top"];
-MEN.forEach((m, i) => {
-  personPrefab(`Villager (man) ${i + 1}`, m);
-  personPrefab(`Youth (boy) ${i + 1}`, m, 0.82);
-  personPrefab(`Child (boy) ${i + 1}`, m, 0.6);
-  personPrefab(`Elder (man) ${i + 1}`, m, 0.94); // a little shorter with the years
+// One body for men and one for women, dressed from the kit's pieces (world.wear): peasant or casual clothes in different colours, with
+// different hair and beards. The host picks a variant by who they are (edenAgents.ts bodyPrefab). Size follows age.
+const MEN = "ubc-male";
+const WOMEN = "ubc-female";
+const MEN_GEAR = [
+  "369:#6b7a8f 370:#4a4036 371 363:#2a2018",
+  "379 380 381 382 364:#5a4030 366:#5a4030",
+  "369:#8a6a3c 370:#3b3b3b 371 356:#1c1410",
+  "379:#8a7a5a 380 381 382 363:#8a6a3a",
+  "369:#4f6b4a 370:#5a4a3a 371 364:#1a1410 366:#1a1410",
+];
+const WOMEN_GEAR = [
+  "374:#a55a4a 378:#4a3b30 376 361:#3a2418",
+  "389 390 391 392 362:#6a4a2a",
+  "374:#5a7a8a 375:#4a4036 376 361:#d9b574",
+  "389:#9a7a5a 390 391 392 365:#2a2018",
+];
+MEN_GEAR.forEach((gear, i) => {
+  personPrefab(`Villager (man) ${i + 1}`, MEN, gear);
+  personPrefab(`Youth (boy) ${i + 1}`, MEN, gear, 0.82);
+  personPrefab(`Child (boy) ${i + 1}`, MEN, gear, 0.6);
+  personPrefab(`Elder (man) ${i + 1}`, MEN, gear, 0.94); // a little shorter with the years
 });
-WOMEN.forEach((m, i) => {
-  personPrefab(`Villager (woman) ${i + 1}`, m);
-  personPrefab(`Youth (girl) ${i + 1}`, m, 0.82);
-  personPrefab(`Child (girl) ${i + 1}`, m, 0.6);
-  personPrefab(`Elder (woman) ${i + 1}`, m, 0.93);
+WOMEN_GEAR.forEach((gear, i) => {
+  personPrefab(`Villager (woman) ${i + 1}`, WOMEN, gear);
+  personPrefab(`Youth (girl) ${i + 1}`, WOMEN, gear, 0.82);
+  personPrefab(`Child (girl) ${i + 1}`, WOMEN, gear, 0.6);
+  personPrefab(`Elder (woman) ${i + 1}`, WOMEN, gear, 0.93);
 });
 scene.prefab("Campfire", {
   Particles: component("Particles", { preset: "Fire", rate: 40, lifetime: 0.9, speed: 1.2, size: 0.28, shape: "Cone", coneAngle: 18, gravityScale: -0.15 }),
@@ -353,7 +369,7 @@ scene.prefab("Campfire", {
 
 // Models the people and the creatures use are loaded with the scene, not when they first appear (a spawned body is a grey box until its
 // model arrives): one hidden, far-off entity per model keeps each ready.
-for (const file of ["blossom-tree", "deer", "fox", "alpaca", "wolf", "horse", "shiba-inu", "stag", "cow", "donkey", ...MEN, ...WOMEN, "canvas-tent", "bush-1", "rock-large"]) {
+for (const file of ["blossom-tree", "deer", "fox", "alpaca", "wolf", "horse", "shiba-inu", "stag", "cow", "donkey", MEN, WOMEN, "canvas-tent", "bush-1", "rock-large"]) {
   scene.add(`Preload ${file}`, [0, -300, 0], { Renderable: { mesh: modelId(file), material: 0, visible: false } });
 }
 

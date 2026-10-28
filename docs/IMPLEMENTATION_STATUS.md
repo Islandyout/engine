@@ -130,3 +130,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F123](changelog/F123.md) | Eden: carry meat and hand it to someone |
 | [F124](changelog/F124.md) | Eden: the small joys of a day (millions of distinct moments) and the plan for objects |
 | [F125](changelog/F125.md) | Eden: whole-body poses (sit, eat, drink, reach, work, sleep) so people move like people |
+| [F126](changelog/F126.md) | Eden: the people are the hunter bodies (shared clip library, dressed from the kit) |

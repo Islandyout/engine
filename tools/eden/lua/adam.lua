@@ -1,3 +1,4 @@
+-- @prop gear none
 -- Driven entirely by edenAgents.ts (TS), which runs the person's mind
 -- (src/eden/mind.ts) and broadcasts a new target via
 -- editor_ui_event("eden_target_adam", "x,y,z,action,speed") whenever the mind
@@ -108,4 +109,9 @@ function on_tick(dt)
     self.vz = (dz / dist) * (target.speed or WALK_SPEED)
     play((target.speed or WALK_SPEED) > 3 and "run" or "walk")
   end
+end
+
+-- Dressed from the kit's pieces (the build sets props.gear: clothes, hair and beard for this person).
+function on_start()
+  if props.gear and props.gear ~= "" and props.gear ~= "none" then world.wear(props.gear) end
 end

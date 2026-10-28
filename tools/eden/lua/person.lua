@@ -1,3 +1,4 @@
+-- @prop gear none
 -- A person who was not in the garden at the start: a child born there, or someone the Creator brought in. The same body as adam.lua and
 -- eve.lua, but it learns its own name from creator.lua ("eden_who"), then answers "eden_target_<name>" and "eden_snap_<name>" like they do,
 -- and tells the page which body it is ("eden_body") so the page can read where it stands. The sandboxed Lua VM has no network access at all by design (see
@@ -113,4 +114,9 @@ function on_tick(dt)
     self.vz = (dz / dist) * (target.speed or WALK_SPEED)
     play((target.speed or WALK_SPEED) > 3 and "run" or "walk")
   end
+end
+
+-- Dressed from the kit's pieces (the build sets props.gear: clothes, hair and beard for this person).
+function on_start()
+  if props.gear and props.gear ~= "" and props.gear ~= "none" then world.wear(props.gear) end
 end

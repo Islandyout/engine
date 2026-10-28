@@ -2159,27 +2159,31 @@ export function actionOf(person: Person): string {
   if (!intent.arrived) return intent.kind === "flee" ? "flee" : "wander";
   switch (intent.kind) {
     case "eat":
-      return "forage";
+      return "eat";
     case "drink":
+      return "drink";
     case "fish":
-      return "drink_from_river";
-    case "mourn":
-      return "rest";
-    case "tame":
-    case "sew":
-      return "forage";
+      return "fish";
     case "wash":
-      return "drink_from_river";
+      return "wash";
+    case "plant":
+      return "plant";
+    case "gather":
+    case "build":
+      return "chop";
+    case "craft":
+    case "sew":
+    case "fire":
+      return "craft";
+    case "forage":
+    case "stash":
+    case "tame":
+      return "harvest";
+    case "mourn":
     case "rest":
     case "sleep":
     case "warm":
       return "rest";
-    case "gather":
-    case "forage":
-    case "stash":
-    case "build":
-    case "fire":
-      return "forage";
     case "talk":
     case "share":
       return "talk_to_other";

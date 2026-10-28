@@ -27,18 +27,30 @@ const PEOPLE = [
 // Exported, not registered into C.actionClipSynonyms from here: that Map isn't created until deep inside main.ts's startEditor(), well
 // after every install*(C) call has already run -- these entries get merged into main.ts's own literal instead.
 export const EDEN_ACTION_CLIPS: [string, string[]][] = [
-  ["rest", ["sit", "idle"]],
+  ["rest", ["idle"]],
   ["wander", ["walk"]],
   ["flee", ["run", "walk"]],
   ["observe", ["idle"]],
   ["talk_to_other", ["talk", "idle"]],
-  ["play_together", ["clapping", "wave", "idle"]],
-  ["forage", ["clapping", "idle"]],
-  ["drink_from_river", ["sit", "idle"]],
+  ["play_together", ["clapping", "ual_yes", "idle"]],
+  // The hunter bodies carry the shared clip library (combat, locomotion and the Universal Animation Library 2), so work looks like work.
+  ["eat", ["ual_consume", "clapping", "idle"]],
+  ["drink", ["ual_consume", "sit", "idle"]],
+  ["harvest", ["ual_farm_harvest", "clapping", "idle"]],
+  ["plant", ["ual_farm_plant_seed", "clapping", "idle"]],
+  ["chop", ["ual_tree_chopping_loop", "clapping", "idle"]],
+  ["wash", ["ual_farm_watering", "sit", "idle"]],
+  ["craft", ["idle"]],
+  ["fish", ["idle"]],
+  ["Wave", ["Wave", "ual_yes", "idle"]],
+  ["HitRecieve", ["HitRecieve", "hit_chest", "idle"]],
+  ["Death", ["Death", "death"]],
 ];
+// The actions that go on until the person does something else, not once.
+export const EDEN_LOOPING_ACTIONS = new Set(["eat", "drink", "harvest", "plant", "chop", "wash"]);
 
 // What each thing a person does at its place looks like with the whole body (poses.ts).
-const POSE_OF: Partial<Record<string, PoseName>> = { eat: "eat", drink: "drink", wash: "drink", fish: "fish", forage: "forage", gather: "forage", stash: "forage", plant: "forage", tame: "forage", build: "work", craft: "work", sew: "work", fire: "work", rest: "sit", sleep: "sleep", mourn: "mourn", warm: "warm", linger: undefined };
+const POSE_OF: Partial<Record<string, PoseName>> = { fish: "fish", craft: "work", sew: "work", fire: "work", rest: "sit", sleep: "sleep", mourn: "mourn", warm: "warm" };
 const forcedPose = new Set<number>(); // bodies a debug call has posed by hand
 
 const TICK_MS = 250;
@@ -136,6 +148,7 @@ export function installEdenAgents(C: Ctx): void {
     const index = ORIGINAL.has(p.id) ? bodyIndex(p.name) : (bodyIndexById.get(p.id) ?? -1);
     return index >= 0 ? C.objects[index] : undefined;
   };
+  C.actionLoops = EDEN_LOOPING_ACTIONS;
   C.edenBody = (index, who) => bodyIndexById.set(who, index);
   // The hunter killed a creature: the people's world loses it too, and the hunter eats a little.
   C.edenSlain = (thingId) => {

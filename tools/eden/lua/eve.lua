@@ -1,3 +1,4 @@
+-- @prop gear none
 -- Eden Phase 1a: see adam.lua's own doc comment -- identical pattern, just
 -- Eve's own event name/outfit. Driven entirely by edenAgents.ts (TS) via
 -- editor_ui_event("eden_target_eve", "x,y,z,action"); never decides
@@ -101,4 +102,9 @@ function on_tick(dt)
     self.vz = (dz / dist) * (target.speed or WALK_SPEED)
     play((target.speed or WALK_SPEED) > 3 and "run" or "walk")
   end
+end
+
+-- Dressed from the kit's pieces (the build sets props.gear: clothes, hair and beard for this person).
+function on_start()
+  if props.gear and props.gear ~= "" and props.gear ~= "none" then world.wear(props.gear) end
 end

@@ -45,8 +45,10 @@ export function installAnimation(C: Ctx): void {
         state.mixer.removeEventListener("finished", state.oneShotHandler);
         state.oneShotHandler = undefined;
       }
-      action.reset().setLoop(THREE.LoopOnce, 1);
-      action.clampWhenFinished = true;
+      // A looping request (Eden's work actions) goes on until the script asks for something else; it never "finishes", so the ground-speed picker leaves it alone.
+      const repeat = C.actionLoops?.has(requested) ?? false;
+      action.reset().setLoop(repeat ? THREE.LoopRepeat : THREE.LoopOnce, repeat ? Infinity : 1);
+      action.clampWhenFinished = !repeat;
       action.fadeIn(0.15).play();
       if (previous && previous !== action) previous.fadeOut(0.15);
       state.current = clip;
