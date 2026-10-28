@@ -3,6 +3,7 @@ import { findPoseBones } from "../poses";
 import { creatureMotion, gazeOf, lookOf, newMemory, personMotion, walkStyle, type MotionMemory, type PoseName } from "../../eden/motion";
 import { createTalk, type Talk } from "./edenTalk";
 import { EdenSound } from "./edenSound";
+import { createScreens, type Screens } from "./edenScreens";
 import { hearWalker, nearbyPeople, noteFirstWord } from "../../eden/chat";
 import { actionOf, applySpokenIntent, creatureHurt, giveMeat, giveToPerson, shareKill, walkerSlew, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import { moonName, SEASON_NAMES, solarHour } from "../../eden/earth";
@@ -152,6 +153,8 @@ export function installEdenAgents(C: Ctx): void {
   const talkHistory = new Map<string, { role: string; content: string }[]>(); // the last turns of each conversation with the Walker
   const sound = new EdenSound();
   let soundAt = 0;
+  let screens: Screens | undefined; // map, journal and pack (M, L, I), made the first time you walk
+  const notes: string[] = []; // what the Walker has done, kept with the save
   let talk: Talk | undefined; // the box for talking with people (E), made the first time you walk
   const paceOf = new Map<string, number>(); // how fast each person's walk clip plays (a limp is slower)
   const motionMem = new Map<string, MotionMemory>(); // what each person's body was last doing (motion.ts)
@@ -336,7 +339,10 @@ export function installEdenAgents(C: Ctx): void {
     }
     world = loaded ?? freshWorld();
     world.strangers = true;
-    if (world.walker) Object.assign(pack, world.walker.pack);
+    if (world.walker) {
+      Object.assign(pack, world.walker.pack);
+      notes.splice(0, notes.length, ...(world.walker.notes ?? []));
+    }
     sent.clear();
     spoken.clear();
     described.clear();
@@ -361,7 +367,7 @@ export function installEdenAgents(C: Ctx): void {
   function save() {
     if (!world) return;
     try {
-      world.walker = { pack: { ...pack } };
+      world.walker = { pack: { ...pack }, notes: notes.slice(-200) };
       localStorage.setItem(SAVE_KEY, worldToJson(world));
       lastSave = performance.now();
       panel?.setSaved("saved");
@@ -386,7 +392,7 @@ export function installEdenAgents(C: Ctx): void {
   function keepSlot(n: number) {
     if (!world) return;
     try {
-      world.walker = { pack: { ...pack } };
+      world.walker = { pack: { ...pack }, notes: notes.slice(-200) };
       localStorage.setItem(SLOT_KEY + n, worldToJson(world));
       panel?.lifeLog(`Kept this moment as ${n} (day ${Math.floor((world.clock ?? 0) / 1440) + 1}).`);
       panel?.setSlots(slotDays());
@@ -417,7 +423,10 @@ export function installEdenAgents(C: Ctx): void {
     sent.clear();
     world = loaded;
     world.strangers = true;
-    if (world.walker) Object.assign(pack, world.walker.pack);
+    if (world.walker) {
+      Object.assign(pack, world.walker.pack);
+      notes.splice(0, notes.length, ...(world.walker.notes ?? []));
+    }
     knownPeople.clear();
     for (const p of world.people) knownPeople.add(p.id);
     for (const d of world.dead ?? []) announcedDead.add(d.person.id);
@@ -770,6 +779,11 @@ export function installEdenAgents(C: Ctx): void {
           walking = on;
           if (!on) (world.visitor = undefined), talk?.close();
           if (on) talk ??= createTalk({ say: sayToPerson, close: () => undefined });
+          if (on && !screens) {
+            screens = createScreens();
+            screens.tutorial();
+          }
+          if (!on) screens?.close();
           for (const e of C.doc.scene.eachAlive()) {
             const f = C.doc.scene.resolve(e, "CameraFollow");
             if (f) f.target = on ? "" : "Adam";
@@ -813,6 +827,12 @@ export function installEdenAgents(C: Ctx): void {
       },
       voice.config,
     );
+    const logLife = panel.lifeLog.bind(panel);
+    panel.lifeLog = (text) => {
+      if (walking) notes.push(text);
+      if (notes.length > 200) notes.splice(0, notes.length - 200);
+      logLife(text);
+    };
     panel.setSpeed(speed);
     panel.setSlots(slotDays());
     window.addEventListener("keydown", (e) => {
@@ -824,6 +844,28 @@ export function installEdenAgents(C: Ctx): void {
       if (!near.length) return panel?.lifeLog("No one is near enough to talk to.");
       C.releasePointer?.();
       talk.open(near.map((q) => ({ id: q.id, name: q.name, note: `${moodWord(q.mood)}${needWord(q) ? `, ${needWord(q)}` : ""}` })));
+    }, true);
+    // A pad: A talks, X gathers, Y hands over, Back opens the map. (Walking itself is the engine's own pad support.)
+    const padHeld = new Set<number>();
+    const padKeys: Record<number, string> = { 0: "KeyE", 2: "KeyQ", 3: "KeyH", 8: "KeyM", 9: "KeyL" };
+    setInterval(() => {
+      if (!walking || typeof navigator.getGamepads !== "function") return;
+      for (const pad of navigator.getGamepads()) {
+        if (!pad) continue;
+        for (const [i, code] of Object.entries(padKeys)) {
+          const down = pad.buttons[Number(i)]?.pressed ?? false;
+          if (down && !padHeld.has(Number(i))) window.dispatchEvent(new KeyboardEvent("keydown", { code, bubbles: true }));
+          if (down) padHeld.add(Number(i));
+          else padHeld.delete(Number(i));
+        }
+      }
+    }, 80);
+    const screenKeys: Record<string, "map" | "journal" | "pack"> = { KeyM: "map", KeyL: "journal", KeyI: "pack" };
+    window.addEventListener("keydown", (e) => {
+      if (e.repeat || !walking || !screens || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.code === "Escape" && screens.isOpen()) return screens.close();
+      const tab = screenKeys[e.code];
+      if (tab) screens.toggle(tab);
     }, true);
     window.addEventListener("keydown", (e) => {
       if (e.code !== "KeyN" || e.repeat || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -987,5 +1029,9 @@ export function installEdenAgents(C: Ctx): void {
       }
     }
     if (inEden) tick();
+    if (inEden && walking && world && screens?.isOpen()) {
+      const you = youBody >= 0 ? C.objects[youBody] : undefined;
+      screens.refresh({ world, you: you ? { x: you.position.x, z: you.position.z } : undefined, pack, notes });
+    }
   }, TICK_MS);
 }

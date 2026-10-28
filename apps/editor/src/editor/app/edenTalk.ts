@@ -70,7 +70,38 @@ export function createTalk(handlers: TalkHandlers): Talk {
   input.placeholder = "Say something… (Enter sends, Esc leaves)";
   input.setAttribute("aria-label", "What you say");
   const send = el("button", undefined, "Say");
-  row.append(input, send);
+  const mic = el("button", undefined, "🎤");
+  mic.title = "Speak instead of typing";
+  mic.setAttribute("aria-label", "Speak");
+  type Recognition = { lang: string; interimResults: boolean; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onerror: ((e: { error?: string }) => void) | null; onend: (() => void) | null; start(): void; stop(): void };
+  const Ctor = (window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition }).SpeechRecognition ?? (window as unknown as { webkitSpeechRecognition?: new () => Recognition }).webkitSpeechRecognition;
+  let listening: Recognition | undefined;
+  mic.addEventListener("click", () => {
+    if (listening) return listening.stop();
+    if (!Ctor) return line("note", "Voice input is not available in this browser. Type instead.");
+    const r = new Ctor();
+    listening = r;
+    r.lang = navigator.language || "en-US";
+    r.interimResults = false;
+    r.onresult = (e) => {
+      input.value = e.results[0]?.[0]?.transcript ?? "";
+      input.focus();
+    };
+    r.onerror = (e) => line("note", `Voice input failed (${e.error ?? "unknown"}). Type instead.`);
+    r.onend = () => {
+      listening = undefined;
+      mic.textContent = "🎤";
+    };
+    mic.textContent = "…";
+    try {
+      r.start();
+    } catch (e) {
+      listening = undefined;
+      mic.textContent = "🎤";
+      line("note", `Voice input would not start (${(e as Error).message}).`);
+    }
+  });
+  row.append(input, mic, send);
   const chips = el("div", "chips");
   for (const [label, text] of [["Hello", "Hello!"], ["How are you?", "How are you?"], ["Where is water?", "Where can I find water?"], ["Bring me water", "Could you bring me some water?"], ["Where is food?", "Where can I find food?"], ["Need help?", "Can I help you?"], ["Follow me", "Follow me"], ["Stay here", "Stay here"], ["Any news?", "Any news?"]] as const) {
     const b = el("button", undefined, label);

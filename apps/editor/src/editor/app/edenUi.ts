@@ -186,6 +186,30 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
     b.addEventListener("click", () => handlers.creator(word));
     chips.appendChild(b);
   }
+  // Make a person: name, sex, child or grown, and a tilt of character, sent as the same commands you could type.
+  const personBox = el("form", "eden-bar");
+  const pName = el("input");
+  pName.type = "text";
+  pName.maxLength = 20;
+  pName.required = true;
+  pName.placeholder = "Name";
+  pName.setAttribute("aria-label", "New person's name");
+  const pKind = el("select");
+  for (const [v, label] of [["woman", "Woman"], ["man", "Man"], ["girl", "Girl"], ["boy", "Boy"]]) pKind.append(new Option(label, v));
+  const pTrait = el("select");
+  pTrait.append(new Option("No tilt", ""));
+  for (const t of ["bolder", "shyer", "friendlier", "quieter", "curious", "calmer", "patient", "hasty"]) pTrait.append(new Option(t, t));
+  const pGo = el("button", undefined, "Make person");
+  pGo.type = "submit";
+  personBox.append(pName, pKind, pTrait, pGo);
+  personBox.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = pName.value.trim().replace(/[^A-Za-z]/g, "");
+    if (!name) return pName.reportValidity();
+    handlers.creator(`a ${pKind.value} named ${name}`);
+    if (pTrait.value) handlers.creator(`make ${name} ${pTrait.value}`);
+    pName.value = "";
+  });
   const creatorLines = el("div", "eden-log");
   // The optional free voice: reword their lines using Ollama on this laptop or a free endpoint. Off until switched on; the plain speech always works.
   const voiceBox = el("details");
@@ -236,7 +260,7 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
     slotButtons.push(back);
     slotBox.append(keep, back);
   }
-  panes.creator!.append(help, form, chips, slotBox, creatorLines, voiceBox);
+  panes.creator!.append(help, form, chips, personBox, slotBox, creatorLines, voiceBox);
   slotsRef = slotButtons;
 
   document.body.appendChild(root);
