@@ -136,3 +136,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F129](changelog/F129.md) | Eden: motion with a reason (body language, humour, species gaits) and a 30,000-situation animation check |
 | [F130](changelog/F130.md) | Eden: errands (bring me water) and requests between you and the people; Q gathers, H gives |
 | [F131](changelog/F131.md) | Eden: map / journal / pack screens (M, L, I), tutorial, voice input, pad buttons, people form |
+| [F132](changelog/F132.md) | Assets: Kenney CC0 boats, fish, bedroll, tent, bucket; rowboat at the lake pier |

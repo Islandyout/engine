@@ -975,6 +975,55 @@
       }
     },
     {
+      "name": "Rowboat",
+      "components": {
+        "Transform": {
+          "position": {
+            "x": 117.2,
+            "y": 0.25437170863151537,
+            "z": 97.4
+          }
+        },
+        "Rotation": {
+          "euler": {
+            "x": 0,
+            "y": 0.5,
+            "z": 0
+          }
+        },
+        "Scale": {
+          "value": {
+            "x": 3.847953224182129,
+            "y": 1.108743417263031,
+            "z": 3.3210049152374266
+          }
+        },
+        "Renderable": {
+          "mesh": 408,
+          "material": 0,
+          "visible": true
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
+        "Collider": {
+          "type": "AABB",
+          "halfExtents": {
+            "x": 0.5,
+            "y": 0.5,
+            "z": 0.5
+          },
+          "radius": 0.5,
+          "isTrigger": true,
+          "layer": 0,
+          "mask": 4294967295,
+          "bounciness": 0
+        }
+      }
+    },
+    {
       "name": "Notice board",
       "components": {
         "Transform": {

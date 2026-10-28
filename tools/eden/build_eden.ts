@@ -293,6 +293,7 @@ scene.add("Butterflies", [0, 3, 0], { Particles: component("Particles", { preset
   const deck = Math.max(ground(mx + px * 7, mz + pz * 7), ground(mx - px * 7, mz - pz * 7));
   scene.model("Stone bridge", modelId("arched-stone-bridge"), [mx, deck + 0.35, mz], bridgeYaw, false, 1.55);
   scene.model("Lake pier", modelId("lake-pier"), [LAKE.stand!.x + 4, RIVER_LEVEL + 1.35, LAKE.stand!.z], Math.PI / 2, false, 1);
+  scene.model("Rowboat", modelId("rowboat-small"), [LAKE.stand!.x + 3.2, RIVER_LEVEL + 0.1, LAKE.stand!.z + 3.4], 0.5, false, 1.4);
   scene.model("Notice board", modelId("notice-board"), [7, ground(7, -7), -7], -0.6, false, 0.7);
 }
 
