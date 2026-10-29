@@ -15,7 +15,7 @@ export const WALK_POSES: readonly PoseName[] = ["limp", "trudge", "stride", "bol
 // What each thing a person does looks like with the whole body, over the clip for it (poses.ts).
 export const POSE_OF: Partial<Record<string, PoseName>> = {
   fish: "fish", craft: "work", sew: "work", fire: "work", rest: "sit", sleep: "sleep", mourn: "mourn", warm: "warm", talk: "talk", share: "talk",
-  comfort: "mourn", look: "scan", play: "laugh", linger: "scan", wander: "scan", furnish: "work", improve: "work", carve: "work", pray: "pray", gift: "talk", trade: "talk", teach: "talk", steal: "alert",
+  comfort: "mourn", look: "scan", play: "laugh", linger: "scan", wander: "scan", furnish: "work", improve: "work", carve: "work", pray: "pray", create: "work", ponder: "sit", read: "sit", gift: "talk", trade: "talk", teach: "talk", steal: "alert",
 };
 
 // Per person, what the caller remembers between looks (so a pose can end with a stretch, and a yawn can come round on its own beat).

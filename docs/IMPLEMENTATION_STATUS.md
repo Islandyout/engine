@@ -138,3 +138,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F131](changelog/F131.md) | Eden: map / journal / pack screens (M, L, I), tutorial, voice input, pad buttons, people form |
 | [F132](changelog/F132.md) | Assets: Kenney CC0 boats, fish, bedroll, tent, bucket; rowboat at the lake pier |
 | [F133](changelog/F133.md) | Eden: birds, leaping fish, seasonal music, snow cover, inheritance |
+| [F134](changelog/F134.md) | Eden: creativity, mathematics, science, philosophy, theology, economy, learning |

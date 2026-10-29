@@ -2,6 +2,7 @@
 // with textContent, closed by the same key or Esc, and they stop the keys typed in them from reaching the game.
 import type { Person, Thing, World } from "../../eden/mind";
 import { EDEN_PLACES } from "../../eden/places";
+import { DISCOVERIES, QUESTIONS } from "../../eden/culture";
 
 export interface ScreensData {
   world: World;
@@ -165,6 +166,21 @@ export function createScreens(): Screens {
       body.append(el("h4", undefined, "What you have done"));
       if (!data.notes.length) body.append(el("div", "dim", "Nothing yet. Talk to someone (E), help them (H), gather (Q), hunt."));
       for (const n of data.notes.slice(-25)) body.append(el("div", undefined, n));
+      body.append(el("h4", undefined, "What the people know"));
+      const knowledge = Object.entries(data.world.knowledge ?? {});
+      if (!knowledge.length) body.append(el("div", "dim", "Nothing worked out yet. Thinking people count, keep seed, read the stars."));
+      for (const [id, k] of knowledge) body.append(el("div", undefined, `${DISCOVERIES.find((d) => d.id === id)?.name ?? id}: found by ${k.byName}`));
+      body.append(el("h4", undefined, "What they believe"));
+      const tenets = data.world.tenets ?? [];
+      if (!tenets.length) body.append(el("div", "dim", "No one has settled on an answer yet."));
+      for (const t of tenets) {
+        const followers = (data.world.people as Person[]).filter((p) => p.faith?.[t.question] === t.id).map((p) => p.name);
+        body.append(el("div", undefined, `${QUESTIONS.find((q) => q.id === t.question)?.asked ?? t.question} "${t.text}" (${followers.length ? followers.join(", ") : "no one now"})`));
+      }
+      body.append(el("h4", undefined, "What they have made"));
+      const works = (data.world.works ?? []).filter((w) => w.quality > 0.5 || w.kind === "book").slice(-12);
+      if (!works.length) body.append(el("div", "dim", "No songs, stories, paintings or books yet."));
+      for (const w of works) body.append(el("div", undefined, `${w.title} (${w.kind}, ${w.byName})`));
       body.append(el("h4", undefined, "What has happened in the land"));
       const chronicle = data.world.chronicle ?? [];
       if (!chronicle.length) body.append(el("div", "dim", "Nothing has been written yet."));

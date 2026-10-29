@@ -63,6 +63,7 @@ export interface Life {
   fished: number;
   mourned: number;
   lessons: number;
+  culture?: Record<string, number>; // what the people made and worked out (not in the sweep rows)
   breaks: number;
   outbursts: number;
   beliefs: number;
@@ -301,6 +302,7 @@ export function live(seed: number, options: LifeOptions = {}): Life {
     fished: world.tally?.fished ?? 0,
     mourned: world.tally?.mourned ?? 0,
     lessons: world.tally?.lessons ?? 0,
+    culture: { ...Object.fromEntries(["songs", "stories", "paintings", "books", "discoveries", "tenets", "ponderings", "ideasShared", "debates", "conversions", "faithsTaken", "booksRead", "learntFromBooks", "debtsRepaid", "inherited", "trades"].map((k) => [k, world.tally?.[k] ?? 0])), knowledge: Object.keys(world.knowledge ?? {}).length, works: world.works?.length ?? 0 },
     breaks: world.tally?.breaks ?? 0,
     outbursts: world.tally?.outbursts ?? 0,
     beliefs: world.tally?.beliefs ?? 0,

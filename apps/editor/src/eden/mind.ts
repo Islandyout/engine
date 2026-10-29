@@ -7,6 +7,7 @@
 //
 // The host (edenAgents.ts) feeds this the world's things and turns each person's `intent` into movement and an animation.
 
+import { cultureOptions, doCreate, doPonder, doRead, exchangeIdeas, faithful, knows, owe, tradeRates, winterComing, type Arts, type Tenet, type Work } from "./culture";
 import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach, valueOf, SKILL_WORDS, type Skill, type Value } from "./identity";
 import { fadeNorms, isCustom, NORM_TEXT, reinforce, standing, strengthOf, type NormId } from "./norms";
 import { fade, feel as feelEmotion, importance, moodPush, opinionTags, BELIEF_WORDS, type Belief, type Emotion } from "./inner";
@@ -79,6 +80,9 @@ export const AFFORDANCES: Record<string, Affordances> = {
   shelf: { comfort: 0.04 },
   shrine: { rest: true, comfort: 0.1, holy: true },
   rock: { rest: true },
+  // Made by the people: a painted stone people stop to look at, and a library where books are kept and read.
+  artwork: { view: true },
+  library: { comfort: 0.03 },
   bush: { food: 0.25, stock: 4 },
   deer: { creature: true, mobile: 0.9, prey: true },
   stag: { creature: true, mobile: 1.0, prey: true }, // a big deer: more meat, harder to bring down
@@ -143,7 +147,7 @@ export interface Memory {
   lastSeen: number; // sim seconds
 }
 
-export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame" | "sew" | "wash" | "fetch" | "furnish" | "improve" | "carve" | "gift" | "trade" | "pray" | "teach" | "steal";
+export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame" | "sew" | "wash" | "fetch" | "furnish" | "improve" | "carve" | "gift" | "trade" | "pray" | "teach" | "steal" | "create" | "ponder" | "read";
 export interface Intent {
   kind: IntentKind;
   targetId?: string; // a thing's id or another person's id
@@ -202,6 +206,10 @@ export interface Person {
   promises?: { to: string; due: number }[]; // what they have promised, and by when
   laughUntil?: number; // world clock until which they are laughing (a joke was told)
   thefts?: number;
+  arts?: Arts; // how good they are at making things of beauty and at working things out
+  ideas?: string[]; // what they know (discoveries, and the books they have read)
+  faith?: Record<string, string>; // the answer they hold to each big question (a tenet id)
+  favours?: Record<string, number>; // what others owe them (positive) or they owe others (negative)
   keepsake?: { to: string; item: string }; // something they have carved for someone, not yet given
   keepsakes?: { from: string; item: string }[]; // what others have given them
   stranger?: { since: number; verdict?: "joined" | "left" }; // came from outside; the others decide whether to take them in
@@ -277,6 +285,9 @@ export interface World {
   weather?: Weather;
   visitor?: { x: number; z: number }; // the Creator walking the world as a hunter (set by the page): prey run from them
   noGo?: { x: number; z: number; r: number }[]; // deep water and the like: nobody walks into it
+  works?: Work[]; // songs, stories, paintings and books made so far
+  knowledge?: Record<string, { by: string; byName: string; t: number }>; // what has been worked out, and by whom
+  tenets?: Tenet[]; // the answers to the big questions that people hold
   chronicle?: { t: number; text: string }[]; // the notable things that have happened to everyone, in order
   names?: Record<string, { name: string; by: string; known: string[] }>; // what the people call the places, who named each and who knows it
   norms?: Record<string, { strength: number; announced?: boolean }>; // customs forming among the people (norms.ts)
@@ -400,7 +411,7 @@ const FILL_SECONDS: Record<NeedName, number> = { hunger: 960, thirst: 800, energ
 // How far a need must have risen before it starts to matter, then how strongly it pulls as it climbs to 1.
 const urge = (need: number, threshold: number) => clamp01((need - threshold) / (1 - threshold));
 
-function rand(person: Person): number {
+export function rand(person: Person): number {
   // mulberry32: small, fast, and the same sequence for the same seed.
   person.rngState = (person.rngState + 0x6d2b79f5) | 0;
   let t = person.rngState;
@@ -832,7 +843,7 @@ function noticeSmallJoys(world: World, person: Person, weather: Weather, nearFir
   const sky: Sky = weather.snowing ? "snow" : weather.raining ? "rain" : weather.fog > 0.45 ? "fog" : weather.windMs > 6 ? "wind" : "clear";
   const near = world.people.filter((q) => q !== person && dist(q.x, q.z, person.x, person.z) < 8).length;
   const kind = person.intent?.kind;
-  const doing: Doing = kind === "eat" ? "eat" : kind === "drink" ? "drink" : kind === "sleep" ? "sleep" : kind === "rest" ? "rest" : kind === "talk" ? "talk" : kind === "gather" || kind === "plant" || kind === "craft" || kind === "fish" || kind === "hunt" || kind === "build" || kind === "sew" || kind === "wash" ? "work" : kind === "wander" || kind === "look" ? "walk" : "idle";
+  const doing: Doing = kind === "eat" ? "eat" : kind === "drink" ? "drink" : kind === "sleep" ? "sleep" : kind === "rest" ? "rest" : kind === "talk" ? "talk" : kind === "gather" || kind === "plant" || kind === "craft" || kind === "fish" || kind === "hunt" || kind === "build" || kind === "sew" || kind === "wash" || kind === "create" ? "work" : kind === "wander" || kind === "look" ? "walk" : "idle";
   const warm = nearFire || (sky === "clear" && band !== "night" && person.cold < 0.3);
   const options = joysFor({ season: weather.season, band, sky, company: near === 0 ? "alone" : near === 1 ? "one" : "group", doing, warm });
   if (!options.length) return;
@@ -1077,7 +1088,7 @@ function infantStep(person: Person, world: World, dt: number, external: boolean)
   }
 }
 
-function note(person: Person, world: World, text: string) {
+export function note(person: Person, world: World, text: string) {
   person.journal.push({ t: world.clock ?? 0, text, w: importance(text) });
   if (person.journal.length > 400) {
     // Forget what mattered least and happened longest ago, not simply the oldest.
@@ -1095,7 +1106,7 @@ function note(person: Person, world: World, text: string) {
     person.journal.splice(worst, 1);
   }
 }
-function relation(person: Person, otherId: string, world: World): Relation {
+export function relation(person: Person, otherId: string, world: World): Relation {
   let r = person.relations.get(otherId);
   if (!r) {
     r = { affinity: 0.2, trust: 0.3, familiarity: 0, lastTogether: world.clock ?? 0 };
@@ -1218,6 +1229,7 @@ function options(person: Person, world: World): Option[] {
   earthOptions(person, world, out, add, known, hungry);
   goalOptions(person, world, out);
   skillOptions(person, world, out);
+  cultureOptions(person, world, out);
   lifeOptions(person, world, out);
   // A child does not gather, build or lay food by, and stays close to their mother.
   if (person.age < ADULT_AGE) {
@@ -1469,7 +1481,7 @@ function goalOptions(person: Person, world: World, out: Option[]) {
 const FURNITURE = ["barrel", "table", "lantern", "chest", "shelf"] as const;
 const FURNITURE_WOOD: Record<string, number> = { barrel: 3, table: 3, lantern: 2, chest: 3, shelf: 3, shrine: 4 };
 const p0 = (person: Person) => person.personality;
-const winterNear = (world: World) => (world.weather?.season ?? 1) >= 2;
+const winterNear = (world: World) => winterComing(world);
 function furnitureNear(world: World, sh: Thing): Thing[] {
   return world.things.filter((t) => (FURNITURE as readonly string[]).includes(t.kind) && dist(t.x, t.z, sh.x, sh.z) < 9);
 }
@@ -1551,7 +1563,7 @@ function lifeOptions(person: Person, world: World, out: Option[]) {
     const hour = hourOf(world.clock ?? 0);
     const holyHour = (hour > 5.5 && hour < 8.5) || (hour > 17 && hour < 20);
     const faith = valueOf(person, "tradition");
-    if (person.age >= ADULT_AGE && needs.hunger < 0.6 && needs.thirst < 0.6 && (faith > 0.6 || (person.grief ?? 0) > 0.3)) {
+    if (person.age >= ADULT_AGE && needs.hunger < 0.6 && needs.thirst < 0.6 && (faith > 0.6 || faithful(person) > 0.4 || (person.grief ?? 0) > 0.3)) {
       for (const t of world.things) {
         if (!(aff(t).holy || t.kind === "tree of life" || (t.kind === "grave" && t.of && (person.relations.get(t.of)?.affinity ?? 0) > 0.3)) || !person.memory.has(t.id)) continue;
         const d = dist(person.x, person.z, t.x, t.z);
@@ -1688,10 +1700,10 @@ function choose(person: Person, opts: Option[]): Option {
   return picked;
 }
 
-function thingById(world: World, id: string | undefined): Thing | undefined {
+export function thingById(world: World, id: string | undefined): Thing | undefined {
   return id === undefined ? undefined : world.things.find((t) => t.id === id);
 }
-function personById(world: World, id: string | undefined): Person | undefined {
+export function personById(world: World, id: string | undefined): Person | undefined {
   return id === undefined ? undefined : world.people.find((q) => q.id === id);
 }
 
@@ -1720,7 +1732,7 @@ function finish(person: Person, world: World, intent: Intent) {
         if (t.stock !== undefined) t.stock -= 1;
         joy(0.1);
         feel(person, t, 0.15); // a good meal makes the place better in memory
-        if (t.kind !== "shelter" && t.kind !== "crop" && rand(person) < 0.35) person.carry.seed = Math.min(6, person.carry.seed + 1);
+        if (t.kind !== "shelter" && t.kind !== "crop" && rand(person) < (knows(world, "seed-saving") ? 0.65 : 0.35)) person.carry.seed = Math.min(6, person.carry.seed + 1);
         if (t.stock === 0) {
           for (const q of world.people) {
             if (q === person || q.needs.hunger < 0.6 || dist(q.x, q.z, t.x, t.z) > 25) continue;
@@ -1786,7 +1798,7 @@ function finish(person: Person, world: World, intent: Intent) {
         const take = t.stock === undefined ? 3 : Math.min(3, Math.max(0, t.stock - 1));
         if (t.stock !== undefined) t.stock -= take;
         person.carry.food = Math.min(6, person.carry.food + take);
-        if (take > 0 && t.kind !== "crop" && rand(person) < 0.6) person.carry.seed = Math.min(6, person.carry.seed + 1);
+        if (take > 0 && t.kind !== "crop" && rand(person) < (knows(world, "seed-saving") ? 0.9 : 0.6)) person.carry.seed = Math.min(6, person.carry.seed + 1);
       }
       break;
     case "warm":
@@ -1931,7 +1943,7 @@ function finish(person: Person, world: World, intent: Intent) {
         // Sitting with the sick or hurt is nursing: it helps them, and the nurse learns.
         if (other.illness || other.wound) {
           const heal = skillOf(person, "heal");
-          if (other.illness) other.illness.severity = Math.max(0, other.illness.severity - 0.08 * (0.5 + heal));
+          if (other.illness) other.illness.severity = Math.max(0, other.illness.severity - (knows(world, "medicine") ? 0.12 : 0.08) * (0.5 + heal));
           if (other.wound) other.wound = Math.max(0, other.wound - 0.1 * (0.5 + heal));
           if (other.illness && heal >= 0.45) {
             other.illness.severity = Math.max(0, other.illness.severity - 0.12);
@@ -1971,6 +1983,7 @@ function finish(person: Person, world: World, intent: Intent) {
         }
         uphold(world, "share", person, 0.07);
         if (isCustom(world, "share")) for (const q of world.people) if (q !== person && q !== other && dist(q.x, q.z, person.x, person.z) < 15) relation(q, person.id, world).trust = Math.min(1, relation(q, person.id, world).trust + 0.03);
+        owe(world, person, other);
         person.say = `Here, ${other.name}. Eat.`;
         note(person, world, `Gave ${other.name} some food.`);
         note(other, world, `${person.name} gave me food when I was hungry.`);
@@ -2042,6 +2055,7 @@ function finish(person: Person, world: World, intent: Intent) {
         feelEmotion(person, "pride", 0.3);
         person.say = `I made this for you, ${other.name}.`;
         other.say = "It is lovely. I will keep it always.";
+        owe(world, person, other);
         note(person, world, `Gave ${other.name} ${k.item} I had carved.`);
         note(other, world, `${person.name} gave me ${k.item}, carved by their own hands.`);
         tally(world, "keepsakesGiven");
@@ -2052,22 +2066,23 @@ function finish(person: Person, world: World, intent: Intent) {
     case "trade": {
       const other = personById(world, intent.targetId);
       if (other) {
-        if (person.carry.food >= 3 && other.carry.wood >= 4) {
-          person.carry.food -= 2;
-          other.carry.food = Math.min(6, other.carry.food + 2);
-          other.carry.wood -= 3;
-          person.carry.wood += 3;
-        } else if (person.carry.wood >= 4 && other.carry.food >= 3) {
-          person.carry.wood -= 3;
-          other.carry.wood += 3;
-          other.carry.food -= 2;
-          person.carry.food = Math.min(6, person.carry.food + 2);
+        const rate = tradeRates(world);
+        if (person.carry.food >= rate.food + 1 && other.carry.wood >= rate.wood + 1) {
+          person.carry.food -= rate.food;
+          other.carry.food = Math.min(6, other.carry.food + rate.food);
+          other.carry.wood -= rate.wood;
+          person.carry.wood += rate.wood;
+        } else if (person.carry.wood >= rate.wood + 1 && other.carry.food >= rate.food + 1) {
+          person.carry.wood -= rate.wood;
+          other.carry.wood += rate.wood;
+          other.carry.food -= rate.food;
+          person.carry.food = Math.min(6, person.carry.food + rate.food);
         } else break;
         for (const [a, b] of [[person, other], [other, person]] as const) {
           const r = relation(a, b.id, world);
           r.trust = Math.min(1, r.trust + 0.05);
           r.affinity = Math.min(1, r.affinity + 0.03);
-          note(a, world, `Swapped food for wood with ${b.name}. A fair trade.`);
+          note(a, world, `Swapped food for wood with ${b.name}: ${rate.food} food for ${rate.wood} wood. A fair trade.`);
         }
         person.say = "A fair swap.";
         tally(world, "trades");
@@ -2080,6 +2095,7 @@ function finish(person: Person, world: World, intent: Intent) {
         const taught = teach(person, child);
         if (taught) {
           note(child, world, `${person.name} showed me how to do better at ${SKILL_WORDS[taught.skill].doing}.`);
+          owe(world, person, child, 0.5);
           note(person, world, `Taught ${child.name} ${SKILL_WORDS[taught.skill].doing}.`);
           tally(world, "lessons");
           person.say = `Watch my hands, ${child.name}. Now you.`;
@@ -2091,6 +2107,15 @@ function finish(person: Person, world: World, intent: Intent) {
       }
       break;
     }
+    case "create":
+      doCreate(world, person, joy);
+      break;
+    case "ponder":
+      doPonder(world, person, joy);
+      break;
+    case "read":
+      doRead(world, person, t, joy);
+      break;
     case "pray": {
       joy(0.2);
       person.grief = Math.max(0, (person.grief ?? 0) - 0.04);
@@ -2203,6 +2228,7 @@ function finish(person: Person, world: World, intent: Intent) {
         tally(world, "talks");
         shareNames(person, other, world);
         shareKnowledge(person, other, world);
+        exchangeIdeas(world, person, other);
         // Teaching: whoever is better at something shows the other.
         for (const [teacher, learner] of [[person, other], [other, person]] as const) {
           const taught = teach(teacher, learner);
@@ -2918,7 +2944,11 @@ export function actionOf(person: Person): string {
     case "furnish":
     case "improve":
     case "carve":
+    case "create":
       return "craft";
+    case "ponder":
+    case "read":
+      return "rest";
     case "pray":
       return "rest";
     case "gift":

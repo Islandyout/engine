@@ -355,6 +355,8 @@ prop("Lantern", "stone-lantern", 0.45, { Light: component("Light", { type: "Poin
 prop("Chest", "chest", 1);
 prop("Shelf", "bookshelf", 0.7);
 prop("Shrine", "roadside-shrine", 0.6);
+prop("Library", "bookshelf", 0.9);
+prop("Painted Stone", "rock-large", 0.55);
 // A planted plot: a low bush that bears fruit, no collider.
 // A grave: a standing stone, half size, where someone who died was laid to rest.
 scene.prefab("Grave", { Renderable: { mesh: modelId("rock-large"), material: 0, visible: true }, Scale: { value: vec(0.5, 0.5, 0.5) } });

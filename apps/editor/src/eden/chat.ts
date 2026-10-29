@@ -3,6 +3,7 @@
 // that; the free voice (edenVoice.ts) may reword the answer, but this is what they mean. Pure, so the same words in the same world get the same answer.
 import { bondOf, makePerson, aff, phrase, startErrand, tally, chronicle, type AskItem, type Person, type Thing, type World } from "./mind";
 import { converse } from "./speech";
+import { DISCOVERIES, QUESTIONS, knows } from "./culture";
 import { hourOf } from "./earth";
 import { BELIEF_WORDS, feel as feelEmotion } from "./inner";
 
@@ -81,6 +82,27 @@ export function answerWalker(world: World, person: Person, said: string, rnd: ()
     if (person.journal.length > 400) person.journal.shift();
   };
 
+  // What they believe, know and have made.
+  if (/\b(believe|belief|faith|religion|pray|afterlife|creator|why do we die|where do the dead go)\b/.test(text)) {
+    remember("about what they believe");
+    const held = QUESTIONS.map((q) => ({ q, t: world.tenets?.find((x) => x.id === person.faith?.[q.id]) })).filter((x) => x.t);
+    if (!held.length) return keep(pick(["I have not settled on an answer. I think about it at night.", "I do not know what I believe yet. Do you?"]));
+    const one = pick(held);
+    return keep(`You ask "${one.q.asked}" Here is what I think: ${one.t!.text}`);
+  }
+  if (/\b(what do you know|teach me|what have you learned|discover|invent|read|book)\b/.test(text)) {
+    remember("about what they know");
+    const ideas = (person.ideas ?? []).filter((i) => !i.startsWith("read:")).map((i) => DISCOVERIES.find((d) => d.id === i)?.name ?? i);
+    if (!ideas.length) return keep(pick(["Nothing that has a name yet. I am still working things out.", "I know the garden, and little else. Perhaps you know more."]));
+    return keep(`I know about ${ideas.join(", ")}.${knows(world, "writing") ? " It is written down in the library, if you wish to read it." : ""}`);
+  }
+  if (/\b(sing|song|story|tale|paint|painting|art)\b/.test(text)) {
+    remember("about what they have made");
+    const mine = (world.works ?? []).filter((w) => w.by === person.id);
+    const best = [...mine].sort((a, b) => b.quality - a.quality)[0];
+    if (!best) return keep(pick(["I have made nothing worth showing yet.", "I would like to make something one day."]));
+    return keep(`The best thing I made is "${best.title}", a ${best.kind}.`);
+  }
   if (/\b(follow me|come with me|come along|walk with me|come on)\b/.test(text)) {
     remember("and they went along with me");
     if (trust > 0.15 || warm) {

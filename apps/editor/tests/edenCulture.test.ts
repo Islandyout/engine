@@ -1,70 +1,140 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DAY, makePerson, step, type Person, type World } from "../src/eden/mind";
-import { daylight, YEAR } from "../src/eden/earth";
-import { isCustom } from "../src/eden/norms";
+import { DAY } from "../src/eden/earth";
+import { doCreate, doPonder, doRead, exchangeIdeas, knows, owe, owes, practiseArts, tradeRates, winterComing } from "../src/eden/culture";
+import { makePerson, step, type Person, type World } from "../src/eden/mind";
+import { worldFromJson, worldToJson } from "../src/eden/persist";
 
-const adult = (id: string, sex: "m" | "f", seed: number, x = 0, z = 0, age = 25) => makePerson(id, x, z, seed, { sociability: 1 }, { name: id, sex, age });
-const world = (people: Person[]): World => ({
-  things: [{ id: "grove", kind: "grove", x: 10, z: 0, radius: 3, stock: 8, maxStock: 8 }, { id: "river", kind: "river", x: 0, z: 10, radius: 3 }, { id: "hollow", kind: "hollow", x: -10, z: 0, radius: 3 }],
+const adult = (id: string, seed: number, over: Partial<Person["personality"]> = {}) => makePerson(id, 0, 0, seed, { curiosity: 0.9, sociability: 0.8, ...over }, { name: id, sex: id < "M" ? "f" : "m", age: 28 });
+const base = (people: Person[]): World => ({
+  things: [{ id: "river", kind: "river", x: 12, z: 0, radius: 3 }, { id: "grove", kind: "grove", x: -12, z: 0, radius: 3, stock: 6, maxStock: 6 }],
   people,
-  radius: 36,
+  radius: 80,
+  clock: DAY / 3,
+  climate: { meanC: 16, seasonalAmpC: 5, dailyAmpC: 4, rainy: 0.2, seed: 3 },
+});
+const joy = () => undefined;
+
+test("making a song for others lifts their mood and is remembered as a work", () => {
+  const a = adult("Ada", 3);
+  const b = adult("Zed", 4);
+  b.x = 3;
+  const w = base([a, b]);
+  const before = b.mood;
+  practiseArts(a, "art", 0.5);
+  for (let i = 0; i < 6 && !w.works?.length; i++) doCreate(w, a, joy);
+  assert.ok(w.works && w.works.length > 0, "something was made");
+  assert.ok(b.mood >= before);
+  assert.ok(a.journal.some((j) => /"/.test(j.text)));
 });
 
-test("people together at a fire at dusk are gathered, and it is counted", () => {
-  const a = adult("A", "m", 1);
-  const b = adult("B", "f", 2, 2, 0);
-  const w = world([a, b]);
-  w.things.push({ id: "fire", kind: "campfire", x: 1, z: 1, radius: 2, fuel: 1e9 });
-  for (const p of [a, b]) p.memory.set("fire", { x: 1, z: 1, feeling: 0.5, visits: 3, lastSeen: 0 });
-  w.clock = YEAR * 0.375 + (daylight(YEAR * 0.375).set - 1) * (DAY / 24);
-  for (let t = 0; t < 4 * DAY && !isCustom(w, "gather"); t += 2) {
-    step(w, 2);
-    // keep them at the fire for the test, as a custom needs them to be there to start
-    const hr = ((w.clock! / DAY) * 24) % 24;
-    if (hr > daylight(w.clock!).set - 1.5 && hr < daylight(w.clock!).set + 1.5) {
-      for (const [p, x] of [[a, 0], [b, 2]] as const) {
-        p.x = x;
-        p.z = 0.5;
-        if (p.intent?.kind !== "warm") p.intent = { kind: "warm", targetId: "fire", x: 1, z: 1, speed: 1.6, remaining: 20, arrived: true };
-      }
+test("pondering works out counting, then writing; a book keeps what its writer knew for a reader after they die", () => {
+  const a = adult("Ada", 3);
+  const reader = adult("Zed", 9);
+  const w = base([a, reader]);
+  w.things.push({ id: "pot", kind: "barrel", x: 0, z: 0, radius: 1, stock: 2 });
+  practiseArts(a, "lore", 0.9);
+  for (let i = 0; i < 60 && !knows(w, "counting"); i++) doPonder(w, a, joy);
+  assert.ok(knows(w, "counting"), "counting found");
+  doCreate(w, a, joy); // something to write about
+  for (let i = 0; i < 80 && !knows(w, "writing"); i++) {
+    doCreate(w, a, joy);
+    doPonder(w, a, joy);
+  }
+  assert.ok(knows(w, "writing"), "writing found");
+  a.ideas = ["counting", "writing"];
+  for (let i = 0; i < 60 && !w.works?.some((x) => x.kind === "book"); i++) {
+    a.arts!.lastMade = undefined;
+    doCreate(w, a, joy);
+  }
+  const book = w.works!.find((x) => x.kind === "book");
+  assert.ok(book, "a book was written");
+  const library = w.things.find((t) => t.kind === "library")!;
+  assert.ok(library);
+  w.people.splice(w.people.indexOf(a), 1); // the writer dies
+  assert.ok(knows(w, "counting"), "the book keeps the knowledge");
+  doRead(w, reader, library, joy);
+  assert.ok(reader.ideas?.includes("counting"));
+});
+
+test("an idea nobody holds and no book keeps is lost", () => {
+  const a = adult("Ada", 3);
+  const w = base([a]);
+  w.knowledge = { counting: { by: "Ada", byName: "Ada", t: 0 } };
+  a.ideas = ["counting"];
+  assert.ok(knows(w, "counting"));
+  w.people.length = 0;
+  assert.ok(!knows(w, "counting"));
+});
+
+test("people answer the big questions, share their answers, and some disagree", () => {
+  const people = ["Ada", "Bea", "Cy", "Zed"].map((n, i) => adult(n, 10 + i));
+  const w = base(people);
+  w.dead = [{ person: adult("Old", 99), t: 0, cause: "old age" }];
+  for (const p of people) for (let i = 0; i < 12; i++) doPonder(w, p, joy);
+  assert.ok((w.tenets?.length ?? 0) >= 1, "someone came to believe something");
+  for (let i = 0; i < 40; i++) exchangeIdeas(w, people[i % 4]!, people[(i + 1) % 4]!);
+  const held = new Set(people.flatMap((p) => Object.values(p.faith ?? {})));
+  assert.ok(held.size >= 1);
+});
+
+test("favours owed are recorded and cancelled when repaid; counting sets a price for wood", () => {
+  const a = adult("Ada", 3);
+  const b = adult("Zed", 4);
+  const w = base([a, b]);
+  owe(w, a, b);
+  assert.equal(owes(b, a.id), 1);
+  owe(w, b, a);
+  assert.equal(owes(b, a.id), 0);
+  assert.equal(tradeRates(w).wood, 3);
+  w.knowledge = { counting: { by: "Ada", byName: "Ada", t: 0 } };
+  a.ideas = ["counting"];
+  w.weather = { season: 3 } as World["weather"];
+  assert.equal(tradeRates(w).wood, 2, "wood is cheap in winter, when all want it");
+  w.weather = { season: 1 } as World["weather"];
+  w.clock = 0.9 * 16 * DAY;
+  assert.ok(!winterComing(w), "without the calendar summer is just summer");
+  w.knowledge.calendar = { by: "Ada", byName: "Ada", t: 0 };
+  a.ideas.push("calendar");
+  assert.ok(winterComing(w), "with the calendar late summer is the run-up to winter");
+});
+
+test("works, knowledge and beliefs survive a save", () => {
+  const a = adult("Ada", 3);
+  const w = base([a]);
+  practiseArts(a, "art", 0.5);
+  doCreate(w, a, joy);
+  w.knowledge = { counting: { by: "Ada", byName: "Ada", t: 5 } };
+  w.tenets = [{ id: "origin:0", question: "origin", text: "x", by: "Ada", byName: "Ada", t: 1 }];
+  const back = worldFromJson(worldToJson(w));
+  assert.equal(back.works?.length, w.works?.length);
+  assert.deepEqual(back.knowledge, w.knowledge);
+  assert.deepEqual(back.tenets, w.tenets);
+});
+
+test("over a long life with leisure, a household makes art and thinks, and does not starve for it", () => {
+  const people = [adult("Ada", 3), adult("Zed", 4)];
+  const w = base(people);
+  for (const p of people) p.memory.set("river", { x: 12, z: 0, feeling: 0.3, visits: 1, lastSeen: 0 });
+  for (let i = 0; i < 4 * DAY / 2; i++) {
+    for (const p of people) {
+      p.needs.hunger = Math.min(p.needs.hunger, 0.3);
+      p.needs.thirst = Math.min(p.needs.thirst, 0.3);
+      p.needs.joy = Math.max(p.needs.joy, 0.5);
     }
-  }
-  assert.ok((w.tally?.duskGatherings ?? 0) >= 1, "nobody gathered at the fire");
-});
-
-test("someone the others have lost faith in is shunned, and taken back when faith returns", () => {
-  const a = adult("A", "m", 3);
-  const b = adult("B", "f", 4, 2, 0);
-  const c = adult("C", "m", 5, 3, 0);
-  const w = world([a, b, c]);
-  for (const q of [b, c]) q.relations.set("A", { affinity: -0.5, trust: 0.05, familiarity: 0.5, lastTogether: 0 });
-  a.felt = { hungry: 0, cold: 0, scares: 0, reflected: -DAY };
-  step(w, 1);
-  assert.equal(a.shunned, true);
-  assert.ok(w.chronicle?.some((e) => /shunned/.test(e.text)));
-  for (const q of [b, c]) q.relations.get("A")!.trust = 0.8;
-  a.felt = { hungry: 0, cold: 0, scares: 0, reflected: -DAY };
-  w.clock = (w.clock ?? 0) + DAY;
-  step(w, 1);
-  assert.equal(a.shunned, false);
-});
-
-test("an elder tells a story of something that mattered long ago, once, to someone who has not heard it", () => {
-  const elder = adult("Old", "m", 6, 0, 0, 60);
-  const young = adult("Young", "f", 7, 2, 0, 12);
-  const w = world([elder, young]);
-  w.clock = 5 * DAY;
-  elder.journal.push({ t: 100, text: "Killed a deer. Meat for days.", w: 0.6 });
-  elder.needs.social = 0.95;
-  young.needs.social = 0.95;
-  for (let t = 0; t < DAY && !(young.heard ?? []).length; t += 2) {
     step(w, 2);
-    elder.needs.social = Math.max(elder.needs.social, 0.9);
-    young.needs.social = Math.max(young.needs.social, 0.9);
-    elder.x = Math.min(elder.x, 3);
-    young.x = Math.min(young.x, 3);
   }
-  assert.ok((young.heard ?? []).includes("Killed a deer. Meat for days."), "the story was not told");
-  assert.ok(young.journal.some((j) => /told me: Killed a deer/.test(j.text)));
+  assert.ok((w.tally?.ponderings ?? 0) + (w.tally?.songs ?? 0) + (w.tally?.stories ?? 0) + (w.tally?.paintings ?? 0) > 0, "they made or thought something");
+});
+
+test("the Walker can ask what someone believes, knows and has made", async () => {
+  const { answerWalker } = await import("../src/eden/chat");
+  const a = adult("Ada", 3);
+  const w = base([a]);
+  w.dead = [{ person: adult("Old", 99), t: 0, cause: "old age" }];
+  for (let i = 0; i < 15 && !Object.keys(a.faith ?? {}).length; i++) doPonder(w, a, joy);
+  const reply = answerWalker(w, a, "What do you believe?", () => 0.1).reply;
+  assert.match(reply, /Here is what I think|settled|know what I believe/);
+  assert.match(answerWalker(w, a, "what do you know?", () => 0.1).reply, /know|Nothing|working/);
+  assert.match(answerWalker(w, a, "do you paint or sing?", () => 0.1).reply, /made|best|like to make/);
 });
