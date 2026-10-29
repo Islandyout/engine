@@ -28,8 +28,14 @@ export function installAnimation(C: Ctx): void {
     const entities = C.doc.scene.eachAlive();
     C.animStates.forEach((state, i) => {
       if (!state) return;
-      const requested = C.runtime.ccall("editor_take_animation_request", "string", ["number"], [i]);
-      if (!requested) return;
+      const asked = C.runtime.ccall("editor_take_animation_request", "string", ["number"], [i]);
+      if (!asked) return;
+      // "clip@pace": play at that pace and keep playing (an animal's walk, matched to its feet).
+      const [requested, paceText] = asked.split("@") as [string, string | undefined];
+      const rawPace = paceText ? Number(paceText) || 1 : 1;
+      // A negative pace plays the clip backwards from its end and holds the first frame (lying down is the get-up clip reversed).
+      const backwards = rawPace < 0;
+      const pace = backwards ? Math.max(-2.5, Math.min(-0.3, rawPace)) : Math.max(0.3, Math.min(2.5, rawPace));
       const clip = resolveActionClip(state, requested);
       if (!clip) return;
       const action = state.actions.get(clip)!;
@@ -45,8 +51,12 @@ export function installAnimation(C: Ctx): void {
         state.mixer.removeEventListener("finished", state.oneShotHandler);
         state.oneShotHandler = undefined;
       }
-      action.reset().setLoop(THREE.LoopOnce, 1);
-      action.clampWhenFinished = true;
+      // A looping request (Eden's work actions) goes on until the script asks for something else; it never "finishes", so the ground-speed picker leaves it alone.
+      const repeat = !backwards && (paceText !== undefined || (C.actionLoops?.has(requested) ?? false));
+      action.reset().setLoop(repeat ? THREE.LoopRepeat : THREE.LoopOnce, repeat ? Infinity : 1);
+      action.clampWhenFinished = !repeat;
+      action.timeScale = pace;
+      if (backwards) action.time = action.getClip().duration;
       action.fadeIn(0.15).play();
       if (previous && previous !== action) previous.fadeOut(0.15);
       state.current = clip;
@@ -93,8 +103,11 @@ export function installAnimation(C: Ctx): void {
           action.reset().play();
         }
       };
-      state.oneShotHandler = onFinished;
-      state.mixer.addEventListener("finished", onFinished);
+      // A held pose (lying down, backwards) has nothing to hand back: it stays until the script asks for something else.
+      if (!backwards) {
+        state.oneShotHandler = onFinished;
+        state.mixer.addEventListener("finished", onFinished);
+      }
     });
   }
 

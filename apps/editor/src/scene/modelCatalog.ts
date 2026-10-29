@@ -435,6 +435,14 @@ export const modelCatalog: CatalogEntry[] = [
   { id: 405, category: "nature", name: "Grass: tall tuft", path: "./kit/nature/grass-tall.glb" },
   { id: 406, category: "nature", name: "Grass: dry tuft", path: "./kit/nature/grass-dry.glb" },
   { id: 407, category: "nature", name: "Bamboo stand", path: "./kit/nature/bamboo-stand.glb" },
+  { id: 408, category: "boats", name: "Rowboat (small)", path: "./kit/boats/rowboat-small.glb" },
+  { id: 409, category: "boats", name: "Rowboat (large)", path: "./kit/boats/rowboat-large.glb" },
+  { id: 410, category: "boats", name: "Paddle", path: "./kit/boats/paddle.glb" },
+  { id: 411, category: "survival", name: "Fish", path: "./kit/survival/fish.glb" },
+  { id: 412, category: "survival", name: "Fish (large)", path: "./kit/survival/fish-large.glb" },
+  { id: 413, category: "survival", name: "Bedroll", path: "./kit/survival/bedroll.glb" },
+  { id: 414, category: "survival", name: "Canvas tent", path: "./kit/survival/canvas-tent.glb" },
+  { id: 415, category: "survival", name: "Bucket", path: "./kit/survival/bucket.glb" },
 ];
 
 export const catalogCategories = Array.from(

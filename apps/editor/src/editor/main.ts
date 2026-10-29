@@ -55,6 +55,7 @@ import { installAudio } from "./app/audio";
 import { installCameras } from "./app/cameras";
 import type { Ctx } from "./app/context";
 import { AnimState, CachedModel, DeathState, ParticleState, TickState, TrailState, UIButtonHit, WidgetHit } from "./app/context";
+import { EDEN_ACTION_CLIPS, installEdenAgents } from "./app/edenAgents";
 import { installEffects } from "./app/effects";
 import { installEnvironment } from "./app/environment";
 import { installExplorer } from "./app/explorer";
@@ -225,6 +226,7 @@ async function startEditor() {
   installRuntimeSync(C);
   installLoot(C);
   installSceneObjects(C);
+  installEdenAgents(C);
   installPanels(C);
   installUiActions(C);
   installVehicles(C);
@@ -1059,6 +1061,7 @@ async function startEditor() {
     ["attack", ["attack", "punch", "punching", "melee"]],
     ["blast", ["blast", "shoot", "firing_rifle", "fire", "ranged"]],
     ["sit", ["sit", "sitting", "crouch", "crouching"]],
+    ...EDEN_ACTION_CLIPS,
   ]);
   C.actionClipSynonyms = actionClipSynonyms;
   const tickStates: TickState[] = [];
@@ -1884,6 +1887,11 @@ async function startEditor() {
   try {
     if (exportedScene) {
       app.classList.add("player-mode");
+      // The grid-toggle button lives in the header, which .player-mode
+      // correctly hides -- but the grid itself has no such tie to that
+      // chrome, so without this it stays visible with no way to turn it
+      // off in an exported build.
+      grid.visible = false;
       C.loadDocument(JSON.parse(exportedScene));
       // Preload every catalog model this scene references before the first
       // rebuild()/Play below. Without this, Play would start immediately

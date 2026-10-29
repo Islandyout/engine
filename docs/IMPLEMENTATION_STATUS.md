@@ -107,3 +107,35 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F100](changelog/F100.md) | Base characters (textured bodies with faces, hairstyles, fitted clothes) and 42 more animation clips for Azure Cloud Sect |
 | [F101](changelog/F101.md) | Jianghu Road: a one-kilometre open-world murim game from data (world, quests with checks, one tracked waypoint) |
 | [F102](changelog/F102.md) | Desktop app (Electron): local files, GPU report, AI control port with MCP and CLI, standalone game apps |
+| [F103](changelog/F103.md) | Eden: two Supabase-brained characters in a garden, speak to them or add animals and trees |
+| [F104](changelog/F104.md) | Eden: seasonal day length, moon, fishing, grief and graves, lessons learned |
+| [F105](changelog/F105.md) | Eden: 400 m valley, emotions, breakdowns, quarrels and apologies, opinions and gossip |
+| [F106](changelog/F106.md) | Eden: values, talents, life stories, skills that grow, roles and teaching |
+| [F107](changelog/F107.md) | Eden: illness, pregnancy and the risk of birth |
+| [F108](changelog/F108.md) | Eden: customs that form among people, and standing |
+| [F109](changelog/F109.md) | Eden: the voice is given their memories, moods and customs, and may offer, warn or promise |
+| [F110](changelog/F110.md) | Eden: places get names that spread, and people keep their face as they grow |
+| [F111](changelog/F111.md) | Eden: wind, mist, drizzle and snow; wounds and nursing |
+| [F112](changelog/F112.md) | Eden: dogs that can be won, follow, steady and guard |
+| [F113](changelog/F113.md) | Eden: hides and cloaks |
+| [F114](changelog/F114.md) | Eden: a chronicle of the world, and family in the Minds tab |
+| [F115](changelog/F115.md) | Eden: people tell each other where things are |
+| [F116](changelog/F116.md) | Eden: click a name to watch that person |
+| [F117](changelog/F117.md) | Eden: the landmark trees no longer swallow people into the ground |
+| [F118](changelog/F118.md) | Eden: the lake is walked round; the river can be waded |
+| [F119](changelog/F119.md) | Eden: walk the world as a hunter, with spear, bow and hunting |
+| [F120](changelog/F120.md) | Eden: dusk gatherings, shunning, stories; infants, hygiene, diet, remedies |
+| [F121](changelog/F121.md) | Eden: gestures; the hunter is brought in only when you walk |
+| [F122](changelog/F122.md) | Eden: what-if slots, bonds graph, life stories; stags, cows, donkeys and more plants; the people notice you |
+| [F123](changelog/F123.md) | Eden: carry meat and hand it to someone |
+| [F124](changelog/F124.md) | Eden: the small joys of a day (millions of distinct moments) and the plan for objects |
+| [F125](changelog/F125.md) | Eden: whole-body poses (sit, eat, drink, reach, work, sleep) so people move like people |
+| [F126](changelog/F126.md) | Eden: the people are the hunter bodies (shared clip library, dressed from the kit) |
+| [F127](changelog/F127.md) | Eden: press E to talk to anyone (typed, with a list for groups); carry-walk and talking motions |
+| [F128](changelog/F128.md) | Eden: ask people to follow you or stay; quick phrases; they face you; a real wave |
+| [F129](changelog/F129.md) | Eden: motion with a reason (body language, humour, species gaits) and a 30,000-situation animation check |
+| [F130](changelog/F130.md) | Eden: errands (bring me water) and requests between you and the people; Q gathers, H gives |
+| [F131](changelog/F131.md) | Eden: map / journal / pack screens (M, L, I), tutorial, voice input, pad buttons, people form |
+| [F132](changelog/F132.md) | Assets: Kenney CC0 boats, fish, bedroll, tent, bucket; rowboat at the lake pier |
+| [F133](changelog/F133.md) | Eden: birds, leaping fish, seasonal music, snow cover, inheritance |
+| [F134](changelog/F134.md) | Eden: creativity, mathematics, science, philosophy, theology, economy, learning |

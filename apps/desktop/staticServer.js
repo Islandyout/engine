@@ -24,7 +24,9 @@ function resolveInside(root, urlPath) {
   return file === root || file.startsWith(root + path.sep) ? file : undefined;
 }
 
-function startStaticServer(root) {
+// `preferredPort` keeps the page's origin the same from one launch to the next, so what a game keeps in the browser (a saved world) is
+// still there next time; if that port is busy a free one is used instead.
+function startStaticServer(root, preferredPort = 0) {
   const base = path.resolve(root);
   const server = http.createServer(async (req, res) => {
     const file = resolveInside(base, new URL(req.url, "http://x").pathname);
@@ -37,9 +39,14 @@ function startStaticServer(root) {
       res.writeHead(404).end();
     }
   });
-  return new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => resolve({ server, port: server.address().port, root: base }));
+  const listen = (port) =>
+    new Promise((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(port, "127.0.0.1", () => resolve({ server, port: server.address().port, root: base }));
+    });
+  return listen(preferredPort).catch((e) => {
+    if (e.code === "EADDRINUSE" && preferredPort !== 0) return listen(0);
+    throw e;
   });
 }
 module.exports = { startStaticServer, resolveInside };

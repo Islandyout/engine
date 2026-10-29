@@ -344,6 +344,14 @@ export interface Ctx {
   depthFxPass: DepthFxPass;
   gunPoses: Map<number, { pose: GunPose; gun: string; raised: number; kick: number; oneHanded?: boolean; rest: THREE.Object3D; object: THREE.Object3D; hands: string; holders: THREE.Object3D[]; blades?: THREE.Object3D[]; }>;
   handleHost: (kind: string, text: string) => void;
+  // Eden: a spawned person's body says which person it is (the entity's scene index and their id), so the page can read where it stands.
+  edenBody?: (index: number, who: string) => void;
+  edenPoses?: Map<number, import("../poses").PoseName>; // what each Eden body is doing with its whole body, by object index (poses.ts)
+  actionLoops?: ReadonlySet<string>; // action names a script requests that play on repeat (Eden's work)
+  edenBodies?: Map<number, { look: import("../../eden/motion").Look; gaze?: { x: number; z: number } }>; // what shows on each Eden body and what it is looking at
+  edenPoseHeld?: Set<number>; // bodies a debug call keeps posed even while the clip says walk
+  edenHurt?: (thingId: string) => void; // a creature was hit (Eden)
+  edenSlain?: (thingId: string) => void; // the player killed this creature (Eden)
   harvest: (key: string) => void;
   harvested: Set<number>;
   harvestedSpots: Set<string>;

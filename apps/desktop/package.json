@@ -4,7 +4,10 @@
   "version": "0.1.0",
   "description": "The BTAI game engine editor and player as a desktop app: the laptop's GPU, local files, and a control port an AI (or a script) can drive.",
   "main": "main.js",
-  "author": "BTAI",
+  "author": {
+    "name": "Islandyout",
+    "email": "noreply@users.noreply.github.com"
+  },
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
@@ -46,5 +49,6 @@
       ],
       "maintainer": "BTAI <noreply@example.com>"
     }
-  }
+  },
+  "homepage": "https://github.com/Islandyout/engine"
 }

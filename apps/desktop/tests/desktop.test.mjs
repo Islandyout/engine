@@ -13,6 +13,7 @@ const { createControlServer } = require("../control.js");
 
 test("parseArgs: defaults, kiosk turns control off, bad values fail", () => {
   assert.equal(parseArgs([]).controlPort, 47800);
+  assert.equal(parseArgs(["--remote"]).remote, true);
   const k = parseArgs(["--kiosk", "--game", "jianghu-road", "--no-sandbox"]);
   assert.equal(k.control, false);
   assert.equal(k.game, "jianghu-road");
