@@ -3,7 +3,6 @@
 // and, where it takes more than one pair of hands, getting others to come. Cause and effect are learned from what happens in front of them
 // ("the wolf turned away from the fire, twice") and kept as a belief that can be right or wrong and that others can be told.
 import { chronicle, isNight, note, rand, relation, tally, ADULT_AGE, AFFORDANCES, type Intent, type Person, type Thing, type World } from "./mind";
-import { INVENTIONS } from "./culture";
 import { DAY } from "./earth";
 import type { Plan, Step } from "./reason";
 import { homeOf, hours, leg, nearest, secsToDark, woodSteps } from "./reason";
@@ -281,4 +280,3 @@ export function scoutPlan(world: World, person: Person): Plan | undefined {
 }
 
 export { recruit };
-export const knownInventions = INVENTIONS;

@@ -7,7 +7,7 @@
 // and no known way gets it, they EXPERIMENT: try a combination of what they hold in a place, remember what did not work, and when
 // something does, it is theirs to use and to teach (culture.ts INVENTIONS: laws of this world that nobody is told).
 import { DAY, YEAR } from "./earth";
-import { INVENTIONS, knows } from "./culture";
+import { INVENTIONS } from "./culture";
 import { recruit, scoutPlan, solveProblem, teamOptions } from "./solve";
 import { ADULT_AGE, AFFORDANCES, chronicle, isNight, make, note, rand, tally, type Intent, type Person, type Thing, type World } from "./mind";
 
@@ -367,7 +367,6 @@ export function worksNow(world: World, t: Thing): boolean {
   if (t.kind === "snare") return world.things.some((q) => AFFORDANCES[q.kind]?.prey && dist(q.x, q.z, t.x, t.z) < 40);
   return true;
 }
-export const hasKnowledge = knows;
 
 /** A plan proposed from outside (a language model) and already checked by llmPlan.parsePlan: it becomes theirs. */
 export function adoptPlan(world: World, person: Person, plan: Plan) {
