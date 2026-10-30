@@ -9,6 +9,7 @@
 
 import { cultureOptions, doCreate, doPonder, doRead, exchangeIdeas, faithful, knows, owe, tradeRates, winterComing, type Arts, type Tenet, type Work } from "./culture";
 import { doInvent, doMake, planOptions, worksNow, type Plan } from "./reason";
+import { fightBeast, learnFromWorld, teamStep, type Rule, type Team } from "./solve";
 import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach, valueOf, SKILL_WORDS, type Skill, type Value } from "./identity";
 import { fadeNorms, isCustom, NORM_TEXT, reinforce, standing, strengthOf, type NormId } from "./norms";
 import { fade, feel as feelEmotion, importance, moodPush, opinionTags, BELIEF_WORDS, type Belief, type Emotion } from "./inner";
@@ -116,7 +117,7 @@ export interface Thing {
   trust?: number; // a dog: how many times it has been fed by someone, toward choosing them
   prefab?: string; // the scene prefab that shows it (the host places it); absent for things the scene already has
   // A creature's own going about: where it is heading, when it last ate, how old it is (in Eden years).
-  mob?: { tx: number; tz: number; wait: number; fed: number; age: number; fleeUntil: number; state?: MobState; speed?: number; idle?: MobState; eatUntil?: number; attackUntil?: number; here?: boolean; startleUntil?: number; hurtUntil?: number; angryUntil?: number };
+  mob?: { tx: number; tz: number; wait: number; fed: number; age: number; fleeUntil: number; state?: MobState; speed?: number; idle?: MobState; eatUntil?: number; attackUntil?: number; here?: boolean; startleUntil?: number; hurtUntil?: number; angryUntil?: number; repelledAt?: number };
 }
 
 // The intents that are done to or with another person: walk up to them, and follow them if they move.
@@ -210,6 +211,10 @@ export interface Person {
   promises?: { to: string; due: number }[]; // what they have promised, and by when
   laughUntil?: number; // world clock until which they are laughing (a joke was told)
   thefts?: number;
+  rules?: Record<string, Rule>; // what they have come to think causes what, from what they have seen
+  team?: string; // the party they are in, if any
+  problemAt?: number; // when they last worked out what to do about a beast near camp
+  scoutedAt?: number; // when they last set out to look at new ground
   plan?: Plan; // what they have worked out to do next, and why (reason.ts)
   planAt?: number; // when they last tried to foresee something
   tried?: string[]; // experiments that came to nothing, so they are not repeated
@@ -292,6 +297,7 @@ export interface World {
   weather?: Weather;
   visitor?: { x: number; z: number }; // the Creator walking the world as a hunter (set by the page): prey run from them
   noGo?: { x: number; z: number; r: number }[]; // deep water and the like: nobody walks into it
+  teams?: Team[]; // parties gone against a beast
   works?: Work[]; // songs, stories, paintings and books made so far
   knowledge?: Record<string, { by: string; byName: string; t: number }>; // what has been worked out, and by whom
   tenets?: Tenet[]; // the answers to the big questions that people hold
@@ -1165,6 +1171,8 @@ function fear(person: Person, world: World): { level: number; from?: Thing } {
   for (const t of world.things) {
     const danger = aff(t).danger;
     if (!danger) continue;
+    // Someone in a party that has gone against this beast does not run from it: they came to face it together.
+    if (person.team && world.teams?.some((tm) => tm.id === person.team && tm.state === "go" && tm.target === t.id)) continue;
     const d = dist(person.x, person.z, t.x, t.z);
     const reach = dangerReach(t);
     if (d > reach) continue;
@@ -1915,7 +1923,10 @@ function finish(person: Person, world: World, intent: Intent) {
     }
     case "hunt": {
       const prey = thingById(world, intent.targetId);
-      if (prey && dist(person.x, person.z, prey.x, prey.z) < 3.8) {
+      if (prey && aff(prey).predator && dist(person.x, person.z, prey.x, prey.z) < 3.8) {
+        practise(person, "hunt", 0.05);
+        fightBeast(world, person, prey, skillOf(person, "hunt"));
+      } else if (prey && dist(person.x, person.z, prey.x, prey.z) < 3.8) {
         practise(person, "hunt", 0.05);
         watchedBy(world, person, "hunt");
         if (rand(person) < (0.45 + 0.3 * person.personality.boldness) * (1 + 0.6 * skillOf(person, "hunt"))) {
@@ -2354,6 +2365,8 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     if (t.fuel <= 0) world.things.splice(i, 1);
   }
   stepAnimals(world, dt);
+  learnFromWorld(world);
+  teamStep(world);
   strangersStep(world, dt);
   for (const person of world.people) {
     person.clock += dt;
@@ -2642,8 +2655,9 @@ function stepAnimals(world: World, dt: number) {
       }
     } else if (a.predator) {
       // A dog with someone near drives a fox or wolf off.
-      const guard = things.find((q) => q.kind === "dog" && q.of && dist(q.x, q.z, t.x, t.z) < 12);
+      const guard = things.find((q) => (q.kind === "dog" && q.of && dist(q.x, q.z, t.x, t.z) < 12) || (q.kind === "campfire" && (q.fuel ?? 0) > 0 && dist(q.x, q.z, t.x, t.z) < 15));
       if (guard) {
+        if (guard.kind === "campfire") m.repelledAt = now; // beasts will not come near a burning fire
         const away = Math.atan2(t.z - guard.z, t.x - guard.x);
         const to = inside(world, t.x + Math.cos(away) * 14, t.z + Math.sin(away) * 14);
         m.tx = to.x;

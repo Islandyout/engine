@@ -14,6 +14,7 @@ export interface VoiceConfig {
   url: string;
   model: string;
   key: string;
+  plan?: boolean; // let the model propose plans (checked against the map before anyone follows one)
 }
 export const DEFAULT_VOICE: VoiceConfig = { enabled: false, url: "http://localhost:11434/v1/chat/completions", model: "llama3.2:1b", key: "" };
 const STORE = "eden-voice-v1";
@@ -92,6 +93,29 @@ export class Voice {
   }
 
   /** An open conversation with the Walker: what they said, in the light of who this person is and what they remember, with the last few turns. */
+  /** A plan, as the model's raw text: asked for rarely (a slow laptop model takes a while), with a long wait, and nothing is run from it until it is checked. */
+  async plan(system: string, user: string): Promise<string | undefined> {
+    if (!this.ready || !this.config.plan) return undefined;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 90000);
+    try {
+      const res = await fetch(this.config.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(this.config.key ? { Authorization: `Bearer ${this.config.key}` } : {}) },
+        body: JSON.stringify({ model: this.config.model, temperature: 0.4, max_tokens: 400, messages: [{ role: "system", content: system }, { role: "user", content: user }] }),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      return data.choices?.[0]?.message?.content?.trim();
+    } catch (e) {
+      this.report(`The planner could not be reached (${controller.signal.aborted ? "too slow" : String(e)}).`);
+      return undefined;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async chat(speaker: Person, history: { role: "user" | "assistant"; content: string }[], said: string, world: World): Promise<string | undefined> {
     if (!this.ready) return undefined;
     const system = `You speak as ${speaker.name}, a person living in a simple world of gardens, woods, a river and a lake, with no machines and no writing. A stranger called the Walker is talking with you. Answer in the first person, in at most 30 words, with no quotation marks and no stage directions. Use only what the notes say; invent no events, people or places, and if you do not know, say so in your own way. Never mention being an AI.`;

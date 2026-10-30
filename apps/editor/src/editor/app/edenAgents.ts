@@ -4,6 +4,8 @@ import { creatureMotion, gazeOf, lookOf, newMemory, personMotion, walkStyle, typ
 import { createTalk, type Talk } from "./edenTalk";
 import { EdenSound } from "./edenSound";
 import { EdenWildlife } from "./edenWildlife";
+import { PLAN_SYSTEM, parsePlan, situationOf } from "../../eden/llmPlan";
+import { adoptPlan } from "../../eden/reason";
 import { createScreens, type Screens } from "./edenScreens";
 import { hearWalker, nearbyPeople, noteFirstWord } from "../../eden/chat";
 import { actionOf, applySpokenIntent, creatureHurt, giveMeat, giveToPerson, shareKill, walkerSlew, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
@@ -157,6 +159,8 @@ export function installEdenAgents(C: Ctx): void {
   const sound = new EdenSound(() => inEden && C.doc.mode === "play");
   let soundAt = 0;
   let snowCover = 0; // 0 bare .. 1 white: builds while it snows, melts when it is mild
+  let plannerBusy = false;
+  let plannerAt = 0;
   let wildlife: EdenWildlife | undefined; // birds and leaping fish: scenery, made the first time a world is played
   let screens: Screens | undefined; // map, journal and pack (M, L, I), made the first time you walk
   const notes: string[] = []; // what the Walker has done, kept with the save
@@ -617,6 +621,31 @@ export function installEdenAgents(C: Ctx): void {
         if (!(material instanceof THREE.MeshStandardMaterial)) continue;
         material.emissive.setRGB(0.88, 0.94, 1);
         material.emissiveIntensity = snowGlow;
+      }
+      // The optional planner: one person at a time with something to work out is asked, and their answer is checked before it is believed.
+      if (voice.ready && voice.config.plan && !plannerBusy && performance.now() - plannerAt > 45000 && SPEEDS[speed]! <= 3) {
+        const home = w.things.find((t) => t.kind === "shelter") ?? { x: 0, z: 0 };
+        const trouble = (q: Person) => w.things.some((t) => AFFORDANCES[t.kind]?.predator && q.memory.has(t.id) && Math.hypot(t.x - home.x, t.z - home.z) < 80);
+        const candidates = w.people.filter((q) => q.age >= ADULT_AGE && !q.plan && !q.team && q.intent?.kind !== "sleep" && q.needs.hunger < 0.6 && q.needs.thirst < 0.6 && (trouble(q) || q.personality.curiosity > 0.6));
+        const who = candidates.find(trouble) ?? candidates[Math.floor(Math.random() * candidates.length)];
+        if (who) {
+          plannerBusy = true;
+          plannerAt = performance.now();
+          panel?.voiceStatus(`Asking for a plan for ${who.name}…`);
+          void voice.plan(PLAN_SYSTEM, `You are ${who.name}.\n${situationOf(w, who)}\nWhat will you do next?`).then((text) => {
+            plannerBusy = false;
+            if (!text || !world) return panel?.voiceStatus(`No plan came back for ${who.name}.`);
+            const result = parsePlan(world, who, text);
+            if (!result.plan) {
+              tally(world, "plansRejected");
+              return panel?.voiceStatus(`${who.name}'s proposed plan was thrown out: ${result.error}.`);
+            }
+            if (who.plan || who.team) return;
+            adoptPlan(world, who, result.plan);
+            panel?.voiceStatus(`${who.name} has a plan: ${result.plan.goal}.`);
+            panel?.lifeLog(`${who.name} thinks it through: ${result.plan.goal}.`);
+          });
+        }
       }
       wildlife ??= new EdenWildlife(C.scene);
       wildlife.update({ x: at.x, z: at.z, ground: groundY(at.x, at.z), hour: solarHour(w.clock ?? 0), rain: w.weather?.rainAmount ?? 0, season: w.weather?.season ?? 1, water });

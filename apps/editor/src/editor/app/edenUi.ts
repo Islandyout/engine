@@ -221,6 +221,11 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
   on.checked = initialVoice.enabled;
   const onLabel = el("label");
   onLabel.append(on, document.createTextNode(" Use the voice"));
+  const planOn = el("input");
+  planOn.type = "checkbox";
+  planOn.checked = initialVoice.plan === true;
+  const planLabel = el("label");
+  planLabel.append(planOn, document.createTextNode(" Let it help people plan (slow on a laptop; every plan is checked against the map and the clock first)"));
   const urlInput = el("input");
   urlInput.type = "text";
   urlInput.value = initialVoice.url;
@@ -234,7 +239,7 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
   keyInput.value = initialVoice.key;
   keyInput.placeholder = "Key (only if the service needs one; kept in this browser)";
   const voiceStatus = el("div", undefined, "");
-  const apply = () => handlers.voice({ enabled: on.checked, url: urlInput.value.trim(), model: modelInput.value.trim(), key: keyInput.value.trim() });
+  const apply = () => handlers.voice({ enabled: on.checked, url: urlInput.value.trim(), model: modelInput.value.trim(), key: keyInput.value.trim(), plan: planOn.checked });
   const voiceButtons = el("div", "eden-bar");
   const voiceSave = el("button", undefined, "Save");
   voiceSave.addEventListener("click", apply);
@@ -244,7 +249,7 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
     handlers.voiceTest();
   });
   voiceButtons.append(voiceSave, voiceTest);
-  voiceBox.append(voiceHelp, onLabel, urlInput, modelInput, keyInput, voiceButtons, voiceStatus);
+  voiceBox.append(voiceHelp, onLabel, planLabel, urlInput, modelInput, keyInput, voiceButtons, voiceStatus);
   // What if: keep the world as it is now, try something, and go back. Three places to keep.
   const slotBox = el("div", "eden-bar");
   slotBox.appendChild(el("span", undefined, "What if:"));

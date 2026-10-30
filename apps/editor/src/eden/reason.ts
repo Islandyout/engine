@@ -8,12 +8,13 @@
 // something does, it is theirs to use and to teach (culture.ts INVENTIONS: laws of this world that nobody is told).
 import { DAY, YEAR } from "./earth";
 import { INVENTIONS, knows } from "./culture";
+import { recruit, scoutPlan, solveProblem, teamOptions } from "./solve";
 import { ADULT_AGE, AFFORDANCES, chronicle, isNight, make, note, rand, tally, type Intent, type Person, type Thing, type World } from "./mind";
 
 type Option = { intent: Omit<Intent, "arrived">; score: number };
 
 export interface Step {
-  act: "gather" | "fire" | "forage" | "stash" | "make" | "invent";
+  act: "gather" | "fire" | "forage" | "stash" | "make" | "invent" | "goto" | "recruit" | "craft";
   x: number;
   z: number;
   thing?: string; // what to go to
@@ -50,10 +51,10 @@ export function secsToWinter(world: World): number {
   const inYear = (world.clock ?? 0) % YEAR;
   return Math.max(0, 0.75 * YEAR - inYear);
 }
-const leg = (ax: number, az: number, bx: number, bz: number) => dist(ax, az, bx, bz) / WALK;
-const hours = (secs: number) => `${(secs / 60).toFixed(1)} hours`; // a world hour is 60 s
+export const leg = (ax: number, az: number, bx: number, bz: number) => dist(ax, az, bx, bz) / WALK;
+export const hours = (secs: number) => `${(secs / 60).toFixed(1)} hours`; // a world hour is 60 s
 
-function nearest(world: World, person: Person, pred: (t: Thing) => boolean, from: { x: number; z: number }) {
+export function nearest(world: World, person: Person, pred: (t: Thing) => boolean, from: { x: number; z: number }) {
   let best: Thing | undefined;
   let bd = Infinity;
   for (const t of world.things) {
@@ -63,7 +64,7 @@ function nearest(world: World, person: Person, pred: (t: Thing) => boolean, from
   }
   return best && { t: best, d: bd };
 }
-function homeOf(world: World, person: Person): { x: number; z: number } {
+export function homeOf(world: World, person: Person): { x: number; z: number } {
   return nearest(world, person, (t) => t.kind === "shelter", person)?.t ?? nearest(world, person, (t) => !!AFFORDANCES[t.kind]?.rest, person)?.t ?? person;
 }
 
@@ -76,6 +77,10 @@ export function foresee(world: World, person: Person): Plan | undefined {
   const dark = secsToDark(world);
   const adults = world.people.filter((q) => q.age >= ADULT_AGE).length;
   const wood = person.carry.wood;
+
+  // 0. A beast near the camp, or any trouble that needs working out.
+  const trouble = solveProblem(world, person);
+  if (trouble) return trouble;
 
   // 1. A cold dark night is coming and there is no fire to meet it at: fetch wood and light one before the dark.
   const fireAtHome = world.things.some((t) => burning(t) && dist(t.x, t.z, home.x, home.z) < 12);
@@ -165,10 +170,10 @@ export function foresee(world: World, person: Person): Plan | undefined {
       }
     }
   }
-  return undefined;
+  return scoutPlan(world, person);
 }
 
-function woodSteps(world: World, person: Person, need: number): Step[] {
+export function woodSteps(world: World, person: Person, need: number): Step[] {
   const src = nearest(world, person, (t) => !!AFFORDANCES[t.kind]?.wood, person);
   if (!src) return [];
   const out: Step[] = [];
@@ -205,6 +210,10 @@ function stepDone(world: World, person: Person, step: Step): boolean {
       return person.carry.food >= (step.want ?? 3);
     case "stash":
       return person.carry.food < 1;
+    case "goto":
+      return dist(person.x, person.z, step.x, step.z) < 9;
+    case "craft":
+      return person.tools.spear;
     default:
       return false;
   }
@@ -213,6 +222,7 @@ function stepDone(world: World, person: Person, step: Step): boolean {
 /** The next step of whatever they have in mind, as something to choose; planning anew when there is nothing in mind. */
 export function planOptions(person: Person, world: World, out: Option[]) {
   if (person.age < ADULT_AGE) return;
+  if (person.team) return teamOptions(person, world, out);
   const now = world.clock ?? 0;
   let plan = person.plan;
   if (plan) {
@@ -225,6 +235,7 @@ export function planOptions(person: Person, world: World, out: Option[]) {
     } else if (now > plan.deadline + 60) {
       note(person, world, `I ran out of time for ${plan.goal}.`);
       tally(world, "plansLate");
+      tally(world, `late: ${plan.goal.replace(/ the .*$/, "").slice(0, 24)}`);
       person.plan = undefined;
       plan = undefined;
     } else if (now - plan.made > Math.max(DAY, plan.secs * 6)) {
@@ -242,14 +253,15 @@ export function planOptions(person: Person, world: World, out: Option[]) {
     person.plan = plan;
     note(person, world, `I thought ahead. ${plan.why}`);
     tally(world, "plans");
+    if (plan.goal.startsWith("scout")) tally(world, "scouts");
   }
   const step = plan.steps[plan.stepAt]!;
   const slack = plan.deadline - now - plan.secs;
   const urgency = slack <= 0 ? 1 : clamp01(1 - slack / Math.max(120, plan.deadline - plan.made));
   const base = { x: step.x, z: step.z, speed: WALK };
   // Foresight yields to the body: as hunger, thirst or tiredness press, the plan waits (the need itself is scored by the rest of the mind).
-  const pressing = Math.max(person.needs.hunger, person.needs.thirst, person.needs.energy);
-  if (pressing > 0.65) return;
+  const pressing = Math.max(person.needs.hunger, person.needs.thirst);
+  if (pressing > 0.65 || person.needs.energy > 0.85) return;
   const score = (0.8 + 0.5 * urgency) * (pressing > 0.35 ? Math.max(0.15, 1 - 2.5 * (pressing - 0.35)) : 1);
   switch (step.act) {
     case "gather":
@@ -270,6 +282,23 @@ export function planOptions(person: Person, world: World, out: Option[]) {
     case "invent":
       out.push({ intent: { kind: "invent", targetId: step.thing, ...base, remaining: 40 }, score });
       break;
+    case "goto":
+      out.push({ intent: { kind: "wander", ...base, remaining: 4 }, score: score + 0.1 });
+      break;
+    case "craft":
+      out.push({ intent: { kind: "craft", ...base, remaining: 40 }, score });
+      break;
+    case "recruit": {
+      // Asking others is done on the spot, at camp: it either gathers a party or it does not.
+      const beast = world.things.find((t) => t.id === step.thing);
+      if (beast) {
+        const team = recruit(world, person, beast);
+        step.done = true;
+        if (!team) note(person, world, `No one would come against the ${beast.kind}.`);
+        person.plan = undefined;
+      }
+      break;
+    }
   }
 }
 
@@ -339,3 +368,12 @@ export function worksNow(world: World, t: Thing): boolean {
   return true;
 }
 export const hasKnowledge = knows;
+
+/** A plan proposed from outside (a language model) and already checked by llmPlan.parsePlan: it becomes theirs. */
+export function adoptPlan(world: World, person: Person, plan: Plan) {
+  person.plan = plan;
+  person.planAt = world.clock ?? 0;
+  note(person, world, `I thought it through. ${plan.why}`);
+  tally(world, "plans");
+  tally(world, "plansFromVoice");
+}
