@@ -1068,7 +1068,7 @@ function eaten(person: Person, kind: string) {
   const d = (person.diet ??= {});
   d[kind] = (d[kind] ?? 0) + 1;
 }
-function deficient(person: Person): boolean {
+export function deficient(person: Person): boolean {
   const d = person.diet;
   if (!d) return false;
   const total = Object.values(d).reduce((a, v) => a + v, 0);

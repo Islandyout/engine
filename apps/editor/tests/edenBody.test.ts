@@ -37,35 +37,22 @@ test("a dirty person goes to the water and washes", () => {
 });
 
 test("a diet of one thing is a deficiency, and the sick feel it", async () => {
-  const { weatherAt } = await import("../src/eden/earth");
-  void weatherAt;
-  const a = adult("A", "m", 8);
-  const w = world([a]);
-  a.diet = { stored: 6 };
-  let sick = 0;
-  for (let k = 0; k < 30; k++) {
-    const p = adult("P", "m", 100 + k);
-    p.diet = { stored: 6 };
-    const ww = world([p]);
-    for (let t = 0; t < DAY; t += 4) {
-      p.diet.stored = 6;
-      step(ww, 4);
-    }
-    if ((ww.tally?.illnesses ?? 0) > 0) sick++;
-  }
-  const control = Array.from({ length: 30 }, (_, k) => {
-    const p = adult("Q", "m", 100 + k);
-    p.diet = { stored: 3, fruit: 3 };
-    const ww = world([p]);
-    for (let t = 0; t < DAY; t += 4) {
-      p.diet.stored = 3;
-      p.diet.fruit = 3;
-      step(ww, 4);
-    }
-    return (ww.tally?.illnesses ?? 0) > 0 ? 1 : 0;
-  }).reduce((x: number, y: number) => x + y, 0);
-  assert.ok(sick >= control, `a one-note diet should not be healthier (${sick} vs ${control})`);
-  void w;
+  // The first version of this test compared how many of 30 people fell ill on a one-note diet against a varied one. The hazard it
+  // measures is about 0.03 a day against 0.02, so the expected difference over 30 people is a fraction of one illness: it passed or
+  // failed with the order of the random stream, not with the mind. The claim is now tested where it is made: what counts as a
+  // deficiency, and and the hazard factor itself (1.35 in `lifeAndDeath`) is read from it.
+  const { deficient } = await import("../src/eden/mind");
+  const one = adult("A", "m", 8);
+  one.diet = { stored: 6 };
+  const varied = adult("B", "m", 9);
+  varied.diet = { stored: 3, fruit: 3 };
+  const little = adult("C", "m", 10);
+  little.diet = { stored: 2 };
+  assert.equal(deficient(one), true, "a diet of one thing is a deficiency");
+  assert.equal(deficient(varied), false, "a varied diet is not");
+  assert.equal(deficient(little), false, "having eaten little is not a deficiency yet");
+  // (A simulated comparison of illness counts was dropped: at these rates a comparison needs thousands of lives to mean anything, and the
+  // season sweep already measures illness across 4,000.)
 });
 
 test("a healer gives a remedy that eases the sick faster", () => {
