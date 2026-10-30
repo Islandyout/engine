@@ -7,14 +7,14 @@ and the life sweep shows no survival regression. "Test" below means `apps/editor
 
 ## Phase A: drives, neurochemistry, wider emotions (GAPS 1.1, 1.2, 1.3, 1.6, 1.7)
 
-- [ ] A1 Drives beyond five needs (safety, belonging, esteem, autonomy, competence, curiosity, meaning, attachment, sex, play, boredom as its own drive). Done means: test sets each drive low and asserts the chosen action changes versus the old five-need scorer; boredom no longer only a `joy` need.
-- [ ] A2 Neurochemistry variables (dopamine, serotonin, oxytocin, cortisol, endorphin, noradrenaline, sex hormones, melatonin) with production and decay. Done means: test per chemical showing its trigger raises it and it decays; choice weights read them (test fails when chemistry is zeroed).
-- [ ] A3 Receptor sensitivity, tolerance, withdrawal, addiction. Done means: test where repeated reward lowers its effect and removal causes a measurable deficit state.
-- [ ] A4 Chronic stress, depression and anxiety as persistent states that bias choice. Done means: test of sustained cortisol producing a state that lasts after the cause ends and lowers action scores; recovery path tested.
+- [x] A1 Drives beyond five needs (safety, belonging, esteem, autonomy, competence, curiosity, meaning, attachment, sex, play, boredom as its own drive). Done means: test sets each drive low and asserts the chosen action changes versus the old five-need scorer; boredom no longer only a `joy` need.
+- [x] A2 Neurochemistry variables (dopamine, serotonin, oxytocin, cortisol, endorphin, noradrenaline, sex hormones, melatonin) with production and decay. Done means: test per chemical showing its trigger raises it and it decays; choice weights read them (test fails when chemistry is zeroed).
+- [x] A3 Receptor sensitivity, tolerance, withdrawal, addiction. Done means: test where repeated reward lowers its effect and removal causes a measurable deficit state.
+- [x] A4 Chronic stress, depression and anxiety as persistent states that bias choice. Done means: test of sustained cortisol producing a state that lasts after the cause ends and lowers action scores; recovery path tested.
 - [ ] A5 Emotions beyond six: love, loneliness, jealousy, envy, guilt, disgust, contempt, hope, despair, awe, surprise, nostalgia, longing, boredom, regret, relief, humour, empathy, plus blends. Done means: one test per emotion with a named trigger, and a blend test (two emotions give a distinct label).
 - [ ] A6 Habit and unconscious layer: habits that run without deciding, triggering traumas, conditioned fears and likes, biases, mood-coloured memory. Done means: tests for habit formation (repeat then automatic), a trauma cue firing fear, and mood changing recall.
-- [ ] A7 Memory: cue-triggered episodic recall, forgetting curve, distortion, emotional tagging, dreams and sleep consolidation. Done means: tests for decay over time, vivid versus dull by emotion, cue recall, and consolidation after sleep.
-- [ ] A8 Life story that changes with age (not a string written once at birth). Done means: test that `story` differs after major events and at later ages.
+- [x] A7 Memory: cue-triggered episodic recall, forgetting curve, distortion, emotional tagging, dreams and sleep consolidation. Done means: tests for decay over time, vivid versus dull by emotion, cue recall, and consolidation after sleep.
+- [x] A8 Life story that changes with age (not a string written once at birth). Done means: test that `story` differs after major events and at later ages.
 - [ ] A9 Sweep: 60-person long run, survival and population no worse than baseline in the notes. Done means: sweep numbers written in the F-changelog beside the pre-change baseline.
 
 ## Phase B: life stages and development (GAPS 2)
@@ -26,9 +26,9 @@ and the life sweep shows no survival regression. "Test" below means `apps/editor
 - [ ] B5 Young adulthood 20-35: partner and work choice, courtship, pair bonding, pregnancy and birth risk for both, parenthood, leaving parents, ambition. Done means: sim shows pairs forming and leaving home; birth risk test for mother and child.
 - [ ] B6 Middle age 35-60: generativity (mentoring), care of children and ageing parents, status peak or loss, midlife doubt, wealth or debt, deaths of peers. Done means: tests/measures for each.
 - [ ] B7 Old age 60+: slowing, illness, loss of strength/sight/memory, dependence, honour or neglect, storytelling keeper of knowledge, facing death, legacy, grief, retirement, elder care as duty or burden, wisdom, dementia. Done means: tests for each; an elder is cared for or neglected depending on norms.
-- [ ] B8 Sensitive periods and critical windows (unspoken-to child does not learn speech; unheld child does not bond). Done means: test that the window closes and the deficit persists.
+- [x] B8 Sensitive periods and critical windows (unspoken-to child does not learn speech; unheld child does not bond). Done means: test that the window closes and the deficit persists.
 - [ ] B9 Women's and men's lives: breastfeeding, menstrual cycle effects, postpartum states, parenting roles, division of labour and status. Done means: tests for cycle effect and postpartum state.
-- [ ] B10 Family structure: siblings relation, recognised pairing with obligations, widowhood, remarriage, adoption, orphans' fate, step-families, extended kin and clan, inheritance rules, incest avoidance. Done means: tests for each, incl. incest avoidance over a long run.
+- [x] B10 Family structure: siblings relation, recognised pairing with obligations, widowhood, remarriage, adoption, orphans' fate, step-families, extended kin and clan, inheritance rules, incest avoidance. Done means: tests for each, incl. incest avoidance over a long run.
 
 ## Phase C: self, theory of mind, inner conflict, lying (GAPS 1.4, 1.5, 1.8)
 

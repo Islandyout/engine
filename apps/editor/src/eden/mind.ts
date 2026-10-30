@@ -12,6 +12,7 @@ import { AGE, devOptions, devStep, limitSpeech, onDeathSeenBy, weaning, witnessS
 import { cultureOptions, doCreate, doPonder, doRead, exchangeIdeas, faithful, knows, owe, tradeRates, winterComing, type Arts, type Tenet, type Work } from "./culture";
 import { doInvent, doMake, planOptions, worksNow, type Plan } from "./reason";
 import { afterAct, appraise, milestone, recall, psycheBias, psycheEvent, psycheStep, type Psyche } from "./psyche";
+import { selfOf, mindStep, recordOutcome, resolveConflict, lessonBias, snapshot, aftermathOfTheft, witnessCost, judge, talkAbout, type Self, type Fact, type Model, type Snap } from "./mindmodel";
 import { fightBeast, learnFromWorld, teamStep, type Rule, type Team } from "./solve";
 import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach, valueOf, SKILL_WORDS, type Skill, type Value } from "./identity";
 import { fadeNorms, isCustom, NORM_TEXT, reinforce, standing, strengthOf, type NormId } from "./norms";
@@ -169,6 +170,8 @@ export interface Intent {
   age?: number;
   // What they were walking to do before they stopped to listen to someone (taken up again after).
   resume?: Intent;
+  // How they felt and what they had when they began, to tell how it went when it ends (mindmodel.ts).
+  snap?: Snap;
 }
 
 // What they remember happening, in order, in their own words: the Creator can read it, and it is what they have to talk about.
@@ -281,6 +284,14 @@ export interface Person {
   role?: string; // what they are known for (their best skill, once it is worth naming)
   life?: Life; // the long arc: pairing, kin, the body's rhythms, old age (lifecycle.ts)
   dev?: Dev; // how they have been brought up so far (development.ts)
+  self?: Self; // how they think of themselves, willpower, what experience has taught (mindmodel.ts)
+  knows?: string[]; // ids of facts they know
+  firsthand?: string[]; // ids of facts they saw themselves
+  model?: Record<string, Model>; // what they think each other person knows
+  dither?: { until: number; a: string; b: string }; // torn between two things
+  lastRationalised?: number;
+  accusedBy?: string[];
+  favourFor?: { to: string; until: number };
   psyche?: Psyche; // drives, body chemistry, lasting states, habits, cues (psyche.ts)
   emotions?: Partial<Record<Emotion, number>>; // what they feel now, each 0..1, fading at its own speed (inner.ts)
   stress?: number; // sim seconds spent very low; held long enough it breaks
@@ -303,6 +314,7 @@ export interface World {
   weather?: Weather;
   visitor?: { x: number; z: number }; // the Creator walking the world as a hunter (set by the page): prey run from them
   noGo?: { x: number; z: number; r: number }[]; // deep water and the like: nobody walks into it
+  facts?: Fact[]; // things that have happened and who knows of them
   teams?: Team[]; // parties gone against a beast
   works?: Work[]; // songs, stories, paintings and books made so far
   knowledge?: Record<string, { by: string; byName: string; t: number }>; // what has been worked out, and by whom
@@ -1319,7 +1331,7 @@ function options(person: Person, world: World): Option[] {
     }
     // Taking food that is not theirs, when starving, with nothing to eat, from someone they do not love, and bold enough.
     if (needs.hunger > 0.85 && person.carry.food < 1 && other.carry.food >= 2 && other.age >= ADULT_AGE && (person.relations.get(other.id)?.affinity ?? 0) < 0.5 && p.boldness > 0.45 && !world.things.some((t) => aff(t).food && !aff(t).fish && known(t) && (t.stock === undefined || t.stock > 0)))
-      out.push({ intent: { kind: "steal", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 1 }, score: 0.6 + 2.4 * urge(needs.hunger, 0.85) * (0.4 + p.boldness) });
+      out.push({ intent: { kind: "steal", targetId: other.id, x: other.x, z: other.z, speed: WALK, remaining: 1 }, score: 0.6 + 2.4 * urge(needs.hunger, 0.85) * (0.4 + p.boldness) - witnessCost(world, person) });
     // People do not chatter through the night.
     const wish = night ? 0 : urge(needs.social, 0.32 - 0.1 * p.sociability) * (0.8 + 0.9 * p.sociability);
     if (wish <= 0) continue;
@@ -1742,6 +1754,7 @@ export function personById(world: World, id: string | undefined): Person | undef
 
 function finish(person: Person, world: World, intent: Intent) {
   finishCore(person, world, intent);
+  recordOutcome(person, world, intent);
   afterAct(world, person, intent);
   triedKind(person, intent.kind);
 }
@@ -2196,6 +2209,7 @@ function finishCore(person: Person, world: World, intent: Intent) {
         feelEmotion(person, "shame", 0.5);
         psycheEvent(person, "wrong", 1);
         person.thefts = (person.thefts ?? 0) + 1;
+        aftermathOfTheft(world, person, victim);
         note(person, world, `Took food from ${victim.name} because I was starving. I am ashamed.`);
         note(victim, world, `${person.name} took food from me.`);
         // Those who hear of it trust the thief a little less: the loss of faith that ends in being shunned.
@@ -2284,6 +2298,7 @@ function finishCore(person: Person, world: World, intent: Intent) {
         shareNames(person, other, world);
         shareKnowledge(person, other, world);
         exchangeIdeas(world, person, other);
+        talkAbout(world, person, other);
         remember(world, person, other);
         remember(world, other, person);
         // Teaching: whoever is better at something shows the other.
@@ -2440,6 +2455,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     psycheStep(person, world, dt);
     devStep(person, world, dt);
     lifeStep(person, world, dt);
+    mindStep(person, world, dt);
     breakDown(person, world, dt);
     if (person.grief) {
       person.mood = Math.min(person.mood, 0.3 - person.grief);
@@ -2545,8 +2561,10 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
         else if (o.intent.kind === "eat" || o.intent.kind === "fish" || o.intent.kind === "forage") o.score += 0.45 * clamp01((needs.hunger - 0.55) / 0.35);
       }
       psycheBias(person, world, opts);
+      if (needs.thirst < 0.6 && needs.hunger < 0.6) for (const o of opts) o.score += lessonBias(person, world, o.intent.kind);
+      resolveConflict(person, world, opts);
       const picked = choose(person, opts);
-      person.intent = { ...picked.intent, arrived: false };
+      person.intent = { ...picked.intent, arrived: false, snap: snapshot(person) };
     }
     const intent = person.intent;
     if (!intent) continue;
