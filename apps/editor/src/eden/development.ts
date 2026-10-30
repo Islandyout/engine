@@ -75,7 +75,7 @@ export const attachmentOf = (p: Person): Attachment | undefined => p.dev?.attach
 
 /** The one who looks after them: their mother, or another grown person near if she is gone. */
 function carerOf(person: Person, world: World): Person | undefined {
-  const mother = world.people.find((q) => q.id === person.mother);
+  const mother = world.people.find((q) => q.id === person.mother) ?? world.people.find((q) => q.id === person.life?.guardian);
   if (mother) return mother;
   let best: Person | undefined;
   let bd = 20;
@@ -396,7 +396,7 @@ export function devOptions(person: Person, world: World, out: { intent: Omit<Int
   if (person.age >= ADULT_AGE) {
     for (const c of world.people) {
       if (c === person || c.age >= ADULT_AGE) continue;
-      const mine = c.mother === person.id || c.father === person.id;
+      const mine = c.mother === person.id || c.father === person.id || c.life?.guardian === person.id;
       if (!mine) continue;
       const d = c.dev;
       const away = dist(c.x, c.z, person.x, person.z);

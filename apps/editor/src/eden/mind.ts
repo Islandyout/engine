@@ -7,6 +7,7 @@
 //
 // The host (edenAgents.ts) feeds this the world's things and turns each person's `intent` into movement and an animation.
 
+import { AGES, afterDeath, ageSpeed, canConceive, cyclePhase, guardianOf, heirsOf, lifeOf, arcOptions, lifeStep, obedience, sightOf, triedKind, type Life } from "./lifecycle";
 import { AGE, devOptions, devStep, limitSpeech, onDeathSeenBy, weaning, witnessShare, type Dev } from "./development";
 import { cultureOptions, doCreate, doPonder, doRead, exchangeIdeas, faithful, knows, owe, tradeRates, winterComing, type Arts, type Tenet, type Work } from "./culture";
 import { doInvent, doMake, planOptions, worksNow, type Plan } from "./reason";
@@ -278,6 +279,7 @@ export interface Person {
   skills?: Record<Skill, number>; // how good they are at each now
   story?: string; // who they are, in a few lines
   role?: string; // what they are known for (their best skill, once it is worth naming)
+  life?: Life; // the long arc: pairing, kin, the body's rhythms, old age (lifecycle.ts)
   dev?: Dev; // how they have been brought up so far (development.ts)
   psyche?: Psyche; // drives, body chemistry, lasting states, habits, cues (psyche.ts)
   emotions?: Partial<Record<Emotion, number>>; // what they feel now, each 0..1, fading at its own speed (inner.ts)
@@ -525,25 +527,24 @@ const dangerReach = (t: Thing) => t.radius + 6 + 10 * (aff(t).danger ?? 0);
 
 /** What someone leaves goes to a grown child (the eldest), else a partner, else whoever loved them most: what they carried, and the keepsake they were carving. */
 function inherit(world: World, dead: Person) {
-  const living = world.people.filter((q) => q.id !== dead.id);
-  const children = living.filter((q) => (q.mother === dead.id || q.father === dead.id) && q.age >= ADULT_AGE).sort((a, b) => b.age - a.age);
-  const partner = living.find((q) => bondOf(dead, q) === "partner");
-  const loved = living.filter((q) => (q.relations.get(dead.id)?.affinity ?? 0) > 0.4).sort((a, b) => (b.relations.get(dead.id)?.affinity ?? 0) - (a.relations.get(dead.id)?.affinity ?? 0));
-  const heir = children[0] ?? partner ?? loved[0];
+  const heirs = heirsOf(world, dead);
   const c = dead.carry;
   const left = (c.wood ?? 0) + (c.food ?? 0) + (c.seed ?? 0) + (c.hide ?? 0);
-  if (!heir || (left <= 0 && !dead.keepsake)) return;
-  heir.carry.wood += c.wood ?? 0;
-  heir.carry.food += c.food ?? 0;
-  heir.carry.seed += c.seed ?? 0;
-  if (c.hide) heir.carry.hide = (heir.carry.hide ?? 0) + c.hide;
+  if (!heirs.length || (left <= 0 && !dead.keepsake)) return;
+  const n = heirs.length;
+  for (const heir of heirs) {
+    heir.carry.wood += (c.wood ?? 0) / n;
+    heir.carry.food += (c.food ?? 0) / n;
+    heir.carry.seed += (c.seed ?? 0) / n;
+    if (c.hide) heir.carry.hide = (heir.carry.hide ?? 0) + c.hide / n;
+    note(heir, world, `${dead.name}'s things came to me${n > 1 ? ", shared among us" : ""}.`);
+  }
   dead.carry = { wood: 0, food: 0, seed: 0 };
   if (dead.keepsake) {
-    (heir.keepsakes ??= []).push({ from: dead.id, item: dead.keepsake.item });
+    (heirs[0]!.keepsakes ??= []).push({ from: dead.id, item: dead.keepsake.item });
     dead.keepsake = undefined;
   }
-  note(heir, world, `${dead.name}'s things came to me.`);
-  chronicle(world, `${dead.name}'s belongings passed to ${heir.name}.`);
+  chronicle(world, `${dead.name}'s belongings passed to ${heirs.map((h) => h.name).join(" and ")}.`);
   tally(world, "inherited");
 }
 
@@ -1082,7 +1083,8 @@ export function deficient(person: Person): boolean {
 
 // An infant is carried and nursed: it stays by its mother, drinks her milk, and does not choose anything; without her it starves.
 function infantStep(person: Person, world: World, dt: number, external: boolean) {
-  const mother = world.people.find((q) => q.id === person.mother);
+  const guard = guardianOf(world, person);
+  const mother = world.people.find((q) => q.id === person.mother) ?? (guard && guard.sex === "f" && (guard.lastBirth ?? -1e9) > (world.clock ?? 0) - 1.5 * YEAR ? guard : undefined);
   if (!mother) {
     person.needs.hunger = clamp01(person.needs.hunger + dt / 4000);
     return;
@@ -1099,7 +1101,7 @@ function infantStep(person: Person, world: World, dt: number, external: boolean)
   } else {
     person.intent = { kind: "linger", x: person.x, z: person.z, speed: 0, remaining: 5, arrived: true };
     if (mother.needs.hunger < 0.85) {
-      const milk = 1 - weaning(person.age); // weaning: milk counts for less as solids take over
+      const milk = (1 - weaning(person.age)) * (mother.psyche?.state === "depressed" ? 0.5 : 1); // weaning: milk counts for less as solids take over; a mother in a dark spell gives less
       person.needs.hunger = clamp01(person.needs.hunger - (dt / 250) * milk);
       person.needs.thirst = clamp01(person.needs.thirst - (dt / 250) * milk); // milk is drink too
       if (milk < 1 && mother.carry.food >= 1 && person.needs.hunger > 0.3) {
@@ -1160,7 +1162,7 @@ function feel(person: Person, thing: Thing, delta: number) {
 
 function notice(person: Person, world: World) {
   for (const t of world.things) {
-    if (dist(person.x, person.z, t.x, t.z) > SIGHT) continue;
+    if (dist(person.x, person.z, t.x, t.z) > sightOf(person, SIGHT)) continue;
     const known = person.memory.get(t.id);
     if (known) {
       known.x = t.x;
@@ -1258,6 +1260,7 @@ function options(person: Person, world: World): Option[] {
   cultureOptions(person, world, out);
   planOptions(person, world, out);
   devOptions(person, world, out);
+  arcOptions(person, world, out);
   lifeOptions(person, world, out);
   // A child does not gather, build or lay food by, and stays close to their mother.
   if (person.age < ADULT_AGE) {
@@ -1740,6 +1743,7 @@ export function personById(world: World, id: string | undefined): Person | undef
 function finish(person: Person, world: World, intent: Intent) {
   finishCore(person, world, intent);
   afterAct(world, person, intent);
+  triedKind(person, intent.kind);
 }
 function finishCore(person: Person, world: World, intent: Intent) {
   const t = thingById(world, intent.targetId);
@@ -2022,6 +2026,8 @@ function finishCore(person: Person, world: World, intent: Intent) {
         if (isCustom(world, "share")) for (const q of world.people) if (q !== person && q !== other && dist(q.x, q.z, person.x, person.z) < 15) relation(q, person.id, world).trust = Math.min(1, relation(q, person.id, world).trust + 0.03);
         owe(world, person, other);
         witnessShare(world, person, other);
+        if (other.age >= AGES.elder) uphold(world, "elders", person, 0.08);
+        if (other.age < ADULT_AGE && other.mother !== person.id && other.father !== person.id) uphold(world, "orphans", person, 0.05);
         person.say = `Here, ${other.name}. Eat.`;
         note(person, world, `Gave ${other.name} some food.`);
         note(other, world, `${person.name} gave me food when I was hungry.`);
@@ -2230,9 +2236,10 @@ function finishCore(person: Person, world: World, intent: Intent) {
       const mineBefore = other ? relation(person, other.id, world) : undefined;
       // Two people who are both low, and not fond of each other, may quarrel instead of talk.
       const irritable = person.personality.boldness * (1 - person.personality.patience);
-      const fallingOut = other && mineBefore
+      const rebel = other && (other.id === person.mother || other.id === person.father) && person.age < ADULT_AGE + 1 ? 1 + 1.5 * (1 - obedience(person)) : 1; // a young person pulls against their parents
+      const fallingOut = rebel * (other && mineBefore
         ? (0.025 + 0.06 * irritable + 0.3 * (person.emotions?.anger ?? 0)) * (1.2 - Math.max(-0.2, mineBefore.affinity)) + (person.mood < -0.15 && other.mood < -0.15 ? 0.35 * (1 - Math.max(0, mineBefore.affinity)) : 0)
-        : 0;
+        : 0);
       if (other && mineBefore && rand(person) < fallingOut) {
         const theirs = relation(other, person.id, world);
         mineBefore.affinity = Math.max(-1, mineBefore.affinity - 0.15);
@@ -2432,6 +2439,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     fade(person, dt);
     psycheStep(person, world, dt);
     devStep(person, world, dt);
+    lifeStep(person, world, dt);
     breakDown(person, world, dt);
     if (person.grief) {
       person.mood = Math.min(person.mood, 0.3 - person.grief);
@@ -2563,7 +2571,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       } else if (settings.externalMotion) {
         continue;
       } else {
-        const stepLen = Math.min(d - stop, intent.speed * dt);
+        const stepLen = Math.min(d - stop, intent.speed * ageSpeed(person) * dt);
         person.x += ((intent.x - person.x) / d) * stepLen;
         person.z += ((intent.z - person.z) / d) * stepLen;
         keepOut(world, person);
@@ -2923,6 +2931,9 @@ function giveBirth(world: World, mother: Person, father: Person) {
     child.mother = mother.id;
     child.father = father.id;
     world.people.push(child);
+    lifeOf(child).clan = father.life?.clan ?? mother.life?.clan;
+    lifeOf(mother).postpartumUntil = now + 0.5 * YEAR;
+    lifeOf(mother).cycleStart = now;
     for (const parent of [mother, father]) {
       relation(child, parent.id, world).affinity = 0.9;
       relation(parent, child.id, world).affinity = 0.95;
@@ -2974,6 +2985,7 @@ function lifeAndDeath(world: World, dt: number) {
     person.intent = undefined;
     make(world, "grave", person.x, person.z, { of: person.id, radius: 2 });
     inherit(world, person);
+    afterDeath(world, person);
     for (const other of world.people) {
       const r = other.relations.get(person.id);
       const grief = Math.max(0, r?.affinity ?? 0);
@@ -2998,10 +3010,12 @@ function lifeAndDeath(world: World, dt: number) {
   const season = world.weather?.season ?? 1;
   if (!shelter.length || larder < 6 || season === 3 || world.people.length >= (world.maxPeople ?? 6)) return;
   for (const mother of world.people) {
-    if (mother.sex !== "f" || mother.age < ADULT_AGE + 12 || mother.age > 40 || now - (mother.lastBirth ?? -1e9) < YEAR) continue;
+    if (mother.sex !== "f" || mother.age < AGES.fertileFrom || mother.age > AGES.menopause || now - (mother.lastBirth ?? -1e9) < YEAR) continue;
     if (mother.pregnant || mother.illness || mother.health < 0.7 || mother.needs.hunger > 0.7 || mother.mood < 0) continue;
-    const father = world.people.find((q) => q.sex === "m" && q.age >= ADULT_AGE + 12 && bondOf(mother, q) === "partner");
-    if (!father || rand(mother) > (dt / DAY) * 0.25) continue;
+    const father = world.people.find((q) => canConceive(world, mother, q) && (mother.life?.partner ? mother.life.partner === q.id : bondOf(mother, q) === "partner"));
+    // A woman with a cycle can conceive in the middle of it only; the chance is raised to match.
+    const window = cyclePhase(world, mother) === "fertile" ? 5 : 1;
+    if (!father || rand(mother) > (dt / DAY) * 0.25 * window) continue;
     mother.pregnant = { since: now, father: father.id };
     note(mother, world, `I am carrying ${father.name}'s child.`);
     note(father, world, `${mother.name} is carrying my child.`);

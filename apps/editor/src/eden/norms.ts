@@ -3,12 +3,14 @@
 // of use, and once strong enough it is a custom: people feel it, hold themselves to it, and mark those who break it.
 import type { Person, World } from "./mind";
 
-export type NormId = "share" | "fair" | "tend" | "gather";
+export type NormId = "share" | "fair" | "tend" | "gather" | "elders" | "orphans";
 export const NORM_TEXT: Record<NormId, string> = {
   share: "we share food with whoever is hungry",
   fair: "nobody takes the last of the food while another goes hungry",
   tend: "whoever finds the fire low feeds it",
   gather: "we gather at the fire at dusk",
+  elders: "we look after our old",
+  orphans: "we take in children who have no one",
 };
 export const CUSTOM_AT = 0.5;
 

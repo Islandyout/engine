@@ -348,8 +348,9 @@ export function exchangeIdeas(world: World, a: Person, b: Person) {
     if (!tenet) continue;
     const trust = relation(hearer, speaker.id, world).trust;
     const had = hearer.faith?.[q.id];
-    const pull = (had ? 0.08 : 0.35) * (0.5 + trust) * (0.5 + valueOf(hearer, "tradition"));
-    if (rand(hearer) < pull) {
+    const pull = (had ? 0.08 : 0.35) * (0.5 + trust) * (0.5 + valueOf(hearer, "tradition")); // the old are listened to
+    const heard = pull * (speaker.age >= 49 ? 1.3 : 1);
+    if (rand(hearer) < heard) {
       (hearer.faith ??= {})[q.id] = tenet.id;
       note(hearer, world, `${speaker.name} spoke of "${q.asked}" and I came to think: ${tenet.text}`);
       tally(world, had ? "conversions" : "faithsTaken");
