@@ -35,10 +35,10 @@ and the life sweep shows no survival regression. "Test" below means `apps/editor
 - [ ] C1 Self-model: self-image, self-esteem, identity, ideals, fairness about oneself, reflection on own choices. Done means: test that a failure lowers esteem and changes later choices.
 - [ ] C2 Theory of mind: model of what others know, want, believe, feel. Done means: test that a person acts on a belief about another's belief that differs from fact.
 - [ ] C3 Lying, deception, bluffing, flattery, persuasion by interest, secrets, reputation management, surprise gifts, being fooled. Done means: a test per behaviour; a lie is detected or not depending on the listener's model.
-- [ ] C4 Inner conflict: competing motives held at once (duty vs desire, fear vs pride, loyalty vs fairness), not best score plus noise. Done means: test with two strong motives producing hesitation/ambivalence and a logged reason.
+- [x] C4 Inner conflict: competing motives held at once (duty vs desire, fear vs pride, loyalty vs fairness), not best score plus noise. Done means: test with two strong motives producing hesitation/ambivalence and a logged reason.
 - [ ] C5 Temptation, self-control, rationalisation, guilt after acting against values, habit addiction, acting against own interest. Done means: tests for each, guilt visible in state.
 - [ ] C6 Double standards, hypocrisy, kind to one and cruel to another for reasons. Done means: test where same act is judged differently by relation, with the stated reason.
-- [ ] C7 Reflection beyond fixed "lessons". Done means: test that lessons are derived from experience, not a fixed list.
+- [x] C7 Reflection beyond fixed "lessons". Done means: test that lessons are derived from experience, not a fixed list.
 
 ## Phase D: love, pain, joy, meaning (GAPS 3)
 

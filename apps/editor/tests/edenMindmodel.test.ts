@@ -163,3 +163,99 @@ test("whoever fears for their name waits for fewer eyes", () => {
   const crowd = world([p, person("A", 2, 3, 0), person("B", 3, 4, 0), person("C", 4, 5, 0)]);
   assert.ok(witnessCost(crowd, p) > witnessCost(alone, p));
 });
+
+test("danger or real need ends a hesitation at once", () => {
+  const p = person("P", 1);
+  const w = world([p]);
+  p.dither = { until: (w.clock ?? 0) + 50, a: "share", b: "rest" };
+  const o = [opt("flee", 2.5), opt("rest", 0.5)];
+  resolveConflict(p, w, o);
+  assert.ok(!p.dither);
+  assert.equal(o.length, 2);
+});
+
+test("someone with a loose conscience flatters a giver to get food, and a wary giver can see through it", () => {
+  let flattered = 0, seenThrough = 0;
+  for (let s = 1; s <= 80; s++) {
+    const want = person("W", s), give = person("G", s + 100, 1, 0);
+    want.values = { ...(want.values as any), fairness: 0 };
+    want.needs.hunger = 0.9;
+    give.carry.food = 4;
+    want.carry.food = 0;
+    give.relations.set(want.id, { affinity: 0.2, trust: 0.2, familiarity: 0.3, lastTogether: 0 });
+    const w = world([want, give]);
+    for (let i = 0; i < 6; i++) talkAbout(w, want, give);
+    flattered += w.tally?.flattery ?? 0;
+    seenThrough += w.tally?.flatterySeenThrough ?? 0;
+  }
+  assert.ok(flattered > 0 && seenThrough > 0 && seenThrough < flattered);
+});
+
+test("an honest person asks in terms of what the giver lacks, without a lie", () => {
+  let n = 0;
+  for (let s = 1; s <= 60; s++) {
+    const want = person("W", s), give = person("G", s + 100, 1, 0);
+    want.values = { ...(want.values as any), fairness: 1, tradition: 1 };
+    want.needs.hunger = 0.9;
+    give.carry.food = 4;
+    give.psyche = undefined;
+    psycheOfLow(give);
+    const w = world([want, give]);
+    for (let i = 0; i < 6; i++) talkAbout(w, want, give);
+    n += w.tally?.persuasions ?? 0;
+    assert.equal(w.tally?.flattery ?? 0, 0);
+  }
+  assert.ok(n > 0);
+});
+
+test("a weak bold person bluffs when accused; the timid back down sometimes", () => {
+  let bluffs = 0, worked = 0;
+  for (let s = 1; s <= 120; s++) {
+    const a = person("A", s, 0, 0), b = person("B", s + 100, 1, 0);
+    a.personality = { ...a.personality, boldness: 0.2 };
+    b.personality = { ...b.personality, boldness: 0.9 };
+    a.skills = { forage: 0.9, fish: 0.9, hunt: 0.9, farm: 0.9, build: 0.9, heal: 0.9 } as any;
+    b.skills = { forage: 0, fish: 0, hunt: 0, farm: 0, build: 0, heal: 0 } as any;
+    b.values = { ...(b.values as any), fairness: 0 };
+    const w = world([a, b]);
+    a.x = 60;
+    const f = witness(w, "theft", b, undefined, "B took food");
+    tell(w, b, a, f);
+    accuse(w, a, b, f);
+    bluffs += w.tally?.bluffs ?? 0;
+    worked += w.tally?.bluffsWorked ?? 0;
+  }
+  assert.ok(bluffs > 0 && worked > 0 && worked < bluffs);
+});
+
+test("a gift nobody saw coming delights more than one they were told of", () => {
+  const g = person("G", 1), r = person("R", 2, 1, 0), r2 = person("R2", 3, 1, 0);
+  const w = world([g, r, r2]);
+  assert.equal(surpriseGift(w, g, r), true);
+  assert.ok((r.emotions?.surprise ?? 0) > 0.3);
+  (r2.knows ??= []).push(`keepsake:${g.id}`);
+  assert.equal(surpriseGift(w, g, r2), false);
+});
+
+test("a person at the end of their tether sometimes does nothing, and says so", () => {
+  let skipped = 0;
+  for (let s = 1; s <= 200; s++) {
+    const p = person("P", s);
+    psycheOfLow(p);
+    p.psyche!.state = "depressed";
+    selfOf(p).esteem = 0.1;
+    const o = [opt("hunt", 1), opt("share", 0.9), opt("rest", 0.5)];
+    resolveConflict(p, world([p]), o);
+    if (p.journal.some((j) => /did not even try/.test(j.text))) skipped++;
+  }
+  assert.ok(skipped > 5 && skipped < 60);
+});
+
+import { psycheOf } from "../src/eden/psyche";
+import { surpriseGift } from "../src/eden/mindmodel";
+function psycheOfLow(p: Person) {
+  const ps = psycheOf(p);
+  ps.drives.belonging = 0.1;
+  ps.drives.esteem = 0.1;
+  ps.drives.meaning = 0.1;
+}

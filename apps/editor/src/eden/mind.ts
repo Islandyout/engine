@@ -12,7 +12,7 @@ import { AGE, devOptions, devStep, limitSpeech, onDeathSeenBy, weaning, witnessS
 import { cultureOptions, doCreate, doPonder, doRead, exchangeIdeas, faithful, knows, owe, tradeRates, winterComing, type Arts, type Tenet, type Work } from "./culture";
 import { doInvent, doMake, planOptions, worksNow, type Plan } from "./reason";
 import { afterAct, appraise, milestone, recall, psycheBias, psycheEvent, psycheStep, type Psyche } from "./psyche";
-import { selfOf, mindStep, recordOutcome, resolveConflict, lessonBias, snapshot, aftermathOfTheft, witnessCost, judge, talkAbout, type Self, type Fact, type Model, type Snap } from "./mindmodel";
+import { selfOf, mindStep, recordOutcome, resolveConflict, lessonBias, snapshot, aftermathOfTheft, witnessCost, judge, surpriseGift, talkAbout, type Self, type Fact, type Model, type Snap } from "./mindmodel";
 import { fightBeast, learnFromWorld, teamStep, type Rule, type Team } from "./solve";
 import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach, valueOf, SKILL_WORDS, type Skill, type Value } from "./identity";
 import { fadeNorms, isCustom, NORM_TEXT, reinforce, standing, strengthOf, type NormId } from "./norms";
@@ -2112,6 +2112,7 @@ function finishCore(person: Person, world: World, intent: Intent) {
         feelEmotion(person, "pride", 0.3);
         person.say = `I made this for you, ${other.name}.`;
         other.say = "It is lovely. I will keep it always.";
+        if (surpriseGift(world, person, other)) theirs.affinity = Math.min(1, theirs.affinity + 0.08); // a gift they did not see coming means more
         owe(world, person, other);
         note(person, world, `Gave ${other.name} ${k.item} I had carved.`);
         note(other, world, `${person.name} gave me ${k.item}, carved by their own hands.`);

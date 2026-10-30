@@ -223,6 +223,9 @@ export function resolveConflict(person: Person, world: World, opts: Option[]): v
   const now = world.clock ?? 0;
   const s = selfOf(person);
   const ps = psycheOf(person);
+  // Danger or a body in real need ends the hesitation at once.
+  const urgent = opts.some((o) => (o.intent.kind === "flee" && o.score > 1) || (NEEDY.has(o.intent.kind) && o.score > 1.2));
+  if (person.dither && urgent) person.dither = undefined;
   // Already hesitating: wait it out.
   if (person.dither && now < person.dither.until) {
     opts.length = 0;
