@@ -2901,7 +2901,7 @@ function reflect(person: Person, world: World) {
 
 // A child is born to a mother after nine months of carrying it, with real risk to both.
 const GESTATION = 0.75 * YEAR;
-function giveBirth(world: World, mother: Person, father: Person) {
+export function giveBirth(world: World, mother: Person, father: Person) {
   const now = world.clock ?? 0;
   // Childbirth can kill: the more so when the mother is weak or hungry, and the baby may not live.
   const risk = 0.012 * (1 + (mother.needs.hunger > 0.6 ? 1 : 0) + (mother.health < 0.7 ? 1.5 : 0) + (mother.age > 35 ? 1 : 0));

@@ -92,7 +92,7 @@ export function answerWalker(world: World, person: Person, said: string, rnd: ()
     const mine = kin.map((q) => `${q.name}, my ${kinName(world, person, q)}${alive(q) ? "" : " (gone now)"}`);
     const partner = world.people.find((q) => q.id === person.life?.partner);
     if (/\b(husband|wife|partner|spouse|married)\b/.test(text)) {
-      if (partner) return keep(`${partner.name} is my ${person.sex === "f" ? "husband" : "wife"}. We have been together since ${Math.floor((((world.clock ?? 0) - (person.life?.since ?? 0)) / 1440) * 10) / 10} days ago.`);
+      if (partner) return keep(`${partner.name} is my ${partner.sex === "f" ? "wife" : "husband"}. We have been together for about ${Math.max(1, Math.round(((world.clock ?? 0) - (person.life?.since ?? 0)) / 1440))} day(s).`);
       if (person.life?.widowed) return keep("I lost them. I do not speak of it easily.");
       if (person.life?.courting) return keep("There is someone. I am courting them, and I will say no more.");
       return keep(pick(["I am alone. I may not stay so.", "No one, not yet."]));

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { DAY, YEAR } from "../src/eden/earth";
 import { AGES, adopt, afterDeath, ageSpeed, arcOptions, canConceive, closeKin, courtStep, cyclePhase, forbidden, frailty, heirsOf, inheritanceRule, kinName, lifeOf, lifeStep, obedience, pairUp, partnerOf, sightOf, stepParentOf, triedKind } from "../src/eden/lifecycle";
 import { devStep } from "../src/eden/development";
-import { psycheOf } from "../src/eden/psyche";
+import { psycheBias, psycheOf, psycheStep } from "../src/eden/psyche";
 import { makePerson, step, type Intent, type Person, type Thing, type World } from "../src/eden/mind";
 
 const person = (id: string, sex: "m" | "f", age: number, seed = 1, x = 0, z = 0) => makePerson(id, x, z, seed, { sociability: 0.6, boldness: 0.5, curiosity: 0.5 }, { name: id, sex, age });
@@ -390,4 +390,71 @@ test("long run: a settlement of young adults pairs off, has children, and no pre
   assert.ok((w.tally?.births ?? 0) >= 2, `births ${w.tally?.births}`);
   assert.equal(kinPregnancies, 0);
   assert.ok(w.people.some((p) => p.life?.clan));
+});
+
+// ---- Birth risk, sex and labour, and speaking of family ----
+
+test("childbirth is riskier for a hungry or unwell mother, for her and for the baby", async () => {
+  const { giveBirth } = await import("../src/eden/mind");
+  const trial = (health: number, hunger: number) => {
+    let motherDied = 0;
+    let babyLost = 0;
+    for (let k = 0; k < 500; k++) {
+      const mum = person("Mum", "f", 8, 1000 + k);
+      const dad = person("Dad", "m", 9, 2000 + k);
+      mum.health = health;
+      mum.needs.hunger = hunger;
+      const w = world([mum, dad]);
+      w.maxPeople = 20;
+      giveBirth(w, mum, dad);
+      if (mum.health <= 0.02) motherDied++;
+      if ((w.tally?.stillbirths ?? 0) > 0) babyLost++;
+    }
+    return { motherDied, babyLost };
+  };
+  const well = trial(1, 0.2);
+  const frail = trial(0.5, 0.8);
+  assert.ok(frail.motherDied > well.motherDied * 2, `mothers lost ${frail.motherDied} vs ${well.motherDied}`);
+  assert.ok(frail.babyLost >= well.babyLost, `babies lost ${frail.babyLost} vs ${well.babyLost}`);
+  assert.ok(well.motherDied < 25, "and it is not common when she is well");
+});
+
+test("the sex hormones tilt labour: grown men are drawn more to the hunt, grown women to tending", () => {
+  const w = world([]);
+  const man = person("Man", "m", 10, 1);
+  const woman = person("Wom", "f", 10, 2);
+  for (const p of [man, woman]) {
+    w.people.push(p);
+    for (let t = 0; t < 6000; t += 60) {
+      w.clock! += 60;
+      psycheStep(p, w, 60);
+      for (const d of Object.keys(psycheOf(p).drives)) psycheOf(p).drives[d as keyof ReturnType<typeof psycheOf>["drives"]] = 1; // all fed, so only the hormones differ
+    }
+  }
+  const score = (p: Person, kind: string) => {
+    const o = [{ intent: { kind, x: 0, z: 0, speed: 1, remaining: 3 } as never, score: 1 }];
+    psycheBias(p, w, o);
+    return o[0]!.score;
+  };
+  assert.ok(score(man, "hunt") > score(woman, "hunt") + 0.05, "hunt");
+  assert.ok(score(woman, "comfort") > score(man, "comfort") + 0.05, "tend");
+});
+
+test("people say who their family is: partner, children, parents, clan; a widow does not speak easily of it", async () => {
+  const { answerWalker } = await import("../src/eden/chat");
+  const mum = person("Mara", "f", 28, 1);
+  const dad = person("Dan", "m", 30, 2, 3, 0);
+  const son = kid("Sol", "m", 2, mum, dad, 3);
+  const w = world([mum, dad, son]);
+  pairUp(w, mum, dad);
+  const reply = answerWalker(w, mum, "Who is your husband?", () => 0.1).reply;
+  assert.match(reply, /Dan is my husband/);
+  const fam = answerWalker(w, mum, "tell me about your family", () => 0.1).reply;
+  assert.match(fam, /Sol, my son/);
+  assert.match(fam, /Dan, my husband/);
+  assert.match(fam, /Dan's people/);
+  w.people.splice(w.people.indexOf(dad), 1);
+  (w.dead ??= []).push({ person: dad, t: 0, cause: "illness" });
+  afterDeath(w, dad);
+  assert.match(answerWalker(w, mum, "do you have a husband?", () => 0.1).reply, /lost them/);
 });

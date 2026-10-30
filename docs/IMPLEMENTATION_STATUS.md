@@ -143,4 +143,5 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F136](changelog/F136.md) | Eden: problem solving, parties, scouting, learned cause and effect, optional model planner |
 | [F137](changelog/F137.md) | Eden phase A: drives, body chemistry, lasting states, 24 emotions, habits, cues, memory, life story |
 | [F138](changelog/F138.md) | Eden phase B part 1: infancy, early and middle childhood, attachment, language windows |
+| [F139](changelog/F139.md) | Eden phase B part 2: adolescence, courtship, family, the body's rhythms, old age |
 | [Gaps](EDEN_GAPS.md) | Eden: audit of what is still missing (psyche, life stages, economy, education, violence, world, build gaps) |

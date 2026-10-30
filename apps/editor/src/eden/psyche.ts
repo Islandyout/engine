@@ -370,6 +370,7 @@ export function psycheBias(person: Person, world: World, opts: { intent: Omit<In
     if (social) bonus += 0.6 * (c.oxytocin - 0.3);
     bonus += (safe ? 0.5 : -0.35) * (c.cortisol - 0.25) * (kind === "fire" || kind === "warm" ? 1 : 1);
     if (fierce) bonus += 0.6 * (c.testosterone - 0.25);
+    if (kind === "comfort" || kind === "carve") bonus += 0.5 * (c.oestrogen - 0.25); // the nurturing side of the sex hormones
     if (c.noradrenaline > 0.5 && novel) bonus -= 0.2;
     // Lasting states: a depressed person does less of everything and withdraws; an anxious one avoids what is new and is drawn to what is safe.
     if (ps.state === "depressed") bonus -= social ? 0.3 : 0.15;

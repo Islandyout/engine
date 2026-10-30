@@ -96,7 +96,7 @@ export function forbidden(world: World, a: Person, b: Person): boolean {
 }
 /** Who they call what, for the people who ask. */
 export function kinName(world: World, a: Person, b: Person): string | undefined {
-  if (a.life?.partner === b.id) return a.sex === "f" ? "wife" : "husband";
+  if (a.life?.partner === b.id) return b.sex === "f" ? "wife" : "husband";
   const k = closeKin(world, a, b);
   if (!k) return a.life?.guardian === b.id ? "guardian" : undefined;
   if (k === "parent") return b.sex === "f" ? "mother" : "father";
