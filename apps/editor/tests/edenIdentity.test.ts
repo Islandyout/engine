@@ -54,17 +54,26 @@ test("someone who is good at a thing shows another, and a parent's child learns 
 });
 
 test("a person who fishes gets better at it, and is known for it", () => {
-  const a = adult("A", "m", 9);
-  const w = world([a]);
-  w.clock = DAY * 16 * 0.375;
-  w.things.splice(0, 1);
-  a.memory.set("river", { x: 0, z: 10, feeling: 0.2, visits: 1, lastSeen: 0 });
-  a.needs.hunger = 0.7;
-  for (let i = 0; i < 6 * DAY; i++) {
-    step(w, 1);
-    if (a.needs.hunger < 0.5 && i % 600 === 0) a.needs.hunger = 0.75;
+  // One seed is a coin toss at this length (skill after six days ranges from 0.04 to 0.74 across seeds, whatever the code), and the first
+  // version of this test failed whenever the order of the random stream changed. The claim is about people in general: across a dozen,
+  // fishing practised for days makes a real skill, and the best of them are good.
+  const skills: number[] = [];
+  for (let seed = 1; seed <= 12; seed++) {
+    const a = adult("A", "m", seed);
+    const w = world([a]);
+    w.clock = DAY * 16 * 0.375;
+    w.things.splice(0, 1);
+    a.memory.set("river", { x: 0, z: 10, feeling: 0.2, visits: 1, lastSeen: 0 });
+    a.needs.hunger = 0.7;
+    for (let i = 0; i < 6 * DAY; i++) {
+      step(w, 1);
+      if (a.needs.hunger < 0.5 && i % 600 === 0) a.needs.hunger = 0.75;
+    }
+    skills.push(skillOf(a, "fish"));
   }
-  assert.ok(skillOf(a, "fish") > 0.2, `fishing skill only ${skillOf(a, "fish")}`);
+  const mean = skills.reduce((x, y) => x + y, 0) / skills.length;
+  assert.ok(mean > 0.2, `fishing skill averaged only ${mean.toFixed(2)} (${skills.map((s) => s.toFixed(2)).join(" ")})`);
+  assert.ok(Math.max(...skills) > 0.4, "and the best became good at it");
 });
 
 test("the Creator can write a person's story", () => {
