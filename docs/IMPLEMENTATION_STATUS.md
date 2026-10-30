@@ -141,3 +141,4 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F134](changelog/F134.md) | Eden: creativity, mathematics, science, philosophy, theology, economy, learning |
 | [F135](changelog/F135.md) | Eden: plans (space and time), experiments and inventions |
 | [F136](changelog/F136.md) | Eden: problem solving, parties, scouting, learned cause and effect, optional model planner |
+| [Gaps](EDEN_GAPS.md) | Eden: audit of what is still missing (psyche, life stages, economy, education, violence, world, build gaps) |
