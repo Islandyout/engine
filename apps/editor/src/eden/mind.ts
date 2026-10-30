@@ -9,7 +9,7 @@
 
 import { cultureOptions, doCreate, doPonder, doRead, exchangeIdeas, faithful, knows, owe, tradeRates, winterComing, type Arts, type Tenet, type Work } from "./culture";
 import { doInvent, doMake, planOptions, worksNow, type Plan } from "./reason";
-import { afterAct, appraise, milestone, psycheBias, psycheEvent, psycheStep, type Psyche } from "./psyche";
+import { afterAct, appraise, milestone, recall, psycheBias, psycheEvent, psycheStep, type Psyche } from "./psyche";
 import { fightBeast, learnFromWorld, teamStep, type Rule, type Team } from "./solve";
 import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach, valueOf, SKILL_WORDS, type Skill, type Value } from "./identity";
 import { fadeNorms, isCustom, NORM_TEXT, reinforce, standing, strengthOf, type NormId } from "./norms";
@@ -647,7 +647,7 @@ function tickIllness(person: Person, world: World, dt: number) {
   }
   const ill = person.illness;
   if (!ill) {
-    let hazard = (0.025 / DAY) * vul * (deficient(person) ? 1.35 : 1) * (1 + 0.6 * clamp01(((person.hygiene ?? 0) - 0.5) / 0.5)) * (1 + 1.5 * person.cold + 2.4 * Math.max(0, needs.hunger - 0.5) + (world.weather?.raining && !sheltered ? 0.5 : 0) + (needs.energy > 0.9 ? 0.5 : 0));
+    let hazard = (0.025 / DAY) * vul * dietFactor(person) * (1 + 0.6 * clamp01(((person.hygiene ?? 0) - 0.5) / 0.5)) * (1 + 1.5 * person.cold + 2.4 * Math.max(0, needs.hunger - 0.5) + (world.weather?.raining && !sheltered ? 0.5 : 0) + (needs.energy > 0.9 ? 0.5 : 0));
     for (const q of world.people) if (q !== person && q.illness && dist(person.x, person.z, q.x, q.z) < 4) hazard += (0.5 / DAY) * q.illness.severity;
     if (rand(person) < hazard * dt) {
       person.illness = { severity: 0.25 + 0.3 * rand(person), since: now };
@@ -1068,6 +1068,8 @@ function eaten(person: Person, kind: string) {
   const d = (person.diet ??= {});
   d[kind] = (d[kind] ?? 0) + 1;
 }
+/** How much a thin diet raises the chance of falling ill: a body fed on one thing is easier to knock down. */
+export const dietFactor = (person: Person) => (deficient(person) ? 1.35 : 1);
 export function deficient(person: Person): boolean {
   const d = person.diet;
   if (!d) return false;
@@ -2264,6 +2266,8 @@ function finishCore(person: Person, world: World, intent: Intent) {
         shareNames(person, other, world);
         shareKnowledge(person, other, world);
         exchangeIdeas(world, person, other);
+        remember(world, person, other);
+        remember(world, other, person);
         // Teaching: whoever is better at something shows the other.
         for (const [teacher, learner] of [[person, other], [other, person]] as const) {
           const taught = teach(teacher, learner);
@@ -2924,6 +2928,22 @@ function giveBirth(world: World, mother: Person, father: Person) {
     mother.health = Math.min(mother.health, 0.02);
     mother.cause = "childbirth";
   }
+}
+
+/** Talking with someone brings back what they remember of them, and how it is remembered (fondly or darkly, by mood) colours the meeting. */
+function remember(world: World, person: Person, other: Person) {
+  const mem = recall(person, world, { who: other.name }, 1)[0];
+  if (!mem || mem.strength < 0.08) return;
+  const r = relation(person, other.id, world);
+  if (mem.shade === "fondly") {
+    r.affinity = Math.min(1, r.affinity + 0.015);
+    feelEmotion(person, "nostalgia", 0.05);
+  } else if (mem.shade === "darkly") {
+    r.affinity = Math.max(-1, r.affinity - 0.015);
+    feelEmotion(person, "regret", 0.05);
+  }
+  tally(world, "recalled");
+  if (mem.strength > 0.25) note(person, world, `Talking with ${other.name} brought back: ${mem.text.slice(0, 90)}`);
 }
 
 function lifeAndDeath(world: World, dt: number) {

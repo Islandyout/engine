@@ -1,7 +1,7 @@
 // What a person knows when they speak, written out for the free voice: who they are, how they are, what has mattered to them lately, what they
 // think of the one they are talking to, and what the people around them hold to. The voice is given this and nothing else, so it can only
 // say what is true of them. Pure, so it can be tested without a model.
-import { BELIEF_WORDS } from "./inner";
+import { BELIEF_WORDS, blendOf } from "./inner";
 import { SKILL_WORDS, SKILLS, VALUES, valueOf } from "./identity";
 import { bondOf, hourOf, type Person, type World } from "./mind";
 import { CUSTOM_AT, NORM_TEXT, standing, standingWord, type NormId } from "./norms";
@@ -40,10 +40,27 @@ export function memoriesOf(p: Person, now: number, count = 3): string[] {
     .map((x) => x.j.text);
 }
 
+/** What is going on under the surface, in a line the voice can use without inventing: a lasting low state, what they want and lack, a craving, a feeling with its own name. */
+export function undercurrent(p: Person): string {
+  const ps = p.psyche;
+  if (!ps) return "";
+  const bits: string[] = [];
+  if (ps.state === "depressed") bits.push("they are in a dark low spell and nothing feels worth doing");
+  if (ps.state === "anxious") bits.push("they cannot settle and expect something bad");
+  const lacking = Object.entries(ps.drives).filter(([, v]) => v < 0.3).map(([k]) => (k === "stimulation" ? "something to do" : k)).slice(0, 3);
+  if (lacking.length) bits.push(`they badly want ${lacking.join(", ")}`);
+  if (ps.deficit > 0.2) bits.push("they are craving what used to please them");
+  const blend = blendOf(p);
+  if (blend) bits.push(`what they feel is ${blend}`);
+  return bits.length ? `Under the surface: ${bits.join("; ")}.` : "";
+}
+
 export function contextOf(speaker: Person, listener: Person | undefined, world: World): string {
   const now = world.clock ?? 0;
   const lines: string[] = [describeSelf(speaker)];
   if (speaker.story) lines.push(`Their story: ${speaker.story}`);
+  const under = undercurrent(speaker);
+  if (under) lines.push(under);
   const cares = VALUES.filter((v) => valueOf(speaker, v) > 0.65);
   if (cares.length) lines.push(`They care about: ${cares.join(", ")}.`);
   if (speaker.role) lines.push(`They are known as the ${speaker.role}.`);

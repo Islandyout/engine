@@ -34,8 +34,9 @@ const start = world.people.length;
 let desperate = 0;
 let samples = 0;
 const DT = 4;
+const MAXT = Number(process.env.MAXT ?? Infinity);
 const t0 = Date.now();
-for (let t = 0; t < years * YEAR; t += DT) {
+for (let t = 0; t < Math.min(years * YEAR, MAXT); t += DT) {
   step(world, DT);
   if (Math.floor(t / DT) % 15 === 0) {
     for (const p of world.people) {

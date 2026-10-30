@@ -225,16 +225,17 @@ export function psycheStep(person: Person, world: World, dt: number) {
     const aff = r?.affinity ?? 0;
     if (d < 6 && aff > 0.4) fond++;
     if (d < 25 && aff > 0.5) ps.seen[q.id] = now;
-    if (d < 10 && (q.mother === person.id || q.father === person.id || person.mother === q.id || person.father === q.id || bondOf(person, q) === "partner")) kinNear = true;
+    const partner = aff > 0.8 && bondOf(person, q) === "partner"; // a partner needs a strong bond both ways, so most are ruled out cheaply
+    if (d < 10 && (q.mother === person.id || q.father === person.id || person.mother === q.id || person.father === q.id || partner)) kinNear = true;
     // Jealousy: the one they love is giving their attention to someone else.
-    if (bondOf(person, q) === "partner" && q.intent && (q.intent.kind === "talk" || q.intent.kind === "gift" || q.intent.kind === "share") && q.intent.targetId && q.intent.targetId !== person.id && (r?.affinity ?? 0) > 0.7) {
+    if (partner && q.intent && (q.intent.kind === "talk" || q.intent.kind === "gift" || q.intent.kind === "share") && q.intent.targetId && q.intent.targetId !== person.id && (r?.affinity ?? 0) > 0.7) {
       const other = world.people.find((x) => x.id === q.intent!.targetId);
       if (other && other !== person && dist(other.x, other.z, q.x, q.z) < 6 && (q.relations.get(other.id)?.affinity ?? 0) > 0.4) rival = { who: other, with: q };
     }
     if (r && r.affinity < -0.4 && d < 12) feel(person, "contempt", 0.0015 * dt);
     if (d < 4 && q.illness && q.illness.severity > 0.4) feel(person, "disgust", 0.01 * dt);
     if (d < 8 && aff > 0.3 && (q.mood < -0.35 || q.wound || q.illness)) feel(person, "empathy", 0.02 * dt);
-    if ((e.love ?? 0) < 0.9 && d < 6 && (bondOf(person, q) === "partner" || ((q.mother === person.id || q.father === person.id) && q.age < 10))) feel(person, "love", 0.003 * dt * Math.max(0.3, aff));
+    if ((e.love ?? 0) < 0.9 && d < 6 && (partner || ((q.mother === person.id || q.father === person.id) && q.age < 10))) feel(person, "love", 0.003 * dt * Math.max(0.3, aff));
   }
   if (fond > 0) (target.oxytocin += Math.min(0.3, 0.1 * fond) * ps.sens.oxytocin), (target.serotonin += Math.min(0.08, 0.03 * fond));
   if (!anyone && n.social > 0.6) target.oxytocin -= 0.1;
@@ -331,7 +332,7 @@ export function psycheStep(person: Person, world: World, dt: number) {
   // A person's life story is kept up to date.
   if (now - ps.storyAt > DAY) refreshStory(person, world);
   // Falling in love, once, is remembered.
-  if (!ps.milestones.some((m) => m.kind === "love")) {
+  if (now % 60 < dt && !ps.milestones.some((m) => m.kind === "love")) {
     for (const q of world.people) if (q !== person && bondOf(person, q) === "partner") milestone(person, world, "love", `fell in love with ${q.name}`);
   }
 }

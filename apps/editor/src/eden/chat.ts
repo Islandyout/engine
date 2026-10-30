@@ -4,6 +4,7 @@
 import { bondOf, makePerson, aff, phrase, startErrand, tally, chronicle, type AskItem, type Person, type Thing, type World } from "./mind";
 import { converse } from "./speech";
 import { DISCOVERIES, QUESTIONS, knows } from "./culture";
+import { recall } from "./psyche";
 import { hourOf } from "./earth";
 import { BELIEF_WORDS, feel as feelEmotion } from "./inner";
 
@@ -82,6 +83,17 @@ export function answerWalker(world: World, person: Person, said: string, rnd: ()
     if (person.journal.length > 400) person.journal.shift();
   };
 
+  // What they remember: asked about a person or a thing, what comes back is what they actually kept, coloured by how they feel now.
+  const remembered = text.match(/\b(?:remember|recall|remind me of)\s+(?:when\s+|about\s+|the\s+)?([a-z]{3,})/);
+  if (remembered) {
+    remember("about what they remember");
+    const cue = remembered[1]!;
+    const name = world.people.find((q) => q.name.toLowerCase() === cue)?.name ?? world.dead?.find((d) => d.person.name.toLowerCase() === cue)?.person.name;
+    const found = recall(person, world, name ? { who: name } : { word: cue }, 1)[0];
+    if (!found) return keep(pick([`I do not remember anything about ${cue}. It has faded.`, `${cue}? It comes to nothing. Perhaps I never knew, or it was too long ago.`]));
+    const how = found.shade === "darkly" ? "It comes back heavy, today: " : found.shade === "fondly" ? "Yes, and gladly: " : "Yes: ";
+    return keep(`${how}${found.text.replace(/\.$/, "")}.`);
+  }
   // What they have in mind.
   if (/\b(plan|planning|what are you doing|what.?s next|what will you do|why are you)\b/.test(text)) {
     remember("about what they had in mind");

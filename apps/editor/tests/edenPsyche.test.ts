@@ -455,3 +455,43 @@ test("the whole mind runs with the psyche: a long day gives every drive and chem
     assert.ok(want(p, "belonging") >= 0);
   }
 });
+
+// ---- Recall reaches the running game ----
+
+test("talking with someone brings back what they remember of them, and the Walker can ask what they remember", async () => {
+  const { answerWalker } = await import("../src/eden/chat");
+  const a = person("Ada", 3);
+  const b = person("Bob", 4);
+  b.x = 1;
+  const w = world([a, b]);
+  w.clock = 5000;
+  a.journal = [{ t: 4900, text: "Bob gave me food when I was starving.", w: 0.8 }];
+  a.mood = 0.6;
+  const before = a.relations.get(b.id)?.affinity ?? 0.2;
+  a.intent = { kind: "talk", targetId: b.id, x: 1, z: 0, speed: 0, remaining: 0, arrived: true };
+  for (let i = 0; i < 40 && (w.tally?.recalled ?? 0) === 0; i++) {
+    a.needs.social = 0.9;
+    a.intent = { kind: "talk", targetId: b.id, x: 1, z: 0, speed: 0, remaining: 0, arrived: true };
+    step(w, 2);
+  }
+  assert.ok((w.tally?.recalled ?? 0) >= 1, "a memory was brought back by the talk");
+  assert.ok(a.journal.some((j) => /brought back/.test(j.text)));
+  assert.ok((a.relations.get(b.id)?.affinity ?? 0) >= before - 0.05);
+  const reply = answerWalker(w, a, "Do you remember Bob?", () => 0.1).reply;
+  assert.match(reply, /gave me food/);
+  assert.match(answerWalker(w, a, "do you remember zebras", () => 0.1).reply, /do not remember|comes to nothing/);
+});
+
+test("what they feel under the surface reaches the voice", async () => {
+  const { undercurrent } = await import("../src/eden/voiceContext");
+  const a = person("Ada", 3);
+  assert.equal(undercurrent(a), "");
+  const ps = psycheOf(a);
+  ps.state = "depressed";
+  ps.drives.belonging = 0.1;
+  a.emotions = { fear: 0.6, anger: 0.5 };
+  const text = undercurrent(a);
+  assert.match(text, /dark low spell/);
+  assert.match(text, /belonging/);
+  assert.match(text, /rage/);
+});

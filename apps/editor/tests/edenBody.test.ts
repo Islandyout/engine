@@ -40,8 +40,8 @@ test("a diet of one thing is a deficiency, and the sick feel it", async () => {
   // The first version of this test compared how many of 30 people fell ill on a one-note diet against a varied one. The hazard it
   // measures is about 0.03 a day against 0.02, so the expected difference over 30 people is a fraction of one illness: it passed or
   // failed with the order of the random stream, not with the mind. The claim is now tested where it is made: what counts as a
-  // deficiency, and and the hazard factor itself (1.35 in `lifeAndDeath`) is read from it.
-  const { deficient } = await import("../src/eden/mind");
+  // deficiency, and the hazard factor itself (1.35 in `lifeAndDeath`) is read from it.
+  const { deficient, dietFactor } = await import("../src/eden/mind");
   const one = adult("A", "m", 8);
   one.diet = { stored: 6 };
   const varied = adult("B", "m", 9);
@@ -51,6 +51,8 @@ test("a diet of one thing is a deficiency, and the sick feel it", async () => {
   assert.equal(deficient(one), true, "a diet of one thing is a deficiency");
   assert.equal(deficient(varied), false, "a varied diet is not");
   assert.equal(deficient(little), false, "having eaten little is not a deficiency yet");
+  assert.equal(dietFactor(one), 1.35, "and a deficiency raises the chance of falling ill by a third");
+  assert.equal(dietFactor(varied), 1);
   // (A simulated comparison of illness counts was dropped: at these rates a comparison needs thousands of lives to mean anything, and the
   // season sweep already measures illness across 4,000.)
 });
