@@ -49,11 +49,13 @@ const hash01 = (s: string) => {
 };
 export const lifeOf = (p: Person): Life => (p.life ??= { doubts: 0, risk: 0, peerDeaths: 0 });
 
+// Plain numbers, not read from the other modules: these modules import one another in a ring, and a value read at load time from one
+// still loading is a crash (tests/edenModules.test.ts imports each one first to catch that). tests/edenLifecycle.test.ts checks they agree.
 export const AGES = {
-  puberty: AGE.adolescence, // human 12
+  puberty: 2.667, // human 12 (development.ts AGE.adolescence)
   crush: 3.1, // human 14
-  courting: ADULT_AGE + 0.2,
-  fertileFrom: ADULT_AGE + 0.3,
+  courting: 4.2, // just past adulthood (mind.ts ADULT_AGE is 4)
+  fertileFrom: 4.3,
   menopause: 36, // human about 48
   middle: 22, // human 35
   elder: 49, // human 60

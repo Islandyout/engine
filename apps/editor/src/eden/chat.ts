@@ -5,6 +5,7 @@ import { bondOf, makePerson, aff, phrase, startErrand, tally, chronicle, type As
 import { converse } from "./speech";
 import { DISCOVERIES, QUESTIONS, knows } from "./culture";
 import { recall } from "./psyche";
+import { everyone, kinName } from "./lifecycle";
 import { hourOf } from "./earth";
 import { BELIEF_WORDS, feel as feelEmotion } from "./inner";
 
@@ -83,6 +84,22 @@ export function answerWalker(world: World, person: Person, said: string, rnd: ()
     if (person.journal.length > 400) person.journal.shift();
   };
 
+  // Their people.
+  if (/\b(mother|mum|mom|father|dad|husband|wife|partner|spouse|children|kids|child|son|daughter|brother|sister|family|parents|married|clan)\b/.test(text)) {
+    remember("about their family");
+    const kin = everyone(world).filter((q) => q.id !== person.id && kinName(world, person, q));
+    const alive = (q: Person) => world.people.some((x) => x.id === q.id);
+    const mine = kin.map((q) => `${q.name}, my ${kinName(world, person, q)}${alive(q) ? "" : " (gone now)"}`);
+    const partner = world.people.find((q) => q.id === person.life?.partner);
+    if (/\b(husband|wife|partner|spouse|married)\b/.test(text)) {
+      if (partner) return keep(`${partner.name} is my ${person.sex === "f" ? "husband" : "wife"}. We have been together since ${Math.floor((((world.clock ?? 0) - (person.life?.since ?? 0)) / 1440) * 10) / 10} days ago.`);
+      if (person.life?.widowed) return keep("I lost them. I do not speak of it easily.");
+      if (person.life?.courting) return keep("There is someone. I am courting them, and I will say no more.");
+      return keep(pick(["I am alone. I may not stay so.", "No one, not yet."]));
+    }
+    if (!mine.length) return keep(pick(["I have no family I know of.", "I am on my own in the world."]));
+    return keep(`My people: ${mine.slice(0, 6).join("; ")}.${person.life?.clan ? ` We are ${person.life.clan}.` : ""}`);
+  }
   // What they remember: asked about a person or a thing, what comes back is what they actually kept, coloured by how they feel now.
   const remembered = text.match(/\b(?:remember|recall|remind me of)\s+(?:when\s+|about\s+|the\s+)?([a-z]{3,})/);
   if (remembered) {
