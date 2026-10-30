@@ -302,7 +302,7 @@ export function live(seed: number, options: LifeOptions = {}): Life {
     fished: world.tally?.fished ?? 0,
     mourned: world.tally?.mourned ?? 0,
     lessons: world.tally?.lessons ?? 0,
-    culture: { ...Object.fromEntries(["songs", "stories", "paintings", "books", "discoveries", "tenets", "ponderings", "ideasShared", "debates", "conversions", "faithsTaken", "booksRead", "learntFromBooks", "debtsRepaid", "inherited", "trades"].map((k) => [k, world.tally?.[k] ?? 0])), knowledge: Object.keys(world.knowledge ?? {}).length, works: world.works?.length ?? 0 },
+    culture: { ...Object.fromEntries(["songs", "stories", "paintings", "books", "discoveries", "tenets", "ponderings", "ideasShared", "debates", "conversions", "faithsTaken", "booksRead", "learntFromBooks", "debtsRepaid", "inherited", "trades", "plans", "plansDone", "plansLate", "plansDropped", "inventions", "failedTries", "made_weir", "made_snare", "made_net"].map((k) => [k, world.tally?.[k] ?? 0])), knowledge: Object.keys(world.knowledge ?? {}).length, works: world.works?.length ?? 0 },
     breaks: world.tally?.breaks ?? 0,
     outbursts: world.tally?.outbursts ?? 0,
     beliefs: world.tally?.beliefs ?? 0,
@@ -356,7 +356,7 @@ export function live(seed: number, options: LifeOptions = {}): Life {
     shelters,
     firstShelterDay,
     stashed,
-    winterHungerShare: winterSteps ? winterHungry / (winterSteps * world.people.length) : 0,
+    winterHungerShare: winterSteps ? winterHungry / (winterSteps * Math.max(1, world.people.length)) : 0,
   };
 }
 

@@ -356,6 +356,8 @@ prop("Chest", "chest", 1);
 prop("Shelf", "bookshelf", 0.7);
 prop("Shrine", "roadside-shrine", 0.6);
 prop("Library", "bookshelf", 0.9);
+prop("Weir", "fence-picket", 1.2);
+prop("Snare", "bucket", 1);
 prop("Painted Stone", "rock-large", 0.55);
 // A planted plot: a low bush that bears fruit, no collider.
 // A grave: a standing stone, half size, where someone who died was laid to rest.

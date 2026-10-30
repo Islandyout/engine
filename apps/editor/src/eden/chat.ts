@@ -82,6 +82,13 @@ export function answerWalker(world: World, person: Person, said: string, rnd: ()
     if (person.journal.length > 400) person.journal.shift();
   };
 
+  // What they have in mind.
+  if (/\b(plan|planning|what are you doing|what.?s next|what will you do|why are you)\b/.test(text)) {
+    remember("about what they had in mind");
+    const plan = person.plan;
+    if (!plan) return keep(pick(["Nothing special. I am taking the day as it comes.", "No plan at the moment. Do you have something in mind?"]));
+    return keep(`${plan.why} So: ${plan.steps.map((s) => s.label).join(", then ")}.`);
+  }
   // What they believe, know and have made.
   if (/\b(believe|belief|faith|religion|pray|afterlife|creator|why do we die|where do the dead go)\b/.test(text)) {
     remember("about what they believe");

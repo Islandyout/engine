@@ -8,6 +8,7 @@
 // The host (edenAgents.ts) feeds this the world's things and turns each person's `intent` into movement and an animation.
 
 import { cultureOptions, doCreate, doPonder, doRead, exchangeIdeas, faithful, knows, owe, tradeRates, winterComing, type Arts, type Tenet, type Work } from "./culture";
+import { doInvent, doMake, planOptions, worksNow, type Plan } from "./reason";
 import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach, valueOf, SKILL_WORDS, type Skill, type Value } from "./identity";
 import { fadeNorms, isCustom, NORM_TEXT, reinforce, standing, strengthOf, type NormId } from "./norms";
 import { fade, feel as feelEmotion, importance, moodPush, opinionTags, BELIEF_WORDS, type Belief, type Emotion } from "./inner";
@@ -82,6 +83,9 @@ export const AFFORDANCES: Record<string, Affordances> = {
   rock: { rest: true },
   // Made by the people: a painted stone people stop to look at, and a library where books are kept and read.
   artwork: { view: true },
+  // Found by experiment (reason.ts): a weir in the water and a snare by a game trail, each filling slowly with food.
+  weir: { food: 0.5 },
+  snare: { food: 0.8 },
   library: { comfort: 0.03 },
   bush: { food: 0.25, stock: 4 },
   deer: { creature: true, mobile: 0.9, prey: true },
@@ -147,7 +151,7 @@ export interface Memory {
   lastSeen: number; // sim seconds
 }
 
-export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame" | "sew" | "wash" | "fetch" | "furnish" | "improve" | "carve" | "gift" | "trade" | "pray" | "teach" | "steal" | "create" | "ponder" | "read";
+export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame" | "sew" | "wash" | "fetch" | "furnish" | "improve" | "carve" | "gift" | "trade" | "pray" | "teach" | "steal" | "create" | "ponder" | "read" | "invent" | "make";
 export interface Intent {
   kind: IntentKind;
   targetId?: string; // a thing's id or another person's id
@@ -206,6 +210,9 @@ export interface Person {
   promises?: { to: string; due: number }[]; // what they have promised, and by when
   laughUntil?: number; // world clock until which they are laughing (a joke was told)
   thefts?: number;
+  plan?: Plan; // what they have worked out to do next, and why (reason.ts)
+  planAt?: number; // when they last tried to foresee something
+  tried?: string[]; // experiments that came to nothing, so they are not repeated
   arts?: Arts; // how good they are at making things of beauty and at working things out
   ideas?: string[]; // what they know (discoveries, and the books they have read)
   faith?: Record<string, string>; // the answer they hold to each big question (a tenet id)
@@ -254,7 +261,7 @@ export interface Person {
   cold: number; // 0 comfortable .. 1 dangerously cold
   carry: { wood: number; food: number; seed: number; hide?: number }; // what they are carrying
   clothing?: number; // 0 bare .. 1 well wrapped; wears out, kept warm in winter
-  tools: { spear: boolean };
+  tools: { spear: boolean; net?: boolean };
   grief?: number; // 0..1: how heavily a loss weighs; fades over days, eased by sitting at a grave and by company
   // What they have learned from living, from thinking back over what happened (reflect): each 0..1, and each tilts what they choose.
   lessons?: { prepare: number; careful: number };
@@ -843,7 +850,7 @@ function noticeSmallJoys(world: World, person: Person, weather: Weather, nearFir
   const sky: Sky = weather.snowing ? "snow" : weather.raining ? "rain" : weather.fog > 0.45 ? "fog" : weather.windMs > 6 ? "wind" : "clear";
   const near = world.people.filter((q) => q !== person && dist(q.x, q.z, person.x, person.z) < 8).length;
   const kind = person.intent?.kind;
-  const doing: Doing = kind === "eat" ? "eat" : kind === "drink" ? "drink" : kind === "sleep" ? "sleep" : kind === "rest" ? "rest" : kind === "talk" ? "talk" : kind === "gather" || kind === "plant" || kind === "craft" || kind === "fish" || kind === "hunt" || kind === "build" || kind === "sew" || kind === "wash" || kind === "create" ? "work" : kind === "wander" || kind === "look" ? "walk" : "idle";
+  const doing: Doing = kind === "eat" ? "eat" : kind === "drink" ? "drink" : kind === "sleep" ? "sleep" : kind === "rest" ? "rest" : kind === "talk" ? "talk" : kind === "gather" || kind === "plant" || kind === "craft" || kind === "fish" || kind === "hunt" || kind === "build" || kind === "sew" || kind === "wash" || kind === "create" || kind === "make" || kind === "invent" ? "work" : kind === "wander" || kind === "look" ? "walk" : "idle";
   const warm = nearFire || (sky === "clear" && band !== "night" && person.cold < 0.3);
   const options = joysFor({ season: weather.season, band, sky, company: near === 0 ? "alone" : near === 1 ? "one" : "group", doing, warm });
   if (!options.length) return;
@@ -1230,6 +1237,7 @@ function options(person: Person, world: World): Option[] {
   goalOptions(person, world, out);
   skillOptions(person, world, out);
   cultureOptions(person, world, out);
+  planOptions(person, world, out);
   lifeOptions(person, world, out);
   // A child does not gather, build or lay food by, and stays close to their mother.
   if (person.age < ADULT_AGE) {
@@ -1842,10 +1850,10 @@ function finish(person: Person, world: World, intent: Intent) {
       const activity = FISH_BY_SEASON[world.weather?.season ?? 1]!;
       practise(person, "fish", 0.04);
       watchedBy(world, person, "fish");
-      if (rand(person) < 0.55 * activity * Math.min(1, fish / 15) * (0.7 + 0.6 * person.personality.patience) * (1 + 0.7 * skillOf(person, "fish"))) {
+      if (rand(person) < 0.55 * activity * Math.min(1, fish / 15) * (0.7 + 0.6 * person.personality.patience) * (1 + 0.7 * skillOf(person, "fish")) * (person.tools.net ? 1.5 : 1)) {
         world.fish = Math.max(0, fish - 1);
-        person.carry.food = Math.min(8, person.carry.food + 2);
-        note(person, world, "Caught a fish.");
+        person.carry.food = Math.min(8, person.carry.food + (person.tools.net ? 3 : 2));
+        note(person, world, person.tools.net ? "Hauled in the net: a good catch." : "Caught a fish.");
         tally(world, "fished");
         person.say = "A fish. Supper.";
         joy(0.12);
@@ -2107,6 +2115,12 @@ function finish(person: Person, world: World, intent: Intent) {
       }
       break;
     }
+    case "invent":
+      doInvent(world, person, joy);
+      break;
+    case "make":
+      doMake(world, person, intent.targetId, joy);
+      break;
     case "create":
       doCreate(world, person, joy);
       break;
@@ -2325,7 +2339,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
   world.fish = Math.min(40, fish + dt * (0.0002 * fish * (1 - fish / 40) * FISH_BY_SEASON[weather.season]! + 1 / DAY));
   // Food grows back, a meal at a time, quickly in summer and rain and hardly at all in winter.
   for (const t of world.things) {
-    if (t.maxStock === undefined || t.stock === undefined || t.stock >= t.maxStock) continue;
+    if (t.maxStock === undefined || t.stock === undefined || t.stock >= t.maxStock || !worksNow(world, t)) continue;
     t.growth = (t.growth ?? 0) + dt * growthRate(weather);
     if (t.growth >= REGROW_SECONDS) {
       t.growth = 0;
@@ -2945,6 +2959,8 @@ export function actionOf(person: Person): string {
     case "improve":
     case "carve":
     case "create":
+    case "make":
+    case "invent":
       return "craft";
     case "ponder":
     case "read":

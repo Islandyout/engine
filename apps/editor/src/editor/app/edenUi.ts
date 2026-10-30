@@ -424,6 +424,7 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
       if (feelings.length) mindsView.appendChild(el("div", undefined, `Feeling: ${feelings.map(([k, v]) => `${k} ${Math.round((v ?? 0) * 100)}%`).join(", ")}`));
       if (p.carry.wood || p.carry.food) mindsView.appendChild(el("div", undefined, `Carrying ${p.carry.wood} wood, ${p.carry.food} food.`));
 
+      if (p.plan) mindsView.appendChild(el("div", undefined, `Plan: ${p.plan.goal} (${Math.min(p.plan.stepAt + 1, p.plan.steps.length)}/${p.plan.steps.length}: ${p.plan.steps[Math.min(p.plan.stepAt, p.plan.steps.length - 1)]?.label ?? ""}). ${p.plan.why}`));
       if (p.goals.length) {
         mindsView.appendChild(el("div", "eden-sub", "What they want to do"));
         for (const g of p.goals) mindsView.appendChild(el("div", undefined, `${g.kind}${g.target ? ` (${g.target})` : ""} · ${Math.round(g.progress * 100)}%`));

@@ -71,6 +71,23 @@ export const DISCOVERIES: Discovery[] = [
   { id: "stars", needs: ["calendar"], name: "the stars", ready: (w, p) => isNight(w.clock ?? 0) && loreOf(p) >= 0.25, line: (p) => `${p.name} watched the stars wheel through the year and named them: the stars.`, effect: "stories are told of the sky" },
 ];
 
+export interface Invention {
+  id: string;
+  name: string;
+  wood: number;
+  hide: number;
+  place: "water" | "prey"; // where it works: beside water, or where game passes
+  line(p: Person): string;
+  effect: string;
+}
+/** The laws of this world that nobody is told: things that work if tried with the right stuff in the right place. Found by experiment (reason.ts). */
+export const INVENTIONS: Invention[] = [
+  { id: "weir", name: "a fish weir", wood: 4, hide: 0, place: "water", line: (p) => `${p.name} staked sticks across the shallows and found the fish gather in them: a weir.`, effect: "a weir in the water fills with fish all through the warm months" },
+  { id: "snare", name: "a snare", wood: 3, hide: 0, place: "prey", line: (p) => `${p.name} bent a green branch over a game trail and found it takes meat while they sleep: a snare.`, effect: "snares by game trails fill with meat" },
+  { id: "net", name: "a net", wood: 2, hide: 1, place: "water", line: (p) => `${p.name} knotted strips of hide on a wooden frame and found it catches more fish than patience does: a net.`, effect: "a net catches half as many fish again" },
+];
+export const ideaName = (id: string) => DISCOVERIES.find((d) => d.id === id)?.name ?? INVENTIONS.find((i) => i.id === id)?.name ?? id;
+
 /** Someone living holds the idea, or a book keeps it. Knowledge dies with its last holder unless it was written. */
 export function knows(world: World, id: string): boolean {
   if (!world.knowledge?.[id]) return false;
@@ -310,7 +327,7 @@ export function exchangeIdeas(world: World, a: Person, b: Person) {
       if (rand(from) < 0.25 + 0.3 * loreOf(to) + 0.2 * relation(to, from.id, world).trust) {
         (to.ideas ??= []).push(id);
         practiseArts(to, "lore", 0.02);
-        note(to, world, `${from.name} explained ${DISCOVERIES.find((d) => d.id === id)?.name ?? id} to me.`);
+        note(to, world, `${from.name} explained ${ideaName(id)} to me.`);
         tally(world, "ideasShared");
       }
     }
