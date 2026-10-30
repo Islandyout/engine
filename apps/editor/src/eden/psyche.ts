@@ -239,7 +239,7 @@ export function psycheStep(person: Person, world: World, dt: number) {
   }
   if (fond > 0) (target.oxytocin += Math.min(0.3, 0.1 * fond) * ps.sens.oxytocin), (target.serotonin += Math.min(0.08, 0.03 * fond));
   if (!anyone && n.social > 0.6) target.oxytocin -= 0.1;
-  if (rival) feel(person, "jealousy", 0.02 * dt * (0.4 + 0.6 * (person.relations.get(rival.with.id)?.affinity ?? 0.5)));
+  if (rival) feel(person, "jealousy", 0.02 * dt * (0.4 + 0.6 * (person.relations.get(rival.with.id)?.affinity ?? 0.5)) * (person.dev?.attachment === "anxious" ? 1.5 : 1));
 
   // Chemistry moves toward its target, each at its own speed.
   for (const c of CHEMS) {
@@ -279,13 +279,14 @@ export function psycheStep(person: Person, world: World, dt: number) {
   const roofed = world.things.some((t) => (t.kind === "shelter" || (t.kind === "campfire" && (t.fuel ?? 0) > 0)) && dist(t.x, t.z, person.x, person.z) < 10);
   const safeTarget = dread ? 0.2 : roofed ? 0.9 : isNight(now) ? 0.45 : 0.7;
   ps.drives.safety += (safeTarget - ps.drives.safety) * (1 - Math.pow(0.5, dt / (0.2 * DAY)));
-  const belongTarget = Math.min(1, 0.15 + 0.3 * fond + (anyone ? 0.1 : 0));
+  const style = person.dev?.attachment;
+  const belongTarget = Math.min(1, 0.15 + 0.3 * fond + (anyone ? 0.1 : 0) + (style === "secure" ? 0.1 : style === "avoidant" ? -0.15 : 0) - (person.dev?.bondDeficit ? 0.2 : 0));
   ps.drives.belonging += (belongTarget - ps.drives.belonging) * (1 - Math.pow(0.5, dt / (0.8 * DAY)));
   const attachTarget = kinNear ? 0.9 : 0.35;
   ps.drives.attachment += (attachTarget - ps.drives.attachment) * (1 - Math.pow(0.5, dt / (0.6 * DAY)));
 
   // Feelings that come from how things stand.
-  if (n.social > 0.75 && !anyone) feel(person, "loneliness", 0.004 * dt);
+  if (n.social > 0.75 && !anyone) feel(person, "loneliness", 0.004 * dt * (style === "anxious" ? 1.6 : style === "avoidant" ? 0.6 : 1));
   else if (anyone && (e.loneliness ?? 0) > 0) feel(person, "loneliness", -0.003 * dt * fond);
   if (ps.drives.stimulation < 0.25) feel(person, "boredom", 0.002 * dt);
   if (person.plan || (world.weather?.season ?? 1) === 0 || person.pregnant) feel(person, "hope", 0.0008 * dt);
@@ -513,8 +514,9 @@ export function consolidate(person: Person, world: World) {
 export function appraise(person: Person, otherId: string, delta: number): number {
   const aff = person.relations.get(otherId)?.affinity ?? 0;
   const s = person.psyche?.state === "depressed" ? 0.8 : 1; // a low state sees kindness less
-  if (delta >= 0) return delta * (0.65 + 0.7 * clamp01((aff + 1) / 2)) * s;
-  return delta * (1.45 - 0.9 * clamp01((aff + 1) / 2));
+  const style = person.dev?.attachment; // one who learned that no one comes expects little; one never sure of being answered feels it more either way
+  if (delta >= 0) return delta * (0.65 + 0.7 * clamp01((aff + 1) / 2)) * s * (style === "avoidant" ? 0.75 : style === "anxious" ? 1.1 : 1);
+  return delta * (1.45 - 0.9 * clamp01((aff + 1) / 2)) * (style === "anxious" ? 1.2 : 1);
 }
 
 // ---- Life story ----

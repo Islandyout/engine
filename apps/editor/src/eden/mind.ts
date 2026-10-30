@@ -7,6 +7,7 @@
 //
 // The host (edenAgents.ts) feeds this the world's things and turns each person's `intent` into movement and an animation.
 
+import { AGE, devOptions, devStep, limitSpeech, onDeathSeenBy, weaning, witnessShare, type Dev } from "./development";
 import { cultureOptions, doCreate, doPonder, doRead, exchangeIdeas, faithful, knows, owe, tradeRates, winterComing, type Arts, type Tenet, type Work } from "./culture";
 import { doInvent, doMake, planOptions, worksNow, type Plan } from "./reason";
 import { afterAct, appraise, milestone, recall, psycheBias, psycheEvent, psycheStep, type Psyche } from "./psyche";
@@ -277,6 +278,7 @@ export interface Person {
   skills?: Record<Skill, number>; // how good they are at each now
   story?: string; // who they are, in a few lines
   role?: string; // what they are known for (their best skill, once it is worth naming)
+  dev?: Dev; // how they have been brought up so far (development.ts)
   psyche?: Psyche; // drives, body chemistry, lasting states, habits, cues (psyche.ts)
   emotions?: Partial<Record<Emotion, number>>; // what they feel now, each 0..1, fading at its own speed (inner.ts)
   stress?: number; // sim seconds spent very low; held long enough it breaks
@@ -1097,8 +1099,13 @@ function infantStep(person: Person, world: World, dt: number, external: boolean)
   } else {
     person.intent = { kind: "linger", x: person.x, z: person.z, speed: 0, remaining: 5, arrived: true };
     if (mother.needs.hunger < 0.85) {
-      person.needs.hunger = clamp01(person.needs.hunger - dt / 250);
-      person.needs.thirst = clamp01(person.needs.thirst - dt / 250); // milk is drink too
+      const milk = 1 - weaning(person.age); // weaning: milk counts for less as solids take over
+      person.needs.hunger = clamp01(person.needs.hunger - (dt / 250) * milk);
+      person.needs.thirst = clamp01(person.needs.thirst - (dt / 250) * milk); // milk is drink too
+      if (milk < 1 && mother.carry.food >= 1 && person.needs.hunger > 0.3) {
+        mother.carry.food -= dt / 600;
+        person.needs.hunger = clamp01(person.needs.hunger - dt / 400);
+      }
       mother.needs.hunger = clamp01(mother.needs.hunger + dt / 1500);
       person.needs.social = clamp01(person.needs.social - dt / 400);
     }
@@ -1250,10 +1257,13 @@ function options(person: Person, world: World): Option[] {
   skillOptions(person, world, out);
   cultureOptions(person, world, out);
   planOptions(person, world, out);
+  devOptions(person, world, out);
   lifeOptions(person, world, out);
   // A child does not gather, build or lay food by, and stays close to their mother.
   if (person.age < ADULT_AGE) {
     const allowed = new Set<IntentKind>(["wash", "mourn", "eat", "drink", "rest", "sleep", "look", "play", "talk", "comfort", "linger", "wander", "warm"]);
+    // From about six they take on small chores.
+    if (person.age >= AGE.childhood) for (const k of ["gather", "forage", "plant", "stash", "fish"] as const) allowed.add(k);
     const kept = out.filter((o) => allowed.has(o.intent.kind));
     out.splice(0, out.length, ...kept);
     const mother = world.people.find((q) => q.id === person.mother);
@@ -2011,6 +2021,7 @@ function finishCore(person: Person, world: World, intent: Intent) {
         uphold(world, "share", person, 0.07);
         if (isCustom(world, "share")) for (const q of world.people) if (q !== person && q !== other && dist(q.x, q.z, person.x, person.z) < 15) relation(q, person.id, world).trust = Math.min(1, relation(q, person.id, world).trust + 0.03);
         owe(world, person, other);
+        witnessShare(world, person, other);
         person.say = `Here, ${other.name}. Eat.`;
         note(person, world, `Gave ${other.name} some food.`);
         note(other, world, `${person.name} gave me food when I was hungry.`);
@@ -2420,6 +2431,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     person.mood = clampMood(person.mood + (moodTarget - person.mood) * Math.min(1, dt / (moodTarget < person.mood ? 60 : 120)));
     fade(person, dt);
     psycheStep(person, world, dt);
+    devStep(person, world, dt);
     breakDown(person, world, dt);
     if (person.grief) {
       person.mood = Math.min(person.mood, 0.3 - person.grief);
@@ -2451,7 +2463,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       person.diet![k] = person.diet![k]! * Math.pow(0.5, dt / DAY);
       if (person.diet![k]! < 0.02) delete person.diet![k];
     }
-    if (person.age < 1) {
+    if (person.age < AGE.infancyEnds) {
       infantStep(person, world, dt, !!settings.externalMotion);
       continue;
     }
@@ -2585,6 +2597,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     }
   }
   lifeAndDeath(world, dt);
+  limitSpeech(world);
 }
 
 // The creatures of the garden live their own lives: deer graze about and run from people and foxes; foxes hunt deer and starve without
@@ -2967,6 +2980,7 @@ function lifeAndDeath(world: World, dt: number) {
       other.mood = clampMood(other.mood - 0.7 * grief);
       other.grief = clamp01((other.grief ?? 0) + 0.9 * grief);
       note(other, world, `${person.name} died${cause === "old age" ? " of old age" : ` of ${cause}`}.`);
+      onDeathSeenBy(world, person, other);
       if (grief > 0.4) {
         psycheEvent(other, "loss", grief);
         milestone(other, world, "loss", `lost ${person.name}`);
