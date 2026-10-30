@@ -8,6 +8,7 @@
 // something does, it is theirs to use and to teach (culture.ts INVENTIONS: laws of this world that nobody is told).
 import { DAY, YEAR } from "./earth";
 import { INVENTIONS } from "./culture";
+import { psycheEvent } from "./psyche";
 import { recruit, scoutPlan, solveProblem, teamOptions } from "./solve";
 import { ADULT_AGE, AFFORDANCES, chronicle, isNight, make, note, rand, tally, type Intent, type Person, type Thing, type World } from "./mind";
 
@@ -234,12 +235,14 @@ export function planOptions(person: Person, world: World, out: Option[]) {
       plan = undefined;
     } else if (now > plan.deadline + 60) {
       note(person, world, `I ran out of time for ${plan.goal}.`);
+      psycheEvent(person, "regret", 1);
       tally(world, "plansLate");
       tally(world, `late: ${plan.goal.replace(/ the .*$/, "").slice(0, 24)}`);
       person.plan = undefined;
       plan = undefined;
     } else if (now - plan.made > Math.max(DAY, plan.secs * 6)) {
       note(person, world, `I gave up on ${plan.goal}; it was taking too long.`);
+      psycheEvent(person, "regret", 0.7);
       tally(world, "plansDropped");
       person.plan = undefined;
       plan = undefined;

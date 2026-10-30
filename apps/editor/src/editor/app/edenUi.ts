@@ -1,3 +1,4 @@
+import { blendOf } from "../../eden/inner";
 import { bondOf, hourOf, phrase, type Person, type World } from "../../eden/mind";
 import { DAY } from "../../eden/earth";
 import { CUSTOM_AT, NORM_TEXT, standing, standingWord, type NormId } from "../../eden/norms";
@@ -429,6 +430,13 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
       if (feelings.length) mindsView.appendChild(el("div", undefined, `Feeling: ${feelings.map(([k, v]) => `${k} ${Math.round((v ?? 0) * 100)}%`).join(", ")}`));
       if (p.carry.wood || p.carry.food) mindsView.appendChild(el("div", undefined, `Carrying ${p.carry.wood} wood, ${p.carry.food} food.`));
 
+      if (p.psyche) {
+        const ps = p.psyche;
+        const low = Object.entries(ps.drives).filter(([, v]) => v < 0.35).map(([k]) => k);
+        const blend = blendOf(p);
+        mindsView.appendChild(el("div", undefined, `Body: ${Object.entries(ps.chem).filter(([k]) => k !== "melatonin").map(([k, v]) => `${k} ${Math.round(v * 100)}`).join(", ")}${ps.state ? ` · ${ps.state}` : ""}${ps.deficit > 0.1 ? " · craving" : ""}`));
+        mindsView.appendChild(el("div", undefined, `Wants: ${low.length ? low.join(", ") : "nothing pressing"}${blend ? ` · feels ${blend}` : ""}`));
+      }
       if (p.plan) mindsView.appendChild(el("div", undefined, `Plan: ${p.plan.goal} (${Math.min(p.plan.stepAt + 1, p.plan.steps.length)}/${p.plan.steps.length}: ${p.plan.steps[Math.min(p.plan.stepAt, p.plan.steps.length - 1)]?.label ?? ""}). ${p.plan.why}`));
       if (p.goals.length) {
         mindsView.appendChild(el("div", "eden-sub", "What they want to do"));

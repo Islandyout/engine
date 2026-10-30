@@ -9,6 +9,7 @@
 
 import { cultureOptions, doCreate, doPonder, doRead, exchangeIdeas, faithful, knows, owe, tradeRates, winterComing, type Arts, type Tenet, type Work } from "./culture";
 import { doInvent, doMake, planOptions, worksNow, type Plan } from "./reason";
+import { afterAct, appraise, milestone, psycheBias, psycheEvent, psycheStep, type Psyche } from "./psyche";
 import { fightBeast, learnFromWorld, teamStep, type Rule, type Team } from "./solve";
 import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach, valueOf, SKILL_WORDS, type Skill, type Value } from "./identity";
 import { fadeNorms, isCustom, NORM_TEXT, reinforce, standing, strengthOf, type NormId } from "./norms";
@@ -276,6 +277,7 @@ export interface Person {
   skills?: Record<Skill, number>; // how good they are at each now
   story?: string; // who they are, in a few lines
   role?: string; // what they are known for (their best skill, once it is worth naming)
+  psyche?: Psyche; // drives, body chemistry, lasting states, habits, cues (psyche.ts)
   emotions?: Partial<Record<Emotion, number>>; // what they feel now, each 0..1, fading at its own speed (inner.ts)
   stress?: number; // sim seconds spent very low; held long enough it breaks
   breakAt?: number; // world clock of their last break
@@ -1724,6 +1726,10 @@ export function personById(world: World, id: string | undefined): Person | undef
 }
 
 function finish(person: Person, world: World, intent: Intent) {
+  finishCore(person, world, intent);
+  afterAct(world, person, intent);
+}
+function finishCore(person: Person, world: World, intent: Intent) {
   const t = thingById(world, intent.targetId);
   const a = t ? aff(t) : {};
   const { needs } = person;
@@ -2169,6 +2175,7 @@ function finish(person: Person, world: World, intent: Intent) {
         theirs.lastQuarrel = world.clock ?? 0;
         feelEmotion(victim, "anger", 0.6);
         feelEmotion(person, "shame", 0.5);
+        psycheEvent(person, "wrong", 1);
         person.thefts = (person.thefts ?? 0) + 1;
         note(person, world, `Took food from ${victim.name} because I was starving. I am ashamed.`);
         note(victim, world, `${person.name} took food from me.`);
@@ -2228,6 +2235,9 @@ function finish(person: Person, world: World, intent: Intent) {
         feelEmotion(person, "anger", 0.4);
         feelEmotion(other, "anger", 0.4);
         person.say = "Leave me be.";
+        psycheEvent(person, "wrong", 0.5);
+        psycheEvent(person, "threat", 0.3);
+        psycheEvent(other, "threat", 0.3);
         note(person, world, `Quarrelled with ${other.name}.`);
         tally(world, "quarrels");
         note(other, world, `Quarrelled with ${person.name}.`);
@@ -2241,7 +2251,7 @@ function finish(person: Person, world: World, intent: Intent) {
         for (const [r, who] of [[mine, other], [theirs, person]] as const) {
           r.familiarity = Math.min(1, r.familiarity + 0.04);
           r.trust = Math.min(1, r.trust + 0.02);
-          r.affinity = Math.max(-1, Math.min(1, r.affinity + 0.03 + 0.04 * who.personality.sociability));
+          r.affinity = Math.max(-1, Math.min(1, r.affinity + appraise(who === person ? other : person, who.id, 0.03 + 0.04 * who.personality.sociability)));
           r.lastTogether = world.clock ?? 0;
         }
         // They say something to each other, about what weighs most with them (speech.ts).
@@ -2405,6 +2415,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     // The mood falls faster than it rises, as it does in people.
     person.mood = clampMood(person.mood + (moodTarget - person.mood) * Math.min(1, dt / (moodTarget < person.mood ? 60 : 120)));
     fade(person, dt);
+    psycheStep(person, world, dt);
     breakDown(person, world, dt);
     if (person.grief) {
       person.mood = Math.min(person.mood, 0.3 - person.grief);
@@ -2460,7 +2471,9 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     // A dog at their side steadies them, and is company.
     const dogNear = world.things.some((q) => q.kind === "dog" && q.of === person.id && dist(q.x, q.z, person.x, person.z) < 8);
     if (dogNear) needs.social = clamp01(needs.social - dt / 1800);
-    const scared = hurt || f.level > 0.25 + 0.3 * p.boldness + 0.7 * desperate + (dogNear ? 0.25 : 0);
+    // An anxious or alert body takes fright sooner; a steady one, later.
+    const jumpy = (person.psyche?.state === "anxious" ? 0.12 : 0) + 0.2 * ((person.psyche?.chem.noradrenaline ?? 0.25) - 0.25);
+    const scared = hurt || f.level > 0.25 + 0.3 * p.boldness + 0.7 * desperate + (dogNear ? 0.25 : 0) - jumpy;
     if (scared && f.from && person.intent?.kind !== "flee") {
       // Away from the danger, far enough to be out of its reach.
       const away = Math.atan2(person.z - f.from.z, person.x - f.from.x);
@@ -2501,7 +2514,9 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     } else if (person.followUntil !== undefined && (person.followUntil <= (world.clock ?? 0) || !world.visitor)) person.followUntil = undefined;
 
     if (!person.intent) {
-      const picked = choose(person, options(person, world));
+      const opts = options(person, world);
+      psycheBias(person, world, opts);
+      const picked = choose(person, opts);
       person.intent = { ...picked.intent, arrived: false };
     }
     const intent = person.intent;
@@ -2896,6 +2911,8 @@ function giveBirth(world: World, mother: Person, father: Person) {
       relation(parent, child.id, world).affinity = 0.95;
       parent.mood = clampMood(parent.mood + 0.5);
       note(parent, world, parent === mother ? `${name} was born to me.` : `${name} was born. I am a father.`);
+      milestone(parent, world, "child", `became a ${parent === mother ? "mother" : "father"} when ${name} was born`);
+      psycheEvent(parent, "touch", 1.5);
     }
     note(child, world, "I was born.");
     tally(world, "births");
@@ -2930,6 +2947,10 @@ function lifeAndDeath(world: World, dt: number) {
       other.mood = clampMood(other.mood - 0.7 * grief);
       other.grief = clamp01((other.grief ?? 0) + 0.9 * grief);
       note(other, world, `${person.name} died${cause === "old age" ? " of old age" : ` of ${cause}`}.`);
+      if (grief > 0.4) {
+        psycheEvent(other, "loss", grief);
+        milestone(other, world, "loss", `lost ${person.name}`);
+      }
     }
   }
   for (const mother of world.people) {

@@ -4,6 +4,8 @@
 // (economy). Everything here is pure and driven by the same seeded streams as the rest of the mind.
 import { DAY, hourOf, YEAR } from "./earth";
 import { skillOf, valueOf, type Value } from "./identity";
+import { feel } from "./inner";
+import { milestone, psycheEvent } from "./psyche";
 import { ADULT_AGE, chronicle, isNight, make, note, personById, rand, relation, tally, thingById, type Intent, type Person, type Thing, type World } from "./mind";
 
 export interface Work {
@@ -112,6 +114,8 @@ function discover(world: World, person: Person, d: Discovery) {
   chronicle(world, d.line(person));
   note(person, world, `I worked it out: ${d.name}. ${d.effect[0]!.toUpperCase()}${d.effect.slice(1)}.`);
   tally(world, "discoveries");
+  psycheEvent(person, "triumph", 1);
+  milestone(person, world, "discovery", `worked out ${d.name}`);
 }
 
 // ---- Big questions ----
@@ -279,6 +283,7 @@ export function doCreate(world: World, person: Person, joy: (v: number) => void)
     rel.affinity = Math.min(1, rel.affinity + 0.03 * (0.5 + quality));
     note(q, world, `${person.name} ${what} "${work.title}". It was ${quality > 0.6 ? "beautiful" : quality > 0.35 ? "pleasant" : "rough, but kindly meant"}.`);
     practiseArts(q, "art", 0.01);
+    if (quality > 0.6 && artOf(q) < artOf(person) - 0.15 && q.psyche && q.psyche.drives.esteem < 0.4) feel(q, "envy", 0.3);
   }
   tally(world, kind === "story" ? "stories" : `${kind}s`);
   if (works.filter((w) => w.kind === kind).length === 1) chronicle(world, `${person.name} made the first ${kind}: "${work.title}".`);
