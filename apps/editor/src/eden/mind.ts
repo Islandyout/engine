@@ -13,6 +13,7 @@ import { cultureOptions, doCreate, doPonder, doRead, exchangeIdeas, faithful, kn
 import { doInvent, doMake, planOptions, worksNow, type Plan } from "./reason";
 import { afterAct, appraise, milestone, recall, psycheBias, psycheEvent, psycheStep, type Psyche } from "./psyche";
 import { selfOf, mindStep, recordOutcome, resolveConflict, lessonBias, snapshot, aftermathOfTheft, witnessCost, judge, surpriseGift, talkAbout, type Self, type Fact, type Model, type Snap } from "./mindmodel";
+import { celebrate, heartAfter, heartBias, heartStep, painBias, sacrificeStep, type Heart } from "./heart";
 import { fightBeast, learnFromWorld, teamStep, type Rule, type Team } from "./solve";
 import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach, valueOf, SKILL_WORDS, type Skill, type Value } from "./identity";
 import { fadeNorms, isCustom, NORM_TEXT, reinforce, standing, strengthOf, type NormId } from "./norms";
@@ -292,6 +293,7 @@ export interface Person {
   lastRationalised?: number;
   accusedBy?: string[];
   favourFor?: { to: string; until: number };
+  heart?: Heart; // love, pain, joy and purpose (heart.ts)
   psyche?: Psyche; // drives, body chemistry, lasting states, habits, cues (psyche.ts)
   emotions?: Partial<Record<Emotion, number>>; // what they feel now, each 0..1, fading at its own speed (inner.ts)
   stress?: number; // sim seconds spent very low; held long enough it breaks
@@ -1755,6 +1757,7 @@ export function personById(world: World, id: string | undefined): Person | undef
 function finish(person: Person, world: World, intent: Intent) {
   finishCore(person, world, intent);
   recordOutcome(person, world, intent);
+  heartAfter(world, person, intent);
   afterAct(world, person, intent);
   triedKind(person, intent.kind);
 }
@@ -2457,6 +2460,8 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     devStep(person, world, dt);
     lifeStep(person, world, dt);
     mindStep(person, world, dt);
+    heartStep(person, world, dt);
+    if (person.age >= ADULT_AGE && Math.floor((world.clock ?? 0) / 4) !== Math.floor(((world.clock ?? 0) - dt) / 4)) sacrificeStep(person, world, 4, world.things.filter((t) => aff(t).predator && aff(t).creature));
     breakDown(person, world, dt);
     if (person.grief) {
       person.mood = Math.min(person.mood, 0.3 - person.grief);
@@ -2562,6 +2567,8 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
         else if (o.intent.kind === "eat" || o.intent.kind === "fish" || o.intent.kind === "forage") o.score += 0.45 * clamp01((needs.hunger - 0.55) / 0.35);
       }
       psycheBias(person, world, opts);
+      painBias(person, opts);
+      heartBias(person, world, opts);
       if (needs.thirst < 0.6 && needs.hunger < 0.6) for (const o of opts) o.score += lessonBias(person, world, o.intent.kind);
       resolveConflict(person, world, opts);
       const picked = choose(person, opts);
@@ -2968,6 +2975,7 @@ export function giveBirth(world: World, mother: Person, father: Person) {
     }
     note(child, world, "I was born.");
     tally(world, "births");
+    celebrate(world, mother, `the birth of ${name}`);
     chronicle(world, `${name} was born to ${mother.name} and ${father.name}${named ? `, and named for ${named}, who is gone` : ""}.`);
     if (named) for (const q of world.people) if (q !== child && dist(q.x, q.z, mother.x, mother.z) < 40) note(q, world, `${mother.name} named the baby ${named}, for the one we lost.`);
     mother.say = `Look, ${father.name}. ${name}.`;

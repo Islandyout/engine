@@ -5,6 +5,7 @@
 // death. Beside it the body's rhythms (a woman's cycle, the months after a birth) and the shape of a family: brothers and sisters,
 // a recognised pairing with obligations, widowhood, orphans taken in or not, step-parents, a clan, who inherits, and who may not pair.
 // Ages are Eden years (an adult is 4); `humanYears` in psyche.ts gives the human equivalent.
+import { celebrate } from "./heart";
 import { DAY, YEAR } from "./earth";
 import { feel } from "./inner";
 import { roleOf, valueOf, VALUES } from "./identity";
@@ -418,6 +419,7 @@ export function pairUp(world: World, a: Person, b: Person) {
     relation(x, y.id, world).trust = Math.max(relation(x, y.id, world).trust, 0.7);
   }
   tally(world, "pairs");
+  celebrate(world, a, `the union of ${a.name} and ${b.name}`);
   chronicle(world, `${a.name} and ${b.name} became a couple.`);
   // A clan follows the father; the first of a line starts one.
   const father = a.sex === "m" ? a : b;
