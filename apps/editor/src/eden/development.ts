@@ -392,6 +392,14 @@ export function witnessShare(world: World, giver: Person, receiver: Person) {
 
 /** The small and the dependent come before the self: those who look after children go to them. */
 export function devOptions(person: Person, world: World, out: { intent: Omit<Intent, "arrived">; score: number }[]) {
+  const start = out.length;
+  devOptionsInner(person, world, out);
+  // A parent's own thirst and hunger still count: what is added yields to them past a point (they feed the child from what they carry, they do not go without water to do it).
+  const own = Math.max(person.needs.hunger, person.needs.thirst);
+  const yielding = clamp01(1 - (own - 0.35) * 2.2);
+  for (let i = start; i < out.length; i++) out[i]!.score *= yielding;
+}
+function devOptionsInner(person: Person, world: World, out: { intent: Omit<Intent, "arrived">; score: number }[]) {
   const now = world.clock ?? 0;
   if (person.age >= ADULT_AGE) {
     for (const c of world.people) {

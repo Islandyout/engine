@@ -2539,6 +2539,11 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
 
     if (!person.intent) {
       const opts = options(person, world);
+      // Thirst and hunger climb in importance as they rise past the middle: what the rest of the mind has added (wants, plans, kin, craft) is not allowed to leave someone parched or starved.
+      for (const o of opts) {
+        if (o.intent.kind === "drink") o.score += 0.6 * clamp01((needs.thirst - 0.5) / 0.35);
+        else if (o.intent.kind === "eat" || o.intent.kind === "fish" || o.intent.kind === "forage") o.score += 0.45 * clamp01((needs.hunger - 0.55) / 0.35);
+      }
       psycheBias(person, world, opts);
       const picked = choose(person, opts);
       person.intent = { ...picked.intent, arrived: false };

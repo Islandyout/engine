@@ -516,6 +516,14 @@ export function guardianOf(world: World, child: Person): Person | undefined {
 // ---- Options ----
 
 export function arcOptions(person: Person, world: World, out: Option[]) {
+  const start = out.length;
+  arcOptionsInner(person, world, out);
+  // Their own hunger and thirst come first: what is added here yields to them, and is gone when they are pressing.
+  const own = Math.max(person.needs.hunger, person.needs.thirst);
+  const yielding = clamp01(1 - (own - 0.25) * 2.2);
+  for (let i = start; i < out.length; i++) out[i]!.score *= yielding;
+}
+function arcOptionsInner(person: Person, world: World, out: Option[]) {
   const l = lifeOf(person);
   const now = world.clock ?? 0;
   const h = humanYears(person.age);

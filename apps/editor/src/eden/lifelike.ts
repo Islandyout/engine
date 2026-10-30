@@ -99,6 +99,8 @@ export interface LifeOptions {
   dt?: number;
   // Force a climate; by default each life draws its own.
   climate?: Climate;
+  // Called with the world when the life is over, for tools that want to look inside it.
+  onEnd?: (world: World) => void;
 }
 
 function makeWorld(r: () => number, options: LifeOptions): { world: World; hasDanger: boolean; eden: boolean } {
@@ -285,6 +287,7 @@ export function live(seed: number, options: LifeOptions = {}): Life {
   if (deadCause) deathCause = deadCause === "the cold" ? "cold" : deadCause === "old age" ? "old age" : deadCause === "wounds" ? "danger" : deadCause;
   let partners = 0;
   for (let i = 0; i < world.people.length; i++) for (let j = i + 1; j < world.people.length; j++) if (bondOf(world.people[i]!, world.people[j]!) === "partner") partners++;
+  options.onEnd?.(world);
   return {
     seed,
     people: initialPeople,
