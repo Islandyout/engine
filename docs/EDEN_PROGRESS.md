@@ -43,59 +43,59 @@ and the life sweep shows no survival regression. "Test" below means `apps/editor
 ## Phase D: love, pain, joy, meaning (GAPS 3)
 
 - [ ] D1 Love: infatuation then attachment, desire, jealousy, fidelity and betrayal, heartbreak and long grief, parental love and sacrifice, costly friendship, unrequited love, love turning to hatred. Done means: a test per arc.
-- [ ] D2 Pain: pain as signal shaping behaviour, chronic pain, fear of pain, helplessness at another's pain, pain of loss, shame, humiliation, isolation, abuse and after-effects. Done means: tests that pain changes choices and persists.
+- [x] D2 Pain: pain as signal shaping behaviour, chronic pain, fear of pain, helplessness at another's pain, pain of loss, shame, humiliation, isolation, abuse and after-effects. Done means: tests that pain changes choices and persists.
 - [ ] D3 Joy: from meaning, achievement after hardship, belonging, shared laughter, celebration, rites, music, dance, adult play, beauty, generosity. Done means: tests/measure for each source raising joy.
 - [ ] D4 Meaning: purpose organising a life, crises of meaning, giving life for something, legacy, vocation, search for answers, religion and ritual as consolation, burying the dead. Done means: tests incl. a person choosing risk to death for a held purpose; burial with a reason in state.
 
 ## Phase E: ownership, economy, money, markets, investment (GAPS 5)
 
-- [ ] E1 Ownership and property (field, tool, house, catch), theft as crime against someone, borders, land inheritance. Done means: test theft raises a grievance with the owner; objects carry an owner.
-- [ ] E2 Scarcity, surplus, specialisation, comparative advantage, dependence on others' work, crafts/guilds, tools raising output. Done means: sim shows people living off a speciality and trading surplus.
-- [ ] E3 Trade beyond swaps: distant partners, caravans/boats, markets/fairs, prices moving with supply and demand, haggling, trust networks, middlemen, storage and spoilage. Done means: price series test moves with supply; spoilage test.
-- [ ] E4 Money: medium of exchange, store of value, unit of account, coinage, debt with interest, credit, ledger, tax or tribute. Done means: test that a good becomes money and debt accrues interest.
+- [x] E1 Ownership and property (field, tool, house, catch), theft as crime against someone, borders, land inheritance. Done means: test theft raises a grievance with the owner; objects carry an owner.
+- [x] E2 Scarcity, surplus, specialisation, comparative advantage, dependence on others' work, crafts/guilds, tools raising output. Done means: sim shows people living off a speciality and trading surplus.
+- [x] E3 Trade beyond swaps: distant partners, caravans/boats, markets/fairs, prices moving with supply and demand, haggling, trust networks, middlemen, storage and spoilage. Done means: price series test moves with supply; spoilage test.
+- [x] E4 Money: medium of exchange, store of value, unit of account, coinage, debt with interest, credit, ledger, tax or tribute. Done means: test that a good becomes money and debt accrues interest.
 - [ ] E5 Capital and investment: saving, seed not eaten, improvements for later return, shares in a venture, lending, insurance (granary/clan), speculation, bubbles/crashes, compounding inequality, poverty traps, class. Done means: tests/measures incl. a Gini rise in a long run.
 - [ ] E6 Work and labour: wages, employment, slavery, workers versus commanders. Done means: test wage payment and a command relationship.
-- [ ] E7 Enabling institutions: property law, contracts, weights and measures, writing used for accounts, reputation, enforcement. Done means: counting/writing discoveries used by an account ledger in a test.
+- [x] E7 Enabling institutions: property law, contracts, weights and measures, writing used for accounts, reputation, enforcement. Done means: counting/writing discoveries used by an account ledger in a test.
 
 ## Phase F: education and flow of knowledge (GAPS 6)
 
-- [ ] F1 Structured teaching: apprenticeship with master, initiation, schools, curriculum, tests, reputations for knowing. Done means: test that a pupil gains skill faster with a master, and teacher pays a cost.
-- [ ] F2 Oral tradition and distortion: stories change in retelling, songs as memory aids, proverbs, myths carrying rules. Done means: test that a retold story drifts; a rule survives longer in a song.
+- [x] F1 Structured teaching: apprenticeship with master, initiation, schools, curriculum, tests, reputations for knowing. Done means: test that a pupil gains skill faster with a master, and teacher pays a cost.
+- [x] F2 Oral tradition and distortion: stories change in retelling, songs as memory aids, proverbs, myths carrying rules. Done means: test that a retold story drifts; a rule survives longer in a song.
 - [ ] F3 Access to knowledge: gender/class/guild limits, literacy as power, libraries, censorship, collapse loss, travel/trade carrying knowledge, scholars, book copying. Done means: test per restriction.
-- [ ] F4 Learning from failure and others' failure; teacher errors passed on; false beliefs that spread and persist. Done means: test that a false belief spreads and persists until contradicted; belief update tested.
-- [ ] F5 Curiosity stronger in the young; language learned and changing. Done means: curiosity by age measure; test of vocabulary drift across generations.
+- [x] F4 Learning from failure and others' failure; teacher errors passed on; false beliefs that spread and persist. Done means: test that a false belief spreads and persists until contradicted; belief update tested.
+- [x] F5 Curiosity stronger in the young; language learned and changing. Done means: curiosity by age measure; test of vocabulary drift across generations.
 
 ## Phase G: society: leaders, law, rites, festivals, religion (GAPS 7)
 
-- [ ] G1 Leaders and followers, status hierarchy, councils, chiefs, inherited rank. Done means: leader emerges in sim from status; succession test.
-- [ ] G2 Laws and judging, taboos. Done means: test that a norm becomes a law with a judge who rules on a case.
+- [x] G1 Leaders and followers, status hierarchy, councils, chiefs, inherited rank. Done means: leader emerges in sim from status; succession test.
+- [x] G2 Laws and judging, taboos. Done means: test that a norm becomes a law with a judge who rules on a case.
 - [ ] G3 Rites of passage, marriage customs, funerals with meaning, festivals. Done means: rite occurs at age/event; festival on calendar in the running game.
-- [ ] G4 Feuds between families, alliances. Done means: test of feud inheritance and an alliance forming.
-- [ ] G5 Religion as institution: priests, conflicts. Done means: test of a priest role and a schism over a tenet.
-- [ ] G6 Splitting of the group, founder effects, cultural drift (customs, languages). Done means: two groups diverge in a long-run measure.
+- [x] G4 Feuds between families, alliances. Done means: test of feud inheritance and an alliance forming.
+- [x] G5 Religion as institution: priests, conflicts. Done means: test of a priest role and a schism over a tenet.
+- [x] G6 Splitting of the group, founder effects, cultural drift (customs, languages). Done means: two groups diverge in a long-run measure.
 
 ## Phase H: violence, cruelty, consequences, justice (GAPS 4)
 
 - [ ] H1 Fights, injury and killing of people, murder, execution, war between groups, raids, revenge and feuds. Done means: tests that a fight injures, a killing creates a revenge motive; war between groups in sim.
-- [ ] H2 Bullying, abuse of children, coercion, slavery/exploitation (rape: modelled soberly or explicitly left out, with the decision stated in the doc). Done means: tests for each included item; omission documented.
+- [x] H2 Bullying, abuse of children, coercion, slavery/exploitation (rape: modelled soberly or explicitly left out, with the decision stated in the doc). Done means: tests for each included item; omission documented.
 - [ ] H3 Greed, hoarding, cheating, fraud, bribery, betrayal, informing, scapegoating, mob behaviour, tribalism, prejudice, propaganda. Done means: a test per item.
-- [ ] H4 Causes: scarcity, fear, status, honour, resource guarding, in-group loyalty, desperation, power; same person tender and cruel. Done means: each act logs its cause; test of scarcity raising theft/violence.
-- [ ] H5 Consequences: shame/honour cultures, law, judges, punishment, exile, forgiveness, reconciliation, restitution, prisons, lifelong guilt, vengeance cycles ending. Done means: tests incl. a vengeance cycle that ends via restitution.
+- [x] H4 Causes: scarcity, fear, status, honour, resource guarding, in-group loyalty, desperation, power; same person tender and cruel. Done means: each act logs its cause; test of scarcity raising theft/violence.
+- [x] H5 Consequences: shame/honour cultures, law, judges, punishment, exile, forgiveness, reconciliation, restitution, prisons, lifelong guilt, vengeance cycles ending. Done means: tests incl. a vengeance cycle that ends via restitution.
 
 ## Phase I: wider world, body and ageing (GAPS 7 world part, 9)
 
-- [ ] I1 Other settlements: trade, war, migration. Done means: a second settlement in sim; migrants arrive/leave; test of trade and conflict.
-- [ ] I2 Geography (rivers, mountains, coast), long climate change, epidemics across settlements, resource depletion causing collapse, fire as danger to camp, domestic animals beyond the dog. Done means: a test or sweep per item.
-- [ ] I3 Body: real growth curve (height, strength), menarche/menopause, senses ageing, disability, lasting scars, fitness, sleep debt, hygiene, pregnancy complications, sexual health. Done means: test per item.
+- [x] I1 Other settlements: trade, war, migration. Done means: a second settlement in sim; migrants arrive/leave; test of trade and conflict.
+- [x] I2 Geography (rivers, mountains, coast), long climate change, epidemics across settlements, resource depletion causing collapse, fire as danger to camp, domestic animals beyond the dog. Done means: a test or sweep per item.
+- [x] I3 Body: real growth curve (height, strength), menarche/menopause, senses ageing, disability, lasting scars, fitness, sleep debt, hygiene, pregnancy complications, sexual health. Done means: test per item.
 - [ ] I4 Presentation: faces and blinks, lying-down clip, swimming and rowing used, music beyond generated tune, lighting, visible wear/dirt verified, editable look. Done means: screenshot of each in the running game.
 - [ ] I5 Creator's Walker: body customisation, needs, ageing, consequences of actions on people. Done means: tests and a screenshot.
 
 ## Phase J: thinking and problem solving (GAPS 8, plus objects in 10)
 
-- [ ] J1 General cause-and-effect learning beyond the one fire/wolves rule; analogies; teaching how to solve; belief revision on being wrong. Done means: test that a second, different cause is learned from experience; a wrong belief is updated.
-- [ ] J2 Shared long plans by many; planning over years; risk assessment of unfamiliar things. Done means: multi-person plan completing across seasons in a sim test.
-- [ ] J3 Large invention space (far more than three) and tool chains (pot, loom, kiln, bow). Done means: test that an invention requires a prior one; count of inventions reported.
-- [ ] J4 Agriculture as a revolution, domestication, metals, wheels. Done means: sim shows food surplus shift after farming; tame animal test.
+- [x] J1 General cause-and-effect learning beyond the one fire/wolves rule; analogies; teaching how to solve; belief revision on being wrong. Done means: test that a second, different cause is learned from experience; a wrong belief is updated.
+- [x] J2 Shared long plans by many; planning over years; risk assessment of unfamiliar things. Done means: multi-person plan completing across seasons in a sim test.
+- [x] J3 Large invention space (far more than three) and tool chains (pot, loom, kiln, bow). Done means: test that an invention requires a prior one; count of inventions reported.
+- [x] J4 Agriculture as a revolution, domestication, metals, wheels. Done means: sim shows food surplus shift after farming; tame animal test.
 - [ ] J5 Boats and bridges that people actually use. Done means: a person crosses by bridge and rows a boat in a test and in the running game.
 - [ ] J6 Objects from `EDEN_THINGS.md`: cooking, pots, ovens, boats, bridges, play objects, farm works, animal companions. Done means: each built and used by a mind action in a test.
 
@@ -105,7 +105,7 @@ and the life sweep shows no survival regression. "Test" below means `apps/editor
 - [ ] K2 Ollama run against the code (voice, chat, planner, rewording). Done means: a recorded real run, with failures surfaced loudly.
 - [ ] K3 Eden browser test of its own (`tests/browser/eden*.cjs`) wired into CI. Done means: it runs and passes in CI; CI actions pinned to SHA.
 - [ ] K4 Performance with many bodies rendering measured. Done means: frame-time numbers at 60 people in a doc.
-- [ ] K5 Docs: single design document for the mind; older Supabase-era docs corrected; IMPLEMENTATION_STATUS rows and changelogs for every phase. Done means: files exist and match the code.
+- [x] K5 Docs: single design document for the mind; older Supabase-era docs corrected; IMPLEMENTATION_STATUS rows and changelogs for every phase. Done means: files exist and match the code.
 - [ ] K6 Old Supabase `eden-tick` function switched off or the decision recorded (needs user consent). Done means: confirmed state recorded.
 - [ ] K7 Stray branch `eden-takeover` deleted or reported to the user. Done means: branch list shows it gone, or the refusal is reported.
-- [ ] K8 Superseded installers (10-14) marked superseded in docs. Done means: doc note present.
+- [x] K8 Superseded installers (10-14) marked superseded in docs. Done means: doc note present.

@@ -230,7 +230,7 @@ test("J4: once people know farming they sow fields, and a season on there is a l
     } else assert.equal(kinds(w, "field").length, 0);
   }
   console.log(`food standing after 8 days: without farming ${out[0]!.toFixed(1)}, with ${out[1]!.toFixed(1)}`);
-  assert.ok(out[1]! > out[0]! * 1.2, "a surplus");
+  assert.ok(out[1]! > out[0]! * 1.3 + 3, "a surplus");
 });
 
 test("J4: a wild cow fed by hand three times is theirs, they learn herding from it, and it stays by their pen", () => {
