@@ -281,7 +281,7 @@ export function createPresent(C: Ctx, api: PresentApi): Present {
       now.add(p.id);
       const [, outcome, what, , sx, sz] = tech.route.id.split(":");
       let floor = api.waterLevel + 0.25;
-      if (outcome === "cap") floor = api.waterLevel - 0.35;
+      if (outcome === "cap") floor = api.waterLevel - 0.12; // face down at the surface
       else if (what === "bridge") {
         const b = [...bridgeDeck.values()].find((d) => Math.hypot(d.x0 - Number(sx), d.z0 - Number(sz)) < 3) ?? [...bridgeDeck.values()][0];
         floor = b ? b.deck : api.waterLevel + 0.7;
@@ -336,18 +336,23 @@ export function createPresent(C: Ctx, api: PresentApi): Present {
     hud("Calendar", `${hudNow.title}\n${hudNow.detail}`);
     hudValue("Calendar", hudNow.progress);
     const on = feastTonight(w);
-    if (on && !lastFeast.on) {
+    if (on) {
       const spot = festivalSpot(w);
-      put("feast-fire", "Festival Fire", spot.x, spot.z);
-      [[4, 0], [-4, 0], [0, 4], [0, -4]].forEach(([dx, dz], i) => put(`feast-banner-${i}`, "Settlement Banner", spot.x + dx!, spot.z + dz!));
-      put("feast-drum", "Drum", spot.x + 2.4, spot.z + 1.4);
-      put("feast-flute", "Flute", spot.x - 2.2, spot.z + 1.2);
-      if (lastFeast.noticed !== Math.floor((w.clock ?? 0) / 1440)) {
+      const at = placed.get("feast-fire");
+      // Lit where the people keep it; if the camp's place moves a long way (people moved camp), it is lit again there.
+      if (!at || Math.hypot(at.x - spot.x, at.z - spot.z) > 6) {
+        for (const id of [...placed.keys()]) if (id.startsWith("feast-")) drop(id);
+        put("feast-fire", "Festival Fire", spot.x, spot.z);
+        [[4, 0], [-4, 0], [0, 4], [0, -4]].forEach(([dx, dz], i) => put(`feast-banner-${i}`, "Settlement Banner", spot.x + dx!, spot.z + dz!));
+        put("feast-drum", "Drum", spot.x + 2.4, spot.z + 1.4);
+        put("feast-flute", "Flute", spot.x - 2.2, spot.z + 1.2);
+      }
+      if (!lastFeast.on && lastFeast.noticed !== Math.floor((w.clock ?? 0) / 1440)) {
         lastFeast.noticed = Math.floor((w.clock ?? 0) / 1440);
         hud("Notice", `${hudNow.title}\nThe people gather at the fire`);
         api.log(`${hudNow.title}. The people gather at the fire.`);
       }
-    } else if (!on && lastFeast.on) for (const id of [...placed.keys()]) if (id.startsWith("feast-")) drop(id);
+    } else if (lastFeast.on) for (const id of [...placed.keys()]) if (id.startsWith("feast-")) drop(id);
     lastFeast.on = on;
   }
 

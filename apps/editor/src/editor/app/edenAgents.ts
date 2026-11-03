@@ -769,7 +769,8 @@ export function installEdenAgents(C: Ctx): void {
         const mo = personMotion(person, w, mem, held && held.until >= performance.now() ? held.pose : undefined);
         const walkingNow = !!intent && !intent.arrived;
         const style = walkStyle(person, w);
-        const pose = fast ? undefined : walkingNow ? style.pose : mo.pose;
+        const onWater = mo.pose === "row" || mo.pose === "swim"; // rowing and swimming are the whole body, moving or not
+        const pose = fast ? undefined : onWater ? mo.pose : walkingNow ? style.pose : mo.pose;
         const gaze = fast ? undefined : gazeOf(person, w);
         const faceTo = (x: number, z: number) => {
           const me = at >= 0 ? C.objects[at] : undefined;

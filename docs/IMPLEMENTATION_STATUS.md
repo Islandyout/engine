@@ -148,6 +148,7 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F141](changelog/F141.md) | Eden phase D: love, pain, joy, meaning |
 | [F147](changelog/F147.md) | Eden phase J: many causes learned and revised, analogies, a 48-invention tool-chain space, farms, herding, metals, wheels, boats, bridges, shared projects, 18 crafted object kinds |
 | [F148](changelog/F148.md) | Eden phase K: seen in the running game, a browser test in CI, performance, the mind design document ([EDEN_MIND](EDEN_MIND.md)) |
+| [F152](changelog/F152.md) | Eden presentation: faces that blink, smooth growth, scars, a lying-down sleeper, rowing and swimming, the Walker's look, pace and deeds, other settlements and parties on the road, 20 crafted objects drawn, the feast and calendar in the HUD, the layers in the Minds tab; the lake water no longer falls to the lake bed |
 | [F144](changelog/F144.md) | Eden phase G: leaders, council, succession, laws and judging, rites, festivals, feuds, alliances, priests, schisms, splitting and drift |
 | [F143](changelog/F143.md) | Eden phase F: apprenticeship, oral tradition, access limits, false belief, curiosity by age, vocabulary drift |
 | [F142](changelog/F142.md) | Eden phase E: ownership, specialisation, fair and prices, money, debt, savings, wages, accounts |

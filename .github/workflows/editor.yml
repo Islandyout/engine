@@ -87,6 +87,7 @@ jobs:
           node tests/browser/high_heat.cjs
           node tests/browser/city.cjs
           node tests/browser/eden.cjs
+          node tests/browser/eden_present.cjs
       - name: Validate generated game library
         if: steps.changes.outputs.core != 'true' && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
         run: |
