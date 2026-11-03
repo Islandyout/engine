@@ -32,12 +32,17 @@ const start = world.people.length;
 let desperate = 0;
 let samples = 0;
 const DT = 4;
+const byKind: Record<string, number> = {};
+const kinds: Record<string, number> = {};
+let carryWood = 0, carryFood = 0, nsamp = 0;
 for (let t = 0; t < years * YEAR; t += DT) {
   step(world, DT);
+  if (Math.floor(t / DT) % 20 === 0) { for (const p of world.people) { nsamp++; carryWood += p.carry.wood; carryFood += p.carry.food; const i = p.intent; if ((i?.kind === 'eat' || i?.kind === 'forage') && i.targetId) { const th = world.things.find((x) => x.id === i.targetId); if (th?.owner && th.owner !== p.id) byKind[th.kind] = (byKind[th.kind] ?? 0) + 1; } } }
   if (Math.floor(t / DT) % 15 === 0) for (const p of world.people) { samples++; if (p.needs.hunger > 0.85 || p.needs.thirst > 0.85) desperate++; }
 }
 const keys = ["births", "loans", "loansRepaid", "defaults", "bondage", "bondageEnded", "hired", "wagesPaid", "labourDays", "quitUnpaid", "venturesBuilt", "crashes", "brokered", "marketTrades", "caravanTrades", "restitutionDebts", "propertyTheft", "bound", "freed", "betrayals", "bandsSplit", "act_fight", "act_kill", "act_murder", "raids", "wars", "warsEnded", "coercions", "seedEaten", "startedVentures", "invested", "stored", "lentToPoor", "strangersCame"];
 const out: Record<string, number> = {};
-for (const k of Object.keys(world.tally ?? {}).sort()) if (keys.includes(k) || k.startsWith("act_") || k.startsWith("cause_")) out[k] = +(world.tally![k] ?? 0).toFixed(1);
+for (const k of Object.keys(world.tally ?? {}).sort()) if (process.env.ALL || keys.includes(k) || k.startsWith("act_") || k.startsWith("cause_")) out[k] = +(world.tally![k] ?? 0).toFixed(1);
 const ad = world.people.filter((p) => p.age >= 16);
-console.log(JSON.stringify({ start, end: world.people.length, desperateShare: +(desperate / Math.max(1, samples)).toFixed(4), gini: +wealthGini(world).toFixed(3), classes: ad.reduce((m, p) => ((m[econOf(p).class ?? "?"] = (m[econOf(p).class ?? "?"] ?? 0) + 1), m), {} as Record<string, number>), tally: out }));
+for (const t of world.things) if (t.owner) kinds[t.kind] = (kinds[t.kind] ?? 0) + 1;
+console.log(JSON.stringify({ avgWood: +(carryWood / nsamp).toFixed(2), avgFood: +(carryFood / nsamp).toFixed(2), eatOwned: byKind, ownedKinds: kinds, start, end: world.people.length, desperateShare: +(desperate / Math.max(1, samples)).toFixed(4), gini: +wealthGini(world).toFixed(3), classes: ad.reduce((m, p) => ((m[econOf(p).class ?? "?"] = (m[econOf(p).class ?? "?"] ?? 0) + 1), m), {} as Record<string, number>), tally: out }));

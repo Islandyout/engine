@@ -185,9 +185,9 @@ test("a dishonest friend gives an ally up to the ally's enemy (betrayal in the s
   a.relations.set("Y", { affinity: 0.8, trust: 0.9, familiarity: 0.9, lastTogether: 0 });
   conflictOf(foe).grudge["Y"] = 0.8;
   const w: World = { things: [{ id: "stream", kind: "stream", x: 5, z: 5, radius: 3 }], people: [a, ally, foe], radius: 80, clock: DAY / 3, climate: { meanC: 16, seasonalAmpC: 4, dailyAmpC: 3, rainy: 0.1, seed: 3 }, weather: { season: 1 } as World["weather"] };
-  for (let i = 0; i < 3000 && !tallyOf(w, "betrayals"); i++) {
+  for (let i = 0; i < 12000 && !tallyOf(w, "betrayals"); i++) {
     for (const p of w.people) { p.needs.hunger = 0.1; p.needs.thirst = 0.1; p.intent = { kind: "linger", x: p.x, z: p.z, speed: 0, remaining: 30, arrived: true }; }
-    w.clock = (w.clock ?? 0) + 7;
+    w.clock = (w.clock ?? 0) + 10;
     step(w, 4);
   }
   assert.ok(tallyOf(w, "betrayals") >= 1);

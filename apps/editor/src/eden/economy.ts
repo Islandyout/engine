@@ -172,9 +172,9 @@ export function wrong(world: World, thief: Person, owner: Person, what: Good, n:
   note(owner, world, `${thief.name} took ${n === 1 ? "some" : n} of my ${what}.`);
   tally(world, "propertyTheft");
   const witnesses = world.people.filter((q) => q !== thief && q !== owner && dist(q.x, q.z, owner.x, owner.z) < 25).length;
-  // A starving thief is not made a debtor; a second taking from the same owner adds to the debt that is already open instead of opening another
+  // A hungry thief (past the point where people eat) is not made a debtor; a second taking from the same owner adds to the debt that is already open instead of opening another
   // (a debt a day per meal ended with most of a camp in bondage for a few mouthfuls).
-  if (excuse < 0.7 && (ledgerKind(world) !== "memory" || witnesses >= 2)) {
+  if (excuse < 0.5 && (ledgerKind(world) !== "memory" || witnesses >= 2)) {
     const open = worldEcon(world).debts.find((d) => d.state === "open" && d.why === "restitution" && d.debtor === thief.id && d.creditor === owner.id);
     if (open) open.owed = Math.min(open.owed + n * 1.5, 6);
     else lend(world, owner, thief, what, 0, { restitution: n * 1.5 });
@@ -841,13 +841,13 @@ export function buyShares(world: World, buyer: Person, seller: Person, v: Ventur
 }
 /** One person's economic day: they look at what they hold and what they could do with it. Every choice yields to thirst and hunger, and every chance is from a hash. */
 function chooseDay(world: World, q: Person, ps: Person[], day: number) {
-  if (!free(q) || q.age < ADULT_AGE) return;
+  if (!free(q) || q.age < ADULT_AGE || ps.length < 6) return; // a market of choices needs people to choose among: a handful of people share and swap, they do not employ one another
   const e = worldEcon(world);
   const eq = econOf(q);
   const salt = (what: string) => chanceOf(`${what}|${q.id}|${day}`);
   const nv = nerve(q);
   // Ventures: wood put by in a store is wood that could be put in a boat or a mill, for a share of what it gives.
-  const spare = q.carry.wood + (eq.store?.wood ?? 0) - 4;
+  const spare = q.carry.wood + (eq.store?.wood ?? 0) - 3;
   if (spare >= 1 && !eq.job) {
     const open = e.ventures.find((v) => !v.built);
     if (open) {
@@ -861,7 +861,7 @@ function chooseDay(world: World, q: Person, ps: Person[], day: number) {
       }
     } else if (e.ventures.length < 4 && spare >= 2 && salt("venture") < 0.06 * nv) {
       const kind = knows(world, "boat") ? "boat" : "mill";
-      const v = startVenture(world, q, kind, 8);
+      const v = startVenture(world, q, kind, 7);
       tally(world, "venturesStarted");
       note(q, world, `I have started a ${kind}, and will share in what it gives to those who put wood in.`);
       const n = Math.min(spare, 3);
@@ -871,7 +871,7 @@ function chooseDay(world: World, q: Person, ps: Person[], day: number) {
     }
   }
   // Speculation: the bold buy a share that is rising, from someone who will sell.
-  if (q.personality.boldness > 0.6 && q.carry.food >= 4) {
+  if (q.personality.boldness > 0.6 && q.carry.food >= 3) {
     const v = e.ventures.find((x) => x.built && ((x.shares[q.id] ?? 0) > 0 || x.sentiment > 0.05));
     if (v && salt("speculate") < 0.2 * nv) {
       const seller = ps.find((o) => o !== q && (v.shares[o.id] ?? 0) >= 1 && free(o));
@@ -882,9 +882,9 @@ function chooseDay(world: World, q: Person, ps: Person[], day: number) {
     }
   }
   // Hiring: someone with more than they need takes on a neighbour who has little, and pays a day's wage.
-  if ((q.carry.food >= 5 || q.carry.wood >= 8) && jobsOf(ps, q).length < 2 && salt("hire") < 0.1 * nv) {
+  if ((q.carry.food >= 4 || q.carry.wood >= 6) && jobsOf(ps, q).length < 2 && salt("hire") < 0.15 * nv) {
     const w = ps.find((o) => o !== q && !econOf(o).job && o.age >= ADULT_AGE && dist(o.x, o.z, q.x, q.z) < 30 && (econOf(o).class === "poor" || o.carry.food < 2) && trustOf(q, o, world) >= 0.3 && !jobsOf(ps, o).length);
-    if (w) hire(world, q, w, q.carry.food >= 5 ? "food" : "wood", 1);
+    if (w) hire(world, q, w, q.carry.food >= 4 ? "food" : "wood", 0.5);
   }
   // A worker with a full pack of their own goes back to working for themselves.
   const job = eq.job;
@@ -899,7 +899,7 @@ function chooseDay(world: World, q: Person, ps: Person[], day: number) {
     if (w) command(world, q, w, "forage");
   }
   // Lending before it is begged for: to a neighbour who has nothing in the pack and who is trusted.
-  if (q.carry.food >= 6 && salt("lend") < 0.25) {
+  if (q.carry.food >= 4 && salt("lend") < 0.25) {
     const open = e.debts.filter((d) => d.creditor === q.id && d.state === "open" && d.why === "loan").length;
     const b = open < 3 ? ps.find((o) => o !== q && o.carry.food < 1.5 && dist(o.x, o.z, q.x, q.z) < 25 && trustOf(q, o, world) >= 0.4 && !e.debts.some((d) => d.debtor === o.id && d.state === "open" && d.why === "loan")) : undefined;
     if (b && lend(world, q, b, "food", 2).ok && econOf(b).class === "poor") tally(world, "lentToPoor");

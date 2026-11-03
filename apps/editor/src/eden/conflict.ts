@@ -828,7 +828,7 @@ export function conflictStep(person: Person, world: World, dt: number) {
     // for favour, for safety, or for gain. Once to a friend; the friend will not be fooled twice.
     if (q.age >= ADULT_AGE && (rel?.trust ?? 0) > 0.5 && aff > 0.4 && valueOf(person, "fairness") < 0.4 && honestyOf(person) < 0.45 && !(q.heart?.betrayals[person.id])) {
       const foe = near.find((x) => x !== q && x.age >= ADULT_AGE && ((x.conflict?.grudge[q.id] ?? 0) >= 0.3 || (bandOf(world, x) !== bandOf(world, q) && (c?.prejudice[bandOf(world, x)] ?? 0) > 0.3)));
-      if (foe && chance(person.id, world, `betray${q.id}`) < 0.6 * k * (1.1 - honestyOf(person))) return void betrayAlly(world, person, q, foe, (c?.fear[foe.id] ?? 0) > 0.2 ? "fear" : scarcity > 0.3 ? "scarcity" : "greed");
+      if (foe && chance(person.id, world, `betray${q.id}`) < 0.15 * k * (1.1 - honestyOf(person))) return void betrayAlly(world, person, q, foe, (c?.fear[foe.id] ?? 0) > 0.2 ? "fear" : scarcity > 0.3 ? "scarcity" : "greed");
     }
     // 7. A band stands up for its own against a stranger who is hurting one of them is handled by fight(); prejudice shows as distrust.
     if (!sameBand) {
