@@ -107,7 +107,7 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F100](changelog/F100.md) | Base characters (textured bodies with faces, hairstyles, fitted clothes) and 42 more animation clips for Azure Cloud Sect |
 | [F101](changelog/F101.md) | Jianghu Road: a one-kilometre open-world murim game from data (world, quests with checks, one tracked waypoint) |
 | [F102](changelog/F102.md) | Desktop app (Electron): local files, GPU report, AI control port with MCP and CLI, standalone game apps |
-| [F103](changelog/F103.md) | Eden: two Supabase-brained characters in a garden, speak to them or add animals and trees |
+| [F103](changelog/F103.md) | Eden: two characters with minds of their own in a garden, speak to them or add animals and trees (first version; see [the mind](EDEN_MIND.md)) |
 | [F104](changelog/F104.md) | Eden: seasonal day length, moon, fishing, grief and graves, lessons learned |
 | [F105](changelog/F105.md) | Eden: 400 m valley, emotions, breakdowns, quarrels and apologies, opinions and gossip |
 | [F106](changelog/F106.md) | Eden: values, talents, life stories, skills that grow, roles and teaching |

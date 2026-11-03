@@ -1,6 +1,6 @@
 // Generates EDEN -- PHASE 1A (games/my-games/eden): a bare, flat plain
-// with Adam and Eve, two independent Supabase-brained characters (see the
-// Eden plan). Deliberately no biome yet -- no terrain sculpting, river, or
+// with Adam and Eve, two independent characters with minds of their own (see the
+// Eden plan; superseded by build_eden.ts, and the first version's Supabase brain is gone). Deliberately no biome yet -- no terrain sculpting, river, or
 // foliage -- the point of this phase is to validate the live brain<->engine
 // bridge before betting on the real Eden biome's look (Phase 1b). Run from
 // apps/editor:
@@ -76,7 +76,7 @@ writeFileSync(
       name: "Eden",
       genre: "Life simulation",
       description:
-        "Adam and Eve, two independent minds (Supabase-brained, see the Eden plan) living in a still-unformed world. Phase 1a: a bare plain, just the two of them -- watch, don't play.",
+        "Adam and Eve, two independent minds (see docs/EDEN_MIND.md) living in a still-unformed world. Phase 1a: a bare plain, just the two of them -- watch, don't play.",
       scene: "scene.json",
       accent: "#c9a24a",
     },
