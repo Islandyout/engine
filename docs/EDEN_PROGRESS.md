@@ -104,7 +104,7 @@ and the life sweep shows no survival regression. "Test" below means `apps/editor
 - [ ] K1 Everything listed as "never seen in the running game" (rowboat, birds, fish, snow, music, belly/dirt/limp, journal and pack screens, people form, mic button, pad buttons, plan/party, model planner) seen in screenshots from the running game. Done means: screenshots committed or linked in a changelog.
 - [x] K2 Ollama run against the code (voice, chat, planner, rewording). Done means: a recorded real run, with failures surfaced loudly.
 - [ ] K3 Eden browser test of its own (`tests/browser/eden*.cjs`) wired into CI. Done means: it runs and passes in CI; CI actions pinned to SHA.
-- [ ] K4 Performance with many bodies rendering measured. Done means: frame-time numbers at 60 people in a doc.
+- [x] K4 Performance with many bodies rendering measured. Done means: frame-time numbers at 60 people in a doc.
 - [x] K5 Docs: single design document for the mind; older Supabase-era docs corrected; IMPLEMENTATION_STATUS rows and changelogs for every phase. Done means: files exist and match the code.
 - [x] K6 Old Supabase `eden-tick` function switched off or the decision recorded (needs user consent). Done means: confirmed state recorded.
 - [x] K7 Stray branch `eden-takeover` deleted or reported to the user. Done means: branch list shows it gone, or the refusal is reported.

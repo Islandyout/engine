@@ -48,3 +48,16 @@ big-world sweep (`tools/eden/bigworld.ts`, 60 people for three years) takes abou
 
 Run `tests/browser/eden_perf.cjs` on a machine with a GPU and a headed browser (or with `--use-gl=egl`), on an idle CPU, and compare the 2
 and 60 person rows. The script prints both and can write JSON.
+
+## Work handed to the graphics card (measured on a quiet machine, 20 s windows; does not depend on this container's speed)
+
+`eden_perf.cjs` now also reads the page's own Stats overlay (draw calls, triangles, geometries and textures held) after each window.
+
+| | draw calls | triangles per frame | geometries | textures | renderer CPU per frame | GPU process CPU per frame (software drawing) |
+|---|---|---|---|---|---|---|
+| 2 people | 121 | 448,328 | 113 | 120 | 77 ms | 3,876 ms |
+| 60 people (grouped in view) | 921 | 2,628,946 | 122 | 542 | 94 ms | 6,159 ms |
+
+**What this says.** The cost of 60 people is about 800 more draw calls (13 a person), 2.2 million more triangles (about 37,000 a person) and 420 more textures (about 7 a person). Frame rates are still software-drawn at 0.6 frames a second here, so no fps figure is claimed. But the work is real and it is the thing to watch: 2.6 million triangles and 921 draw calls a frame is comfortable for a desktop graphics card and heavy for a phone or an old laptop. The page's own code (the renderer process) grew by only 22% (77 to 94 ms) for 30 times the people, so the minds and the animation are not the cost; the drawing is.
+
+**Where it would come from, and what to do if it matters:** the 37,000 triangles a person is the model's, so a distance-based simpler body (or none beyond about 80 m) would cut it the most; the 7 textures a person (about 420 more textures for 58 people) suggests each body keeps its own copy of its materials, for the dirt and wear tint, where a shared material per outfit would hold them to a handful. Neither has been done; they are the next two steps if a real GPU shows trouble. The 60 people stood near the centre, in view, which is close to the worst case.
