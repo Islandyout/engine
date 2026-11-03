@@ -11,33 +11,33 @@ and the life sweep shows no survival regression. "Test" below means `apps/editor
 - [x] A2 Neurochemistry variables (dopamine, serotonin, oxytocin, cortisol, endorphin, noradrenaline, sex hormones, melatonin) with production and decay. Done means: test per chemical showing its trigger raises it and it decays; choice weights read them (test fails when chemistry is zeroed).
 - [x] A3 Receptor sensitivity, tolerance, withdrawal, addiction. Done means: test where repeated reward lowers its effect and removal causes a measurable deficit state.
 - [x] A4 Chronic stress, depression and anxiety as persistent states that bias choice. Done means: test of sustained cortisol producing a state that lasts after the cause ends and lowers action scores; recovery path tested.
-- [ ] A5 Emotions beyond six: love, loneliness, jealousy, envy, guilt, disgust, contempt, hope, despair, awe, surprise, nostalgia, longing, boredom, regret, relief, humour, empathy, plus blends. Done means: one test per emotion with a named trigger, and a blend test (two emotions give a distinct label).
-- [ ] A6 Habit and unconscious layer: habits that run without deciding, triggering traumas, conditioned fears and likes, biases, mood-coloured memory. Done means: tests for habit formation (repeat then automatic), a trauma cue firing fear, and mood changing recall.
+- [x] A5 Emotions beyond six: love, loneliness, jealousy, envy, guilt, disgust, contempt, hope, despair, awe, surprise, nostalgia, longing, boredom, regret, relief, humour, empathy, plus blends. Done means: one test per emotion with a named trigger, and a blend test (two emotions give a distinct label).
+- [x] A6 Habit and unconscious layer: habits that run without deciding, triggering traumas, conditioned fears and likes, biases, mood-coloured memory. Done means: tests for habit formation (repeat then automatic), a trauma cue firing fear, and mood changing recall.
 - [x] A7 Memory: cue-triggered episodic recall, forgetting curve, distortion, emotional tagging, dreams and sleep consolidation. Done means: tests for decay over time, vivid versus dull by emotion, cue recall, and consolidation after sleep.
 - [x] A8 Life story that changes with age (not a string written once at birth). Done means: test that `story` differs after major events and at later ages.
-- [ ] A9 Sweep: 60-person long run, survival and population no worse than baseline in the notes. Done means: sweep numbers written in the F-changelog beside the pre-change baseline.
+- [x] A9 Sweep: 60-person long run, survival and population no worse than baseline in the notes. Done means: sweep numbers written in the F-changelog beside the pre-change baseline.
 
 ## Phase B: life stages and development (GAPS 2)
 
-- [ ] B1 Infancy 0-2: attachment style from care history, crying and soothing, breastfeeding and weaning, first words, first steps, stranger fear, object permanence. Done means: tests for each; neglected baby gets insecure attachment versus held baby secure.
-- [ ] B2 Early childhood 2-6: vocabulary grows from speech heard, imitation, pretend play, tantrums, rule correction, fear of dark, imaginary friend, first "mine". Done means: test that a child never spoken to has a smaller vocabulary; others each observable in state.
-- [ ] B3 Middle childhood 6-12: apprenticeship by watching, peer groups, play fights, fairness protest, first shame, sibling rivalry, chores, stories and customs, understanding of death. Done means: a test or measure per behaviour.
-- [ ] B4 Adolescence 12-19: puberty hormones and growth, identity, rebellion, peer status, first romance and heartbreak, risk-taking, doubting beliefs, independence while dependent. Done means: tests for hormone rise at age, rebellion lowering obedience to parents, risk-taking rising.
-- [ ] B5 Young adulthood 20-35: partner and work choice, courtship, pair bonding, pregnancy and birth risk for both, parenthood, leaving parents, ambition. Done means: sim shows pairs forming and leaving home; birth risk test for mother and child.
-- [ ] B6 Middle age 35-60: generativity (mentoring), care of children and ageing parents, status peak or loss, midlife doubt, wealth or debt, deaths of peers. Done means: tests/measures for each.
-- [ ] B7 Old age 60+: slowing, illness, loss of strength/sight/memory, dependence, honour or neglect, storytelling keeper of knowledge, facing death, legacy, grief, retirement, elder care as duty or burden, wisdom, dementia. Done means: tests for each; an elder is cared for or neglected depending on norms.
+- [x] B1 Infancy 0-2: attachment style from care history, crying and soothing, breastfeeding and weaning, first words, first steps, stranger fear, object permanence. Done means: tests for each; neglected baby gets insecure attachment versus held baby secure.
+- [x] B2 Early childhood 2-6: vocabulary grows from speech heard, imitation, pretend play, tantrums, rule correction, fear of dark, imaginary friend, first "mine". Done means: test that a child never spoken to has a smaller vocabulary; others each observable in state.
+- [x] B3 Middle childhood 6-12: apprenticeship by watching, peer groups, play fights, fairness protest, first shame, sibling rivalry, chores, stories and customs, understanding of death. Done means: a test or measure per behaviour.
+- [x] B4 Adolescence 12-19: puberty hormones and growth, identity, rebellion, peer status, first romance and heartbreak, risk-taking, doubting beliefs, independence while dependent. Done means: tests for hormone rise at age, rebellion lowering obedience to parents, risk-taking rising.
+- [x] B5 Young adulthood 20-35: partner and work choice, courtship, pair bonding, pregnancy and birth risk for both, parenthood, leaving parents, ambition. Done means: sim shows pairs forming and leaving home; birth risk test for mother and child.
+- [x] B6 Middle age 35-60: generativity (mentoring), care of children and ageing parents, status peak or loss, midlife doubt, wealth or debt, deaths of peers. Done means: tests/measures for each.
+- [x] B7 Old age 60+: slowing, illness, loss of strength/sight/memory, dependence, honour or neglect, storytelling keeper of knowledge, facing death, legacy, grief, retirement, elder care as duty or burden, wisdom, dementia. Done means: tests for each; an elder is cared for or neglected depending on norms.
 - [x] B8 Sensitive periods and critical windows (unspoken-to child does not learn speech; unheld child does not bond). Done means: test that the window closes and the deficit persists.
-- [ ] B9 Women's and men's lives: breastfeeding, menstrual cycle effects, postpartum states, parenting roles, division of labour and status. Done means: tests for cycle effect and postpartum state.
+- [x] B9 Women's and men's lives: breastfeeding, menstrual cycle effects, postpartum states, parenting roles, division of labour and status. Done means: tests for cycle effect and postpartum state.
 - [x] B10 Family structure: siblings relation, recognised pairing with obligations, widowhood, remarriage, adoption, orphans' fate, step-families, extended kin and clan, inheritance rules, incest avoidance. Done means: tests for each, incl. incest avoidance over a long run.
 
 ## Phase C: self, theory of mind, inner conflict, lying (GAPS 1.4, 1.5, 1.8)
 
-- [ ] C1 Self-model: self-image, self-esteem, identity, ideals, fairness about oneself, reflection on own choices. Done means: test that a failure lowers esteem and changes later choices.
-- [ ] C2 Theory of mind: model of what others know, want, believe, feel. Done means: test that a person acts on a belief about another's belief that differs from fact.
-- [ ] C3 Lying, deception, bluffing, flattery, persuasion by interest, secrets, reputation management, surprise gifts, being fooled. Done means: a test per behaviour; a lie is detected or not depending on the listener's model.
+- [x] C1 Self-model: self-image, self-esteem, identity, ideals, fairness about oneself, reflection on own choices. Done means: test that a failure lowers esteem and changes later choices.
+- [x] C2 Theory of mind: model of what others know, want, believe, feel. Done means: test that a person acts on a belief about another's belief that differs from fact.
+- [x] C3 Lying, deception, bluffing, flattery, persuasion by interest, secrets, reputation management, surprise gifts, being fooled. Done means: a test per behaviour; a lie is detected or not depending on the listener's model.
 - [x] C4 Inner conflict: competing motives held at once (duty vs desire, fear vs pride, loyalty vs fairness), not best score plus noise. Done means: test with two strong motives producing hesitation/ambivalence and a logged reason.
-- [ ] C5 Temptation, self-control, rationalisation, guilt after acting against values, habit addiction, acting against own interest. Done means: tests for each, guilt visible in state.
-- [ ] C6 Double standards, hypocrisy, kind to one and cruel to another for reasons. Done means: test where same act is judged differently by relation, with the stated reason.
+- [x] C5 Temptation, self-control, rationalisation, guilt after acting against values, habit addiction, acting against own interest. Done means: tests for each, guilt visible in state.
+- [x] C6 Double standards, hypocrisy, kind to one and cruel to another for reasons. Done means: test where same act is judged differently by relation, with the stated reason.
 - [x] C7 Reflection beyond fixed "lessons". Done means: test that lessons are derived from experience, not a fixed list.
 
 ## Phase D: love, pain, joy, meaning (GAPS 3)
