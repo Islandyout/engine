@@ -14,6 +14,7 @@ import { DAY } from "./earth";
 import { feel } from "./inner";
 import { skillOf, valueOf, SKILLS } from "./identity";
 import { faithful } from "./culture";
+import { givesLifeFor } from "./deeds";
 import { lifeOf, closeKin } from "./lifecycle";
 import { ADULT_AGE, chronicle, note, relation, tally, thingById, type Intent, type IntentKind, type Person, type World } from "./mind";
 import { knowsFact, witness } from "./mindmodel";
@@ -414,16 +415,25 @@ export function sacrificeStep(person: Person, world: World, dt: number, predator
     const near = predators.find((b) => dist(b.x, b.z, q.x, q.z) < 6);
     if (!near) continue;
     const love = (person.emotions?.love ?? 0) + 0.5 * (person.relations.get(q.id)?.affinity ?? 0) + (child ? 0.3 : 0);
-    if (love < 0.7 || chance(person, world, "brave") > 0.3 + 0.5 * person.personality.boldness) continue;
+    if (love < 0.7 || chance(person, world, "brave") > 0.3 + 0.5 * person.personality.boldness + (h.purpose?.kind === "family" && h.purpose.strength >= 0.7 ? 0.3 : 0)) continue;
     const beast = thingById(world, near.id);
     if (!beast) continue;
+    // A person whose life is about their family, and who has stood in front of it before, does not give way: they hold until it is driven off, and it kills them.
+    const fatal = givesLifeFor(person, world, q.id, beast);
     person.wound = clamp01((person.wound ?? 0) + 0.5);
-    person.health = clamp01(person.health - 0.35);
+    person.health = fatal ? 0 : clamp01(person.health - 0.35);
+    if (fatal) {
+      person.cause = `saving ${q.name} from the beast`;
+      note(person, world, `I held the beast off ${q.name} until it fled. It is what I lived for.`);
+      milestone(person, world, "gaveLife", `gave their life for ${q.name}`);
+      chronicle(world, `${person.name} gave their life for ${q.name}, for whom they lived.`);
+      tally(world, "diedForPurpose");
+    }
     const a = Math.atan2(beast.z - q.z, beast.x - q.x);
     beast.x += Math.cos(a) * 35;
     beast.z += Math.sin(a) * 35;
     h.sacrifices++;
-    note(person, world, `I stood between ${q.name} and the beast, and took the blow.`);
+    if (!fatal) note(person, world, `I stood between ${q.name} and the beast, and took the blow.`);
     note(q, world, `${person.name} stood between me and the beast.`);
     relation(q, person.id, world).affinity = Math.min(1, relation(q, person.id, world).affinity + 0.25);
     feel(q, "gratitude", 0.7);

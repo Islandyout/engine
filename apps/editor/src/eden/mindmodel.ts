@@ -210,7 +210,7 @@ export function lessonBias(person: Person, world: World, kind: string): number {
 type Motive = "duty" | "desire" | "fear" | "pride" | "need" | "loyalty";
 const MOTIVE: Partial<Record<IntentKind, Motive>> = {
   share: "duty", comfort: "duty", teach: "duty", fire: "duty", stash: "duty", fetch: "duty", mourn: "loyalty", gift: "loyalty", carve: "loyalty",
-  rest: "desire", play: "desire", look: "desire", wander: "desire", create: "desire", linger: "desire", talk: "desire", read: "desire", pray: "desire",
+  sing: "desire", dance: "desire", rest: "desire", play: "desire", look: "desire", wander: "desire", create: "desire", linger: "desire", talk: "desire", read: "desire", pray: "desire",
   flee: "fear", warm: "fear", sleep: "need", eat: "need", drink: "need", forage: "need", fish: "need", steal: "need",
   hunt: "pride", build: "pride", invent: "pride", craft: "pride", improve: "pride", make: "pride",
 };

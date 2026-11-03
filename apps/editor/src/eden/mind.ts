@@ -17,6 +17,7 @@ import { onTheft, societyBias, societyStep, type Society } from "./society";
 import { learnAfter, learnBias, learnFilter, learnOptions, learningStep, loreTalk, teachStep, type Learning, type Lore } from "./learning";
 import { economyAfter, economyBias, economyStep, economyTheft, economyWorldStep, inheritHoldings, marketTrade, type PersonEcon, type WorldEcon } from "./economy";
 import { conflictBias, conflictStep, conflictWorld, theftConflict, type Conflict, type WorldConflict } from "./conflict";
+import { deedAfter, deedArrive, deedBias, deedOptions, deedStep, type Deeds } from "./deeds";
 import { celebrate, heartAfter, heartBias, heartStep, painBias, sacrificeStep, type Heart } from "./heart";
 import { birthComplication, bodyBias, bodySpeed, bodyStep, fertilityOf, sightMul, stillbirthExtra, type Body, type WalkerBody } from "./body";
 import { livestockOptions, tameLivestock, world2Step, type World2 } from "./world2";
@@ -116,6 +117,8 @@ export const AFFORDANCES: Record<string, Affordances> = {
   fire: { danger: 0.9 },
   // Where someone who died was laid to rest; the people who loved them come and sit here.
   grave: { rest: false },
+  // A store put by out of the way (deeds.ts): food, found where it is believed to be.
+  cache: { food: 0.5 },
 };
 
 export interface Thing {
@@ -128,6 +131,8 @@ export interface Thing {
   maxStock?: number; // a stock grows back, a meal at a time, up to this
   growth?: number; // seconds toward the next meal growing back (kept by step)
   fuel?: number; // a fire's seconds of burning left
+  movedAt?: number; // a hidden store: when it was last moved (deeds.ts); those who did not see it go still believe the old place
+  rite?: { by: string; why: string; t: number }; // a grave: who laid the dead to rest, and the reason they gave (deeds.ts)
   of?: string; // a grave: whose it is (a person id); a dog: whose it is
   owner?: string; // a shelter, field or snare: whose it is (a person id; economy.ts)
   level?: number; // a shelter: 1 a roof of hides, 2 a proper thatched hut (the page swaps the model)
@@ -170,7 +175,7 @@ export interface Memory {
   lastSeen: number; // sim seconds
 }
 
-export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame" | "sew" | "wash" | "fetch" | "furnish" | "improve" | "carve" | "gift" | "trade" | "pray" | "teach" | "steal" | "create" | "ponder" | "read" | "invent" | "make" | "work";
+export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame" | "sew" | "wash" | "fetch" | "furnish" | "improve" | "carve" | "gift" | "trade" | "pray" | "teach" | "steal" | "create" | "ponder" | "read" | "invent" | "make" | "work" | "sing" | "dance" | "hide";
 export interface Intent {
   kind: IntentKind;
   targetId?: string; // a thing's id or another person's id
@@ -307,6 +312,7 @@ export interface Person {
   accusedBy?: string[];
   favourFor?: { to: string; until: number };
   heart?: Heart; // love, pain, joy and purpose (heart.ts)
+  deeds?: Deeds; // the ideal self, costly friendship, standing, craving, counsel (deeds.ts)
   tech?: Tech; // what they have gathered and own, what they have tried and seen (tech.ts)
   group?: string; // the people they belong to (society.ts); absent is "main"
   rank?: number; // 0..1 rank held or inherited (society.ts)
@@ -1272,8 +1278,10 @@ function options(person: Person, world: World): Option[] {
     if (!m) return; // never seen: they do not know it exists
     // How it felt last time tilts the choice; a place they have loved draws them back. A place near something dangerous they know of is
     // avoided, less so the more desperate they are.
-    const score = want + m.feeling * 0.2 - effort(t.x, t.z) - dreadAt(t.x, t.z) * (1 - Math.min(0.8, want / 2));
-    out.push({ intent: { kind, targetId: t.id, x: t.x, z: t.z, speed: WALK, remaining: seconds }, score });
+    // A store that was moved is sought where they last saw it, not where it is now.
+    const at = t.movedAt !== undefined ? m : t;
+    const score = want + m.feeling * 0.2 - effort(at.x, at.z) - dreadAt(at.x, at.z) * (1 - Math.min(0.8, want / 2));
+    out.push({ intent: { kind, targetId: t.id, x: at.x, z: at.z, speed: WALK, remaining: seconds }, score });
   };
   const hungry = 1.7 * urge(needs.hunger, 0.32 - 0.1 * p.appetite);
   const thirsty = 1.7 * urge(needs.thirst, 0.22);
@@ -1306,10 +1314,11 @@ function options(person: Person, world: World): Option[] {
   devOptions(person, world, out);
   learnOptions(person, world, out);
   arcOptions(person, world, out);
+  deedOptions(person, world, out);
   lifeOptions(person, world, out);
   // A child does not gather, build or lay food by, and stays close to their mother.
   if (person.age < ADULT_AGE) {
-    const allowed = new Set<IntentKind>(["wash", "mourn", "eat", "drink", "rest", "sleep", "look", "play", "talk", "comfort", "linger", "wander", "warm"]);
+    const allowed = new Set<IntentKind>(["wash", "mourn", "eat", "drink", "rest", "sleep", "look", "play", "talk", "comfort", "linger", "wander", "warm", "sing", "dance"]);
     // From about six they take on small chores.
     if (person.age >= AGE.childhood) for (const k of ["gather", "forage", "plant", "stash", "fish"] as const) allowed.add(k);
     const kept = out.filter((o) => allowed.has(o.intent.kind));
@@ -1790,6 +1799,7 @@ function finish(person: Person, world: World, intent: Intent) {
   finishCore(person, world, intent);
   recordOutcome(person, world, intent);
   heartAfter(world, person, intent);
+  deedAfter(world, person, intent);
   learnAfter(world, person, intent);
   economyAfter(world, person, intent);
   afterAct(world, person, intent);
@@ -2509,6 +2519,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     lifeStep(person, world, dt);
     mindStep(person, world, dt);
     heartStep(person, world, dt);
+    deedStep(person, world, dt);
     learningStep(person, world, dt);
     economyStep(person, world, dt);
     conflictStep(person, world, dt);
@@ -2621,6 +2632,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       psycheBias(person, world, opts);
       painBias(person, opts);
       heartBias(person, world, opts);
+      deedBias(person, world, opts);
       societyBias(person, world, opts);
       learnBias(person, world, opts);
       learnFilter(person, world, opts);
@@ -2669,6 +2681,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
         intent.arrived = true;
       }
     }
+    if (deedArrive(person, world, intent)) continue;
     // Asleep until morning, or until rested.
     if (intent.kind === "sleep" && (needs.energy <= 0.03 || (!isNight(world.clock) && needs.energy < 0.4))) {
       finish(person, world, intent);
@@ -3172,7 +3185,12 @@ export function actionOf(person: Person): string {
     case "share":
       return "talk_to_other";
     case "play":
+    case "dance":
       return "play_together";
+    case "sing":
+      return "talk_to_other";
+    case "hide":
+      return "harvest";
     default:
       return "observe";
   }
