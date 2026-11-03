@@ -2927,7 +2927,7 @@ function stepAnimals(world: World, dt: number) {
   const foxes = things.filter((t) => t.kind === "fox");
   // Deer breed in spring and summer when there are two or more and room; foxes when deer are plentiful and they have eaten.
   const room = Math.max(1, Math.min(4, (R / 36) ** 2 / 8)); // a wider world holds bigger herds
-  if ((season === 0 || season === 1) && deer.length >= 2 && deer.length < 8 * room && worldRand(world) < (dt / DAY) * 0.5) {
+  if ((season === 0 || season === 1) && deer.length >= 2 && deer.length < 8 * room && worldRand(world) < (dt / DAY) * 0.5 * (world.world2?.resources.game ?? 1)) { // a herd hunted thin breeds back slowly
     const parent = deer[Math.floor(worldRand(world) * deer.length)]!;
     make(world, "deer", parent.x + 1, parent.z, { radius: 2, mob: { tx: parent.x, tz: parent.z, wait: 0, fed: now, age: 0, fleeUntil: 0 } });
   }

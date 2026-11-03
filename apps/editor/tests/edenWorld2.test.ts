@@ -779,3 +779,27 @@ test("a hard hurt scars the Walker; what the Walker does to people is remembered
   assert.ok(c.walkerTrust! > 0.25);
   assert.equal(tally(w, "walker_struck"), 1);
 });
+
+test("I2 a herd that has been hunted thin breeds back more slowly than one that has not", () => {
+  const born = (game: number) => {
+    let total = 0;
+    for (let seed = 1; seed <= 6; seed++) {
+      const people = [person("A", 25, "m")];
+      const deer = Array.from({ length: 4 }, (_, i): Thing => ({ id: `deer-${i}`, kind: "deer", x: 20 + i, z: 20, radius: 2, stock: 3, maxStock: 3, mob: { tx: 20, tz: 20, wait: 0, fed: 0, age: 3, fleeUntil: 0 } }));
+      const w = world(people, deer);
+      w.rng = seed * 7919;
+      const w2 = enableWorld2(w, seed);
+      w2.resources.game = game;
+      w.clock = 1.1 * YEAR / 4 * 0 + DAY / 3; // spring
+      for (let t = 0; t < 20 * DAY; t += 30) {
+        w2.resources.game = game;
+        w.clock! += 30;
+        step(w, 30);
+      }
+      total += w.things.filter((t) => t.kind === "deer").length;
+    }
+    return total;
+  };
+  const plenty = born(1), thin = born(0.05);
+  assert.ok(thin < plenty, `thin herd ${thin} vs plentiful ${plenty}`);
+});

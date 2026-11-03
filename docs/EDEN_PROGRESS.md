@@ -87,8 +87,8 @@ and the life sweep shows no survival regression. "Test" below means `apps/editor
 - [x] I1 Other settlements: trade, war, migration. Done means: a second settlement in sim; migrants arrive/leave; test of trade and conflict.
 - [x] I2 Geography (rivers, mountains, coast), long climate change, epidemics across settlements, resource depletion causing collapse, fire as danger to camp, domestic animals beyond the dog. Done means: a test or sweep per item.
 - [x] I3 Body: real growth curve (height, strength), menarche/menopause, senses ageing, disability, lasting scars, fitness, sleep debt, hygiene, pregnancy complications, sexual health. Done means: test per item.
-- [ ] I4 Presentation: faces and blinks, lying-down clip, swimming and rowing used, music beyond generated tune, lighting, visible wear/dirt verified, editable look. Done means: screenshot of each in the running game.
-- [ ] I5 Creator's Walker: body customisation, needs, ageing, consequences of actions on people. Done means: tests and a screenshot.
+- [x] I4 Presentation: faces and blinks, lying-down clip, swimming and rowing used, music beyond generated tune, lighting, visible wear/dirt verified, editable look. Done means: screenshot of each in the running game.
+- [x] I5 Creator's Walker: body customisation, needs, ageing, consequences of actions on people. Done means: tests and a screenshot.
 
 ## Phase J: thinking and problem solving (GAPS 8, plus objects in 10)
 
