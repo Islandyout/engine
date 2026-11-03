@@ -46,4 +46,7 @@ const out: Record<string, number> = {};
 for (const k of Object.keys(world.tally ?? {}).sort()) if (process.env.ALL || keys.includes(k) || k.startsWith("act_") || k.startsWith("cause_")) out[k] = +(world.tally![k] ?? 0).toFixed(1);
 const ad = world.people.filter((p) => p.age >= 16);
 for (const t of world.things) if (t.owner) kinds[t.kind] = (kinds[t.kind] ?? 0) + 1;
+const known: Record<string, number> = {};
+for (const p of world.people) for (const i of p.ideas ?? []) known[i] = (known[i] ?? 0) + 1;
+if (process.env.IDEAS) console.log("IDEAS", JSON.stringify(known));
 console.log(JSON.stringify({ avgWood: +(carryWood / nsamp).toFixed(2), avgFood: +(carryFood / nsamp).toFixed(2), eatOwned: byKind, ownedKinds: kinds, start, end: world.people.length, desperateShare: +(desperate / Math.max(1, samples)).toFixed(4), gini: +wealthGini(world).toFixed(3), classes: ad.reduce((m, p) => ((m[econOf(p).class ?? "?"] = (m[econOf(p).class ?? "?"] ?? 0) + 1), m), {} as Record<string, number>), tally: out }));
