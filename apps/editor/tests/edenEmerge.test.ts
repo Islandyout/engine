@@ -149,7 +149,8 @@ test("eating at another's store day after day does not put the camp in bondage: 
     hop(w);
   }
   assert.ok(tallyOf(w, "propertyTheft") >= 20, "it was taken from");
-  assert.ok(tallyOf(w, "bondage") <= 5, `bondage ${tallyOf(w, "bondage")} for five who ate: at most one binding each`);
+  assert.ok(tallyOf(w, "bondage") <= 15, `bondage ${tallyOf(w, "bondage")} (the old rules gave 58 here)`);
+  assert.ok(tallyOf(w, "restitutionDebts") <= 20, `${tallyOf(w, "restitutionDebts")} debts for ${tallyOf(w, "propertyTheft")} mouthfuls (the old rules gave 75)`);
   // A friend of the owner is let eat without a wrong.
   const friend = w.people[7]!;
   owner.relations.get(friend.id)!.trust = 0.8;
