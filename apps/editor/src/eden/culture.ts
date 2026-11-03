@@ -7,6 +7,7 @@ import { skillOf, valueOf, type Value } from "./identity";
 import { feel } from "./inner";
 import { milestone, psycheEvent } from "./psyche";
 import { ADULT_AGE, chronicle, isNight, make, note, personById, rand, relation, tally, thingById, type Intent, type Person, type Thing, type World } from "./mind";
+import { techName } from "./tech";
 
 export interface Work {
   id: string;
@@ -88,7 +89,7 @@ export const INVENTIONS: Invention[] = [
   { id: "snare", name: "a snare", wood: 3, hide: 0, place: "prey", line: (p) => `${p.name} bent a green branch over a game trail and found it takes meat while they sleep: a snare.`, effect: "snares by game trails fill with meat" },
   { id: "net", name: "a net", wood: 2, hide: 1, place: "water", line: (p) => `${p.name} knotted strips of hide on a wooden frame and found it catches more fish than patience does: a net.`, effect: "a net catches half as many fish again" },
 ];
-export const ideaName = (id: string) => DISCOVERIES.find((d) => d.id === id)?.name ?? INVENTIONS.find((i) => i.id === id)?.name ?? id;
+export const ideaName = (id: string) => DISCOVERIES.find((d) => d.id === id)?.name ?? INVENTIONS.find((i) => i.id === id)?.name ?? techName(id) ?? id;
 
 /** Someone living holds the idea, or a book keeps it. Knowledge dies with its last holder unless it was written. */
 export function knows(world: World, id: string): boolean {

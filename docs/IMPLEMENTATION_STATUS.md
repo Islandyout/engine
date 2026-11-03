@@ -146,4 +146,5 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F139](changelog/F139.md) | Eden phase B part 2: adolescence, courtship, family, the body's rhythms, old age |
 | [F140](changelog/F140.md) | Eden phase C: self-model, other minds, lying, inner conflict, double standards |
 | [F141](changelog/F141.md) | Eden phase D: love, pain, joy, meaning |
+| [F147](changelog/F147.md) | Eden phase J: many causes learned and revised, analogies, a 48-invention tool-chain space, farms, herding, metals, wheels, boats, bridges, shared projects, 19 made objects |
 | [Gaps](EDEN_GAPS.md) | Eden: audit of what is still missing (psyche, life stages, economy, education, violence, world, build gaps) |

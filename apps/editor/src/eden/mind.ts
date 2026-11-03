@@ -15,6 +15,7 @@ import { afterAct, appraise, milestone, recall, psycheBias, psycheEvent, psycheS
 import { selfOf, mindStep, recordOutcome, resolveConflict, lessonBias, snapshot, aftermathOfTheft, witnessCost, judge, surpriseGift, talkAbout, type Self, type Fact, type Model, type Snap } from "./mindmodel";
 import { celebrate, heartAfter, heartBias, heartStep, painBias, sacrificeStep, type Heart } from "./heart";
 import { fightBeast, learnFromWorld, teamStep, type Rule, type Team } from "./solve";
+import { doWork, techOptions, techStep, type Project, type Tech } from "./tech";
 import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach, valueOf, SKILL_WORDS, type Skill, type Value } from "./identity";
 import { fadeNorms, isCustom, NORM_TEXT, reinforce, standing, strengthOf, type NormId } from "./norms";
 import { fade, feel as feelEmotion, importance, moodPush, opinionTags, BELIEF_WORDS, type Belief, type Emotion } from "./inner";
@@ -91,6 +92,10 @@ export const AFFORDANCES: Record<string, Affordances> = {
   artwork: { view: true },
   // Found by experiment (reason.ts): a weir in the water and a snare by a game trail, each filling slowly with food.
   weir: { food: 0.5 },
+  // Made with the crafts of tech.ts: what is cooked, woven, played, farmed and crossed on. Each is used by a `work` intent.
+  pot: {}, spit: {}, oven: {}, kiln: {}, loom: {}, quern: {}, ball: {}, swing: {}, flute: { comfort: 0.04 }, drum: { comfort: 0.03 },
+  field: { food: 0.45, stock: 6 }, channel: {}, pen: {}, "dog-bed": {}, well: { water: true, comfort: 0.02 }, hive: { food: 0.6, stock: 3 },
+  granary: { food: 0.5, stock: 40 }, boat: {}, raft: {}, bridge: {},
   snare: { food: 0.8 },
   library: { comfort: 0.03 },
   bush: { food: 0.25, stock: 4 },
@@ -121,6 +126,7 @@ export interface Thing {
   level?: number; // a shelter: 1 a roof of hides, 2 a proper thatched hut (the page swaps the model)
   trust?: number; // a dog: how many times it has been fed by someone, toward choosing them
   prefab?: string; // the scene prefab that shows it (the host places it); absent for things the scene already has
+  span?: { x2: number; z2: number; need: number; laid: number }; // a bridge: its far end, the planks it takes and the planks laid (tech.ts)
   // A creature's own going about: where it is heading, when it last ate, how old it is (in Eden years).
   mob?: { tx: number; tz: number; wait: number; fed: number; age: number; fleeUntil: number; state?: MobState; speed?: number; idle?: MobState; eatUntil?: number; attackUntil?: number; here?: boolean; startleUntil?: number; hurtUntil?: number; angryUntil?: number; repelledAt?: number };
 }
@@ -157,7 +163,7 @@ export interface Memory {
   lastSeen: number; // sim seconds
 }
 
-export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame" | "sew" | "wash" | "fetch" | "furnish" | "improve" | "carve" | "gift" | "trade" | "pray" | "teach" | "steal" | "create" | "ponder" | "read" | "invent" | "make";
+export type IntentKind = "eat" | "drink" | "rest" | "sleep" | "look" | "play" | "talk" | "flee" | "wander" | "linger" | "gather" | "fire" | "build" | "stash" | "forage" | "warm" | "share" | "comfort" | "plant" | "craft" | "hunt" | "fish" | "mourn" | "tame" | "sew" | "wash" | "fetch" | "furnish" | "improve" | "carve" | "gift" | "trade" | "pray" | "teach" | "steal" | "create" | "ponder" | "read" | "invent" | "make" | "work";
 export interface Intent {
   kind: IntentKind;
   targetId?: string; // a thing's id or another person's id
@@ -294,6 +300,7 @@ export interface Person {
   accusedBy?: string[];
   favourFor?: { to: string; until: number };
   heart?: Heart; // love, pain, joy and purpose (heart.ts)
+  tech?: Tech; // what they have gathered and own, what they have tried and seen (tech.ts)
   psyche?: Psyche; // drives, body chemistry, lasting states, habits, cues (psyche.ts)
   emotions?: Partial<Record<Emotion, number>>; // what they feel now, each 0..1, fading at its own speed (inner.ts)
   stress?: number; // sim seconds spent very low; held long enough it breaks
@@ -318,6 +325,7 @@ export interface World {
   noGo?: { x: number; z: number; r: number }[]; // deep water and the like: nobody walks into it
   facts?: Fact[]; // things that have happened and who knows of them
   teams?: Team[]; // parties gone against a beast
+  projects?: Project[]; // work many hands share across days (tech.ts)
   works?: Work[]; // songs, stories, paintings and books made so far
   knowledge?: Record<string, { by: string; byName: string; t: number }>; // what has been worked out, and by whom
   tenets?: Tenet[]; // the answers to the big questions that people hold
@@ -500,6 +508,7 @@ export function makePerson(id: string, x: number, z: number, seed: number, perso
 const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
 // A point pushed out of any place nobody can walk into (a lake), to its edge.
 export function keepOut(world: World, p: { x: number; z: number }) {
+  if ((p as Person).tech?.afloat) return; // on a boat or a bridge
   for (const c of world.noGo ?? []) {
     const d = Math.hypot(p.x - c.x, p.z - c.z);
     if (d < c.r) {
@@ -875,7 +884,7 @@ function noticeSmallJoys(world: World, person: Person, weather: Weather, nearFir
   const sky: Sky = weather.snowing ? "snow" : weather.raining ? "rain" : weather.fog > 0.45 ? "fog" : weather.windMs > 6 ? "wind" : "clear";
   const near = world.people.filter((q) => q !== person && dist(q.x, q.z, person.x, person.z) < 8).length;
   const kind = person.intent?.kind;
-  const doing: Doing = kind === "eat" ? "eat" : kind === "drink" ? "drink" : kind === "sleep" ? "sleep" : kind === "rest" ? "rest" : kind === "talk" ? "talk" : kind === "gather" || kind === "plant" || kind === "craft" || kind === "fish" || kind === "hunt" || kind === "build" || kind === "sew" || kind === "wash" || kind === "create" || kind === "make" || kind === "invent" ? "work" : kind === "wander" || kind === "look" ? "walk" : "idle";
+  const doing: Doing = kind === "eat" ? "eat" : kind === "drink" ? "drink" : kind === "sleep" ? "sleep" : kind === "rest" ? "rest" : kind === "talk" ? "talk" : kind === "gather" || kind === "plant" || kind === "craft" || kind === "fish" || kind === "hunt" || kind === "build" || kind === "sew" || kind === "wash" || kind === "create" || kind === "make" || kind === "invent" || kind === "work" ? "work" : kind === "wander" || kind === "look" ? "walk" : "idle";
   const warm = nearFire || (sky === "clear" && band !== "night" && person.cold < 0.3);
   const options = joysFor({ season: weather.season, band, sky, company: near === 0 ? "alone" : near === 1 ? "one" : "group", doing, warm });
   if (!options.length) return;
@@ -1273,6 +1282,7 @@ function options(person: Person, world: World): Option[] {
   skillOptions(person, world, out);
   cultureOptions(person, world, out);
   planOptions(person, world, out);
+  techOptions(person, world, out);
   devOptions(person, world, out);
   arcOptions(person, world, out);
   lifeOptions(person, world, out);
@@ -2174,6 +2184,9 @@ function finishCore(person: Person, world: World, intent: Intent) {
     case "make":
       doMake(world, person, intent.targetId, joy);
       break;
+    case "work":
+      doWork(world, person, intent, joy);
+      break;
     case "create":
       doCreate(world, person, joy);
       break;
@@ -2418,6 +2431,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
   stepAnimals(world, dt);
   learnFromWorld(world);
   teamStep(world);
+  techStep(world, dt);
   strangersStep(world, dt);
   for (const person of world.people) {
     person.clock += dt;
@@ -3076,6 +3090,7 @@ export function actionOf(person: Person): string {
     case "create":
     case "make":
     case "invent":
+    case "work":
       return "craft";
     case "ponder":
     case "read":
