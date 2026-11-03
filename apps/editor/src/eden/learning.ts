@@ -708,6 +708,7 @@ export function learningStep(person: Person, world: World, dt: number) {
     const parents = [person.mother, person.father].map((id) => personById(world, id)).filter((q): q is Person => !!q);
     acquireWords(world, person, parents);
   }
+  assignClass(world, person);
   if (person.age < 1.5) return;
   // A master is lost with their death, or the pupil has learned enough to be tested.
   const m = lr.master;
@@ -729,7 +730,6 @@ export function learningStep(person: Person, world: World, dt: number) {
       composeTale(world, person, rule, r < 0.35 ? "story" : r < 0.65 ? "song" : r < 0.85 ? "proverb" : "myth");
     } else if (world.works?.length) linkWorks(world, person);
   }
-  assignClass(world, person);
   // The guild: those who have mastered one craft close ranks around it.
   const best = roleOf(person);
   if (best && skillOf(person, best.skill) >= 0.7 && valueOf(person, "tradition") > 0.6 && !lr.guild) {

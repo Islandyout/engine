@@ -307,10 +307,15 @@ function leaderStep(world: World, g: Group) {
 /** An order done: the follower did what the leader told them. Called when an act ends. */
 export function societyAfter(world: World, who: Person, intent: Intent) {
   const order = who.econ?.order;
-  if (order && order.kind === intent.kind && order.until > (world.clock ?? 0) && person(world, order.by) && groupOf(world, groupId(who)).leader === order.by) {
+  if (order && order.kind === intent.kind && order.until + DAY > (world.clock ?? 0) && person(world, order.by) && groupOf(world, groupId(who)).leader === order.by) {
     tally(world, "leaderOrdersObeyed");
     const leader = person(world, order.by);
     if (leader) relation(leader, who.id, world).trust = Math.min(1, relation(leader, who.id, world).trust + 0.02);
+  }
+  // An evening spent at the fire or camp, counted apart on a feast and on an ordinary day: the difference is what the feast does.
+  if (who.age >= 1 && evening(world) && (intent.kind === "wander" || intent.kind === "linger")) {
+    const site = place(world, groupOf(world, groupId(who)));
+    if (dist(who.x, who.z, site.x, site.z) < 8) tally(world, festivalOn(world) ? "festivalGatherings" : "eveningGatherings");
   }
   // Working on a feast day where that is taboo: someone near sees it, and it is brought before the priest.
   const g = groupOf(world, groupId(who));
@@ -862,7 +867,10 @@ function campCensus(world: World) {
     const g = groupOf(world, groupId(p));
     const h = homeOf(world, g);
     if (!h) continue;
-    tally(world, dist(p.x, p.z, h.x, h.z) < 30 ? "campHoursAt" : "campHoursAway");
+    const at = dist(p.x, p.z, h.x, h.z) < 30;
+    tally(world, at ? "campHoursAt" : "campHoursAway");
+    const hr = hourOf(world.clock ?? 0);
+    if (hr >= 21 || hr < 5) tally(world, at ? "campNightAt" : "campNightAway");
     if (p.intent?.kind === "sleep" && dist(p.x, p.z, h.x, h.z) < 12) tally(world, "campSleepAtHome");
   }
 }
@@ -917,8 +925,11 @@ export function societyBias(p: Person, world: World, opts: Option[]) {
   if (home && p.intent?.kind !== "flee") {
     const d = dist(p.x, p.z, home.x, home.z);
     const night = hourOf(world.clock ?? 0) >= 20 || hourOf(world.clock ?? 0) < 5;
-    if (night && d > 8) opts.push({ intent: { kind: "wander", x: home.x, z: home.z, speed: 2.2, remaining: 10 }, score: 0.75, reason: "to sleep at the camp" });
-    else if (d > 35) opts.push({ intent: { kind: "wander", x: home.x, z: home.z, speed: 2.2, remaining: 8 }, score: 0.3, reason: "to go home to the camp" });
+    // Their own people sleep at their own roof: a sleep that would be taken elsewhere is taken at the camp.
+    if (night && d < 150) for (const o of opts) if (o.intent.kind === "sleep" || o.intent.kind === "rest") o.intent = { ...o.intent, targetId: home.id, x: home.x + 1, z: home.z };
+    if (night && d > 8) opts.push({ intent: { kind: "wander", x: home.x, z: home.z, speed: 2.2, remaining: 10 }, score: 0.6, reason: "to sleep at the camp" });
+    else if (p.carry.food >= 3 && p.needs.hunger < 0.4 && d < 90) opts.push({ intent: { kind: "stash", targetId: home.id, x: home.x, z: home.z, speed: 2.2, remaining: 6 }, score: 0.5, reason: "to put food in the camp's store" });
+    else if (d > 35) opts.push({ intent: { kind: "wander", x: home.x, z: home.z, speed: 2.2, remaining: 8 }, score: 0.35, reason: "to go home to the camp" });
   } else if (g.camp && dist(p.x, p.z, g.camp.x, g.camp.z) > 35 && p.intent?.kind !== "flee") {
     opts.push({ intent: { kind: "wander", x: g.camp.x, z: g.camp.z, speed: 2.2, remaining: 8 }, score: 0.22, reason: "to go home to the camp" });
   }

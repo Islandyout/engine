@@ -51,5 +51,5 @@ for (let t = 0; t < Math.min(years * YEAR, MAXT); t += DT) {
 const t = world.tally ?? {};
 const keys = ["leaders","laws","casesFiled","rulings_guilty","rulings_pardoned","rulings_dismissed","taboos","festivals","sermons","feuds","alliances","schisms","splits","drifts","priests","funerals","rites_naming","rites_adulthood","rites_wedding"];
 const out: Record<string, number> = {};
-for (const k of Object.keys(t).sort()) if (keys.includes(k) || /^(order|tribute|trial|rite|feud|camp|class|censor|collapse|tale|folk|belief|dialect|book|moot|arbit|exile|jail|ban|harm|taboo)/i.test(k)) out[k] = t[k]!;
+for (const k of Object.keys(t).sort()) if (keys.includes(k) || /^(leader|order|tribute|trial|rite|feud|camp|class|censor|collapse|tale|folk|belief|dialect|book|moot|arbit|exile|jail|ban|harm|taboo|penalty|conversions|speech|feast|workTales|council|reading|crafts|rulings|cases|festival|affairs|betray)/i.test(k)) out[k] = t[k]!;
 console.log(JSON.stringify({ start, end: world.people.length, desperateShare: +(desperate / Math.max(1, samples)).toFixed(4), ms: Date.now() - t0, tally: out }));
