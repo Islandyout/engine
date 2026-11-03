@@ -149,16 +149,16 @@ export function deedStep(person: Person, world: World, dt: number) {
   const { gap, lack } = selfGap(person);
   d.gap = gap;
   d.lack = lack;
-  if (lack && gap > 0.1 && now - (d.gapAt ?? -1e9) > DAY) {
+  if (lack && now - (d.gapAt ?? -1e9) > DAY) {
     d.gapAt = now;
     note(person, world, `I am not who I want to be. I want to be ${TRAIT_WORD[lack]}, and I am not yet.`);
-    feel(person, "shame", 0.1 + gap);
+    feel(person, "shame", 0.1 + 2 * gap);
     tally(world, "idealGaps");
   }
   // Giving more than comes back, and knowing it is not fair.
   const { given, got } = giving(world, person);
   const target = clamp01((given - got - 3) / 8) * (0.4 + 0.6 * valueOf(person, "fairness"));
-  d.owed += (target - d.owed) * (1 - Math.pow(0.5, 30 / DAY * 4));
+  d.owed += (target - d.owed) * (1 - Math.pow(0.5, 30 / (0.05 * DAY)));
   if (d.owed > 0.3 && now - (d.owedAt ?? -1e9) > 2 * DAY) {
     d.owedAt = now;
     feel(person, "anger", 0.25);
@@ -314,10 +314,10 @@ function inner(person: Person, world: World, out: Option[]) {
     const feast = !!festivalOn(world);
     const crowd = world.people.filter((q) => q !== person && q.age >= 1 && dist(q.x, q.z, person.x, person.z) < 14 && awake(q)).length;
     if (crowd >= 2) {
-      const base = feast ? 0.8 : 0.42;
+      const base = feast ? 0.8 : 0.52;
       const here = { x: person.x, z: person.z, speed: 0, remaining: 24 };
       out.push({ intent: { kind: "sing", ...here }, score: base + 0.1 * (person.personality.sociability - 0.5), reason: feast ? "to sing at the feast" : "to sing with the others in the evening" });
-      out.push({ intent: { kind: "dance", ...here }, score: base + 0.1 * (person.personality.boldness - 0.5), reason: feast ? "to dance at the feast" : "to dance with the others in the evening" });
+      out.push({ intent: { kind: "dance", ...here }, score: base + 0.1 * (person.personality.boldness - 0.5) + 0.12 * (deedChance(person, world, "dance", 60) - 0.5), reason: feast ? "to dance at the feast" : "to dance with the others in the evening" });
     }
   }
   // The dead are laid to rest by those who believe something about death, or who loved them.
@@ -425,7 +425,7 @@ export function deedAfter(world: World, person: Person, intent: Intent & { snap?
           joyFrom(q, world, "beauty", 0.12); // those who hear
           relation(q, person.id, world).affinity = Math.min(1, relation(q, person.id, world).affinity + 0.01);
         }
-        tally(world, feast ? "songsAtFeast" : "songs");
+        tally(world, feast ? "sungAtFeast" : "sung");
         note(person, world, feast ? "Sang with the others at the feast." : "Sang with the others as the light went.");
       } else {
         d.dances++;
@@ -435,7 +435,7 @@ export function deedAfter(world: World, person: Person, intent: Intent & { snap?
           r.affinity = Math.min(1, r.affinity + 0.02);
           person.laughUntil = now + 20;
         }
-        tally(world, feast ? "dancesAtFeast" : "dances");
+        tally(world, feast ? "dancedAtFeast" : "danced");
         note(person, world, feast ? "Danced at the feast." : "Danced with the others as the light went.");
       }
       break;
@@ -523,6 +523,11 @@ export function moveCache(world: World, mover: Person, cache: Thing, to: { x: nu
   cache.x = to.x;
   cache.z = to.z;
   cache.movedAt = world.clock ?? 0;
+  // Those who are by and awake see it go, and know where it went.
+  for (const q of world.people) {
+    const m = q.memory.get(cache.id);
+    if (q !== mover && m && awake(q) && (dist(q.x, q.z, from.x, from.z) < 25 || dist(q.x, q.z, to.x, to.z) < 25)) (m.x = to.x), (m.z = to.z);
+  }
   const f = witness(world, "deed", mover, undefined, `moved:${cache.id}`, true);
   // Who is thought to believe it is still where it was: everyone who is not here.
   const fooled = world.people.filter((q) => q !== mover && q.memory.get(cache.id) && dist(q.memory.get(cache.id)!.x, q.memory.get(cache.id)!.z, from.x, from.z) < 1 && dist(q.x, q.z, to.x, to.z) > 20);
