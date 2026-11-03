@@ -8,7 +8,9 @@ import { PLAN_SYSTEM, parsePlan, situationOf } from "../../eden/llmPlan";
 import { adoptPlan } from "../../eden/reason";
 import { createScreens, type Screens } from "./edenScreens";
 import { hearWalker, nearbyPeople, noteFirstWord } from "../../eden/chat";
-import { walkerHurt, walkerStep, walkerTend } from "../../eden/body";
+import { customiseWalker, walkerDeed, walkerHurt, walkerStep, walkerTend, type WalkerLook } from "../../eden/body";
+import { createPresent } from "./edenPresent";
+import { FLOATS, PREFAB_LIFT } from "../../eden/present";
 import { enableWorld2 } from "../../eden/world2";
 import { actionOf, applySpokenIntent, creatureHurt, giveMeat, giveToPerson, shareKill, walkerSlew, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import { moonName, SEASON_NAMES, solarHour } from "../../eden/earth";
@@ -259,13 +261,25 @@ export function installEdenAgents(C: Ctx): void {
   // Different people look different: the model and clothes are picked by who they are, and size follows age.
   const MEN = 5;
   const WOMEN = 4;
+  // One body for a whole life (the same face and clothes from birth to old age); how big it is follows the growth curve (edenPresent.ts), smoothly.
   const bodyPrefab = (p: Person) => {
     const h = [...p.id].reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) >>> 0, 7);
-    const n = 1 + (h % (p.sex === "m" ? MEN : WOMEN)); // the same face and clothes from birth to old age
-    if (p.age < 4) return `Child (${p.sex === "m" ? "boy" : "girl"}) ${n}`;
-    if (p.age >= 55) return `Elder (${p.sex === "m" ? "man" : "woman"}) ${n}`;
-    return `${p.age < 14 ? "Youth" : "Villager"} (${p.sex === "m" ? (p.age < 14 ? "boy" : "man") : p.age < 14 ? "girl" : "woman"}) ${n}`;
+    const n = 1 + (h % (p.sex === "m" ? MEN : WOMEN));
+    return `Villager (${p.sex === "m" ? "man" : "woman"}) ${n}`;
   };
+
+  const present = createPresent(C, {
+    ui: (kind, value) => ui(kind, value),
+    groundY: (x, z) => groundY(x, z),
+    waterLevel: WATER_LEVEL,
+    bodyOf: (p) => bodyObjectOf(p),
+    indexOf: (id) => bodyIndexById.get(id) ?? -1,
+    log: (text) => panel?.lifeLog(text),
+    fast: () => SPEEDS[speed]! > 3,
+  });
+  setInterval(() => {
+    if (inEden && world && C.doc.mode === "play") present.faces(world, performance.now());
+  }, 70);
 
   function freshWorld(): World {
     const things: Thing[] = [];
@@ -333,7 +347,9 @@ export function installEdenAgents(C: Ctx): void {
   }
 
   function snap(person: { id: string; x: number; z: number }) {
-    ui(`eden_snap_${person.id}`, `${person.x},${groundY(person.x, person.z)},${person.z}`);
+    // Someone out on the water is put at the surface (or at the bridge's deck), not at the lake bed under it.
+    const afloat = (person as Partial<Person>).tech?.afloat;
+    ui(`eden_snap_${person.id}`, `${person.x},${afloat ? WATER_LEVEL : groundY(person.x, person.z)},${person.z}`);
     sent.delete(person.id);
   }
 
@@ -430,6 +446,7 @@ export function installEdenAgents(C: Ctx): void {
     placedThings.clear();
     for (const id of [...placedPeople.keys()]) ui("eden_remove", id);
     placedPeople.clear();
+    present.reset();
     bodyIndexById.clear();
     announcedDead.clear();
     lastMoved.clear();
@@ -462,6 +479,7 @@ export function installEdenAgents(C: Ctx): void {
     placedThings.clear();
     for (const id of [...placedPeople.keys()]) ui("eden_remove", id);
     placedPeople.clear();
+    present.reset();
     bodyIndexById.clear();
     announcedDead.clear();
     lastMoved.clear();
@@ -502,7 +520,9 @@ export function installEdenAgents(C: Ctx): void {
       if (thing.prefab && !placedThings.has(thing.id)) {
         placedThings.add(thing.id);
         placedPrefab.set(thing.id, thing.prefab);
-        ui("eden_place", `${thing.id},${thing.prefab},${thing.x},${groundY(thing.x, thing.z)},${thing.z},${thing.id}`);
+        // A model is centred on its entity, so a made thing is lifted by half its height; a boat or a raft floats on the water.
+        const lift = PREFAB_LIFT[thing.prefab] ?? 0;
+        ui("eden_place", `${thing.id},${thing.prefab},${thing.x},${FLOATS.has(thing.prefab) ? WATER_LEVEL + lift : groundY(thing.x, thing.z) + lift},${thing.z},${thing.id}`);
         // A body whose script had not started yet misses its first "who are you"; tell it again.
         for (const wait of [1500, 5000]) setTimeout(() => ui("eden_tell", thing.id), wait);
       }
@@ -711,6 +731,7 @@ export function installEdenAgents(C: Ctx): void {
     }
 
     const hour = hourOf(w.clock ?? 0);
+    present.tick(w, { on: walking, body: youBody });
     sync(w, hour);
     const weather = w.weather;
     if (weather) {
@@ -819,6 +840,10 @@ export function installEdenAgents(C: Ctx): void {
     }
 
     const now = performance.now();
+    if (panel.tab() === "you" && now - lastMinds > 700) {
+      lastMinds = now;
+      panel.renderYou(w);
+    }
     if ((panel.tab() === "minds" || panel.tab() === "chronicle") && now - lastMinds > 700) {
       lastMinds = now;
       panel.renderMinds(w);
@@ -888,6 +913,18 @@ export function installEdenAgents(C: Ctx): void {
           }
           C.playerIndex = index;
           panel?.lifeLog(`Watching ${person.name}.`);
+        },
+        customise: (change: Partial<WalkerLook>) => {
+          if (!world) return "There is no world yet.";
+          // A bad value is refused with its reason (body.ts), and nothing changes.
+          try {
+            customiseWalker(world, change);
+          } catch (e) {
+            return (e as Error).message;
+          }
+          if (youBody >= 0) present.walkerLook(world, youBody);
+          save();
+          return undefined;
         },
         voiceTest: () => {
           if (!world) return;
@@ -994,10 +1031,29 @@ export function installEdenAgents(C: Ctx): void {
         const ok = item === "meat" ? giveMeat(world, near) : giveToPerson(world, near, item === "fruit" ? "food" : item);
         if (!ok) continue;
         pack[item]--;
+        walkerDeed(world, near, "gave");
         panel?.lifeLog(`You gave ${item} to ${near.name}.`);
         return;
       }
       panel?.lifeLog(wants.length ? `You have nothing ${near.name} needs (you carry ${packText() || "nothing"}).` : `${near.name} needs nothing you can give.`);
+    }, true);
+    // Striking and tending: J, K, F and the mouse hit whoever is beside you (the hunter's own blow plays as usual); T tends them. What you do is
+    // remembered by them and by anyone who saw it (body.ts walkerDeed).
+    const strikeKeys: Record<string, number> = { KeyJ: 0.45, KeyK: 0.7, KeyF: 0.35 };
+    const strikeAt = (harm: number) => {
+      if (!walking || !world || youBody < 0) return;
+      const you = C.objects[youBody];
+      if (!you) return;
+      const said = present.strike(world, you, harm);
+      if (said) panel?.lifeLog(said);
+    };
+    window.addEventListener("keydown", (e) => {
+      if (e.repeat || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (strikeKeys[e.code] !== undefined) strikeAt(strikeKeys[e.code]!);
+      else if (e.code === "KeyT" && walking && world && youBody >= 0 && C.objects[youBody]) panel?.lifeLog(present.tend(world, C.objects[youBody]!) ?? "");
+    }, true);
+    window.addEventListener("mousedown", (e) => {
+      if (e.button === 0 && walking && !(e.target instanceof HTMLElement && e.target.closest(".eden-panel"))) strikeAt(0.45);
     }, true);
     window.addEventListener("pagehide", save);
     // For the desktop app's tools and for tests: where each mind says a person is, where their body is, and where the ground is under it.
@@ -1082,6 +1138,7 @@ export function installEdenAgents(C: Ctx): void {
         }
       };
       (window as unknown as { edenWorld: unknown }).edenWorld = () => world;
+      (window as unknown as { edenPresent: unknown }).edenPresent = present;
       (window as unknown as { edenInfo: unknown }).edenInfo = (name: string) => {
         const o = C.objects[bodyIndex(name)];
         if (!o) return undefined;

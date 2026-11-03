@@ -25,7 +25,7 @@ import * as kitModule from "../lib/scene_kit";
 import type { Components, V3 } from "../lib/scene_kit";
 // scene_kit is CommonJS to tsx beside this ES module, so its exports may sit on `default`.
 const kit: typeof kitModule = (kitModule as unknown as { default?: typeof kitModule }).default ?? kitModule;
-const { ROOT, SceneBuilder, component, modelId, rgb, vec } = kit;
+const { ROOT, SceneBuilder, component, modelBounds, modelId, rgb, vec } = kit;
 
 const here = dirname(fileURLToPath(import.meta.url));
 const lua = (file: string) => readFileSync(join(here, "lua", file), "utf8");
@@ -410,38 +410,52 @@ scene.prefab("Campfire", {
   Light: component("Light", { type: "Point", color: vec(1, 0.62, 0.28), intensity: 3, range: 11 }),
 });
 
+// A feast's fire: the camp's fire made big, for the evening the people gather (edenPresent.ts).
+scene.prefab("Festival Fire", {
+  Particles: component("Particles", { preset: "Fire", rate: 110, lifetime: 1.2, speed: 1.6, size: 0.4, shape: "Cone", coneAngle: 22, gravityScale: -0.2 }),
+  Light: component("Light", { type: "Point", color: vec(1, 0.6, 0.25), intensity: 6, range: 18 }),
+});
+
 // The things the crafts of tech.ts make, drawn (docs/changelog/F152.md). Scale is a multiple of a model's own size. Models the kit already has are
 // reused: bucket (pot), rock-medium (oven), anvil-forge (kiln), barrel-large (drum), planter (well), fence-picket (pen), bedroll (dog bed),
 // rowboat-small (boat), farmhouse (granary), rock-stone-01 (quern). These are stand-ins, not made for the job: weapon-rack for the spit,
 // market-stall for the loom, paifang-gate for the swing. These are plain boxes: ball, flute, field, channel, hive, raft, bridge. The prefab
 // names are what tech.ts's kinds map to in apps/editor/src/eden/present.ts (CRAFT_PREFAB); the host lifts each by half its height.
+// The page finds these by the "eden_body" each one sends (prop.lua).
+const tracked = { Script: { source: lua("prop.lua"), props: {} } };
+// A model is drawn at its Scale as its size in metres (the editor fits it to a unit box first), so a made thing's Scale is the model's own size
+// times `k`.
+const sized = (name: string, file: string, k: number, extra: Record<string, unknown> = {}) => {
+  const { min, max } = modelBounds(modelId(file));
+  scene.prefab(name, { Renderable: { mesh: modelId(file), material: 0, visible: true }, Scale: { value: vec(...([0, 1, 2].map((a) => (max[a]! - min[a]!) * k) as [number, number, number])) }, ...extra });
+};
 const box = (name: string, size: [number, number, number], hex: string) =>
-  scene.prefab(name, { Renderable: { mesh: 0, material: 0, visible: true }, Scale: { value: vec(...size) }, Material: { color: rgb(hex), roughness: 0.85, keepTextures: false } });
-prop("Clay Pot", "bucket", 2.5);
-prop("Spit", "weapon-rack", 0.5);
-prop("Oven", "rock-medium", 1);
-prop("Kiln", "anvil-forge", 0.6);
-prop("Loom", "market-stall", 0.55);
-prop("Quern", "rock-stone-01", 6);
+  scene.prefab(name, { Renderable: { mesh: 0, material: 0, visible: true }, Scale: { value: vec(...size) }, Material: { color: rgb(hex), roughness: 0.85, keepTextures: false }, Script: { source: lua("prop.lua"), props: {} } });
+sized("Clay Pot", "bucket", 2.5, tracked);
+sized("Spit", "weapon-rack", 0.5, tracked);
+sized("Oven", "rock-medium", 1, tracked);
+sized("Kiln", "anvil-forge", 0.6, tracked);
+sized("Loom", "market-stall", 0.55, tracked);
+sized("Quern", "rock-stone-01", 6, tracked);
 box("Ball", [0.3, 0.3, 0.3], "#c8643a");
-prop("Swing", "paifang-gate", 0.25);
+sized("Swing", "paifang-gate", 0.25, tracked);
 box("Flute", [0.06, 0.06, 0.5], "#b08a50");
-prop("Drum", "barrel-large", 0.35);
+sized("Drum", "barrel-large", 0.35, tracked);
 box("Field", [3.5, 0.15, 3.5], "#5c4326");
 box("Channel", [0.5, 0.08, 4], "#4f86b8");
-prop("Pen", "fence-picket", 1.3);
-prop("Dog Bed", "bedroll", 1.6);
-prop("Well", "planter", 1);
+sized("Pen", "fence-picket", 1.3, tracked);
+sized("Dog Bed", "bedroll", 1.6, tracked);
+sized("Well", "planter", 1, tracked);
 box("Hive", [0.5, 0.6, 0.5], "#d9a93a");
-prop("Boat", "rowboat-small", 1.2);
+sized("Boat", "rowboat-small", 1.2, tracked);
 box("Raft", [2.4, 0.15, 2.4], "#7a5a30");
 box("Bridge", [1.6, 0.25, 1], "#8a6a3a");
-prop("Granary", "farmhouse", 0.55);
+sized("Granary", "farmhouse", 0.55, tracked);
 // Other settlements, seen on the edge of the land: huts, a ruin, a banner (red for a hostile one), and the travellers who come from them.
-prop("Settlement Hut", "thatched-hut", 0.55);
-prop("Settlement Ruin", "rubble-large", 0.5);
-prop("Settlement Banner", "hall-banner", 1.1);
-prop("Settlement Banner Red", "banner-patternA-red", 0.9);
+sized("Settlement Hut", "thatched-hut", 0.55, tracked);
+sized("Settlement Ruin", "rubble-large", 0.5, tracked);
+sized("Settlement Banner", "hall-banner", 1.1, tracked);
+sized("Settlement Banner Red", "banner-patternA-red", 0.9, tracked);
 const traveller = (name: string, model: string, gear: string) =>
   scene.prefab(name, { Renderable: { mesh: modelId(model), material: 0, visible: true }, RigidBody: { mass: 70, dynamic: true }, Collider: {}, Script: { source: lua("person.lua"), props: { gear } } });
 traveller("Trader (man)", MEN, "379:#8a6a3c 380 381 382 356:#3a2a1a");

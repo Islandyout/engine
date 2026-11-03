@@ -2,6 +2,8 @@ import { blendOf } from "../../eden/inner";
 import { bondOf, hourOf, phrase, type Person, type World } from "../../eden/mind";
 import { DAY } from "../../eden/earth";
 import { CUSTOM_AT, NORM_TEXT, standing, standingWord, type NormId } from "../../eden/norms";
+import { walkerBodyOf, walkerAge, walkerRepute, type Build, type WalkerLook } from "../../eden/body";
+import { walkerHud, walkerStature, worldReport } from "../../eden/present";
 import type { VoiceConfig } from "./edenVoice";
 
 // Eden's panel: what the Creator sees and touches while the garden runs. Built with the DOM API only (never innerHTML: names, journals and
@@ -25,6 +27,7 @@ export interface PanelHandlers {
   follow(id: string): void; // the camera goes to this person
   slot(action: "keep" | "return", n: number): void; // keep this moment, or go back to a moment kept
   walk(on: boolean): void; // the Creator walks the world as a hunter, or goes back to watching
+  customise(change: Partial<WalkerLook>): string | undefined; // how the Walker looks; returns the reason if a value is refused
 }
 
 export interface EdenPanel {
@@ -38,8 +41,9 @@ export interface EdenPanel {
   lifeLog(text: string): void;
   creatorLog(text: string, ok: boolean): void;
   voiceStatus(text: string): void;
-  tab(): "life" | "minds" | "chronicle" | "creator";
+  tab(): "life" | "minds" | "chronicle" | "creator" | "you";
   renderMinds(world: World): void;
+  renderYou(world: World): void;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -73,6 +77,9 @@ const CSS = `
   .eden-sub { margin-top: 4px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #a89d85; }
   .eden-ok { color: #a9cf8a; } .eden-no { color: #e0907c; }
   .eden-panel form { display: flex; gap: 6px; }
+  .eden-field { display: grid; grid-template-columns: 56px 1fr auto; gap: 6px; align-items: center; margin: 2px 0; }
+  .eden-field input[type=color] { padding: 0; height: 24px; }
+  .eden-panel details { margin: 2px 0; } .eden-panel summary { cursor: pointer; color: #c9a24a; }
   .eden-panel input { flex: 1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 6px; color: inherit; font: inherit; padding: 5px 8px; }
 `;
 
@@ -131,16 +138,16 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
 
   // Tabs
   const tabs = el("div", "eden-tabs");
-  const panes: Record<string, HTMLElement> = { life: el("div", "eden-pane"), minds: el("div", "eden-pane"), chronicle: el("div", "eden-pane"), creator: el("div", "eden-pane") };
+  const panes: Record<string, HTMLElement> = { life: el("div", "eden-pane"), minds: el("div", "eden-pane"), chronicle: el("div", "eden-pane"), you: el("div", "eden-pane"), creator: el("div", "eden-pane") };
   const tabButtons: Record<string, HTMLButtonElement> = {};
-  let current: "life" | "minds" | "chronicle" | "creator" = "life";
-  for (const [key, label] of [["life", "Life"], ["minds", "Minds"], ["chronicle", "Chronicle"], ["creator", "Creator"]] as const) {
+  let current: "life" | "minds" | "chronicle" | "creator" | "you" = "life";
+  for (const [key, label] of [["life", "Life"], ["minds", "Minds"], ["chronicle", "Chronicle"], ["you", "You"], ["creator", "Creator"]] as const) {
     const b = el("button", undefined, label);
     b.addEventListener("click", () => select(key));
     tabButtons[key] = b;
     tabs.appendChild(b);
   }
-  function select(key: "life" | "minds" | "chronicle" | "creator") {
+  function select(key: "life" | "minds" | "chronicle" | "creator" | "you") {
     current = key;
     for (const k of Object.keys(panes)) {
       panes[k]!.classList.toggle("on", k === key);
@@ -163,6 +170,7 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
   panes.chronicle!.appendChild(chronicleView);
   panes.minds!.appendChild(mindsView);
   let selected: string | undefined;
+  const openSections = new Set<string>();
 
   // Creator
   const help = el("div", undefined, 'Say it in words: "let there be a deer by the river", "rain", "make it winter", "heal Adam", "feed Eve", "move Adam to the overlook", "make Eve bolder", "tell Adam well done".');
@@ -269,6 +277,57 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
   panes.creator!.append(help, form, chips, personBox, slotBox, creatorLines, voiceBox);
   slotsRef = slotButtons;
 
+  // You: how the Walker looks (checked, a bad value is refused with its reason), and what their body needs.
+  const youForm = el("form", "eden-youform");
+  const field = (label: string, input: HTMLElement) => {
+    const row = el("label", "eden-field");
+    row.append(el("span", undefined, label), input);
+    youForm.appendChild(row);
+  };
+  const yHeight = el("input");
+  yHeight.type = "range";
+  yHeight.min = "140";
+  yHeight.max = "210";
+  yHeight.step = "1";
+  yHeight.setAttribute("aria-label", "Walker height in centimetres");
+  const yHeightOut = el("span", undefined, "");
+  yHeight.addEventListener("input", () => (yHeightOut.textContent = `${yHeight.value} cm`));
+  const yBuild = el("select");
+  for (const b of ["slight", "average", "broad"]) yBuild.append(new Option(b, b));
+  yBuild.setAttribute("aria-label", "Walker build");
+  const ySkin = el("input");
+  ySkin.type = "range";
+  ySkin.min = "0";
+  ySkin.max = "1";
+  ySkin.step = "0.05";
+  ySkin.setAttribute("aria-label", "Walker skin tone");
+  const yHair = el("input");
+  yHair.type = "color";
+  yHair.setAttribute("aria-label", "Walker hair colour");
+  const yTunic = el("input");
+  yTunic.type = "color";
+  yTunic.setAttribute("aria-label", "Walker tunic colour");
+  const hRow = el("div", "eden-field");
+  hRow.append(el("span", undefined, "Height"), yHeight, yHeightOut);
+  youForm.appendChild(hRow);
+  field("Build", yBuild);
+  field("Skin", ySkin);
+  field("Hair", yHair);
+  field("Tunic", yTunic);
+  const yGo = el("button", undefined, "Change how I look");
+  yGo.type = "submit";
+  const yMsg = el("div", undefined, "");
+  youForm.append(yGo, yMsg);
+  youForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const refused = handlers.customise({ heightCm: Number(yHeight.value), build: yBuild.value as Build, skin: Number(ySkin.value), hair: yHair.value, tunic: yTunic.value });
+    yMsg.className = refused ? "eden-no" : "eden-ok";
+    yMsg.textContent = refused ?? "You look as you chose. Walk the world to be seen.";
+  });
+  const youView = el("div");
+  panes.you!.append(el("div", "eden-sub", "How you look"), youForm, youView);
+  let youSet = false;
+
   document.body.appendChild(root);
   select("life");
 
@@ -328,6 +387,34 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
     creatorLog: (text, ok) => addLine(creatorLines, text, ok ? "eden-ok" : "eden-no", 30),
     voiceStatus: (text) => (voiceStatus.textContent = text),
     tab: () => current,
+        renderYou(world) {
+      const wb = walkerBodyOf(world);
+      if (!youSet) {
+        youSet = true;
+        yHeight.value = String(wb.look.heightCm);
+        yHeightOut.textContent = `${wb.look.heightCm} cm`;
+        yBuild.value = wb.look.build;
+        ySkin.value = String(wb.look.skin);
+        yHair.value = wb.look.hair;
+        yTunic.value = wb.look.tunic;
+      }
+      youView.replaceChildren();
+      const hud = walkerHud(world);
+      youView.appendChild(el("div", "eden-sub", "Your body"));
+      const bars = el("div", "eden-bars");
+      for (const b of hud.bars) meter(b.label, b.label === "Health" ? 1 - b.value : b.value, b.bad, bars);
+      youView.appendChild(bars);
+      youView.appendChild(el("div", undefined, hud.line));
+      const repute = walkerRepute(world);
+      youView.appendChild(el("div", undefined, `What the people make of you: ${repute > 0.3 ? "trusted" : repute < -0.3 ? "feared and mistrusted" : "not yet known"} (${repute.toFixed(2)})`));
+      const st = walkerStature(world);
+      youView.appendChild(el("div", undefined, `You are ${Math.round(st.cm)} cm, ${wb.look.build}, aged ${walkerAge(world).toFixed(0)} years; pace ${Math.round(hud.pace * 100)}% of a fit adult's.`));
+      if (wb.scars.length) youView.appendChild(el("div", undefined, `Scars: ${wb.scars.map((s) => `${s.where} (${s.what})`).join(", ")}`));
+      if (wb.deeds.length) {
+        youView.appendChild(el("div", "eden-sub", "What you have done"));
+        for (const d of wb.deeds.slice(-6).reverse()) youView.appendChild(el("div", undefined, `${clockText(d.t)} · ${d.kind} ${world.people.find((q) => q.id === d.to)?.name ?? d.to}`));
+      }
+    },
     renderMinds(world) {
       chronicleView.replaceChildren();
       // Who is to whom: friends in green, those at odds in red, partners in gold; thicker where there is more trust.
@@ -389,6 +476,15 @@ export function buildEdenPanel(handlers: PanelHandlers, initialVoice: VoiceConfi
         who.appendChild(b);
       }
       mindsView.appendChild(who);
+      // The layers beyond one mind (other settlements, trade and money, law and feuds, feasts); each section opens and closes and stays so.
+      for (const sec of worldReport(world)) {
+        const d = el("details");
+        d.open = openSections.has(sec.title);
+        d.addEventListener("toggle", () => (d.open ? openSections.add(sec.title) : openSections.delete(sec.title)));
+        d.appendChild(el("summary", undefined, sec.title));
+        for (const line of sec.lines) d.appendChild(el("div", undefined, line));
+        mindsView.appendChild(d);
+      }
       const p: Person = world.people.find((q) => q.id === selected)!;
       mindsView.appendChild(el("div", undefined, `${p.name}, ${p.sex === "f" ? "woman" : "man"}, ${p.age.toFixed(1)} years · health ${Math.round(p.health * 100)}%`));
 

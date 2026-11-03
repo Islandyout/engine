@@ -17,6 +17,12 @@ function on_message(name, value)
 end
 
 function on_ui(name, value)
+  -- How the Creator chose to look (the "You" tab): "tunic|hair" as #rrggbb, worn over the kit's ranger pieces.
+  if name == "eden_player_look" then
+    local tunic, hair = string.match(value, "^(#%x%x%x%x%x%x)|(#%x%x%x%x%x%x)$")
+    if tunic then world.wear(string.format("383:%s 384:%s 385:%s 386 388 363:%s", tunic, tunic, tunic, hair)) end
+    return
+  end
   if name == "eden_player_hurt" then
     local amount = tonumber(value) or 0
     if amount > 0 and hurt_cd <= 0 then

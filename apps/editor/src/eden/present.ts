@@ -1,7 +1,7 @@
 // What the page shows of the simulation, worked out from the mind and nothing else (no scene, no browser), so tests can check the same numbers the
 // page draws: how tall and broad a body stands, how often it blinks, what the face says, what scars and a limp show, where the other settlements
 // and the parties on the road are, the feast calendar for the heads-up display, and what the Walker's body says about the one who walks.
-import { DAY, SEASON_NAMES, YEAR_DAYS, seasonAt } from "./earth";
+import { DAY, SEASON_NAMES, YEAR_DAYS, hourOf, seasonAt } from "./earth";
 import { adultHeightCm, bodyOf, heightCm, walkerAge, walkerBodyOf, walkerSpeed, type Scar, type WalkerBody } from "./body";
 import { calendar, festivalOn, groupOf, houseOf, societyOf } from "./society";
 import { GOODS, ledgerKind, marketOpen, quote, worldEcon } from "./economy";
@@ -24,8 +24,8 @@ export function stature(p: Person): Stature {
   const cm = heightCm(p);
   const y = cm / MODEL_HEIGHT_CM[p.sex === "f" ? "f" : "m"];
   const build = bodyOf(p).gene.build;
-  // Children are all one build; the width of an adult goes from 0.93 to 1.1 of their height's.
-  const grown = Math.min(1, cm / adultHeightCm(p));
+  // Children are all one build until they near full height; the width of an adult goes from 0.93 to 1.1 of their height's.
+  const grown = Math.max(0, Math.min(1, (cm / adultHeightCm(p) - 0.8) / 0.2));
   const xz = y * (1 + (0.93 + 0.17 * build - 1) * grown);
   return { y, xz, cm };
 }
@@ -303,4 +303,28 @@ export function worldReport(world: World): ReportSection[] {
   const kept = soc.festivals.slice(-3).map((f) => `${f.name}: ${f.attended} came`);
   out.push({ title: "Feasts", lines: [feast.title, feast.detail, ...calendar(world).map((c) => `${c.season}: ${c.name} (day ${c.day + 1})`), ...kept] });
   return out;
+}
+
+/** How far each prefab is raised above the ground it stands on: half its height, because a model is centred on its entity. */
+export const PREFAB_LIFT: Record<string, number> = {
+  "Clay Pot": 0.24, Spit: 0.56, Oven: 0.57, Kiln: 0.96, Loom: 0.63, Quern: 0.21, Ball: 0.15, Swing: 1.08, Flute: 0.03, Drum: 0.35,
+  Field: 0.075, Channel: 0.04, Pen: 1.05, "Dog Bed": 0.1, Well: 0.39, Hive: 0.3, Boat: 0.47, Raft: 0.075, Bridge: 0.125, Granary: 1.53,
+  "Settlement Hut": 1.29, "Settlement Ruin": 0.9, "Settlement Banner": 1.46, "Settlement Banner Red": 1.44, "Festival Fire": 0.2,
+};
+/** The things that float: they stand on the water, not the ground under it. */
+export const FLOATS = new Set(["Boat", "Raft"]);
+
+/** Where a feast's fire is lit: the camp's own place, else the fire that burns, else where the people are. */
+export function festivalSpot(world: World): { x: number; z: number } {
+  const g = groupOf(world, "main");
+  if (g.camp) return g.camp;
+  const fire = world.things.find((t) => t.kind === "campfire");
+  if (fire) return { x: fire.x, z: fire.z };
+  const n = Math.max(1, world.people.length);
+  return { x: world.people.reduce((a, p) => a + p.x, 0) / n, z: world.people.reduce((a, p) => a + p.z, 0) / n };
+}
+/** Whether a feast is being kept now: the evening of a feast day, from the hour people are drawn to the fire to when they go to bed. */
+export function feastTonight(world: World): boolean {
+  const h = hourOf(world.clock ?? 0);
+  return !!festivalOn(world) && h >= 16.5 && h < 22;
 }
