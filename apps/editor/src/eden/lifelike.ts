@@ -5,7 +5,7 @@
 // A life: 1 to 4 people with random personalities in a garden of random layout, food that runs out and grows back by the seasons, a climate
 // (mild like Eden's or anything from cool to warm), and perhaps a fox or a fire. It runs for `years` of 16 sim days.
 import { AFFORDANCES, bondOf, makePerson, step, type Person, type Thing, type World } from "./mind";
-import { DAY, YEAR, YEAR_DAYS, type Climate } from "./earth";
+import { DAY, YEAR, YEAR_DAYS, type Climate, hypot2 } from "./earth";
 
 export function rng(seed: number) {
   let s = seed | 0;
@@ -254,13 +254,13 @@ export function live(seed: number, options: LifeOptions = {}): Life {
 
       const l = last.get(p.id);
       if (intent && !intent.arrived) {
-        if (l && Math.hypot(p.x - l.x, p.z - l.z) < 0.5) {
+        if (l && hypot2(p.x - l.x, p.z - l.z) < 0.5) {
           if (t - l.since > 300) stuck += DT;
         } else last.set(p.id, { x: p.x, z: p.z, since: t });
       } else last.delete(p.id);
 
       if (hasDanger) {
-        const near = world.things.some((th) => (AFFORDANCES[th.kind]?.danger ?? 0) > 0 && Math.hypot(p.x - th.x, p.z - th.z) < 8);
+        const near = world.things.some((th) => (AFFORDANCES[th.kind]?.danger ?? 0) > 0 && hypot2(p.x - th.x, p.z - th.z) < 8);
         if (near && dangerNearSince === undefined) dangerNearSince = t;
         if (near && intent?.kind === "flee" && fearTime === undefined && dangerNearSince !== undefined) fearTime = t - dangerNearSince;
         if (!near) dangerNearSince = undefined;

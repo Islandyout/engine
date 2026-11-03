@@ -11,7 +11,7 @@
 //  willpower, and wrongdoing leaves guilt that is then explained away (rationalised); condemning others and then doing the same is
 //  hypocrisy; the same act is judged one way in a friend or kin and another in a foe, with a reason.
 // Nothing here claims anyone feels anything. It is the machinery by which behaviour comes from reasons.
-import { DAY } from "./earth";
+import { DAY, hypot2 } from "./earth";
 import { feel } from "./inner";
 import { skillOf, valueOf, SKILLS } from "./identity";
 import { ADULT_AGE, chronicle, isNight, note, rand, relation, tally, type Intent, type IntentKind, type Person, type World } from "./mind";
@@ -52,7 +52,7 @@ export interface Model {
 }
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 
 export function selfOf(p: Person): Self {
   if (p.self) return p.self;

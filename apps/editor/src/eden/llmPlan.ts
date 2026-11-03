@@ -2,13 +2,13 @@
 // naming things the person actually knows; every step is then checked against the map, the clock and what they carry before it becomes a
 // plan, and a proposal that cannot work is thrown away with the reason. Nothing the model says runs unchecked, and the minds stay
 // deterministic without it.
-import { DAY } from "./earth";
+import { DAY, hypot2 } from "./earth";
 import { INVENTIONS } from "./culture";
 import type { Plan, Step } from "./reason";
 import { homeOf, hours, leg, secsToDark, secsToWinter } from "./reason";
 import { AFFORDANCES, ADULT_AGE, type Person, type Thing, type World } from "./mind";
 
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 const DIRS: Record<string, number> = { east: 0, "south-east": 45, south: 90, "south-west": 135, west: 180, "north-west": 225, north: 270, "north-east": 315 };
 
 /** What a person knows of the world, in words and numbers the model can reason with. */
@@ -138,7 +138,7 @@ export function parsePlan(world: World, person: Person, text: string): { plan?: 
           const a = (DIRS[s.dir]! * Math.PI) / 180;
           x = at.x + Math.cos(a) * s.metres;
           z = at.z + Math.sin(a) * s.metres;
-          if (Math.hypot(x, z) > (world.radius ?? 200)) return { error: `step ${i + 1}: that is off the edge of the land` };
+          if (hypot2(x, z) > (world.radius ?? 200)) return { error: `step ${i + 1}: that is off the edge of the land` };
         } else return { error: `step ${i + 1}: goto needs a place id, or a compass direction and metres up to 150` };
         move(x, z);
         steps.push({ act: "goto", x, z, label: label(place ? `walk to ${place.kind}` : `walk ${Math.round(s.metres as number)} m ${String(s.dir)}`) });

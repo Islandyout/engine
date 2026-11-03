@@ -2,6 +2,7 @@
 // A norm starts at nothing, grows each time it is seen kept (or each time someone is seen to be wronged by its breach), fades if it falls out
 // of use, and once strong enough it is a custom: people feel it, hold themselves to it, and mark those who break it.
 import type { Person, World } from "./mind";
+import { hypot2 } from "./earth";
 
 export type NormId = "share" | "fair" | "tend" | "gather" | "elders" | "orphans";
 export const NORM_TEXT: Record<NormId, string> = {
@@ -19,7 +20,7 @@ export const isCustom = (world: World, id: NormId) => strengthOf(world, id) >= C
 
 // Something was done (or a wrong seen) for a norm, with others looking on; it grows more when more people saw.
 export function reinforce(world: World, id: NormId, by: Person, amount: number): boolean {
-  const witnesses = world.people.filter((q) => q !== by && Math.hypot(q.x - by.x, q.z - by.z) < 15).length;
+  const witnesses = world.people.filter((q) => q !== by && hypot2(q.x - by.x, q.z - by.z) < 15).length;
   if (!witnesses) return false;
   const norms = (world.norms ??= {});
   const n = (norms[id] ??= { strength: 0 });

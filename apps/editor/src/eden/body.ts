@@ -11,7 +11,7 @@
 //  marked by what hurts it, and what it does to people is remembered by them.
 // Every chance here is a hash of who, when and what, never the person's own random stream, so adding it shifts nothing else a seeded life does.
 // Nothing at the top level reads a value from another eden module (they import one another in a ring).
-import { DAY, YEAR } from "./earth";
+import { DAY, YEAR, hypot2 } from "./earth";
 import { humanYears } from "./psyche";
 import { ADULT_AGE, chronicle, note, relation, tally, type Intent, type IntentKind, type Person, type World } from "./mind";
 import { feel } from "./inner";
@@ -44,7 +44,7 @@ export interface Body {
 export const MAX_SCARS = 8;
 const GESTATION = 0.75 * YEAR; // mirrors mind.ts (a plain number: see the note at the top)
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 
 // A chance from a hash of who, when and what; `grain` is how many sim seconds make one roll (the same roll holds inside it).
 function chance(id: string, clock: number, salt: string, grain = 1): number {

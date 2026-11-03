@@ -4,7 +4,7 @@
 // dark, plays at what adults do, calls things its own. Further on: apprenticeship, play-fighting, protests that it is not fair, rivalry with
 // brothers and sisters, beliefs taken from parents, and an understanding of death that arrives with age.
 // Ages here are in Eden years (an adult is 4); `humanYears` in psyche.ts says what that would be in a human life.
-import { DAY } from "./earth";
+import { DAY, hypot2 } from "./earth";
 import { feel } from "./inner";
 import { practise, type Skill } from "./identity";
 import { ADULT_AGE, isNight, note, rand, relation, tally, type Intent, type Person, type World } from "./mind";
@@ -63,7 +63,7 @@ const hash01 = (s: string) => {
   return ((h >>> 0) % 1000) / 1000;
 };
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 
 export function devOf(p: Person): Dev {
   return (p.dev ??= { care: 0.6, lapses: 0, heard: 0, vocab: 0, heardFrom: {}, rules: [], pretend: 0, protests: 0, scraps: 0 });

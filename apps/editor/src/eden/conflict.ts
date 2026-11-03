@@ -12,7 +12,7 @@
 //  CONSEQUENCES       an honour, shame or guilt ethos; a judge; restitution, jail, exile, execution (only for killing, only under strong law);
 //                     forgiveness and reconciliation; guilt that fades over a lifetime, not a week.
 // Sexual violence is deliberately not modelled (see docs/changelog/F145.md). Chances come from a hash, not the person's random stream.
-import { DAY } from "./earth";
+import { DAY, hypot2 } from "./earth";
 import { devOf } from "./development";
 import { feel } from "./inner";
 import { valueOf } from "./identity";
@@ -63,7 +63,7 @@ export interface WorldConflict {
 export type Ethos = "honour" | "shame" | "guilt";
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 // A chance drawn from a hash of who, when and what, so adding any of this does not shift the choices a seeded life makes.
 const chance = (id: string, world: World, salt: string) => {
   let h = 2166136261;

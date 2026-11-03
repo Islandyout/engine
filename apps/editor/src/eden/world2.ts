@@ -12,7 +12,7 @@
 // Chances come from the world's own second random stream (`world2.rng`), never a person's, and nothing here reads a value from another eden
 // module at load time (they import one another in a ring).
 import { learnHerding } from "./tech";
-import { DAY, YEAR, growthRate } from "./earth";
+import { DAY, YEAR, growthRate, hypot2 } from "./earth";
 import { bodyOf, infectBed, muscleOf } from "./body";
 import { ADULT_AGE, chronicle, make, makePerson, note, tally, type Person, type Thing, type World } from "./mind";
 import { feel } from "./inner";
@@ -84,7 +84,7 @@ const SETTLEMENT_NAMES = ["Highwater", "Saltmarsh", "Redfield", "Stonebrook", "A
 const MIGRANT_NAMES = { m: ["Tobin", "Ravi", "Corin", "Ansel", "Dov", "Emrys"], f: ["Mira", "Thessaly", "Anwen", "Lio", "Sabra", "Isolde"] };
 const TRAVEL_METRES_PER_DAY = 2500;
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 const hash = (s: string) => {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
@@ -436,7 +436,7 @@ function leavingTick(world: World, w2: World2) {
       note(p, world, "I cannot leave yet. I must eat and drink first.");
       continue;
     }
-    if (Math.hypot(p.x, p.z) > R || now - rec.since > 1.5 * DAY) {
+    if (hypot2(p.x, p.z) > R || now - rec.since > 1.5 * DAY) {
       const s = w2.settlements.find((q) => q.id === rec.to)!;
       world.people.splice(world.people.indexOf(p), 1);
       s.pop += 1;

@@ -135,3 +135,18 @@ export function moonName(clock: number): string {
   const p = moonPhase(clock);
   return p < 0.06 || p > 0.94 ? "new moon" : p < 0.44 ? "waxing moon" : p < 0.56 ? "full moon" : "waning moon";
 }
+
+/**
+ * Math.hypot for two numbers with exactly the bits V8's builtin gives (it divides by the larger, sums the squares, takes the root and
+ * multiplies back; with two terms its Kahan compensation never gets used) but without the builtin's variadic call, which was the largest single
+ * cost of the mind's many distance tests. Zero, NaN and infinity go to the builtin. tests/edenEarth.test.ts checks the two agree.
+ */
+export function hypot2(a: number, b: number): number {
+  a = a < 0 ? -a : a;
+  b = b < 0 ? -b : b;
+  const m = a > b ? a : b;
+  if (!(m > 0) || m === Infinity) return Math.hypot(a, b);
+  const na = a / m;
+  const nb = b / m;
+  return Math.sqrt(na * na + nb * nb) * m;
+}

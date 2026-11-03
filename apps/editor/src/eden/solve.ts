@@ -3,12 +3,12 @@
 // and, where it takes more than one pair of hands, getting others to come. Cause and effect are learned from what happens in front of them
 // ("the wolf turned away from the fire, twice") and kept as a belief that can be right or wrong and that others can be told.
 import { chronicle, isNight, note, rand, relation, tally, ADULT_AGE, AFFORDANCES, type Intent, type Person, type Thing, type World } from "./mind";
-import { DAY } from "./earth";
+import { DAY, hypot2 } from "./earth";
 import type { Plan, Step } from "./reason";
 import { homeOf, hours, leg, nearest, secsToDark, woodSteps } from "./reason";
 
 type Option = { intent: Omit<Intent, "arrived">; score: number };
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const WALK = 1.6;
 const burning = (t: Thing) => t.kind === "campfire" && (t.fuel ?? 0) > 0;
@@ -253,7 +253,7 @@ export function scoutPlan(world: World, person: Person): Plan | undefined {
       const a = (i / 8) * Math.PI * 2 + 0.3 * rand(person);
       const x = home.x + Math.cos(a) * d;
       const z = home.z + Math.sin(a) * d;
-      if (Math.hypot(x, z) > r * 0.95) continue;
+      if (hypot2(x, z) > r * 0.95) continue;
       if (person.explored.has(`${Math.floor(x / 20)},${Math.floor(z / 20)}`)) continue;
       if ((2 * d) / WALK + 40 > left * 0.8) continue; // there and back before the dark
       if (!best || rand(person) < 0.4) best = { x, z, d, dir: DIRS[i]! };

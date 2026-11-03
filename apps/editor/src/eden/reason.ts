@@ -6,7 +6,7 @@
 // time estimate and a deadline, and they carry it out step by step, noticing when it has worked or gone wrong. When they want something
 // and no known way gets it, they EXPERIMENT: try a combination of what they hold in a place, remember what did not work, and when
 // something does, it is theirs to use and to teach (culture.ts INVENTIONS: laws of this world that nobody is told).
-import { DAY, YEAR } from "./earth";
+import { DAY, YEAR, hypot2 } from "./earth";
 import { INVENTIONS } from "./culture";
 import { psycheEvent } from "./psyche";
 import { recruit, scoutPlan, solveProblem, teamOptions } from "./solve";
@@ -36,7 +36,7 @@ export interface Plan {
 }
 
 const WALK = 1.6;
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const burning = (t: Thing) => t.kind === "campfire" && (t.fuel ?? 0) > 0;
 

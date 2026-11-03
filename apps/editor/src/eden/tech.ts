@@ -5,7 +5,7 @@
 // needs tries it and sometimes hits on it. What one knows is in person.ideas, so telling passes it on (culture.ts exchangeIdeas) and a death
 // can lose it. The things they make are used by `work` intents, one verb to a kind of thing (cook at a pot, row a boat, cross a bridge).
 // Chances come from a hash of who, when and what, not from the person's own random stream.
-import { DAY } from "./earth";
+import { DAY, hypot2 } from "./earth";
 import { feel as feelEmotion } from "./inner";
 import { INVENTIONS } from "./culture";
 import { psycheEvent } from "./psyche";
@@ -128,7 +128,7 @@ export const techName = (id: string) => craftOf(id)?.name;
 
 const has = (p: Person, id: string) => !!p.ideas?.includes(id);
 export const ready = (p: Person, c: Craft) => !has(p, c.id) && c.needs.every((n) => has(p, n));
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const WALK = 1.6;
 

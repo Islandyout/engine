@@ -6,7 +6,7 @@
 // a recognised pairing with obligations, widowhood, orphans taken in or not, step-parents, a clan, who inherits, and who may not pair.
 // Ages are Eden years (an adult is 4); `humanYears` in psyche.ts gives the human equivalent.
 import { celebrate } from "./heart";
-import { DAY, YEAR } from "./earth";
+import { DAY, YEAR, hypot2 } from "./earth";
 import { feel } from "./inner";
 import { roleOf, valueOf, VALUES } from "./identity";
 import { ADULT_AGE, bondOf, chronicle, isNight, note, rand, relation, tally, type Intent, type Person, type World } from "./mind";
@@ -42,7 +42,7 @@ export interface Life {
   nextDoubt?: number;
 }
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 const hash01 = (s: string) => {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);

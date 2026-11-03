@@ -12,7 +12,7 @@
 //  INSTITUTIONS: with no counting, amounts are guessed and debts live in memory (and are sometimes forgotten); with tally sticks and with
 //  writing, an account is kept that settles what was owed.
 // Chances are drawn from a hash of who, when and what, not from the person's random stream, so seeded lives elsewhere are unchanged.
-import { DAY, YEAR } from "./earth";
+import { DAY, YEAR, hypot2 } from "./earth";
 import { feel } from "./inner";
 import { SKILLS, skillOf, type Skill } from "./identity";
 import { knows } from "./culture";
@@ -94,7 +94,7 @@ export interface WorldEcon {
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 export const chanceOf = (salt: string): number => {
   let h = 2166136261;
   for (let i = 0; i < salt.length; i++) h = Math.imul(h ^ salt.charCodeAt(i), 16777619);
