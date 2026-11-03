@@ -68,3 +68,9 @@ test("a promise kept raises trust, and one let lapse costs it", () => {
   assert.ok(b.relations.get("A")!.trust < 0.5, "a broken promise should cost trust");
   assert.ok(a.journal.some((j) => /did not keep my word/.test(j.text)));
 });
+
+test("a tag the model follows with a full stop is still read and not left in the spoken line (seen in a real Ollama run)", async () => {
+  const { parseIntent } = await import("../src/eden/voiceContext");
+  assert.deepEqual(parseIntent("There is a wolf near the woods; be careful [warn]."), { text: "There is a wolf near the woods; be careful", intent: "warn" });
+  assert.deepEqual(parseIntent("I will come back [promise]"), { text: "I will come back", intent: "promise" });
+});

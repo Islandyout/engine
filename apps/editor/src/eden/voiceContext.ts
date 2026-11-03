@@ -89,7 +89,8 @@ export function contextOf(speaker: Person, listener: Person | undefined, world: 
 export const INTENTS = ["offer", "warn", "promise"] as const;
 export type SpokenIntent = (typeof INTENTS)[number];
 export function parseIntent(text: string): { text: string; intent?: SpokenIntent } {
-  const m = text.match(/\[(offer|warn|promise)\]\s*$/i);
-  const clean = text.replace(/\s*\[(offer|warn|promise)\]\s*$/i, "").trim();
+  // A model often puts a full stop after the tag ("[offer]."): the tag is still read, and not left in the line.
+  const m = text.match(/\[(offer|warn|promise)\][\s.!?]*$/i);
+  const clean = text.replace(/\s*\[(offer|warn|promise)\][\s.!?]*$/i, "").trim();
   return m ? { text: clean, intent: m[1]!.toLowerCase() as SpokenIntent } : { text: clean };
 }
