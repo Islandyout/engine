@@ -22,6 +22,7 @@ export interface Work {
   knows?: string[]; // what a book teaches
   copyOf?: string; // the book this was copied from
   at?: string; // the thing it is kept at (a library) or shown on (a painted stone)
+  tale?: string; // a song or story: the tale (learning.ts) that carries its rule
 }
 export interface Tenet {
   id: string;
