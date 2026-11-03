@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { DAY } from "../src/eden/earth";
 import { bandOf, conflictOf, worldConflict } from "../src/eden/conflict";
 import { econOf, heldOf, ledgerKind, storeOf, wealthOf, worldEcon } from "../src/eden/economy";
-import { makePerson, step, type Intent, type Person, type Thing, type World } from "../src/eden/mind";
+import { bondOf, makePerson, step, type Intent, type Person, type Thing, type World } from "../src/eden/mind";
 
 // These tests drive the real step() and look at what the people did: nothing here calls startVenture, hire, lend, splitBand, raid or
 // betrayAlly directly (the older tests do that). A "day hop" moves the clock to the next morning and takes one real step, so the economy
@@ -122,11 +122,11 @@ test("the food-for-wood swap uses the going prices when a fair is open, not the 
 });
 
 test("a thing built on another's ground is the owner of the ground's (a boundary), and the builder is a trespasser", () => {
-  const a = person("A", 1, 0, 0), b = person("B", 2, 3, 3);
+  const a = person("A", 1, 0, 0), b = person("B", 2, 2, 2);
   const house: Thing = { id: "shelter-1", kind: "shelter", x: 0, z: 0, radius: 3, owner: "A", stock: 2 };
-  const newer: Thing = { id: "snare-9", kind: "snare", x: 3, z: 3, radius: 1 };
+  const newer: Thing = { id: "snare-9", kind: "snare", x: 2, z: 2, radius: 1 };
   const w: World = { things: [house, newer], people: [a, b], radius: 80, clock: DAY / 3, climate: { meanC: 16, seasonalAmpC: 4, dailyAmpC: 3, rainy: 0.1, seed: 3 }, weather: { season: 1 } as World["weather"] };
-  b.intent = { kind: "build", x: 3, z: 3, speed: 1, remaining: 0, arrived: true };
+  b.intent = { kind: "build", x: 2, z: 2, speed: 1, remaining: 0, arrived: true };
   step(w, 4);
   assert.equal(newer.owner, "A", "it stands on A's ground");
   assert.equal(tallyOf(w, "trespass"), 1);
@@ -135,7 +135,7 @@ test("a thing built on another's ground is the owner of the ground's (a boundary
 
 // ---- bondage ----
 
-test("eating at another's store day after day does not put the camp in bondage: debts merge, friends are let eat, only a real debt binds", () => {
+test("eating at another's store day after day does not put the camp in bondage: debts merge, friends are let eat, only a loan binds", () => {
   const w = camp(8);
   const owner = w.people[0]!;
   const crop: Thing = { id: "crop-1", kind: "crop", x: 0, z: 0, radius: 2, owner: owner.id, stock: 99, maxStock: 99 };
@@ -149,7 +149,7 @@ test("eating at another's store day after day does not put the camp in bondage: 
     hop(w);
   }
   assert.ok(tallyOf(w, "propertyTheft") >= 20, "it was taken from");
-  assert.ok(tallyOf(w, "bondage") <= 15, `bondage ${tallyOf(w, "bondage")} (the old rules gave 58 here)`);
+  assert.equal(tallyOf(w, "bondage"), 0, `bondage ${tallyOf(w, "bondage")} (the old rules gave 58 here)`);
   assert.ok(tallyOf(w, "restitutionDebts") <= 20, `${tallyOf(w, "restitutionDebts")} debts for ${tallyOf(w, "propertyTheft")} mouthfuls (the old rules gave 75)`);
   // A friend of the owner is let eat without a wrong.
   const friend = w.people[7]!;
@@ -192,4 +192,23 @@ test("a dishonest friend gives an ally up to the ally's enemy (betrayal in the s
   }
   assert.ok(tallyOf(w, "betrayals") >= 1);
   assert.equal(ally.heart!.betrayals["A"], 1);
+});
+
+// ---- births: ownership must not wear away the trust a pair is made of ----
+
+test("a partner who eats from the other's field every day stays a partner (the trust a pair needs is not worn away by ownership)", () => {
+  const she = person("She", 2, 0, 0), he = person("He", 3, 1, 0);
+  const strong = { affinity: 0.9, trust: 0.75, familiarity: 0.8, lastTogether: 0 };
+  she.relations.set("He", { ...strong });
+  he.relations.set("She", { ...strong });
+  const w: World = { things: [{ id: "crop-1", kind: "crop", x: 0, z: 0, radius: 2, owner: "She", stock: 99, maxStock: 99 }, { id: "stream", kind: "stream", x: 8, z: -3, radius: 3 }], people: [she, he, person("C", 4, 3, 0), person("D", 5, 4, 0)], radius: 80, clock: DAY / 3, climate: { meanC: 16, seasonalAmpC: 4, dailyAmpC: 3, rainy: 0.1, seed: 3 }, weather: { season: 1 } as World["weather"] };
+  worldEcon(w);
+  assert.equal(bondOf(she, he), "partner");
+  for (let d = 0; d < 20; d++) {
+    fed(w);
+    he.intent = { kind: "eat", targetId: "crop-1", x: 0, z: 0, speed: 1, remaining: 0, arrived: true };
+    hop(w);
+  }
+  assert.equal(bondOf(she, he), "partner", `trust ${she.relations.get("He")!.trust}`);
+  assert.equal(tallyOf(w, "propertyTheft"), 0);
 });

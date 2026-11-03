@@ -176,7 +176,7 @@ export function wrong(world: World, thief: Person, owner: Person, what: Good, n:
   // (a debt a day per meal ended with most of a camp in bondage for a few mouthfuls).
   if (excuse < 0.5 && (ledgerKind(world) !== "memory" || witnesses >= 2)) {
     const open = worldEcon(world).debts.find((d) => d.state === "open" && d.why === "restitution" && d.debtor === thief.id && d.creditor === owner.id);
-    if (open) open.owed = Math.min(open.owed + n * 1.5, 6);
+    if (open) open.owed = Math.min(open.owed + n * 1.5, 4.5);
     else lend(world, owner, thief, what, 0, { restitution: n * 1.5 });
     tally(world, "restitutionOwed");
   }
@@ -546,7 +546,7 @@ function settleDebts(world: World) {
         feel(creditor, "anger", 0.4);
         note(creditor, world, `${debtor.name} has not paid what is owed.`);
         // The creditor can take it out in work, if the debtor has no other job: debt bondage.
-        if (!econOf(debtor).job && d.why !== "wage" && (d.why === "loan" || d.owed >= 4)) {
+        if (!econOf(debtor).job && d.why === "loan") { // only a loan binds: a few mouthfuls taken from a field are a grievance and a lost name, not a life of work
           econOf(debtor).job = { employer: creditor.id, good: d.good, wage: 0, since: now, unpaid: 0, bonded: true, debt: d.id };
           d.state = "bonded";
           tally(world, "bondage");
@@ -800,7 +800,7 @@ export function command(world: World, boss: Person, subject: Person, kind: Inten
 
 // ---- Land: a thing owned owns the ground round it ----
 
-const PLOT: Record<string, number> = { shelter: 7, field: 8, garden: 6, crop: 3, snare: 2, weir: 2, boat: 2, mill: 4 };
+const PLOT: Record<string, number> = { shelter: 4, field: 7, garden: 5, crop: 1.5, snare: 1.5, weir: 1.5, boat: 2, mill: 3 };
 /** Whose ground this is: the owner of the nearest owned thing whose plot (a few paces round it) holds the point. */
 export function landOwnerAt(world: World, x: number, z: number, except?: Thing): string | undefined {
   let best: string | undefined;
