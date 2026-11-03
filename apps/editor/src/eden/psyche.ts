@@ -173,6 +173,7 @@ const FEEDS: Partial<Record<string, Partial<Record<Drive, number>>>> = {
   furnish: { competence: 0.08, safety: 0.06, meaning: 0.04 }, improve: { competence: 0.1, safety: 0.1, esteem: 0.08 }, carve: { competence: 0.1, meaning: 0.08, belonging: 0.06 },
   pray: { meaning: 0.25, belonging: 0.05, safety: 0.05 }, mourn: { meaning: 0.15, attachment: 0.05 }, wander: { autonomy: 0.12, curiosity: 0.1, stimulation: 0.1 },
   look: { curiosity: 0.12, stimulation: 0.1, meaning: 0.03 }, fire: { safety: 0.12 }, warm: { safety: 0.08 }, stash: { safety: 0.1, competence: 0.05 }, sleep: { safety: 0.04 },
+  sing: { play: 0.2, belonging: 0.1, meaning: 0.05 }, dance: { play: 0.3, stimulation: 0.15, belonging: 0.1 }, hide: { safety: 0.1, competence: 0.04 },
   sew: { competence: 0.08, safety: 0.04 }, wash: { stimulation: 0.03 }, steal: { autonomy: 0.05 },
 };
 /** What each drive is satisfied by, for tilting choices toward what is wanted. */
@@ -344,7 +345,7 @@ const bucketOf = (world: World) => {
   const h = hourOf(world.clock ?? 0);
   return h < 6 ? "night" : h < 11 ? "morning" : h < 17 ? "day" : h < 21 ? "evening" : "night";
 };
-const REWARD_KINDS = new Set(["eat", "drink", "play", "talk", "create"]);
+const REWARD_KINDS = new Set(["eat", "drink", "play", "talk", "create", "sing", "dance"]);
 const SURVIVAL = new Set(["eat", "drink", "flee", "sleep"]);
 
 /** Tilts the scores of what they could do by what they want, what their body is doing, and what has become habit. */
