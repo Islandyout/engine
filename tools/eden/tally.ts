@@ -1,6 +1,6 @@
 // A year of a default camp, with the tally of everything that happened: what emerged on its own (no test setup).
 //   cd apps/editor && npx tsx ../../tools/eden/tally.ts [people=40] [years=1] [seed=2]
-//   NOGO=1 makes the lake deep water as in the game (a 30 m lake, nobody walks within 26 m of its centre); POP=1 prints the population by year and the deaths; IDEAS=1 the ideas held; ALL=1 every tally
+//   NOGO=1 makes the lake deep water as in the game (nobody walks within 26 m of its centre at (90,60); the lake thing people drink from is at the bank, 36 m west, as the scene puts it); POP=1 prints the population by year and the deaths; IDEAS=1 the ideas held; ALL=1 every tally
 import { DAY, YEAR } from "../../apps/editor/src/eden/earth";
 import { make, makePerson, step, type Person, type Thing, type World } from "../../apps/editor/src/eden/mind";
 import { wealthGini, econOf } from "../../apps/editor/src/eden/economy";
@@ -9,7 +9,7 @@ const people = Number(process.argv[2] ?? 40);
 const years = Number(process.argv[3] ?? 1);
 let s = Number(process.argv[4] ?? 2) >>> 0;
 const r = () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
-const things: Thing[] = [{ id: "river", kind: "river", x: 12, z: 0, radius: 4 }, { id: "lake", kind: "lake", x: 90, z: 60, radius: process.env.NOGO ? 30 : 14 }];
+const things: Thing[] = [{ id: "river", kind: "river", x: 12, z: 0, radius: 4 }, { id: "lake", kind: "lake", x: process.env.NOGO ? 54 : 90, z: 60, radius: process.env.NOGO ? 30 : 14 }];
 const ring = (id: string, kind: string, n: number, rad: number, stock?: number) => {
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2 + r();
