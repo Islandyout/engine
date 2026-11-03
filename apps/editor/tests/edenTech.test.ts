@@ -502,6 +502,6 @@ for (const row of SIX) {
 test("J6: how many different objects the crafts make", () => {
   const made = new Set(CRAFTS.map((c) => c.out.thing).filter((k): k is string => !!k));
   console.log(`object kinds the crafts build: ${[...made].join(", ")}`);
-  assert.ok(made.size >= 19);
+  assert.equal(made.size, 18, "18 kinds come from crafts; bridge and granary come from shared projects, tested under J2");
   for (const row of SIX) assert.ok(made.has(row.kind), `${row.kind} is covered above`);
 });
