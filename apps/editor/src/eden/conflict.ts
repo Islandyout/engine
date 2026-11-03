@@ -914,12 +914,12 @@ const BAND_NAMES = ["the hill folk", "the river folk", "the wood folk", "the sho
 function bandSplit(world: World, day: number) {
   const w = worldConflict(world);
   const now = world.clock ?? 0;
-  if (w.lastSplit !== undefined && now - w.lastSplit < 120 * DAY) return;
+  if (w.lastSplit !== undefined && now - w.lastSplit < 24 * DAY) return;
   const bands = bandsOf(world);
   for (const [name, members] of bands) {
     if (name === "outsiders" || members.length < 16) continue;
     const strife = w.feuds.some((f) => !f.ended) || scarcityOf(world) > 0.15 || members.filter((p) => Object.keys(p.conflict?.grudge ?? {}).length > 0).length >= 3 || members.length >= 20;
-    if (!strife || chance("band", world, `split${name}${day}`) >= 0.05) continue;
+    if (!strife || chance("band", world, `split${name}${day}`) >= 0.2) continue;
     // The seed of a faction: the bold one with the most against others (fewest warm ties) among the adults.
     const warm = (p: Person) => members.filter((q) => q !== p && (p.relations.get(q.id)?.affinity ?? 0) > 0.3).length;
     const seed = [...members].sort((a, b) => (b.personality.boldness - 0.1 * warm(b) + Object.keys(b.conflict?.grudge ?? {}).length * 0.2) - (a.personality.boldness - 0.1 * warm(a) + Object.keys(a.conflict?.grudge ?? {}).length * 0.2) || (a.id < b.id ? -1 : 1))[0]!;
@@ -947,7 +947,7 @@ export function conflictWorld(world: World, dt: number) {
   const now = world.clock ?? 0;
   const day = Math.floor(now / DAY);
   const wc = world.conflict;
-  if (!wc && !world.people.some((q) => q.conflict)) return; // nothing has happened yet: no cost
+  if (!wc && !world.people.some((q) => q.conflict) && adults(world).length < 16) return; // nothing has happened yet, and too few to split: no cost
   const w = worldConflict(world);
   if (w.lastDay === day) return;
   const days = w.lastDay < 0 ? 1 : Math.min(5, day - w.lastDay);
@@ -1004,8 +1004,8 @@ export function conflictWorld(world: World, dt: number) {
         for (const p of members) {
           const c = conflictOf(p);
           const friends = theirs.filter((q) => (p.relations.get(q.id)?.affinity ?? 0) > 0.4).length;
-          const contact = theirs.some((q) => dist(q.x, q.z, p.x, p.z) < 40) ? 0.011 : 0; // 'they are not like us': a little, wherever the two meet
-          c.prejudice[other] = clamp01((c.prejudice[other] ?? 0) + 0.03 * scarcity * (1 + (c.fear ? Object.keys(c.fear).length : 0)) + contact - 0.05 * Math.min(2, friends) * (c.prejudice[other] ?? 0) - 0.003);
+          const contact = theirs.some((q) => dist(q.x, q.z, p.x, p.z) < 40) ? 0.05 : 0; // 'they are not like us': a little, wherever the two meet
+          c.prejudice[other] = clamp01((c.prejudice[other] ?? 0) + 0.03 * scarcity * (1 + (c.fear ? Object.keys(c.fear).length : 0)) + contact - 0.1 * Math.min(2, friends) * (c.prejudice[other] ?? 0) - 0.003);
         }
         const leader = members.filter((p) => p.personality.boldness > 0.5).sort((a, b) => standing(world, b) - standing(world, a) || (a.id < b.id ? -1 : 1))[0];
         if (leader && scarcity > 0.35 && chance(leader.id, world, `prop${other}${day}`) < 0.5) propaganda(world, leader, other, 0.15);
