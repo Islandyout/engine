@@ -176,8 +176,9 @@ export function wrong(world: World, thief: Person, owner: Person, what: Good, n:
   // (a debt a day per meal ended with most of a camp in bondage for a few mouthfuls).
   if (excuse < 0.5 && (ledgerKind(world) !== "memory" || witnesses >= 2)) {
     const open = worldEcon(world).debts.find((d) => d.state === "open" && d.why === "restitution" && d.debtor === thief.id && d.creditor === owner.id);
+    const recent = worldEcon(world).debts.some((d) => d.why === "restitution" && d.debtor === thief.id && d.creditor === owner.id && (world.clock ?? 0) - d.since < 16 * DAY);
     if (open) open.owed = Math.min(open.owed + n * 1.5, 4.5);
-    else lend(world, owner, thief, what, 0, { restitution: n * 1.5 });
+    else if (!recent) lend(world, owner, thief, what, 0, { restitution: n * 1.5 });
     tally(world, "restitutionOwed");
   }
   return true;
@@ -486,7 +487,7 @@ export function lend(world: World, lender: Person, borrower: Person, good: Good,
   if (!rest) note(borrower, world, `${lender.name} lent me ${n} ${good}${rate ? `, to be repaid with interest` : ""}.`);
   return { ok: true, debt: d };
 }
-export const owedBy = (world: World, p: Person): number => worldEcon(world).debts.filter((d) => d.debtor === p.id && (d.state === "open" || d.state === "bonded")).reduce((a, d) => a + d.owed * priceOf(world, d.good), 0);
+export const owedBy = (world: World, p: Person): number => worldEcon(world).debts.filter((d) => d.debtor === p.id && d.why !== "restitution" && (d.state === "open" || d.state === "bonded")).reduce((a, d) => a + d.owed * priceOf(world, d.good), 0);
 export function accrue(world: World, seconds: number) {
   for (const d of worldEcon(world).debts) if (d.state === "open" && d.rate > 0) d.owed *= Math.pow(1 + d.rate, seconds / YEAR);
 }
