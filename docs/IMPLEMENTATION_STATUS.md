@@ -150,4 +150,5 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F148](changelog/F148.md) | Eden phase K: seen in the running game, a browser test in CI, performance, the mind design document ([EDEN_MIND](EDEN_MIND.md)) |
 | [F144](changelog/F144.md) | Eden phase G: leaders, council, succession, laws and judging, rites, festivals, feuds, alliances, priests, schisms, splitting and drift |
 | [F143](changelog/F143.md) | Eden phase F: apprenticeship, oral tradition, access limits, false belief, curiosity by age, vocabulary drift |
+| [F142](changelog/F142.md) | Eden phase E: ownership, specialisation, fair and prices, money, debt, savings, wages, accounts |
 | [Gaps](EDEN_GAPS.md) | Eden: audit of what is still missing (psyche, life stages, economy, education, violence, world, build gaps) |

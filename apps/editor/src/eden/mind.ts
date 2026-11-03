@@ -15,6 +15,7 @@ import { afterAct, appraise, milestone, recall, psycheBias, psycheEvent, psycheS
 import { selfOf, mindStep, recordOutcome, resolveConflict, lessonBias, snapshot, aftermathOfTheft, witnessCost, judge, surpriseGift, talkAbout, type Self, type Fact, type Model, type Snap } from "./mindmodel";
 import { onTheft, societyBias, societyStep, type Society } from "./society";
 import { learnAfter, learnBias, learnFilter, learnOptions, learningStep, loreTalk, teachStep, type Learning, type Lore } from "./learning";
+import { economyAfter, economyBias, economyStep, economyTheft, economyWorldStep, inheritHoldings, marketTrade, type PersonEcon, type WorldEcon } from "./economy";
 import { celebrate, heartAfter, heartBias, heartStep, painBias, sacrificeStep, type Heart } from "./heart";
 import { fightBeast, learnFromWorld, teamStep, type Rule, type Team } from "./solve";
 import { doWork, techOptions, techStep, type Project, type Tech } from "./tech";
@@ -125,6 +126,7 @@ export interface Thing {
   growth?: number; // seconds toward the next meal growing back (kept by step)
   fuel?: number; // a fire's seconds of burning left
   of?: string; // a grave: whose it is (a person id); a dog: whose it is
+  owner?: string; // a shelter, field or snare: whose it is (a person id; economy.ts)
   level?: number; // a shelter: 1 a roof of hides, 2 a proper thatched hut (the page swaps the model)
   trust?: number; // a dog: how many times it has been fed by someone, toward choosing them
   prefab?: string; // the scene prefab that shows it (the host places it); absent for things the scene already has
@@ -307,6 +309,7 @@ export interface Person {
   rank?: number; // 0..1 rank held or inherited (society.ts)
   rites?: string[]; // rites of passage they have been through (society.ts)
   learn?: Learning; // masters, tales held, beliefs, failures, words (learning.ts)
+  econ?: PersonEcon; // what they own, owe, have made and work at (economy.ts)
   psyche?: Psyche; // drives, body chemistry, lasting states, habits, cues (psyche.ts)
   emotions?: Partial<Record<Emotion, number>>; // what they feel now, each 0..1, fading at its own speed (inner.ts)
   stress?: number; // sim seconds spent very low; held long enough it breaks
@@ -349,6 +352,7 @@ export interface World {
   override?: { until: number; tempOffset: number; rain?: boolean };
   walkerEvents?: WalkerEvent[];
   walker?: { pack: { meat: number; water: number; wood: number; fruit: number }; notes?: string[] }; // the Creator's own character: what they carry (kept with the save)
+  econ?: WorldEcon; // prices, money, debts, ledger, ventures (economy.ts)
   strangers?: boolean; // people from outside may arrive now and then (the page turns this on)
 }
 
@@ -559,6 +563,7 @@ const dangerReach = (t: Thing) => t.radius + 6 + 10 * (aff(t).danger ?? 0);
 /** What someone leaves goes to a grown child (the eldest), else a partner, else whoever loved them most: what they carried, and the keepsake they were carving. */
 function inherit(world: World, dead: Person) {
   const heirs = heirsOf(world, dead);
+  inheritHoldings(world, dead, heirs);
   const c = dead.carry;
   const left = (c.wood ?? 0) + (c.food ?? 0) + (c.seed ?? 0) + (c.hide ?? 0);
   if (!heirs.length || (left <= 0 && !dead.keepsake)) return;
@@ -1778,6 +1783,7 @@ function finish(person: Person, world: World, intent: Intent) {
   recordOutcome(person, world, intent);
   heartAfter(world, person, intent);
   learnAfter(world, person, intent);
+  economyAfter(world, person, intent);
   afterAct(world, person, intent);
   triedKind(person, intent.kind);
 }
@@ -2145,6 +2151,7 @@ function finishCore(person: Person, world: World, intent: Intent) {
       break;
     }
     case "trade": {
+      if (marketTrade(world, person, intent)) break;
       const other = personById(world, intent.targetId);
       if (other) {
         const rate = tradeRates(world);
@@ -2238,6 +2245,7 @@ function finishCore(person: Person, world: World, intent: Intent) {
         person.thefts = (person.thefts ?? 0) + 1;
         aftermathOfTheft(world, person, victim);
         onTheft(world, person, victim);
+        economyTheft(world, person, victim, "food", 1);
         note(person, world, `Took food from ${victim.name} because I was starving. I am ashamed.`);
         note(victim, world, `${person.name} took food from me.`);
         // Those who hear of it trust the thief a little less: the loss of faith that ends in being shunned.
@@ -2446,6 +2454,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
   techStep(world, dt);
   societyStep(world, dt);
   strangersStep(world, dt);
+  economyWorldStep(world, dt);
   for (const person of world.people) {
     person.clock += dt;
     const { needs, personality: p } = person;
@@ -2489,6 +2498,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     mindStep(person, world, dt);
     heartStep(person, world, dt);
     learningStep(person, world, dt);
+    economyStep(person, world, dt);
     if (person.age >= ADULT_AGE && Math.floor((world.clock ?? 0) / 4) !== Math.floor(((world.clock ?? 0) - dt) / 4)) sacrificeStep(person, world, 4, world.things.filter((t) => aff(t).predator && aff(t).creature));
     breakDown(person, world, dt);
     if (person.grief) {
@@ -2600,6 +2610,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       societyBias(person, world, opts);
       learnBias(person, world, opts);
       learnFilter(person, world, opts);
+      economyBias(person, world, opts);
       if (needs.thirst < 0.6 && needs.hunger < 0.6) for (const o of opts) o.score += lessonBias(person, world, o.intent.kind);
       resolveConflict(person, world, opts);
       const picked = choose(person, opts);
