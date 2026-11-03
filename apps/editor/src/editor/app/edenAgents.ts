@@ -8,6 +8,8 @@ import { PLAN_SYSTEM, parsePlan, situationOf } from "../../eden/llmPlan";
 import { adoptPlan } from "../../eden/reason";
 import { createScreens, type Screens } from "./edenScreens";
 import { hearWalker, nearbyPeople, noteFirstWord } from "../../eden/chat";
+import { walkerHurt, walkerStep, walkerTend } from "../../eden/body";
+import { enableWorld2 } from "../../eden/world2";
 import { actionOf, applySpokenIntent, creatureHurt, giveMeat, giveToPerson, shareKill, walkerSlew, routeAround, tally, phrase, ADULT_AGE, AFFORDANCES, hourOf, isNight, make, makePerson, step, type Person, type Thing, type World } from "../../eden/mind";
 import { moonName, SEASON_NAMES, solarHour } from "../../eden/earth";
 import { runCreatorCommand } from "../../eden/creator";
@@ -170,6 +172,7 @@ export function installEdenAgents(C: Ctx): void {
   const placedPrefab = new Map<string, string>(); // which body each placed thing has (a young one's, until it grows up)
   const clipSent = new Map<string, string>(); // the clip each creature was last told to play
   const holdPose = new Map<string, { pose: PoseName; until: number }>(); // a pose someone keeps for a moment (a wave, talking), over what they are doing
+  let lastWalkerHurt = 0;
   const pack = { meat: 0, water: 0, wood: 0, fruit: 0 }; // what you carry to give away: Q gathers it where it is, H hands it to whoever needs it
   const packText = () => Object.entries(pack).filter(([, n]) => n > 0).map(([k, n]) => `${k} ${n}`).join(", ");
   const bodyObjectOf = (p: Person) => {
@@ -348,6 +351,7 @@ export function installEdenAgents(C: Ctx): void {
     }
     world = loaded ?? freshWorld();
     world.strangers = true;
+    enableWorld2(world, 1);
     if (world.walker) {
       Object.assign(pack, world.walker.pack);
       notes.splice(0, notes.length, ...(world.walker.notes ?? []));
@@ -376,7 +380,7 @@ export function installEdenAgents(C: Ctx): void {
   function save() {
     if (!world) return;
     try {
-      world.walker = { pack: { ...pack }, notes: notes.slice(-200) };
+      world.walker = { ...world.walker, pack: { ...pack }, notes: notes.slice(-200) };
       localStorage.setItem(SAVE_KEY, worldToJson(world));
       lastSave = performance.now();
       panel?.setSaved("saved");
@@ -401,7 +405,7 @@ export function installEdenAgents(C: Ctx): void {
   function keepSlot(n: number) {
     if (!world) return;
     try {
-      world.walker = { pack: { ...pack }, notes: notes.slice(-200) };
+      world.walker = { ...world.walker, pack: { ...pack }, notes: notes.slice(-200) };
       localStorage.setItem(SLOT_KEY + n, worldToJson(world));
       panel?.lifeLog(`Kept this moment as ${n} (day ${Math.floor((world.clock ?? 0) / 1440) + 1}).`);
       panel?.setSlots(slotDays());
@@ -432,6 +436,7 @@ export function installEdenAgents(C: Ctx): void {
     sent.clear();
     world = loaded;
     world.strangers = true;
+    enableWorld2(world, 1);
     if (world.walker) {
       Object.assign(pack, world.walker.pack);
       notes.splice(0, notes.length, ...(world.walker.notes ?? []));
@@ -462,6 +467,7 @@ export function installEdenAgents(C: Ctx): void {
     lastMoved.clear();
     world = freshWorld();
     world.strangers = true;
+    enableWorld2(world, 1);
     knownPeople.clear();
     for (const p of world.people) knownPeople.add(p.id);
     for (const p of world.people) {
@@ -667,12 +673,25 @@ export function installEdenAgents(C: Ctx): void {
         talk?.hint(hintParts.filter(Boolean).join(" · "));
         for (const t of w.things) {
           const danger = AFFORDANCES[t.kind]?.danger ?? (t.mob?.state === "attack" ? 0.5 : undefined);
-          if (danger && Math.hypot(t.x - you.position.x, t.z - you.position.z) < 2.6) ui("eden_player_hurt", String(Math.round(9 * danger)));
+          if (danger && Math.hypot(t.x - you.position.x, t.z - you.position.z) < 2.6) {
+            ui("eden_player_hurt", String(Math.round(9 * danger)));
+            if (performance.now() - lastWalkerHurt > 3000) {
+              lastWalkerHurt = performance.now();
+              walkerHurt(w, danger);
+            }
+          }
         }
       }
     }
     const simSeconds = (TICK_MS / 1000) * SPEEDS[speed]!;
     const fast = SPEEDS[speed]! > 3;
+    if (simSeconds > 0 && walking) {
+      // Your own body: it gets hungry and tired as you walk, and eats and drinks from the pack when it must.
+      walkerStep(w, simSeconds, true);
+      w.walker = { ...w.walker, pack: { ...pack }, notes: notes.slice(-200) };
+      for (const line of walkerTend(w)) panel?.lifeLog(line);
+      Object.assign(pack, w.walker.pack);
+    }
     if (simSeconds > 0) {
       if (!fast) {
         // The bodies are where physics and paths put them; the minds start from there.

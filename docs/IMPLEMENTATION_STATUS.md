@@ -152,4 +152,5 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F143](changelog/F143.md) | Eden phase F: apprenticeship, oral tradition, access limits, false belief, curiosity by age, vocabulary drift |
 | [F142](changelog/F142.md) | Eden phase E: ownership, specialisation, fair and prices, money, debt, savings, wages, accounts |
 | [F145](changelog/F145.md) | Eden phase H: violence, cruelty, causes, consequences and justice (`conflict.ts`); sexual violence deliberately not modelled |
+| [F146](changelog/F146.md) | Eden phase I (simulation parts): other settlements with trade, war and migration, geography, long climate, epidemics, depletion, fire, domestic animals, body growth/fitness/sleep/senses/disability/scars/complications, the Creator's Walker body; presentation (I4) not done |
 | [Gaps](EDEN_GAPS.md) | Eden: audit of what is still missing (psyche, life stages, economy, education, violence, world, build gaps) |

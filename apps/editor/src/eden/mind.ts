@@ -18,6 +18,8 @@ import { learnAfter, learnBias, learnFilter, learnOptions, learningStep, loreTal
 import { economyAfter, economyBias, economyStep, economyTheft, economyWorldStep, inheritHoldings, marketTrade, type PersonEcon, type WorldEcon } from "./economy";
 import { conflictBias, conflictStep, conflictWorld, theftConflict, type Conflict, type WorldConflict } from "./conflict";
 import { celebrate, heartAfter, heartBias, heartStep, painBias, sacrificeStep, type Heart } from "./heart";
+import { birthComplication, bodyBias, bodySpeed, bodyStep, fertilityOf, sightMul, stillbirthExtra, type Body, type WalkerBody } from "./body";
+import { livestockOptions, tameLivestock, world2Step, type World2 } from "./world2";
 import { fightBeast, learnFromWorld, teamStep, type Rule, type Team } from "./solve";
 import { doWork, techOptions, techStep, type Project, type Tech } from "./tech";
 import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach, valueOf, SKILL_WORDS, type Skill, type Value } from "./identity";
@@ -312,6 +314,7 @@ export interface Person {
   learn?: Learning; // masters, tales held, beliefs, failures, words (learning.ts)
   econ?: PersonEcon; // what they own, owe, have made and work at (economy.ts)
   conflict?: Conflict; // grudges, guilt, fear, prejudice, punishment served (conflict.ts)
+  body?: Body; // growth, fitness, sleep debt, scars, disabilities, complications (body.ts)
   psyche?: Psyche; // drives, body chemistry, lasting states, habits, cues (psyche.ts)
   emotions?: Partial<Record<Emotion, number>>; // what they feel now, each 0..1, fading at its own speed (inner.ts)
   stress?: number; // sim seconds spent very low; held long enough it breaks
@@ -354,7 +357,8 @@ export interface World {
   // The Creator's hand on the weather: until `until` (world clock) it is warmer or colder by `tempOffset`, and `rain` forces it on or off.
   override?: { until: number; tempOffset: number; rain?: boolean };
   walkerEvents?: WalkerEvent[];
-  walker?: { pack: { meat: number; water: number; wood: number; fruit: number }; notes?: string[] }; // the Creator's own character: what they carry (kept with the save)
+  world2?: World2; // the wider world: other settlements, geography, long climate, epidemics, fire (world2.ts); absent unless enabled
+  walker?: { pack: { meat: number; water: number; wood: number; fruit: number }; notes?: string[]; body?: WalkerBody }; // the Creator's own character: what they carry (kept with the save)
   econ?: WorldEcon; // prices, money, debts, ledger, ventures (economy.ts)
   strangers?: boolean; // people from outside may arrive now and then (the page turns this on)
 }
@@ -1201,7 +1205,7 @@ function feel(person: Person, thing: Thing, delta: number) {
 
 function notice(person: Person, world: World) {
   for (const t of world.things) {
-    if (dist(person.x, person.z, t.x, t.z) > sightOf(person, SIGHT)) continue;
+    if (dist(person.x, person.z, t.x, t.z) > sightOf(person, SIGHT * sightMul(person))) continue;
     const known = person.memory.get(t.id);
     if (known) {
       known.x = t.x;
@@ -1612,6 +1616,7 @@ function lifeOptions(person: Person, world: World, out: Option[]) {
       out.push({ intent: { kind: "tame", targetId: t.id, x: t.x, z: t.z, speed: WALK, remaining: 0.3 }, score: 0.5 + 0.3 * person.personality.sociability - d / 100 - (world.things.some((q) => q.kind === "dog" && q.of === person.id) ? 0.4 : 0) });
     }
   }
+  out.push(...livestockOptions(person, world));
   // Making a home of it: a table, a barrel for rain, a lantern, a chest, a shelf; a roof raised into a hut; a shrine for those who keep faith.
   if (person.age >= ADULT_AGE && needs.hunger < 0.6 && needs.thirst < 0.6 && person.cold < 0.5 && !isNight(world.clock ?? 0)) {
     for (const sh of world.things) {
@@ -1960,6 +1965,7 @@ function finishCore(person: Person, world: World, intent: Intent) {
       break;
     case "tame": {
       const dog = thingById(world, intent.targetId);
+      if (dog && dog.kind !== "dog" && tameLivestock(world, person, dog)) break;
       if (dog && dog.kind === "dog" && !dog.of && dist(person.x, person.z, dog.x, dog.z) < 3.8 && person.carry.food >= 1) {
         person.carry.food -= 1;
         dog.trust = (dog.trust ?? 0) + 1;
@@ -2453,6 +2459,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     t.fuel = (t.fuel ?? 0) - dt;
     if (t.fuel <= 0) world.things.splice(i, 1);
   }
+  world2Step(world, dt);
   stepAnimals(world, dt);
   learnFromWorld(world);
   teamStep(world);
@@ -2505,6 +2512,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     learningStep(person, world, dt);
     economyStep(person, world, dt);
     conflictStep(person, world, dt);
+    bodyStep(person, world, dt);
     if (person.age >= ADULT_AGE && Math.floor((world.clock ?? 0) / 4) !== Math.floor(((world.clock ?? 0) - dt) / 4)) sacrificeStep(person, world, 4, world.things.filter((t) => aff(t).predator && aff(t).creature));
     breakDown(person, world, dt);
     if (person.grief) {
@@ -2618,6 +2626,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       learnFilter(person, world, opts);
       economyBias(person, world, opts);
       conflictBias(person, world, opts);
+      bodyBias(person, world, opts);
       if (needs.thirst < 0.6 && needs.hunger < 0.6) for (const o of opts) o.score += lessonBias(person, world, o.intent.kind);
       resolveConflict(person, world, opts);
       const picked = choose(person, opts);
@@ -2651,7 +2660,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       } else if (settings.externalMotion) {
         continue;
       } else {
-        const stepLen = Math.min(d - stop, intent.speed * ageSpeed(person) * dt);
+        const stepLen = Math.min(d - stop, intent.speed * ageSpeed(person) * bodySpeed(person) * dt);
         person.x += ((intent.x - person.x) / d) * stepLen;
         person.z += ((intent.z - person.z) / d) * stepLen;
         keepOut(world, person);
@@ -2980,7 +2989,8 @@ export function giveBirth(world: World, mother: Person, father: Person) {
   const now = world.clock ?? 0;
   // Childbirth can kill: the more so when the mother is weak or hungry, and the baby may not live.
   const risk = 0.012 * (1 + (mother.needs.hunger > 0.6 ? 1 : 0) + (mother.health < 0.7 ? 1.5 : 0) + (mother.age > 35 ? 1 : 0));
-  if (rand(mother) < 0.03 + 0.5 * risk) {
+  const complication = birthComplication(world, mother);
+  if (rand(mother) < 0.03 + 0.5 * risk + stillbirthExtra(complication)) {
     mother.lastBirth = now;
     mother.pregnant = undefined;
     mother.mood = clampMood(mother.mood - 0.6);
@@ -3095,7 +3105,7 @@ function lifeAndDeath(world: World, dt: number) {
     if (mother.pregnant || mother.illness || mother.health < 0.7 || mother.needs.hunger > 0.7 || mother.mood < 0) continue;
     const father = world.people.find((q) => canConceive(world, mother, q) && (mother.life?.partner ? mother.life.partner === q.id : bondOf(mother, q) === "partner"));
     // A woman with a cycle can conceive in the middle of it only; the chance is raised to match.
-    const window = cyclePhase(world, mother) === "fertile" ? 5 : 1;
+    const window = (cyclePhase(world, mother) === "fertile" ? 5 : 1) * (father ? fertilityOf(mother, father) : 1);
     if (!father || rand(mother) > (dt / DAY) * 0.25 * window) continue;
     mother.pregnant = { since: now, father: father.id };
     note(mother, world, `I am carrying ${father.name}'s child.`);
