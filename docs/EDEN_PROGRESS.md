@@ -42,10 +42,10 @@ and the life sweep shows no survival regression. "Test" below means `apps/editor
 
 ## Phase D: love, pain, joy, meaning (GAPS 3)
 
-- [ ] D1 Love: infatuation then attachment, desire, jealousy, fidelity and betrayal, heartbreak and long grief, parental love and sacrifice, costly friendship, unrequited love, love turning to hatred. Done means: a test per arc.
+- [x] D1 Love: infatuation then attachment, desire, jealousy, fidelity and betrayal, heartbreak and long grief, parental love and sacrifice, costly friendship, unrequited love, love turning to hatred. Done means: a test per arc.
 - [x] D2 Pain: pain as signal shaping behaviour, chronic pain, fear of pain, helplessness at another's pain, pain of loss, shame, humiliation, isolation, abuse and after-effects. Done means: tests that pain changes choices and persists.
-- [ ] D3 Joy: from meaning, achievement after hardship, belonging, shared laughter, celebration, rites, music, dance, adult play, beauty, generosity. Done means: tests/measure for each source raising joy.
-- [ ] D4 Meaning: purpose organising a life, crises of meaning, giving life for something, legacy, vocation, search for answers, religion and ritual as consolation, burying the dead. Done means: tests incl. a person choosing risk to death for a held purpose; burial with a reason in state.
+- [x] D3 Joy: from meaning, achievement after hardship, belonging, shared laughter, celebration, rites, music, dance, adult play, beauty, generosity. Done means: tests/measure for each source raising joy.
+- [x] D4 Meaning: purpose organising a life, crises of meaning, giving life for something, legacy, vocation, search for answers, religion and ritual as consolation, burying the dead. Done means: tests incl. a person choosing risk to death for a held purpose; burial with a reason in state.
 
 ## Phase E: ownership, economy, money, markets, investment (GAPS 5)
 

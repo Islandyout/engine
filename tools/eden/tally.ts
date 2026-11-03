@@ -27,6 +27,7 @@ for (let i = 0; i < people; i++) {
   world.people.push(p);
   for (const t of things) if (Math.hypot(t.x, t.z) < 120) p.memory.set(t.id, { x: t.x, z: t.z, feeling: 0.2, visits: 1, lastSeen: 0 });
 }
+for (let i = 0; i < Number(process.env.WOLVES ?? 0); i++) make(world, "wolf", (r() - 0.5) * 120, (r() - 0.5) * 120, {});
 for (let i = 0; i < Math.ceil(people / 2); i++) make(world, i % 5 ? "deer" : "stag", (r() - 0.5) * 300, (r() - 0.5) * 300, {});
 const start = world.people.length;
 let desperate = 0;
