@@ -41,6 +41,7 @@ export function situationOf(world: World, person: Person): string {
 
 export const PLAN_SYSTEM = `You help one person in a simple world (no metal, no machines) decide what to do next. Reply with ONLY a JSON object, no other text:
 {"goal":"<short>","why":"<one or two sentences, in the first person>","steps":[{"do":"gather|forage|stash|fire|craft|make|recruit|goto","at":"<place id from the list>","recipe":"<only for make>","dir":"<only for goto: east, south, west, north...>","metres":<only for goto: number>}]}
+Each "do" is exactly ONE of those words (never two joined, never "go": to walk somewhere use "goto"). Example of a good answer, for someone who needs food: {"goal":"bring food home","why":"I am hungry and the grove has fruit.","steps":[{"do":"forage","at":"grove"},{"do":"stash","at":"shelter-0"}]}
 Rules: at most 6 steps. Use only place ids from the list. gather gets 3 wood at a place that has wood; forage gets food at a place that has food; stash puts carried food in the shelter; fire needs 2 wood; craft makes a spear (2 wood); make needs a recipe you know and its wood; recruit asks people with spears to come against a beast (at = the beast's id; needs a spear and others with spears); goto walks to a place id, or in a compass direction for some metres, to explore. Go and come back before dark.`;
 
 /** The model's answer, checked against the world. Returns a plan, or the reason it could not work. */
