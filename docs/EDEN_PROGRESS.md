@@ -61,7 +61,7 @@ and the life sweep shows no survival regression. "Test" below means `apps/editor
 
 - [x] F1 Structured teaching: apprenticeship with master, initiation, schools, curriculum, tests, reputations for knowing. Done means: test that a pupil gains skill faster with a master, and teacher pays a cost.
 - [x] F2 Oral tradition and distortion: stories change in retelling, songs as memory aids, proverbs, myths carrying rules. Done means: test that a retold story drifts; a rule survives longer in a song.
-- [ ] F3 Access to knowledge: gender/class/guild limits, literacy as power, libraries, censorship, collapse loss, travel/trade carrying knowledge, scholars, book copying. Done means: test per restriction.
+- [x] F3 Access to knowledge: gender/class/guild limits, literacy as power, libraries, censorship, collapse loss, travel/trade carrying knowledge, scholars, book copying. Done means: test per restriction.
 - [x] F4 Learning from failure and others' failure; teacher errors passed on; false beliefs that spread and persist. Done means: test that a false belief spreads and persists until contradicted; belief update tested.
 - [x] F5 Curiosity stronger in the young; language learned and changing. Done means: curiosity by age measure; test of vocabulary drift across generations.
 
