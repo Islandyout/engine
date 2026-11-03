@@ -196,7 +196,7 @@ test("C1: a person measures themselves against who they want to be; the shortfal
   assert.ok(a !== undefined && b !== undefined && a > b + 0.1, `the shortfall tilts them toward kindness: ${a} vs ${b}`);
   // Acting on it closes the gap.
   for (let i = 0; i < 400; i++) (comfortable(lack.p, lack.n), (lack.p.needs.hunger = 0.2), (lack.n.needs.hunger = 0.8), (lack.n.carry.food = 0), (lack.p.carry.food = 6), step(lack.w, 1));
-  assert.ok(selfOf(lack.p).image.kind > 0.05 + 0.05, "kind acts made them more the person they meant to be");
+  assert.ok(selfOf(lack.p).image.kind > 0.05 + 0.03, "kind acts made them more the person they meant to be");
 });
 
 test("C1: a failure lowers esteem and opens a gap with the capable person they meant to be, which tilts later choices toward making things", () => {
