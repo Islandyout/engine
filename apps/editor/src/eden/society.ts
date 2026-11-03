@@ -22,7 +22,7 @@ import { ADULT_AGE, chronicle, make, note, relation, tally, type Intent, type In
 import { judge, sawFact } from "./mindmodel";
 import { joyFrom } from "./heart";
 import { econOf } from "./economy";
-import { applyPunishment, SEVERITY, type ActKind, type Punishment } from "./conflict";
+import { applyPunishment, bandOf as conflictBand, bribe, propaganda, SEVERITY, worldConflict, type ActKind, type Punishment } from "./conflict";
 import { banWorks, closeAccess, collapseWatch, eliteBy } from "./learning";
 
 type Option = { intent: Omit<Intent, "arrived">; score: number; reason?: string };
@@ -266,6 +266,10 @@ function leaderStep(world: World, g: Group) {
   }
   if (g.lastOrder === day) return;
   g.lastOrder = day;
+  // In a war a leader makes the case against the other side to those who trust them.
+  const mine = conflictBand(world, leader);
+  const war = worldConflict(world).wars.find((w) => !w.ended && (w.a === mine || w.b === mine));
+  if (war) propaganda(world, leader, war.a === mine ? war.b : war.a, 0.2);
   const members = adultsOf(world, g.id).filter((p) => p !== leader && p.age < 62 && p.needs.hunger < 0.6 && p.needs.thirst < 0.6 && p.intent?.kind !== "sleep" && !(econOf(p).order && econOf(p).order!.until > now));
   if (members.length < 2) return;
   const season = seasonAt(now).season;
@@ -397,6 +401,16 @@ function rulings(world: World) {
     if (c.kind === "taboo") { ruleTaboo(world, g, c, accused); continue; }
     const jd = accused && victim ? judgeFor(world, g, accused, victim) : undefined;
     if (!accused || !victim || !jd) { c.state = "ruled"; c.verdict = "dismissed"; c.ruling = "no one could hear it"; continue; }
+    // Someone with little conscience and food to spare may try to buy a light verdict; an honest judge refuses.
+    if ((accused.conflict?.guilt ?? 0) < 0.5 && accused.carry.food >= 2 && valueOf(accused, "fairness") < 0.4 && chanceAt(world, `bribe|${c.id}`, DAY) < 0.9 * (1 - valueOf(accused, "fairness")) && bribe(world, accused, jd)) {
+      c.state = "ruled";
+      c.verdict = "dismissed";
+      c.judge = jd.id;
+      c.ruling = `${jd.name} let ${accused.name} off (food changed hands)`;
+      grievance(world, victim, accused, 0.2, "a judge who was bought", c.kind === "harm" ? "violence" : "theft");
+      tally(world, "bribedRulings");
+      continue;
+    }
     const witnesses = world.people.filter((q) => q.id !== accused.id && q.id !== victim.id && c.factId && sawFact(q, c.factId)).length;
     const { weight, reason } = judge(world, jd, accused, c.kind === "harm" ? "violence" : "theft");
     const proof = c.kind === "harm" ? 0.8 + 0.1 * Math.min(2, witnesses) : 0.45 + 0.2 * Math.min(2, witnesses) + (victim.carry.food < 1 ? 0.05 : 0);

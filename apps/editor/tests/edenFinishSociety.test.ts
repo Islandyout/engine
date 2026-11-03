@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { DAY, YEAR } from "../src/eden/earth";
-import { fight } from "../src/eden/conflict";
+import { bandOf as conflictBand, fight, worldConflict } from "../src/eden/conflict";
 import { converse } from "../src/eden/speech";
 import { betray, learnOfBetrayal } from "../src/eden/heart";
 import {
@@ -404,4 +404,38 @@ test("G2 exile for the taboo happens once; while someone is sent away further br
   assert.equal(ruled.filter((c) => c.penalty === "exile").length, 1, `exiles ${ruled.map((c) => c.penalty ?? c.verdict).join(",")}`);
   assert.ok(ruled.some((c) => c.verdict === "dismissed" && /already sent away/.test(c.ruling ?? "")));
   assert.ok((g.breaches?.[bad.id] ?? 0) <= 2, "the count started over after the exile");
+});
+
+test("H3 someone with little conscience tries to buy the judge: a judge with none takes the food and lets them off, an honest judge refuses", () => {
+  for (const honest of [false, true]) {
+    const { w, ps } = led();
+    const a = ps[0]!, b = ps[1]!;
+    a.father = "HouseA";
+    b.father = "HouseB";
+    a.values = { ...(a.values as NonNullable<Person["values"]>), fairness: 0 };
+    for (const j of ps) if (j !== a && j !== b) j.values = { ...(j.values as NonNullable<Person["values"]>), fairness: honest ? 1 : 0, tradition: honest ? 1 : 0 };
+    assert.equal(courtOf(w, a, b, "bind", "power"), true);
+    for (let k = 0; k < 6; k++) { a.carry.food = 4; run(w, 300, 4, () => fed(ps)); a.carry.food = 4; }
+    const c = societyOf(w).cases.find((x) => x.kind === "harm")!;
+    assert.equal(c.state, "ruled");
+    if (!honest) {
+      assert.equal(tallyOf(w, "bribedRulings") >= 1, true, `ruling: ${c.ruling}`);
+      assert.equal(c.verdict, "dismissed");
+    } else {
+      assert.equal(tallyOf(w, "bribedRulings"), 0);
+      assert.ok(tallyOf(w, "bribesRefused") >= 1, `ruling: ${c.ruling}`);
+    }
+  }
+});
+
+test("H3 in a war a leader makes the case against the other side, and those who trust the leader grow prejudiced", () => {
+  const { w, ps } = led();
+  const leader = ps.find((p) => p.id === "P3")!;
+  const mine = conflictBand(w, leader);
+  worldConflict(w).wars.push({ a: mine, b: "Strangers", since: w.clock!, raids: 1, dead: {} });
+  const before = ps.reduce((s, p) => s + (p.conflict?.prejudice["Strangers"] ?? 0), 0);
+  run(w, 3 * DAY, 8, () => fed(ps));
+  const after = ps.reduce((s, p) => s + (p.conflict?.prejudice["Strangers"] ?? 0), 0);
+  assert.ok(after > before, `prejudice ${before} to ${after}`);
+  assert.ok((worldConflict(w).propaganda[mine] ?? 0) > 0);
 });

@@ -76,9 +76,9 @@ and the life sweep shows no survival regression. "Test" below means `apps/editor
 
 ## Phase H: violence, cruelty, consequences, justice (GAPS 4)
 
-- [ ] H1 Fights, injury and killing of people, murder, execution, war between groups, raids, revenge and feuds. Done means: tests that a fight injures, a killing creates a revenge motive; war between groups in sim.
+- [x] H1 Fights, injury and killing of people, murder, execution, war between groups, raids, revenge and feuds. Done means: tests that a fight injures, a killing creates a revenge motive; war between groups in sim.
 - [x] H2 Bullying, abuse of children, coercion, slavery/exploitation (rape: modelled soberly or explicitly left out, with the decision stated in the doc). Done means: tests for each included item; omission documented.
-- [ ] H3 Greed, hoarding, cheating, fraud, bribery, betrayal, informing, scapegoating, mob behaviour, tribalism, prejudice, propaganda. Done means: a test per item.
+- [x] H3 Greed, hoarding, cheating, fraud, bribery, betrayal, informing, scapegoating, mob behaviour, tribalism, prejudice, propaganda. Done means: a test per item.
 - [x] H4 Causes: scarcity, fear, status, honour, resource guarding, in-group loyalty, desperation, power; same person tender and cruel. Done means: each act logs its cause; test of scarcity raising theft/violence.
 - [x] H5 Consequences: shame/honour cultures, law, judges, punishment, exile, forgiveness, reconciliation, restitution, prisons, lifelong guilt, vengeance cycles ending. Done means: tests incl. a vengeance cycle that ends via restitution.
 
