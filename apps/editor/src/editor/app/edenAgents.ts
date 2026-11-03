@@ -564,6 +564,8 @@ export function installEdenAgents(C: Ctx): void {
         placedPeople.set(person.id, want);
         ui("eden_place", `${person.id},${want},${person.x},${groundY(person.x, person.z)},${person.z},${person.id}`);
         sent.delete(person.id);
+        // A body whose script had not started yet misses its first "who are you"; tell it again.
+        for (const wait of [1500, 5000]) setTimeout(() => !bodyIndexById.has(person.id) && ui("eden_tell", person.id), wait);
       }
     }
     // Those who have died: the body lies down (Adam and Eve's own) or is taken away, and the Creator is told.
@@ -1136,6 +1138,23 @@ export function installEdenAgents(C: Ctx): void {
             f.smoothing = 0.05;
           }
         }
+      };
+      // For screenshots: turn a body to face the camera (a model faces +z at yaw 0), and keep it so every 30 ms until told to stop.
+      let faceTimer: ReturnType<typeof setInterval> | undefined;
+      (window as unknown as { edenFaceCamera: unknown }).edenFaceCamera = (name: string | null) => {
+        if (faceTimer) clearInterval(faceTimer);
+        faceTimer = undefined;
+        if (!name) return;
+        faceTimer = setInterval(() => {
+          const o = C.objects[bodyIndex(name)] ?? C.objects[bodyIndexById.get(name) ?? -1];
+          if (o) o.rotation.y = Math.atan2(C.viewCamera.position.x - o.position.x, C.viewCamera.position.z - o.position.z);
+        }, 30);
+      };
+      (window as unknown as { edenCameraAt: unknown }).edenCameraAt = () => {
+        const c = C.viewCamera;
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(c.quaternion);
+        const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(c.quaternion);
+        return { at: c.position.toArray(), right: [right.x, right.z], forward: [fwd.x, fwd.z] };
       };
       (window as unknown as { edenWorld: unknown }).edenWorld = () => world;
       (window as unknown as { edenPresent: unknown }).edenPresent = present;
