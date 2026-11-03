@@ -11,6 +11,7 @@
 // All of it is off until `enableWorld2(world)` is called (the page does, the tests do), so worlds that never asked for it are unchanged.
 // Chances come from the world's own second random stream (`world2.rng`), never a person's, and nothing here reads a value from another eden
 // module at load time (they import one another in a ring).
+import { learnHerding } from "./tech";
 import { DAY, YEAR, growthRate } from "./earth";
 import { bodyOf, infectBed, muscleOf } from "./body";
 import { ADULT_AGE, chronicle, make, makePerson, note, tally, type Person, type Thing, type World } from "./mind";
@@ -599,6 +600,8 @@ export function tameLivestock(world: World, person: Person, animal: Thing): bool
     chronicle(world, `${person.name} won a ${animal.kind}.`);
     feel(person, "joy", 0.4);
     tally(world, "livestockTamed");
+    learnHerding(world, person, animal);
+    tally(world, "domesticated");
   } else note(person, world, `Fed a ${animal.kind}. It let me near.`);
   return true;
 }

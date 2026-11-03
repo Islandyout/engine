@@ -577,6 +577,18 @@ function rowAndFish(world: World, p: Person, boat: Thing, joy: (v: number) => vo
 
 // ---- Tame animals ----
 
+/** Keeping an animal teaches that animals can be kept. Called when one becomes theirs, by whichever way that happens. */
+export function learnHerding(world: World, p: Person, a: Thing) {
+  if (has(p, "herding")) return;
+  const firstEver = !world.knowledge?.herding;
+  const c = craftOf("herding")!;
+  (p.ideas ??= []).push("herding");
+  (world.knowledge ??= {}).herding ??= { by: p.id, byName: p.name, t: world.clock ?? 0 };
+  if (firstEver) chronicle(world, `${p.name} fed a wild ${a.kind} until it followed them, and understood that animals can be kept: herding.`);
+  note(p, world, `The ${a.kind} follows me now. ${c.effect[0]!.toUpperCase()}${c.effect.slice(1)}: I know herding.`);
+  tally(world, "inventions");
+  tally(world, "invented_farm");
+}
 const HERD = new Set(["cow", "donkey", "alpaca", "horse"]);
 function feedAnimal(world: World, p: Person, a: Thing, joy: (v: number) => void): boolean {
   if (!HERD.has(a.kind) || a.of || p.carry.food < 1 || dist(p.x, p.z, a.x, a.z) > 4.5) return false;
@@ -585,16 +597,7 @@ function feedAnimal(world: World, p: Person, a: Thing, joy: (v: number) => void)
   joy(0.08);
   if (a.trust >= 3) {
     a.of = p.id;
-    const firstEver = !world.knowledge?.herding;
-    if (!has(p, "herding")) {
-      const c = craftOf("herding")!;
-      (p.ideas ??= []).push("herding");
-      (world.knowledge ??= {}).herding ??= { by: p.id, byName: p.name, t: world.clock ?? 0 };
-      if (firstEver) chronicle(world, `${p.name} fed a wild ${a.kind} until it followed them, and understood that animals can be kept: herding.`);
-      note(p, world, `The ${a.kind} follows me now. ${c.effect[0]!.toUpperCase()}${c.effect.slice(1)}: I know herding.`);
-      tally(world, "inventions");
-      tally(world, "invented_farm");
-    }
+    learnHerding(world, p, a);
     p.mood = Math.min(1, p.mood + 0.2);
     note(p, world, `A ${a.kind} is mine now.`);
     tally(world, "domesticated");
