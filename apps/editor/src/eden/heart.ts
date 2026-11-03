@@ -10,6 +10,7 @@
 //  MEANING is a purpose that organises a life (family, craft, knowledge, faith, community). It steadies a person against stress; when it is
 //  lost they are in crisis and search (thinking, reading, praying), and the faithful are consoled sooner. A new purpose is found, or not.
 // Nothing here claims anyone feels anything. It is the machinery by which behaviour comes from reasons.
+import { grievance } from "./society";
 import { DAY } from "./earth";
 import { feel } from "./inner";
 import { skillOf, valueOf, SKILLS } from "./identity";
@@ -230,6 +231,8 @@ export function betray(world: World, who: Person, wronged: Person, withWhom: Per
   note(who, world, `I went to ${withWhom.name} while ${wronged.name} trusted me.`);
   feel(who, "guilt", 0.3);
   witness(world, "deed", who, withWhom, `affair:${wronged.id}`, true);
+  grievance(world, who, wronged, 0.3, `${who.name} went to ${withWhom.name} while ${wronged.name} trusted them`, "affair");
+  grievance(world, withWhom, wronged, 0.2, `${withWhom.name} took ${wronged.name}'s partner`, "affair");
 }
 /** They come to know. What follows depends on how often it has happened: the first may be forgiven, the second ends the bond. */
 export function learnOfBetrayal(world: World, wronged: Person, who: Person) {
@@ -245,6 +248,7 @@ export function learnOfBetrayal(world: World, wronged: Person, who: Person) {
   note(wronged, world, `${who.name} betrayed me.`);
   milestone(wronged, world, "betrayal", `was betrayed by ${who.name}`);
   tally(world, "betrayals");
+  grievance(world, who, wronged, 0.35, `${who.name} betrayed ${wronged.name}`, "betrayal");
   if (hw.betrayals[who.id]! >= 2) {
     lifeOf(wronged).partner = undefined;
     lifeOf(who).partner = undefined;

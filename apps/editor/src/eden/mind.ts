@@ -13,7 +13,7 @@ import { cultureOptions, doCreate, doPonder, doRead, exchangeIdeas, faithful, kn
 import { doInvent, doMake, planOptions, worksNow, type Plan } from "./reason";
 import { afterAct, appraise, milestone, recall, psycheBias, psycheEvent, psycheStep, type Psyche } from "./psyche";
 import { selfOf, mindStep, recordOutcome, resolveConflict, lessonBias, snapshot, aftermathOfTheft, witnessCost, judge, surpriseGift, talkAbout, type Self, type Fact, type Model, type Snap } from "./mindmodel";
-import { onTheft, societyBias, societyStep, type Society } from "./society";
+import { onTheft, societyAfter, societyBias, societyStep, type Society } from "./society";
 import { learnAfter, learnBias, learnFilter, learnOptions, learningStep, loreTalk, teachStep, type Learning, type Lore } from "./learning";
 import { economyAfter, economyBias, economyStep, economyTheft, economyWorldStep, inheritHoldings, marketTrade, type PersonEcon, type WorldEcon } from "./economy";
 import { conflictBias, conflictStep, conflictWorld, theftConflict, type Conflict, type WorldConflict } from "./conflict";
@@ -1791,6 +1791,7 @@ function finish(person: Person, world: World, intent: Intent) {
   recordOutcome(person, world, intent);
   heartAfter(world, person, intent);
   learnAfter(world, person, intent);
+  societyAfter(world, person, intent);
   economyAfter(world, person, intent);
   afterAct(world, person, intent);
   triedKind(person, intent.kind);

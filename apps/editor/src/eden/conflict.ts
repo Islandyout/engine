@@ -12,6 +12,7 @@
 //  CONSEQUENCES       an honour, shame or guilt ethos; a judge; restitution, jail, exile, execution (only for killing, only under strong law);
 //                     forgiveness and reconciliation; guilt that fades over a lifetime, not a week.
 // Sexual violence is deliberately not modelled (see docs/changelog/F145.md). Chances come from a hash, not the person's random stream.
+import { courtOf, onViolence } from "./society";
 import { DAY } from "./earth";
 import { devOf } from "./development";
 import { feel } from "./inner";
@@ -126,6 +127,7 @@ export function logAct(world: World, act: ActKind, by: Person, to: Person | unde
   if (wc.log.length > 500) wc.log.shift();
   tally(world, `act_${act}`);
   tally(world, `cause_${cause}`);
+  onViolence(world, by, to, act);
   return a;
 }
 export function causesOf(world: World): Record<Cause, number> {
@@ -456,7 +458,7 @@ export function inform(world: World, informer: Person, factId: string): boolean 
 
 // ---- Cases, judges and punishment ----
 
-const SEVERITY: Partial<Record<ActKind, number>> = { theft: 0.25, fight: 0.4, bully: 0.3, coerce: 0.4, bind: 0.7, kill: 0.8, murder: 1, cheat: 0.25, fraud: 0.3, hoard: 0.2, harsh: 0.3, mob: 0.6 };
+export const SEVERITY: Partial<Record<ActKind, number>> = { theft: 0.25, fight: 0.4, bully: 0.3, coerce: 0.4, bind: 0.7, kill: 0.8, murder: 1, cheat: 0.25, fraud: 0.3, hoard: 0.2, harsh: 0.3, mob: 0.6 };
 export function pickJudge(world: World, offender: Person, victim?: Person): Person | undefined {
   return adults(world)
     .filter((q) => q !== offender && q !== victim && !q.conflict?.exile && !q.conflict?.jail && !related(world, q, offender) && (!victim || !related(world, q, victim)) && q.age >= 8 && dist(q.x, q.z, offender.x, offender.z) < 60)
@@ -509,7 +511,7 @@ export function holdCase(world: World, offender: Person, victim: Person | undefi
   }
   return v;
 }
-function applyPunishment(world: World, off: Person, victim: Person | undefined, judgeP: Person, p: Punishment, sev: number) {
+export function applyPunishment(world: World, off: Person, victim: Person | undefined, judgeP: Person, p: Punishment, sev: number) {
   const now = world.clock ?? 0;
   const c = conflictOf(off);
   const ethos = ethosOf(world);
@@ -928,7 +930,7 @@ export function conflictWorld(world: World, dt: number) {
       }
       if (w.informed[id] || knowers.length >= 3) {
         w.judged.push(id);
-        holdCase(world, off, victim, deed.act, deed.cause);
+        if (!courtOf(world, off, victim, deed.act, deed.cause)) holdCase(world, off, victim, deed.act, deed.cause);
       }
     }
     if (w.judged.length > 400) w.judged.splice(0, 100);

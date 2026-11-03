@@ -7,6 +7,7 @@
 // what always works, with nothing installed and nothing online.
 import { hourOf, phrase, bondOf, type Person, type World } from "./mind";
 import { SEASON_NAMES } from "./earth";
+import { inTongue } from "./society";
 import { BELIEF_WORDS, type Belief } from "./inner";
 
 export type Topic = "need" | "event" | "weather" | "goal" | "bond" | "creature" | "child" | "thanks" | "sorry" | "gossip" | "story" | "joke" | "plain";
@@ -180,5 +181,5 @@ export function converse(world: World, speaker: Person, other: Person, rnd: () =
       break;
     }
   }
-  return { topic: chosen.topic, said: first(chosen.said), reply: first(chosen.reply), about: chosen.about, tag: chosen.tag, tale: chosen.tale };
+  return { topic: chosen.topic, said: first(inTongue(world, speaker, chosen.said)), reply: first(inTongue(world, other, chosen.reply)), about: chosen.about, tag: chosen.tag, tale: chosen.tale };
 }
