@@ -16,6 +16,7 @@ import { selfOf, mindStep, recordOutcome, resolveConflict, lessonBias, snapshot,
 import { onTheft, societyBias, societyStep, type Society } from "./society";
 import { learnAfter, learnBias, learnFilter, learnOptions, learningStep, loreTalk, teachStep, type Learning, type Lore } from "./learning";
 import { economyAfter, economyBias, economyStep, economyTheft, economyWorldStep, inheritHoldings, marketTrade, type PersonEcon, type WorldEcon } from "./economy";
+import { conflictBias, conflictStep, conflictWorld, theftConflict, type Conflict, type WorldConflict } from "./conflict";
 import { celebrate, heartAfter, heartBias, heartStep, painBias, sacrificeStep, type Heart } from "./heart";
 import { fightBeast, learnFromWorld, teamStep, type Rule, type Team } from "./solve";
 import { doWork, techOptions, techStep, type Project, type Tech } from "./tech";
@@ -310,6 +311,7 @@ export interface Person {
   rites?: string[]; // rites of passage they have been through (society.ts)
   learn?: Learning; // masters, tales held, beliefs, failures, words (learning.ts)
   econ?: PersonEcon; // what they own, owe, have made and work at (economy.ts)
+  conflict?: Conflict; // grudges, guilt, fear, prejudice, punishment served (conflict.ts)
   psyche?: Psyche; // drives, body chemistry, lasting states, habits, cues (psyche.ts)
   emotions?: Partial<Record<Emotion, number>>; // what they feel now, each 0..1, fading at its own speed (inner.ts)
   stress?: number; // sim seconds spent very low; held long enough it breaks
@@ -343,6 +345,7 @@ export interface World {
   names?: Record<string, { name: string; by: string; known: string[] }>; // what the people call the places, who named each and who knows it
   norms?: Record<string, { strength: number; announced?: boolean }>; // customs forming among the people (norms.ts)
   society?: Society; // groups, leaders, laws, cases, feuds, alliances, schisms, festivals (society.ts)
+  conflict?: WorldConflict; // the log of violence and its causes, feuds, wars, law (conflict.ts)
   fish?: number; // how many fish the river holds (kept by step)
   built?: number; // how many things the people have made (their ids)
   maxPeople?: number; // births stop at this many living people (default 12)
@@ -2246,6 +2249,7 @@ function finishCore(person: Person, world: World, intent: Intent) {
         aftermathOfTheft(world, person, victim);
         onTheft(world, person, victim);
         economyTheft(world, person, victim, "food", 1);
+        theftConflict(world, person, victim);
         note(person, world, `Took food from ${victim.name} because I was starving. I am ashamed.`);
         note(victim, world, `${person.name} took food from me.`);
         // Those who hear of it trust the thief a little less: the loss of faith that ends in being shunned.
@@ -2428,6 +2432,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
   } else if (hand) world.override = undefined;
   world.weather = weather;
   fadeNorms(world, dt);
+  conflictWorld(world, dt);
   noticeVisitor(world);
   // The river's fish breed in the warm months and keep to the deep in winter; a few come down from upstream, so it is never quite empty.
   const fish = (world.fish ??= 30);
@@ -2499,6 +2504,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     heartStep(person, world, dt);
     learningStep(person, world, dt);
     economyStep(person, world, dt);
+    conflictStep(person, world, dt);
     if (person.age >= ADULT_AGE && Math.floor((world.clock ?? 0) / 4) !== Math.floor(((world.clock ?? 0) - dt) / 4)) sacrificeStep(person, world, 4, world.things.filter((t) => aff(t).predator && aff(t).creature));
     breakDown(person, world, dt);
     if (person.grief) {
@@ -2611,6 +2617,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       learnBias(person, world, opts);
       learnFilter(person, world, opts);
       economyBias(person, world, opts);
+      conflictBias(person, world, opts);
       if (needs.thirst < 0.6 && needs.hunger < 0.6) for (const o of opts) o.score += lessonBias(person, world, o.intent.kind);
       resolveConflict(person, world, opts);
       const picked = choose(person, opts);

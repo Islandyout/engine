@@ -93,6 +93,17 @@ Quarrel, shun, steal and a spear against beasts exist. Missing, and necessary fo
 - Consequences and institutions: shame and honour cultures, law, judges, punishment, exile, forgiveness, reconciliation, restitution,
   prisons, guilt carried for life, vengeance cycles and how they end.
 
+**Status after F145 (`conflict.ts`):** built as consequences and reasons in the simulation, never as graphic text: fights, injury, killing,
+murder, execution, revenge and feuds, raids and war between bands, bullying, coercion, bondage, harsh punishment and neglect of children
+(with after-effects on attachment), hoarding, cheating, fraud, bribery, betrayal, informing, scapegoating, mobs, tribalism, prejudice,
+propaganda, a cause logged with every act, an honour/shame/guilt ethos, judges, restitution, jail, exile, forgiveness and reconciliation,
+guilt that lasts, feuds that end. **Left out by decision: sexual violence (rape).** It is not modelled at all, in any form, in this
+engine: there is no act, state, fact or cause for it. The reason is that a simulation of minds with no way to show it as anything but
+an event would only be a mechanism for producing it, and what history teaches about it (war, bondage and power, and the silence that
+follows) is carried here by the general machinery of coercion, power and fear without it. Child abuse is modelled only at the level of
+harsh punishment and neglect, as a record with its after-effects on attachment, and is never described. See F145 for what else is
+partial (no marching armies, no prisons as buildings, no courts beyond one judge).
+
 ## 5. Economy: why it came about, and money
 
 Today: wood and food carried, a fixed barter ratio that depends on season once counting is known, and a ledger of favours. Missing,
