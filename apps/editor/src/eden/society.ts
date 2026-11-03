@@ -319,7 +319,7 @@ export function societyAfter(world: World, who: Person, intent: Intent) {
   }
   // Working on a feast day where that is taboo: someone near sees it, and it is brought before the priest.
   const g = groupOf(world, groupId(who));
-  if (who.age >= ADULT_AGE && g.taboos.some((t) => t.what === "work-on-festival") && festivalOn(world) && WORK.includes(intent.kind)) {
+  if (who.age >= ADULT_AGE && g.taboos.some((t) => t.what === "work-on-festival") && festivalOn(world) && WORK.includes(intent.kind) && !(SUBSISTENCE.includes(intent.kind) && who.needs.hunger > 0.45)) {
     const seen = world.people.some((q) => q !== who && q.age >= ADULT_AGE && q.intent?.kind !== "sleep" && dist(q.x, q.z, who.x, who.z) < 25);
     const s = societyOf(world);
     const day = Math.floor((world.clock ?? 0) / DAY);
@@ -330,6 +330,8 @@ export function societyAfter(world: World, who: Person, intent: Intent) {
     }
   }
 }
+// Getting food when hungry is not the work a feast day forbids.
+const SUBSISTENCE = ["forage", "fish", "hunt", "gather"];
 const WORK = ["forage", "fish", "hunt", "plant", "build", "craft", "improve", "gather"];
 
 // ---- Laws, cases, judging ----
@@ -449,12 +451,14 @@ function ruleTaboo(world: World, g: Group, c: Case, accused: Person | undefined)
   const jd = [person(world, g.priest), person(world, g.leader)].find((q) => !!q && q.id !== c.accused);
   if (!accused || !jd) { c.verdict = "dismissed"; c.ruling = "no one could hear it"; return; }
   c.judge = jd.id;
+  if ((accused.conflict?.exile?.until ?? 0) > (world.clock ?? 0)) { c.verdict = "dismissed"; c.ruling = `${accused.name} is already sent away`; return; }
   const n = ((g.breaches ??= {})[accused.id] = (g.breaches[accused.id] ?? 0) + 1);
   c.verdict = "guilty";
   feel(accused, "shame", 0.4);
   if (n >= 3) {
     c.penalty = "exile";
     applyPunishment(world, accused, undefined, jd, "exile", 0.5);
+    g.breaches[accused.id] = 0; // having been sent away for it, they start again on their return
   } else if (accused.carry.food >= 1) {
     c.penalty = "offering";
     accused.carry.food -= 1;

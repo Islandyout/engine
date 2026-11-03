@@ -374,3 +374,34 @@ test("F2 in the running world a song someone made is given a rule from what they
   assert.ok(tallyOf(w, "workTales") >= 0);
   assert.ok(w.works!.find((x) => x.id === "work-0")!.tale || tale!.work, "tied to a work");
 });
+
+test("G2 a hungry person getting food on a feast day is not breaking the taboo", () => {
+  const { w, ps, g } = led();
+  g.priest = "P5";
+  g.taboos.push({ what: "work-on-festival", text: "no one works on feast days", by: "P5", since: 0 });
+  while (!festivalOn(w)) w.clock! += DAY;
+  w.clock = Math.floor(w.clock! / DAY) * DAY + (9 / 24) * DAY;
+  const hungry = ps[0]!;
+  for (const p of ps) { p.x = 3 + (p.id.length % 3); p.z = 3; p.needs.thirst = 0.1; p.carry.food = 3; p.needs.hunger = 0.2; }
+  hungry.needs.hunger = 0.8;
+  hungry.carry.food = 0;
+  hungry.intent = { kind: "forage", targetId: "grove", x: hungry.x, z: hungry.z, speed: 1, remaining: 1, arrived: true };
+  run(w, 60, 4, () => { hungry.needs.hunger = 0.8; });
+  assert.equal(societyOf(w).cases.filter((c) => c.kind === "taboo" && c.accused === hungry.id).length, 0);
+});
+
+test("G2 exile for the taboo happens once; while someone is sent away further breaches are not judged again, and on their return the count starts over", () => {
+  const { w, ps, g } = led();
+  g.priest = "P5";
+  g.taboos.push({ what: "work-on-festival", text: "no one works on feast days", by: "P5", since: 0 });
+  const bad = ps[0]!;
+  const file = () => societyOf(w).cases.push({ id: `case-${societyOf(w).cases.length}`, group: g.id, accused: bad.id, victim: "P5", kind: "taboo", filed: w.clock!, norm: "taboo", starving: false, state: "open" });
+  for (let i = 0; i < 6; i++) {
+    file();
+    run(w, 700, 4, () => fed(ps));
+  }
+  const ruled = societyOf(w).cases.filter((c) => c.kind === "taboo");
+  assert.equal(ruled.filter((c) => c.penalty === "exile").length, 1, `exiles ${ruled.map((c) => c.penalty ?? c.verdict).join(",")}`);
+  assert.ok(ruled.some((c) => c.verdict === "dismissed" && /already sent away/.test(c.ruling ?? "")));
+  assert.ok((g.breaches?.[bad.id] ?? 0) <= 2, "the count started over after the exile");
+});
