@@ -39,6 +39,7 @@ const kinds: Record<string, number> = {};
 let carryWood = 0, carryFood = 0, nsamp = 0;
 for (let t = 0; t < years * YEAR; t += DT) {
   step(world, DT);
+  if (process.env.POP && Math.floor(t / DT) % Math.floor(YEAR / DT) === 0) console.error(`year ${(t / YEAR).toFixed(1)}: ${world.people.length} alive, ${world.dead?.length ?? 0} dead`);
   if (Math.floor(t / DT) % 20 === 0) { for (const p of world.people) { nsamp++; carryWood += p.carry.wood; carryFood += p.carry.food; const i = p.intent; if ((i?.kind === 'eat' || i?.kind === 'forage') && i.targetId) { const th = world.things.find((x) => x.id === i.targetId); if (th?.owner && th.owner !== p.id) byKind[th.kind] = (byKind[th.kind] ?? 0) + 1; } } }
   if (Math.floor(t / DT) % 15 === 0) for (const p of world.people) { samples++; if (p.needs.hunger > 0.85 || p.needs.thirst > 0.85) desperate++; }
 }
@@ -49,5 +50,6 @@ const ad = world.people.filter((p) => p.age >= 16);
 for (const t of world.things) if (t.owner) kinds[t.kind] = (kinds[t.kind] ?? 0) + 1;
 const known: Record<string, number> = {};
 for (const p of world.people) for (const i of p.ideas ?? []) known[i] = (known[i] ?? 0) + 1;
+if (process.env.POP) { const c: Record<string, number> = {}; for (const d of world.dead ?? []) c[d.cause] = (c[d.cause] ?? 0) + 1; console.error("DEATHS", JSON.stringify(c)); }
 if (process.env.IDEAS) console.log("IDEAS", JSON.stringify(known));
 console.log(JSON.stringify({ avgWood: +(carryWood / nsamp).toFixed(2), avgFood: +(carryFood / nsamp).toFixed(2), eatOwned: byKind, ownedKinds: kinds, start, end: world.people.length, desperateShare: +(desperate / Math.max(1, samples)).toFixed(4), gini: +wealthGini(world).toFixed(3), classes: ad.reduce((m, p) => ((m[econOf(p).class ?? "?"] = (m[econOf(p).class ?? "?"] ?? 0) + 1), m), {} as Record<string, number>), tally: out }));
