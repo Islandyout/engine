@@ -5,6 +5,7 @@
 import { DAY, hourOf, YEAR } from "./earth";
 import { skillOf, valueOf, type Value } from "./identity";
 import { feel } from "./inner";
+import { bookAllowed } from "./learning";
 import { milestone, psycheEvent } from "./psyche";
 import { ADULT_AGE, chronicle, isNight, make, note, personById, rand, relation, tally, thingById, type Intent, type Person, type Thing, type World } from "./mind";
 import { techName } from "./tech";
@@ -19,6 +20,7 @@ export interface Work {
   quality: number; // 0..1
   text?: string; // a book's words: a few lines from its author's life
   knows?: string[]; // what a book teaches
+  copyOf?: string; // the book this was copied from
   at?: string; // the thing it is kept at (a library) or shown on (a painted stone)
 }
 export interface Tenet {
@@ -305,7 +307,7 @@ export function doPonder(world: World, person: Person, joy: (v: number) => void)
 }
 
 export function doRead(world: World, person: Person, library: Thing | undefined, joy: (v: number) => void) {
-  const books = (world.works ?? []).filter((w) => w.kind === "book" && w.at === library?.id && !person.ideas?.includes(`read:${w.id}`));
+  const books = (world.works ?? []).filter((w) => w.kind === "book" && w.at === library?.id && !person.ideas?.includes(`read:${w.id}`) && bookAllowed(world, person, w.id));
   const book = books[0];
   if (!book) return;
   const ideas = (person.ideas ??= []);
