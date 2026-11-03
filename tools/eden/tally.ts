@@ -20,6 +20,7 @@ ring("grove", "grove", 8, 60, 8);
 ring("woods", "woodland", 4, 110, 10);
 ring("orch", "orchard", 3, 80, 8);
 ring("hollow", "hollow", 4, 40);
+ring("rock", "rock", 6, 70);
 for (let i = 0; i < Math.ceil(people / 5); i++) things.push({ id: `shelter-${i}`, kind: "shelter", x: -10 + (i % 6) * 6, z: -12 + Math.floor(i / 6) * 6, radius: 3, stock: 4 });
 const world: World = { things, people: [], radius: 190, clock: DAY / 3, maxPeople: 200, climate: { meanC: 14, seasonalAmpC: 7, dailyAmpC: 4, rainy: 0.25, seed: 7 }, fish: 40 };
 for (let i = 0; i < people; i++) {
