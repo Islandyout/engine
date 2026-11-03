@@ -13,6 +13,7 @@ import { cultureOptions, doCreate, doPonder, doRead, exchangeIdeas, faithful, kn
 import { doInvent, doMake, planOptions, worksNow, type Plan } from "./reason";
 import { afterAct, appraise, milestone, recall, psycheBias, psycheEvent, psycheStep, type Psyche } from "./psyche";
 import { selfOf, mindStep, recordOutcome, resolveConflict, lessonBias, snapshot, aftermathOfTheft, witnessCost, judge, surpriseGift, talkAbout, type Self, type Fact, type Model, type Snap } from "./mindmodel";
+import { learnAfter, learnBias, learnFilter, learnOptions, learningStep, loreTalk, teachStep, type Learning, type Lore } from "./learning";
 import { celebrate, heartAfter, heartBias, heartStep, painBias, sacrificeStep, type Heart } from "./heart";
 import { fightBeast, learnFromWorld, teamStep, type Rule, type Team } from "./solve";
 import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach, valueOf, SKILL_WORDS, type Skill, type Value } from "./identity";
@@ -294,6 +295,7 @@ export interface Person {
   accusedBy?: string[];
   favourFor?: { to: string; until: number };
   heart?: Heart; // love, pain, joy and purpose (heart.ts)
+  learn?: Learning; // masters, tales held, beliefs, failures, words (learning.ts)
   psyche?: Psyche; // drives, body chemistry, lasting states, habits, cues (psyche.ts)
   emotions?: Partial<Record<Emotion, number>>; // what they feel now, each 0..1, fading at its own speed (inner.ts)
   stress?: number; // sim seconds spent very low; held long enough it breaks
@@ -316,6 +318,7 @@ export interface World {
   weather?: Weather;
   visitor?: { x: number; z: number }; // the Creator walking the world as a hunter (set by the page): prey run from them
   noGo?: { x: number; z: number; r: number }[]; // deep water and the like: nobody walks into it
+  lore?: Lore; // tales, closed crafts and readings, bans, guilds, the first words (learning.ts)
   facts?: Fact[]; // things that have happened and who knows of them
   teams?: Team[]; // parties gone against a beast
   works?: Work[]; // songs, stories, paintings and books made so far
@@ -1274,6 +1277,7 @@ function options(person: Person, world: World): Option[] {
   cultureOptions(person, world, out);
   planOptions(person, world, out);
   devOptions(person, world, out);
+  learnOptions(person, world, out);
   arcOptions(person, world, out);
   lifeOptions(person, world, out);
   // A child does not gather, build or lay food by, and stays close to their mother.
@@ -1758,6 +1762,7 @@ function finish(person: Person, world: World, intent: Intent) {
   finishCore(person, world, intent);
   recordOutcome(person, world, intent);
   heartAfter(world, person, intent);
+  learnAfter(world, person, intent);
   afterAct(world, person, intent);
   triedKind(person, intent.kind);
 }
@@ -2153,7 +2158,7 @@ function finishCore(person: Person, world: World, intent: Intent) {
     case "teach": {
       const child = personById(world, intent.targetId);
       if (child) {
-        const taught = teach(person, child);
+        const taught = teachStep(world, person, child);
         if (taught) {
           note(child, world, `${person.name} showed me how to do better at ${SKILL_WORDS[taught.skill].doing}.`);
           owe(world, person, child, 0.5);
@@ -2302,12 +2307,13 @@ function finishCore(person: Person, world: World, intent: Intent) {
         shareNames(person, other, world);
         shareKnowledge(person, other, world);
         exchangeIdeas(world, person, other);
+        loreTalk(world, person, other);
         talkAbout(world, person, other);
         remember(world, person, other);
         remember(world, other, person);
         // Teaching: whoever is better at something shows the other.
         for (const [teacher, learner] of [[person, other], [other, person]] as const) {
-          const taught = teach(teacher, learner);
+          const taught = teachStep(world, teacher, learner);
           if (taught) {
             note(learner, world, `${teacher.name} showed me how to do better at ${SKILL_WORDS[taught.skill].doing}.`);
             note(teacher, world, `Showed ${learner.name} ${SKILL_WORDS[taught.skill].doing}.`);
@@ -2461,6 +2467,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     lifeStep(person, world, dt);
     mindStep(person, world, dt);
     heartStep(person, world, dt);
+    learningStep(person, world, dt);
     if (person.age >= ADULT_AGE && Math.floor((world.clock ?? 0) / 4) !== Math.floor(((world.clock ?? 0) - dt) / 4)) sacrificeStep(person, world, 4, world.things.filter((t) => aff(t).predator && aff(t).creature));
     breakDown(person, world, dt);
     if (person.grief) {
@@ -2569,6 +2576,8 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       psycheBias(person, world, opts);
       painBias(person, opts);
       heartBias(person, world, opts);
+      learnBias(person, world, opts);
+      learnFilter(person, world, opts);
       if (needs.thirst < 0.6 && needs.hunger < 0.6) for (const o of opts) o.score += lessonBias(person, world, o.intent.kind);
       resolveConflict(person, world, opts);
       const picked = choose(person, opts);
