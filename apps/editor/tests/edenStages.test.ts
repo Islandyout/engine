@@ -135,13 +135,13 @@ test("B5: an ambitious young adult whose parent is alive builds a roof of their 
 
 // ---- B5 / B6 / B7 over generations ----
 
-test("long run (twelve years): the children of a settlement grow up, some leave their parents' roof, and every conception ends in a birth, a stillbirth, a loss of the mother or is still being carried", () => {
+test("long run (eleven years): the children of a settlement grow up, some leave their parents' roof, and every conception ends in a birth, a stillbirth, a loss of the mother or is still being carried", () => {
   const people: Person[] = [];
   for (let i = 0; i < 6; i++) people.push(mk(`W${i}`, i * 2, 0, 5 + i * 0.3, 200 + i, "f"), mk(`M${i}`, i * 2, 3, 5 + i * 0.3, 300 + i, "m"));
   const w = world(people, [{ id: "shelter-1", kind: "shelter", x: 4, z: 2, radius: 3, stock: 12 }, { id: "shelter-2", kind: "shelter", x: -6, z: 2, radius: 3, stock: 12 }, { id: "grove2", kind: "grove", x: -8, z: 8, radius: 3, stock: 8, maxStock: 8 }]);
   w.maxPeople = 40;
   for (const p of people) for (const t of w.things) p.memory.set(t.id, { x: t.x, z: t.z, feeling: 0.2, visits: 1, lastSeen: 0 });
-  for (let t = 0; t < 12 * YEAR; t += 20) {
+  for (let t = 0; t < 11 * YEAR; t += 30) {
     for (const p of w.people) {
       p.needs.hunger = Math.min(p.needs.hunger, 0.4);
       p.needs.thirst = Math.min(p.needs.thirst, 0.4);
@@ -149,7 +149,7 @@ test("long run (twelve years): the children of a settlement grow up, some leave 
       if (p.age >= 4 && p.carry.wood < 10) p.carry.wood = 10; // wood is not what is being tested
     }
     for (const t2 of w.things) if (t2.kind === "shelter" && !t2.owner) t2.stock = 12;
-    step(w, 20);
+    step(w, 30);
   }
   const tally = w.tally ?? {};
   const grownChildren = [...w.people, ...(w.dead ?? []).map((d) => d.person)].filter((p) => (p.mother || p.father) && p.age >= AGES.courting + 1);

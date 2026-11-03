@@ -46,6 +46,7 @@ export interface Deeds {
   dances: number;
   diedFor?: { purpose: string; forId: string };
   ambitionNoted?: boolean;
+  roofs?: string[]; // the roofs that stood when they came of age: those are the family's, not their own
 }
 export const deedsOf = (p: Person): Deeds => (p.deeds ??= { gap: 0, owed: 0, costly: {}, forgave: {}, withheld: {}, status: 0.5, peak: 0, counselled: 0, songs: 0, dances: 0 });
 
@@ -233,12 +234,13 @@ export function deedStep(person: Person, world: World, dt: number) {
     milestone(person, world, "retired", "put down the heavy work and became a keeper of stories");
     tally(world, "retired");
   }
+  d.roofs ??= world.things.filter((t) => t.kind === "shelter").map((t) => t.id);
   // A roof of one's own, away from the parents' fire.
   if (!l.home && (person.mother || person.father)) {
     const mate = partnerOf(world, person);
     const parents = world.people.filter((q) => q.id === person.mother || q.id === person.father);
     // Their own: one they own that is not the parents' roof, nor within sight of the parents' door.
-    const own = world.things.find((t) => t.kind === "shelter" && !!t.owner && (t.owner === person.id || t.owner === mate?.id) && parents.every((q) => t.owner !== q.id && dist(t.x, t.z, q.x, q.z) > 10));
+    const own = world.things.find((t) => t.kind === "shelter" && !d.roofs!.includes(t.id) && !!t.owner && (t.owner === person.id || t.owner === mate?.id) && parents.every((q) => t.owner !== q.id && dist(t.x, t.z, q.x, q.z) > 10));
     if (own && parents.length) {
       l.home = own.id;
       note(person, world, "I have a roof of my own now, and I no longer sleep under my parents'.");
@@ -315,8 +317,8 @@ function inner(person: Person, world: World, out: Option[]) {
     const feast = !!festivalOn(world);
     const crowd = world.people.filter((q) => q !== person && q.age >= 1 && dist(q.x, q.z, person.x, person.z) < 14 && awake(q)).length;
     // On an ordinary evening only those who want amusement are moved to it; on a feast everyone is.
-    if (crowd >= 2 && (feast || (person.needs.joy > 0.6 && deedChance(person, world, "music", 900) < 0.8))) {
-      const base = feast ? 0.8 : 0.52;
+    if (crowd >= 2 && (feast || (person.needs.joy > 0.6 && deedChance(person, world, "music", 300) < 0.8))) {
+      const base = feast ? 0.8 : 0.7;
       const here = { x: person.x, z: person.z, speed: 0, remaining: 24 };
       out.push({ intent: { kind: "sing", ...here }, score: base + 0.1 * (person.personality.sociability - 0.5), reason: feast ? "to sing at the feast" : "to sing with the others in the evening" });
       out.push({ intent: { kind: "dance", ...here }, score: base + 0.1 * (person.personality.boldness - 0.5) + 0.12 * (deedChance(person, world, "dance", 60) - 0.5), reason: feast ? "to dance at the feast" : "to dance with the others in the evening" });
@@ -363,7 +365,7 @@ function inner(person: Person, world: World, out: Option[]) {
       const roof = world.things.find((t) => t.kind === "shelter");
       const a = deedChance(person, world, "home", 600) * Math.PI * 2;
       const at = roof ? { x: roof.x + Math.cos(a) * 24, z: roof.z + Math.sin(a) * 24 } : { x: person.x + 6, z: person.z };
-      out.push({ intent: { kind: "build", x: at.x, z: at.z, speed: 1.6, remaining: 150 }, score: 1.2, reason: "to have a roof of my own, away from my parents" });
+      out.push({ intent: { kind: "build", x: at.x, z: at.z, speed: 1.6, remaining: 150 }, score: 1.5, reason: "to have a roof of my own, away from my parents" });
       if (!d.ambitionNoted) {
         d.ambitionNoted = true;
         note(person, world, "I want more than my parents' fire. I mean to make something of my own.");
