@@ -64,6 +64,7 @@ export interface PersonEcon {
   spoilAcc?: number; // food gone bad but not yet thrown out
   profit: number; // gained as a middleman
   shares: Record<string, number>; // venture id -> shares
+  store?: Partial<Record<Good, number>>; // savings kept as goods (in a shelter or a hole in the ground), not as a number
 }
 export interface Venture {
   id: string;
@@ -76,6 +77,7 @@ export interface Venture {
   sentiment: number; // how far talk has run ahead of that (a bubble when large, a crash when it breaks)
   crashAt: number;
   dividends: number;
+  founder?: string;
 }
 export interface WorldEcon {
   day: number; // last day processed
@@ -91,6 +93,7 @@ export interface WorldEcon {
   market?: { x: number; z: number; day: number };
   caravan?: { until: number; shell: number; hide: number };
   tribute: number; // fraction of food surplus given to the granary each day (0 = none)
+  giniSeries?: number[]; // the Gini over wealth, every fourth day (the last 64)
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -169,8 +172,12 @@ export function wrong(world: World, thief: Person, owner: Person, what: Good, n:
   note(owner, world, `${thief.name} took ${n === 1 ? "some" : n} of my ${what}.`);
   tally(world, "propertyTheft");
   const witnesses = world.people.filter((q) => q !== thief && q !== owner && dist(q.x, q.z, owner.x, owner.z) < 25).length;
-  if (ledgerKind(world) !== "memory" || witnesses >= 2) {
-    lend(world, owner, thief, what, 0, { restitution: n * 1.5 });
+  // A starving thief is not made a debtor; a second taking from the same owner adds to the debt that is already open instead of opening another
+  // (a debt a day per meal ended with most of a camp in bondage for a few mouthfuls).
+  if (excuse < 0.7 && (ledgerKind(world) !== "memory" || witnesses >= 2)) {
+    const open = worldEcon(world).debts.find((d) => d.state === "open" && d.why === "restitution" && d.debtor === thief.id && d.creditor === owner.id);
+    if (open) open.owed = Math.min(open.owed + n * 1.5, 6);
+    else lend(world, owner, thief, what, 0, { restitution: n * 1.5 });
     tally(world, "restitutionOwed");
   }
   return true;
@@ -184,6 +191,11 @@ export function takeFromOwned(world: World, person: Person, thing: Thing, n = 1)
   const owner = personById(world, thing.owner);
   if (!owner || owner.id === person.id) return false;
   if (closeKin(world, person, owner)) return false;
+  // What a friend takes from your store is a favour, not a theft: the owner who trusts them leaves it to them.
+  if (relation(owner, person.id, world).trust >= 0.5) {
+    tally(world, "ownerLeave");
+    return false;
+  }
   return wrong(world, person, owner, "food", n, person.needs.hunger);
 }
 /** What they owned passes to an heir (land to the eldest, coin shared), debts with it; with no heir it becomes common. */
@@ -408,7 +420,25 @@ export function marketTrade(world: World, person: Person, intent: Intent): boole
       const n = Math.floor(surplusOf(person, g));
       if (n >= 1 && wantOf(world, other, g) > 0) {
         const r = exchange(world, person, other, g, Math.min(n, Math.ceil(wantOf(world, other, g))));
-        if (r.ok) note(person, world, `At the fair I sold ${g} to ${other.name}.`);
+        if (r.ok) {
+          const q = quote(world, g);
+          note(person, world, `At the fair I sold ${g} to ${other.name}, the going price ${q.price} ${q.unit === "shell" ? "shells" : q.unit}.`);
+        }
+      }
+    }
+  }
+  // A go-between buys of one who has to spare and sells to one who wants it, for the difference.
+  if (person.personality.boldness > 0.45 && person.personality.curiosity > 0.4 && free(person)) {
+    const near = adults(world).filter((o) => o !== person && dist(o.x, o.z, person.x, person.z) < 15);
+    for (const g of ["food", "wood", "hide"] as const) {
+      const seller = near.find((o) => Math.floor(surplusOf(o, g)) >= 1);
+      const buyer = near.find((o) => o !== seller && wantOf(world, o, g) > 0);
+      if (seller && buyer) {
+        const r = broker(world, person, seller, buyer, g, 1);
+        if (r.ok) {
+          note(person, world, `At the fair I bought ${g} of ${seller.name} and sold it to ${buyer.name}, and kept the difference.`);
+          break;
+        }
       }
     }
   }
@@ -425,6 +455,9 @@ export function creditworthy(world: World, lender: Person, borrower: Person): { 
   if (lastDefaultHere) return { ok: false, why: `${borrower.name} has not paid ${lender.name} before` };
   if (known && eb.defaulted > eb.repaid) return { ok: false, why: `it is written that ${borrower.name} has not paid` };
   if (trust < 0.4) return { ok: false, why: `${lender.name} does not trust ${borrower.name} enough` };
+  // Where an account is kept the books say how much is out already, and a lender reads them.
+  const owing = ledgerBalance(world, borrower.id, lender.id);
+  if (owing !== undefined && owing > 6) return { ok: false, why: `the books show ${borrower.name} already owes ${lender.name} ${Math.round(owing)}` };
   return { ok: true };
 }
 export function interestRate(world: World, lender: Person, borrower: Person): number {
@@ -490,6 +523,16 @@ function settleDebts(world: World) {
       if (creditor) note(creditor, world, `${debtor.name} says he owes me nothing. I cannot show it.`);
     }
     if (d.disputed) continue;
+    // A debt that falls due is paid out of the store first.
+    if (now >= d.due - DAY) {
+      const st = debtor.econ?.store;
+      const short = d.owed + (d.good === "food" ? 1 : 0) - heldOf(debtor, d.good);
+      if (st && (st[d.good] ?? 0) > 0 && short > 0) {
+        const take = Math.min(st[d.good]!, short);
+        st[d.good]! -= take;
+        addHeld(debtor, d.good, take);
+      }
+    }
     if (now >= d.due - DAY && heldOf(debtor, d.good) >= d.owed + (d.good === "food" ? 1 : 0)) repay(world, debtor, d, d.owed);
     else if (now >= d.due && heldOf(debtor, d.good) > (d.good === "food" ? 2 : 0)) repay(world, debtor, d, heldOf(debtor, d.good) - (d.good === "food" ? 2 : 0));
     if (d.state === "open" && now >= d.due + 4 * DAY) {
@@ -503,7 +546,7 @@ function settleDebts(world: World) {
         feel(creditor, "anger", 0.4);
         note(creditor, world, `${debtor.name} has not paid what is owed.`);
         // The creditor can take it out in work, if the debtor has no other job: debt bondage.
-        if (!econOf(debtor).job && d.why !== "wage") {
+        if (!econOf(debtor).job && d.why !== "wage" && (d.why === "loan" || d.owed >= 4)) {
           econOf(debtor).job = { employer: creditor.id, good: d.good, wage: 0, since: now, unpaid: 0, bonded: true, debt: d.id };
           d.state = "bonded";
           tally(world, "bondage");
@@ -546,7 +589,7 @@ export function draw(world: World, p: Person, n = 2): number {
 // ---- Capital, ventures, speculation, class ----
 
 export function startVenture(world: World, founder: Person, kind: "boat" | "mill", cost: number): Venture {
-  const v: Venture = { id: `${kind}-${worldEcon(world).ventures.length + 1}`, kind, cost, raised: 0, shares: {}, built: false, fundamental: 0, sentiment: 0, crashAt: 1.1 + 0.3 * chanceOf(`crash|${founder.id}|${cost}`), dividends: 0 };
+  const v: Venture = { id: `${kind}-${worldEcon(world).ventures.length + 1}`, kind, cost, raised: 0, shares: {}, built: false, fundamental: 0, sentiment: 0, crashAt: 1.1 + 0.3 * chanceOf(`crash|${founder.id}|${cost}`), dividends: 0, founder: founder.id };
   worldEcon(world).ventures.push(v);
   return v;
 }
@@ -590,9 +633,18 @@ function ventureDay(world: World) {
     } else if (v.sentiment < 0) v.sentiment *= 0.9;
   }
 }
+export const storeOf = (p: Person): Partial<Record<Good, number>> => (econOf(p).store ??= {});
+/** What a person's store is worth, in food units. */
+export function storedValue(world: World, p: Person): number {
+  const st = p.econ?.store;
+  if (!st) return 0;
+  let v = 0;
+  for (const g of GOODS) v += (st[g] ?? 0) * (g === "shell" ? 1 : priceOf(world, g));
+  return v;
+}
 export function wealthOf(world: World, p: Person): number {
   const e = econOf(p);
-  let w = e.capital + e.shells * priceOf(world, "shell");
+  let w = e.capital + e.shells * priceOf(world, "shell") + storedValue(world, p);
   for (const g of ["food", "wood", "hide", "seed"] as const) w += (p.carry[g] ?? 0) * priceOf(world, g);
   for (const t of world.things) if (t.owner === p.id) w += t.kind === "shelter" ? 8 : t.kind === "crop" ? 3 : 2;
   for (const v of worldEcon(world).ventures) w += (p.econ?.shares[v.id] ?? 0) * (v.built ? sharePrice(v) : 1);
@@ -627,6 +679,50 @@ export function saveDay(world: World, p: Person) {
   // Land, tools and loans earn on what is held; a small stock earns nothing, because it is eaten as fast as it comes.
   if (e.capital > 3) e.capital *= 1.004;
   e.made7 = 0;
+}
+/**
+ * A day's saving as goods. What was made beyond a day's keep, and food or wood carried beyond what is wanted, goes into a store (at the
+ * shelter they own, else in the ground), where food goes off more slowly. A day that made less than a day's keep, or hunger with an empty
+ * pack, takes from it: the seed is eaten. Nothing here is a number that is not also a thing.
+ */
+export function saveGoods(world: World, p: Person, days = 1) {
+  const e = econOf(p);
+  const st = storeOf(p);
+  const owns = world.things.some((t) => t.owner === p.id && t.kind === "shelter");
+  const net = e.made7 - 1;
+  e.made7 = 0;
+  if (st.food) st.food *= Math.exp(-spoilRate(world, owns ? "shelter" : "granary") * days);
+  const keep = 3; // a pack of food, left to eat
+  if (net > 0 && p.carry.food > keep) {
+    const put = Math.min(net, p.carry.food - keep);
+    p.carry.food -= put;
+    st.food = (st.food ?? 0) + put;
+    tally(world, "stored");
+  }
+  if (p.carry.wood > 6 && p.needs.hunger < 0.6) {
+    const put = p.carry.wood - 6;
+    p.carry.wood -= put;
+    st.wood = (st.wood ?? 0) + put;
+  }
+  if (net < 0 && (st.food ?? 0) > 0) {
+    const take = Math.min(st.food!, -net);
+    st.food! -= take;
+    p.carry.food += take;
+    tally(world, "seedEaten");
+  }
+  // Hungry with nothing in the pack: they go to the store.
+  if (p.needs.hunger > 0.5 && p.carry.food < 1 && (st.food ?? 0) > 0) {
+    const take = Math.min(st.food!, 2);
+    st.food! -= take;
+    p.carry.food += take;
+    tally(world, "storeDrawn");
+  }
+  if ((st.food ?? 0) < 0.05) delete st.food;
+  // Wood put by for a cold day comes back when the pack is empty and it is cold.
+  if (p.cold > 0.3 && p.carry.wood < 1 && (st.wood ?? 0) >= 1) {
+    st.wood! -= 1;
+    p.carry.wood += 1;
+  }
 }
 export function classOf(world: World, p: Person, median: number): Class {
   const e = econOf(p);
@@ -702,6 +798,121 @@ export function command(world: World, boss: Person, subject: Person, kind: Inten
   return { ok: true };
 }
 
+// ---- Land: a thing owned owns the ground round it ----
+
+const PLOT: Record<string, number> = { shelter: 7, field: 8, garden: 6, crop: 3, snare: 2, weir: 2, boat: 2, mill: 4 };
+/** Whose ground this is: the owner of the nearest owned thing whose plot (a few paces round it) holds the point. */
+export function landOwnerAt(world: World, x: number, z: number, except?: Thing): string | undefined {
+  let best: string | undefined;
+  let bd = Infinity;
+  for (const t of world.things) {
+    if (t === except || !t.owner) continue;
+    const r = PLOT[t.kind];
+    if (r === undefined) continue;
+    const d = dist(t.x, t.z, x, z);
+    if (d <= r && d < bd) {
+      bd = d;
+      best = t.owner;
+    }
+  }
+  return best;
+}
+
+// ---- Choices: what a person does with what they have (ventures, hiring, lending, speculating, brokering) ----
+
+const free = (p: Person) => p.needs.hunger < 0.6 && p.needs.thirst < 0.6;
+const nerve = (p: Person) => 0.25 + 0.75 * (0.5 * p.personality.boldness + 0.5 * p.personality.curiosity);
+const trustOf = (a: Person, b: Person, w: World) => relation(a, b.id, w).trust;
+const jobsOf = (ps: Person[], boss: Person) => ps.filter((w) => w.econ?.job?.employer === boss.id && !w.econ.job.bonded);
+/** Buy `n` shares of a built venture from another holder at the price now asked. The buyer pays in food. */
+export function buyShares(world: World, buyer: Person, seller: Person, v: Venture, n: number): { ok: boolean; why?: string } {
+  if ((v.shares[seller.id] ?? 0) < n) return { ok: false, why: `${seller.name} holds no such shares` };
+  const price = sharePrice(v) * n;
+  if (buyer.carry.food < price + 1) return { ok: false, why: `${buyer.name} cannot pay ${Math.round(price * 10) / 10}` };
+  buyer.carry.food -= price;
+  seller.carry.food += price;
+  v.shares[seller.id]! -= n;
+  v.shares[buyer.id] = (v.shares[buyer.id] ?? 0) + n;
+  econOf(seller).shares[v.id] = v.shares[seller.id]!;
+  econOf(buyer).shares[v.id] = v.shares[buyer.id]!;
+  tally(world, "sharesTraded");
+  record(world, "share", seller.id, buyer.id, "food", price);
+  return { ok: true };
+}
+/** One person's economic day: they look at what they hold and what they could do with it. Every choice yields to thirst and hunger, and every chance is from a hash. */
+function chooseDay(world: World, q: Person, ps: Person[], day: number) {
+  if (!free(q) || q.age < ADULT_AGE) return;
+  const e = worldEcon(world);
+  const eq = econOf(q);
+  const salt = (what: string) => chanceOf(`${what}|${q.id}|${day}`);
+  const nv = nerve(q);
+  // Ventures: wood put by in a store is wood that could be put in a boat or a mill, for a share of what it gives.
+  const spare = q.carry.wood + (eq.store?.wood ?? 0) - 4;
+  if (spare >= 1 && !eq.job) {
+    const open = e.ventures.find((v) => !v.built);
+    if (open) {
+      const founder = open.founder ? personById(world, open.founder) : undefined;
+      const known = !founder || founder === q || trustOf(q, founder, world) >= 0.4;
+      if (known && salt("invest") < 0.2 * nv) {
+        const n = Math.min(spare, open.cost - open.raised, 3);
+        const pulled = Math.max(0, n - q.carry.wood);
+        if (pulled > 0 && eq.store?.wood) { eq.store.wood -= pulled; q.carry.wood += pulled; }
+        if (invest(world, q, open, n).ok) tally(world, "invested");
+      }
+    } else if (e.ventures.length < 4 && spare >= 2 && salt("venture") < 0.06 * nv) {
+      const kind = knows(world, "boat") ? "boat" : "mill";
+      const v = startVenture(world, q, kind, 8);
+      tally(world, "venturesStarted");
+      note(q, world, `I have started a ${kind}, and will share in what it gives to those who put wood in.`);
+      const n = Math.min(spare, 3);
+      const pulled = Math.max(0, n - q.carry.wood);
+      if (pulled > 0 && eq.store?.wood) { eq.store.wood -= pulled; q.carry.wood += pulled; }
+      invest(world, q, v, n);
+    }
+  }
+  // Speculation: the bold buy a share that is rising, from someone who will sell.
+  if (q.personality.boldness > 0.6 && q.carry.food >= 4) {
+    const v = e.ventures.find((x) => x.built && ((x.shares[q.id] ?? 0) > 0 || x.sentiment > 0.05));
+    if (v && salt("speculate") < 0.2 * nv) {
+      const seller = ps.find((o) => o !== q && (v.shares[o.id] ?? 0) >= 1 && free(o));
+      if (seller && buyShares(world, q, seller, v, 1).ok) {
+        speculate(v, 0.5);
+        tally(world, "speculations");
+      }
+    }
+  }
+  // Hiring: someone with more than they need takes on a neighbour who has little, and pays a day's wage.
+  if ((q.carry.food >= 5 || q.carry.wood >= 8) && jobsOf(ps, q).length < 2 && salt("hire") < 0.1 * nv) {
+    const w = ps.find((o) => o !== q && !econOf(o).job && o.age >= ADULT_AGE && dist(o.x, o.z, q.x, q.z) < 30 && (econOf(o).class === "poor" || o.carry.food < 2) && trustOf(q, o, world) >= 0.3 && !jobsOf(ps, o).length);
+    if (w) hire(world, q, w, q.carry.food >= 5 ? "food" : "wood", 1);
+  }
+  // A worker with a full pack of their own goes back to working for themselves.
+  const job = eq.job;
+  if (job && !job.bonded && q.carry.food >= 7 && salt("quit") < 0.15) {
+    eq.job = undefined;
+    note(q, world, "I have enough of my own now, so I stopped working for another.");
+    tally(world, "workerQuit");
+  }
+  // An employer who is short of food sends a worker to find some.
+  if (q.needs.hunger > 0.4 && q.carry.food < 1) {
+    const w = jobsOf(ps, q)[0];
+    if (w) command(world, q, w, "forage");
+  }
+  // Lending before it is begged for: to a neighbour who has nothing in the pack and who is trusted.
+  if (q.carry.food >= 6 && salt("lend") < 0.25) {
+    const open = e.debts.filter((d) => d.creditor === q.id && d.state === "open" && d.why === "loan").length;
+    const b = open < 3 ? ps.find((o) => o !== q && o.carry.food < 1.5 && dist(o.x, o.z, q.x, q.z) < 25 && trustOf(q, o, world) >= 0.4 && !e.debts.some((d) => d.debtor === o.id && d.state === "open" && d.why === "loan")) : undefined;
+    if (b && lend(world, q, b, "food", 2).ok && econOf(b).class === "poor") tally(world, "lentToPoor");
+  }
+}
+/** What the food-for-wood swap costs when a fair is open: the going prices, not the fixed rates. Undefined when no fair is open. */
+export function marketRates(world: World): { food: number; wood: number } | undefined {
+  if (!marketOpen(world)) return undefined;
+  const f = priceOf(world, "food");
+  const wd = priceOf(world, "wood");
+  return { food: 2, wood: clamp(Math.round((2 * f) / wd), 1, 8) };
+}
+
 // ---- The step and the hooks into mind.ts ----
 
 function dayStep(world: World, days: number) {
@@ -743,7 +954,8 @@ function dayStep(world: World, days: number) {
     }
     // The speciality settles on what they are best at.
     eq.speciality = specialityOf(q);
-    saveDay(world, q);
+    saveGoods(world, q, days);
+    chooseDay(world, q, ps, day);
   }
   settleDebts(world);
   workDay(world);
@@ -751,6 +963,10 @@ function dayStep(world: World, days: number) {
   const ws = ps.map((q) => wealthOf(world, q)).sort((a, b) => a - b);
   const median = ws[Math.floor(ws.length / 2)] ?? 0;
   for (const q of ps) econOf(q).class = classOf(world, q, median);
+  if (day % 4 === 0) {
+    (e.giniSeries ??= []).push(gini(ws));
+    if (e.giniSeries.length > 64) e.giniSeries.shift();
+  }
 }
 export function economyWorldStep(world: World, dt: number) {
   const e = worldEcon(world);
@@ -770,7 +986,19 @@ export function economyAfter(world: World, person: Person, intent: Intent) {
   const e = econOf(person);
   if (["build", "plant", "furnish", "improve", "craft"].includes(intent.kind)) {
     const t = world.things.find((q) => !q.owner && OWNABLE.has(q.kind) && dist(q.x, q.z, intent.x, intent.z) < 1.5);
-    if (t) claim(world, person, t);
+    if (t) {
+      // Built or sown on ground that is another's, it is theirs: the ground it stands on was never the builder's to give.
+      const lord = personById(world, landOwnerAt(world, t.x, t.z, t));
+      if (lord && lord.id !== person.id && !closeKin(world, person, lord) && relation(lord, person.id, world).trust < 0.5) {
+        t.owner = lord.id;
+        tally(world, "trespass");
+        const r = relation(lord, person.id, world);
+        r.trust = Math.max(0, r.trust - 0.1);
+        feel(lord, "anger", 0.15);
+        note(lord, world, `${person.name} built on my ground. What stands there is mine.`);
+        note(person, world, `I built on ${lord.name}'s ground, and ${lord.name} keeps it.`);
+      } else claim(world, person, t);
+    }
   }
   const g = MADE_BY[intent.kind];
   if (g) {
@@ -798,6 +1026,10 @@ export function economyBias(person: Person, world: World, opts: Option[]) {
       const t = thingById(world, o.intent.targetId);
       if (t?.owner && t.owner !== person.id && !closeKin(world, person, personById(world, t.owner) ?? person)) o.score -= 0.6; // it is someone's
     }
+    if (free && ["build", "plant", "furnish", "improve"].includes(o.intent.kind)) {
+      const lord = landOwnerAt(world, o.intent.x, o.intent.z);
+      if (lord && lord !== person.id && !closeKin(world, person, personById(world, lord) ?? person)) o.score -= 0.5; // that ground is someone's
+    }
     if (e?.order && e.order.until > now && free) {
       if (o.intent.kind === e.order.kind) o.score += 0.9 * obedience(person);
     }
@@ -806,5 +1038,9 @@ export function economyBias(person: Person, world: World, opts: Option[]) {
   const m = world.econ!.market!;
   const goods = (["food", "wood", "hide", "seed"] as const).reduce((a, g) => a + Math.floor(surplusOf(person, g)), 0);
   const d = dist(person.x, person.z, m.x, m.z);
+  // The patient wait out a low price: a good that fetches a fifth less than it has over the last weeks is kept for another fair.
+  const series = priceSeries(world, "food");
+  const lowPrice = series.length >= 8 && priceOf(world, "food") < 0.8 * (series.reduce((a, b) => a + b, 0) / series.length) && person.personality.patience > 0.6;
+  if (lowPrice) return;
   if ((goods >= 2 || (world.econ!.caravan && (world.econ!.caravan.until ?? 0) > now && goods >= 1)) && d < 70) opts.push({ intent: { kind: "trade", targetId: "market", x: m.x, z: m.z, speed: 2.2, remaining: 6 }, score: 0.55 + 0.08 * goods - d / 400, reason: "to the fair with something to sell" });
 }

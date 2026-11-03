@@ -59,6 +59,7 @@ export interface WorldConflict {
   scapegoats: Record<string, { t: number; for: string }>;
   informed: Record<string, string>; // fact id -> who told
   lastDay: number;
+  lastSplit?: number; // when a band last went its own way
 }
 export type Ethos = "honour" | "shame" | "guilt";
 
@@ -102,10 +103,13 @@ export const lawOf = (world: World) => clamp01((world.conflict?.law ?? 0) + 0.3 
 // ---- Bands: who is "us" ----
 
 /** The band someone belongs to. Strangers who have not long arrived are another band until they have lived among the people a while. */
-export function bandOf(world: World, p: Person): string {
+export function bandOf(world: World, p: Person, depth = 0): string {
   const c = p.conflict?.band;
   if (c) return c;
   if (p.stranger && (world.clock ?? 0) - p.stranger.since < 40 * DAY) return "outsiders";
+  if (p.group && p.group !== "main") return p.group; // a camp the society split into (society.ts) is its own people
+  const mother = depth < 2 ? personById(world, p.mother ?? p.father) : undefined;
+  if (mother && p.age < ADULT_AGE) return bandOf(world, mother, depth + 1); // a child belongs to the parent's band
   return "home";
 }
 export function splitBand(people: Person[], name: string) {
@@ -820,6 +824,12 @@ export function conflictStep(person: Person, world: World, dt: number) {
       if (q.carry.food >= 1 && chance(person.id, world, `cheat${q.id}`) < 0.5 * k) return void cheat(world, person, q, scarcity > 0.3 ? "scarcity" : "greed");
       if (chance(person.id, world, `fraud${q.id}`) < 0.3 * k) return void fraud(world, person, q, "greed");
     }
+    // 6b. Selling out a friend: the unfair and dishonest give an ally up to someone who holds a grudge against them (or from a band they fear),
+    // for favour, for safety, or for gain. Once to a friend; the friend will not be fooled twice.
+    if (q.age >= ADULT_AGE && (rel?.trust ?? 0) > 0.5 && aff > 0.4 && valueOf(person, "fairness") < 0.4 && honestyOf(person) < 0.45 && !(q.heart?.betrayals[person.id])) {
+      const foe = near.find((x) => x !== q && x.age >= ADULT_AGE && ((x.conflict?.grudge[q.id] ?? 0) >= 0.3 || (bandOf(world, x) !== bandOf(world, q) && (c?.prejudice[bandOf(world, x)] ?? 0) > 0.3)));
+      if (foe && chance(person.id, world, `betray${q.id}`) < 0.6 * k * (1.1 - honestyOf(person))) return void betrayAlly(world, person, q, foe, (c?.fear[foe.id] ?? 0) > 0.2 ? "fear" : scarcity > 0.3 ? "scarcity" : "greed");
+    }
     // 7. A band stands up for its own against a stranger who is hurting one of them is handled by fight(); prejudice shows as distrust.
     if (!sameBand) {
       const pj = c?.prejudice[bandOf(world, q)] ?? 0;
@@ -895,6 +905,42 @@ function upkeep(person: Person, world: World, dt: number, c: Conflict) {
   }
 }
 
+const BAND_NAMES = ["the hill folk", "the river folk", "the wood folk", "the shore folk", "the stone folk", "the reed folk"];
+/**
+ * A people grows too big to keep as one: past sixteen adults, with a quarrel in the camp or want, a faction (the odd one out who has the most
+ * ill feeling in them, and the adults who are warm to them) goes its own way and is a band of its own from then on. That is the second band
+ * that raids and wars need, without anyone arriving from outside.
+ */
+function bandSplit(world: World, day: number) {
+  const w = worldConflict(world);
+  const now = world.clock ?? 0;
+  if (w.lastSplit !== undefined && now - w.lastSplit < 120 * DAY) return;
+  const bands = bandsOf(world);
+  for (const [name, members] of bands) {
+    if (name === "outsiders" || members.length < 16) continue;
+    const strife = w.feuds.some((f) => !f.ended) || scarcityOf(world) > 0.15 || members.filter((p) => Object.keys(p.conflict?.grudge ?? {}).length > 0).length >= 3 || members.length >= 20;
+    if (!strife || chance("band", world, `split${name}${day}`) >= 0.05) continue;
+    // The seed of a faction: the bold one with the most against others (fewest warm ties) among the adults.
+    const warm = (p: Person) => members.filter((q) => q !== p && (p.relations.get(q.id)?.affinity ?? 0) > 0.3).length;
+    const seed = [...members].sort((a, b) => (b.personality.boldness - 0.1 * warm(b) + Object.keys(b.conflict?.grudge ?? {}).length * 0.2) - (a.personality.boldness - 0.1 * warm(a) + Object.keys(a.conflict?.grudge ?? {}).length * 0.2) || (a.id < b.id ? -1 : 1))[0]!;
+    const cap = Math.floor(members.length * 0.4);
+    const followers = members.filter((q) => q !== seed && (q.relations.get(seed.id)?.affinity ?? 0) > 0.3).sort((a, b) => (b.relations.get(seed.id)?.affinity ?? 0) - (a.relations.get(seed.id)?.affinity ?? 0) || (a.id < b.id ? -1 : 1)).slice(0, cap - 1);
+    if (followers.length < 2) continue;
+    const going = [seed, ...followers];
+    const label = BAND_NAMES[Object.keys(w.propaganda).length % BAND_NAMES.length]!;
+    const taken = new Set(bandsOf(world).keys());
+    const nm = taken.has(label) ? `${label} of ${seed.name}` : label;
+    splitBand(world.people.filter((p) => going.some((g) => g.id === p.id || p.mother === g.id || p.father === g.id)), nm);
+    for (const p of going) for (const q of members) if (!going.includes(q)) conflictOf(p).prejudice[name] = clamp01((p.conflict?.prejudice[name] ?? 0) + 0.1);
+    for (const q of members) if (!going.includes(q)) for (const p of going) conflictOf(q).prejudice[nm] = clamp01((q.conflict?.prejudice[nm] ?? 0) + 0.1);
+    for (const p of going) note(p, world, `We could not go on as one people, and went our own way, ${going.length} of us.`);
+    chronicle(world, `${going.length} of the people went their own way with ${seed.name} and became ${nm}.`);
+    tally(world, "bandsSplit");
+    w.lastSplit = now;
+    return;
+  }
+}
+
 // ---- The world's day: cases, informing, scapegoating, mobs, prejudice, propaganda, raids ----
 
 export function conflictWorld(world: World, dt: number) {
@@ -947,6 +993,7 @@ export function conflictWorld(world: World, dt: number) {
       if (against.length >= 3 && chance(t.id, world, `mob${day}`) < 0.3) { mobAgainst(world, t, against.slice(0, 5), "fear"); break; }
     }
   }
+  bandSplit(world, day);
   // Prejudice: contact with another band breeds fear in want and fades when they get on; a leader makes the case.
   const bands = bandsOf(world);
   if (bands.size > 1) {
@@ -957,7 +1004,8 @@ export function conflictWorld(world: World, dt: number) {
         for (const p of members) {
           const c = conflictOf(p);
           const friends = theirs.filter((q) => (p.relations.get(q.id)?.affinity ?? 0) > 0.4).length;
-          c.prejudice[other] = clamp01((c.prejudice[other] ?? 0) + 0.03 * scarcity * (1 + (c.fear ? Object.keys(c.fear).length : 0)) - 0.05 * Math.min(2, friends) * (c.prejudice[other] ?? 0) - 0.003);
+          const contact = theirs.some((q) => dist(q.x, q.z, p.x, p.z) < 40) ? 0.011 : 0; // 'they are not like us': a little, wherever the two meet
+          c.prejudice[other] = clamp01((c.prejudice[other] ?? 0) + 0.03 * scarcity * (1 + (c.fear ? Object.keys(c.fear).length : 0)) + contact - 0.05 * Math.min(2, friends) * (c.prejudice[other] ?? 0) - 0.003);
         }
         const leader = members.filter((p) => p.personality.boldness > 0.5).sort((a, b) => standing(world, b) - standing(world, a) || (a.id < b.id ? -1 : 1))[0];
         if (leader && scarcity > 0.35 && chance(leader.id, world, `prop${other}${day}`) < 0.5) propaganda(world, leader, other, 0.15);

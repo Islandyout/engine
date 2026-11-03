@@ -15,7 +15,7 @@ import { afterAct, appraise, milestone, recall, psycheBias, psycheEvent, psycheS
 import { selfOf, mindStep, recordOutcome, resolveConflict, lessonBias, snapshot, aftermathOfTheft, witnessCost, judge, surpriseGift, talkAbout, type Self, type Fact, type Model, type Snap } from "./mindmodel";
 import { onTheft, societyBias, societyStep, type Society } from "./society";
 import { learnAfter, learnBias, learnFilter, learnOptions, learningStep, loreTalk, teachStep, type Learning, type Lore } from "./learning";
-import { economyAfter, economyBias, economyStep, economyTheft, economyWorldStep, inheritHoldings, marketTrade, type PersonEcon, type WorldEcon } from "./economy";
+import { economyAfter, economyBias, economyStep, economyTheft, economyWorldStep, inheritHoldings, marketRates, marketTrade, type PersonEcon, type WorldEcon } from "./economy";
 import { conflictBias, conflictStep, conflictWorld, theftConflict, type Conflict, type WorldConflict } from "./conflict";
 import { celebrate, heartAfter, heartBias, heartStep, painBias, sacrificeStep, type Heart } from "./heart";
 import { birthComplication, bodyBias, bodySpeed, bodyStep, fertilityOf, sightMul, stillbirthExtra, type Body, type WalkerBody } from "./body";
@@ -2163,7 +2163,7 @@ function finishCore(person: Person, world: World, intent: Intent) {
       if (marketTrade(world, person, intent)) break;
       const other = personById(world, intent.targetId);
       if (other) {
-        const rate = tradeRates(world);
+        const rate = marketRates(world) ?? tradeRates(world); // at an open fair the going prices decide, else the old rates
         if (person.carry.food >= rate.food + 1 && other.carry.wood >= rate.wood + 1) {
           person.carry.food -= rate.food;
           other.carry.food = Math.min(6, other.carry.food + rate.food);
