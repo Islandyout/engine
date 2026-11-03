@@ -107,7 +107,7 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F100](changelog/F100.md) | Base characters (textured bodies with faces, hairstyles, fitted clothes) and 42 more animation clips for Azure Cloud Sect |
 | [F101](changelog/F101.md) | Jianghu Road: a one-kilometre open-world murim game from data (world, quests with checks, one tracked waypoint) |
 | [F102](changelog/F102.md) | Desktop app (Electron): local files, GPU report, AI control port with MCP and CLI, standalone game apps |
-| [F103](changelog/F103.md) | Eden: two Supabase-brained characters in a garden, speak to them or add animals and trees |
+| [F103](changelog/F103.md) | Eden: two characters with minds of their own in a garden, speak to them or add animals and trees (first version; see [the mind](EDEN_MIND.md)) |
 | [F104](changelog/F104.md) | Eden: seasonal day length, moon, fishing, grief and graves, lessons learned |
 | [F105](changelog/F105.md) | Eden: 400 m valley, emotions, breakdowns, quarrels and apologies, opinions and gossip |
 | [F106](changelog/F106.md) | Eden: values, talents, life stories, skills that grow, roles and teaching |
@@ -147,4 +147,5 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F140](changelog/F140.md) | Eden phase C: self-model, other minds, lying, inner conflict, double standards |
 | [F141](changelog/F141.md) | Eden phase D: love, pain, joy, meaning |
 | [F147](changelog/F147.md) | Eden phase J: many causes learned and revised, analogies, a 48-invention tool-chain space, farms, herding, metals, wheels, boats, bridges, shared projects, 18 crafted object kinds |
+| [F148](changelog/F148.md) | Eden phase K: seen in the running game, a browser test in CI, performance, the mind design document ([EDEN_MIND](EDEN_MIND.md)) |
 | [Gaps](EDEN_GAPS.md) | Eden: audit of what is still missing (psyche, life stages, economy, education, violence, world, build gaps) |

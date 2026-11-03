@@ -156,7 +156,7 @@ revolution rather than a plot of plants, domestication, metals, wheels, boats an
   pack screens, the people form, the mic button, the pad buttons, the plan and party behaviour, the model-planner. All pass tests and the
   simulation; headless screenshots did not show them.
 - The free model (Ollama) has never been run against this code. Voice, chat, planner and rewording are tested only with fake answers.
-- Installers 10-14 showed people in underwear (fixed in 15); every earlier installer should be treated as superseded.
+- **Superseded:** installers 10-14 showed people in underwear (fixed in 15); every earlier installer, 3 to 14, is superseded and must not be used or shared. Build a fresh one from the current branch.
 - The old Supabase `eden-tick` function from the first version is still running on the live project; it was left alone on purpose and
   never switched off.
 - A stray remote branch `eden-takeover` could not be deleted (refused by the sandbox).
