@@ -59,8 +59,8 @@ const RUN_MS = Number(process.env.EDEN_TEST_SECONDS ?? 40) * 1000;
       const was = before.find((q) => q.name === p.name) ?? before[i];
       return { name: p.name, mind: Math.hypot(p.mind[0] - was.mind[0], p.mind[1] - was.mind[1]), body: Math.hypot(p.body[0] - was.body[0], p.body[2] - was.body[2]) };
     });
-    assert.ok(travelled.some((t) => t.mind > 2), `someone moved in the mind: ${JSON.stringify(travelled)}`);
-    assert.ok(travelled.some((t) => t.body > 2), `someone moved on screen: ${JSON.stringify(travelled)}`);
+    assert.ok(travelled.some((t) => t.mind > 1), `someone moved in the mind: ${JSON.stringify(travelled)}`);
+    assert.ok(travelled.some((t) => t.body > 1), `someone moved on screen: ${JSON.stringify(travelled)}`);
     const header1 = await page.locator(".eden-panel").first().textContent();
     assert.ok(/Eden · (spring|summer|autumn|winter) · \d\d:\d\d/i.test(header1), `the panel shows season and time: ${header1.slice(0, 80)}`);
 

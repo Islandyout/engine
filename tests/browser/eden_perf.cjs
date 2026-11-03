@@ -33,14 +33,14 @@ const PEOPLE = Number(process.env.EDEN_PERF_PEOPLE ?? 60);
   const browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
   try {
     const context = await browser.newContext({ viewport: { width: 960, height: 540 }, userAgent: "Mozilla/5.0 BTAIDesktop" });
-    const page = await context.newPage();
+    let page = await context.newPage();
     page.setDefaultTimeout(300000);
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     const cdp = await browser.newBrowserCDPSession();
     await page.goto(`http://127.0.0.1:${server.address().port}/engine/eden.html`);
     await page.waitForFunction(() => typeof window.edenDebug === "function" && window.edenDebug().length >= 2);
-    await page.evaluate(() => {
+    const startFrames = () => {
       const t = document.querySelector(".eden-tutorial button");
       if (t) t.click();
       window.__frames = [];
@@ -51,11 +51,15 @@ const PEOPLE = Number(process.env.EDEN_PERF_PEOPLE ?? 60);
         requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
-    });
+    };
+    await page.evaluate(startFrames);
     const cpu = async () => {
       const { processInfo } = await cdp.send("SystemInfo.getProcessInfo");
       const sum = {};
-      for (const p of processInfo) sum[p.type] = (sum[p.type] ?? 0) + p.cpuTime;
+      for (const p of processInfo) {
+        const type = String(p.type).toLowerCase();
+        sum[type] = (sum[type] ?? 0) + p.cpuTime;
+      }
       return sum;
     };
     const measure = async (label) => {
@@ -82,16 +86,24 @@ const PEOPLE = Number(process.env.EDEN_PERF_PEOPLE ?? 60);
     const results = [];
     await page.waitForTimeout(5000);
     results.push(await measure("2 people"));
-    // Everyone made through the Creator's own commands, in the same place the Creator puts them.
-    await page.evaluate((n) => {
-      const input = document.querySelector('.eden-panel input[placeholder="Let there be..."]');
-      const letters = "abcdefghijklmnopqrstuvwxyz";
-      for (let i = 0; i < n - 2; i++) {
-        input.value = `${i % 2 ? "a man" : "a woman"} named ${letters[Math.floor(i / 26)]}${letters[i % 26]}x`;
-        input.form.requestSubmit();
-      }
-    }, PEOPLE);
-    await page.waitForFunction((n) => window.edenDebug().length >= n, PEOPLE);
+    // The crowd: the page's own save with the people added by tools/eden/crowd.ts (the Creator's form stops at the garden's limit), loaded in a
+    // fresh page. Same size window, same camera.
+    await page.evaluate(() => [...document.querySelectorAll(".eden-panel button")].find((b) => b.textContent === "Save").click());
+    const save = await page.evaluate(() => localStorage.getItem("eden-world-v1"));
+    const { execFileSync } = require("node:child_process");
+    const os = require("node:os");
+    const tmp = path.join(os.tmpdir(), `eden-perf-${process.pid}.json`);
+    await fs.writeFile(tmp, save);
+    const crowd = execFileSync(path.resolve("apps/editor/node_modules/.bin/tsx"), [path.resolve("tools/eden/crowd.ts"), tmp, String(PEOPLE)], { cwd: path.resolve("apps/editor"), maxBuffer: 1 << 28 }).toString();
+    await page.close();
+    const crowdContext = await browser.newContext({ viewport: { width: 960, height: 540 }, userAgent: "Mozilla/5.0 BTAIDesktop" });
+    await crowdContext.addInitScript((text) => localStorage.setItem("eden-world-v1", text), crowd);
+    page = await crowdContext.newPage();
+    page.setDefaultTimeout(300000);
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto(`http://127.0.0.1:${server.address().port}/engine/eden.html`);
+    await page.waitForFunction((n) => typeof window.edenDebug === "function" && window.edenDebug().length >= n, PEOPLE);
+    await page.evaluate(startFrames);
     await page.waitForTimeout(15000);
     results.push(await measure(`${PEOPLE} people`));
     console.log(JSON.stringify({ results, errors: errors.slice(0, 3) }, null, 1));
