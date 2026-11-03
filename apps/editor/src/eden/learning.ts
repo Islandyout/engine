@@ -14,7 +14,9 @@
 //    changes, so a lineage's speech drifts.
 // Chances come from a hash of who and what (never the person's own random stream), so adding this shifts none of the other seeded choices.
 import { SKILLS, SKILL_WORDS, practise, roleOf, skillOf, valueOf, type Skill } from "./identity";
-import { artOf, knows, loreOf } from "./culture";
+import { artOf, knows, loreOf, type Work } from "./culture";
+import { CLAIM_CATALOGUE, RULE_CATALOGUE, SCENES, type Experience } from "./folklore";
+import { rankOf } from "./society";
 import { ADULT_AGE, AFFORDANCES, chronicle, note, personById, relation, tally, type Intent, type Person, type World } from "./mind";
 
 type Option = { intent: Omit<Intent, "arrived">; score: number };
@@ -28,6 +30,7 @@ export interface Tale {
   byName: string;
   t: number;
   parts: string[]; // as first told: part 0 states the rule
+  work?: string; // the song or story in world.works this tale is the telling of
 }
 export interface Version {
   parts: string[]; // as this person tells it
@@ -68,6 +71,8 @@ export interface Lore {
   guilds: Record<string, { members: string[]; secret: boolean }>;
   lexicon: Record<string, string>; // the first words
   claims: Claim[]; // beliefs that have arisen (true and false); the catalogue is FOLK
+  lastCollapse?: number;
+  lastBan?: number;
 }
 export interface Claim {
   id: string;
@@ -227,21 +232,7 @@ export function examine(world: World, master: Person, pupil: Person): { passed: 
 
 // ---------------------------------------------------------------- oral tradition
 
-export const RULES: Record<string, { text: string; kind: string; night?: boolean }> = {
-  "fire-keeps-wolves": { text: "keep the fire alive through the night and the wolves keep their distance", kind: "fire", night: true },
-  "share-in-winter": { text: "who shares in the lean time is fed in the leaner", kind: "share" },
-  "wash-before-eating": { text: "wash before you eat and the fever stays away", kind: "wash" },
-};
-const SCENES = [
-  "a hunter went out with one dog and two spears",
-  "she walked three days along the river",
-  "a small wolf came to the old fire",
-  "an old woman kept the fire all day",
-  "two brothers quarrelled over a deer",
-  "the first snow fell on a small hut",
-  "a child found a shining stone by the water",
-  "the elders gathered at the great tree",
-];
+export const RULES: Record<string, { text: string; kind: string; night?: boolean; when: Experience }> = RULE_CATALOGUE;
 const EMBELLISH: [RegExp, string][] = [
   [/\bone\b/, "three"],
   [/\bthree\b/, "seven"],
@@ -283,14 +274,28 @@ export function retell(tale: Tale, from: Version, hearerId: string): Version {
 }
 export const tellText = (v: Version) => v.parts.filter(Boolean).join("; ") + ".";
 
-/** A person who has lived through something worth warning of makes it into a tale. */
-export function composeTale(world: World, by: Person, rule: string, form: TaleForm): Tale {
+/**
+ * A person who has lived through something worth warning of makes it into a tale. A song or a story is also a work in `world.works`: the
+ * author's own recent unlinked one is taken as the telling, else the work is made with it, and the two are linked (tale.work, work.tale).
+ */
+export function composeTale(world: World, by: Person, rule: string, form: TaleForm, work?: Work): Tale {
   const lore = worldLore(world);
   const r = RULES[rule];
   if (!r) throw new Error(`composeTale: unknown rule "${rule}"`);
   const id = `tale-${lore.tales.length}`;
   const parts = [r.text, ...[0, 1, 2].map((i) => SCENES[Math.floor(hash01(`${id}|${i}`) * SCENES.length)]!)];
   const tale: Tale = { id, form, rule, by: by.id, byName: by.name, t: world.clock ?? 0, parts };
+  if (form === "song" || form === "story") {
+    const works = (world.works ??= []);
+    const w = work ?? works.find((x) => x.kind === form && x.by === by.id && !x.tale && (world.clock ?? 0) - x.t < 3 * 1440);
+    if (w) (w.tale = id), (tale.work = w.id);
+    else {
+      const made: Work = { id: `work-${works.length}`, kind: form, by: by.id, byName: by.name, title: `The ${form === "song" ? "Song" : "Tale"} of ${r.text.split(" ").slice(0, 4).join(" ")}`, t: world.clock ?? 0, quality: clamp01(0.2 + 0.5 * artOf(by)), tale: id };
+      works.push(made);
+      tale.work = made.id;
+      tally(world, "workTales");
+    }
+  }
   lore.tales.push(tale);
   learnOf(by).tales[id] = { parts: parts.slice(), rule: true, hops: 0 };
   learnOf(by).lastTale = world.clock ?? 0;
@@ -298,6 +303,36 @@ export function composeTale(world: World, by: Person, rule: string, form: TaleFo
   note(by, world, `Made a ${form} so the old lesson is not forgotten: ${r.text}.`);
   return tale;
 }
+/** A song or story the person made (culture.ts) that carries no rule yet becomes the telling of one from what they have lived. */
+function linkWorks(world: World, person: Person) {
+  const exp = lived(world, person);
+  if (!exp) return;
+  const w = (world.works ?? []).find((x) => (x.kind === "song" || x.kind === "story") && x.by === person.id && !x.tale);
+  if (!w) return;
+  const rule = pickRule(person, exp);
+  if (rule) composeTale(world, person, rule, w.kind as TaleForm, w);
+}
+/** What a person has lived through that is worth warning others of, if anything: the oldest sort of lesson first. */
+export function lived(world: World, p: Person): Experience | undefined {
+  const felt = p.felt;
+  if (felt && felt.scares >= 1) return "scare";
+  if (felt && felt.hungry > 90) return "hungry";
+  if (p.illness) return "ill";
+  if (felt && felt.cold > 90) return "cold";
+  if ((p.grief ?? 0) > 0.1) return "grief";
+  if (Object.keys(p.heart?.betrayals ?? {}).length) return "betrayed";
+  if (Object.values(p.conflict?.grudge ?? {}).some((g) => g > 0.2)) return "fight";
+  if (p.conflict?.record.includes("theft")) return "theft";
+  if (world.people.some((q) => q.mother === p.id && q.age < 1)) return "birth";
+  if (p.needs.energy > 0.8) return "toil";
+  if ([...p.relations.values()].some((r) => r.trust > 0.85)) return "kindness";
+  if (p.personality.curiosity > 0.7) return "wonder";
+  return undefined;
+}
+const pickRule = (p: Person, exp: Experience): string | undefined => {
+  const pool = Object.entries(RULES).filter(([, r]) => r.when === exp).map(([k]) => k);
+  return pool.length ? pool[Math.floor(hash01(`${p.id}|rule|${exp}|${Object.keys(p.learn?.tales ?? {}).length}`) * pool.length)] : undefined;
+};
 /** One person tells another a tale they lack (or, if the hearer lost its rule, the telling restores it). */
 export function tellTale(world: World, teller: Person, hearer: Person): Tale | undefined {
   if (hearer.age < 1) return undefined;
@@ -307,7 +342,7 @@ export function tellTale(world: World, teller: Person, hearer: Person): Tale | u
   const hl = learnOf(hearer);
   for (const tale of lore.tales) {
     const mine = tl.tales[tale.id];
-    if (!mine) continue;
+    if (!mine || (tale.work && lore.banned.includes(tale.work))) continue;
     const theirs = hl.tales[tale.id];
     if (theirs && (theirs.rule || !mine.rule)) continue;
     if (roll(teller, `tell-${tale.id}`) > 0.35 + 0.3 * relation(hearer, teller.id, world).trust) continue;
@@ -415,14 +450,7 @@ export function carryKnowledge(world: World, a: Person, b: Person) {
 // ---------------------------------------------------------------- failure and false belief
 
 /** Things that people come to believe from what befalls them; some are so and some are not. */
-export const FOLK: Claim[] = [
-  { id: "thin-moon-hunt", text: "hunts fail under a thin moon", truth: false, domain: "hunt", bias: -0.2 },
-  { id: "red-berries-bad", text: "the red berries sicken whoever picks them", truth: false, domain: "forage", bias: -0.2 },
-  { id: "river-takes-lone", text: "the river takes whoever fishes alone", truth: false, domain: "fish", bias: -0.2 },
-  { id: "dusk-fish", text: "the fish bite best at dusk", truth: true, domain: "fish", bias: 0.1 },
-  { id: "wash-fever", text: "washing keeps the fever away", truth: true, domain: "wash", bias: 0.1 },
-  { id: "fire-wolves", text: "a fire keeps the wolves off", truth: true, domain: "fire", bias: 0.1 },
-];
+export const FOLK: Claim[] = CLAIM_CATALOGUE;
 export const claimOf = (world: World, id: string): Claim | undefined => worldLore(world).claims.find((c) => c.id === id) ?? FOLK.find((c) => c.id === id);
 /** Take up a belief with some confidence. */
 export function believe(world: World, p: Person, claimId: string, conf: number, from?: string) {
@@ -433,13 +461,18 @@ export function believe(world: World, p: Person, claimId: string, conf: number, 
   learnOf(p).beliefs[claimId] = { conf: clamp01(conf), from };
   if (!c.truth) tally(world, "falseBeliefsHeld");
 }
+/** One of the false beliefs about this kind of act that they do not hold and have not disproved; which one is a hash of who they are. */
+function pickClaim(p: Person, kind: string, lr: Learning, salt: string): Claim | undefined {
+  const pool = FOLK.filter((x) => x.domain === kind && x.bias < 0 && !lr.beliefs[x.id] && !lr.refuted.includes(x.id));
+  return pool.length ? pool[Math.floor(hash01(`${p.id}|${salt}|${kind}|${Object.keys(lr.beliefs).length}`) * pool.length)] : undefined;
+}
 /** What befell them was bad: remember it, and (sometimes) find a reason, right or not. Others who watched learn a little from it too. */
 export function failedAt(world: World, p: Person, kind: string, watchers = true) {
   const lr = learnOf(p);
   lr.failures[kind] = (lr.failures[kind] ?? 0) + 1;
   tally(world, "failuresLearned");
   if (p.age >= ADULT_AGE && roll(p, `blame-${kind}`) < 0.2) {
-    const c = FOLK.find((x) => x.domain === kind && x.bias < 0 && !lr.beliefs[x.id] && !lr.refuted.includes(x.id));
+    const c = pickClaim(p, kind, lr, "blame");
     if (c) {
       believe(world, p, c.id, 0.6);
       note(p, world, `It went badly. I think it is because ${c.text}.`);
@@ -452,7 +485,7 @@ export function failedAt(world: World, p: Person, kind: string, watchers = true)
     ql.failures[kind] = (ql.failures[kind] ?? 0) + 0.5;
     tally(world, "learnedFromOthersFailure");
     if (roll(q, `see-${kind}`) < 0.08) {
-      const c = FOLK.find((x) => x.domain === kind && x.bias < 0 && !ql.beliefs[x.id] && !ql.refuted.includes(x.id));
+      const c = pickClaim(q, kind, ql, "see");
       if (c) believe(world, q, c.id, 0.5, p.id);
     }
   }
@@ -688,14 +721,15 @@ export function learningStep(person: Person, world: World, dt: number) {
   } else if (person.age >= 2.667 && person.needs.hunger < 0.6 && person.needs.thirst < 0.6 && roll(person, "seek") < 0.08) seekMaster(world, person);
   if (person.age < ADULT_AGE) return;
   // Someone who has lived through danger or want, and has the art for it, makes a tale.
-  const felt = person.felt;
-  if (felt && calm(person) && now - (lr.lastTale ?? -1e9) > 2 * 1440 && (world.lore?.tales.length ?? 0) < 40) {
-    const rule = felt.scares >= 1 ? "fire-keeps-wolves" : felt.hungry > 90 ? "share-in-winter" : person.illness ? "wash-before-eating" : undefined;
+  if (calm(person) && now - (lr.lastTale ?? -1e9) > 2 * 1440 && (world.lore?.tales.length ?? 0) < 60) {
+    const exp = lived(world, person);
+    const rule = exp ? pickRule(person, exp) : undefined;
     if (rule && roll(person, "compose") < 0.04 + 0.2 * artOf(person)) {
       const r = roll(person, "form");
       composeTale(world, person, rule, r < 0.35 ? "story" : r < 0.65 ? "song" : r < 0.85 ? "proverb" : "myth");
-    }
+    } else if (world.works?.length) linkWorks(world, person);
   }
+  assignClass(world, person);
   // The guild: those who have mastered one craft close ranks around it.
   const best = roleOf(person);
   if (best && skillOf(person, best.skill) >= 0.7 && valueOf(person, "tradition") > 0.6 && !lr.guild) {
@@ -724,4 +758,101 @@ function seekMaster(world: World, person: Person) {
     if (!best || reputeOf(q, skill) > reputeOf(best, skill)) best = q;
   }
   if (best && !lr.master && skillOf(person, skill) < 0.45) takeApprentice(world, best, person, skill);
+}
+
+// ---------------------------------------------------------------- class, closing and censoring, collapse
+
+const whoever = (world: World, id: string | undefined): Person | undefined => (id ? (personById(world, id) ?? world.dead?.find((d) => d.person.id === id)?.person) : undefined);
+/** Whether someone belongs to the elite on their own account: a rank held, or the wealth of an owner. */
+export const eliteBy = (world: World, q: Person): boolean => q.learn?.class === "elite" || rankOf(world, q) >= 0.5 || q.econ?.class === "owner";
+/**
+ * Nobody is born into a class by decree: a child takes its parents' (the elite if either parent is, by rank or inherited wealth, with a
+ * chance of falling out of it), and a grown person with no known parents, or a commoner who has risen to rank or ownership, is judged by
+ * their own. Runs hourly; a class once held is kept unless a commoner rises.
+ */
+export function assignClass(world: World, p: Person) {
+  const lr = learnOf(p);
+  if (p.age < 1 || lr.class === "elite") return;
+  const parents = [whoever(world, p.mother), whoever(world, p.father)].filter((q): q is Person => !!q);
+  if (!lr.class) {
+    const elite = parents.length ? parents.some((q) => eliteBy(world, q)) && hash01(`${p.id}|class`) < 0.9 : p.age >= ADULT_AGE && eliteBy(world, p);
+    if (!parents.length && p.age < ADULT_AGE) return;
+    lr.class = elite ? "elite" : "common";
+    tally(world, elite ? "classElite" : "classCommon");
+    if (elite && parents.length) tally(world, "classInherited");
+  } else if (p.age >= ADULT_AGE && eliteBy(world, p)) {
+    lr.class = "elite";
+    tally(world, "classRisen");
+  }
+}
+/**
+ * Closing is done by those with the say: where the leader is of the elite and holds to the old ways, the lettered elite keep reading to
+ * themselves, and a craft whose masters are all of one sex is no longer taught to the other. Only teaching is closed, never doing.
+ */
+export function closeAccess(world: World, leader: Person) {
+  const lore = worldLore(world);
+  if (valueOf(leader, "tradition") < 0.55 || !eliteBy(world, leader)) return;
+  const adults = world.people.filter((q) => q.age >= ADULT_AGE);
+  if (!lore.restrict.read && knows(world, "writing") && adults.filter((q) => q.learn?.class === "elite" && isLiterate(q)).length >= 2 && adults.some((q) => q.learn?.class === "common" && !isLiterate(q))) {
+    lore.restrict.read = { class: "elite" };
+    tally(world, "readingClosed");
+    chronicle(world, `${leader.name} and the lettered kept reading to themselves.`);
+  }
+  for (const s of SKILLS) {
+    if (lore.restrict[`skill:${s}`]) continue;
+    const masters = adults.filter((q) => q.learn?.initiated.includes(s));
+    if (masters.length < 3) continue;
+    const sex = masters[0]!.sex;
+    if (masters.every((q) => q.sex === sex)) {
+      lore.restrict[`skill:${s}`] = { sex };
+      tally(world, "craftsClosedBySex");
+      chronicle(world, `${SKILL_WORDS[s].doing} came to be taught only to ${sex === "f" ? "women" : "men"}.`);
+    }
+  }
+}
+/**
+ * An authority forbids a work it distrusts: a priest the work of the rival faith's side, a leader of the old ways any book of ideas the people
+ * did not have. At most one ban a quarter-year; returns what was banned.
+ */
+export function banWorks(world: World, authority: Person, role: "priest" | "leader", rivalFaith?: Record<string, string>): string | undefined {
+  const lore = worldLore(world);
+  const now = world.clock ?? 0;
+  if (now - (lore.lastBan ?? -1e9) < 4 * 1440) return undefined;
+  for (const w of world.works ?? []) {
+    if (lore.banned.includes(w.id) || w.kind === "painting" || w.by === authority.id || (w.kind === "book" && !w.at)) continue;
+    const author = whoever(world, w.by);
+    let bad = false;
+    if (role === "priest") bad = !!author && Object.entries(author.faith ?? {}).some(([q, t]) => authority.faith?.[q] && authority.faith[q] !== t) && hash01(`${authority.id}|ban|${w.id}`) < 0.5;
+    else bad = valueOf(authority, "tradition") >= 0.7 && w.kind === "book" && (w.knows ?? []).some((i) => !authority.ideas?.includes(i)) && hash01(`${authority.id}|ban|${w.id}`) < 0.3;
+    void rivalFaith;
+    if (!bad) continue;
+    lore.lastBan = now;
+    censor(world, w.id);
+    tally(world, role === "priest" ? "bannedByPriest" : "bannedByLeader");
+    note(authority, world, `I forbade "${w.title}".`);
+    return w.id;
+  }
+  return undefined;
+}
+/**
+ * The hard years: many deaths in a quarter-year, or a severe epidemic across the people, makes them lose what they knew (and libraries
+ * burn when it is bad enough). Once a year at most. Returns the ideas lost, or undefined when nothing befell.
+ */
+export function collapseWatch(world: World): string[] | undefined {
+  const lore = worldLore(world);
+  const now = world.clock ?? 0;
+  const YEAR_SEC = 16 * 1440;
+  if (now - (lore.lastCollapse ?? -1e9) < YEAR_SEC) return undefined;
+  const alive = world.people.length;
+  const died = (world.dead ?? []).filter((d) => now - d.t < YEAR_SEC / 4).length;
+  const share = died / Math.max(1, alive + died);
+  const epi = world.world2?.epidemic;
+  const sick = world.people.filter((q) => q.illness || q.body?.sickWith).length / Math.max(1, alive);
+  const plague = !!epi && epi.severity >= 0.55 && sick >= 0.3;
+  if (!((died >= 5 && share >= 0.25) || plague)) return undefined;
+  lore.lastCollapse = now;
+  const severity = Math.min(0.8, 0.1 + 0.6 * share + (plague ? 0.15 : 0));
+  tally(world, "collapses");
+  chronicle(world, plague ? `The sickness took so many that much was forgotten.` : `So many died that the old ways were half forgotten.`);
+  return collapse(world, severity);
 }
