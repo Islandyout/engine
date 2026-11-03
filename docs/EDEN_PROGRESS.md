@@ -106,6 +106,6 @@ and the life sweep shows no survival regression. "Test" below means `apps/editor
 - [ ] K3 Eden browser test of its own (`tests/browser/eden*.cjs`) wired into CI. Done means: it runs and passes in CI; CI actions pinned to SHA.
 - [ ] K4 Performance with many bodies rendering measured. Done means: frame-time numbers at 60 people in a doc.
 - [x] K5 Docs: single design document for the mind; older Supabase-era docs corrected; IMPLEMENTATION_STATUS rows and changelogs for every phase. Done means: files exist and match the code.
-- [ ] K6 Old Supabase `eden-tick` function switched off or the decision recorded (needs user consent). Done means: confirmed state recorded.
-- [ ] K7 Stray branch `eden-takeover` deleted or reported to the user. Done means: branch list shows it gone, or the refusal is reported.
+- [x] K6 Old Supabase `eden-tick` function switched off or the decision recorded (needs user consent). Done means: confirmed state recorded.
+- [x] K7 Stray branch `eden-takeover` deleted or reported to the user. Done means: branch list shows it gone, or the refusal is reported.
 - [x] K8 Superseded installers (10-14) marked superseded in docs. Done means: doc note present.

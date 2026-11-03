@@ -166,11 +166,10 @@ revolution rather than a plot of plants, domestication, metals, wheels, boats an
 - Never seen working in the running game: the rowboat, birds, leaping fish, snow cover, music, belly/dirt/limp visuals, the journal and
   pack screens, the people form, the mic button, the pad buttons, the plan and party behaviour, the model-planner. All pass tests and the
   simulation; headless screenshots did not show them.
-- The free model (Ollama) has never been run against this code. Voice, chat, planner and rewording are tested only with fake answers.
+- The free model (Ollama) has now been run against this code (docs/EDEN_OLLAMA_RUN.md): chat works, voice answers in 7 to 10 s and often returns the plain line, the planner's plans are mostly thrown out by the checks (1 of 3 accepted with a 1-billion-parameter model).
 - **Superseded:** installers 10-14 showed people in underwear (fixed in 15); every earlier installer, 3 to 14, is superseded and must not be used or shared. Build a fresh one from the current branch.
-- The old Supabase `eden-tick` function from the first version is still running on the live project; it was left alone on purpose and
-  never switched off.
-- A stray remote branch `eden-takeover` could not be deleted (refused by the sandbox).
+- **Done:** the old Supabase `eden-tick` function from the first version has been switched off (project "adam and eve"): the function is replaced by a stub that answers 410 and needs a JWT (version 4), and the pg_cron job that called it every 3 minutes was unscheduled. The first version's source (a Groq call for each of the two people on every tick) is no longer anywhere but this session's record. The tables were left alone.
+- A stray remote branch `eden-takeover` could not be deleted from the sandbox (the proxy drops every delete push, tried twice). Delete it on GitHub: Branches, `eden-takeover`, bin icon.
 - `docs/EDEN_THINGS.md` lists about 300 objects to build; only small joys and a handful (furniture, hut, shrine, painted stone, library,
   weir, snare, net) exist. Cooking, pots, ovens, boats, bridges as used objects, play objects, farm works and animal companions are not built.
 - Eden-specific code has no browser test of its own (the CI browser test covers the editor, not the garden).
