@@ -314,7 +314,8 @@ function inner(person: Person, world: World, out: Option[]) {
   if (evening && calm && !awakeAlone(person, world)) {
     const feast = !!festivalOn(world);
     const crowd = world.people.filter((q) => q !== person && q.age >= 1 && dist(q.x, q.z, person.x, person.z) < 14 && awake(q)).length;
-    if (crowd >= 2) {
+    // On an ordinary evening only those who want amusement are moved to it; on a feast everyone is.
+    if (crowd >= 2 && (feast || (person.needs.joy > 0.6 && deedChance(person, world, "music", 900) < 0.8))) {
       const base = feast ? 0.8 : 0.52;
       const here = { x: person.x, z: person.z, speed: 0, remaining: 24 };
       out.push({ intent: { kind: "sing", ...here }, score: base + 0.1 * (person.personality.sociability - 0.5), reason: feast ? "to sing at the feast" : "to sing with the others in the evening" });
@@ -382,7 +383,7 @@ export function deedBias(person: Person, world: World, opts: Option[]) {
   const y = yieldTo(person);
   for (const o of opts) {
     const k = o.intent.kind;
-    if (d?.lack && SERVES[d.lack].includes(k)) o.score += 0.4 * Math.min(1, d.gap * 4 + 0.3) * y;
+    if (d?.lack && SERVES[d.lack].includes(k)) o.score += 0.16 * Math.min(1, d.gap * 4 + 0.3) * y; // a nudge, not a command: it never outweighs a job in hand
     if (d && d.owed > 0.1 && (k === "gift" || k === "share") && o.intent.targetId) {
       const t = personById(world, o.intent.targetId);
       const dear = t && (t.mother === person.id || t.father === person.id || lifeOf(person).partner === t.id);
