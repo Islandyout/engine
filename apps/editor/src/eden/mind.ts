@@ -13,6 +13,7 @@ import { cultureOptions, doCreate, doPonder, doRead, exchangeIdeas, faithful, kn
 import { doInvent, doMake, planOptions, worksNow, type Plan } from "./reason";
 import { afterAct, appraise, milestone, recall, psycheBias, psycheEvent, psycheStep, type Psyche } from "./psyche";
 import { selfOf, mindStep, recordOutcome, resolveConflict, lessonBias, snapshot, aftermathOfTheft, witnessCost, judge, surpriseGift, talkAbout, type Self, type Fact, type Model, type Snap } from "./mindmodel";
+import { conflictBias, conflictStep, conflictWorld, theftConflict, type Conflict, type WorldConflict } from "./conflict";
 import { celebrate, heartAfter, heartBias, heartStep, painBias, sacrificeStep, type Heart } from "./heart";
 import { fightBeast, learnFromWorld, teamStep, type Rule, type Team } from "./solve";
 import { gift, newIdentity, neglect, practise, roleOf, skillOf, storyFor, teach, valueOf, SKILL_WORDS, type Skill, type Value } from "./identity";
@@ -294,6 +295,7 @@ export interface Person {
   accusedBy?: string[];
   favourFor?: { to: string; until: number };
   heart?: Heart; // love, pain, joy and purpose (heart.ts)
+  conflict?: Conflict; // grudges, guilt, fear, prejudice, punishment served (conflict.ts)
   psyche?: Psyche; // drives, body chemistry, lasting states, habits, cues (psyche.ts)
   emotions?: Partial<Record<Emotion, number>>; // what they feel now, each 0..1, fading at its own speed (inner.ts)
   stress?: number; // sim seconds spent very low; held long enough it breaks
@@ -324,6 +326,7 @@ export interface World {
   chronicle?: { t: number; text: string }[]; // the notable things that have happened to everyone, in order
   names?: Record<string, { name: string; by: string; known: string[] }>; // what the people call the places, who named each and who knows it
   norms?: Record<string, { strength: number; announced?: boolean }>; // customs forming among the people (norms.ts)
+  conflict?: WorldConflict; // the log of violence and its causes, feuds, wars, law (conflict.ts)
   fish?: number; // how many fish the river holds (kept by step)
   built?: number; // how many things the people have made (their ids)
   maxPeople?: number; // births stop at this many living people (default 12)
@@ -2214,6 +2217,7 @@ function finishCore(person: Person, world: World, intent: Intent) {
         psycheEvent(person, "wrong", 1);
         person.thefts = (person.thefts ?? 0) + 1;
         aftermathOfTheft(world, person, victim);
+        theftConflict(world, person, victim);
         note(person, world, `Took food from ${victim.name} because I was starving. I am ashamed.`);
         note(victim, world, `${person.name} took food from me.`);
         // Those who hear of it trust the thief a little less: the loss of faith that ends in being shunned.
@@ -2395,6 +2399,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
   } else if (hand) world.override = undefined;
   world.weather = weather;
   fadeNorms(world, dt);
+  conflictWorld(world, dt);
   noticeVisitor(world);
   // The river's fish breed in the warm months and keep to the deep in winter; a few come down from upstream, so it is never quite empty.
   const fish = (world.fish ??= 30);
@@ -2461,6 +2466,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
     lifeStep(person, world, dt);
     mindStep(person, world, dt);
     heartStep(person, world, dt);
+    conflictStep(person, world, dt);
     if (person.age >= ADULT_AGE && Math.floor((world.clock ?? 0) / 4) !== Math.floor(((world.clock ?? 0) - dt) / 4)) sacrificeStep(person, world, 4, world.things.filter((t) => aff(t).predator && aff(t).creature));
     breakDown(person, world, dt);
     if (person.grief) {
@@ -2569,6 +2575,7 @@ export function step(world: World, dt: number, settings: StepOptions = {}) {
       psycheBias(person, world, opts);
       painBias(person, opts);
       heartBias(person, world, opts);
+      conflictBias(person, world, opts);
       if (needs.thirst < 0.6 && needs.hunger < 0.6) for (const o of opts) o.score += lessonBias(person, world, o.intent.kind);
       resolveConflict(person, world, opts);
       const picked = choose(person, opts);
