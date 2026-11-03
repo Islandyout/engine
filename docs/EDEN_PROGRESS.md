@@ -53,8 +53,8 @@ and the life sweep shows no survival regression. "Test" below means `apps/editor
 - [x] E2 Scarcity, surplus, specialisation, comparative advantage, dependence on others' work, crafts/guilds, tools raising output. Done means: sim shows people living off a speciality and trading surplus.
 - [x] E3 Trade beyond swaps: distant partners, caravans/boats, markets/fairs, prices moving with supply and demand, haggling, trust networks, middlemen, storage and spoilage. Done means: price series test moves with supply; spoilage test.
 - [x] E4 Money: medium of exchange, store of value, unit of account, coinage, debt with interest, credit, ledger, tax or tribute. Done means: test that a good becomes money and debt accrues interest.
-- [ ] E5 Capital and investment: saving, seed not eaten, improvements for later return, shares in a venture, lending, insurance (granary/clan), speculation, bubbles/crashes, compounding inequality, poverty traps, class. Done means: tests/measures incl. a Gini rise in a long run.
-- [ ] E6 Work and labour: wages, employment, slavery, workers versus commanders. Done means: test wage payment and a command relationship.
+- [x] E5 Capital and investment: saving, seed not eaten, improvements for later return, shares in a venture, lending, insurance (granary/clan), speculation, bubbles/crashes, compounding inequality, poverty traps, class. Done means: tests/measures incl. a Gini rise in a long run.
+- [x] E6 Work and labour: wages, employment, slavery, workers versus commanders. Done means: test wage payment and a command relationship.
 - [x] E7 Enabling institutions: property law, contracts, weights and measures, writing used for accounts, reputation, enforcement. Done means: counting/writing discoveries used by an account ledger in a test.
 
 ## Phase F: education and flow of knowledge (GAPS 6)
