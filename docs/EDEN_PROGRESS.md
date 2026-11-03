@@ -69,7 +69,7 @@ and the life sweep shows no survival regression. "Test" below means `apps/editor
 
 - [x] G1 Leaders and followers, status hierarchy, councils, chiefs, inherited rank. Done means: leader emerges in sim from status; succession test.
 - [x] G2 Laws and judging, taboos. Done means: test that a norm becomes a law with a judge who rules on a case.
-- [ ] G3 Rites of passage, marriage customs, funerals with meaning, festivals. Done means: rite occurs at age/event; festival on calendar in the running game.
+- [x] G3 Rites of passage, marriage customs, funerals with meaning, festivals. Done means: rite occurs at age/event; festival on calendar in the running game.
 - [x] G4 Feuds between families, alliances. Done means: test of feud inheritance and an alliance forming.
 - [x] G5 Religion as institution: priests, conflicts. Done means: test of a priest role and a schism over a tenet.
 - [x] G6 Splitting of the group, founder effects, cultural drift (customs, languages). Done means: two groups diverge in a long-run measure.
