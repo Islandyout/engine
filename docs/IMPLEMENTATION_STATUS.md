@@ -146,6 +146,7 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F139](changelog/F139.md) | Eden phase B part 2: adolescence, courtship, family, the body's rhythms, old age |
 | [F140](changelog/F140.md) | Eden phase C: self-model, other minds, lying, inner conflict, double standards |
 | [F141](changelog/F141.md) | Eden phase D: love, pain, joy, meaning |
+| [F150](changelog/F150.md) | Eden society and learning finished: leaders give orders and collect tribute, courts for harm and taboo, observable festivals and rites, priests officiate and arbitrate, camps are homes, speech uses drifted words, class arises, censorship and collapse happen, a wide catalogue of tales and beliefs |
 | [F147](changelog/F147.md) | Eden phase J: many causes learned and revised, analogies, a 48-invention tool-chain space, farms, herding, metals, wheels, boats, bridges, shared projects, 18 crafted object kinds |
 | [F148](changelog/F148.md) | Eden phase K: seen in the running game, a browser test in CI, performance, the mind design document ([EDEN_MIND](EDEN_MIND.md)) |
 | [F144](changelog/F144.md) | Eden phase G: leaders, council, succession, laws and judging, rites, festivals, feuds, alliances, priests, schisms, splitting and drift |
