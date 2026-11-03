@@ -236,9 +236,10 @@ export function deedStep(person: Person, world: World, dt: number) {
   // A roof of one's own, away from the parents' fire.
   if (!l.home && (person.mother || person.father)) {
     const mate = partnerOf(world, person);
-    const own = world.things.find((t) => t.kind === "shelter" && !!t.owner && (t.owner === person.id || t.owner === mate?.id));
-    const parents = world.people.some((q) => q.id === person.mother || q.id === person.father);
-    if (own && parents) {
+    const parents = world.people.filter((q) => q.id === person.mother || q.id === person.father);
+    // Their own: one they own that is not the parents' roof, nor within sight of the parents' door.
+    const own = world.things.find((t) => t.kind === "shelter" && !!t.owner && (t.owner === person.id || t.owner === mate?.id) && parents.every((q) => t.owner !== q.id && dist(t.x, t.z, q.x, q.z) > 10));
+    if (own && parents.length) {
       l.home = own.id;
       note(person, world, "I have a roof of my own now, and I no longer sleep under my parents'.");
       milestone(person, world, "leftHome", "left their parents' home to make their own");
