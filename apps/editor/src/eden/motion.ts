@@ -2,6 +2,7 @@
 // motion. Pure (no scene, no browser), so a harness can run thousands of situations through exactly what the page would show and look for
 // gaps: something purposeful with no motion, a feeling nobody can see, a jump from one pose to another that no person would make.
 import { actionOf, aff, type MobState, type Person, type Thing, type World } from "./mind";
+import { hypot2 } from "./earth";
 
 export type PoseName =
   | "sit" | "eat" | "drink" | "forage" | "work" | "sleep" | "mourn" | "warm" | "fish" | "talk" | "wave"
@@ -140,7 +141,7 @@ export interface Look {
 export function lookOf(p: Person, world: World): Look {
   const em = p.emotions ?? {};
   const w = world.weather;
-  const sheltered = world.things.some((t) => t.kind === "shelter" && Math.hypot(p.x - t.x, p.z - t.z) < 3.5);
+  const sheltered = world.things.some((t) => t.kind === "shelter" && hypot2(p.x - t.x, p.z - t.z) < 3.5);
   const gest = p.pregnant ? Math.max(0, Math.min(1, ((world.clock ?? 0) - p.pregnant.since) / (0.75 * 16 * 1440))) : 0;
   return {
     pregnant: gest,
@@ -158,11 +159,11 @@ export function gazeOf(p: Person, world: World): { x: number; z: number; why: st
   const other = intent && (intent.kind === "talk" || intent.kind === "share" || intent.kind === "comfort") && intent.arrived ? world.people.find((q) => q.id === intent.targetId) : world.people.find((q) => q !== p && q.intent?.kind === "talk" && q.intent.arrived && q.intent.targetId === p.id);
   if (other) return { x: other.x, z: other.z, why: "the person they are talking with" };
   if ((p.emotions?.fear ?? 0) > 0.4) {
-    const danger = world.things.filter((t) => aff(t).danger).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
-    if (danger && Math.hypot(danger.x - p.x, danger.z - p.z) < 40) return { x: danger.x, z: danger.z, why: "what frightens them" };
+    const danger = world.things.filter((t) => aff(t).danger).sort((a, b) => hypot2(a.x - p.x, a.z - p.z) - hypot2(b.x - p.x, b.z - p.z))[0];
+    if (danger && hypot2(danger.x - p.x, danger.z - p.z) < 40) return { x: danger.x, z: danger.z, why: "what frightens them" };
   }
   const v = world.visitor;
-  if (v && Math.hypot(v.x - p.x, v.z - p.z) < 12 && (p.walkerTrust !== undefined || p.heard?.includes("walker"))) return { x: v.x, z: v.z, why: "the Walker" };
+  if (v && hypot2(v.x - p.x, v.z - p.z) < 12 && (p.walkerTrust !== undefined || p.heard?.includes("walker"))) return { x: v.x, z: v.z, why: "the Walker" };
   return undefined;
 }
 

@@ -13,7 +13,7 @@
 //  - MEMORY: what is remembered fades at a rate set by how much it mattered, comes back when something cues it, is coloured by how they
 //    feel now, is strengthened by sleep, and turns up in dreams. A life story is kept from what has happened and changes with age.
 // None of this claims that anyone feels anything. It is the machinery by which behaviour comes from reasons.
-import { DAY, hourOf } from "./earth";
+import { DAY, hourOf, hypot2 } from "./earth";
 import { feel, type Emotion } from "./inner";
 import { valueOf } from "./identity";
 import { ADULT_AGE, AFFORDANCES, bondOf, isNight, note, rand, tally, type Intent, type Person, type World } from "./mind";
@@ -59,7 +59,7 @@ export interface Psyche {
 }
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 
 /** Age in the years a person would count in a human life: an Eden child grows up at 4 and is old at 55. */
 export const humanYears = (age: number) => (age < ADULT_AGE ? age * 4.5 : 18 + (age - ADULT_AGE) * 0.94);

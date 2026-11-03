@@ -20,7 +20,7 @@ words or a plan that the code then checks (see "Optional model").
 3. **Choice**, when there is no current intent. `options()` collects candidate intents with scores. The base options are in `mind.ts`;
    the modules add theirs: `cultureOptions`, `planOptions` (`reason.ts`, which also asks `solve.ts` for problem plans and party options),
    `devOptions`, `arcOptions`. Then the scores are tilted by the modules, in this order: `psycheBias` (what is wanted, habits, cues),
-   `painBias`, `heartBias`, `lessonBias` (what experience says goes well), and `resolveConflict` (two strong motives at once become
+   `painBias`, `heartBias`, the phase E to I biases (see "Modules of phases E to J"), `lessonBias` (what experience says goes well), and `resolveConflict` (two strong motives at once become
    hesitation, settled by willpower). Thirst and hunger are boosted before all of those so nothing added later can leave someone parched.
    `choose()` then picks with the person's own seeded random stream.
 4. **Doing**: the intent is walked and acted. At the end of every action `recordOutcome` (self-model), `heartAfter` and `afterAct`
@@ -44,6 +44,27 @@ channels below.
 | `culture.ts` | Songs, stories, paintings, books; mathematics and science found by pondering; philosophy and theology that spread and divide; a ledger of favours and prices; inventions as laws of the world | `cultureOptions`, `doCreate`, `doPonder`, `doRead`, `exchangeIdeas`, `faithful`, `knows`, `owe`, `tradeRates` |
 | `reason.ts` | Plans in space and time: a short run of steps toward something foreseeable, with time estimates and deadlines, and experiments when no known way works | `planOptions`, `doInvent`, `doMake`, `worksNow`, `adoptPlan` |
 | `solve.ts` | Problems nobody planned for (a wolf at camp, no wood in reach): options with cost and likelihood, who else is needed, parties and rally points, cause and effect learned from what happens and told to others | `learnFromWorld`, `teamStep`, `fightBeast`; called from `reason.ts` (`solveProblem`, `scoutPlan`, `teamOptions`) |
+
+### Modules of phases E to J (and `heart.ts`, phase D, above)
+
+These came later and hook into `mind.ts` in the same way. Where they run in `step()`: the world-level ones (`conflictWorld`, `world2Step`,
+`techStep`, `societyStep`, `economyWorldStep`) run once per step before the people loop; the per-person ones (`learningStep`,
+`economyStep`, `conflictStep`, `bodyStep`) run in the people loop after `heartStep`; the option scores are tilted in this order after `heartBias`: `societyBias`, `learnBias`, `learnFilter`, `economyBias`, `conflictBias`,
+`bodyBias`, then `lessonBias` and `resolveConflict`; `learnAfter` and `economyAfter` run at the end of each action. `options()` also
+gets `techOptions`, `learnOptions` and `livestockOptions`.
+
+| Module | Phase | What it is | Hooks into `mind.ts` |
+|---|---|---|---|
+| `learning.ts` | F | Apprenticeship (a master, a cost to the master, tests and initiation, reputation); oral tradition (a tale carries a rule from `RULES`, each retelling may drift or lose it, songs lose it least); access (sex, class, guild, ban, literacy, books copied with mistakes, burned, lost in a collapse, strangers carrying knowledge); failure and false belief (spread by trust, dropped when tested and found false); curiosity falling with age; words copied from parents with sound shifts | `learningStep`, `learnOptions`, `learnBias`, `learnFilter`, `learnAfter`, `teachStep`, `loreTalk` |
+| `society.ts` | G | Groups with a leader (from status, inherited rank), a council, laws voted from customs, cases with a judge, taboos, rites at an age or event, festivals on the first day of each season, feuds between houses, alliances, a priest, schisms, and the splitting of a group that then drifts (founder effect) | `societyStep`, `societyBias`, `onTheft` |
+| `conflict.ts` | H | Fights, killing, feud and war between bands, bullying, coercion, bondage, harsh punishment and neglect, hoarding, cheating, fraud, bribery, betrayal, informing, scapegoating, mobs, propaganda; each act logs its cause; consequences by honour, shame or guilt ethos, a judge, restitution, jail, exile, forgiveness. Sexual violence is deliberately not modelled (`F145.md`) | `conflictWorld`, `conflictStep`, `conflictBias`, `theftConflict` |
+| `world2.ts` | I | Other settlements (trade, raids, migrants, journeys over mountains and rivers), geography and slow climate drift, epidemics that travel, worn-out land, fire danger at camp, livestock beyond the dog | `world2Step`, `livestockOptions`, `tameLivestock` |
+| `body.ts` | I | Growth curve, strength, fitness, sleep debt, senses ageing, disability, scars, lice, pregnancy complications, bed sickness; and the Creator's Walker body (look, needs, ageing, deeds remembered by people) | `bodyStep`, `bodyBias`, `bodySpeed`, `sightMul`, `fertilityOf`, `birthComplication`, `stillbirthExtra` |
+| `economy.ts` | E | Ownership, speciality and surplus, a fair every fourth day, prices from supply and demand, haggling, caravans, spoilage, money that emerges, debt with interest, a common granary, wages and bonded work, tally sticks and writing | `economyStep`, `economyWorldStep`, `economyBias`, `economyAfter`, `economyTheft`, `inheritHoldings`, `marketTrade` |
+| `tech.ts` | J | A large space of inventions where each needs earlier ones (`CRAFTS`; a pot needs a basket, a kiln a pot, copper a kiln), farms, tame animals, metals, wheels, boats and bridges, shared projects; `work` intents use what was built; `inventionCount` reports how many a people has found | `techStep`, `techOptions`, `doWork` |
+| `wisdom.ts` | J | Many causes learned from what happens (`CAUSES`, each with a `watch` that counts as hit or miss), beliefs dropped on enough misses with the person saying they were wrong, analogies between things, and a method of going about a problem that can be taught | called from `techStep` (`watchCauses`) and `tech.ts`; no direct hook in `mind.ts` |
+
+`solve.ts` learns one cause (fire keeps wolves off); `wisdom.ts` generalises it to a list.
 
 Older modules that these build on: `inner.ts` (emotions, opinions, beliefs), `identity.ts` (values, skills, roles, stories), `norms.ts`
 (customs and standing), `joys.ts` (the small moments of a day), `speech.ts` and `chat.ts` (what is said and how the Walker is answered),
@@ -89,6 +110,28 @@ Randomness comes from two seeded streams: `rand(person)` (mulberry32 on `person.
 
 From `CLAUDE.md`: a bad value produces a reason. A model plan that cannot work is rejected with the step and the reason (`parsePlan`);
 a damaged save is reported in the life log and the world restarts only after saying so (`startWorld`).
+
+### The hash-chance rule and the off-switch rule (modules of phases E to J)
+
+- **Hash chances.** `economy`, `society`, `conflict`, `body`, `tech` and `learning` draw their chances from a hash of who, when and what
+  (`chanceOf` and its siblings), never from `rand(person)`. So adding or changing one of them leaves the other draws of a seeded life
+  untouched. `world2.ts` uses its own stream, `world2.rng`, for the same reason.
+- **Off until asked.** `world2` does nothing until `enableWorld2(world)` is called (the page does, the tests do), so worlds that never asked for
+  it, such as the sweeps, are unchanged.
+- **Every cruel act has a logged cause and a way back** (`conflict.ts`): no switch makes people bad; see `F145.md` for what is left out.
+
+### Production rules (condition, then action, learned from play)
+
+The "rules" in the mind are condition-action pairs held by a person and changed by what happens:
+
+- **Causes** (`wisdom.ts` `CAUSES`; the older fire rule in `solve.ts`). A cause has a `watch` that returns true (the world bears it out),
+  false (it goes against it) or nothing. `person.rules[id]` counts tries and hits; enough hits make it a belief they act on and tell
+  (`idea`), enough misses make them drop it and say they were wrong. A rule taken on trust from being told counts for little.
+- **Tale rules** (`learning.ts` `RULES`: keep the fire alive at night, share in winter, wash before eating). A tale carries one; retelling may
+  lose it; whoever holds it leans toward it.
+- **Crafts** (`tech.ts` `CRAFTS`): each invention lists the ones it needs, so the order of discovery is forced. `person.ideas` holds
+  what one knows; telling passes it on and a death can lose it.
+- **Lessons** (`mindmodel.ts`): what experience says goes well, applied as `lessonBias` on the scores.
 
 ## Sweeps and baselines
 

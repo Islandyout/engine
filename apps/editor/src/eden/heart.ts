@@ -11,7 +11,7 @@
 //  lost they are in crisis and search (thinking, reading, praying), and the faithful are consoled sooner. A new purpose is found, or not.
 // Nothing here claims anyone feels anything. It is the machinery by which behaviour comes from reasons.
 import { grievance } from "./society";
-import { DAY } from "./earth";
+import { DAY, hypot2 } from "./earth";
 import { feel } from "./inner";
 import { skillOf, valueOf, SKILLS } from "./identity";
 import { faithful } from "./culture";
@@ -54,7 +54,7 @@ const chance = (person: Person, world: World, salt: string) => {
   return ((h >>> 0) % 100000) / 100000;
 };
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 export const heartOf = (p: Person): Heart => (p.heart ??= { betrayals: {}, hate: {}, pain: { chronic: 0, fear: 0, shame: 0, alone: 0, helpless: 0 }, acute: 0, searched: 0, joys: {}, lastAcute: -1e9, sacrifices: 0 });
 
 const INFATUATION = 3 * DAY;

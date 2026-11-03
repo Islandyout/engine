@@ -12,7 +12,7 @@
 //  answers each held by several; a schism, or a feud, can SPLIT the group: the smaller side goes to a camp of its own, takes a sample
 //  of the customs with it (a founder effect), and then drifts on its own, so the two come to differ in customs and words.
 // Chances come from a hash of who, when and what, never from a person's own random stream, so adding this shifts no other choice.
-import { DAY, hourOf, seasonAt, YEAR } from "./earth";
+import { DAY, hourOf, seasonAt, YEAR, hypot2 } from "./earth";
 import { feel } from "./inner";
 import { valueOf } from "./identity";
 import { faithful, loreOf, QUESTIONS } from "./culture";
@@ -95,7 +95,7 @@ export const customKeys = () => Object.keys(VARIANTS);
 const SEASON_NAMES = ["spring", "summer", "autumn", "winter"];
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 const hash01 = (s: string) => {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);

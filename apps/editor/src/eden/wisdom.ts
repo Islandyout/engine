@@ -4,6 +4,7 @@
 // solve.ts learns one cause (fire keeps wolves off). Here each cause is a rule with an observation that counts as a hit or a miss, a number
 // of hits makes it a belief they act on and can tell, and enough misses make them drop it and say they were wrong.
 import { chronicle, note, relation, tally, ADULT_AGE, type Person, type World } from "./mind";
+import { hypot2 } from "./earth";
 import { belief } from "./solve";
 import { psycheEvent } from "./psyche";
 import { CRAFTS, techOf } from "./tech";
@@ -15,7 +16,7 @@ export interface Cause {
   /** True if what they see bears it out, false if it goes against it, nothing if there is nothing to see. */
   watch(world: World, p: Person): boolean | undefined;
 }
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 const nearShelter = (w: World, p: Person, r: number) => w.things.some((t) => t.kind === "shelter" && dist(t.x, t.z, p.x, p.z) < r);
 
 export const CAUSES: Cause[] = [

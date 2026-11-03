@@ -14,6 +14,7 @@
 //    changes, so a lineage's speech drifts.
 // Chances come from a hash of who and what (never the person's own random stream), so adding this shifts none of the other seeded choices.
 import { SKILLS, SKILL_WORDS, practise, roleOf, skillOf, valueOf, type Skill } from "./identity";
+import { hypot2 } from "./earth";
 import { artOf, knows, loreOf, type Work } from "./culture";
 import { CLAIM_CATALOGUE, RULE_CATALOGUE, SCENES, type Experience } from "./folklore";
 import { rankOf } from "./society";
@@ -102,7 +103,7 @@ const roll = (p: Person, salt: string) => {
 };
 const yieldTo = (p: Person) => clamp01(1 - (Math.max(p.needs.hunger, p.needs.thirst) - 0.35) * 2.2);
 const calm = (p: Person) => p.needs.hunger < 0.6 && p.needs.thirst < 0.6;
-const dist = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
+const dist = (a: { x: number; z: number }, b: { x: number; z: number }) => hypot2(a.x - b.x, a.z - b.z);
 
 // What each skill is practised by (to tell what a belief about an act has to do with a teacher).
 const SKILL_KIND: Record<Skill, string> = { forage: "forage", fish: "fish", hunt: "hunt", farm: "plant", build: "build", heal: "wash" };

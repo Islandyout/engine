@@ -6,7 +6,7 @@ import { converse } from "./speech";
 import { DISCOVERIES, QUESTIONS, knows } from "./culture";
 import { recall } from "./psyche";
 import { everyone, kinName } from "./lifecycle";
-import { hourOf } from "./earth";
+import { hourOf, hypot2 } from "./earth";
 import { BELIEF_WORDS, feel as feelEmotion } from "./inner";
 
 export const TALK_RANGE = 6; // metres
@@ -14,7 +14,7 @@ export const TALK_RANGE = 6; // metres
 /** The people close enough to talk to, nearest first. */
 export function nearbyPeople(world: World, x: number, z: number, range = TALK_RANGE): Person[] {
   return world.people
-    .map((p) => ({ p, d: Math.hypot(p.x - x, p.z - z) }))
+    .map((p) => ({ p, d: hypot2(p.x - x, p.z - z) }))
     .filter((e) => e.d <= range)
     .sort((a, b) => a.d - b.d)
     .map((e) => e.p);
@@ -191,7 +191,7 @@ export function answerWalker(world: World, person: Person, said: string, rnd: ()
     if (!/\bwhere\b|\bfind\b|\bis there\b|\bany\b|\bneed\b|\blook for\b/.test(text) || !w.words.test(text)) continue;
     const known = world.things
       .filter((t) => w.test(t) && person.memory.has(t.id))
-      .map((t) => ({ t, d: Math.hypot(t.x - person.x, t.z - person.z) }))
+      .map((t) => ({ t, d: hypot2(t.x - person.x, t.z - person.z) }))
       .sort((a, b) => a.d - b.d)[0];
     remember(`about where to find ${w.label}`);
     if (!known) return keep(`I do not know where there is ${w.label} here. I am sorry.`);

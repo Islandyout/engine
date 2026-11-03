@@ -1,5 +1,6 @@
 // A long run with a large population, to see whether a change to the minds hurts survival or the population at scale.
 //   cd apps/editor && npx tsx ../../tools/eden/bigworld.ts [people=60] [years=3] [seed=1]
+// MAXT=<sim seconds> stops early (a year is 23040). The last line also gives steps and cpuMsPerStep (process CPU time, so a busy machine does not inflate it as it does wall time).
 // Prints the population each half year, deaths by cause (from the chronicle), and the share of person-time spent desperate or starving.
 import { DAY, YEAR } from "../../apps/editor/src/eden/earth";
 import { make, makePerson, step, type Person, type Thing, type World } from "../../apps/editor/src/eden/mind";
@@ -36,8 +37,11 @@ let samples = 0;
 const DT = 4;
 const MAXT = Number(process.env.MAXT ?? Infinity);
 const t0 = Date.now();
+const cpu0 = process.cpuUsage();
+let steps = 0;
 for (let t = 0; t < Math.min(years * YEAR, MAXT); t += DT) {
   step(world, DT);
+  steps++;
   if (Math.floor(t / DT) % 15 === 0) {
     for (const p of world.people) {
       samples++;
@@ -51,4 +55,4 @@ for (const c of world.chronicle ?? []) {
   const m = c.text.match(/died of ([a-z ]+),/);
   if (m) causes[m[1]!] = (causes[m[1]!] ?? 0) + 1;
 }
-console.log(JSON.stringify({ start, end: world.people.length, births: world.tally?.births ?? 0, desperateShare: +(desperate / Math.max(1, samples)).toFixed(4), causes, ms: Date.now() - t0 }));
+console.log(JSON.stringify({ start, end: world.people.length, births: world.tally?.births ?? 0, desperateShare: +(desperate / Math.max(1, samples)).toFixed(4), causes, ms: Date.now() - t0, steps, cpuMsPerStep: +(((process.cpuUsage(cpu0).user + process.cpuUsage(cpu0).system) / 1000) / Math.max(1, steps)).toFixed(3) }));

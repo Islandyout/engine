@@ -40,6 +40,22 @@ if (patience !== 1) {
   const real = globalThis.setTimeout;
   (globalThis as { setTimeout: unknown }).setTimeout = ((f: () => void, ms?: number, ...rest: unknown[]) => real(f, (ms ?? 0) >= 10000 ? (ms ?? 0) * patience : ms, ...rest)) as typeof setTimeout;
 }
+// Node's own fetch gives up on a server that has not started answering after 300 s (undici headersTimeout), which a CPU-only model on a busy
+// machine can exceed; a browser has no such limit, only the page's own timers. So this run talks through http.request, which waits as long as
+// the Voice class's own timer (stretched by PATIENCE) allows and honours its AbortSignal.
+import { request } from "node:http";
+(globalThis as { fetch: unknown }).fetch = (url: string, init: { method: string; headers: Record<string, string>; body: string; signal?: AbortSignal }) =>
+  new Promise((resolve, reject) => {
+    const req = request(url, { method: init.method, headers: init.headers }, (res) => {
+      const parts: Buffer[] = [];
+      res.on("data", (c: Buffer) => parts.push(c));
+      res.on("end", () => resolve({ ok: (res.statusCode ?? 0) < 300, status: res.statusCode, json: async () => JSON.parse(Buffer.concat(parts).toString()) }));
+    });
+    req.on("error", reject);
+    init.signal?.addEventListener("abort", () => req.destroy(new Error("aborted")));
+    req.end(init.body);
+  });
+const only = (process.env.ONLY ?? "voice,chat,plan").split(",");
 const reports: string[] = [];
 const voice = new Voice({ enabled: true, url, model, key: "", plan: true }, (text) => reports.push(text));
 const out = (kind: string, record: Record<string, unknown>) => console.log(JSON.stringify({ kind, model, ...record }));
@@ -52,18 +68,18 @@ async function timed<T>(f: () => Promise<T>): Promise<{ value: T; seconds: numbe
 
 (async () => {
   const lines = ["I am glad you are here.", "I am hungry and the grove is far.", "There is a wolf near the woods; be careful."];
-  for (let i = 0; i < rounds; i++) {
+  for (let i = 0; i < (only.includes("voice") ? rounds : 0); i++) {
     const plain = lines[i % lines.length]!;
     const { value, seconds } = await timed(() => voice.reword(adam, eve, plain, world, true));
     out("voice", { plain, answer: value?.text ?? null, intent: value?.intent ?? null, seconds, reports: reports.splice(0) });
   }
   const history: { role: "user" | "assistant"; content: string }[] = [];
-  for (const said of ["Hello, who are you?", "Where can I find water?", "Do you ever get afraid?"].slice(0, rounds)) {
+  for (const said of only.includes("chat") ? ["Hello, who are you?", "Where can I find water?", "Do you ever get afraid?"].slice(0, rounds) : []) {
     const { value, seconds } = await timed(() => voice.chat(eve, history, said, world));
     out("chat", { said, answer: value ?? null, seconds, reports: reports.splice(0) });
     if (value) history.push({ role: "user", content: said }, { role: "assistant", content: value });
   }
-  for (let i = 0; i < rounds; i++) {
+  for (let i = 0; i < (only.includes("plan") ? rounds : 0); i++) {
     const who = i % 2 ? eve : adam;
     const user = `You are ${who.name}.\n${situationOf(world, who)}\nWhat will you do next?`;
     const { value, seconds } = await timed(() => voice.plan(PLAN_SYSTEM, user));

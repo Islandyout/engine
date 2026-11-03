@@ -28,7 +28,7 @@ import { fadeNorms, isCustom, NORM_TEXT, reinforce, standing, strengthOf, type N
 import { fade, feel as feelEmotion, importance, moodPush, opinionTags, BELIEF_WORDS, type Belief, type Emotion } from "./inner";
 import { converse } from "./speech";
 import { joysFor, joyText, type Band, type Doing, type Sky } from "./joys";
-import { COMFORT_C, DAY, daylight, EDEN_CLIMATE, FISH_BY_SEASON, growthRate, hourOf, isDark, seasonAt, weatherAt, YEAR, type Climate, type Weather } from "./earth";
+import { COMFORT_C, DAY, daylight, EDEN_CLIMATE, FISH_BY_SEASON, growthRate, hourOf, isDark, seasonAt, weatherAt, YEAR, type Climate, type Weather, hypot2 } from "./earth";
 export { DAY, hourOf };
 
 export type NeedName = "hunger" | "thirst" | "energy" | "social" | "joy";
@@ -442,7 +442,7 @@ function strangersStep(world: World, dt: number) {
     if (st.stranger?.verdict !== "left") continue;
     const a = Math.atan2(st.z, st.x);
     st.intent = { kind: "wander", x: Math.cos(a) * R * 1.05, z: Math.sin(a) * R * 1.05, speed: 1.6, remaining: 2, arrived: false };
-    if (Math.hypot(st.x, st.z) > R * 1.0) world.people.splice(world.people.indexOf(st), 1);
+    if (hypot2(st.x, st.z) > R * 1.0) world.people.splice(world.people.indexOf(st), 1);
   }
 }
 
@@ -530,12 +530,12 @@ export function makePerson(id: string, x: number, z: number, seed: number, perso
   return person;
 }
 
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 // A point pushed out of any place nobody can walk into (a lake), to its edge.
 export function keepOut(world: World, p: { x: number; z: number }) {
   if ((p as Person).tech?.afloat) return; // on a boat or a bridge
   for (const c of world.noGo ?? []) {
-    const d = Math.hypot(p.x - c.x, p.z - c.z);
+    const d = hypot2(p.x - c.x, p.z - c.z);
     if (d < c.r) {
       const k = d < 1e-6 ? 1 : c.r / d;
       p.x = d < 1e-6 ? c.x + c.r : c.x + (p.x - c.x) * k;
@@ -553,8 +553,8 @@ export function routeAround(world: World, ax: number, az: number, bx: number, bz
     const t = Math.max(0, Math.min(1, ((c.x - ax) * dx + (c.z - az) * dz) / len2));
     const cx = ax + dx * t;
     const cz = az + dz * t;
-    const away = Math.hypot(cx - c.x, cz - c.z);
-    if (away >= c.r + 0.5 || Math.hypot(ax - c.x, az - c.z) < c.r - 0.5 || Math.hypot(bx - c.x, bz - c.z) < c.r - 0.5) continue;
+    const away = hypot2(cx - c.x, cz - c.z);
+    if (away >= c.r + 0.5 || hypot2(ax - c.x, az - c.z) < c.r - 0.5 || hypot2(bx - c.x, bz - c.z) < c.r - 0.5) continue;
     const side = away < 1e-6 ? { x: -dz / Math.sqrt(len2), z: dx / Math.sqrt(len2) } : { x: (cx - c.x) / away, z: (cz - c.z) / away };
     return { x: c.x + side.x * (c.r + 4), z: c.z + side.z * (c.r + 4) };
   }
@@ -564,12 +564,14 @@ export function routeAround(world: World, ax: number, az: number, bx: number, bz
 // A point pulled back inside the garden's edge when it lies outside.
 function inside(world: World, x: number, z: number): { x: number; z: number } {
   const r = world.radius;
-  const d = Math.hypot(x, z);
+  const d = hypot2(x, z);
   return r === undefined || d <= r ? { x, z } : { x: (x / d) * r, z: (z / d) * r };
 }
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const clampMood = (v: number) => Math.max(-1, Math.min(1, v));
-export const aff = (t: Thing): Affordances => AFFORDANCES[t.kind] ?? {};
+// One shared, frozen empty record for kinds with no affordances: `?? {}` made a new object on every call, and aff() runs thousands of times a step.
+const NO_AFFORDANCES: Affordances = Object.freeze({});
+export const aff = (t: Thing): Affordances => AFFORDANCES[t.kind] ?? NO_AFFORDANCES;
 // Danger is felt well beyond touching distance.
 const dangerReach = (t: Thing) => t.radius + 6 + 10 * (aff(t).danger ?? 0);
 
@@ -1210,8 +1212,9 @@ function feel(person: Person, thing: Thing, delta: number) {
 }
 
 function notice(person: Person, world: World) {
+  const sight = sightOf(person, SIGHT * sightMul(person)); // the same for every thing in this pass
   for (const t of world.things) {
-    if (dist(person.x, person.z, t.x, t.z) > sightOf(person, SIGHT * sightMul(person))) continue;
+    if (dist(person.x, person.z, t.x, t.z) > sight) continue;
     const known = person.memory.get(t.id);
     if (known) {
       known.x = t.x;

@@ -2,7 +2,7 @@
 // seed-saving, medicine and the stars (mathematics and science, found by pondering and kept in heads and books); answers to the big
 // questions, which spread and divide people (philosophy and theology); and a ledger of favours with a price for goods once they can count
 // (economy). Everything here is pure and driven by the same seeded streams as the rest of the mind.
-import { DAY, hourOf, YEAR } from "./earth";
+import { DAY, hourOf, YEAR, hypot2 } from "./earth";
 import { skillOf, valueOf, type Value } from "./identity";
 import { feel } from "./inner";
 import { bookAllowed } from "./learning";
@@ -42,7 +42,7 @@ export interface Arts {
 type Option = { intent: Omit<Intent, "arrived">; score: number };
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-const dist = (ax: number, az: number, bx: number, bz: number) => Math.hypot(ax - bx, az - bz);
+const dist = (ax: number, az: number, bx: number, bz: number) => hypot2(ax - bx, az - bz);
 function hash01(s: string) {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
