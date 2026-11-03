@@ -160,7 +160,7 @@ test("despair: a low spell that has set in", () => {
   assert.ok(peak(w, p, "despair", 600, () => ((psycheOf(p).state = "depressed"), (psycheOf(p).strain = 0.9))) > 0.02);
 });
 test("awe: a song sung among others at a feast", () => {
-  const ps = [0, 1, 2, 3].map((i) => mk(`P${i}`, i * 2, 0, 10 + i));
+  const ps = [0, 1, 2, 3, 4].map((i) => mk(`P${i}`, i * 2, 0, 10 + i, i % 2 ? "m" : "f"));
   const w = world(ps, [], 16 * DAY * 2 + 4 * DAY + (18 / 24) * DAY);
   let top = 0;
   for (let i = 0; i < 1100; i++) {
@@ -169,7 +169,7 @@ test("awe: a song sung among others at a feast", () => {
     step(w, 1);
     for (const p of ps) top = Math.max(top, p.emotions?.awe ?? 0);
   }
-  assert.ok((w.tally?.sungAtFeast ?? 0) >= 1 && top > 0.02, `awe ${top}`);
+  assert.ok((w.tally?.sungAtFeast ?? 0) >= 1 && top > 0.02, `awe ${top} ${JSON.stringify(w.tally)}`);
 });
 test("surprise: a beast where there was none", () => {
   const p = mk("P");
