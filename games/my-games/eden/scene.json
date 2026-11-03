@@ -139,6 +139,11 @@
           "texture": "builtin:water",
           "parts": ""
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Rotation": {
           "euler": {
             "x": 0,
@@ -188,6 +193,11 @@
           "keepTextures": false,
           "texture": "builtin:water",
           "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
         },
         "Rotation": {
           "euler": {
@@ -239,6 +249,11 @@
           "texture": "builtin:water",
           "parts": ""
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Rotation": {
           "euler": {
             "x": 0,
@@ -288,6 +303,11 @@
           "keepTextures": false,
           "texture": "builtin:water",
           "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
         },
         "Rotation": {
           "euler": {
@@ -339,6 +359,11 @@
           "texture": "builtin:water",
           "parts": ""
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Rotation": {
           "euler": {
             "x": 0,
@@ -389,6 +414,11 @@
           "texture": "builtin:water",
           "parts": ""
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Rotation": {
           "euler": {
             "x": 0,
@@ -438,6 +468,11 @@
           "keepTextures": false,
           "texture": "builtin:water",
           "parts": ""
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
         }
       }
     },
@@ -1122,7 +1157,7 @@
           "action": "none",
           "offsetX": 0,
           "offsetY": 24,
-          "width": 520,
+          "width": 430,
           "height": 96,
           "fontSize": 16,
           "color": {
@@ -1154,12 +1189,12 @@
         "UI": {
           "kind": "Widget",
           "text": "",
-          "anchor": "top-left",
+          "anchor": "top-right",
           "visibleWhen": "always",
           "action": "none",
-          "offsetX": 24,
+          "offsetX": -24,
           "offsetY": 24,
-          "width": 250,
+          "width": 220,
           "height": 40,
           "fontSize": 16,
           "color": {
@@ -1191,12 +1226,12 @@
         "UI": {
           "kind": "Widget",
           "text": "",
-          "anchor": "top-left",
+          "anchor": "top-right",
           "visibleWhen": "always",
           "action": "none",
-          "offsetX": 24,
+          "offsetX": -24,
           "offsetY": 68,
-          "width": 250,
+          "width": 220,
           "height": 40,
           "fontSize": 16,
           "color": {
@@ -1228,12 +1263,12 @@
         "UI": {
           "kind": "Widget",
           "text": "",
-          "anchor": "top-left",
+          "anchor": "top-right",
           "visibleWhen": "always",
           "action": "none",
-          "offsetX": 24,
+          "offsetX": -24,
           "offsetY": 112,
-          "width": 250,
+          "width": 220,
           "height": 40,
           "fontSize": 16,
           "color": {
@@ -1265,12 +1300,12 @@
         "UI": {
           "kind": "Widget",
           "text": "",
-          "anchor": "top-left",
+          "anchor": "top-right",
           "visibleWhen": "always",
           "action": "none",
-          "offsetX": 24,
+          "offsetX": -24,
           "offsetY": 156,
-          "width": 250,
+          "width": 220,
           "height": 40,
           "fontSize": 16,
           "color": {
@@ -1302,12 +1337,12 @@
         "UI": {
           "kind": "Widget",
           "text": "",
-          "anchor": "top-left",
+          "anchor": "top-right",
           "visibleWhen": "always",
           "action": "none",
-          "offsetX": 24,
+          "offsetX": -24,
           "offsetY": 200,
-          "width": 250,
+          "width": 220,
           "height": 40,
           "fontSize": 16,
           "color": {
@@ -4541,6 +4576,11 @@
             "z": 0.36031298339366913
           }
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
           "props": {}
@@ -4560,6 +4600,11 @@
             "y": 1.125,
             "z": 0.25
           }
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
         },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
@@ -4581,6 +4626,11 @@
             "z": 2.104014754295349
           }
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
           "props": {}
@@ -4600,6 +4650,11 @@
             "y": 1.9199999999999997,
             "z": 1.026
           }
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
         },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
@@ -4621,6 +4676,11 @@
             "z": 0.7208419780457008
           }
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
           "props": {}
@@ -4640,6 +4700,11 @@
             "y": 0.4173215478658676,
             "z": 0.5313210636377335
           }
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
         },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
@@ -4680,6 +4745,11 @@
           "texture": "",
           "parts": ""
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
           "props": {}
@@ -4699,6 +4769,11 @@
             "y": 2.15,
             "z": 0.8500000000000001
           }
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
         },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
@@ -4739,6 +4814,11 @@
           "texture": "",
           "parts": ""
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
           "props": {}
@@ -4758,6 +4838,11 @@
             "y": 0.7,
             "z": 0.6299999624490737
           }
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
         },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
@@ -4798,6 +4883,11 @@
           "texture": "",
           "parts": ""
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
           "props": {}
@@ -4837,6 +4927,11 @@
           "texture": "",
           "parts": ""
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
           "props": {}
@@ -4856,6 +4951,11 @@
             "y": 2.106000006198883,
             "z": 0.14299999922513962
           }
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
         },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
@@ -4877,6 +4977,11 @@
             "z": 0.9721311569213867
           }
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
           "props": {}
@@ -4896,6 +5001,11 @@
             "y": 0.7682843804359436,
             "z": 1.600000023841858
           }
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
         },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
@@ -4936,6 +5046,11 @@
           "texture": "",
           "parts": ""
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
           "props": {}
@@ -4955,6 +5070,11 @@
             "y": 0.9503515005111696,
             "z": 2.84657564163208
           }
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
         },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
@@ -4995,6 +5115,11 @@
           "texture": "",
           "parts": ""
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
           "props": {}
@@ -5034,6 +5159,11 @@
           "texture": "",
           "parts": ""
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
           "props": {}
@@ -5053,6 +5183,11 @@
             "y": 3.0713913043478263,
             "z": 3.135
           }
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
         },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
@@ -5074,6 +5209,11 @@
             "z": 4.620000000000001
           }
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
           "props": {}
@@ -5093,6 +5233,11 @@
             "y": 1.7480440139770508,
             "z": 1.5915547609329224
           }
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
         },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
@@ -5114,6 +5259,11 @@
             "z": 0.11000000000000001
           }
         },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
+        },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",
           "props": {}
@@ -5133,6 +5283,11 @@
             "y": 2.87646918296814,
             "z": 0.2807005226612091
           }
+        },
+        "RigidBody": {
+          "mass": 1,
+          "inverseMass": 1,
+          "dynamic": false
         },
         "Script": {
           "source": "-- A made thing the page keeps track of (a pot, a boat, a bridge, a hut on the horizon): it only tells the page which body it is\n-- (\"eden_body\"), so the page can move it (a boat that is being rowed), turn it (a bridge laid across the water) or size it.\nfunction on_message(name, value)\n  if name == \"eden_who\" and type(value) == \"string\" then host.send(\"eden_body\", value) end\nend\n",

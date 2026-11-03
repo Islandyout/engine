@@ -1141,13 +1141,15 @@ export function installEdenAgents(C: Ctx): void {
       };
       // For screenshots: turn a body to face the camera (a model faces +z at yaw 0), and keep it so every 30 ms until told to stop.
       let faceTimer: ReturnType<typeof setInterval> | undefined;
-      (window as unknown as { edenFaceCamera: unknown }).edenFaceCamera = (name: string | null) => {
+      (window as unknown as { edenFaceCamera: unknown }).edenFaceCamera = (names: string[] | null) => {
         if (faceTimer) clearInterval(faceTimer);
         faceTimer = undefined;
-        if (!name) return;
+        if (!names) return;
         faceTimer = setInterval(() => {
-          const o = C.objects[bodyIndex(name)] ?? C.objects[bodyIndexById.get(name) ?? -1];
-          if (o) o.rotation.y = Math.atan2(C.viewCamera.position.x - o.position.x, C.viewCamera.position.z - o.position.z);
+          for (const name of names) {
+            const o = C.objects[bodyIndex(name)] ?? C.objects[bodyIndexById.get(name) ?? -1];
+            if (o) o.rotation.y = Math.atan2(C.viewCamera.position.x - o.position.x, C.viewCamera.position.z - o.position.z);
+          }
         }, 30);
       };
       (window as unknown as { edenCameraAt: unknown }).edenCameraAt = () => {

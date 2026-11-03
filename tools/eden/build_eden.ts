@@ -187,15 +187,17 @@ function waterSegment(name: string, a: V3, b: V3) {
   const id = scene.box(name, [mx, RIVER_LEVEL, mz], [RIVER_WIDTH * 1.9, 0.1, len + RIVER_WIDTH], "#3f86b8",
     { Rotation: { euler: vec(0, yaw, 0) } },
     { roughness: 0.05, metalness: 0.1, opacity: 0.8, texture: "builtin:water", emissive: rgb("#2a5f88"), emissiveIntensity: 0.35 });
+  // No collider (people wade in, nothing stops them), but still a fixed body: with no body at all the runtime lets the box fall, and the water
+  // ended up on the lake bed, 3 m under the pier and the boat (docs/changelog/F152.md).
   delete (scene.entities[id]!.components as Components).Collider;
-  delete (scene.entities[id]!.components as Components).RigidBody;
 }
 RIVER.slice(0, -1).forEach((a, i) => waterSegment(`River water ${i + 1}`, a, RIVER[i + 1]!));
 {
   const id = scene.box("Lake water", [LAKE.x, RIVER_LEVEL, LAKE.z], [LAKE.radius * 1.5, 0.1, LAKE.radius * 1.5], "#3f86b8", {},
     { roughness: 0.05, metalness: 0.1, opacity: 0.8, texture: "builtin:water", emissive: rgb("#2a5f88"), emissiveIntensity: 0.35 });
+  // No collider (people wade in, nothing stops them), but still a fixed body: with no body at all the runtime lets the box fall, and the water
+  // ended up on the lake bed, 3 m under the pier and the boat (docs/changelog/F152.md).
   delete (scene.entities[id]!.components as Components).Collider;
-  delete (scene.entities[id]!.components as Components).RigidBody;
 }
 
 // The two landmark trees, as scenery only -- no Fall/mortality mechanic, per
@@ -422,7 +424,8 @@ scene.prefab("Festival Fire", {
 // market-stall for the loom, paifang-gate for the swing. These are plain boxes: ball, flute, field, channel, hive, raft, bridge. The prefab
 // names are what tech.ts's kinds map to in apps/editor/src/eden/present.ts (CRAFT_PREFAB); the host lifts each by half its height.
 // The page finds these by the "eden_body" each one sends (prop.lua).
-const tracked = { Script: { source: lua("prop.lua"), props: {} } };
+// A fixed body, so the thing stays where the page puts it (a prefab with no body at all is let fall to the ground).
+const tracked = { RigidBody: { dynamic: false }, Script: { source: lua("prop.lua"), props: {} } };
 // A model is drawn at its Scale as its size in metres (the editor fits it to a unit box first), so a made thing's Scale is the model's own size
 // times `k`.
 const sized = (name: string, file: string, k: number, extra: Record<string, unknown> = {}) => {
@@ -430,7 +433,7 @@ const sized = (name: string, file: string, k: number, extra: Record<string, unkn
   scene.prefab(name, { Renderable: { mesh: modelId(file), material: 0, visible: true }, Scale: { value: vec(...([0, 1, 2].map((a) => (max[a]! - min[a]!) * k) as [number, number, number])) }, ...extra });
 };
 const box = (name: string, size: [number, number, number], hex: string) =>
-  scene.prefab(name, { Renderable: { mesh: 0, material: 0, visible: true }, Scale: { value: vec(...size) }, Material: { color: rgb(hex), roughness: 0.85, keepTextures: false }, Script: { source: lua("prop.lua"), props: {} } });
+  scene.prefab(name, { Renderable: { mesh: 0, material: 0, visible: true }, Scale: { value: vec(...size) }, Material: { color: rgb(hex), roughness: 0.85, keepTextures: false }, ...tracked });
 sized("Clay Pot", "bucket", 2.5, tracked);
 sized("Spit", "weapon-rack", 0.5, tracked);
 sized("Oven", "rock-medium", 1, tracked);
@@ -471,12 +474,12 @@ traveller("Raider (man)", MEN, "369:#6a2020 370:#2a2a2a 371 356:#1a1410");
       UI: component("UI", { kind: "Widget", widget: kind, style: "Fantasy", anchor: info.anchor, offsetX: info.offsetX, offsetY: info.offsetY, text: info.text, visibleWhen: info.visibleWhen, action: "none", ...extra }),
     });
   };
-  hud("Calendar", "Objective", { anchor: "top-center", offsetX: 0, offsetY: 24, width: 520, height: 96, text: "", value: 0, visibleWhen: "play" });
-  hud("Hunger bar", "Resource bar", { anchor: "top-left", offsetX: 24, offsetY: 24, width: 250, height: 40, text: "", value: 0 });
-  hud("Thirst bar", "Resource bar", { anchor: "top-left", offsetX: 24, offsetY: 68, width: 250, height: 40, text: "", value: 0 });
-  hud("Tiredness bar", "Resource bar", { anchor: "top-left", offsetX: 24, offsetY: 112, width: 250, height: 40, text: "", value: 0 });
-  hud("Dirt bar", "Resource bar", { anchor: "top-left", offsetX: 24, offsetY: 156, width: 250, height: 40, text: "", value: 0 });
-  hud("Health bar", "Resource bar", { anchor: "top-left", offsetX: 24, offsetY: 200, width: 250, height: 40, text: "", value: 0 });
+  hud("Calendar", "Objective", { anchor: "top-center", offsetX: 0, offsetY: 24, width: 430, height: 96, text: "", value: 0, visibleWhen: "play" });
+  hud("Hunger bar", "Resource bar", { anchor: "top-right", offsetX: -24, offsetY: 24, width: 220, height: 40, text: "", value: 0 });
+  hud("Thirst bar", "Resource bar", { anchor: "top-right", offsetX: -24, offsetY: 68, width: 220, height: 40, text: "", value: 0 });
+  hud("Tiredness bar", "Resource bar", { anchor: "top-right", offsetX: -24, offsetY: 112, width: 220, height: 40, text: "", value: 0 });
+  hud("Dirt bar", "Resource bar", { anchor: "top-right", offsetX: -24, offsetY: 156, width: 220, height: 40, text: "", value: 0 });
+  hud("Health bar", "Resource bar", { anchor: "top-right", offsetX: -24, offsetY: 200, width: 220, height: 40, text: "", value: 0 });
   hud("Notice", "Notification", { text: "" });
   hud("Places", "Waypoints", {});
   hud("Walker keys", "Key hints", { anchor: "bottom-right", offsetX: -24, offsetY: -24, width: 620, height: 56, text: "" });

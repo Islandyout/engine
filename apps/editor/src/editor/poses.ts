@@ -336,7 +336,7 @@ function applyLook(root: THREE.Object3D, bones: PoseBones, look: Look, key: obje
   if (state) state.mats = sig;
   root.traverse((node) => {
     const mesh = node as THREE.Mesh;
-    if (!mesh.isMesh || /^eye/i.test(mesh.name)) return;
+    if (!mesh.isMesh || /^eyes?$/i.test(mesh.name)) return;
     const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const own = (mesh.userData.edenMats ??= mats.map((m) => ({ mat: (m as THREE.MeshStandardMaterial).clone(), base: ((m as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1)).clone() })));
     if (!mesh.userData.edenCloned) {

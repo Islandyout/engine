@@ -266,7 +266,7 @@ export function worldReport(world: World): ReportSection[] {
   const e = worldEcon(world);
   const prices = GOODS.filter((g) => g !== "shell").map((g) => {
     const q = quote(world, g);
-    return `${g} ${q.price} ${q.unit}`;
+    return `${g} ${q.price.toFixed(2)} ${q.unit}`;
   });
   const owing = e.debts.filter((d) => d.state === "open" || d.state === "bonded");
   const eco = [`Prices today: ${prices.join(", ")}`, `${e.money ? `Money: ${e.money}` : "No money yet: goods are swapped"} · accounts kept ${ledgerKind(world) === "written" ? "in writing" : ledgerKind(world) === "tally" ? "by tally" : "in memory only"}`];

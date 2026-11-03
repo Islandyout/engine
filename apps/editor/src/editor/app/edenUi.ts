@@ -77,6 +77,7 @@ const CSS = `
   .eden-sub { margin-top: 4px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #a89d85; }
   .eden-ok { color: #a9cf8a; } .eden-no { color: #e0907c; }
   .eden-panel form { display: flex; gap: 6px; }
+  .eden-panel form.eden-youform { flex-direction: column; align-items: stretch; }
   .eden-field { display: grid; grid-template-columns: 56px 1fr auto; gap: 6px; align-items: center; margin: 2px 0; }
   .eden-field input[type=color] { padding: 0; height: 24px; }
   .eden-panel details { margin: 2px 0; } .eden-panel summary { cursor: pointer; color: #c9a24a; }
