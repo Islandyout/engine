@@ -81,6 +81,16 @@ const PEOPLE = Number(process.env.EDEN_PERF_PEOPLE ?? 60);
         fps: +(n / wall).toFixed(2),
         frameMs: { mean: +(frames.reduce((s, v) => s + v, 0) / Math.max(1, n)).toFixed(0), p50: +pct(0.5).toFixed(0), p95: +pct(0.95).toFixed(0), max: +Math.max(...frames, 0).toFixed(0) },
         cpuMsPerFrame: { renderer: +cpuMs("renderer").toFixed(1), gpu: +cpuMs("gpu").toFixed(1), browser: +cpuMs("browser").toFixed(1) },
+        // What does not depend on the machine: the work handed to the graphics card for one frame, and what is held in its memory.
+        gpuWork: await page.evaluate(async () => {
+          const el = document.getElementById("stats-panel");
+          if (!el) return undefined;
+          el.hidden = false;
+          await new Promise((r) => setTimeout(r, 12000));
+          const text = el.textContent ?? "";
+          const num = (re) => Number((text.match(re) ?? [])[1]);
+          return { drawCalls: num(/Draw calls\s+(\d+)/), triangles: num(/Triangles\s+(\d+)/), geometries: num(/(\d+) geometries/), textures: num(/(\d+) textures/), entities: num(/Entities\s+(\d+)/) };
+        }),
       };
     };
     const results = [];
