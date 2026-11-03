@@ -19,6 +19,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { encodeSculpt, fbm, generateHeights, sampleHeight } from "../../apps/editor/src/editor/terrain";
 import { DRINK_SPOT, EDEN_LANDMARKS, EDEN_PLACES } from "../../apps/editor/src/eden/places";
+import { widgetInfo } from "../../apps/editor/src/editor/uiKit";
+import type { UIWidget } from "../../apps/editor/src/scene/Components";
 import * as kitModule from "../lib/scene_kit";
 import type { Components, V3 } from "../lib/scene_kit";
 // scene_kit is CommonJS to tsx beside this ES module, so its exports may sit on `default`.
@@ -408,9 +410,67 @@ scene.prefab("Campfire", {
   Light: component("Light", { type: "Point", color: vec(1, 0.62, 0.28), intensity: 3, range: 11 }),
 });
 
+// The things the crafts of tech.ts make, drawn (docs/changelog/F152.md). Scale is a multiple of a model's own size. Models the kit already has are
+// reused: bucket (pot), rock-medium (oven), anvil-forge (kiln), barrel-large (drum), planter (well), fence-picket (pen), bedroll (dog bed),
+// rowboat-small (boat), farmhouse (granary), rock-stone-01 (quern). These are stand-ins, not made for the job: weapon-rack for the spit,
+// market-stall for the loom, paifang-gate for the swing. These are plain boxes: ball, flute, field, channel, hive, raft, bridge. The prefab
+// names are what tech.ts's kinds map to in apps/editor/src/eden/present.ts (CRAFT_PREFAB); the host lifts each by half its height.
+const box = (name: string, size: [number, number, number], hex: string) =>
+  scene.prefab(name, { Renderable: { mesh: 0, material: 0, visible: true }, Scale: { value: vec(...size) }, Material: { color: rgb(hex), roughness: 0.85, keepTextures: false } });
+prop("Clay Pot", "bucket", 2.5);
+prop("Spit", "weapon-rack", 0.5);
+prop("Oven", "rock-medium", 1);
+prop("Kiln", "anvil-forge", 0.6);
+prop("Loom", "market-stall", 0.55);
+prop("Quern", "rock-stone-01", 6);
+box("Ball", [0.3, 0.3, 0.3], "#c8643a");
+prop("Swing", "paifang-gate", 0.25);
+box("Flute", [0.06, 0.06, 0.5], "#b08a50");
+prop("Drum", "barrel-large", 0.35);
+box("Field", [3.5, 0.15, 3.5], "#5c4326");
+box("Channel", [0.5, 0.08, 4], "#4f86b8");
+prop("Pen", "fence-picket", 1.3);
+prop("Dog Bed", "bedroll", 1.6);
+prop("Well", "planter", 1);
+box("Hive", [0.5, 0.6, 0.5], "#d9a93a");
+prop("Boat", "rowboat-small", 1.2);
+box("Raft", [2.4, 0.15, 2.4], "#7a5a30");
+box("Bridge", [1.6, 0.25, 1], "#8a6a3a");
+prop("Granary", "farmhouse", 0.55);
+// Other settlements, seen on the edge of the land: huts, a ruin, a banner (red for a hostile one), and the travellers who come from them.
+prop("Settlement Hut", "thatched-hut", 0.55);
+prop("Settlement Ruin", "rubble-large", 0.5);
+prop("Settlement Banner", "hall-banner", 1.1);
+prop("Settlement Banner Red", "banner-patternA-red", 0.9);
+const traveller = (name: string, model: string, gear: string) =>
+  scene.prefab(name, { Renderable: { mesh: modelId(model), material: 0, visible: true }, RigidBody: { mass: 70, dynamic: true }, Collider: {}, Script: { source: lua("person.lua"), props: { gear } } });
+traveller("Trader (man)", MEN, "379:#8a6a3c 380 381 382 356:#3a2a1a");
+traveller("Trader (woman)", WOMEN, "389:#7a5a8a 390 391 392 362:#4a3020");
+traveller("Raider (man)", MEN, "369:#6a2020 370:#2a2a2a 371 356:#1a1410");
+
+// The heads-up display, from the UI kit (docs/UI_KIT.md). creator.lua fills them from what the page sends ("eden_hud"): the feast calendar, the
+// Walker's needs while you walk, the keys, a notice when a party arrives, and a pin for each other settlement.
+{
+  const hud = (name: string, kind: UIWidget, extra: Record<string, unknown> = {}) => {
+    const info = widgetInfo(kind);
+    scene.add(name, [0, -40, 0], {
+      UI: component("UI", { kind: "Widget", widget: kind, style: "Fantasy", anchor: info.anchor, offsetX: info.offsetX, offsetY: info.offsetY, text: info.text, visibleWhen: info.visibleWhen, action: "none", ...extra }),
+    });
+  };
+  hud("Calendar", "Objective", { anchor: "top-center", offsetX: 0, offsetY: 24, width: 520, height: 96, text: "", value: 0, visibleWhen: "play" });
+  hud("Hunger bar", "Resource bar", { anchor: "top-left", offsetX: 24, offsetY: 24, width: 250, height: 40, text: "", value: 0 });
+  hud("Thirst bar", "Resource bar", { anchor: "top-left", offsetX: 24, offsetY: 68, width: 250, height: 40, text: "", value: 0 });
+  hud("Tiredness bar", "Resource bar", { anchor: "top-left", offsetX: 24, offsetY: 112, width: 250, height: 40, text: "", value: 0 });
+  hud("Dirt bar", "Resource bar", { anchor: "top-left", offsetX: 24, offsetY: 156, width: 250, height: 40, text: "", value: 0 });
+  hud("Health bar", "Resource bar", { anchor: "top-left", offsetX: 24, offsetY: 200, width: 250, height: 40, text: "", value: 0 });
+  hud("Notice", "Notification", { text: "" });
+  hud("Places", "Waypoints", {});
+  hud("Walker keys", "Key hints", { anchor: "bottom-right", offsetX: -24, offsetY: -24, width: 620, height: 56, text: "" });
+}
+
 // Models the people and the creatures use are loaded with the scene, not when they first appear (a spawned body is a grey box until its
 // model arrives): one hidden, far-off entity per model keeps each ready.
-for (const file of ["blossom-tree", "deer", "fox", "alpaca", "wolf", "horse", "shiba-inu", "stag", "cow", "donkey", MEN, WOMEN, "canvas-tent", "thatched-hut", "barrel-large", "tea-table", "stone-lantern", "chest", "bookshelf", "roadside-shrine", "bush-1", "rock-large"]) {
+for (const file of ["blossom-tree", "weapon-rack", "market-stall", "paifang-gate", "anvil-forge", "rock-medium", "planter", "bedroll", "bucket", "rowboat-small", "farmhouse", "rock-stone-01", "rubble-large", "hall-banner", "banner-patternA-red", "fence-picket", "deer", "fox", "alpaca", "wolf", "horse", "shiba-inu", "stag", "cow", "donkey", MEN, WOMEN, "canvas-tent", "thatched-hut", "barrel-large", "tea-table", "stone-lantern", "chest", "bookshelf", "roadside-shrine", "bush-1", "rock-large"]) {
   scene.add(`Preload ${file}`, [0, -300, 0], { Renderable: { mesh: modelId(file), material: 0, visible: false } });
 }
 

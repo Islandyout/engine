@@ -18,6 +18,7 @@ local playedAction = nil
 local gesture_left = 0 -- seconds of a gesture (a wave, a flinch) still playing, which walking must not cut short
 local WALK_SPEED = 1.6
 local dead = false
+local float_y = nil -- the height to hold the body at while it is afloat (set by the page)
 
 local function parse_target(value)
   local parts = {}
@@ -35,6 +36,11 @@ end
 
 function on_ui(name, value)
   if not who then return end
+  -- Out on the water (a boat, a swim): hold the body at the surface height the page gives, or "off" to let go.
+  if name == "eden_float_" .. who then
+    float_y = tonumber(value)
+    return
+  end
   if name == "eden_gesture_" .. who then
     self.animate = value
     playedAction = value
@@ -90,6 +96,7 @@ local function play(action)
 end
 
 function on_tick(dt)
+  if float_y then self.y = float_y; self.vy = 0 end
   if gesture_left > 0 then
     gesture_left = gesture_left - dt
     if gesture_left <= 0 then playedAction = nil end

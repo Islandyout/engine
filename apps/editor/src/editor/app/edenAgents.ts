@@ -1068,6 +1068,26 @@ export function installEdenAgents(C: Ctx): void {
         for (const [k, b] of Object.entries(bones)) if (b && typeof b === "object") out[k] = `${b.name}: ${o.worldToLocal(b.getWorldPosition(new THREE.Vector3())).toArray().map((n) => n.toFixed(2)).join(",")} parent=${b.parent?.name}`;
         return out;
       };
+      (window as unknown as { edenObj: unknown }).edenObj = (name: string) => C.objects[bodyIndex(name)] ?? C.objects[bodyIndexById.get(name) ?? -1];
+      // Frames the camera for a screenshot: who it follows (an entity name, or "" for the body you chose), how far, and how high it looks.
+      (window as unknown as { edenCamera: unknown }).edenCamera = (target: string, offset: [number, number, number], lookHeight: number) => {
+        for (const e of C.doc.scene.eachAlive()) {
+          const f = C.doc.scene.resolve(e, "CameraFollow");
+          if (f) {
+            f.target = target;
+            f.offset = { x: offset[0], y: offset[1], z: offset[2] };
+            f.lookHeight = lookHeight;
+            f.smoothing = 0.05;
+          }
+        }
+      };
+      (window as unknown as { edenWorld: unknown }).edenWorld = () => world;
+      (window as unknown as { edenInfo: unknown }).edenInfo = (name: string) => {
+        const o = C.objects[bodyIndex(name)];
+        if (!o) return undefined;
+        const walk = (n: THREE.Object3D, depth: number): unknown => ({ name: n.name, type: n.type, pos: n.position.toArray().map((v) => +v.toFixed(2)), scale: n.scale.toArray().map((v) => +v.toFixed(2)), kids: depth > 0 ? n.children.slice(0, 12).map((c) => walk(c, depth - 1)) : n.children.length });
+        return walk(o, 2);
+      };
       (window as unknown as { edenDebug: unknown }).edenDebug = () =>
         (world?.people ?? []).map((p) => {
           const index = ORIGINAL.has(p.id) ? bodyIndex(p.name) : (bodyIndexById.get(p.id) ?? -1);
