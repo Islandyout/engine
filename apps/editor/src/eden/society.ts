@@ -381,7 +381,9 @@ export function onViolence(world: World, doer: Person, victim: Person | undefine
 export function judgeFor(world: World, g: Group, accused: Person, victim: Person): Person | undefined {
   const free = (p: Person | undefined) => !!p && p.id !== accused.id && p.id !== victim.id && p.age >= ADULT_AGE && houseOf(world, p) !== houseOf(world, accused) && houseOf(world, p) !== houseOf(world, victim);
   const order = [person(world, g.leader), ...g.council.map((id) => person(world, id)), ...adultsOf(world, g.id).sort((a, b) => statusOf(world, b) - statusOf(world, a))];
-  return order.find(free) ?? order.find((p) => !!p && p.id !== accused.id && p.id !== victim.id);
+  // A judge who is the accused's friend stands aside if anyone else can hear it.
+  const impartial = (p: Person | undefined) => free(p) && (p!.relations.get(accused.id)?.affinity ?? 0) < 0.6;
+  return order.find(impartial) ?? order.find(free) ?? order.find((p) => !!p && p.id !== accused.id && p.id !== victim.id);
 }
 function rulings(world: World) {
   const s = societyOf(world);

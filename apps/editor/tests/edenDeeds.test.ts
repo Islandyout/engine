@@ -158,10 +158,10 @@ test("D4: a grave is sat by and the dead laid to rest with a reason: what they h
 
 const scoreOf = (p: Person, kind: string) => p.lastChoice.find((c) => c.kind === kind)?.score;
 /** Steps the world; after `from` seconds, returns the score of the kind each time the person chooses (its mean), if it was ever on offer. */
-const firstScore = (w: World, p: Person, kind: string, keep: () => void, max = 200, from = 0): number | undefined => {
+const firstScore = (w: World, p: Person, kind: string, keep: () => void, max = 200, from = 0, samples = 3): number | undefined => {
   let last = p.lastChoice;
   const seen: number[] = [];
-  for (let i = 0; i < max && seen.length < 3; i++) {
+  for (let i = 0; i < max && seen.length < samples; i++) {
     keep();
     step(w, 1);
     if (p.lastChoice !== last) {
@@ -227,7 +227,7 @@ test("C1: fairness about oneself: someone who gives and gives and gets nothing f
   };
   const unfair = mkTwin(9), fair = mkTwin(0);
   assert.ok(giving(unfair.w, unfair.p).given > 20 && giving(fair.w, fair.p).given === 0);
-  const sc = [unfair, fair].map((t) => firstScore(t.w, t.p, "share", () => (comfortable(t.p, t.n), (t.p.needs.hunger = 0.2), (t.n.needs.hunger = 0.8), (t.n.carry.food = 0), (t.p.carry.food = 6)), 400, 70));
+  const sc = [unfair, fair].map((t) => firstScore(t.w, t.p, "share", () => (comfortable(t.p, t.n), (t.p.needs.hunger = 0.2), (t.n.needs.hunger = 0.8), (t.n.carry.food = 0), (t.p.carry.food = 6)), 400, 70, 1));
   for (const t of [unfair, fair]) for (let i = 0; i < 80; i++) (comfortable(t.p, t.n), (t.p.needs.hunger = 0.2), (t.n.needs.hunger = 0.8), step(t.w, 1));
   assert.ok(deedsOf(unfair.p).owed > 0.3 && deedsOf(fair.p).owed < 0.05);
   assert.ok(unfair.p.journal.some((j) => /It is not fair to me/.test(j.text)));

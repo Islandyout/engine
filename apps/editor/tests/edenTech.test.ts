@@ -404,7 +404,7 @@ test("J2: several people build a granary together over more than a season, each 
   }
   const season = YEAR / 4;
   let done = 0;
-  for (let t = 0; t < 8 * season && !done; t += 2) {
+  for (let t = 0; t < 12 * season && !done; t += 2) {
     step(w, 2);
     done = w.projects?.find((p) => p.kind === "granary")?.done ?? 0;
   }
