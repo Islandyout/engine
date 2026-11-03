@@ -5,7 +5,7 @@ import { actionOf, aff, type MobState, type Person, type Thing, type World } fro
 
 export type PoseName =
   | "sit" | "eat" | "drink" | "forage" | "work" | "sleep" | "mourn" | "warm" | "fish" | "talk" | "wave"
-  | "slump" | "tense" | "alert" | "hug" | "laugh" | "yawn" | "belly" | "proud" | "stretch" | "scan" | "hurt" | "pray"
+  | "swim" | "row" | "slump" | "tense" | "alert" | "hug" | "laugh" | "yawn" | "belly" | "proud" | "stretch" | "scan" | "hurt" | "pray"
   // while walking (spine and head only; the arms and legs are the walk clip's):
   | "limp" | "trudge" | "stride" | "bold" | "furtive";
 export const WALK_POSES: readonly PoseName[] = ["limp", "trudge", "stride", "bold", "furtive"];
@@ -71,6 +71,12 @@ export function personMotion(p: Person, world: World, mem: MotionMemory, held?: 
     if (pose) why = `${intent.kind}`;
   }
   if (held) (pose = held), (why = "asked for");
+  // On the water: rowing a boat or a raft, or swimming after it went over (tech.ts keeps where they are being carried in `route`).
+  const afloat = p.tech?.afloat ? p.tech.route?.id?.split(":") : undefined;
+  if (afloat) {
+    if (afloat[1] === "cap") (pose = "swim"), (why = "swimming, the boat went over");
+    else if (afloat[2] === "boat" || afloat[2] === "raft") (pose = "row"), (why = `rowing the ${afloat[2]}`);
+  }
   const walking = !!intent && !intent.arrived;
   const asleep = intent?.kind === "sleep" && intent.arrived;
   if (!walking) {
@@ -111,6 +117,7 @@ export function walkStyle(p: Person, world: World): WalkStyle {
   const em = p.emotions ?? {};
   void world;
   if ((p.wound ?? 0) > 0.25) return { pose: "limp", pace: 0.75, why: "hurt" };
+  if (p.body?.disabilities.includes("limp")) return { pose: "limp", pace: 0.8, why: "a lame leg" };
   if ((em.fear ?? 0) > 0.4) return { pose: "furtive", pace: 1.15, why: "afraid" };
   if ((em.anger ?? 0) > 0.4) return { pose: "stride", pace: 1.1, why: "angry" };
   if ((p.grief ?? 0) > 0.2 || (em.shame ?? 0) > 0.4 || p.mood < -0.35) return { pose: "trudge", pace: 0.85, why: "low" };
@@ -125,6 +132,8 @@ export interface Look {
   pallor: number; // 0..1 ill, hurt or very cold: drained of colour
   wet: number; // 0..1 rained on, outside
   fist: number; // 0 loose hands .. 1 clenched
+  skin?: number; // 0 pale .. 1 dark: the Walker's own choice (the people's skin is the model's)
+  wear: number; // 0 new .. 1 worn out: clothes faded and stained by long filth, lice, and years of use
 }
 
 /** What shows on the body itself, apart from what it is doing. */
@@ -139,6 +148,7 @@ export function lookOf(p: Person, world: World): Look {
     pallor: Math.max(p.illness?.severity ?? 0, p.wound ?? 0, Math.max(0, p.cold - 0.5)),
     wet: w?.raining && !sheltered ? 1 : 0,
     fist: (em.anger ?? 0) > 0.4 ? 1 : p.cold > 0.5 ? 0.8 : (em.fear ?? 0) > 0.4 ? 0.6 : 0,
+    wear: Math.max(0, Math.min(1, (p.body?.filthy ?? 0) / (8 * 1440) + (p.body?.lice ? 0.25 : 0) + Math.max(0, (p.age - 30) / 120))),
   };
 }
 

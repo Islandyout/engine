@@ -46,6 +46,27 @@ function on_ui(name, value)
     if e and x and y and z then world.set_position(e, x, y, z) end
     return
   end
+  -- The heads-up display (the UI kit's widgets, set from the page): "widget|text" sets a widget's text (empty hides it), "widget|0..1" its value.
+  if name == "eden_hud" then
+    local widget, text = string.match(value, "^([^|]*)|(.*)$")
+    if widget and widget ~= "" then ui.set_text(widget, text) end
+    return
+  end
+  if name == "eden_hud_value" then
+    local widget, v = string.match(value, "^([^|]*)|(.*)$")
+    if widget and widget ~= "" then ui.set_value(widget, tonumber(v) or 0) end
+    return
+  end
+  -- A pin in the world for somewhere far off: "id|x|y|z|label" (a settlement on the horizon); "id" takes it away.
+  if name == "eden_marker" then
+    local id, x, y, z, label = string.match(value, "^([^|]*)|([^|]*)|([^|]*)|([^|]*)|(.*)$")
+    if id and tonumber(x) and tonumber(y) and tonumber(z) then ui.marker(id, tonumber(x), tonumber(y), tonumber(z), label) end
+    return
+  end
+  if name == "eden_marker_clear" then
+    ui.clear_marker(value)
+    return
+  end
   if name == "eden_remove" then
     local e = placed[value]
     if e then world.destroy(e) end

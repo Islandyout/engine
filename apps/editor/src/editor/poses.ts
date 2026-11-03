@@ -123,6 +123,15 @@ export function poseAt(name: PoseName, t: number, seed: number): Pose {
       return { drop: 0, rot: { abdomen: [-0.04, 0, 0], chest: [-0.1, 0, 0], head: [-0.1, 0, 0] } };
     case "furtive":
       return { drop: 0, rot: { abdomen: [0.14, 0, 0], head: [0.04, 0.5 * Math.sin(t * 1.8 + s), 0] } };
+    // On the water: sitting, pulling two oars; or face down, a stroke with each arm in turn.
+    case "row": {
+      const pull = Math.sin(t * 2.2 + s);
+      return { drop: 0.5, rot: { thighL: [-1.25, 0.12, 0], thighR: [-1.25, -0.12, 0], shinL: [0.55, 0, 0], shinR: [0.55, 0, 0], abdomen: [0.12 - 0.22 * pull, 0, 0], torso: [0.1 - 0.18 * pull, 0, 0], head: [0.05, 0, 0], armL: [-1.15 - 0.4 * pull, 0, 0.25], armR: [-1.15 - 0.4 * pull, 0, -0.25], foreL: [-0.5 - 0.5 * pull, 0, 0], foreR: [-0.5 - 0.5 * pull, 0, 0] } };
+    }
+    case "swim": {
+      const stroke = Math.sin(t * 2.6 + s);
+      return { drop: 0.9, lie: -Math.PI / 2, rot: { armL: [-2.5 - 0.7 * stroke, 0, 0.15], armR: [-2.5 + 0.7 * stroke, 0, -0.15], foreL: [-0.2, 0, 0], foreR: [-0.2, 0, 0], head: [-0.6, 0.3 * stroke, 0], thighL: [0.25 * stroke, 0, 0], thighR: [-0.25 * stroke, 0, 0] } };
+    }
     case "sleep":
       return { drop: 0.9, lie: Math.PI / 2, rot: { armL: [-0.2, 0, 0.2], armR: [-0.2, 0, -0.2], abdomen: [0.02 * slow, 0, 0], head: [0, 0.2, 0] } };
   }
@@ -307,6 +316,8 @@ function fingersOf(root: THREE.Object3D) {
 const DIRT = new THREE.Color(0.55, 0.45, 0.34);
 const PALE = new THREE.Color(0.86, 0.92, 0.96);
 const WET = new THREE.Color(0.8, 0.82, 0.86);
+const DARK_SKIN = new THREE.Color(0.52, 0.36, 0.26);
+const WORN = new THREE.Color(0.62, 0.56, 0.46); // clothes faded and stained by long use
 const tmpColor = new THREE.Color();
 
 function applyLook(root: THREE.Object3D, bones: PoseBones, look: Look, key: object) {
@@ -320,12 +331,12 @@ function applyLook(root: THREE.Object3D, bones: PoseBones, look: Look, key: obje
   }
   // Colour: dirt, drained colour and rain, on the body and what it wears (each wearer has their own copy of the materials).
   const state = weights.get(key);
-  const sig = `${Math.round(look.dirt * 8)}|${Math.round(look.pallor * 8)}|${look.wet}`;
+  const sig = `${Math.round(look.dirt * 8)}|${Math.round(look.pallor * 8)}|${look.wet}|${Math.round(look.wear * 8)}|${look.skin ?? ''}`;
   if (state && state.mats === sig) return;
   if (state) state.mats = sig;
   root.traverse((node) => {
     const mesh = node as THREE.Mesh;
-    if (!mesh.isMesh || /^eye/i.test(mesh.name)) return;
+    if (!mesh.isMesh || /^eyes?$/i.test(mesh.name)) return;
     const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const own = (mesh.userData.edenMats ??= mats.map((m) => ({ mat: (m as THREE.MeshStandardMaterial).clone(), base: ((m as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1)).clone() })));
     if (!mesh.userData.edenCloned) {
@@ -337,6 +348,8 @@ function applyLook(root: THREE.Object3D, bones: PoseBones, look: Look, key: obje
       tmpColor.copy(o.base);
       tmpColor.multiply(new THREE.Color(1, 1, 1).lerp(DIRT, 0.7 * look.dirt));
       tmpColor.multiply(new THREE.Color(1, 1, 1).lerp(PALE, 0.8 * look.pallor));
+      if (look.skin !== undefined && /skin|superhero|face|head|body_m|hunter/i.test(o.mat.name)) tmpColor.multiply(new THREE.Color(1, 1, 1).lerp(DARK_SKIN, look.skin));
+      else tmpColor.multiply(new THREE.Color(1, 1, 1).lerp(WORN, 0.65 * look.wear));
       if (look.wet) tmpColor.multiply(WET);
       o.mat.color.copy(tmpColor);
     }

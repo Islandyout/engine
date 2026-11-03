@@ -151,6 +151,7 @@ What the engine can do, release by release. Each milestone has its own page in [
 | [F149](changelog/F149.md) | Eden phases E and H finished in the running sim: ventures, wages, lending, goods in a store, land plots, market-priced swaps, bands that split, raids, betrayal; bondage runaway and lost births fixed |
 | [F151](changelog/F151.md) | Eden: partly done mind items made to happen in the sim (costly friendship, music and dance, giving a life for a purpose, burial rites, ideal self, false belief, judged help, biases, craving, ambition, standing, retirement, counsel) |
 | [F148](changelog/F148.md) | Eden phase K: seen in the running game, a browser test in CI, performance, the mind design document ([EDEN_MIND](EDEN_MIND.md)) |
+| [F152](changelog/F152.md) | Eden presentation: faces that blink, smooth growth, scars, a lying-down sleeper, rowing and swimming, the Walker's look, pace and deeds, other settlements and parties on the road, 20 crafted objects drawn, the feast and calendar in the HUD, the layers in the Minds tab; the lake water no longer falls to the lake bed |
 | [F144](changelog/F144.md) | Eden phase G: leaders, council, succession, laws and judging, rites, festivals, feuds, alliances, priests, schisms, splitting and drift |
 | [F143](changelog/F143.md) | Eden phase F: apprenticeship, oral tradition, access limits, false belief, curiosity by age, vocabulary drift |
 | [F142](changelog/F142.md) | Eden phase E: ownership, specialisation, fair and prices, money, debt, savings, wages, accounts |
